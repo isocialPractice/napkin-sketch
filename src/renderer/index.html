@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>napkin-sketch</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app" class="app">
+      <header class="toolbar" role="toolbar" aria-label="Sketch tools">
+        <section class="group" aria-label="Tools">
+          <button id="tool-pen" class="tool" type="button" title="Pen (P)" aria-label="Pen">
+            <span class="icon" aria-hidden="true">✎</span><span class="label">Pen</span>
+          </button>
+          <button id="tool-marker" class="tool" type="button" title="Marker (M)" aria-label="Marker">
+            <span class="icon" aria-hidden="true">▰</span><span class="label">Marker</span>
+          </button>
+          <button id="tool-eraser" class="tool" type="button" title="Eraser (E)" aria-label="Eraser">
+            <span class="icon" aria-hidden="true">⌫</span><span class="label">Eraser</span>
+          </button>
+          <button id="tool-select" class="tool" type="button" title="Select (S)" aria-label="Select">
+            <span class="icon" aria-hidden="true">⤢</span><span class="label">Select</span>
+          </button>
+          <button id="tool-text" class="tool" type="button" title="Text (T)" aria-label="Text">
+            <span class="icon" aria-hidden="true">T</span><span class="label">Text</span>
+          </button>
+        </section>
+
+        <section class="group" aria-label="Ink color">
+          <div id="swatches" class="swatches"></div>
+          <label class="custom-color" title="Custom ink color">
+            <input id="color-custom" type="color" value="#1f2328" aria-label="Custom ink color" />
+          </label>
+        </section>
+
+        <section class="group" aria-label="Stroke width">
+          <label class="slider" for="width">
+            <span class="slider-text">Width</span>
+            <input id="width" type="range" min="1" max="40" step="1" value="3" />
+            <span id="width-value" class="slider-value">3px</span>
+          </label>
+        </section>
+
+        <section class="group" aria-label="Auto sharpen">
+          <button id="sharpen-all" class="btn btn-accent" type="button" title="Sharpen every stroke (H)">
+            Sharpen all
+          </button>
+          <button id="settings-toggle" class="btn" type="button" title="Sharpen settings (Ctrl+,)">
+            Settings
+          </button>
+        </section>
+
+        <section class="group" aria-label="History">
+          <button id="undo" class="btn" type="button" title="Undo (Ctrl+Z)">Undo</button>
+          <button id="redo" class="btn" type="button" title="Redo (Ctrl+Y)">Redo</button>
+          <button id="clear" class="btn" type="button" title="Clear page">Clear</button>
+        </section>
+
+        <section class="group group-right" aria-label="File">
+          <button id="pages-toggle" class="btn" type="button" title="Toggle pages panel (Ctrl+B)">Pages</button>
+          <button id="new-sketch" class="btn" type="button" title="New sketch">New</button>
+          <button id="open" class="btn" type="button" title="Open sketch book">Open</button>
+          <button id="save" class="btn btn-primary" type="button" title="Save (Ctrl+S)">Save</button>
+          <button id="save-as" class="btn" type="button" title="Save as (Ctrl+Shift+S)">Save As</button>
+        </section>
+      </header>
+
+      <div class="body">
+        <aside id="pages-panel" class="pages-panel" aria-label="Pages">
+          <div class="pages-panel-head">
+            <span>Pages</span>
+            <div class="pages-panel-actions">
+              <button id="new-page" class="btn btn-ghost" type="button" title="Add page">+ Page</button>
+              <button id="delete-page" class="btn btn-ghost" type="button" title="Delete page">Delete</button>
+            </div>
+          </div>
+          <div id="thumbs" class="thumbs"></div>
+        </aside>
+
+        <main id="stage" class="stage">
+          <div id="canvas-wrap" class="canvas-wrap">
+            <canvas id="canvas" aria-label="Drawing surface"></canvas>
+          </div>
+        </main>
+
+        <aside id="settings-panel" class="settings-panel is-hidden" aria-label="Sharpen settings">
+          <div class="settings-head">
+            <span>Auto-sharpen settings</span>
+            <button id="settings-close" class="btn btn-ghost" type="button" aria-label="Close settings">✕</button>
+          </div>
+
+          <label class="switch settings-row" title="Auto-sharpen each stroke as you draw">
+            <input id="live-sharpen" type="checkbox" />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">Live sharpen</span>
+          </label>
+
+          <label class="settings-field">
+            <span>Wobble</span>
+            <input id="set-wobble" type="range" min="0" max="4" step="0.1" value="1.1" />
+          </label>
+          <label class="settings-field">
+            <span>Smoothing</span>
+            <input id="set-simplify" type="range" min="0.5" max="8" step="0.5" value="2.5" />
+          </label>
+          <label class="settings-field">
+            <span>Circle snap</span>
+            <input id="set-circle" type="range" min="0.02" max="0.3" step="0.01" value="0.12" />
+          </label>
+          <label class="switch settings-row">
+            <input id="set-taper" type="checkbox" checked />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">Taper stroke ends</span>
+          </label>
+
+          <hr class="settings-sep" />
+
+          <label class="settings-field">
+            <span>Symmetry <em id="set-symmetry-value">off</em></span>
+            <input id="set-symmetry" type="range" min="1" max="12" step="1" value="1" />
+          </label>
+          <label class="settings-field">
+            <span>Text size</span>
+            <input id="set-fontsize" type="range" min="10" max="96" step="1" value="24" />
+          </label>
+        </aside>
+      </div>
+
+      <footer class="statusbar">
+        <div class="status-left">
+          <span class="status-icon" aria-hidden="true">▤</span>
+          <span id="status-name" class="status-name">untitled</span>
+          <span id="status-dirty" class="status-dirty">Saved</span>
+        </div>
+        <div class="pages" aria-label="Page navigation">
+          <button id="prev-page" class="btn btn-ghost" type="button" title="Previous page">‹</button>
+          <span id="page-indicator" class="page-indicator">Page 1 / 1</span>
+          <button id="next-page" class="btn btn-ghost" type="button" title="Next page">›</button>
+        </div>
+      </footer>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+      <!-- Export page-selection dialog -->
+      <div id="export-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Export options">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Export as <strong id="export-fmt">PNG</strong></p>
+          <div class="export-dialog-actions">
+            <button id="export-page-btn" class="btn btn-primary" type="button">
+              Export Page <span id="export-page-label">1</span>
+            </button>
+            <button id="export-all-btn" class="btn" type="button">Export All Pages</button>
+            <button id="export-cancel-btn" class="btn btn-ghost" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="napkin-sketch icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f6fed"/>
+      <stop offset="1" stop-color="#1b3fae"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="464" height="464" rx="104" fill="url(#bg)"/>
+  <rect x="96" y="104" width="320" height="304" rx="26" fill="#fcfaf5"/>
+  <path d="M138 300 C 188 232, 232 372, 286 292 S 360 224, 388 268"
+        fill="none" stroke="#1f2328" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M150 348 C 196 320, 250 368, 300 340"
+        fill="none" stroke="#f08c2e" stroke-width="14" stroke-linecap="round"/>
+</svg>

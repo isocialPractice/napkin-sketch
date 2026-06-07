@@ -1,0 +1,114 @@
+{
+  "name": "napkin-sketch",
+  "version": "1.0.0",
+  "description": "Quick and easy computer sketching with a drawing GUI that simulates pen and paper/napkin sketching, featuring an auto-sharpen algorithm that turns stiff computer strokes into more hand-drawn forms.",
+  "keywords": [
+    "sketch",
+    "drawing",
+    "canvas",
+    "electron",
+    "gui",
+    "napkin",
+    "auto-sharpen",
+    "hand-drawn",
+    "touchscreen",
+    "cli"
+  ],
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "napkin-sketch": "dist/cli/index.js"
+  },
+  "main": "dist/main/main.js",
+  "module": "dist/api/index.js",
+  "types": "dist/api/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/api/index.d.ts",
+      "import": "./dist/api/index.js",
+      "default": "./dist/api/index.js"
+    },
+    "./embed": "./dist/embed/napkin-sketch.js",
+    "./styles.css": "./dist/renderer/styles.css"
+  },
+  "files": [
+    "dist",
+    "assets",
+    "README.md",
+    "CHANGELOG.md",
+    "TODO.md"
+  ],
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build": "node scripts/build.mjs",
+    "build:watch": "node scripts/build.mjs --watch",
+    "build:types": "tsc -p tsconfig.types.json",
+    "icon": "node scripts/make-icon.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/test.mjs",
+    "start": "npm run build && node dist/cli/index.js --new",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist:mac": "npm run build && electron-builder --mac dmg",
+    "dist:linux": "npm run build && electron-builder --linux AppImage",
+    "prepublishOnly": "npm run build && npm run build:types"
+  },
+  "dependencies": {
+    "electron": "^31.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "electron-builder": "^24.13.3",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0"
+  },
+  "build": {
+    "appId": "dev.napkinsketch.app",
+    "productName": "Napkin Sketch",
+    "copyright": "Copyright © napkin-sketch contributors",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Napkin Sketch"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.graphics-design"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "assets/icon.png",
+      "category": "Graphics"
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

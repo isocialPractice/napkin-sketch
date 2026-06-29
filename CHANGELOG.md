@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-alpha] - 2026-06-28
+
+### Added
+
+- Pan and zoom: a two-finger gesture pans within +/-72px of the initial finger
+  distance and zooms in or out beyond it, scaled by the configured
+  sensitivities and an optional inverted-zoom direction.
+- Straight line: hold `Space` and drag with a single pointer to draw a clean
+  straight line, with a dashed preview shown until release.
+- Quick Width: press `W` then type a number to set the current tool width once
+  the quick-feature timer elapses.
+- Quick Opacity: press `Q` then type a number to set the current tool opacity;
+  `0` maps to 100% and `00` maps to 0.1%.
+- Color change: press `C` to cycle the Quick Access Colors left to right (or
+  `Shift+C` for right to left), wrapping around at the ends; the active color
+  shows the same bold border as a mouse selection.
+- Settings window (opened from the Edit menu or the gear icon) with zoom and pan
+  sensitivity, inverted zoom, quick-feature timer (0.5-3s), Quick Access Color
+  count (2-20) and editable colors, toolbar placement (top / side / both),
+  rearrange mode with drag-and-drop tool and color ordering, color theme
+  (light / dark / sepia), and an auto-save interval.
+- Settings persistence: kept in memory across launches, exportable to a JSON
+  file, and importable from one (the last loaded file is remembered).
+- New `-f`, `--full-screen` CLI option to open the GUI window full screen.
+- Per-stroke opacity in the data model, honored by the canvas, thumbnails, and
+  SVG export.
+
 ## [0.0.0-alpha] - 2026-06-06
 
 ### Added

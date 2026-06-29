@@ -10,6 +10,7 @@
 import { createId, createSketchBook, DEFAULT_FONT_FAMILY, isTextStroke, type Point, type Stroke } from '../core/types.js';
 import type { ExportFormat, ImageFormat, MenuAction } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
+import { defaultSettings, type AppSettings } from '../core/settings.js';
 import { sharpenStroke, sharpenStrokes } from '../sharpen/sharpen.js';
 import { Surface, strokeBounds, type LiveStroke } from './surface.js';
 import { Store } from './store.js';
@@ -21,11 +22,19 @@ function el<T extends HTMLElement>(id: string): T {
   return node as T;
 }
 
-/** Ink colors offered to the user (drawing content, not UI chrome). */
-const PALETTE = ['#1f2328', '#27496d', '#2e7d5b', '#b3541e', '#7a4988', '#c0392b'];
-
 /** Minimum drag distance (px) before a text-tool press becomes a box draw. */
 const TEXT_DRAG_THRESHOLD = 10;
+
+/**
+ * Pinch deviation (px) tolerated before a two-finger gesture switches from
+ * panning to zooming. Within +/-72px of the initial finger distance the gesture
+ * pans; beyond it, the gesture zooms.
+ */
+const PAN_ZOOM_THRESHOLD = 72;
+
+/** Stroke-width bounds (mirrors the width slider in the toolbar). */
+const MIN_WIDTH = 1;
+const MAX_WIDTH = 40;
 
 class App {
   private readonly surface: Surface;
@@ -57,6 +66,35 @@ class App {
 
   private pagesOpen = false;
 
+  // Application settings (loaded from the main process on start).
+  private settings: AppSettings = defaultSettings();
+
+  // Multi-touch pan/zoom gesture state.
+  private pointers = new Map<number, { x: number; y: number }>();
+  private gesturing = false;
+  private gestureStartDist = 0;
+  private lastGestureDist = 0;
+  private lastCentroid: { x: number; y: number } | null = null;
+
+  // Straight-line (Space + drag) state.
+  private spaceDown = false;
+  private straightStart: Point | null = null;
+  private straightEnd: Point | null = null;
+
+  // Quick-feature digit entry (Quick Width "W" / Quick Opacity "Q").
+  private quickMode: 'width' | 'opacity' | null = null;
+  private quickBuffer = '';
+  private quickTimer: number | null = null;
+
+  // Toolbar rearrange mode.
+  private rearranging = false;
+
+  // Captured toolbar group order, for top/side/both menu placement.
+  private toolbarGroups: HTMLElement[] = [];
+
+  // Auto-save interval handle.
+  private autoSaveTimer: number | null = null;
+
   constructor() {
     this.canvas = el<HTMLCanvasElement>('canvas');
     this.surface = new Surface(this.canvas);
@@ -79,6 +117,23 @@ class App {
 
   /** Loads launch options from the main process and prepares the initial book. */
   async start(): Promise<void> {
+    // Load and apply persisted settings before opening a document.
+    try {
+      this.settings = await window.napkin.getSettings();
+    } catch {
+      // Standalone/dev fallback: keep default settings.
+    }
+    this.applySettings();
+    try {
+      window.napkin.onSettingsChanged((settings) => {
+        this.settings = settings;
+        this.applySettings();
+      });
+      window.napkin.onRearrangeMode((enabled) => this.toggleRearrange(enabled));
+    } catch {
+      // running outside Electron — settings sync unavailable
+    }
+
     let launch: LaunchOptions = { mode: 'new', sketchName: 'unnamed' };
     try {
       launch = await window.napkin.getLaunch();
@@ -114,6 +169,15 @@ class App {
         symmetry: this.store.tool.symmetry,
         liveTextBox: this.textDragLive ?? undefined,
         selectBox: this.rubberBandBox ?? undefined,
+        straightLine:
+          this.straightStart && this.straightEnd
+            ? {
+                a: this.straightStart,
+                b: this.straightEnd,
+                color: this.store.tool.color,
+                width: this.store.tool.width,
+              }
+            : undefined,
       });
     });
   }
@@ -142,9 +206,27 @@ class App {
   }
 
   private onPointerDown(e: PointerEvent): void {
+    // Track every pointer for two-finger pan/zoom detection.
+    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.pointers.size >= 2) {
+      this.beginGesture();
+      return;
+    }
+
     if (this.activePointerId !== null) return;
     const tool = this.store.tool.tool;
     const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+
+    // Straight-line mode: Space held + single-pointer drag draws a straight line.
+    if (this.spaceDown && tool !== 'select' && tool !== 'text') {
+      e.preventDefault();
+      this.activePointerId = e.pointerId;
+      this.canvas.setPointerCapture(e.pointerId);
+      this.straightStart = pt;
+      this.straightEnd = pt;
+      this.scheduleRender();
+      return;
+    }
 
     if (tool === 'text') {
       e.preventDefault();
@@ -163,13 +245,36 @@ class App {
     e.preventDefault();
     this.activePointerId = e.pointerId;
     this.canvas.setPointerCapture(e.pointerId);
-    const { color, width } = this.store.tool;
-    this.live = { id: createId('st'), tool, color, width, points: [pt] };
+    const { color, width, opacity } = this.store.tool;
+    this.live = {
+      id: createId('st'),
+      tool,
+      color,
+      width,
+      points: [pt],
+      ...(opacity != null ? { opacity } : {}),
+    };
     this.scheduleRender();
   }
 
   private onPointerMove(e: PointerEvent): void {
+    // Keep the tracked pointer position current for gesture math.
+    if (this.pointers.has(e.pointerId)) {
+      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    if (this.gesturing) {
+      this.updateGesture();
+      return;
+    }
+
     const tool = this.store.tool.tool;
+
+    // Straight-line mode: update the dashed preview endpoint.
+    if (this.straightStart !== null && this.activePointerId === e.pointerId) {
+      this.straightEnd = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      this.scheduleRender();
+      return;
+    }
 
     // Text-tool: track drag to define a text-box rectangle.
     if (tool === 'text' && this.textDragStart !== null && this.activePointerId === e.pointerId) {
@@ -220,7 +325,41 @@ class App {
   }
 
   private onPointerUp(e: PointerEvent): void {
+    // Release this pointer from gesture tracking first.
+    this.pointers.delete(e.pointerId);
+    if (this.gesturing) {
+      if (this.pointers.size < 2) this.endGesture();
+      return;
+    }
+
     const tool = this.store.tool.tool;
+
+    // Straight-line mode: commit a clean two-point line on release.
+    if (this.straightStart !== null && this.activePointerId === e.pointerId) {
+      if (this.canvas.hasPointerCapture(e.pointerId)) {
+        this.canvas.releasePointerCapture(e.pointerId);
+      }
+      const a = this.straightStart;
+      const b = this.straightEnd ?? a;
+      this.straightStart = null;
+      this.straightEnd = null;
+      this.activePointerId = null;
+      const { color, width, opacity } = this.store.tool;
+      let finished: Stroke = {
+        id: createId('st'),
+        tool,
+        color,
+        width,
+        points: [a, b],
+        ...(opacity != null ? { opacity } : {}),
+      };
+      if (this.store.tool.liveSharpen && tool !== 'eraser') {
+        finished = sharpenStroke(finished, this.store.tool.sharpen);
+      }
+      const extras = this.symmetryCopies(finished);
+      this.store.addStrokes([finished, ...extras]);
+      return;
+    }
 
     // Text-tool: open editor (sized to drag, or auto-size for a click).
     if (tool === 'text' && this.textDragStart !== null && this.activePointerId === e.pointerId) {
@@ -328,6 +467,75 @@ class App {
       });
     }
     return copies;
+  }
+
+  // ---- Pan / zoom gestures -------------------------------------------------
+
+  /** Enters two-finger gesture mode, discarding any in-progress interaction. */
+  private beginGesture(): void {
+    this.gesturing = true;
+    // Abandon any single-pointer drawing or drag that was in progress so it
+    // does not resume when the gesture ends.
+    this.live = null;
+    this.straightStart = null;
+    this.straightEnd = null;
+    this.dragging = false;
+    this.dragLast = null;
+    this.rubberBandStart = null;
+    this.rubberBandBox = null;
+    this.textDragStart = null;
+    this.textDragLive = null;
+    if (this.activePointerId !== null && this.canvas.hasPointerCapture(this.activePointerId)) {
+      this.canvas.releasePointerCapture(this.activePointerId);
+    }
+    this.activePointerId = null;
+
+    const pts = [...this.pointers.values()];
+    this.gestureStartDist = distance(pts[0], pts[1]);
+    this.lastGestureDist = this.gestureStartDist;
+    this.lastCentroid = centroid(pts);
+    this.scheduleRender();
+  }
+
+  /**
+   * Updates pan/zoom from the current finger positions. Within +/-72px of the
+   * initial finger distance the gesture pans; beyond that it zooms in or out
+   * (toward the pinch centroid), scaled by the configured sensitivities.
+   */
+  private updateGesture(): void {
+    if (this.pointers.size < 2) return;
+    const pts = [...this.pointers.values()];
+    const dist = distance(pts[0], pts[1]);
+    const cen = centroid(pts);
+    const delta = dist - this.gestureStartDist;
+
+    if (Math.abs(delta) <= PAN_ZOOM_THRESHOLD) {
+      if (this.lastCentroid) {
+        const dx = (cen.x - this.lastCentroid.x) * this.settings.panSensitivity;
+        const dy = (cen.y - this.lastCentroid.y) * this.settings.panSensitivity;
+        this.surface.panBy(dx, dy);
+      }
+    } else {
+      let ratio = this.lastGestureDist > 0 ? dist / this.lastGestureDist : 1;
+      if (!Number.isFinite(ratio) || ratio <= 0) ratio = 1;
+      // Amplify the deviation from 1 by the zoom sensitivity.
+      ratio = 1 + (ratio - 1) * this.settings.zoomSensitivity;
+      if (this.settings.invertZoom && ratio !== 0) ratio = 1 / ratio;
+      const rect = this.canvas.getBoundingClientRect();
+      this.surface.zoomAt(ratio, cen.x - rect.left, cen.y - rect.top);
+    }
+
+    this.lastCentroid = cen;
+    this.lastGestureDist = dist;
+    this.scheduleRender();
+  }
+
+  /** Leaves gesture mode and clears any remaining tracked pointers. */
+  private endGesture(): void {
+    this.gesturing = false;
+    this.lastCentroid = null;
+    // Drop any lingering single pointer so it does not start a stray stroke.
+    this.pointers.clear();
   }
 
   // ---- Select tool ---------------------------------------------------------
@@ -504,7 +712,7 @@ class App {
   private updateCursor(): void {
     const tool = this.store.tool.tool;
 
-    if (this.capsLockOn) {
+    if (this.capsLockOn || this.spaceDown) {
       this.canvas.style.cursor = 'crosshair';
       return;
     }
@@ -537,27 +745,23 @@ class App {
   // ---- Toolbar -------------------------------------------------------------
 
   private bindTools(): void {
+    // Capture the toolbar group order once for top/side/both menu placement.
+    const toolbar = el('toolbar');
+    this.toolbarGroups = Array.from(toolbar.querySelectorAll<HTMLElement>(':scope > .group'));
+
     for (const t of ['pen', 'marker', 'eraser', 'select', 'text'] as const) {
       el(`tool-${t}`).addEventListener('click', () => {
+        if (this.rearranging) return;
         this.store.setTool({ tool: t });
         this.updateCursor();
       });
     }
 
-    const swatches = el('swatches');
-    for (const color of PALETTE) {
-      const btn = document.createElement('button');
-      btn.className = 'swatch';
-      btn.style.setProperty('--swatch', color);
-      btn.title = color;
-      btn.setAttribute('aria-label', `Ink color ${color}`);
-      btn.dataset.color = color;
-      btn.addEventListener('click', () => {
-        this.store.setTool({ color });
-        this.updateCursor();
-      });
-      swatches.appendChild(btn);
-    }
+    this.rebuildSwatches();
+
+    // Drag-to-reorder support (active only in rearrange mode).
+    this.makeSortable(el('tool-group'), '.tool', () => this.persistToolOrder());
+    this.makeSortable(el('swatches'), '.swatch', () => this.persistQuickColors());
 
     const custom = el<HTMLInputElement>('color-custom');
     custom.addEventListener('input', () => {
@@ -575,6 +779,248 @@ class App {
     el('undo').addEventListener('click', () => this.store.undo());
     el('redo').addEventListener('click', () => this.store.redo());
     el('clear').addEventListener('click', () => this.store.clear());
+
+    el('app-settings').addEventListener('click', () => {
+      try {
+        window.napkin.openSettings();
+      } catch {
+        this.toast('Settings are only available in the desktop app.');
+      }
+    });
+  }
+
+  /** (Re)builds the quick-access color swatches from the current settings. */
+  private rebuildSwatches(): void {
+    const swatches = el('swatches');
+    swatches.textContent = '';
+    for (const color of this.settings.quickColors) {
+      const btn = document.createElement('button');
+      btn.className = 'swatch';
+      btn.style.setProperty('--swatch', color);
+      btn.title = color;
+      btn.setAttribute('aria-label', `Ink color ${color}`);
+      btn.dataset.color = color;
+      btn.draggable = this.rearranging;
+      btn.addEventListener('click', () => {
+        if (this.rearranging) return;
+        this.store.setTool({ color });
+        this.updateCursor();
+      });
+      swatches.appendChild(btn);
+    }
+  }
+
+  // ---- Settings application ------------------------------------------------
+
+  /** Applies every setting to the live UI (called on load and on change). */
+  private applySettings(): void {
+    this.rebuildSwatches();
+    this.applyMenuPlacement();
+    this.applyToolOrder();
+    this.applyTheme();
+    this.restartAutoSave();
+    this.syncUi();
+  }
+
+  /** Moves toolbar groups between the top bar and the side rail. */
+  private applyMenuPlacement(): void {
+    const app = el('app');
+    const toolbar = el('toolbar');
+    const rail = el('side-rail');
+    const placement = this.settings.menuPlacement;
+
+    for (const group of this.toolbarGroups) {
+      if (placement === 'side') rail.appendChild(group);
+      else if (placement === 'both') (group.id === 'tool-group' ? rail : toolbar).appendChild(group);
+      else toolbar.appendChild(group);
+    }
+
+    app.classList.remove('menu-top', 'menu-side', 'menu-both');
+    app.classList.add(`menu-${placement}`);
+    requestAnimationFrame(() => this.resizeSurface());
+  }
+
+  /** Reorders the tool buttons to match the saved tool order. */
+  private applyToolOrder(): void {
+    const group = el('tool-group');
+    for (const id of this.settings.toolOrder) {
+      const node = document.getElementById(id);
+      if (node && node.parentElement === group) group.appendChild(node);
+    }
+  }
+
+  /** Applies the chosen color theme to the document root. */
+  private applyTheme(): void {
+    document.documentElement.dataset.theme = this.settings.theme;
+  }
+
+  /** Restarts the auto-save interval based on the current setting. */
+  private restartAutoSave(): void {
+    if (this.autoSaveTimer !== null) {
+      window.clearInterval(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+    const seconds = this.settings.autoSaveIntervalSec;
+    if (seconds > 0) {
+      this.autoSaveTimer = window.setInterval(() => {
+        if (this.store.dirty && this.store.filePath) void this.saveBook(false);
+      }, seconds * 1000);
+    }
+  }
+
+  // ---- Rearrange mode ------------------------------------------------------
+
+  /** Toggles drag-to-reorder mode for the toolbar tools and color swatches. */
+  private toggleRearrange(force?: boolean): void {
+    this.rearranging = force ?? !this.rearranging;
+    el('app').classList.toggle('rearranging', this.rearranging);
+
+    const draggables = [
+      ...Array.from(el('tool-group').querySelectorAll<HTMLElement>('.tool')),
+      ...Array.from(el('swatches').querySelectorAll<HTMLElement>('.swatch')),
+    ];
+    for (const node of draggables) node.draggable = this.rearranging;
+
+    this.toast(
+      this.rearranging
+        ? 'Rearrange mode on: drag tools and colors to reorder.'
+        : 'Rearrange mode off.',
+    );
+  }
+
+  /** Persists the current DOM order of the tool buttons. */
+  private persistToolOrder(): void {
+    const order = Array.from(el('tool-group').querySelectorAll<HTMLElement>('.tool')).map((n) => n.id);
+    void this.saveSettings({ toolOrder: order });
+  }
+
+  /** Persists the current DOM order of the quick-access colors. */
+  private persistQuickColors(): void {
+    const colors = Array.from(el('swatches').querySelectorAll<HTMLElement>('.swatch'))
+      .map((n) => n.dataset.color ?? '')
+      .filter(Boolean);
+    void this.saveSettings({ quickColors: colors });
+  }
+
+  /** Sends a settings patch to the main process (no-op outside Electron). */
+  private async saveSettings(patch: Partial<AppSettings>): Promise<void> {
+    try {
+      this.settings = await window.napkin.updateSettings(patch);
+    } catch {
+      // Outside Electron: apply locally so the UI still reflects the change.
+      this.settings = { ...this.settings, ...patch };
+      this.applySettings();
+    }
+  }
+
+  /**
+   * Generic drag-to-reorder for a container's children, active only while in
+   * rearrange mode. Calls `onReorder` after a drop so the order can be saved.
+   */
+  private makeSortable(container: HTMLElement, itemSelector: string, onReorder: () => void): void {
+    let dragEl: HTMLElement | null = null;
+
+    container.addEventListener('dragstart', (e) => {
+      if (!this.rearranging) return;
+      const target = (e.target as HTMLElement).closest(itemSelector) as HTMLElement | null;
+      if (!target || !container.contains(target)) return;
+      dragEl = target;
+      target.classList.add('dragging');
+      e.dataTransfer?.setData('text/plain', target.id || 'item');
+    });
+
+    container.addEventListener('dragover', (e) => {
+      if (!this.rearranging || !dragEl) return;
+      e.preventDefault();
+      const after = dragAfterElement(container, itemSelector, e.clientX, e.clientY);
+      if (after === null) container.appendChild(dragEl);
+      else if (after !== dragEl) container.insertBefore(dragEl, after);
+    });
+
+    container.addEventListener('drop', (e) => {
+      if (this.rearranging) e.preventDefault();
+    });
+
+    container.addEventListener('dragend', () => {
+      if (dragEl) dragEl.classList.remove('dragging');
+      dragEl = null;
+      if (this.rearranging) onReorder();
+    });
+  }
+
+  // ---- Quick features (Quick Width "W" / Quick Opacity "Q") ----------------
+
+  /** Begins capturing digits for a quick-feature value. */
+  private startQuickEntry(mode: 'width' | 'opacity'): void {
+    this.quickMode = mode;
+    this.quickBuffer = '';
+    this.restartQuickTimer();
+    this.toast(mode === 'width' ? 'Quick width: type a number…' : 'Quick opacity: type a number…');
+  }
+
+  /** Adds a digit to the active quick-feature buffer and resets the timer. */
+  private pushQuickDigit(digit: string): void {
+    this.quickBuffer += digit;
+    this.restartQuickTimer();
+    const label = this.quickMode === 'width' ? 'Quick width' : 'Quick opacity';
+    this.toast(`${label}: ${this.quickBuffer}`);
+  }
+
+  /** (Re)starts the idle timer that commits the quick-feature value. */
+  private restartQuickTimer(): void {
+    if (this.quickTimer !== null) window.clearTimeout(this.quickTimer);
+    this.quickTimer = window.setTimeout(() => this.commitQuickEntry(), this.settings.quickTimerMs);
+  }
+
+  /** Applies the captured quick-feature value once the timer elapses. */
+  private commitQuickEntry(): void {
+    const mode = this.quickMode;
+    const buffer = this.quickBuffer;
+    this.quickMode = null;
+    this.quickBuffer = '';
+    if (this.quickTimer !== null) {
+      window.clearTimeout(this.quickTimer);
+      this.quickTimer = null;
+    }
+    if (!mode || buffer === '') return;
+
+    if (mode === 'width') {
+      const value = Number.parseInt(buffer, 10);
+      if (Number.isNaN(value)) return;
+      const width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value));
+      this.store.setTool({ width });
+      this.updateCursor();
+      this.toast(`Width set to ${width}px.`);
+      return;
+    }
+
+    // Opacity: "0" means 100%, "00" means 0.1%, otherwise the typed percentage.
+    let percent: number;
+    if (buffer === '0') percent = 100;
+    else if (buffer === '00') percent = 0.1;
+    else {
+      const value = Number.parseInt(buffer, 10);
+      if (Number.isNaN(value)) return;
+      percent = value;
+    }
+    percent = Math.min(100, Math.max(0.1, percent));
+    this.store.setTool({ opacity: percent / 100 });
+    this.toast(`Opacity set to ${percent}%.`);
+  }
+
+  // ---- Quick Access Colors (cycle with "C" / Shift+C) ----------------------
+
+  /** Cycles the ink color through the quick-access colors (dir 1 = next, -1 = prev). */
+  private cycleColor(dir: 1 | -1): void {
+    const colors = this.settings.quickColors;
+    if (colors.length === 0) return;
+    const current = this.store.tool.color.toLowerCase();
+    const index = colors.findIndex((c) => c.toLowerCase() === current);
+    let next: number;
+    if (index === -1) next = dir === 1 ? 0 : colors.length - 1;
+    else next = (index + dir + colors.length) % colors.length;
+    this.store.setTool({ color: colors[next] });
+    this.updateCursor();
   }
 
   private sharpenAll(): void {
@@ -630,6 +1076,7 @@ class App {
   private newSketch(): void {
     if (this.store.dirty && !confirm('Discard unsaved changes and start a new sketch?')) return;
     this.store.setBook(createSketchBook('untitled', 'unnamed'), null);
+    this.surface.resetViewport();
     this.toast('Started a new sketch.');
   }
 
@@ -638,6 +1085,7 @@ class App {
     if (result.cancelled) return;
     if (result.ok && result.book) {
       this.store.setBook(result.book, result.filePath ?? null);
+      this.surface.resetViewport();
       this.toast(`Opened ${this.store.displayName}.`);
     } else {
       this.toast(result.error ?? 'Could not open sketch book.');
@@ -796,7 +1244,7 @@ class App {
         tctx.lineJoin = 'round';
         for (const s of sketch.strokes) {
           if (isTextStroke(s)) continue;
-          tctx.globalAlpha = s.tool === 'marker' ? 0.38 : 1;
+          tctx.globalAlpha = s.opacity ?? (s.tool === 'marker' ? 0.38 : 1);
           tctx.strokeStyle = s.tool === 'eraser' ? sketch.background : s.color;
           tctx.lineWidth = s.width;
           tctx.beginPath();
@@ -859,6 +1307,16 @@ class App {
       case 'toggle-settings':
         this.toggleSettings();
         break;
+      case 'open-app-settings':
+        try {
+          window.napkin.openSettings();
+        } catch {
+          this.toast('Settings are only available in the desktop app.');
+        }
+        break;
+      case 'toggle-rearrange':
+        this.toggleRearrange();
+        break;
     }
   }
 
@@ -874,6 +1332,24 @@ class App {
       }
 
       if (document.activeElement instanceof HTMLTextAreaElement) return;
+
+      // Space (held) arms straight-line mode for the next single-pointer drag.
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        if (!this.spaceDown) {
+          this.spaceDown = true;
+          this.updateCursor();
+        }
+        return;
+      }
+
+      // While a quick-feature is capturing, digits feed its buffer.
+      if (this.quickMode && /^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        this.pushQuickDigit(e.key);
+        return;
+      }
+
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
       if (mod && key === 'z' && !e.shiftKey) {
@@ -908,6 +1384,12 @@ class App {
         this.updateCursor();
       } else if (!mod && key === 'h') {
         this.sharpenAll();
+      } else if (!mod && key === 'w') {
+        this.startQuickEntry('width');
+      } else if (!mod && key === 'q') {
+        this.startQuickEntry('opacity');
+      } else if (!mod && key === 'c') {
+        this.cycleColor(e.shiftKey ? -1 : 1);
       }
     });
 
@@ -915,6 +1397,10 @@ class App {
       const newCapsLock = e.getModifierState('CapsLock');
       if (newCapsLock !== this.capsLockOn) {
         this.capsLockOn = newCapsLock;
+        this.updateCursor();
+      }
+      if (e.key === ' ' || e.code === 'Space') {
+        this.spaceDown = false;
         this.updateCursor();
       }
     });
@@ -996,7 +1482,56 @@ class App {
   }
 }
 
-/** Distance from a point to a line segment a–b. */
+/** Euclidean distance between two screen points. */
+function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/** Midpoint (centroid) of a set of screen points. */
+function centroid(points: { x: number; y: number }[]): { x: number; y: number } {
+  let sx = 0;
+  let sy = 0;
+  for (const p of points) {
+    sx += p.x;
+    sy += p.y;
+  }
+  return { x: sx / points.length, y: sy / points.length };
+}
+
+/**
+ * Returns the child element (matching `selector`) that a dragged item should be
+ * inserted before, based on the pointer position, or null to append at the end.
+ * Uses whichever axis (horizontal or vertical) the items are laid out along.
+ */
+function dragAfterElement(
+  container: HTMLElement,
+  selector: string,
+  x: number,
+  y: number,
+): HTMLElement | null {
+  const items = Array.from(container.querySelectorAll<HTMLElement>(selector)).filter(
+    (n) => !n.classList.contains('dragging'),
+  );
+  if (items.length === 0) return null;
+
+  // Detect layout axis from the first two items' positions.
+  const vertical =
+    items.length > 1 &&
+    Math.abs(items[1].getBoundingClientRect().top - items[0].getBoundingClientRect().top) >
+      Math.abs(items[1].getBoundingClientRect().left - items[0].getBoundingClientRect().left);
+
+  let closest: { offset: number; element: HTMLElement } | null = null;
+  for (const item of items) {
+    const box = item.getBoundingClientRect();
+    const offset = vertical ? y - (box.top + box.height / 2) : x - (box.left + box.width / 2);
+    if (offset < 0 && (closest === null || offset > closest.offset)) {
+      closest = { offset, element: item };
+    }
+  }
+  return closest?.element ?? null;
+}
+
+/** Distance from a point to a line segment a-b. */
 function distToSegment(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;

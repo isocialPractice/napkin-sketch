@@ -22,6 +22,8 @@ export interface LaunchOptions {
   filePath?: string;
   /** Name for a new sketch (for 'new'). */
   sketchName?: string;
+  /** Open the GUI window in full-screen mode (-f, --full-screen). */
+  fullScreen?: boolean;
 }
 
 /** Environment variable used to hand launch options to the main process. */
@@ -42,6 +44,7 @@ export function decodeLaunchOptions(raw: string | undefined): LaunchOptions {
       mode,
       filePath: typeof parsed.filePath === 'string' ? parsed.filePath : undefined,
       sketchName: typeof parsed.sketchName === 'string' ? parsed.sketchName : 'unnamed',
+      fullScreen: parsed.fullScreen === true,
     };
   } catch {
     return { mode: 'new', sketchName: 'unnamed' };

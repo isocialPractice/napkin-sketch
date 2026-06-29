@@ -7,6 +7,7 @@
  */
 
 import type { LaunchOptions } from './launch.js';
+import type { AppSettings } from './settings.js';
 import type { SketchBook } from './types.js';
 
 /** IPC channel identifiers. */
@@ -31,6 +32,22 @@ export const IPC = {
   setTitle: 'napkin:set-title',
   /** Main → renderer: a native menu item was activated. */
   menuAction: 'napkin:menu-action',
+  /** Renderer → main: fetch the current application settings. */
+  getSettings: 'napkin:get-settings',
+  /** Renderer → main: merge a settings patch, persist, and broadcast it. */
+  updateSettings: 'napkin:update-settings',
+  /** Renderer → main: export settings to a chosen JSON file. */
+  exportSettings: 'napkin:export-settings',
+  /** Renderer → main: import settings from a chosen JSON file. */
+  importSettings: 'napkin:import-settings',
+  /** Renderer → main: open (or focus) the settings window. */
+  openSettings: 'napkin:open-settings',
+  /** Main → renderer: settings changed; renderers should re-apply them. */
+  settingsChanged: 'napkin:settings-changed',
+  /** Renderer → main → main-renderer: toggle toolbar rearrange mode. */
+  toggleRearrange: 'napkin:toggle-rearrange',
+  /** Main → renderer: enter/leave toolbar rearrange mode. */
+  rearrangeMode: 'napkin:rearrange-mode',
 } as const;
 
 /** Actions the native application menu can trigger in the renderer. */
@@ -45,7 +62,9 @@ export type MenuAction =
   | 'undo'
   | 'redo'
   | 'toggle-pages'
-  | 'toggle-settings';
+  | 'toggle-settings'
+  | 'open-app-settings'
+  | 'toggle-rearrange';
 
 /** Raster image export formats. */
 export type ImageFormat = 'png' | 'jpeg';
@@ -102,6 +121,25 @@ export interface NapkinBridge {
   setTitle(title: string): void;
   /** Subscribes to native-menu actions; returns an unsubscribe function. */
   onMenuAction(handler: (action: MenuAction) => void): () => void;
+
+  // ---- Application settings -------------------------------------------------
+
+  /** Returns the current, fully-normalized application settings. */
+  getSettings(): Promise<AppSettings>;
+  /** Merges a partial settings patch, persists it, and broadcasts the result. */
+  updateSettings(patch: Partial<AppSettings>): Promise<AppSettings>;
+  /** Exports the current settings to a user-chosen JSON file. */
+  exportSettings(): Promise<SaveResult>;
+  /** Imports settings from a user-chosen JSON file; resolves to the new settings (or null on cancel). */
+  importSettings(): Promise<AppSettings | null>;
+  /** Opens (or focuses) the standalone settings window. */
+  openSettings(): void;
+  /** Requests that the main window toggle toolbar rearrange mode. */
+  toggleRearrange(): void;
+  /** Subscribes to settings-changed broadcasts; returns an unsubscribe function. */
+  onSettingsChanged(handler: (settings: AppSettings) => void): () => void;
+  /** Subscribes to rearrange-mode broadcasts; returns an unsubscribe function. */
+  onRearrangeMode(handler: (enabled: boolean) => void): () => void;
 }
 
 declare global {

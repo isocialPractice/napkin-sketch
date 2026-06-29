@@ -15,6 +15,11 @@ export interface ToolState {
   tool: Tool;
   color: string;
   width: number;
+  /**
+   * Explicit stroke opacity (0-1) applied to new strokes, or null to use each
+   * tool's default. Set via the Quick Opacity feature.
+   */
+  opacity: number | null;
   /** When true, finished strokes are auto-sharpened on pen-up. */
   liveSharpen: boolean;
   /** Font size used by the text tool. */
@@ -42,6 +47,7 @@ export class Store {
     tool: 'pen',
     color: '#1f2328',
     width: 3,
+    opacity: null,
     // Per request: Live Sharpen defaults OFF.
     liveSharpen: false,
     fontSize: 24,

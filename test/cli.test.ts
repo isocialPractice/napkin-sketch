@@ -48,3 +48,24 @@ test('parseArgs flags --sharpen as sharpen-only', () => {
   assert.equal(r.sharpenOnly, true);
   assert.equal(r.target, 'notes');
 });
+
+test('parseArgs reads -f / --full-screen', () => {
+  assert.equal(parseArgs(['-f']).fullScreen, true);
+  assert.equal(parseArgs(['--full-screen']).fullScreen, true);
+  assert.equal(parseArgs([]).fullScreen, false);
+});
+
+test('parseArgs combines --new with --full-screen', () => {
+  const r = parseArgs(['--new', 'ideas', '-f']);
+  assert.equal(r.mode, 'new');
+  assert.equal(r.target, 'ideas');
+  assert.equal(r.fullScreen, true);
+});
+
+test('full-screen survives the launch-options round-trip', () => {
+  const restored = decodeLaunchOptions(
+    encodeLaunchOptions({ mode: 'new', sketchName: 'x', fullScreen: true }),
+  );
+  assert.equal(restored.fullScreen, true);
+  assert.equal(decodeLaunchOptions(encodeLaunchOptions({ mode: 'new' })).fullScreen, false);
+});

@@ -35,7 +35,20 @@ export interface Overlay {
   liveTextBox?: { x1: number; y1: number; x2: number; y2: number };
   /** Dashed rectangle preview while rubber-band selecting. */
   selectBox?: { x1: number; y1: number; x2: number; y2: number };
+  /** Dashed straight-line preview (Space + drag) in sketch coordinates. */
+  straightLine?: { a: Point; b: Point; color: string; width: number };
 }
+
+/** Pan/zoom viewport applied to the drawn content (in CSS pixels / unitless zoom). */
+export interface Viewport {
+  panX: number;
+  panY: number;
+  zoom: number;
+}
+
+/** Smallest and largest allowed zoom factors. */
+export const MIN_ZOOM = 0.2;
+export const MAX_ZOOM = 8;
 
 export class Surface {
   private readonly canvas: HTMLCanvasElement;
@@ -45,6 +58,11 @@ export class Surface {
   private dpr = 1;
   private cssWidth = 0;
   private cssHeight = 0;
+
+  // Pan/zoom viewport applied to drawn content (strokes, texture, overlays).
+  private panX = 0;
+  private panY = 0;
+  private zoom = 1;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -83,15 +101,57 @@ export class Surface {
     return this.cssHeight;
   }
 
-  /** Converts a client (event) coordinate into sketch-space pixels. */
+  /** Converts a client (event) coordinate into sketch-space pixels (viewport-aware). */
   toSketchPoint(clientX: number, clientY: number, pressure: number): Point {
     const rect = this.canvas.getBoundingClientRect();
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
+      x: (clientX - rect.left - this.panX) / this.zoom,
+      y: (clientY - rect.top - this.panY) / this.zoom,
       pressure: pressure > 0 ? pressure : 0.5,
       t: performance.now(),
     };
+  }
+
+  // ---- Viewport (pan / zoom) ----------------------------------------------
+
+  /** Returns a copy of the current pan/zoom viewport. */
+  getViewport(): Viewport {
+    return { panX: this.panX, panY: this.panY, zoom: this.zoom };
+  }
+
+  /** Replaces the viewport, clamping zoom to the supported range. */
+  setViewport(viewport: Viewport): void {
+    this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, viewport.zoom));
+    this.panX = viewport.panX;
+    this.panY = viewport.panY;
+  }
+
+  /** Resets pan to the origin and zoom to 1:1. */
+  resetViewport(): void {
+    this.panX = 0;
+    this.panY = 0;
+    this.zoom = 1;
+  }
+
+  /** Pans the viewport by a delta in CSS pixels. */
+  panBy(dx: number, dy: number): void {
+    this.panX += dx;
+    this.panY += dy;
+  }
+
+  /**
+   * Multiplies the zoom by `factor`, keeping the canvas-local point
+   * (`centerX`, `centerY`) fixed on screen (zoom toward the pinch centroid).
+   */
+  zoomAt(factor: number, centerX: number, centerY: number): void {
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, this.zoom * factor));
+    if (next === this.zoom) return;
+    // World point currently under the cursor must stay under the cursor.
+    const worldX = (centerX - this.panX) / this.zoom;
+    const worldY = (centerY - this.panY) / this.zoom;
+    this.panX = centerX - worldX * next;
+    this.panY = centerY - worldY * next;
+    this.zoom = next;
   }
 
   /** Renders a full sketch plus an optional in-progress live stroke and overlay. */
@@ -107,11 +167,14 @@ export class Surface {
     ctx.restore();
 
     // Strokes go on the transparent ink layer so the eraser reveals paper.
+    // The pan/zoom viewport is applied here so drawn content moves and scales
+    // while the paper background and texture stay put (a stable canvas).
     const ink = this.inkCtx;
     ink.save();
     ink.setTransform(1, 0, 0, 1, 0, 0);
     ink.clearRect(0, 0, this.ink.width, this.ink.height);
     ink.scale(this.dpr, this.dpr);
+    this.applyWorld(ink);
     for (const stroke of sketch.strokes) {
       this.paintStroke(ink, stroke);
     }
@@ -128,6 +191,7 @@ export class Surface {
 
     ctx.save();
     ctx.scale(this.dpr, this.dpr);
+    this.applyWorld(ctx);
 
     if (overlay?.selectedIds && overlay.selectedIds.size > 0) {
       for (const stroke of sketch.strokes) {
@@ -143,7 +207,17 @@ export class Surface {
       this.paintDashedRect(ctx, overlay.selectBox, '#27496d', [6, 4]);
     }
 
+    if (overlay?.straightLine) {
+      this.paintStraightPreview(ctx, overlay.straightLine);
+    }
+
     ctx.restore();
+  }
+
+  /** Applies the pan/zoom viewport to a context already scaled by the DPR. */
+  private applyWorld(ctx: CanvasRenderingContext2D): void {
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.zoom, this.zoom);
   }
 
   private paintBackground(color: string): void {
@@ -206,6 +280,24 @@ export class Surface {
     ctx.restore();
   }
 
+  /** Draws the dashed preview of a pending straight line (Space + drag). */
+  private paintStraightPreview(
+    ctx: CanvasRenderingContext2D,
+    line: { a: Point; b: Point; color: string; width: number },
+  ): void {
+    ctx.save();
+    ctx.strokeStyle = line.color;
+    ctx.globalAlpha = 0.7;
+    ctx.lineWidth = Math.max(1, line.width);
+    ctx.lineCap = 'round';
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(line.a.x, line.a.y);
+    ctx.lineTo(line.b.x, line.b.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   private paintStroke(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
     if (isTextStroke(stroke)) {
       this.paintText(ctx, stroke);
@@ -228,7 +320,8 @@ export class Surface {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = stroke.color;
       ctx.fillStyle = stroke.color;
-      ctx.globalAlpha = stroke.tool === 'marker' ? 0.38 : 1;
+      // Explicit opacity (Quick Opacity) overrides the per-tool default.
+      ctx.globalAlpha = stroke.opacity ?? (stroke.tool === 'marker' ? 0.38 : 1);
     }
 
     // A single point: render a dot sized by pressure / width.
@@ -268,6 +361,7 @@ export class Surface {
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = stroke.color;
+    if (typeof stroke.opacity === 'number') ctx.globalAlpha = stroke.opacity;
     ctx.textBaseline = 'top';
     ctx.font = `${size}px ${stroke.fontFamily ?? DEFAULT_FONT_FAMILY}`;
 
@@ -460,7 +554,7 @@ function escXml(s: string): string {
 function svgPath(stroke: Stroke): string {
   const pts = stroke.points;
   if (pts.length === 0) return '';
-  const opacity = stroke.tool === 'marker' ? 0.38 : 1;
+  const opacity = stroke.opacity ?? (stroke.tool === 'marker' ? 0.38 : 1);
   const color = escXml(stroke.color);
   if (pts.length === 1) {
     const p = pts[0];

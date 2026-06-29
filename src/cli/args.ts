@@ -14,6 +14,7 @@ export interface ParsedArgs {
   mode: LaunchMode | null;
   target: string | undefined;
   sharpenOnly: boolean;
+  fullScreen: boolean;
   unknown: string[];
 }
 
@@ -25,6 +26,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     mode: null,
     target: undefined,
     sharpenOnly: false,
+    fullScreen: false,
     unknown: [],
   };
 
@@ -38,6 +40,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
       case '-v':
       case '--version':
         result.version = true;
+        break;
+      case '-f':
+      case '--full-screen':
+        result.fullScreen = true;
         break;
       case '-b':
       case '--book':

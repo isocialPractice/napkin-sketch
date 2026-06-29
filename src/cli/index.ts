@@ -10,6 +10,7 @@
  *   -v, --version       Show version.
  *   -b, --book <file>   Open a .skbk sketch book.
  *   -n, --new [name]    New sketch named "unnamed" or [name].
+ *   -f, --full-screen   Open the GUI window in full-screen mode.
  *       --sharpen <f>   Auto-sharpen a saved sketch, then open it.
  */
 
@@ -61,6 +62,7 @@ Options:
   -v, --version         Show the installed version and exit.
   -b, --book <file>     Open a saved sketch book (.skbk) to view or edit.
   -n, --new [name]      Start a new sketch named "unnamed" or [name].
+  -f, --full-screen     Open the GUI window in full-screen mode.
       --sharpen <file>  Auto-sharpen every stroke in a saved .skbk, then open it.
 
 Targets:
@@ -72,6 +74,7 @@ Examples:
   napkin-sketch --new ideas           New sketch named "ideas".
   napkin-sketch --book ./notes.skbk   Open an existing sketch book.
   napkin-sketch --sharpen ./notes     Sharpen ./notes.skbk and open it.
+  napkin-sketch --new -f              New sketch opened full screen.
 `;
 
 /** Resolves the Electron executable path from the installed `electron` package. */
@@ -160,8 +163,8 @@ async function main(): Promise<void> {
 
   const options: LaunchOptions =
     mode === 'new'
-      ? { mode: 'new', sketchName: args.target ?? 'unnamed' }
-      : { mode: 'book', filePath: resolve(withSketchBookExtension(args.target!)) };
+      ? { mode: 'new', sketchName: args.target ?? 'unnamed', fullScreen: args.fullScreen }
+      : { mode: 'book', filePath: resolve(withSketchBookExtension(args.target!)), fullScreen: args.fullScreen };
 
   launchGui(options);
 }

@@ -14,6 +14,22 @@ aspirational and unordered within each group.
   sharpen passes, export targets) with a semver contract.
 - **Vector export**: export sketches to SVG/PDF in addition to PNG/JPEG.
 
+## Quick Features (ideas → next `1.x`)
+
+Follow-on shortcuts in the spirit of Quick Width (`W`) and Quick Opacity (`Q`):
+press a letter, type a value within the quick-feature timer, and it applies.
+
+- **Quick Size** (`Z`): type a font size to retarget the text tool without
+  reaching for the size slider.
+- **Quick Symmetry** (`Y`): type a mandala axis count (1 disables) to change
+  rotational symmetry mid-drawing.
+- **Quick Page** (`G`): type a page number to jump straight to that page in the
+  current sketch book.
+- **Quick Zoom** (`X`): type a zoom percentage (for example `150`) to set an
+  exact zoom level instead of pinching to it.
+- **Quick Hex** (`#`): type a six-digit hex value to set an exact ink color
+  without opening the color picker.
+
 ## Minor (backward-compatible features → next `1.x`)
 
 - **Lasso + transform**: free-form lasso selection with scale/rotate handles

@@ -15,6 +15,7 @@ import {
   type SaveResult,
 } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
+import type { AppSettings } from '../core/settings.js';
 import type { SketchBook } from '../core/types.js';
 
 const bridge: NapkinBridge = {
@@ -35,6 +36,24 @@ const bridge: NapkinBridge = {
     const listener = (_event: unknown, action: MenuAction): void => handler(action);
     ipcRenderer.on(IPC.menuAction, listener);
     return () => ipcRenderer.removeListener(IPC.menuAction, listener);
+  },
+
+  getSettings: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.getSettings),
+  updateSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>
+    ipcRenderer.invoke(IPC.updateSettings, patch),
+  exportSettings: (): Promise<SaveResult> => ipcRenderer.invoke(IPC.exportSettings),
+  importSettings: (): Promise<AppSettings | null> => ipcRenderer.invoke(IPC.importSettings),
+  openSettings: (): void => ipcRenderer.send(IPC.openSettings),
+  toggleRearrange: (): void => ipcRenderer.send(IPC.toggleRearrange),
+  onSettingsChanged: (handler: (settings: AppSettings) => void): (() => void) => {
+    const listener = (_event: unknown, settings: AppSettings): void => handler(settings);
+    ipcRenderer.on(IPC.settingsChanged, listener);
+    return () => ipcRenderer.removeListener(IPC.settingsChanged, listener);
+  },
+  onRearrangeMode: (handler: (enabled: boolean) => void): (() => void) => {
+    const listener = (_event: unknown, enabled: boolean): void => handler(enabled);
+    ipcRenderer.on(IPC.rearrangeMode, listener);
+    return () => ipcRenderer.removeListener(IPC.rearrangeMode, listener);
   },
 };
 

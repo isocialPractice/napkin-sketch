@@ -12,8 +12,8 @@
   </head>
   <body>
     <div id="app" class="app">
-      <header class="toolbar" role="toolbar" aria-label="Sketch tools">
-        <section class="group" aria-label="Tools">
+      <header id="toolbar" class="toolbar" role="toolbar" aria-label="Sketch tools">
+        <section id="tool-group" class="group" aria-label="Tools">
           <button id="tool-pen" class="tool" type="button" title="Pen (P)" aria-label="Pen">
             <span class="icon" aria-hidden="true">✎</span><span class="label">Pen</span>
           </button>
@@ -67,10 +67,15 @@
           <button id="open" class="btn" type="button" title="Open sketch book">Open</button>
           <button id="save" class="btn btn-primary" type="button" title="Save (Ctrl+S)">Save</button>
           <button id="save-as" class="btn" type="button" title="Save as (Ctrl+Shift+S)">Save As</button>
+          <button id="app-settings" class="btn btn-ghost" type="button" title="Settings" aria-label="Open settings">
+            <span class="icon" aria-hidden="true">⚙</span>
+          </button>
         </section>
       </header>
 
       <div class="body">
+        <aside id="side-rail" class="side-rail" aria-label="Side toolbar"></aside>
+
         <aside id="pages-panel" class="pages-panel" aria-label="Pages">
           <div class="pages-panel-head">
             <span>Pages</span>

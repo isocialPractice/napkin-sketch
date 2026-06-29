@@ -1,6 +1,6 @@
 {
   "name": "napkin-sketch",
-  "version": "0.0.0-alpha",
+  "version": "1.0.0-alpha",
   "description": "Quick and easy computer sketching with a drawing GUI that simulates pen and paper/napkin sketching, featuring an auto-sharpen algorithm that turns stiff computer strokes into more hand-drawn forms.",
   "keywords": [
     "sketch",

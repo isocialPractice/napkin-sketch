@@ -6,7 +6,7 @@
  */
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage } from 'electron';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { decodeLaunchOptions, LAUNCH_ENV_KEY, type LaunchOptions } from '../core/launch.js';
 import { IPC, type ExportFormat, type ImageFormat, type MenuAction, type OpenResult, type SaveImagesResult, type SaveResult } from '../core/ipc.js';
@@ -15,6 +15,13 @@ import {
   withSketchBookExtension,
   writeSketchBook,
 } from '../core/sketchbook.js';
+import {
+  type AppSettings,
+  defaultSettings,
+  normalizeSettings,
+  parseSettings,
+  serializeSettings,
+} from '../core/settings.js';
 import { SKETCHBOOK_EXTENSION, type SketchBook } from '../core/types.js';
 
 const launch: LaunchOptions = decodeLaunchOptions(process.env[LAUNCH_ENV_KEY]);
@@ -24,12 +31,79 @@ const APP_ID = 'dev.napkinsketch.app';
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
 
 let mainWindow: BrowserWindow | null = null;
+let settingsWindow: BrowserWindow | null = null;
+
+/** In-memory application settings (loaded from disk on startup). */
+let currentSettings: AppSettings = defaultSettings();
+
+/** Absolute path to the persisted settings file in the user-data directory. */
+function settingsFilePath(): string {
+  return join(app.getPath('userData'), 'settings.json');
+}
+
+/** Loads persisted settings from disk, falling back to defaults. */
+async function loadSettings(): Promise<AppSettings> {
+  try {
+    const text = await readFile(settingsFilePath(), 'utf-8');
+    return parseSettings(text);
+  } catch {
+    return defaultSettings();
+  }
+}
+
+/** Writes the current settings to disk when persistence is enabled. */
+async function persistSettings(): Promise<void> {
+  if (!currentSettings.rememberSettings) return;
+  try {
+    await writeFile(settingsFilePath(), serializeSettings(currentSettings), 'utf-8');
+  } catch {
+    // Persistence is best-effort; in-memory settings still apply this session.
+  }
+}
+
+/** Sends the current settings to every open renderer so they re-apply live. */
+function broadcastSettings(): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send(IPC.settingsChanged, currentSettings);
+  }
+}
 
 /** Loads the bundled application icon, if present. */
 function loadIcon(): Electron.NativeImage | undefined {
   const iconPath = join(__dirname, '..', 'assets', 'icon.png');
   const image = nativeImage.createFromPath(iconPath);
   return image.isEmpty() ? undefined : image;
+}
+
+/** Opens the standalone settings window, or focuses it if already open. */
+function openSettingsWindow(): void {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus();
+    return;
+  }
+  settingsWindow = new BrowserWindow({
+    width: 480,
+    height: 720,
+    minWidth: 380,
+    minHeight: 480,
+    parent: mainWindow ?? undefined,
+    backgroundColor: '#eef1f4',
+    title: 'Settings — napkin-sketch',
+    icon: loadIcon(),
+    show: false,
+    webPreferences: {
+      preload: join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+  settingsWindow.setMenuBarVisibility(false);
+  settingsWindow.loadFile(join(__dirname, '..', 'renderer', 'settings.html'));
+  settingsWindow.once('ready-to-show', () => settingsWindow?.show());
+  settingsWindow.on('closed', () => {
+    settingsWindow = null;
+  });
 }
 
 /** Sends a menu action to the focused window's renderer. */
@@ -65,6 +139,9 @@ function buildMenu(): void {
       submenu: [
         { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => dispatch('undo') },
         { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: () => dispatch('redo') },
+        { type: 'separator' },
+        { label: 'Settings…', accelerator: 'CmdOrCtrl+Alt+,', click: () => openSettingsWindow() },
+        { label: 'Rearrange Toolbar', click: () => dispatch('toggle-rearrange') },
       ],
     },
     {
@@ -96,6 +173,7 @@ function createWindow(): void {
     backgroundColor: '#eef1f4',
     title: 'napkin-sketch',
     icon: loadIcon(),
+    fullscreen: launch.fullScreen === true,
     show: false,
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
@@ -266,9 +344,63 @@ function registerIpc(): void {
   ipcMain.on(IPC.setTitle, (_event, title: string) => {
     if (typeof title === 'string') mainWindow?.setTitle(title);
   });
+
+  // ---- Settings -------------------------------------------------------------
+
+  ipcMain.handle(IPC.getSettings, (): AppSettings => currentSettings);
+
+  ipcMain.handle(IPC.updateSettings, async (_event, patch: Partial<AppSettings>): Promise<AppSettings> => {
+    currentSettings = normalizeSettings({ ...currentSettings, ...(patch ?? {}) });
+    await persistSettings();
+    broadcastSettings();
+    return currentSettings;
+  });
+
+  ipcMain.handle(IPC.exportSettings, async (): Promise<SaveResult> => {
+    const parent = settingsWindow ?? mainWindow;
+    if (!parent) return { ok: false, error: 'No window available.' };
+    const picked = await dialog.showSaveDialog(parent, {
+      title: 'Export settings',
+      defaultPath: 'napkin-sketch-settings.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (picked.canceled || !picked.filePath) return { ok: false, cancelled: true };
+    try {
+      await writeFile(picked.filePath, serializeSettings(currentSettings), 'utf-8');
+      return { ok: true, filePath: picked.filePath };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC.importSettings, async (): Promise<AppSettings | null> => {
+    const parent = settingsWindow ?? mainWindow;
+    if (!parent) return null;
+    const picked = await dialog.showOpenDialog(parent, {
+      title: 'Load settings',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    });
+    if (picked.canceled || picked.filePaths.length === 0) return null;
+    try {
+      const text = await readFile(picked.filePaths[0], 'utf-8');
+      currentSettings = parseSettings(text);
+      // Remember the last loaded settings for the next launch.
+      await persistSettings();
+      broadcastSettings();
+      return currentSettings;
+    } catch {
+      return null;
+    }
+  });
+
+  ipcMain.on(IPC.openSettings, () => openSettingsWindow());
+
+  ipcMain.on(IPC.toggleRearrange, () => dispatch('toggle-rearrange'));
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  currentSettings = await loadSettings();
   registerIpc();
   createWindow();
 

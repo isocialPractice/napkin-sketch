@@ -20,6 +20,15 @@ hand-drawn rather than vector-perfect.
   **drag-to-draw** (fixed-width box with word-wrap).
 - **Touchscreen + mouse + stylus** input via Pointer Events (with coalesced
   sampling for smooth, high-frequency capture).
+- **Pan and zoom** with a two-finger gesture (pan within a small threshold, zoom
+  beyond it), plus **straight-line drawing** (hold `Space` and drag).
+- **Quick features** — press `W` then a number for stroke width, `Q` then a
+  number for opacity, or `C` / `Shift + C` to cycle the **Quick Access Colors**.
+- **Settings window** (Edit menu or the gear icon) for zoom/pan sensitivity,
+  inverted zoom, the quick-feature timer, Quick Access Color count and values,
+  toolbar placement (top / side / both) with drag-and-drop **rearrange mode**,
+  a light / dark / sepia **theme**, and auto-save. Settings persist across
+  launches and can be exported to and imported from a JSON file.
 - **Auto-sharpen engine** that recognizes intent (straight line, circle/ellipse,
   polygon, or freeform) and rebuilds an idealized, hand-drawn version.
   - **Live sharpen** (off by default) — beautify each stroke the moment you lift
@@ -130,14 +139,15 @@ npm install -g napkin-sketch
 napkin-sketch [option] [target]
 ```
 
-| Parameter        | Description                                                          |
-| :--------------- | :------------------------------------------------------------------ |
-| `-h, --help`     | Show help for using the application from the command line.           |
-| `-v, --version`  | Show the current version of the application.                         |
-| `-b, --book`     | Open a saved sketch book file, using the `.skbk` extension.          |
-| `-n, --new`      | New sketch, using `unnamed` or the name passed as `[target]`.        |
-| `--sharpen`      | Auto-sharpen a saved sketch so it appears more hand-drawn, then open.|
-| `[target]`       | A `.skbk` file to open, or a name for a new sketch file.             |
+| Parameter           | Description                                                           |
+| :------------------ | :-------------------------------------------------------------------- |
+| `-h, --help`        | Show help for using the application from the command line.            |
+| `-v, --version`     | Show the current version of the application.                          |
+| `-b, --book`        | Open a saved sketch book file, using the `.skbk` extension.           |
+| `-n, --new`         | New sketch, using `unnamed` or the name passed as `[target]`.         |
+| `-f, --full-screen` | Open the GUI window in full-screen mode.                              |
+| `--sharpen`         | Auto-sharpen a saved sketch so it appears more hand-drawn, then open. |
+| `[target]`          | A `.skbk` file to open, or a name for a new sketch file.              |
 
 ### Examples
 
@@ -153,6 +163,9 @@ napkin-sketch --book ./notes.skbk
 
 # Auto-sharpen a saved book on disk, then open it
 napkin-sketch --sharpen ./notes
+
+# Open a new sketch in full-screen mode
+napkin-sketch --new -f
 ```
 
 A bare path is treated as a sketch book to open:
@@ -163,21 +176,26 @@ napkin-sketch ./notes.skbk
 
 ## In-app controls
 
-| Action                 | Shortcut                                  |
-| :--------------------- | :---------------------------------------- |
-| Pen                    | `P`                                       |
-| Marker                 | `M`                                       |
-| Eraser                 | `E`                                       |
-| Select                 | `S`                                       |
-| Text                   | `T`                                       |
-| Sharpen all            | `H`                                       |
-| Sharpen settings       | `Ctrl/Cmd + ,`                            |
-| Toggle pages           | `Ctrl/Cmd + B`                            |
-| Undo                   | `Ctrl/Cmd + Z`                            |
-| Redo                   | `Ctrl/Cmd + Y` or `Ctrl/Cmd + Shift + Z`  |
-| Save                   | `Ctrl/Cmd + S`                            |
-| Save As                | `Ctrl/Cmd + Shift + S`                    |
-| Delete selection       | `Delete` or `Backspace`                   |
+| Action                   | Shortcut                                  |
+| :----------------------- | :---------------------------------------- |
+| Pen                      | `P`                                       |
+| Marker                   | `M`                                       |
+| Eraser                   | `E`                                       |
+| Select                   | `S`                                       |
+| Text                     | `T`                                       |
+| Sharpen all              | `H`                                       |
+| Quick width              | `W` then a number                         |
+| Quick opacity            | `Q` then a number                         |
+| Cycle Quick Access color | `C` (forward) / `Shift + C` (back)        |
+| Straight line            | Hold `Space` and drag                     |
+| Sharpen settings         | `Ctrl/Cmd + ,`                            |
+| App settings             | `Ctrl/Cmd + Alt + ,`                      |
+| Toggle pages             | `Ctrl/Cmd + B`                            |
+| Undo                     | `Ctrl/Cmd + Z`                            |
+| Redo                     | `Ctrl/Cmd + Y` or `Ctrl/Cmd + Shift + Z`  |
+| Save                     | `Ctrl/Cmd + S`                            |
+| Save As                  | `Ctrl/Cmd + Shift + S`                    |
+| Delete selection         | `Delete` or `Backspace`                   |
 
 **Text tool:** *click* to place an auto-sizing text box; *drag* to draw a
 fixed-width text box (text wraps to fit the drawn width).

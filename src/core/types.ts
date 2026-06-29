@@ -32,6 +32,11 @@ export interface Stroke {
   width: number;
   /** Raw sampled input points. For text items, `points[0]` is the anchor. */
   points: Point[];
+  /**
+   * Explicit stroke opacity (0-1). When absent, the tool default is used
+   * (1 for pen/text, 0.38 for marker). Set via the Quick Opacity feature.
+   */
+  opacity?: number;
   /** Whether this stroke has already been auto-sharpened. */
   sharpened?: boolean;
   /** Text content (only present when `tool === 'text'`). */

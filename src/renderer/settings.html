@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Settings — napkin-sketch</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="settings-body">
+    <main class="settings-window">
+      <h1 class="settings-title">Settings</h1>
+
+      <section class="settings-section" aria-label="Pan and zoom">
+        <h2>Pan &amp; Zoom</h2>
+        <label class="settings-field">
+          <span>Zoom sensitivity <em id="zoom-sensitivity-value">1.00</em></span>
+          <input id="zoom-sensitivity" type="range" />
+        </label>
+        <label class="settings-field">
+          <span>Pan sensitivity <em id="pan-sensitivity-value">1.00</em></span>
+          <input id="pan-sensitivity" type="range" />
+        </label>
+        <label class="switch settings-row">
+          <input id="invert-zoom" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Invert zoom direction</span>
+        </label>
+      </section>
+
+      <section class="settings-section" aria-label="Quick features">
+        <h2>Quick Features</h2>
+        <label class="settings-field">
+          <span>Entry timer <em id="quick-timer-value">1.0s</em></span>
+          <input id="quick-timer" type="range" />
+        </label>
+        <p class="settings-hint">
+          Time allowed to type a value after pressing W (width) or Q (opacity).
+        </p>
+      </section>
+
+      <section class="settings-section" aria-label="Quick access colors">
+        <h2>Quick Access Colors</h2>
+        <label class="settings-field">
+          <span>Number of colors <em id="quick-color-count-value">6</em></span>
+          <input id="quick-color-count" type="range" />
+        </label>
+        <div id="quick-colors" class="settings-colors"></div>
+      </section>
+
+      <section class="settings-section" aria-label="Toolbar layout">
+        <h2>Toolbar</h2>
+        <label class="settings-field">
+          <span>Menu placement</span>
+          <select id="menu-placement">
+            <option value="top">Top</option>
+            <option value="side">Side</option>
+            <option value="both">Top &amp; Side</option>
+          </select>
+        </label>
+        <button id="rearrange-btn" class="btn" type="button">Toggle rearrange mode</button>
+        <p class="settings-hint">
+          In rearrange mode, drag tools and colors in the main window to reorder them.
+        </p>
+      </section>
+
+      <section class="settings-section" aria-label="Appearance and auto-save">
+        <h2>Extras</h2>
+        <label class="settings-field">
+          <span>Theme</span>
+          <select id="theme">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="sepia">Sepia</option>
+          </select>
+        </label>
+        <label class="settings-field">
+          <span>Auto-save <em id="autosave-value">off</em></span>
+          <input id="autosave" type="range" />
+        </label>
+      </section>
+
+      <section class="settings-section" aria-label="Persistence">
+        <h2>Save &amp; Load</h2>
+        <label class="switch settings-row">
+          <input id="remember" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Keep settings in memory</span>
+        </label>
+        <div class="settings-actions">
+          <button id="export-btn" class="btn" type="button">Save to JSON…</button>
+          <button id="import-btn" class="btn" type="button">Load from JSON…</button>
+          <button id="reset-btn" class="btn btn-ghost" type="button">Reset to defaults</button>
+        </div>
+      </section>
+
+      <div id="settings-toast" class="toast" role="status" aria-live="polite"></div>
+    </main>
+
+    <script src="settings.js"></script>
+  </body>
+</html>

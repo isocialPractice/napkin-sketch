@@ -52,6 +52,16 @@ const configs = [
     entryPoints: [resolve(root, 'src/renderer/renderer.ts')],
     outfile: resolve(root, 'dist/renderer/renderer.js'),
   },
+  {
+    bundle: true,
+    platform: 'browser',
+    target: 'chrome120',
+    format: 'iife',
+    sourcemap: true,
+    logLevel: 'info',
+    entryPoints: [resolve(root, 'src/renderer/settings.ts')],
+    outfile: resolve(root, 'dist/renderer/settings.js'),
+  },
   // Embeddable API as an ESM module for bundlers (website / VS Code webview).
   {
     bundle: true,
@@ -80,6 +90,7 @@ const configs = [
 async function copyStatic() {
   await mkdir(resolve(root, 'dist/renderer'), { recursive: true });
   await cp(resolve(root, 'src/renderer/index.html'), resolve(root, 'dist/renderer/index.html'));
+  await cp(resolve(root, 'src/renderer/settings.html'), resolve(root, 'dist/renderer/settings.html'));
   await cp(resolve(root, 'src/renderer/styles.css'), resolve(root, 'dist/renderer/styles.css'));
 
   // Generate the app icon (pure Node, no native deps) then copy assets.

@@ -36,13 +36,24 @@ hand-drawn rather than vector-perfect.
   - **Sharpen all** — clean up an entire page (or a saved file) at once.
   - **Sharpen settings panel** — tune wobble, smoothing, circle snap, end taper,
     rotational **symmetry** (mandala mode), and text size.
+- **Layers** — every page has a layer stack with per-layer **opacity**,
+  **visibility**, **lock**, **rename**, and **reordering** (`Ctrl + L` opens the
+  panel). Drawing, erasing, and selection respect the active layer, and the
+  eraser only cuts holes in its own layer.
 - **Sketchbook pages** with a toggleable **thumbnail panel**, page-turn
   animation, and add/delete/navigate controls — flip back to any earlier page.
-- **Native application menus** — *File* (New, Open, Save, Save As, Export
-  PNG / JPEG / SVG) and *Edit* (Undo, Redo).
-- **Image export** to PNG (transparent), JPEG (flattened), or **SVG** (lossless
-  vector). Each format offers **Export current page** or **Export all pages**
-  (saves `name_1.ext`, `name_2.ext`, …).
+- **Native application menus** — *File* (New, Open, Import, Save, Save As,
+  Export PNG / JPEG / SVG / PDF) and *Edit* (Undo, Redo).
+- **Export** to PNG (transparent), JPEG (flattened), **SVG** (lossless vector,
+  layers preserved as groups), or **PDF** (vector, no extra dependencies). Each
+  format offers **Export current page** or **Export all pages** — raster and
+  SVG save `name_1.ext`, `name_2.ext`, …, while PDF writes all pages into one
+  document.
+- **Import** (`Ctrl + I`) of **SVG** (vector shapes become editable strokes and
+  top-level groups become layers — napkin-sketch's own exports round-trip
+  losslessly), **PDF** (each page's vector content becomes a new sketch page,
+  best effort), and **PNG / JPEG** (placed as a movable image on the active
+  layer).
 - **CapsLock cursor** — crosshair while CapsLock is on; a circle matching the
   current stroke width when off.
 - **Multi-page sketch books** saved as portable `.skbk` JSON files.
@@ -191,6 +202,8 @@ napkin-sketch ./notes.skbk
 | Sharpen settings         | `Ctrl/Cmd + ,`                            |
 | App settings             | `Ctrl/Cmd + Alt + ,`                      |
 | Toggle pages             | `Ctrl/Cmd + B`                            |
+| Toggle layers            | `Ctrl/Cmd + L`                            |
+| Import file              | `Ctrl/Cmd + I`                            |
 | Undo                     | `Ctrl/Cmd + Z`                            |
 | Redo                     | `Ctrl/Cmd + Y` or `Ctrl/Cmd + Shift + Z`  |
 | Save                     | `Ctrl/Cmd + S`                            |
@@ -238,7 +251,7 @@ A sketch book is a human-readable JSON document:
 ```jsonc
 {
   "format": "napkin-sketch",
-  "version": 1,
+  "version": 2,
   "name": "notes",
   "sketches": [
     {
@@ -247,12 +260,16 @@ A sketch book is a human-readable JSON document:
       "width": 1280,
       "height": 800,
       "background": "#fcfaf5",
+      "layers": [
+        { "id": "ly_…", "name": "Layer 1", "opacity": 1, "visible": true, "locked": false }
+      ],
       "strokes": [
         {
           "id": "st_…",
           "tool": "pen",
           "color": "#1f2328",
           "width": 3,
+          "layer": "ly_…",
           "sharpened": true,
           "points": [{ "x": 12, "y": 34, "pressure": 0.6 }]
         }
@@ -268,6 +285,11 @@ A sketch book is a human-readable JSON document:
 
 Files are saved atomically (write-then-rename) so an interrupted save cannot
 corrupt an existing book.
+
+**Migrating from version 1**: older `.skbk` files load unchanged — each page
+gains a single default layer and every stroke is assigned to it. Version 2
+files also allow `"tool": "image"` strokes carrying an `image` data URL plus
+`imageWidth` / `imageHeight` for placed raster imports.
 
 ## Embedding the editor
 
@@ -289,6 +311,8 @@ const editor = new NapkinSketch(document.getElementById('host')!, {
 editor.setTool('pen');
 editor.sharpenAll();
 const png = editor.toDataURL('image/png');
+const svg = editor.toSVG();  // lossless vector export
+const pdf = editor.toPDF();  // latin1-safe byte string; save with binary encoding
 ```
 
 Via a plain `<script>` tag (the IIFE build exposes a global `napkin`):
@@ -301,10 +325,11 @@ Via a plain `<script>` tag (the IIFE build exposes a global `napkin`):
 </script>
 ```
 
-You can also import just the pure engine (no DOM) to sharpen strokes yourself:
+You can also import just the pure engine (no DOM) to sharpen strokes yourself,
+generate PDFs, or parse an SVG into layered strokes (browser only):
 
 ```ts
-import { sharpenStrokes, parseSketchBook } from 'napkin-sketch';
+import { sharpenStrokes, parseSketchBook, sketchesToPdf, importSvg } from 'napkin-sketch';
 ```
 
 ## Packaging a desktop installer
@@ -331,8 +356,9 @@ npm test
 ```
 
 Suites cover the geometry utilities, the auto-sharpen classifier and transforms,
-`.skbk` serialization/normalization, the CLI argument parser, and the launch
-contract.
+`.skbk` serialization/normalization (including the version 1 → 2 layer
+migration), the layer-aware SVG exporter, the PDF writer and its import
+round-trip, the CLI argument parser, and the launch contract.
 
 ## Project structure
 
@@ -343,11 +369,12 @@ src/
 │   ├── main.ts         # Electron main process, native menus, image export, IPC
 │   └── preload.ts      # Secure window.napkin bridge
 ├── renderer/
-│   ├── index.html      # GUI markup (toolbar, pages panel, settings panel)
+│   ├── index.html      # GUI markup (toolbar, pages/layers panels, settings panel)
 │   ├── styles.css      # GUI styling (60-30-10, WCAG-AA)
 │   ├── renderer.ts     # UI wiring + pointer input
-│   ├── surface.ts      # High-DPI, two-layer canvas rendering engine
-│   └── store.ts        # App state + undo/redo history
+│   ├── surface.ts      # High-DPI, layered canvas rendering + SVG export
+│   ├── svg-import.ts   # SVG → layered strokes importer (browser-only)
+│   └── store.ts        # App state, layer stack, undo/redo history
 ├── sharpen/
 │   ├── geometry.ts     # Geometry & curve utilities
 │   └── sharpen.ts      # Auto-sharpen engine
@@ -355,9 +382,11 @@ src/
 │   ├── index.ts        # Public, browser-safe API barrel
 │   └── embed.ts        # Embeddable NapkinSketch editor
 └── core/
-    ├── types.ts        # Shared data model
+    ├── types.ts        # Shared data model (sketches, layers, strokes)
     ├── serialize.ts    # Browser-safe .skbk (de)serialization + validation
     ├── sketchbook.ts   # .skbk file I/O (atomic writes)
+    ├── pdf.ts          # Dependency-free vector PDF writer (browser-safe)
+    ├── pdf-import.ts   # Best-effort PDF vector importer (Node-only)
     ├── paths.ts        # Dependency-free path helpers
     ├── launch.ts       # CLI ↔ main launch contract
     └── ipc.ts          # IPC channel + bridge types

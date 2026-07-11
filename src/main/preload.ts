@@ -8,6 +8,7 @@ import {
   IPC,
   type ExportFormat,
   type ImageFormat,
+  type ImportFileResult,
   type MenuAction,
   type NapkinBridge,
   type OpenResult,
@@ -29,6 +30,9 @@ const bridge: NapkinBridge = {
     ipcRenderer.invoke(IPC.saveImage, format, dataUrl, suggestedName),
   saveSvg: (svgContent: string, suggestedName: string): Promise<SaveResult> =>
     ipcRenderer.invoke(IPC.saveSvg, svgContent, suggestedName),
+  savePdf: (pdfContent: string, suggestedName: string): Promise<SaveResult> =>
+    ipcRenderer.invoke(IPC.savePdf, pdfContent, suggestedName),
+  importFile: (): Promise<ImportFileResult> => ipcRenderer.invoke(IPC.importFile),
   saveImages: (format: ExportFormat, contents: string[], baseName: string): Promise<SaveImagesResult> =>
     ipcRenderer.invoke(IPC.saveImages, format, contents, baseName),
   setTitle: (title: string): void => ipcRenderer.send(IPC.setTitle, title),

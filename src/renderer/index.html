@@ -63,8 +63,10 @@
 
         <section class="group group-right" aria-label="File">
           <button id="pages-toggle" class="btn" type="button" title="Toggle pages panel (Ctrl+B)">Pages</button>
+          <button id="layers-toggle" class="btn" type="button" title="Toggle layers panel (Ctrl+L)">Layers</button>
           <button id="new-sketch" class="btn" type="button" title="New sketch">New</button>
           <button id="open" class="btn" type="button" title="Open sketch book">Open</button>
+          <button id="import" class="btn" type="button" title="Import SVG, PDF, PNG, or JPEG (Ctrl+I)">Import</button>
           <button id="save" class="btn btn-primary" type="button" title="Save (Ctrl+S)">Save</button>
           <button id="save-as" class="btn" type="button" title="Save as (Ctrl+Shift+S)">Save As</button>
           <button id="app-settings" class="btn btn-ghost" type="button" title="Settings" aria-label="Open settings">
@@ -92,6 +94,28 @@
             <canvas id="canvas" aria-label="Drawing surface"></canvas>
           </div>
         </main>
+
+        <aside id="layers-panel" class="layers-panel" aria-label="Layers">
+          <div class="pages-panel-head">
+            <span>Layers</span>
+            <div class="pages-panel-actions">
+              <button id="add-layer" class="btn btn-ghost" type="button" title="Add layer">+ Layer</button>
+              <button id="delete-layer" class="btn btn-ghost" type="button" title="Delete layer">Delete</button>
+            </div>
+          </div>
+          <div id="layers-list" class="layers-list" role="listbox" aria-label="Layer stack"></div>
+          <div class="layers-foot">
+            <div class="layers-move">
+              <button id="layer-up" class="btn btn-ghost" type="button" title="Move layer up">▲</button>
+              <button id="layer-down" class="btn btn-ghost" type="button" title="Move layer down">▼</button>
+            </div>
+            <label class="layers-opacity" for="layer-opacity">
+              <span>Opacity</span>
+              <input id="layer-opacity" type="range" min="5" max="100" step="1" value="100" />
+              <span id="layer-opacity-value">100%</span>
+            </label>
+          </div>
+        </aside>
 
         <aside id="settings-panel" class="settings-panel is-hidden" aria-label="Sharpen settings">
           <div class="settings-head">

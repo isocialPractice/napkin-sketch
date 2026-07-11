@@ -809,3 +809,139 @@ body {
   flex-wrap: wrap;
   gap: var(--s2);
 }
+
+/* ---- Layers panel ---------------------------------------------------------
+   Right-side sibling of the pages panel; cool neutral surfaces only, with the
+   primary color reserved for the active-layer highlight. */
+
+.layers-panel {
+  width: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width var(--motion);
+}
+
+.app.layers-open .layers-panel {
+  width: 224px;
+}
+
+.layers-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.layer-row:hover {
+  background: var(--surface-2);
+}
+
+.layer-row.is-active {
+  border-color: var(--primary);
+  background: var(--surface-2);
+}
+
+.layer-row.is-hidden .layer-name {
+  opacity: 0.45;
+}
+
+.layer-toggle {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.layer-toggle:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.layer-toggle.is-off {
+  opacity: 0.4;
+}
+
+.layer-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.layer-name-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--focus);
+  border-radius: var(--r-sm);
+  padding: 1px var(--s1);
+}
+
+.layer-opacity-badge {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.layers-foot {
+  border-top: 1px solid var(--border);
+  padding: var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.layers-move {
+  display: flex;
+  gap: var(--s1);
+}
+
+.layers-opacity {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.layers-opacity input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+#layer-opacity-value {
+  min-width: 38px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

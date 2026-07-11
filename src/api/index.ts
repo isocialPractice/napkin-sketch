@@ -22,9 +22,14 @@ export {
   DEFAULT_BACKGROUND,
   DEFAULT_FONT_FAMILY,
   createId,
+  createLayer,
   createSketch,
   createSketchBook,
+  isImageStroke,
   isTextStroke,
+  layerOf,
+  strokesOnLayer,
+  type Layer,
   type Point,
   type Stroke,
   type Sketch,
@@ -51,6 +56,13 @@ export {
   type SharpenOptions,
   type ShapeKind,
 } from '../sharpen/sharpen.js';
+
+// Vector export (browser-safe; PDF import lives in Node-only `pdf-import`)
+export { sketchesToPdf } from '../core/pdf.js';
+
+// Vector import (browser-only: relies on DOM SVG geometry APIs)
+export { importSvg } from '../renderer/svg-import.js';
+export type { ImportedLayer, ImportedSvg } from '../renderer/svg-import.js';
 
 // Rendering surface (advanced use)
 export { Surface, strokeBounds } from '../renderer/surface.js';

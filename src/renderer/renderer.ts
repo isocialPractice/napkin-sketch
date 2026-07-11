@@ -7,13 +7,26 @@
  * editing, selection/move, and symmetry mode into the running GUI.
  */
 
-import { createId, createSketchBook, DEFAULT_FONT_FAMILY, isTextStroke, type Point, type Stroke } from '../core/types.js';
+import {
+  createId,
+  createSketch,
+  createSketchBook,
+  DEFAULT_FONT_FAMILY,
+  isImageStroke,
+  isTextStroke,
+  layerOf,
+  type Point,
+  type Sketch,
+  type Stroke,
+} from '../core/types.js';
 import type { ExportFormat, ImageFormat, MenuAction } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
+import { sketchesToPdf } from '../core/pdf.js';
 import { defaultSettings, type AppSettings } from '../core/settings.js';
-import { sharpenStroke, sharpenStrokes } from '../sharpen/sharpen.js';
+import { sharpenStroke } from '../sharpen/sharpen.js';
 import { Surface, strokeBounds, type LiveStroke } from './surface.js';
 import { Store } from './store.js';
+import { importSvg } from './svg-import.js';
 
 /** Looks up a required element by id, throwing a clear error if absent. */
 function el<T extends HTMLElement>(id: string): T {
@@ -65,6 +78,10 @@ class App {
   private capsLockOn = false;
 
   private pagesOpen = false;
+  private layersOpen = false;
+
+  // True while a layer-opacity slider drag is in progress (one history step).
+  private layerOpacityDragging = false;
 
   // Application settings (loaded from the main process on start).
   private settings: AppSettings = defaultSettings();
@@ -98,6 +115,7 @@ class App {
   constructor() {
     this.canvas = el<HTMLCanvasElement>('canvas');
     this.surface = new Surface(this.canvas);
+    this.surface.onImageLoad = () => this.scheduleRender();
     this.store = new Store(createSketchBook('untitled'));
 
     this.store.subscribe(() => this.scheduleRender());
@@ -106,6 +124,7 @@ class App {
     this.bindTools();
     this.bindFileActions();
     this.bindPages();
+    this.bindLayers();
     this.bindSettings();
     this.bindPointer();
     this.bindKeyboard();
@@ -217,6 +236,16 @@ class App {
     const tool = this.store.tool.tool;
     const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
 
+    // Every mark-making tool needs an editable (visible, unlocked) layer.
+    if (tool !== 'select' && !this.store.canDraw) {
+      this.toast(
+        this.store.activeLayer.locked
+          ? `Layer "${this.store.activeLayer.name}" is locked.`
+          : `Layer "${this.store.activeLayer.name}" is hidden.`,
+      );
+      return;
+    }
+
     // Straight-line mode: Space held + single-pointer drag draws a straight line.
     if (this.spaceDown && tool !== 'select' && tool !== 'text') {
       e.preventDefault();
@@ -252,6 +281,8 @@ class App {
       color,
       width,
       points: [pt],
+      // Preview on the layer the stroke will land on.
+      layer: this.store.activeLayer.id,
       ...(opacity != null ? { opacity } : {}),
     };
     this.scheduleRender();
@@ -560,11 +591,25 @@ class App {
     }
   }
 
-  /** Returns the topmost stroke under a point, or null. */
+  /** True when a stroke's layer allows selecting and editing it. */
+  private strokeEditable(stroke: Stroke): boolean {
+    const layer = layerOf(this.store.sketch, stroke);
+    return layer.visible && !layer.locked;
+  }
+
+  /** Returns the topmost editable stroke under a point, or null. */
   private hitTest(pt: Point): Stroke | null {
     const strokes = this.store.sketch.strokes;
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
+      if (!this.strokeEditable(s)) continue;
+      if (isImageStroke(s)) {
+        const b = strokeBounds(s);
+        if (b && pt.x >= b.minX && pt.x <= b.maxX && pt.y >= b.minY && pt.y <= b.maxY) {
+          return s;
+        }
+        continue;
+      }
       if (isTextStroke(s)) {
         const b = strokeBounds(s, (t) => this.surface.measureText(t));
         if (b && pt.x >= b.minX - 6 && pt.x <= b.maxX + 6 && pt.y >= b.minY - 6 && pt.y <= b.maxY + 6) {
@@ -591,7 +636,8 @@ class App {
     maxX: number,
     maxY: number,
   ): boolean {
-    if (isTextStroke(stroke)) {
+    if (!this.strokeEditable(stroke)) return false;
+    if (isTextStroke(stroke) || isImageStroke(stroke)) {
       const b = strokeBounds(stroke, (t) => this.surface.measureText(t));
       if (!b) return false;
       return b.maxX >= minX && b.minX <= maxX && b.maxY >= minY && b.minY <= maxY;
@@ -1024,7 +1070,10 @@ class App {
   }
 
   private sharpenAll(): void {
-    const sharpened = sharpenStrokes(this.store.sketch.strokes, this.store.tool.sharpen);
+    // Locked and hidden layers keep their strokes untouched.
+    const sharpened = this.store.sketch.strokes.map((s) =>
+      !s.sharpened && this.strokeEditable(s) ? sharpenStroke(s, this.store.tool.sharpen) : s,
+    );
     this.store.replaceAllStrokes(sharpened);
     this.toast('Sharpened all strokes on this page.');
   }
@@ -1069,6 +1118,7 @@ class App {
   private bindFileActions(): void {
     el('new-sketch').addEventListener('click', () => this.newSketch());
     el('open').addEventListener('click', () => this.openBook());
+    el('import').addEventListener('click', () => this.importFile());
     el('save').addEventListener('click', () => this.saveBook(false));
     el('save-as').addEventListener('click', () => this.saveBook(true));
   }
@@ -1179,6 +1229,132 @@ class App {
     }
   }
 
+  private async exportPdf(): Promise<void> {
+    const choice = await this.showExportDialog('pdf');
+    if (choice === null) return;
+    const sketches = choice === 'page' ? [this.store.sketch] : this.store.book.sketches;
+    const prepared = await Promise.all(sketches.map((sk) => this.flattenImagesForPdf(sk)));
+    const result = await window.napkin.savePdf(sketchesToPdf(prepared), this.store.displayName);
+    if (result.cancelled) return;
+    if (result.ok) {
+      this.toast(choice === 'page' ? 'Exported PDF.' : `Exported ${prepared.length} pages as one PDF.`);
+    } else {
+      this.toast(result.error ?? 'Export failed.');
+    }
+  }
+
+  /**
+   * Returns a sketch whose image items all carry JPEG data URLs, converting
+   * other formats via a canvas (the PDF writer embeds JPEG only). PNG
+   * transparency is flattened onto the page background.
+   */
+  private async flattenImagesForPdf(sketch: Sketch): Promise<Sketch> {
+    const needsWork = sketch.strokes.some(
+      (s) => isImageStroke(s) && !/^data:image\/jpe?g[;,]/i.test(s.image ?? ''),
+    );
+    if (!needsWork) return sketch;
+
+    const strokes = await Promise.all(
+      sketch.strokes.map(async (s) => {
+        if (!isImageStroke(s) || /^data:image\/jpe?g[;,]/i.test(s.image ?? '')) return s;
+        try {
+          const img = await loadImage(s.image!);
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return s;
+          ctx.fillStyle = sketch.background;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          return { ...s, image: canvas.toDataURL('image/jpeg', 0.92) };
+        } catch {
+          return s;
+        }
+      }),
+    );
+    return { ...sketch, strokes };
+  }
+
+  // ---- Import ----------------------------------------------------------------
+
+  /** Imports an SVG (as layers), PDF (as pages), or PNG/JPEG (as an image item). */
+  private async importFile(): Promise<void> {
+    const result = await window.napkin.importFile();
+    if (!result.ok) {
+      if (!result.cancelled) this.toast(result.error ?? 'Import failed.');
+      return;
+    }
+
+    if (result.kind === 'svg') {
+      try {
+        const imported = importSvg(result.text);
+        this.store.addImportedLayers(imported.layers);
+        this.renderLayers();
+        this.toast(
+          `Imported ${imported.layers.length} layer${imported.layers.length === 1 ? '' : 's'} from ${result.name}.svg.`,
+        );
+      } catch (err) {
+        this.toast((err as Error).message);
+      }
+      return;
+    }
+
+    if (result.kind === 'pdf') {
+      const pages = result.pages.map((page, index) => {
+        const sketch = createSketch(
+          result.pages.length === 1 ? result.name : `${result.name}-${index + 1}`,
+        );
+        sketch.width = Math.round(page.width);
+        sketch.height = Math.round(page.height);
+        if (page.background) sketch.background = page.background;
+        sketch.strokes = page.strokes.map((s) => ({ ...s, layer: sketch.layers[0].id }));
+        return sketch;
+      });
+      this.store.addImportedPages(pages);
+      this.renderThumbnails();
+      this.toast(`Imported ${pages.length} page${pages.length === 1 ? '' : 's'} from ${result.name}.pdf.`);
+      return;
+    }
+
+    // Raster image: place on the active layer, scaled to fit the page.
+    if (!this.store.canDraw) {
+      this.toast(`Layer "${this.store.activeLayer.name}" is locked or hidden.`);
+      return;
+    }
+    try {
+      const img = await loadImage(result.dataUrl);
+      const sketch = this.store.sketch;
+      const scale = Math.min(
+        1,
+        (sketch.width * 0.9) / img.naturalWidth,
+        (sketch.height * 0.9) / img.naturalHeight,
+      );
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      this.store.addStroke({
+        id: createId('im'),
+        tool: 'image',
+        color: this.store.tool.color,
+        width: 1,
+        points: [
+          {
+            x: Math.round((sketch.width - w) / 2),
+            y: Math.round((sketch.height - h) / 2),
+            pressure: 0.5,
+          },
+        ],
+        image: result.dataUrl,
+        imageWidth: w,
+        imageHeight: h,
+        sharpened: true,
+      });
+      this.toast(`Imported ${result.name} onto layer "${this.store.activeLayer.name}".`);
+    } catch {
+      this.toast('Could not decode the image file.');
+    }
+  }
+
   // ---- Pages ---------------------------------------------------------------
 
   private bindPages(): void {
@@ -1201,6 +1377,144 @@ class App {
     el('app').classList.toggle('pages-open', this.pagesOpen);
     if (this.pagesOpen) this.renderThumbnails();
     requestAnimationFrame(() => this.resizeSurface());
+  }
+
+  // ---- Layers ----------------------------------------------------------------
+
+  private bindLayers(): void {
+    el('layers-toggle').addEventListener('click', () => this.toggleLayers());
+    el('add-layer').addEventListener('click', () => {
+      this.store.addLayer();
+      this.toast(`Added layer "${this.store.activeLayer.name}".`);
+    });
+    el('delete-layer').addEventListener('click', () => {
+      if (this.store.sketch.layers.length <= 1) {
+        this.toast('A sketch needs at least one layer.');
+        return;
+      }
+      const layer = this.store.activeLayer;
+      const strokes = this.store.sketch.strokes.filter((s) => s.layer === layer.id).length;
+      if (strokes > 0 && !confirm(`Delete layer "${layer.name}" and its ${strokes} stroke(s)?`)) {
+        return;
+      }
+      this.store.removeLayer(layer.id);
+    });
+    el('layer-up').addEventListener('click', () => this.store.moveLayer(this.store.activeLayer.id, 1));
+    el('layer-down').addEventListener('click', () => this.store.moveLayer(this.store.activeLayer.id, -1));
+
+    // Opacity drags collapse into one history step (pushed on the first tick).
+    const opacity = el<HTMLInputElement>('layer-opacity');
+    opacity.addEventListener('input', () => {
+      const first = !this.layerOpacityDragging;
+      this.layerOpacityDragging = true;
+      this.store.setLayerProps(this.store.activeLayer.id, { opacity: Number(opacity.value) / 100 }, first);
+      el('layer-opacity-value').textContent = `${opacity.value}%`;
+    });
+    opacity.addEventListener('change', () => {
+      this.layerOpacityDragging = false;
+      this.renderLayers();
+    });
+  }
+
+  private toggleLayers(force?: boolean): void {
+    this.layersOpen = force ?? !this.layersOpen;
+    el('app').classList.toggle('layers-open', this.layersOpen);
+    if (this.layersOpen) this.renderLayers();
+    requestAnimationFrame(() => this.resizeSurface());
+  }
+
+  /** Rebuilds the layers panel (topmost layer first). */
+  private renderLayers(): void {
+    if (!this.layersOpen) return;
+    const list = el('layers-list');
+    list.textContent = '';
+    const layers = this.store.sketch.layers;
+    const active = this.store.activeLayer;
+
+    for (let i = layers.length - 1; i >= 0; i--) {
+      const layer = layers[i];
+      const row = document.createElement('div');
+      row.className = 'layer-row';
+      row.classList.toggle('is-active', layer.id === active.id);
+      row.classList.toggle('is-hidden', !layer.visible);
+      row.setAttribute('role', 'option');
+      row.setAttribute('aria-selected', String(layer.id === active.id));
+
+      const eye = document.createElement('button');
+      eye.className = 'layer-toggle';
+      eye.classList.toggle('is-off', !layer.visible);
+      eye.type = 'button';
+      eye.title = layer.visible ? 'Hide layer' : 'Show layer';
+      eye.setAttribute('aria-label', `${layer.visible ? 'Hide' : 'Show'} ${layer.name}`);
+      eye.textContent = layer.visible ? '◉' : '○';
+      eye.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        this.store.setLayerProps(layer.id, { visible: !layer.visible });
+      });
+
+      const lock = document.createElement('button');
+      lock.className = 'layer-toggle';
+      lock.classList.toggle('is-off', !layer.locked);
+      lock.type = 'button';
+      lock.title = layer.locked ? 'Unlock layer' : 'Lock layer';
+      lock.setAttribute('aria-label', `${layer.locked ? 'Unlock' : 'Lock'} ${layer.name}`);
+      lock.textContent = layer.locked ? '🔒' : '🔓';
+      lock.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        this.store.setLayerProps(layer.id, { locked: !layer.locked });
+      });
+
+      const name = document.createElement('span');
+      name.className = 'layer-name';
+      name.textContent = layer.name;
+      name.title = `${layer.name} (double-click to rename)`;
+      name.addEventListener('dblclick', (ev) => {
+        ev.stopPropagation();
+        this.beginLayerRename(layer.id, row, name);
+      });
+
+      const badge = document.createElement('span');
+      badge.className = 'layer-opacity-badge';
+      badge.textContent = layer.opacity < 1 ? `${Math.round(layer.opacity * 100)}%` : '';
+
+      row.append(eye, lock, name, badge);
+      row.addEventListener('click', () => this.store.setActiveLayer(layer.id));
+      list.appendChild(row);
+    }
+
+    const index = layers.findIndex((l) => l.id === active.id);
+    el<HTMLInputElement>('layer-opacity').value = String(Math.round(active.opacity * 100));
+    el('layer-opacity-value').textContent = `${Math.round(active.opacity * 100)}%`;
+    el<HTMLButtonElement>('delete-layer').disabled = layers.length <= 1;
+    el<HTMLButtonElement>('layer-up').disabled = index >= layers.length - 1;
+    el<HTMLButtonElement>('layer-down').disabled = index <= 0;
+  }
+
+  /** Swaps a layer's name label for an inline rename input. */
+  private beginLayerRename(id: string, row: HTMLElement, label: HTMLElement): void {
+    const input = document.createElement('input');
+    input.className = 'layer-name-input';
+    input.value = label.textContent ?? '';
+    row.replaceChild(input, label);
+    input.focus();
+    input.select();
+
+    const previous = label.textContent ?? '';
+    const commit = (): void => {
+      const name = input.value.trim();
+      if (name && name !== previous) this.store.setLayerProps(id, { name });
+      else this.renderLayers();
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') input.blur();
+      else if (ev.key === 'Escape') {
+        input.value = label.textContent ?? '';
+        input.blur();
+      }
+    });
+    input.addEventListener('click', (ev) => ev.stopPropagation());
   }
 
   /** Switches pages with a brief page-turn animation. */
@@ -1243,8 +1557,10 @@ class App {
         tctx.lineCap = 'round';
         tctx.lineJoin = 'round';
         for (const s of sketch.strokes) {
-          if (isTextStroke(s)) continue;
-          tctx.globalAlpha = s.opacity ?? (s.tool === 'marker' ? 0.38 : 1);
+          if (isTextStroke(s) || isImageStroke(s)) continue;
+          const layer = layerOf(sketch, s);
+          if (!layer.visible) continue;
+          tctx.globalAlpha = (s.opacity ?? (s.tool === 'marker' ? 0.38 : 1)) * layer.opacity;
           tctx.strokeStyle = s.tool === 'eraser' ? sketch.background : s.color;
           tctx.lineWidth = s.width;
           tctx.beginPath();
@@ -1280,6 +1596,9 @@ class App {
       case 'open':
         void this.openBook();
         break;
+      case 'import':
+        void this.importFile();
+        break;
       case 'save':
         void this.saveBook(false);
         break;
@@ -1295,6 +1614,9 @@ class App {
       case 'export-svg':
         void this.exportSvg();
         break;
+      case 'export-pdf':
+        void this.exportPdf();
+        break;
       case 'undo':
         this.store.undo();
         break;
@@ -1303,6 +1625,9 @@ class App {
         break;
       case 'toggle-pages':
         this.togglePages();
+        break;
+      case 'toggle-layers':
+        this.toggleLayers();
         break;
       case 'toggle-settings':
         this.toggleSettings();
@@ -1364,6 +1689,12 @@ class App {
       } else if (mod && key === 'b') {
         e.preventDefault();
         this.togglePages();
+      } else if (mod && key === 'l') {
+        e.preventDefault();
+        this.toggleLayers();
+      } else if (mod && key === 'i') {
+        e.preventDefault();
+        void this.importFile();
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && this.store.selectedIds.size > 0) {
         e.preventDefault();
         this.store.deleteSelected();
@@ -1471,6 +1802,10 @@ class App {
         node.classList.toggle('is-active', idx === this.store.activeIndex);
       }
     }
+
+    // Keep the layers panel current, but never mid-slider-drag (the rebuild
+    // would interrupt the pointer capture).
+    if (this.layersOpen && !this.layerOpacityDragging) this.renderLayers();
   }
 
   private toast(message: string): void {
@@ -1480,6 +1815,16 @@ class App {
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2400);
   }
+}
+
+/** Loads an image from a data URL, resolving once it is decoded. */
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not decode image.'));
+    img.src = src;
+  });
 }
 
 /** Euclidean distance between two screen points. */

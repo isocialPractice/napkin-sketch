@@ -9,7 +9,8 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage } from 'electron
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { decodeLaunchOptions, LAUNCH_ENV_KEY, type LaunchOptions } from '../core/launch.js';
-import { IPC, type ExportFormat, type ImageFormat, type MenuAction, type OpenResult, type SaveImagesResult, type SaveResult } from '../core/ipc.js';
+import { IPC, type ExportFormat, type ImageFormat, type ImportFileResult, type MenuAction, type OpenResult, type SaveImagesResult, type SaveResult } from '../core/ipc.js';
+import { importPdf } from '../core/pdf-import.js';
 import {
   readSketchBook,
   withSketchBookExtension,
@@ -118,6 +119,7 @@ function buildMenu(): void {
       submenu: [
         { label: 'New Sketch', accelerator: 'CmdOrCtrl+N', click: () => dispatch('new') },
         { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => dispatch('open') },
+        { label: 'Import…', accelerator: 'CmdOrCtrl+I', click: () => dispatch('import') },
         { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => dispatch('save') },
         { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => dispatch('save-as') },
@@ -128,6 +130,7 @@ function buildMenu(): void {
             { label: 'PNG Image…', click: () => dispatch('export-png') },
             { label: 'JPEG Image…', click: () => dispatch('export-jpeg') },
             { label: 'SVG Vector…', click: () => dispatch('export-svg') },
+            { label: 'PDF Document…', click: () => dispatch('export-pdf') },
           ],
         },
         { type: 'separator' },
@@ -148,6 +151,7 @@ function buildMenu(): void {
       label: 'View',
       submenu: [
         { label: 'Toggle Pages Panel', accelerator: 'CmdOrCtrl+B', click: () => dispatch('toggle-pages') },
+        { label: 'Toggle Layers Panel', accelerator: 'CmdOrCtrl+L', click: () => dispatch('toggle-layers') },
         { label: 'Sharpen Settings', accelerator: 'CmdOrCtrl+,', click: () => dispatch('toggle-settings') },
         { type: 'separator' },
         { role: 'reload' },
@@ -307,6 +311,60 @@ function registerIpc(): void {
       }
     },
   );
+
+  ipcMain.handle(
+    IPC.savePdf,
+    async (_event, pdfContent: string, suggestedName: string): Promise<SaveResult> => {
+      if (!mainWindow) return { ok: false, error: 'No window available.' };
+      const picked = await dialog.showSaveDialog(mainWindow, {
+        title: 'Export PDF',
+        defaultPath: `${suggestedName || 'sketch'}.pdf`,
+        filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+      });
+      if (picked.canceled || !picked.filePath) return { ok: false, cancelled: true };
+      try {
+        // The PDF byte string is latin1-safe; write it byte-for-byte.
+        await writeFile(picked.filePath, Buffer.from(pdfContent, 'latin1'));
+        return { ok: true, filePath: picked.filePath };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    },
+  );
+
+  ipcMain.handle(IPC.importFile, async (): Promise<ImportFileResult> => {
+    if (!mainWindow) return { ok: false, error: 'No window available.' };
+    const picked = await dialog.showOpenDialog(mainWindow, {
+      title: 'Import file',
+      filters: [
+        { name: 'Importable Files', extensions: ['svg', 'pdf', 'png', 'jpg', 'jpeg'] },
+        { name: 'SVG Vector', extensions: ['svg'] },
+        { name: 'PDF Document', extensions: ['pdf'] },
+        { name: 'Images', extensions: ['png', 'jpg', 'jpeg'] },
+      ],
+      properties: ['openFile'],
+    });
+    if (picked.canceled || picked.filePaths.length === 0) return { ok: false, cancelled: true };
+
+    const filePath = picked.filePaths[0];
+    const name = basename(filePath, extname(filePath));
+    const ext = extname(filePath).toLowerCase();
+    try {
+      if (ext === '.svg') {
+        const text = await readFile(filePath, 'utf-8');
+        return { ok: true, kind: 'svg', name, text };
+      }
+      if (ext === '.pdf') {
+        const pages = importPdf(await readFile(filePath));
+        return { ok: true, kind: 'pdf', name, pages };
+      }
+      const mime = ext === '.png' ? 'image/png' : 'image/jpeg';
+      const bytes = await readFile(filePath);
+      return { ok: true, kind: 'raster', name, dataUrl: `data:${mime};base64,${bytes.toString('base64')}` };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
 
   ipcMain.handle(
     IPC.saveImages,

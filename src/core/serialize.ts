@@ -14,8 +14,10 @@ import {
   SKETCHBOOK_EXTENSION,
   SKETCHBOOK_VERSION,
   createId,
+  createLayer,
   createSketch,
   createSketchBook,
+  type Layer,
   type Sketch,
   type SketchBook,
   type Stroke,
@@ -35,7 +37,7 @@ export function deriveName(filePath: string): string {
   return stem(filePath) || 'untitled';
 }
 
-const VALID_TOOLS: Tool[] = ['pen', 'marker', 'eraser', 'select', 'text'];
+const VALID_TOOLS: Tool[] = ['pen', 'marker', 'eraser', 'select', 'text', 'image'];
 
 function normalizeStroke(raw: unknown): Stroke | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -62,6 +64,9 @@ function normalizeStroke(raw: unknown): Stroke | null {
   const rawTool = VALID_TOOLS.includes(r.tool as Tool) ? (r.tool as Tool) : 'pen';
   const tool: Tool = rawTool === 'select' ? 'pen' : rawTool;
   const isText = tool === 'text' && typeof r.text === 'string';
+  const isImage = tool === 'image' && typeof r.image === 'string';
+  // An image item without its data is unrenderable; drop it.
+  if (tool === 'image' && !isImage) return null;
 
   return {
     id: typeof r.id === 'string' ? r.id : createId('st'),
@@ -69,10 +74,29 @@ function normalizeStroke(raw: unknown): Stroke | null {
     color: typeof r.color === 'string' ? r.color : '#1f2328',
     width: typeof r.width === 'number' && r.width > 0 ? r.width : 3,
     points,
+    opacity:
+      typeof r.opacity === 'number' && r.opacity > 0 && r.opacity <= 1 ? r.opacity : undefined,
     sharpened: r.sharpened === true,
     text: isText ? (r.text as string) : undefined,
     fontSize: isText && typeof r.fontSize === 'number' ? r.fontSize : undefined,
     fontFamily: isText && typeof r.fontFamily === 'string' ? r.fontFamily : undefined,
+    textBoxWidth: isText && typeof r.textBoxWidth === 'number' ? r.textBoxWidth : undefined,
+    layer: typeof r.layer === 'string' ? r.layer : undefined,
+    image: isImage ? (r.image as string) : undefined,
+    imageWidth: isImage && typeof r.imageWidth === 'number' ? r.imageWidth : undefined,
+    imageHeight: isImage && typeof r.imageHeight === 'number' ? r.imageHeight : undefined,
+  };
+}
+
+function normalizeLayer(raw: unknown, index: number): Layer | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  return {
+    id: typeof r.id === 'string' ? r.id : createId('ly'),
+    name: typeof r.name === 'string' && r.name.length > 0 ? r.name : `Layer ${index + 1}`,
+    opacity: typeof r.opacity === 'number' ? Math.min(1, Math.max(0, r.opacity)) : 1,
+    visible: r.visible !== false,
+    locked: r.locked === true,
   };
 }
 
@@ -84,12 +108,24 @@ function normalizeSketch(raw: unknown): Sketch {
     ? r.strokes.map(normalizeStroke).filter((s): s is Stroke => s !== null)
     : [];
 
+  // Version 1 documents carry no layer stack; give them a single default
+  // layer. Invalid or missing stroke layer ids fall back to the first layer.
+  const layers = Array.isArray(r.layers)
+    ? r.layers.map(normalizeLayer).filter((l): l is Layer => l !== null)
+    : [];
+  if (layers.length === 0) layers.push(createLayer());
+  const layerIds = new Set(layers.map((l) => l.id));
+  for (const stroke of strokes) {
+    if (!stroke.layer || !layerIds.has(stroke.layer)) stroke.layer = layers[0].id;
+  }
+
   return {
     id: typeof r.id === 'string' ? r.id : base.id,
     name: typeof r.name === 'string' ? r.name : base.name,
     width: typeof r.width === 'number' && r.width > 0 ? r.width : base.width,
     height: typeof r.height === 'number' && r.height > 0 ? r.height : base.height,
     background: typeof r.background === 'string' ? r.background : base.background,
+    layers,
     strokes,
     createdAt: typeof r.createdAt === 'string' ? r.createdAt : base.createdAt,
     updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : base.updatedAt,

@@ -26,6 +26,7 @@ import {
   type Tool,
 } from '../core/types.js';
 import { parseSketchBook, serializeSketchBook } from '../core/serialize.js';
+import { sketchesToPdf } from '../core/pdf.js';
 import { DEFAULT_SHARPEN_OPTIONS, sharpenStroke, sharpenStrokes, type SharpenOptions } from '../sharpen/sharpen.js';
 import { Surface } from '../renderer/surface.js';
 
@@ -181,6 +182,19 @@ export class NapkinSketch {
   toDataURL(type: 'image/png' | 'image/jpeg' = 'image/png'): string {
     const background = type === 'image/jpeg' ? this.sketch.background : undefined;
     return this.surface.toDataURL(type, background);
+  }
+
+  /** Exports the current drawing as an SVG document string. */
+  toSVG(): string {
+    return Surface.toSVG(this.sketch);
+  }
+
+  /**
+   * Exports the current drawing as a single-page PDF byte string
+   * (latin1-safe; write it with binary/latin1 encoding).
+   */
+  toPDF(): string {
+    return sketchesToPdf([this.sketch]);
   }
 
   /** Detaches all listeners and removes the canvas from the host. */

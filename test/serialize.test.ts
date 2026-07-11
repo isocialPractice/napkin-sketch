@@ -61,3 +61,95 @@ test('select tool is normalized to pen on persistence', () => {
   );
   assert.equal(book.sketches[0].strokes[0].tool, 'pen');
 });
+
+test('version 1 documents (no layers) gain a default layer', () => {
+  const v1 = {
+    format: 'napkin-sketch',
+    version: 1,
+    name: 'old',
+    sketches: [
+      {
+        id: 'sk1',
+        name: 'page',
+        width: 640,
+        height: 480,
+        background: '#fcfaf5',
+        strokes: [
+          { id: 's1', tool: 'pen', color: '#1f2328', width: 3, points: [{ x: 1, y: 2 }] },
+        ],
+      },
+    ],
+  };
+  const book = normalizeSketchBook(v1, 'old');
+  const sketch = book.sketches[0];
+  assert.equal(sketch.layers.length, 1);
+  assert.equal(sketch.layers[0].opacity, 1);
+  assert.equal(sketch.layers[0].visible, true);
+  assert.equal(sketch.layers[0].locked, false);
+  assert.equal(sketch.strokes[0].layer, sketch.layers[0].id);
+});
+
+test('layer stack and stroke layer ids round-trip', () => {
+  const book = createSketchBook('layered');
+  const sketch = book.sketches[0];
+  sketch.layers.push({ id: 'ly_top', name: 'Top', opacity: 0.5, visible: false, locked: true });
+  sketch.strokes.push({
+    id: 's1',
+    tool: 'pen',
+    color: '#123456',
+    width: 4,
+    layer: 'ly_top',
+    points: [{ x: 1, y: 2 }],
+  });
+  const restored = parseSketchBook(serializeSketchBook(book), 'layered');
+  const rs = restored.sketches[0];
+  assert.equal(rs.layers.length, 2);
+  assert.equal(rs.layers[1].name, 'Top');
+  assert.equal(rs.layers[1].opacity, 0.5);
+  assert.equal(rs.layers[1].visible, false);
+  assert.equal(rs.layers[1].locked, true);
+  assert.equal(rs.strokes[0].layer, 'ly_top');
+});
+
+test('strokes with unknown layer ids fall back to the first layer', () => {
+  const book = normalizeSketchBook(
+    {
+      sketches: [
+        {
+          layers: [{ id: 'ly_a', name: 'A' }],
+          strokes: [{ tool: 'pen', layer: 'ly_gone', points: [{ x: 0, y: 0 }] }],
+        },
+      ],
+    },
+    'x',
+  );
+  assert.equal(book.sketches[0].strokes[0].layer, 'ly_a');
+});
+
+test('image items keep their data and are dropped when the data is missing', () => {
+  const book = normalizeSketchBook(
+    {
+      sketches: [
+        {
+          strokes: [
+            {
+              tool: 'image',
+              image: 'data:image/png;base64,AAAA',
+              imageWidth: 40,
+              imageHeight: 30,
+              points: [{ x: 5, y: 6 }],
+            },
+            { tool: 'image', points: [{ x: 0, y: 0 }] },
+          ],
+        },
+      ],
+    },
+    'x',
+  );
+  const strokes = book.sketches[0].strokes;
+  assert.equal(strokes.length, 1);
+  assert.equal(strokes[0].tool, 'image');
+  assert.equal(strokes[0].image, 'data:image/png;base64,AAAA');
+  assert.equal(strokes[0].imageWidth, 40);
+  assert.equal(strokes[0].imageHeight, 30);
+});

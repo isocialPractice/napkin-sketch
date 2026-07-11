@@ -7,6 +7,7 @@
  */
 
 import type { LaunchOptions } from './launch.js';
+import type { ImportedPdfPage } from './pdf-import.js';
 import type { AppSettings } from './settings.js';
 import type { SketchBook } from './types.js';
 
@@ -26,8 +27,12 @@ export const IPC = {
   saveImage: 'napkin:save-image',
   /** Renderer → main: export the current page as an SVG document. */
   saveSvg: 'napkin:save-svg',
+  /** Renderer → main: export one or all pages as a PDF document. */
+  savePdf: 'napkin:save-pdf',
   /** Renderer → main: export all pages as sequentially numbered files. */
   saveImages: 'napkin:save-images',
+  /** Renderer → main: pick and read an importable file (SVG/PDF/PNG/JPEG). */
+  importFile: 'napkin:import-file',
   /** Renderer → main: report the current document title for the window. */
   setTitle: 'napkin:set-title',
   /** Main → renderer: a native menu item was activated. */
@@ -54,14 +59,17 @@ export const IPC = {
 export type MenuAction =
   | 'new'
   | 'open'
+  | 'import'
   | 'save'
   | 'save-as'
   | 'export-png'
   | 'export-jpeg'
   | 'export-svg'
+  | 'export-pdf'
   | 'undo'
   | 'redo'
   | 'toggle-pages'
+  | 'toggle-layers'
   | 'toggle-settings'
   | 'open-app-settings'
   | 'toggle-rearrange';
@@ -70,7 +78,14 @@ export type MenuAction =
 export type ImageFormat = 'png' | 'jpeg';
 
 /** All supported export formats (raster + vector). */
-export type ExportFormat = ImageFormat | 'svg';
+export type ExportFormat = ImageFormat | 'svg' | 'pdf';
+
+/** Result of picking and reading an importable file. */
+export type ImportFileResult =
+  | { ok: true; kind: 'svg'; name: string; text: string }
+  | { ok: true; kind: 'raster'; name: string; dataUrl: string }
+  | { ok: true; kind: 'pdf'; name: string; pages: ImportedPdfPage[] }
+  | { ok: false; error?: string; cancelled?: boolean };
 
 /** Result of a multi-page export operation. */
 export interface SaveImagesResult {
@@ -112,6 +127,10 @@ export interface NapkinBridge {
   saveImage(format: ImageFormat, dataUrl: string, suggestedName: string): Promise<SaveResult>;
   /** Saves raw SVG markup to a .svg file. */
   saveSvg(svgContent: string, suggestedName: string): Promise<SaveResult>;
+  /** Saves a latin1-safe PDF byte string to a .pdf file. */
+  savePdf(pdfContent: string, suggestedName: string): Promise<SaveResult>;
+  /** Opens a file picker and reads an importable SVG/PDF/PNG/JPEG file. */
+  importFile(): Promise<ImportFileResult>;
   /**
    * Saves multiple pages as sequentially numbered files.
    * `contents` are data-URLs for PNG/JPEG, or raw SVG strings for SVG.

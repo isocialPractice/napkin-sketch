@@ -2,7 +2,8 @@
  * Shared data model for napkin-sketch.
  *
  * A SketchBook (`.skbk` file) is a JSON document holding one or more Sketches.
- * Each Sketch is a list of Strokes; each Stroke is a list of sampled Points.
+ * Each Sketch has a stack of Layers and a list of Strokes; each Stroke is a
+ * list of sampled Points and belongs to one layer (via its `layer` id).
  */
 
 /** A single sampled point along a stroke. */
@@ -18,9 +19,29 @@ export interface Point {
 }
 
 /** Tool used to lay down a stroke or interact with the canvas. */
-export type Tool = 'pen' | 'marker' | 'eraser' | 'select' | 'text';
+export type Tool = 'pen' | 'marker' | 'eraser' | 'select' | 'text' | 'image';
 
-/** A continuous drawing stroke, or a text item when `tool === 'text'`. */
+/**
+ * A single layer in a sketch's layer stack. Layers paint in array order
+ * (index 0 is the bottom); each stroke references its layer by id.
+ */
+export interface Layer {
+  /** Stable id within the sketch. */
+  id: string;
+  /** Display name shown in the layers panel. */
+  name: string;
+  /** Layer opacity (0-1) applied to the layer's composited content. */
+  opacity: number;
+  /** Hidden layers are skipped when rendering and exporting. */
+  visible: boolean;
+  /** Locked layers reject drawing, selection, and erasing. */
+  locked: boolean;
+}
+
+/**
+ * A continuous drawing stroke, a text item when `tool === 'text'`, or a
+ * placed raster image when `tool === 'image'`.
+ */
 export interface Stroke {
   /** Unique id within the sketch. */
   id: string;
@@ -50,6 +71,17 @@ export interface Stroke {
    * When 0 or absent the text box auto-sizes to its content.
    */
   textBoxWidth?: number;
+  /**
+   * Id of the layer this stroke belongs to. When absent the stroke paints on
+   * the sketch's first (bottom) layer.
+   */
+  layer?: string;
+  /** Image data URL (only present when `tool === 'image'`). */
+  image?: string;
+  /** Rendered image width in pixels (image items). `points[0]` is the top-left anchor. */
+  imageWidth?: number;
+  /** Rendered image height in pixels (image items). */
+  imageHeight?: number;
 }
 
 /** A single drawing surface (one "napkin"). */
@@ -64,7 +96,9 @@ export interface Sketch {
   height: number;
   /** Background CSS color. */
   background: string;
-  /** Ordered strokes (paint order = array order). */
+  /** Layer stack, bottom first. Always holds at least one layer. */
+  layers: Layer[];
+  /** Ordered strokes (paint order = array order within each layer). */
   strokes: Stroke[];
   /** ISO creation timestamp. */
   createdAt: string;
@@ -88,8 +122,8 @@ export interface SketchBook {
   updatedAt: string;
 }
 
-/** Current on-disk schema version. */
-export const SKETCHBOOK_VERSION = 1;
+/** Current on-disk schema version. Version 2 introduced the layer stack. */
+export const SKETCHBOOK_VERSION = 2;
 
 /** Canonical sketch-book file extension (without the dot). */
 export const SKETCHBOOK_EXTENSION = 'skbk';
@@ -109,6 +143,29 @@ export function isTextStroke(stroke: Stroke): boolean {
   return stroke.tool === 'text' && typeof stroke.text === 'string';
 }
 
+/** Returns true if a stroke is a placed raster image item. */
+export function isImageStroke(stroke: Stroke): boolean {
+  return stroke.tool === 'image' && typeof stroke.image === 'string';
+}
+
+/** Creates a new layer with sensible defaults. */
+export function createLayer(name = 'Layer 1'): Layer {
+  return { id: createId('ly'), name, opacity: 1, visible: true, locked: false };
+}
+
+/**
+ * Resolves the layer a stroke paints on. Strokes without a valid layer id
+ * fall back to the sketch's first (bottom) layer.
+ */
+export function layerOf(sketch: Sketch, stroke: Stroke): Layer {
+  return sketch.layers.find((l) => l.id === stroke.layer) ?? sketch.layers[0];
+}
+
+/** Returns the strokes belonging to one layer, in paint order. */
+export function strokesOnLayer(sketch: Sketch, layerId: string): Stroke[] {
+  return sketch.strokes.filter((s) => layerOf(sketch, s).id === layerId);
+}
+
 /** Generates a short, collision-resistant id. */
 export function createId(prefix = 'id'): string {
   const rand = Math.random().toString(36).slice(2, 10);
@@ -116,7 +173,7 @@ export function createId(prefix = 'id'): string {
   return `${prefix}_${time}${rand}`;
 }
 
-/** Creates an empty sketch with sensible defaults. */
+/** Creates an empty sketch (with a single default layer) with sensible defaults. */
 export function createSketch(name = 'unnamed'): Sketch {
   const now = new Date().toISOString();
   return {
@@ -125,6 +182,7 @@ export function createSketch(name = 'unnamed'): Sketch {
     width: DEFAULT_SURFACE.width,
     height: DEFAULT_SURFACE.height,
     background: DEFAULT_BACKGROUND,
+    layers: [createLayer()],
     strokes: [],
     createdAt: now,
     updatedAt: now,

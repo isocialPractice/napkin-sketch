@@ -4,6 +4,45 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-alpha] - 2026-07-10
+
+### Added
+
+- Layers: every page now has a layer stack with per-layer opacity, visibility,
+  lock, rename, and up/down reordering, managed from a new Layers panel
+  (`Ctrl+L`, View menu, or the toolbar button). Drawing, erasing, selection,
+  and Sharpen All respect the active layer, and the eraser only cuts holes in
+  its own layer. Layer opacity is honored by the canvas, thumbnails, and every
+  export format.
+- PDF export: File > Export > PDF Document writes a vector PDF with no added
+  dependencies. "Export all pages" produces a single multi-page document;
+  layer and stroke opacity are preserved, and text exports as real PDF text.
+- Import (`Ctrl+I`, File > Import, or the toolbar button):
+  - SVG files import as editable strokes with top-level groups becoming
+    layers; napkin-sketch's own SVG exports round-trip losslessly (tools,
+    paint order, and eraser masks are recovered from data attributes).
+    Generic SVG shapes and beziers are sampled into freehand strokes.
+  - PDF files import best-effort: each page's vector paths and text become a
+    new sketch page (napkin-sketch's own PDF exports round-trip).
+  - PNG/JPEG files import as movable, selectable image items placed on the
+    active layer and scaled to fit the page.
+- SVG export now wraps each layer in a named `<g>` group and renders eraser
+  strokes as a black-on-white layer mask, so erasing no longer paints opaque
+  background color over content beneath.
+- Embeddable API: `NapkinSketch#toSVG()` and `#toPDF()`, plus new browser-safe
+  exports `sketchesToPdf`, `importSvg`, `createLayer`, `layerOf`,
+  `strokesOnLayer`, `isImageStroke`, and the `Layer` type.
+
+### Changed
+
+- **BREAKING**: the `.skbk` schema is now version 2 - each sketch carries a
+  `layers` array and each stroke a `layer` id. Version 1 files still open:
+  they are migrated in place by giving each page a single default layer (no
+  action needed; saving re-writes the file as version 2).
+- **BREAKING**: the `Sketch` type (public API) gained a required `layers`
+  field, and `Tool` gained the `'image'` variant used by placed raster
+  imports. Code constructing sketches via `createSketch()` is unaffected.
+
 ## [1.0.0-alpha] - 2026-06-28
 
 ### Added

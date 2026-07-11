@@ -7,7 +7,16 @@
  */
 
 import { basename } from '../core/paths.js';
-import { createSketch, type SketchBook, type Stroke, type Tool } from '../core/types.js';
+import {
+  createId,
+  createLayer,
+  createSketch,
+  type Layer,
+  type Sketch,
+  type SketchBook,
+  type Stroke,
+  type Tool,
+} from '../core/types.js';
 import { DEFAULT_SHARPEN_OPTIONS, type SharpenOptions } from '../sharpen/sharpen.js';
 
 /** Snapshot of the current tool configuration. */
@@ -34,11 +43,21 @@ const HISTORY_LIMIT = 100;
 
 type Listener = () => void;
 
+/** One undo/redo snapshot of the active page (strokes + layer stack). */
+interface PageSnapshot {
+  strokes: Stroke[];
+  layers: Layer[];
+  activeLayerId: string;
+}
+
 export class Store {
   book: SketchBook;
   filePath: string | null = null;
   activeIndex = 0;
   dirty = false;
+
+  /** Id of the layer new strokes are drawn on. */
+  activeLayerId = '';
 
   /** Ids of currently selected strokes (Select tool). */
   selectedIds = new Set<string>();
@@ -55,14 +74,15 @@ export class Store {
     sharpen: { ...DEFAULT_SHARPEN_OPTIONS },
   };
 
-  // Per-page history of stroke arrays (deep-enough copies for undo/redo).
-  private undoStack: Stroke[][] = [];
-  private redoStack: Stroke[][] = [];
+  // Per-page history of page snapshots (deep-enough copies for undo/redo).
+  private undoStack: PageSnapshot[] = [];
+  private redoStack: PageSnapshot[] = [];
   private listeners = new Set<Listener>();
 
   constructor(book: SketchBook, filePath: string | null = null) {
     this.book = book;
     this.filePath = filePath;
+    this.activeLayerId = this.sketch.layers[0]?.id ?? '';
   }
 
   /** Subscribes to store changes; returns an unsubscribe function. */
@@ -80,6 +100,17 @@ export class Store {
     return this.book.sketches[this.activeIndex];
   }
 
+  /** The layer new strokes land on (falls back to the bottom layer). */
+  get activeLayer(): Layer {
+    return this.sketch.layers.find((l) => l.id === this.activeLayerId) ?? this.sketch.layers[0];
+  }
+
+  /** True when the active layer accepts new marks. */
+  get canDraw(): boolean {
+    const layer = this.activeLayer;
+    return layer.visible && !layer.locked;
+  }
+
   /** Human-readable document name derived from the file path or book name. */
   get displayName(): string {
     if (this.filePath) return basename(this.filePath).replace(/\.skbk$/i, '');
@@ -92,6 +123,7 @@ export class Store {
     this.filePath = filePath;
     if (filePath) this.book.name = basename(filePath).replace(/\.skbk$/i, '');
     this.activeIndex = 0;
+    this.activeLayerId = this.sketch.layers[0]?.id ?? '';
     this.undoStack = [];
     this.redoStack = [];
     this.selectedIds.clear();
@@ -99,28 +131,44 @@ export class Store {
     this.emit();
   }
 
-  /** Pushes the current stroke list onto the undo stack before a mutation. */
+  /** Pushes the current page state onto the undo stack before a mutation. */
   pushHistory(): void {
-    this.undoStack.push(this.cloneStrokes(this.sketch.strokes));
+    this.undoStack.push(this.snapshot());
     if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift();
     this.redoStack = [];
+  }
+
+  private snapshot(): PageSnapshot {
+    return {
+      strokes: this.cloneStrokes(this.sketch.strokes),
+      layers: this.sketch.layers.map((l) => ({ ...l })),
+      activeLayerId: this.activeLayerId,
+    };
+  }
+
+  private restore(snapshot: PageSnapshot): void {
+    this.sketch.strokes = snapshot.strokes;
+    this.sketch.layers = snapshot.layers;
+    this.activeLayerId = snapshot.activeLayerId;
   }
 
   private cloneStrokes(strokes: Stroke[]): Stroke[] {
     return strokes.map((s) => ({ ...s, points: s.points.map((p) => ({ ...p })) }));
   }
 
-  /** Commits a finished stroke to the active page. */
+  /** Commits a finished stroke to the active page's active layer. */
   addStroke(stroke: Stroke): void {
     this.pushHistory();
+    stroke.layer = this.activeLayer.id;
     this.sketch.strokes.push(stroke);
     this.touch();
   }
 
-  /** Commits several strokes to the active page as a single history step. */
+  /** Commits several strokes to the active layer as a single history step. */
   addStrokes(strokes: Stroke[]): void {
     if (strokes.length === 0) return;
     this.pushHistory();
+    for (const stroke of strokes) stroke.layer = this.activeLayer.id;
     this.sketch.strokes.push(...strokes);
     this.touch();
   }
@@ -191,8 +239,8 @@ export class Store {
   undo(): void {
     const prev = this.undoStack.pop();
     if (!prev) return;
-    this.redoStack.push(this.cloneStrokes(this.sketch.strokes));
-    this.sketch.strokes = prev;
+    this.redoStack.push(this.snapshot());
+    this.restore(prev);
     this.selectedIds.clear();
     this.touch();
   }
@@ -200,8 +248,8 @@ export class Store {
   redo(): void {
     const next = this.redoStack.pop();
     if (!next) return;
-    this.undoStack.push(this.cloneStrokes(this.sketch.strokes));
-    this.sketch.strokes = next;
+    this.undoStack.push(this.snapshot());
+    this.restore(next);
     this.selectedIds.clear();
     this.touch();
   }
@@ -224,9 +272,16 @@ export class Store {
     sketch.background = this.sketch.background;
     this.book.sketches.splice(this.activeIndex + 1, 0, sketch);
     this.activeIndex += 1;
-    this.undoStack = [];
-    this.redoStack = [];
-    this.selectedIds.clear();
+    this.resetPageState();
+    this.touch();
+  }
+
+  /** Appends already-built pages (e.g. from a PDF import) after the active one. */
+  addImportedPages(pages: Sketch[]): void {
+    if (pages.length === 0) return;
+    this.book.sketches.splice(this.activeIndex + 1, 0, ...pages);
+    this.activeIndex += 1;
+    this.resetPageState();
     this.touch();
   }
 
@@ -235,9 +290,7 @@ export class Store {
     if (this.book.sketches.length <= 1) return;
     this.book.sketches.splice(this.activeIndex, 1);
     this.activeIndex = Math.max(0, this.activeIndex - 1);
-    this.undoStack = [];
-    this.redoStack = [];
-    this.selectedIds.clear();
+    this.resetPageState();
     this.touch();
   }
 
@@ -246,10 +299,97 @@ export class Store {
     const clamped = Math.max(0, Math.min(this.book.sketches.length - 1, index));
     if (clamped === this.activeIndex) return;
     this.activeIndex = clamped;
+    this.resetPageState();
+    this.emit();
+  }
+
+  /** Clears per-page state after the active page changes. */
+  private resetPageState(): void {
     this.undoStack = [];
     this.redoStack = [];
     this.selectedIds.clear();
+    this.activeLayerId = this.sketch.layers[0]?.id ?? '';
+  }
+
+  // ---- Layers ---------------------------------------------------------------
+
+  /** Makes a layer the target for new strokes. */
+  setActiveLayer(id: string): void {
+    if (!this.sketch.layers.some((l) => l.id === id) || id === this.activeLayerId) return;
+    this.activeLayerId = id;
+    this.selectedIds.clear();
     this.emit();
+  }
+
+  /** Adds a new empty layer above the active one and makes it active. */
+  addLayer(): void {
+    this.pushHistory();
+    const layer = createLayer(`Layer ${this.sketch.layers.length + 1}`);
+    const index = this.sketch.layers.findIndex((l) => l.id === this.activeLayer.id);
+    this.sketch.layers.splice(index + 1, 0, layer);
+    this.activeLayerId = layer.id;
+    this.touch();
+  }
+
+  /** Appends imported layers (with their strokes) above the current stack. */
+  addImportedLayers(imported: { name: string; opacity: number; strokes: Stroke[] }[]): void {
+    if (imported.length === 0) return;
+    this.pushHistory();
+    for (const item of imported) {
+      const layer = createLayer(item.name);
+      layer.opacity = item.opacity;
+      this.sketch.layers.push(layer);
+      for (const stroke of item.strokes) {
+        this.sketch.strokes.push({ ...stroke, id: createId('st'), layer: layer.id });
+      }
+      this.activeLayerId = layer.id;
+    }
+    this.touch();
+  }
+
+  /** Deletes a layer and its strokes (keeps at least one layer). */
+  removeLayer(id: string): void {
+    if (this.sketch.layers.length <= 1) return;
+    const index = this.sketch.layers.findIndex((l) => l.id === id);
+    if (index === -1) return;
+    this.pushHistory();
+    this.sketch.layers.splice(index, 1);
+    this.sketch.strokes = this.sketch.strokes.filter((s) => s.layer !== id);
+    if (this.activeLayerId === id) {
+      this.activeLayerId = this.sketch.layers[Math.max(0, index - 1)].id;
+    }
+    this.selectedIds.clear();
+    this.touch();
+  }
+
+  /** Moves a layer one step up (+1, toward the top) or down (-1) in the stack. */
+  moveLayer(id: string, direction: 1 | -1): void {
+    const index = this.sketch.layers.findIndex((l) => l.id === id);
+    const target = index + direction;
+    if (index === -1 || target < 0 || target >= this.sketch.layers.length) return;
+    this.pushHistory();
+    const [layer] = this.sketch.layers.splice(index, 1);
+    this.sketch.layers.splice(target, 0, layer);
+    this.touch();
+  }
+
+  /**
+   * Updates a layer's properties. Structural toggles push a history step;
+   * pass `history: false` for continuous updates (opacity slider drags).
+   */
+  setLayerProps(id: string, patch: Partial<Omit<Layer, 'id'>>, history = true): void {
+    const layer = this.sketch.layers.find((l) => l.id === id);
+    if (!layer) return;
+    if (history) this.pushHistory();
+    Object.assign(layer, patch);
+    if ((patch.visible === false || patch.locked === true) && this.selectedIds.size > 0) {
+      // Hidden/locked content must not stay selected.
+      const affected = new Set(
+        this.sketch.strokes.filter((s) => s.layer === id).map((s) => s.id),
+      );
+      this.selectedIds = new Set([...this.selectedIds].filter((sid) => !affected.has(sid)));
+    }
+    this.touch();
   }
 
   // ---- Tool settings -------------------------------------------------------

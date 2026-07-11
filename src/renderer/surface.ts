@@ -1,20 +1,24 @@
 /**
  * Canvas rendering surface for a single sketch.
  *
- * Renders in two layers so the eraser works correctly:
- *   1. A base layer with the napkin background + paper texture.
- *   2. An offscreen, transparent "ink" layer that holds the strokes; the
- *      eraser cuts holes in this layer with `destination-out`, revealing the
- *      paper beneath instead of painting opaque black.
- * The ink layer is then composited onto the base layer.
+ * Renders in stacked passes so layers and the eraser work correctly:
+ *   1. A base pass with the napkin background + paper texture.
+ *   2. Each sketch layer is drawn onto a transparent scratch canvas; the
+ *      eraser cuts holes in that layer with `destination-out`, so it only
+ *      erases its own layer's content. The scratch canvas is then composited
+ *      onto the ink canvas with the layer's opacity, and finally the ink
+ *      canvas onto the base pass.
  *
- * Also renders text items, an optional symmetry guide, and a selection
- * outline. Pure rendering — it holds no document state of its own.
+ * Also renders text items, placed images, an optional symmetry guide, and a
+ * selection outline. Pure rendering - it holds no document state of its own.
  */
 
 import {
   DEFAULT_FONT_FAMILY,
+  isImageStroke,
   isTextStroke,
+  layerOf,
+  strokesOnLayer,
   type Point,
   type Sketch,
   type Stroke,
@@ -55,6 +59,8 @@ export class Surface {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly ink: HTMLCanvasElement;
   private readonly inkCtx: CanvasRenderingContext2D;
+  private readonly scratch: HTMLCanvasElement;
+  private readonly scratchCtx: CanvasRenderingContext2D;
   private dpr = 1;
   private cssWidth = 0;
   private cssHeight = 0;
@@ -63,6 +69,12 @@ export class Surface {
   private panX = 0;
   private panY = 0;
   private zoom = 1;
+
+  /** Decoded-image cache for image items, keyed by data URL. */
+  private readonly imageCache = new Map<string, HTMLImageElement>();
+
+  /** Called when a lazily-decoded image finishes loading (schedule a re-render). */
+  onImageLoad: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -74,6 +86,11 @@ export class Surface {
     const inkCtx = this.ink.getContext('2d', { alpha: true });
     if (!inkCtx) throw new Error('Offscreen 2D context is unavailable.');
     this.inkCtx = inkCtx;
+
+    this.scratch = document.createElement('canvas');
+    const scratchCtx = this.scratch.getContext('2d', { alpha: true });
+    if (!scratchCtx) throw new Error('Offscreen 2D context is unavailable.');
+    this.scratchCtx = scratchCtx;
   }
 
   /** Resizes the backing store to match the CSS size and device pixel ratio. */
@@ -89,6 +106,8 @@ export class Surface {
     this.canvas.style.height = `${cssHeight}px`;
     this.ink.width = w;
     this.ink.height = h;
+    this.scratch.width = w;
+    this.scratch.height = h;
   }
 
   /** Width of the drawable area in CSS pixels. */
@@ -166,20 +185,36 @@ export class Surface {
     }
     ctx.restore();
 
-    // Strokes go on the transparent ink layer so the eraser reveals paper.
-    // The pan/zoom viewport is applied here so drawn content moves and scales
+    // Strokes go on the transparent ink canvas so the eraser reveals paper.
+    // Each layer is drawn onto its own scratch pass first so erasers only cut
+    // holes in their own layer, then composited with the layer's opacity. The
+    // pan/zoom viewport is applied per pass so drawn content moves and scales
     // while the paper background and texture stay put (a stable canvas).
     const ink = this.inkCtx;
     ink.save();
     ink.setTransform(1, 0, 0, 1, 0, 0);
     ink.clearRect(0, 0, this.ink.width, this.ink.height);
-    ink.scale(this.dpr, this.dpr);
-    this.applyWorld(ink);
-    for (const stroke of sketch.strokes) {
-      this.paintStroke(ink, stroke);
-    }
-    if (live && live.points.length > 0) {
-      this.paintStroke(ink, live);
+    const liveLayerId = live ? layerOf(sketch, live).id : null;
+    for (const layer of sketch.layers) {
+      if (!layer.visible) continue;
+      const strokes = strokesOnLayer(sketch, layer.id);
+      const liveHere = live && live.points.length > 0 && liveLayerId === layer.id ? live : null;
+      if (strokes.length === 0 && !liveHere) continue;
+
+      const scratch = this.scratchCtx;
+      scratch.save();
+      scratch.setTransform(1, 0, 0, 1, 0, 0);
+      scratch.clearRect(0, 0, this.scratch.width, this.scratch.height);
+      scratch.scale(this.dpr, this.dpr);
+      this.applyWorld(scratch);
+      for (const stroke of strokes) {
+        this.paintStroke(scratch, stroke);
+      }
+      if (liveHere) this.paintStroke(scratch, liveHere);
+      scratch.restore();
+
+      ink.globalAlpha = layer.opacity;
+      ink.drawImage(this.scratch, 0, 0);
     }
     ink.restore();
 
@@ -303,6 +338,10 @@ export class Surface {
       this.paintText(ctx, stroke);
       return;
     }
+    if (isImageStroke(stroke)) {
+      this.paintImage(ctx, stroke);
+      return;
+    }
 
     const pts = stroke.points;
     if (pts.length === 0) return;
@@ -350,6 +389,27 @@ export class Surface {
       ctx.stroke();
     }
 
+    ctx.restore();
+  }
+
+  /** Draws a placed raster image item; decodes lazily and re-renders on load. */
+  private paintImage(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
+    const anchor = stroke.points[0];
+    if (!anchor || !stroke.image) return;
+    let img = this.imageCache.get(stroke.image);
+    if (!img) {
+      img = new Image();
+      img.onload = () => this.onImageLoad?.();
+      img.src = stroke.image;
+      this.imageCache.set(stroke.image, img);
+    }
+    if (!img.complete || img.naturalWidth === 0) return;
+    const w = stroke.imageWidth ?? img.naturalWidth;
+    const h = stroke.imageHeight ?? img.naturalHeight;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    if (typeof stroke.opacity === 'number') ctx.globalAlpha = stroke.opacity;
+    ctx.drawImage(img, anchor.x, anchor.y, w, h);
     ctx.restore();
   }
 
@@ -453,26 +513,59 @@ export class Surface {
     return surf.toDataURL(format, format === 'image/jpeg' ? sketch.background : undefined);
   }
 
-  /** Serialises a sketch to an SVG string (lossless vector). */
+  /**
+   * Serialises a sketch to an SVG string (lossless vector).
+   *
+   * Each visible layer becomes a `<g>` group carrying its name and opacity;
+   * eraser strokes become a black-on-white `<mask>` on the group so they cut
+   * holes only in their own layer. Marks carry `data-tool` and `data-i`
+   * (original paint order) so importing the file restores the layer stack.
+   */
   static toSVG(sketch: Sketch): string {
-    const { width, height, background, strokes } = sketch;
+    const { width, height, background } = sketch;
+    const defs: string[] = [];
+    const groups: string[] = [];
+
+    sketch.layers.forEach((layer, li) => {
+      if (!layer.visible) return;
+      const strokes = strokesOnLayer(sketch, layer.id);
+      if (strokes.length === 0) return;
+
+      const attrs = [`id="layer-${li}"`, `data-name="${escXml(layer.name)}"`];
+      if (layer.opacity < 1) attrs.push(`opacity="${layer.opacity}"`);
+
+      const erasers = strokes.filter((s) => s.tool === 'eraser');
+      if (erasers.length > 0) {
+        const maskId = `erase-${li}`;
+        defs.push(
+          `<mask id="${maskId}">` +
+            `<rect width="${width}" height="${height}" fill="#fff"/>` +
+            erasers.map((s) => svgPath(s, sketch.strokes.indexOf(s), '#000')).join('') +
+            `</mask>`,
+        );
+        attrs.push(`mask="url(#${maskId})"`);
+      }
+
+      const marks = strokes
+        .filter((s) => s.tool !== 'eraser')
+        .map((s) => {
+          const order = sketch.strokes.indexOf(s);
+          if (isTextStroke(s)) return svgText(s, order);
+          if (isImageStroke(s)) return svgImage(s, order);
+          return svgPath(s, order);
+        })
+        .filter(Boolean);
+
+      groups.push(`<g ${attrs.join(' ')}>\n${marks.join('\n')}\n</g>`);
+    });
+
     const parts: string[] = [
       `<?xml version="1.0" encoding="utf-8"?>`,
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-generator="napkin-sketch">`,
       `<rect width="${width}" height="${height}" fill="${escXml(background)}"/>`,
     ];
-
-    for (const stroke of strokes) {
-      if (isTextStroke(stroke)) {
-        parts.push(svgText(stroke));
-      } else if (stroke.tool === 'eraser') {
-        parts.push(svgEraserPath(stroke, background));
-      } else {
-        parts.push(svgPath(stroke));
-      }
-    }
-
-    parts.push('</svg>');
+    if (defs.length > 0) parts.push(`<defs>\n${defs.join('\n')}\n</defs>`);
+    parts.push(...groups, '</svg>');
     return parts.join('\n');
   }
 
@@ -520,6 +613,14 @@ export function strokeBounds(
   stroke: Stroke,
   measure?: (s: Stroke) => { width: number; height: number },
 ): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  if (isImageStroke(stroke)) {
+    const a = stroke.points[0];
+    if (!a) return null;
+    // Fall back to a nominal footprint when the placed size is unknown.
+    const w = stroke.imageWidth ?? 100;
+    const h = stroke.imageHeight ?? 100;
+    return { minX: a.x, minY: a.y, maxX: a.x + w, maxY: a.y + h };
+  }
   if (isTextStroke(stroke)) {
     const a = stroke.points[0];
     if (!a) return null;
@@ -551,45 +652,47 @@ function escXml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function svgPath(stroke: Stroke): string {
+/**
+ * Serialises a drawing stroke as an SVG path (or dot). `colorOverride` is
+ * used for eraser strokes inside a layer's mask, where black means "hide".
+ */
+function svgPath(stroke: Stroke, order: number, colorOverride?: string): string {
   const pts = stroke.points;
   if (pts.length === 0) return '';
-  const opacity = stroke.opacity ?? (stroke.tool === 'marker' ? 0.38 : 1);
-  const color = escXml(stroke.color);
+  const opacity = colorOverride ? 1 : stroke.opacity ?? (stroke.tool === 'marker' ? 0.38 : 1);
+  const color = escXml(colorOverride ?? stroke.color);
+  const data = `data-tool="${stroke.tool}" data-i="${order}"`;
   if (pts.length === 1) {
     const p = pts[0];
     const r = (stroke.width / 2).toFixed(1);
-    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${color}" opacity="${opacity}"/>`;
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${color}" opacity="${opacity}" ${data}/>`;
   }
   const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  return `<path d="${d}" stroke="${color}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${opacity}"/>`;
+  return `<path d="${d}" stroke="${color}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${opacity}" ${data}/>`;
 }
 
-function svgEraserPath(stroke: Stroke, background: string): string {
-  const pts = stroke.points;
-  if (pts.length === 0) return '';
-  const bg = escXml(background);
-  if (pts.length === 1) {
-    const p = pts[0];
-    const r = (stroke.width / 2).toFixed(1);
-    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${bg}"/>`;
-  }
-  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  return `<path d="${d}" stroke="${bg}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
-}
-
-function svgText(stroke: Stroke): string {
+function svgText(stroke: Stroke, order: number): string {
   const anchor = stroke.points[0];
   if (!anchor || !stroke.text) return '';
   const size = stroke.fontSize ?? 24;
   const lineHeight = size * 1.25;
   const color = escXml(stroke.color);
   const family = escXml(stroke.fontFamily ?? DEFAULT_FONT_FAMILY);
+  const opacity = typeof stroke.opacity === 'number' ? ` opacity="${stroke.opacity}"` : '';
   const lines = stroke.text.split('\n');
   const tspans = lines
     .map((line, i) => `<tspan x="${anchor.x.toFixed(1)}" dy="${i === 0 ? 0 : lineHeight.toFixed(1)}">${escXml(line)}</tspan>`)
     .join('');
-  return `<text x="${anchor.x.toFixed(1)}" y="${anchor.y.toFixed(1)}" font-size="${size}" font-family="${family}" fill="${color}" dominant-baseline="hanging">${tspans}</text>`;
+  return `<text x="${anchor.x.toFixed(1)}" y="${anchor.y.toFixed(1)}" font-size="${size}" font-family="${family}" fill="${color}" dominant-baseline="hanging"${opacity} data-tool="text" data-i="${order}">${tspans}</text>`;
+}
+
+function svgImage(stroke: Stroke, order: number): string {
+  const anchor = stroke.points[0];
+  if (!anchor || !stroke.image) return '';
+  const w = stroke.imageWidth ?? 100;
+  const h = stroke.imageHeight ?? 100;
+  const opacity = typeof stroke.opacity === 'number' ? ` opacity="${stroke.opacity}"` : '';
+  return `<image x="${anchor.x.toFixed(1)}" y="${anchor.y.toFixed(1)}" width="${w}" height="${h}" href="${escXml(stroke.image)}"${opacity} data-tool="image" data-i="${order}"/>`;
 }
 
 // ---- Word-wrap helper -------------------------------------------------------

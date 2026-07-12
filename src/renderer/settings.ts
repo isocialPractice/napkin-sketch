@@ -14,6 +14,7 @@ import {
   type AppSettings,
   type AppTheme,
   type MenuPlacement,
+  type QuickModifier,
 } from '../core/settings.js';
 
 /** Looks up a required element by id, throwing a clear error if absent. */
@@ -57,6 +58,9 @@ class SettingsApp {
     this.setRange('quick-timer', lim.quickTimerMs);
     this.setRange('quick-color-count', lim.quickColorCount);
     this.setRange('autosave', lim.autoSaveIntervalSec);
+    this.setRange('copic-hold', lim.copicHoldSec);
+    this.setRange('copic-speed', lim.copicRotateSpeedDeg);
+    this.setRange('copic-width-mult', lim.copicWidthMultiplier);
   }
 
   private setRange(id: string, lim: { min: number; max: number; step: number }): void {
@@ -108,6 +112,28 @@ class SettingsApp {
     );
     el<HTMLInputElement>('remember').addEventListener('change', (e) =>
       this.patch({ rememberSettings: (e.target as HTMLInputElement).checked }),
+    );
+
+    el<HTMLInputElement>('copic-quick').addEventListener('change', (e) =>
+      this.patch({ copicQuickRotate: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('copic-hold').addEventListener('input', (e) =>
+      this.patch({ copicHoldSec: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('copic-speed').addEventListener('input', (e) =>
+      this.patch({ copicRotateSpeedDeg: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('copic-width-mult').addEventListener('input', (e) =>
+      this.patch({ copicWidthMultiplier: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLSelectElement>('copic-hold-key').addEventListener('change', (e) =>
+      this.patch({ copicHoldKey: (e.target as HTMLSelectElement).value as QuickModifier }),
+    );
+    el<HTMLSelectElement>('copic-cw-key').addEventListener('change', (e) =>
+      this.patch({ copicRotateCwKey: (e.target as HTMLSelectElement).value as QuickModifier }),
+    );
+    el<HTMLSelectElement>('copic-ccw-key').addEventListener('change', (e) =>
+      this.patch({ copicRotateCcwKey: (e.target as HTMLSelectElement).value as QuickModifier }),
     );
 
     el('rearrange-btn').addEventListener('click', () => {
@@ -174,6 +200,17 @@ class SettingsApp {
       s.autoSaveIntervalSec > 0 ? `every ${s.autoSaveIntervalSec}s` : 'off';
 
     el<HTMLInputElement>('remember').checked = s.rememberSettings;
+
+    el<HTMLInputElement>('copic-quick').checked = s.copicQuickRotate;
+    this.setValue('copic-hold', s.copicHoldSec);
+    el('copic-hold-value').textContent = `${s.copicHoldSec.toFixed(1)}s`;
+    this.setValue('copic-speed', s.copicRotateSpeedDeg);
+    el('copic-speed-value').textContent = `${s.copicRotateSpeedDeg}°/s`;
+    this.setValue('copic-width-mult', s.copicWidthMultiplier);
+    el('copic-width-mult-value').textContent = `${s.copicWidthMultiplier.toFixed(2)}×`;
+    el<HTMLSelectElement>('copic-hold-key').value = s.copicHoldKey;
+    el<HTMLSelectElement>('copic-cw-key').value = s.copicRotateCwKey;
+    el<HTMLSelectElement>('copic-ccw-key').value = s.copicRotateCcwKey;
   }
 
   private setValue(id: string, value: number): void {

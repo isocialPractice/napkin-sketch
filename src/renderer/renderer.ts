@@ -12,20 +12,22 @@ import {
   createSketch,
   createSketchBook,
   DEFAULT_FONT_FAMILY,
+  defaultOpacityFor,
   isImageStroke,
   isTextStroke,
   layerOf,
   type Point,
   type Sketch,
   type Stroke,
+  type Tool,
 } from '../core/types.js';
 import type { ExportFormat, ImageFormat, MenuAction } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
 import { sketchesToPdf } from '../core/pdf.js';
-import { defaultSettings, type AppSettings } from '../core/settings.js';
+import { defaultSettings, type AppSettings, type QuickModifier } from '../core/settings.js';
 import { sharpenStroke } from '../sharpen/sharpen.js';
 import { Surface, strokeBounds, type LiveStroke } from './surface.js';
-import { Store } from './store.js';
+import { Store, type ToolState } from './store.js';
 import { importSvg } from './svg-import.js';
 
 /** Looks up a required element by id, throwing a clear error if absent. */
@@ -48,6 +50,13 @@ const PAN_ZOOM_THRESHOLD = 72;
 /** Stroke-width bounds (mirrors the width slider in the toolbar). */
 const MIN_WIDTH = 1;
 const MAX_WIDTH = 40;
+
+/** KeyboardEvent.key value produced by each configurable quick-feature modifier. */
+const MODIFIER_EVENT_KEYS: Record<QuickModifier, string> = {
+  ctrl: 'Control',
+  alt: 'Alt',
+  shift: 'Shift',
+};
 
 class App {
   private readonly surface: Surface;
@@ -102,6 +111,20 @@ class App {
   private quickMode: 'width' | 'opacity' | null = null;
   private quickBuffer = '';
   private quickTimer: number | null = null;
+
+  // Copic quick nib-rotate (hold Ctrl → Alt/Shift rotate the broad nib).
+  private nibHoldDown = false;
+  private nibHoldTimer: number | null = null;
+  private nibRotateActive = false;
+  private nibRotateDir: 1 | -1 | 0 = 0;
+  private nibRotateRaf = 0;
+  private nibRotateLastTs = 0;
+  // Tool and width in use before quick nib-rotate switched to the Copic
+  // marker (the width is doubled while the mode is active so the nib preview
+  // reads clearly); both are restored when the mode ends.
+  private lastUsedTool: Tool | null = null;
+  private lastUsedWidth: number | null = null;
+  private nibModeWidth: number | null = null;
 
   // Toolbar rearrange mode.
   private rearranging = false;
@@ -274,7 +297,7 @@ class App {
     e.preventDefault();
     this.activePointerId = e.pointerId;
     this.canvas.setPointerCapture(e.pointerId);
-    const { color, width, opacity } = this.store.tool;
+    const { color, width, opacity, nibAngle } = this.store.tool;
     this.live = {
       id: createId('st'),
       tool,
@@ -284,6 +307,7 @@ class App {
       // Preview on the layer the stroke will land on.
       layer: this.store.activeLayer.id,
       ...(opacity != null ? { opacity } : {}),
+      ...(tool === 'copic' ? { nibAngle } : {}),
     };
     this.scheduleRender();
   }
@@ -375,7 +399,7 @@ class App {
       this.straightStart = null;
       this.straightEnd = null;
       this.activePointerId = null;
-      const { color, width, opacity } = this.store.tool;
+      const { color, width, opacity, nibAngle } = this.store.tool;
       let finished: Stroke = {
         id: createId('st'),
         tool,
@@ -383,6 +407,7 @@ class App {
         width,
         points: [a, b],
         ...(opacity != null ? { opacity } : {}),
+        ...(tool === 'copic' ? { nibAngle } : {}),
       };
       if (this.store.tool.liveSharpen && tool !== 'eraser') {
         finished = sharpenStroke(finished, this.store.tool.sharpen);
@@ -490,6 +515,11 @@ class App {
       copies.push({
         ...stroke,
         id: createId('st'),
+        // Rotate the copic nib with the copy so every arm of the mandala
+        // shows the same thick/thin chisel behaviour.
+        ...(stroke.nibAngle != null
+          ? { nibAngle: (stroke.nibAngle + (angle * 180) / Math.PI) % 360 }
+          : {}),
         points: stroke.points.map((p) => {
           const dx = p.x - cx;
           const dy = p.y - cy;
@@ -776,11 +806,16 @@ class App {
       return;
     }
 
-    // Drawing tools: circle cursor sized to the current stroke width.
-    const { url, hotspotX, hotspotY } = Surface.makeCursorDataUrl(
-      this.store.tool.width,
-      this.store.tool.color,
-    );
+    // Copic marker: flat-nib cursor rotated to the current nib angle.
+    // Other drawing tools: circle cursor sized to the current stroke width.
+    const { url, hotspotX, hotspotY } =
+      tool === 'copic'
+        ? Surface.makeNibCursorDataUrl(
+            this.store.tool.width,
+            this.store.tool.color,
+            this.store.tool.nibAngle,
+          )
+        : Surface.makeCursorDataUrl(this.store.tool.width, this.store.tool.color);
     if (url) {
       this.canvas.style.cursor = `url('${url}') ${hotspotX} ${hotspotY}, crosshair`;
     } else {
@@ -795,7 +830,7 @@ class App {
     const toolbar = el('toolbar');
     this.toolbarGroups = Array.from(toolbar.querySelectorAll<HTMLElement>(':scope > .group'));
 
-    for (const t of ['pen', 'marker', 'eraser', 'select', 'text'] as const) {
+    for (const t of ['pen', 'marker', 'copic', 'eraser', 'select', 'text'] as const) {
       el(`tool-${t}`).addEventListener('click', () => {
         if (this.rearranging) return;
         this.store.setTool({ tool: t });
@@ -1052,6 +1087,101 @@ class App {
     percent = Math.min(100, Math.max(0.1, percent));
     this.store.setTool({ opacity: percent / 100 });
     this.toast(`Opacity set to ${percent}%.`);
+  }
+
+  // ---- Copic quick nib-rotate (hold Ctrl, then Alt / Shift) ----------------
+
+  /**
+   * Called on keydown of the configured hold key. After the configured hold
+   * time (with the key still down) the nib-rotate mode activates: the
+   * bottom-right indicator appears and the rotate keys steer the broad nib.
+   */
+  private beginNibHold(): void {
+    if (this.nibHoldDown) return;
+    this.nibHoldDown = true;
+    this.nibHoldTimer = window.setTimeout(
+      () => this.activateNibRotate(),
+      Math.round(this.settings.copicHoldSec * 1000),
+    );
+  }
+
+  /** Activates rotate mode once the hold key has been down long enough. */
+  private activateNibRotate(): void {
+    this.nibHoldTimer = null;
+    if (!this.nibHoldDown) return;
+    this.nibRotateActive = true;
+    // Switch to the Copic marker at the configured width multiplier for the
+    // duration of the mode, remembering the previous tool and width so both
+    // come back when the hold key is released.
+    this.lastUsedTool = this.store.tool.tool;
+    this.lastUsedWidth = this.store.tool.width;
+    this.nibModeWidth = Math.min(
+      MAX_WIDTH,
+      Math.max(MIN_WIDTH, Math.round(this.lastUsedWidth * this.settings.copicWidthMultiplier)),
+    );
+    this.store.setTool({ tool: 'copic', width: this.nibModeWidth });
+    this.updateNibIndicator();
+    el('nib-indicator').classList.remove('is-hidden');
+  }
+
+  /** Ends rotate mode (hold key released, window blurred, or feature off). */
+  private endNibRotate(): void {
+    this.nibHoldDown = false;
+    if (this.nibHoldTimer !== null) {
+      window.clearTimeout(this.nibHoldTimer);
+      this.nibHoldTimer = null;
+    }
+    if (!this.nibRotateActive) return;
+    this.nibRotateActive = false;
+    this.setNibRotateDir(0);
+    el('nib-indicator').classList.add('is-hidden');
+    // Hand the canvas back to the tool and width that were active before the
+    // mode began, unless the user explicitly changed either while the mode
+    // was active (their deliberate choice wins over the automatic restore).
+    const restore: Partial<ToolState> = {};
+    if (this.lastUsedTool && this.lastUsedTool !== 'copic' && this.store.tool.tool === 'copic') {
+      restore.tool = this.lastUsedTool;
+    }
+    if (this.lastUsedWidth !== null && this.store.tool.width === this.nibModeWidth) {
+      restore.width = this.lastUsedWidth;
+    }
+    if (Object.keys(restore).length > 0) this.store.setTool(restore);
+    this.lastUsedTool = null;
+    this.lastUsedWidth = null;
+    this.nibModeWidth = null;
+  }
+
+  /** Starts, redirects, or stops (dir 0) the continuous nib rotation. */
+  private setNibRotateDir(dir: 1 | -1 | 0): void {
+    if (this.nibRotateDir === dir) return;
+    this.nibRotateDir = dir;
+    if (dir === 0) {
+      cancelAnimationFrame(this.nibRotateRaf);
+      return;
+    }
+    this.nibRotateLastTs = performance.now();
+    cancelAnimationFrame(this.nibRotateRaf);
+    this.nibRotateRaf = requestAnimationFrame((ts) => this.nibRotateStep(ts));
+  }
+
+  /** One animation frame of nib rotation at the configured speed. */
+  private nibRotateStep(ts: number): void {
+    if (!this.nibRotateActive || this.nibRotateDir === 0) return;
+    const dt = Math.min(0.1, Math.max(0, (ts - this.nibRotateLastTs) / 1000));
+    this.nibRotateLastTs = ts;
+    const delta = this.nibRotateDir * this.settings.copicRotateSpeedDeg * dt;
+    const nibAngle = ((this.store.tool.nibAngle + delta) % 360 + 360) % 360;
+    this.store.setTool({ nibAngle });
+    this.updateNibIndicator();
+    if (this.store.tool.tool === 'copic') this.updateCursor();
+    this.nibRotateRaf = requestAnimationFrame((t) => this.nibRotateStep(t));
+  }
+
+  /** Reflects the current nib angle in the bottom-right indicator. */
+  private updateNibIndicator(): void {
+    const angle = Math.round(this.store.tool.nibAngle) % 360;
+    el('nib-indicator-bar').style.setProperty('--nib-angle', `${angle}deg`);
+    el('nib-indicator-value').textContent = `${angle}°`;
   }
 
   // ---- Quick Access Colors (cycle with "C" / Shift+C) ----------------------
@@ -1560,7 +1690,7 @@ class App {
           if (isTextStroke(s) || isImageStroke(s)) continue;
           const layer = layerOf(sketch, s);
           if (!layer.visible) continue;
-          tctx.globalAlpha = (s.opacity ?? (s.tool === 'marker' ? 0.38 : 1)) * layer.opacity;
+          tctx.globalAlpha = (s.opacity ?? defaultOpacityFor(s.tool)) * layer.opacity;
           tctx.strokeStyle = s.tool === 'eraser' ? sketch.background : s.color;
           tctx.lineWidth = s.width;
           tctx.beginPath();
@@ -1658,6 +1788,26 @@ class App {
 
       if (document.activeElement instanceof HTMLTextAreaElement) return;
 
+      // Copic quick nib-rotate: holding the hold key arms the timer; once
+      // active, the rotate keys steer the broad nib and are consumed.
+      if (this.settings.copicQuickRotate) {
+        if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicHoldKey]) {
+          this.beginNibHold();
+        }
+        if (this.nibRotateActive) {
+          if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicRotateCwKey]) {
+            e.preventDefault();
+            this.setNibRotateDir(1);
+            return;
+          }
+          if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicRotateCcwKey]) {
+            e.preventDefault();
+            this.setNibRotateDir(-1);
+            return;
+          }
+        }
+      }
+
       // Space (held) arms straight-line mode for the next single-pointer drag.
       if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
@@ -1704,6 +1854,9 @@ class App {
       } else if (!mod && key === 'm') {
         this.store.setTool({ tool: 'marker' });
         this.updateCursor();
+      } else if (!mod && key === 'k') {
+        this.store.setTool({ tool: 'copic' });
+        this.updateCursor();
       } else if (!mod && key === 'e') {
         this.store.setTool({ tool: 'eraser' });
         this.updateCursor();
@@ -1734,7 +1887,28 @@ class App {
         this.spaceDown = false;
         this.updateCursor();
       }
+
+      // Copic quick nib-rotate: releasing the hold key ends the mode;
+      // releasing a rotate key stops the spin in that direction. Runs even
+      // when the feature was toggled off mid-hold so no state gets stuck.
+      // preventDefault keeps an Alt keyup from focusing the native menu bar.
+      if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicHoldKey]) {
+        if (this.nibRotateActive) e.preventDefault();
+        this.endNibRotate();
+      } else if (this.nibRotateActive) {
+        if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicRotateCwKey]) {
+          e.preventDefault();
+          if (this.nibRotateDir === 1) this.setNibRotateDir(0);
+        }
+        if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicRotateCcwKey]) {
+          e.preventDefault();
+          if (this.nibRotateDir === -1) this.setNibRotateDir(0);
+        }
+      }
     });
+
+    // A lost focus swallows keyup events; never leave rotate mode stuck on.
+    window.addEventListener('blur', () => this.endNibRotate());
   }
 
   private bindResize(): void {
@@ -1750,7 +1924,7 @@ class App {
   private syncUi(): void {
     const { tool, color, width, liveSharpen, sharpen, symmetry, fontSize } = this.store.tool;
 
-    for (const id of ['tool-pen', 'tool-marker', 'tool-eraser', 'tool-select', 'tool-text']) {
+    for (const id of ['tool-pen', 'tool-marker', 'tool-copic', 'tool-eraser', 'tool-select', 'tool-text']) {
       el(id).classList.toggle('is-active', id === `tool-${tool}`);
     }
     this.canvas.dataset.tool = tool;

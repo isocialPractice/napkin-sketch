@@ -37,7 +37,7 @@ export function deriveName(filePath: string): string {
   return stem(filePath) || 'untitled';
 }
 
-const VALID_TOOLS: Tool[] = ['pen', 'marker', 'eraser', 'select', 'text', 'image'];
+const VALID_TOOLS: Tool[] = ['pen', 'marker', 'copic', 'eraser', 'select', 'text', 'image'];
 
 function normalizeStroke(raw: unknown): Stroke | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -77,6 +77,10 @@ function normalizeStroke(raw: unknown): Stroke | null {
     opacity:
       typeof r.opacity === 'number' && r.opacity > 0 && r.opacity <= 1 ? r.opacity : undefined,
     sharpened: r.sharpened === true,
+    nibAngle:
+      tool === 'copic' && typeof r.nibAngle === 'number' && Number.isFinite(r.nibAngle)
+        ? ((r.nibAngle % 360) + 360) % 360
+        : undefined,
     text: isText ? (r.text as string) : undefined,
     fontSize: isText && typeof r.fontSize === 'number' ? r.fontSize : undefined,
     fontFamily: isText && typeof r.fontFamily === 'string' ? r.fontFamily : undefined,

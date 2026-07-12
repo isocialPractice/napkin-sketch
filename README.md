@@ -13,11 +13,20 @@ hand-drawn rather than vector-perfect.
 
 ## Features
 
-- **Pen, marker, eraser, select, and text** tools with pressure-aware variable
-  line width. The eraser truly reveals the paper beneath (layered compositing),
-  the Select tool moves/deletes existing strokes (with rubber-band selection),
-  and the Text tool supports both **click-to-type** (auto-sizing box) and
-  **drag-to-draw** (fixed-width box with word-wrap).
+- **Pen, marker, Copic marker, eraser, select, and text** tools with
+  pressure-aware variable line width. The eraser truly reveals the paper
+  beneath (layered compositing), the Select tool moves/deletes existing strokes
+  (with rubber-band selection), and the Text tool supports both
+  **click-to-type** (auto-sizing box) and **drag-to-draw** (fixed-width box
+  with word-wrap).
+- **Copic marker** (`K`) — simulates an alcohol-ink marker's flat **broad nib**:
+  strokes are thick when you pull across the nib and thin when you pull along
+  it, like a real chisel tip. The nib is **rotatable**: hold `Ctrl` for one
+  second to show a rotation indicator in the bottom-right corner, then hold
+  `Alt` to rotate the nib clockwise or `Shift` to rotate it counter-clockwise;
+  release `Ctrl` to finish. The hold time (0.5–2s), all three keys, the
+  rotation speed, and the feature's on/off switch are configurable in the
+  Settings window.
 - **Touchscreen + mouse + stylus** input via Pointer Events (with coalesced
   sampling for smooth, high-frequency capture).
 - **Pan and zoom** with a two-finger gesture (pan within a small threshold, zoom
@@ -25,10 +34,11 @@ hand-drawn rather than vector-perfect.
 - **Quick features** — press `W` then a number for stroke width, `Q` then a
   number for opacity, or `C` / `Shift + C` to cycle the **Quick Access Colors**.
 - **Settings window** (Edit menu or the gear icon) for zoom/pan sensitivity,
-  inverted zoom, the quick-feature timer, Quick Access Color count and values,
-  toolbar placement (top / side / both) with drag-and-drop **rearrange mode**,
-  a light / dark / sepia **theme**, and auto-save. Settings persist across
-  launches and can be exported to and imported from a JSON file.
+  inverted zoom, the quick-feature timer, the Copic quick nib-rotate options
+  (on/off, hold time, hold/rotate keys, rotation speed), Quick Access Color
+  count and values, toolbar placement (top / side / both) with drag-and-drop
+  **rearrange mode**, a light / dark / sepia **theme**, and auto-save. Settings
+  persist across launches and can be exported to and imported from a JSON file.
 - **Auto-sharpen engine** that recognizes intent (straight line, circle/ellipse,
   polygon, or freeform) and rebuilds an idealized, hand-drawn version.
   - **Live sharpen** (off by default) — beautify each stroke the moment you lift
@@ -191,6 +201,8 @@ napkin-sketch ./notes.skbk
 | :----------------------- | :---------------------------------------- |
 | Pen                      | `P`                                       |
 | Marker                   | `M`                                       |
+| Copic marker             | `K`                                       |
+| Rotate Copic nib         | Hold `Ctrl` 1s, then `Alt` / `Shift`      |
 | Eraser                   | `E`                                       |
 | Select                   | `S`                                       |
 | Text                     | `T`                                       |
@@ -215,6 +227,19 @@ fixed-width text box (text wraps to fit the drawn width).
 
 **Select tool:** *click* a stroke to select and drag it; *drag over empty
 space* to rubber-band-select multiple strokes at once.
+
+**Copic marker:** the cursor shows the flat nib as a rotated bar matching the
+current width and angle. To rotate the nib, hold `Ctrl` until the rotation
+indicator appears in the bottom-right corner (1 second by default), then hold
+`Alt` (clockwise) or `Shift` (counter-clockwise); the nib turns continuously at
+the configured speed until you release. While the indicator is visible the
+**Copic marker becomes the active tool** with the stroke width scaled by the
+configurable **width multiplier** (1–4×, default 2×, capped at 40px) so the
+nib preview reads clearly as it turns; releasing `Ctrl` hides the indicator,
+ends rotate mode, and hands back the tool and width you were using before
+(unless you explicitly changed either in the meantime). Every part of this — the hold key, both rotate keys, the
+hold time (0.5–2s), the rotation speed, and whether the quick feature is
+enabled at all — lives under **Copic Marker** in the Settings window.
 
 **CapsLock cursor:** while any drawing tool is active, **CapsLock on** shows a
 precision crosshair; **CapsLock off** shows a circle preview matching the
@@ -289,7 +314,8 @@ corrupt an existing book.
 **Migrating from version 1**: older `.skbk` files load unchanged — each page
 gains a single default layer and every stroke is assigned to it. Version 2
 files also allow `"tool": "image"` strokes carrying an `image` data URL plus
-`imageWidth` / `imageHeight` for placed raster imports.
+`imageWidth` / `imageHeight` for placed raster imports, and `"tool": "copic"`
+strokes carrying a `nibAngle` (degrees) for the rotatable broad nib.
 
 ## Embedding the editor
 
@@ -362,7 +388,7 @@ round-trip, the CLI argument parser, and the launch contract.
 
 ## Project structure
 
-```
+```text
 src/
 ├── cli/index.ts        # Command-line entry (arg parsing, GUI launch, headless sharpen)
 ├── main/
@@ -383,6 +409,7 @@ src/
 │   └── embed.ts        # Embeddable NapkinSketch editor
 └── core/
     ├── types.ts        # Shared data model (sketches, layers, strokes)
+    ├── nib.ts          # Copic broad-nib geometry (canvas, SVG, and PDF share it)
     ├── serialize.ts    # Browser-safe .skbk (de)serialization + validation
     ├── sketchbook.ts   # .skbk file I/O (atomic writes)
     ├── pdf.ts          # Dependency-free vector PDF writer (browser-safe)

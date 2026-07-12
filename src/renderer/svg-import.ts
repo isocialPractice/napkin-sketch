@@ -41,7 +41,7 @@ export interface ImportedSvg {
 }
 
 const GEOMETRY_TAGS = new Set(['path', 'line', 'polyline', 'polygon', 'rect', 'circle', 'ellipse']);
-const NAPKIN_TOOLS = new Set<Tool>(['pen', 'marker', 'eraser', 'text', 'image']);
+const NAPKIN_TOOLS = new Set<Tool>(['pen', 'marker', 'copic', 'eraser', 'text', 'image']);
 
 /** Longest sampled polyline per imported path. */
 const MAX_SAMPLES = 300;
@@ -281,6 +281,27 @@ function elementToStrokes(
     return;
   }
 
+  // Exact round-trip for napkin exports: Copic strokes carry their editable
+  // centreline and nib data on the filled chisel-outline path.
+  if (dataTool === 'copic' && tag === 'path') {
+    const centreline = parseDataPoints(el.getAttribute('data-pts'));
+    if (centreline) {
+      const nib = Number(el.getAttribute('data-nib'));
+      const nibWidth = Number(el.getAttribute('data-width'));
+      const stroke = makeStroke(
+        'copic',
+        color,
+        Number.isFinite(nibWidth) && nibWidth > 0 ? nibWidth * matrixScale(matrix) : width,
+        centreline.map((p) => applyMatrix(matrix, p.x, p.y)),
+        opacity,
+      );
+      if (Number.isFinite(nib)) stroke.nibAngle = ((nib % 360) + 360) % 360;
+      out.push({ order, stroke });
+      return;
+    }
+    // Missing data attributes: fall through to generic outline sampling.
+  }
+
   // Exact round-trip for napkin exports: M/L polyline paths parse directly.
   if (dataTool && tag === 'path') {
     const points = parsePolylineD(el.getAttribute('d') ?? '');
@@ -308,6 +329,18 @@ function elementToStrokes(
     points.push(applyMatrix(matrix, p.x, p.y));
   }
   out.push({ order, stroke: makeStroke(tool, color, width, points, opacity) });
+}
+
+/** Parses a `data-pts` attribute of space-separated "x,y" pairs. */
+function parseDataPoints(attr: string | null): { x: number; y: number }[] | null {
+  if (!attr) return null;
+  const points: { x: number; y: number }[] = [];
+  for (const pair of attr.trim().split(/\s+/)) {
+    const [x, y] = pair.split(',').map(Number);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    points.push({ x, y });
+  }
+  return points.length > 0 ? points : null;
 }
 
 /** Parses a path `d` made only of absolute M/L pairs (napkin export format). */

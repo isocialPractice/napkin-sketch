@@ -79,3 +79,27 @@ test('toSVG keeps paint order via data-i attributes', () => {
   assert.match(svg, /data-tool="eraser" data-i="1"/);
   assert.match(svg, /data-tool="text" data-i="2"/);
 });
+
+test('toSVG exports copic strokes as filled nib outlines with round-trip data', () => {
+  const sketch = createSketch('copic');
+  sketch.strokes.push({
+    id: 'c1',
+    tool: 'copic',
+    color: '#27486d',
+    width: 12,
+    nibAngle: 30,
+    layer: sketch.layers[0].id,
+    points: [
+      { x: 10, y: 10 },
+      { x: 50, y: 40 },
+    ],
+  });
+  const svg = Surface.toSVG(sketch);
+  assert.match(svg, /<path [^>]*fill="#27486d"[^>]*fill-rule="nonzero"[^>]*data-tool="copic"/);
+  assert.match(svg, /data-nib="30.0"/);
+  assert.match(svg, /data-width="12"/);
+  assert.match(svg, /data-pts="10.0,10.0 50.0,40.0"/);
+  // The filled outline uses the copic default opacity when none is set.
+  assert.match(svg, /data-tool="copic"[^>]*/);
+  assert.match(svg, /opacity="0.5"/);
+});

@@ -14,6 +14,12 @@ export type MenuPlacement = 'top' | 'side' | 'both';
 /** Visual theme for the application chrome and paper. */
 export type AppTheme = 'light' | 'dark' | 'sepia';
 
+/** Modifier key assignable to the Copic quick nib-rotate feature. */
+export type QuickModifier = 'ctrl' | 'alt' | 'shift';
+
+/** The assignable quick-feature modifier keys. */
+export const QUICK_MODIFIERS: readonly QuickModifier[] = ['ctrl', 'alt', 'shift'];
+
 /** All user-configurable application settings. */
 export interface AppSettings {
   /** Multiplier applied to pinch-zoom magnitude (0.25 = gentle, 4 = aggressive). */
@@ -41,6 +47,24 @@ export interface AppSettings {
   theme: AppTheme;
   /** Surprise 2: auto-save interval in seconds for the current file (0 = off). */
   autoSaveIntervalSec: number;
+  /** Copic quick nib-rotate: master on/off switch. */
+  copicQuickRotate: boolean;
+  /** Copic quick nib-rotate: seconds the hold key must stay down to activate. */
+  copicHoldSec: number;
+  /** Copic quick nib-rotate: modifier held down to activate and stay active. */
+  copicHoldKey: QuickModifier;
+  /** Copic quick nib-rotate: modifier that rotates the nib clockwise. */
+  copicRotateCwKey: QuickModifier;
+  /** Copic quick nib-rotate: modifier that rotates the nib counter-clockwise. */
+  copicRotateCcwKey: QuickModifier;
+  /** Copic quick nib-rotate: rotation speed in degrees per second. */
+  copicRotateSpeedDeg: number;
+  /**
+   * Copic quick nib-rotate: stroke-width multiplier applied while the mode is
+   * active (1 = keep the current width). The result is still capped at the
+   * app-wide maximum stroke width.
+   */
+  copicWidthMultiplier: number;
 }
 
 /** Canonical default quick-access colors (the project ink palette). */
@@ -57,6 +81,7 @@ export const DEFAULT_QUICK_COLORS = [
 export const DEFAULT_TOOL_ORDER = [
   'tool-pen',
   'tool-marker',
+  'tool-copic',
   'tool-eraser',
   'tool-select',
   'tool-text',
@@ -69,6 +94,9 @@ export const SETTINGS_LIMITS = {
   quickTimerMs: { min: 500, max: 3000, step: 100 },
   quickColorCount: { min: 2, max: 20, step: 1 },
   autoSaveIntervalSec: { min: 0, max: 600, step: 5 },
+  copicHoldSec: { min: 0.5, max: 2, step: 0.1 },
+  copicRotateSpeedDeg: { min: 15, max: 360, step: 15 },
+  copicWidthMultiplier: { min: 1, max: 4, step: 0.25 },
 } as const;
 
 /** Factory for a fresh, valid settings object. */
@@ -85,6 +113,13 @@ export function defaultSettings(): AppSettings {
     rememberSettings: true,
     theme: 'light',
     autoSaveIntervalSec: 0,
+    copicQuickRotate: true,
+    copicHoldSec: 1,
+    copicHoldKey: 'ctrl',
+    copicRotateCwKey: 'alt',
+    copicRotateCcwKey: 'shift',
+    copicRotateSpeedDeg: 90,
+    copicWidthMultiplier: 2,
   };
 }
 
@@ -135,11 +170,37 @@ export function normalizeSettings(input: unknown): AppSettings {
     autoSaveIntervalSec: Math.round(
       clampNumber(raw.autoSaveIntervalSec, lim.autoSaveIntervalSec.min, lim.autoSaveIntervalSec.max, base.autoSaveIntervalSec),
     ),
+    copicQuickRotate: typeof raw.copicQuickRotate === 'boolean' ? raw.copicQuickRotate : base.copicQuickRotate,
+    copicHoldSec: clampNumber(raw.copicHoldSec, lim.copicHoldSec.min, lim.copicHoldSec.max, base.copicHoldSec),
+    copicHoldKey: normalizeModifier(raw.copicHoldKey, base.copicHoldKey),
+    copicRotateCwKey: normalizeModifier(raw.copicRotateCwKey, base.copicRotateCwKey),
+    copicRotateCcwKey: normalizeModifier(raw.copicRotateCcwKey, base.copicRotateCcwKey),
+    copicRotateSpeedDeg: Math.round(
+      clampNumber(raw.copicRotateSpeedDeg, lim.copicRotateSpeedDeg.min, lim.copicRotateSpeedDeg.max, base.copicRotateSpeedDeg),
+    ),
+    copicWidthMultiplier: clampNumber(
+      raw.copicWidthMultiplier, lim.copicWidthMultiplier.min, lim.copicWidthMultiplier.max, base.copicWidthMultiplier,
+    ),
   };
 
   result.quickColors = normalizeQuickColors(raw.quickColors, result.quickColorCount);
   result.quickColorCount = result.quickColors.length;
+
+  // The three quick-rotate keys must be distinct: the hold key wins, then the
+  // clockwise key; any clashing later key takes the next unused modifier.
+  const used = new Set<QuickModifier>([result.copicHoldKey]);
+  for (const field of ['copicRotateCwKey', 'copicRotateCcwKey'] as const) {
+    if (used.has(result[field])) {
+      result[field] = QUICK_MODIFIERS.find((m) => !used.has(m)) ?? result[field];
+    }
+    used.add(result[field]);
+  }
   return result;
+}
+
+/** Coerces an arbitrary value into a valid quick-feature modifier key. */
+function normalizeModifier(value: unknown, fallback: QuickModifier): QuickModifier {
+  return QUICK_MODIFIERS.includes(value as QuickModifier) ? (value as QuickModifier) : fallback;
 }
 
 /** Coerces an arbitrary value into a valid list of quick-access colors. */

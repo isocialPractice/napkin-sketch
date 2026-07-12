@@ -18,7 +18,15 @@
  * latin1/binary encoding to preserve embedded image bytes.
  */
 
-import { isImageStroke, isTextStroke, strokesOnLayer, type Sketch, type Stroke } from './types.js';
+import {
+  defaultOpacityFor,
+  isImageStroke,
+  isTextStroke,
+  strokesOnLayer,
+  type Sketch,
+  type Stroke,
+} from './types.js';
+import { copicNibPolygons } from './nib.js';
 
 /** RGB color with components in 0-1. */
 type Rgb = [number, number, number];
@@ -127,7 +135,7 @@ function jpegSize(bytes: string): { width: number; height: number } | null {
 /** Effective paint alpha for a stroke on a layer (tool default when unset). */
 function strokeAlpha(stroke: Stroke, layerOpacity: number): number {
   if (stroke.tool === 'eraser') return layerOpacity;
-  const own = stroke.opacity ?? (stroke.tool === 'marker' ? 0.38 : 1);
+  const own = stroke.opacity ?? defaultOpacityFor(stroke.tool);
   return own * layerOpacity;
 }
 
@@ -247,6 +255,23 @@ export function sketchesToPdf(sketches: Sketch[]): string {
         const pts = stroke.points;
         if (pts.length === 0) continue;
         const [r, g, b] = parseCssColor(stroke.tool === 'eraser' ? sketch.background : stroke.color);
+
+        // Copic marker: fill the chisel-nib footprint (single non-zero fill,
+        // matching the canvas renderer). The vertical flip to PDF coordinates
+        // mirrors every polygon the same way, so windings stay consistent.
+        if (stroke.tool === 'copic') {
+          const fillPath =
+            copicNibPolygons(stroke)
+              .map(
+                (poly) =>
+                  poly.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 ? 'm' : 'l'}`).join(' ') +
+                  ' h',
+              )
+              .join(' ') + ' f';
+          ops.push('q', ...(gs ? [gs] : []), `${col(r)} ${col(g)} ${col(b)} rg`, fillPath, 'Q');
+          continue;
+        }
+
         const path =
           pts.length === 1
             ? // Zero-length round-capped segment renders as a dot.

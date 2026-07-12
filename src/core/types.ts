@@ -19,7 +19,7 @@ export interface Point {
 }
 
 /** Tool used to lay down a stroke or interact with the canvas. */
-export type Tool = 'pen' | 'marker' | 'eraser' | 'select' | 'text' | 'image';
+export type Tool = 'pen' | 'marker' | 'copic' | 'eraser' | 'select' | 'text' | 'image';
 
 /**
  * A single layer in a sketch's layer stack. Layers paint in array order
@@ -60,6 +60,11 @@ export interface Stroke {
   opacity?: number;
   /** Whether this stroke has already been auto-sharpened. */
   sharpened?: boolean;
+  /**
+   * Broad-nib rotation in degrees for Copic marker strokes (0 = horizontal,
+   * increasing clockwise on screen). Only present when `tool === 'copic'`.
+   */
+  nibAngle?: number;
   /** Text content (only present when `tool === 'text'`). */
   text?: string;
   /** Font size in pixels (text items). */
@@ -137,6 +142,20 @@ export const DEFAULT_BACKGROUND = '#fcfaf5';
 /** Default font family used by text items. */
 export const DEFAULT_FONT_FAMILY =
   '"Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif';
+
+/** Default Copic broad-nib rotation in degrees. */
+export const DEFAULT_NIB_ANGLE = 45;
+
+/**
+ * Default rendering opacity for strokes that carry no explicit opacity.
+ * Markers are translucent so overlapping passes layer like real ink; the
+ * Copic marker mimics alcohol ink, which builds a little more per pass.
+ */
+export function defaultOpacityFor(tool: Tool): number {
+  if (tool === 'marker') return 0.38;
+  if (tool === 'copic') return 0.5;
+  return 1;
+}
 
 /** Returns true if a stroke is a text item. */
 export function isTextStroke(stroke: Stroke): boolean {

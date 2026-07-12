@@ -70,3 +70,47 @@ test('settings round-trip through JSON', () => {
 test('parseSettings falls back to defaults on bad JSON', () => {
   assert.deepEqual(parseSettings('{not json'), defaultSettings());
 });
+
+test('copic quick-rotate defaults are on with ctrl/alt/shift keys', () => {
+  const s = defaultSettings();
+  assert.equal(s.copicQuickRotate, true);
+  assert.equal(s.copicHoldSec, 1);
+  assert.equal(s.copicHoldKey, 'ctrl');
+  assert.equal(s.copicRotateCwKey, 'alt');
+  assert.equal(s.copicRotateCcwKey, 'shift');
+  assert.equal(s.copicRotateSpeedDeg, 90);
+  assert.equal(s.copicWidthMultiplier, 2);
+});
+
+test('copic numeric settings clamp to their limits', () => {
+  const s = normalizeSettings({ copicHoldSec: 99, copicRotateSpeedDeg: 1, copicWidthMultiplier: 50 });
+  assert.equal(s.copicHoldSec, SETTINGS_LIMITS.copicHoldSec.max);
+  assert.equal(s.copicRotateSpeedDeg, SETTINGS_LIMITS.copicRotateSpeedDeg.min);
+  assert.equal(s.copicWidthMultiplier, SETTINGS_LIMITS.copicWidthMultiplier.max);
+  assert.equal(
+    normalizeSettings({ copicWidthMultiplier: 0.1 }).copicWidthMultiplier,
+    SETTINGS_LIMITS.copicWidthMultiplier.min,
+  );
+});
+
+test('copic keys reject junk and never collide', () => {
+  const junk = normalizeSettings({ copicHoldKey: 'hyperkey' });
+  assert.equal(junk.copicHoldKey, 'ctrl');
+
+  // A duplicate pick is reassigned: hold key wins, later keys move on.
+  const clash = normalizeSettings({
+    copicHoldKey: 'alt',
+    copicRotateCwKey: 'alt',
+    copicRotateCcwKey: 'alt',
+  });
+  assert.equal(clash.copicHoldKey, 'alt');
+  const keys = [clash.copicHoldKey, clash.copicRotateCwKey, clash.copicRotateCcwKey];
+  assert.equal(new Set(keys).size, 3);
+});
+
+test('toolOrder includes the copic tool', () => {
+  assert.ok(defaultSettings().toolOrder.includes('tool-copic'));
+  // Stale saved orders (pre-copic) are back-filled too.
+  const s = normalizeSettings({ toolOrder: ['tool-pen', 'tool-marker'] });
+  assert.ok(s.toolOrder.includes('tool-copic'));
+});

@@ -42,6 +42,57 @@
         </p>
       </section>
 
+      <section class="settings-section" aria-label="Copic marker">
+        <h2>Copic Marker</h2>
+        <label class="switch settings-row">
+          <input id="copic-quick" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Quick nib rotate</span>
+        </label>
+        <label class="settings-field">
+          <span>Hold time <em id="copic-hold-value">1.0s</em></span>
+          <input id="copic-hold" type="range" />
+        </label>
+        <label class="settings-field">
+          <span>Rotate speed <em id="copic-speed-value">90°/s</em></span>
+          <input id="copic-speed" type="range" />
+        </label>
+        <label class="settings-field">
+          <span>Width multiplier <em id="copic-width-mult-value">2.00×</em></span>
+          <input id="copic-width-mult" type="range" />
+        </label>
+        <label class="settings-field">
+          <span>Hold key</span>
+          <select id="copic-hold-key">
+            <option value="ctrl">Ctrl</option>
+            <option value="alt">Alt</option>
+            <option value="shift">Shift</option>
+          </select>
+        </label>
+        <label class="settings-field">
+          <span>Rotate clockwise</span>
+          <select id="copic-cw-key">
+            <option value="ctrl">Ctrl</option>
+            <option value="alt">Alt</option>
+            <option value="shift">Shift</option>
+          </select>
+        </label>
+        <label class="settings-field">
+          <span>Rotate counter-clockwise</span>
+          <select id="copic-ccw-key">
+            <option value="ctrl">Ctrl</option>
+            <option value="alt">Alt</option>
+            <option value="shift">Shift</option>
+          </select>
+        </label>
+        <p class="settings-hint">
+          Hold the hold key for the hold time to show the nib indicator, then
+          hold a rotate key to turn the broad nib. While active, the stroke
+          width is scaled by the width multiplier (restored on release). The
+          three keys must differ; a clashing pick is reassigned automatically.
+        </p>
+      </section>
+
       <section class="settings-section" aria-label="Quick access colors">
         <h2>Quick Access Colors</h2>
         <label class="settings-field">

@@ -11,6 +11,7 @@ import {
   createId,
   createLayer,
   createSketch,
+  DEFAULT_NIB_ANGLE,
   type Layer,
   type Sketch,
   type SketchBook,
@@ -35,6 +36,8 @@ export interface ToolState {
   fontSize: number;
   /** Mirror axes for symmetry ("surprise") mode; 1 disables it. */
   symmetry: number;
+  /** Copic broad-nib rotation in degrees (0 = horizontal, clockwise). */
+  nibAngle: number;
   /** Tunable auto-sharpen settings. */
   sharpen: SharpenOptions;
 }
@@ -71,6 +74,7 @@ export class Store {
     liveSharpen: false,
     fontSize: 24,
     symmetry: 1,
+    nibAngle: DEFAULT_NIB_ANGLE,
     sharpen: { ...DEFAULT_SHARPEN_OPTIONS },
   };
 

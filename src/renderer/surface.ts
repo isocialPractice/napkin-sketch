@@ -15,6 +15,8 @@
 
 import {
   DEFAULT_FONT_FAMILY,
+  DEFAULT_NIB_ANGLE,
+  defaultOpacityFor,
   isImageStroke,
   isTextStroke,
   layerOf,
@@ -23,6 +25,7 @@ import {
   type Sketch,
   type Stroke,
 } from '../core/types.js';
+import { copicNibPolygons } from '../core/nib.js';
 
 /** A live (in-progress) stroke being drawn by the user. */
 export interface LiveStroke extends Stroke {
@@ -360,7 +363,14 @@ export class Surface {
       ctx.strokeStyle = stroke.color;
       ctx.fillStyle = stroke.color;
       // Explicit opacity (Quick Opacity) overrides the per-tool default.
-      ctx.globalAlpha = stroke.opacity ?? (stroke.tool === 'marker' ? 0.38 : 1);
+      ctx.globalAlpha = stroke.opacity ?? defaultOpacityFor(stroke.tool);
+    }
+
+    // Copic marker: a flat chisel nib stamped along the path.
+    if (stroke.tool === 'copic') {
+      this.paintCopicNib(ctx, stroke);
+      ctx.restore();
+      return;
     }
 
     // A single point: render a dot sized by pressure / width.
@@ -390,6 +400,20 @@ export class Surface {
     }
 
     ctx.restore();
+  }
+
+  /**
+   * Fills a Copic broad-nib stroke. All nib footprints go into one path with
+   * a single fill so the translucent ink never double-darkens where segments
+   * overlap - matching how one pass of a real marker lays down flat color.
+   */
+  private paintCopicNib(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
+    ctx.beginPath();
+    for (const poly of copicNibPolygons(stroke)) {
+      poly.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.closePath();
+    }
+    ctx.fill();
   }
 
   /** Draws a placed raster image item; decodes lazily and re-renders on load. */
@@ -552,6 +576,7 @@ export class Surface {
           const order = sketch.strokes.indexOf(s);
           if (isTextStroke(s)) return svgText(s, order);
           if (isImageStroke(s)) return svgImage(s, order);
+          if (s.tool === 'copic') return svgCopic(s, order);
           return svgPath(s, order);
         })
         .filter(Boolean);
@@ -567,6 +592,52 @@ export class Surface {
     if (defs.length > 0) parts.push(`<defs>\n${defs.join('\n')}\n</defs>`);
     parts.push(...groups, '</svg>');
     return parts.join('\n');
+  }
+
+  /**
+   * Generates a flat-nib cursor data URL for the Copic marker: a short bar
+   * rotated to the current nib angle, sized to the tool width.
+   * Returns the URL and the hotspot coordinates (center of the nib).
+   */
+  static makeNibCursorDataUrl(
+    cssWidth: number,
+    color: string,
+    nibAngleDeg: number,
+  ): { url: string; hotspotX: number; hotspotY: number } {
+    const half = Math.max(4, cssWidth / 2);
+    const pad = 4;
+    const size = Math.min(128, Math.ceil(half * 2 + pad * 2));
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return { url: '', hotspotX: 0, hotspotY: 0 };
+    const cx = size / 2;
+    const cy = size / 2;
+    const reach = Math.min(half, cx - 2);
+    const rad = (nibAngleDeg * Math.PI) / 180;
+    const dx = Math.cos(rad) * reach;
+    const dy = Math.sin(rad) * reach;
+    ctx.lineCap = 'round';
+    // White halo for visibility on dark backgrounds.
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 4.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - dx, cy - dy);
+    ctx.lineTo(cx + dx, cy + dy);
+    ctx.stroke();
+    // Ink-colored nib bar.
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - dx, cy - dy);
+    ctx.lineTo(cx + dx, cy + dy);
+    ctx.stroke();
+    return {
+      url: canvas.toDataURL(),
+      hotspotX: Math.round(cx),
+      hotspotY: Math.round(cy),
+    };
   }
 
   /**
@@ -659,7 +730,7 @@ function escXml(s: string): string {
 function svgPath(stroke: Stroke, order: number, colorOverride?: string): string {
   const pts = stroke.points;
   if (pts.length === 0) return '';
-  const opacity = colorOverride ? 1 : stroke.opacity ?? (stroke.tool === 'marker' ? 0.38 : 1);
+  const opacity = colorOverride ? 1 : stroke.opacity ?? defaultOpacityFor(stroke.tool);
   const color = escXml(colorOverride ?? stroke.color);
   const data = `data-tool="${stroke.tool}" data-i="${order}"`;
   if (pts.length === 1) {
@@ -669,6 +740,24 @@ function svgPath(stroke: Stroke, order: number, colorOverride?: string): string 
   }
   const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   return `<path d="${d}" stroke="${color}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${opacity}" ${data}/>`;
+}
+
+/**
+ * Serialises a Copic stroke as its filled chisel-nib outline so external
+ * viewers see the flat-nib look. The centreline samples and nib angle ride
+ * along in `data-pts` / `data-nib` so importing the file restores the
+ * editable stroke exactly.
+ */
+function svgCopic(stroke: Stroke, order: number): string {
+  const polys = copicNibPolygons(stroke);
+  if (polys.length === 0) return '';
+  const opacity = stroke.opacity ?? defaultOpacityFor('copic');
+  const d = polys
+    .map((poly) => poly.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ' Z')
+    .join(' ');
+  const pts = stroke.points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const nib = (stroke.nibAngle ?? DEFAULT_NIB_ANGLE).toFixed(1);
+  return `<path d="${d}" fill="${escXml(stroke.color)}" fill-rule="nonzero" opacity="${opacity}" data-tool="copic" data-i="${order}" data-nib="${nib}" data-width="${stroke.width}" data-pts="${pts}"/>`;
 }
 
 function svgText(stroke: Stroke, order: number): string {

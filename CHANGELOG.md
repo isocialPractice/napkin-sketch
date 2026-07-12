@@ -4,6 +4,32 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0-alpha] - 2026-07-12
+
+### Added
+
+- Copic marker tool (`K`, toolbar button): simulates an alcohol-ink marker's
+  flat broad nib. Strokes are thick across the nib and thin along it, the nib
+  angle is stored per stroke (`nibAngle`, schema-compatible with version 2
+  files), and the cursor previews the nib as a rotated bar. Copic strokes
+  render as filled chisel outlines in the canvas, SVG export (with lossless
+  round-trip via data attributes), and PDF export.
+- Quick nib rotate: hold `Ctrl` for the configured hold time (1s by default)
+  to show a rotation indicator in the bottom-right corner, then hold `Alt` to
+  rotate the broad nib clockwise or `Shift` to rotate it counter-clockwise at
+  the configured speed; releasing `Ctrl` ends the mode. On by default.
+  Activating the mode switches to the Copic marker with the stroke width
+  scaled by the configurable width multiplier (1-4x, default 2x, capped at
+  the 40px maximum), remembering the tool and width in use; deactivating
+  restores that last-used tool and width unless the user explicitly changed
+  either while the mode was active.
+- Settings window section "Copic Marker": quick-feature on/off, hold time
+  (0.5-2s), hold key, both rotate keys (`ctrl`/`alt`/`shift`, kept distinct
+  automatically), rotation speed (15-360 degrees per second), and the
+  quick-rotate width multiplier (1-4x).
+- Rotational symmetry (mandala mode) rotates the Copic nib angle with each
+  mirrored copy so every arm shows the same thick/thin behaviour.
+
 ## [2.0.0-alpha] - 2026-07-10
 
 ### Added

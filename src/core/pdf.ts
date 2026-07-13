@@ -20,6 +20,7 @@
 
 import {
   defaultOpacityFor,
+  effectiveLayer,
   isImageStroke,
   isTextStroke,
   strokesOnLayer,
@@ -204,9 +205,11 @@ export function sketchesToPdf(sketches: Sketch[]): string {
     ops.push('q', `${col(br)} ${col(bg)} ${col(bb)} rg`, `0 0 ${num(sketch.width)} ${num(H)} re f`, 'Q');
 
     for (const layer of sketch.layers) {
-      if (!layer.visible) continue;
+      if (layer.group) continue; // groups paint nothing themselves
+      const effective = effectiveLayer(sketch, layer);
+      if (!effective.visible) continue;
       for (const stroke of strokesOnLayer(sketch, layer.id)) {
-        const alpha = strokeAlpha(stroke, layer.opacity);
+        const alpha = strokeAlpha(stroke, effective.opacity);
         const gs = alpha < 1 ? `/${gstateFor(alpha)} gs` : '';
 
         if (isTextStroke(stroke)) {
@@ -255,6 +258,15 @@ export function sketchesToPdf(sketches: Sketch[]): string {
         const pts = stroke.points;
         if (pts.length === 0) continue;
         const [r, g, b] = parseCssColor(stroke.tool === 'eraser' ? sketch.background : stroke.color);
+
+        // Filled shape interior, painted before its outline.
+        if (stroke.fill && stroke.tool !== 'eraser' && pts.length > 2) {
+          const [fr, fg, fb] = parseCssColor(stroke.fill);
+          const fillPath =
+            pts.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 ? 'm' : 'l'}`).join(' ') +
+            ' h f';
+          ops.push('q', ...(gs ? [gs] : []), `${col(fr)} ${col(fg)} ${col(fb)} rg`, fillPath, 'Q');
+        }
 
         // Copic marker: fill the chisel-nib footprint (single non-zero fill,
         // matching the canvas renderer). The vertical flip to PDF coordinates

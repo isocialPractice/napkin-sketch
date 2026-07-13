@@ -206,6 +206,57 @@ body {
   box-shadow: var(--shadow-1);
 }
 
+/* Tools with a click-and-hold flyout show a corner marker (like the small
+   triangle on grouped tools in common vector editors). */
+.tool.has-flyout {
+  position: relative;
+}
+
+.tool.has-flyout::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  border-style: solid;
+  border-width: 0 0 5px 5px;
+  border-color: transparent transparent currentColor transparent;
+  opacity: 0.55;
+}
+
+.tool-flyout {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-2);
+}
+
+.tool-flyout button {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: var(--s2) var(--s3);
+  text-align: left;
+  cursor: pointer;
+}
+
+.tool-flyout button:hover {
+  background: var(--surface-2);
+}
+
+.tool-flyout button.is-active {
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+
 /* Color swatches */
 .swatches {
   display: inline-flex;
@@ -764,6 +815,7 @@ body {
 }
 
 .app.rearranging #tool-group,
+.app.rearranging #sketch-group,
 .app.rearranging .swatches {
   outline: 2px dashed var(--accent);
   outline-offset: 3px;
@@ -910,8 +962,63 @@ body {
   background: var(--surface-2);
 }
 
+/* Additional rows in a Shift multi-selection. */
+.layer-row.is-selected {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+/* Drag-and-drop feedback: insertion edges and drop-into-group outline. */
+.layer-row.dragging {
+  opacity: 0.45;
+}
+
+.layer-row.drop-above {
+  box-shadow: 0 -2px 0 0 var(--primary);
+}
+
+.layer-row.drop-below {
+  box-shadow: 0 2px 0 0 var(--primary);
+}
+
+.layer-row.drop-into {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
 .layer-row.is-hidden .layer-name {
   opacity: 0.45;
+}
+
+/* Group rows read as headers for the indented layers beneath them. */
+.layer-row.is-group .layer-name {
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+/* Disclosure caret on group rows (blank spacer keeps plain rows aligned). */
+.layer-caret {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 24px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 24px;
+  text-align: center;
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.layer-caret:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.layer-caret.is-blank {
+  cursor: inherit;
 }
 
 .layer-toggle {

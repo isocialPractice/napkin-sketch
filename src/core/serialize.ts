@@ -77,6 +77,10 @@ function normalizeStroke(raw: unknown): Stroke | null {
     opacity:
       typeof r.opacity === 'number' && r.opacity > 0 && r.opacity <= 1 ? r.opacity : undefined,
     sharpened: r.sharpened === true,
+    fill:
+      typeof r.fill === 'string' && !isText && !isImage && tool !== 'eraser'
+        ? r.fill
+        : undefined,
     nibAngle:
       tool === 'copic' && typeof r.nibAngle === 'number' && Number.isFinite(r.nibAngle)
         ? ((r.nibAngle % 360) + 360) % 360
@@ -101,7 +105,36 @@ function normalizeLayer(raw: unknown, index: number): Layer | null {
     opacity: typeof r.opacity === 'number' ? Math.min(1, Math.max(0, r.opacity)) : 1,
     visible: r.visible !== false,
     locked: r.locked === true,
+    group: r.group === true ? true : undefined,
+    parent: typeof r.parent === 'string' ? r.parent : undefined,
   };
+}
+
+/**
+ * Drops invalid layer parent links: a parent must reference an existing group
+ * and must not form a cycle. Bad links become top-level layers.
+ */
+function sanitizeLayerParents(layers: Layer[]): void {
+  const byId = new Map(layers.map((l) => [l.id, l]));
+  for (const layer of layers) {
+    if (!layer.parent) continue;
+    const parent = byId.get(layer.parent);
+    if (!parent || !parent.group || parent === layer) {
+      delete layer.parent;
+      continue;
+    }
+    // Walk up; a path that revisits this layer is a cycle.
+    const seen = new Set<string>([layer.id]);
+    let cursor: Layer | undefined = parent;
+    while (cursor) {
+      if (seen.has(cursor.id)) {
+        delete layer.parent;
+        break;
+      }
+      seen.add(cursor.id);
+      cursor = cursor.parent ? byId.get(cursor.parent) : undefined;
+    }
+  }
 }
 
 function normalizeSketch(raw: unknown): Sketch {
@@ -117,10 +150,13 @@ function normalizeSketch(raw: unknown): Sketch {
   const layers = Array.isArray(r.layers)
     ? r.layers.map(normalizeLayer).filter((l): l is Layer => l !== null)
     : [];
-  if (layers.length === 0) layers.push(createLayer());
-  const layerIds = new Set(layers.map((l) => l.id));
+  // Every sketch needs at least one drawable (non-group) layer.
+  if (!layers.some((l) => !l.group)) layers.push(createLayer());
+  sanitizeLayerParents(layers);
+  const drawableIds = new Set(layers.filter((l) => !l.group).map((l) => l.id));
+  const fallbackId = layers.find((l) => !l.group)!.id;
   for (const stroke of strokes) {
-    if (!stroke.layer || !layerIds.has(stroke.layer)) stroke.layer = layers[0].id;
+    if (!stroke.layer || !drawableIds.has(stroke.layer)) stroke.layer = fallbackId;
   }
 
   return {

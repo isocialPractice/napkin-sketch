@@ -24,11 +24,13 @@ import {
   type Tool,
 } from '../core/types.js';
 
-/** One layer recovered from an imported SVG. */
+/** One layer recovered from an imported SVG; nested groups become children. */
 export interface ImportedLayer {
   name: string;
   opacity: number;
   strokes: Stroke[];
+  /** Child layers recovered from nested `<g>` groups (expand/collapse in the panel). */
+  children?: ImportedLayer[];
 }
 
 /** Result of parsing an SVG document. */
@@ -76,11 +78,36 @@ export function importSvg(svgText: string): ImportedSvg {
     const { width, height } = svgSize(root);
     const result: ImportedSvg = { width, height, layers: [] };
 
+    // Many editors export the whole document wrapped in a single top-level
+    // <g> (often named after the file). Descend through such solitary
+    // wrappers so the layer groups inside import as individual layers
+    // instead of one flattened layer; wrapper opacity carries down.
+    let scope: Element = root;
+    let wrapperOpacity = 1;
+    for (;;) {
+      const meaningful = Array.from(scope.children).filter((c) => {
+        const tag = c.tagName.toLowerCase();
+        return tag !== 'defs' && tag !== 'title' && tag !== 'metadata' && tag !== 'desc' && tag !== 'style';
+      });
+      const only = meaningful.length === 1 ? meaningful[0] : null;
+      if (
+        only &&
+        only.tagName.toLowerCase() === 'g' &&
+        !only.hasAttribute('mask') &&
+        Array.from(only.children).some((c) => c.tagName.toLowerCase() === 'g')
+      ) {
+        wrapperOpacity *= clamp01(Number(only.getAttribute('opacity') ?? 1));
+        scope = only;
+        continue;
+      }
+      break;
+    }
+
     // Group direct children into layer buckets, preserving z-order.
     let docOrder = 0;
     let syntheticCount = 0;
     let groupCount = 0;
-    for (const child of Array.from(root.children)) {
+    for (const child of Array.from(scope.children)) {
       const tag = child.tagName.toLowerCase();
       if (tag === 'defs' || tag === 'title' || tag === 'metadata' || tag === 'desc' || tag === 'style') {
         continue;
@@ -99,14 +126,14 @@ export function importSvg(svgText: string): ImportedSvg {
 
       if (tag === 'g') {
         groupCount += 1;
-        const items: OrderedStroke[] = [];
-        collectStrokes(child as SVGGElement, root, items, () => docOrder++);
-        collectMaskErasers(child as SVGGElement, root, items, () => docOrder++);
-        result.layers.push({
-          name: layerName(child, groupCount),
-          opacity: clamp01(Number(child.getAttribute('opacity') ?? 1)),
-          strokes: sortByOrder(items),
-        });
+        const layer = groupToLayer(
+          child as SVGGElement,
+          root,
+          () => docOrder++,
+          layerName(child, groupCount),
+        );
+        layer.opacity *= wrapperOpacity;
+        result.layers.push(layer);
         continue;
       }
 
@@ -117,7 +144,7 @@ export function importSvg(svgText: string): ImportedSvg {
         syntheticCount += 1;
         bucket = {
           name: syntheticCount === 1 ? 'Imported' : `Imported ${syntheticCount}`,
-          opacity: 1,
+          opacity: wrapperOpacity,
           strokes: [],
         };
         result.layers.push(bucket);
@@ -127,7 +154,7 @@ export function importSvg(svgText: string): ImportedSvg {
       bucket.strokes.push(...sortByOrder(items));
     }
 
-    result.layers = result.layers.filter((l) => l.strokes.length > 0);
+    result.layers = pruneEmptyLayers(result.layers);
     if (result.layers.length === 0) {
       throw new Error('No importable content found in the SVG.');
     }
@@ -135,6 +162,17 @@ export function importSvg(svgText: string): ImportedSvg {
   } finally {
     host.remove();
   }
+}
+
+/** Drops layers (recursively) that hold neither strokes nor children. */
+function pruneEmptyLayers(layers: ImportedLayer[]): ImportedLayer[] {
+  const kept: ImportedLayer[] = [];
+  for (const layer of layers) {
+    const children = layer.children ? pruneEmptyLayers(layer.children) : [];
+    if (layer.strokes.length === 0 && children.length === 0) continue;
+    kept.push({ ...layer, children: children.length > 0 ? children : undefined });
+  }
+  return kept;
 }
 
 function clamp01(n: number): number {
@@ -191,20 +229,37 @@ function matrixScale(m: DOMMatrix): number {
   return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
-/** Recursively converts a group's visible descendants into strokes. */
-function collectStrokes(
+/**
+ * Converts a `<g>` into a layer. Nested `<g>` children become child layers so
+ * grouped SVG structure survives import as expandable/collapsible group rows;
+ * loose geometry stays on the group's own layer.
+ */
+function groupToLayer(
   group: SVGGElement,
   root: SVGSVGElement,
-  out: OrderedStroke[],
   nextOrder: () => number,
-): void {
+  name: string,
+): ImportedLayer {
+  const items: OrderedStroke[] = [];
+  const children: ImportedLayer[] = [];
+  let childGroups = 0;
   for (const child of Array.from(group.children)) {
     if (child.tagName.toLowerCase() === 'g') {
-      collectStrokes(child as SVGGElement, root, out, nextOrder);
+      childGroups += 1;
+      children.push(
+        groupToLayer(child as SVGGElement, root, nextOrder, layerName(child, childGroups)),
+      );
     } else {
-      elementToStrokes(child as SVGElement, root, out, nextOrder);
+      elementToStrokes(child as SVGElement, root, items, nextOrder);
     }
   }
+  collectMaskErasers(group, root, items, nextOrder);
+  return {
+    name,
+    opacity: clamp01(Number(group.getAttribute('opacity') ?? 1)),
+    strokes: sortByOrder(items),
+    children: children.length > 0 ? children : undefined,
+  };
 }
 
 /** Recovers eraser strokes from a napkin-sketch layer mask, if present. */
@@ -306,10 +361,10 @@ function elementToStrokes(
   if (dataTool && tag === 'path') {
     const points = parsePolylineD(el.getAttribute('d') ?? '');
     if (points) {
-      out.push({
-        order,
-        stroke: makeStroke(tool, color, width, points.map((p) => applyMatrix(matrix, p.x, p.y)), opacity),
-      });
+      const stroke = makeStroke(tool, color, width, points.map((p) => applyMatrix(matrix, p.x, p.y)), opacity);
+      const dataFill = el.getAttribute('data-fill');
+      if (dataFill) stroke.fill = dataFill;
+      out.push({ order, stroke });
       return;
     }
   }
@@ -328,7 +383,10 @@ function elementToStrokes(
     const p = el.getPointAtLength((length * i) / samples);
     points.push(applyMatrix(matrix, p.x, p.y));
   }
-  out.push({ order, stroke: makeStroke(tool, color, width, points, opacity) });
+  const stroke = makeStroke(tool, color, width, points, opacity);
+  // Filled source shapes stay filled (previously they imported as outlines).
+  if (hasFill && tool !== 'eraser' && points.length > 2) stroke.fill = style.fill;
+  out.push({ order, stroke });
 }
 
 /** Parses a `data-pts` attribute of space-separated "x,y" pairs. */

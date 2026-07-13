@@ -13,12 +13,13 @@ hand-drawn rather than vector-perfect.
 
 ## Features
 
-- **Pen, marker, Copic marker, eraser, select, and text** tools with
-  pressure-aware variable line width. The eraser truly reveals the paper
-  beneath (layered compositing), the Select tool moves/deletes existing strokes
-  (with rubber-band selection), and the Text tool supports both
-  **click-to-type** (auto-sizing box) and **drag-to-draw** (fixed-width box
-  with word-wrap).
+- **Pen, marker, Copic marker, eraser, select, direct select, and text**
+  tools with pressure-aware variable line width. The eraser truly reveals the
+  paper beneath (layered compositing), the Select tool moves/deletes existing
+  strokes (with rubber-band and `Shift`-click multi-selection), the **Direct
+  Select** tool (`A`) drags individual **anchor points** to reshape a stroke,
+  and the Text tool supports both **click-to-type** (auto-sizing box) and
+  **drag-to-draw** (fixed-width box with word-wrap).
 - **Copic marker** (`K`) — simulates an alcohol-ink marker's flat **broad nib**:
   strokes are thick when you pull across the nib and thin when you pull along
   it, like a real chisel tip. The nib is **rotatable**: hold `Ctrl` for one
@@ -30,14 +31,45 @@ hand-drawn rather than vector-perfect.
 - **Touchscreen + mouse + stylus** input via Pointer Events (with coalesced
   sampling for smooth, high-frequency capture).
 - **Pan and zoom** with a two-finger gesture (pan within a small threshold, zoom
-  beyond it), plus **straight-line drawing** (hold `Space` and drag).
+  beyond it), the **mouse wheel** (`Alt` + wheel zooms, plain wheel pans,
+  `Ctrl+Shift` + wheel pans across — all directions configurable), or the
+  **Select tool with `Space` + drag**, plus **straight-line drawing** (hold
+  `Space` and drag with a drawing tool).
 - **Quick features** — press `W` then a number for stroke width, `Q` then a
-  number for opacity, or `C` / `Shift + C` to cycle the **Quick Access Colors**.
-- **Settings window** (Edit menu or the gear icon) for zoom/pan sensitivity,
-  inverted zoom, the quick-feature timer, the Copic quick nib-rotate options
+  number for opacity, `Z` then a digit to zoom (`9` = 90%, `0` = 100%), or
+  `C` / `Shift + C` to cycle the **Quick Access Colors**.
+- **Endpoint snap** — hold `Shift` while drawing to snap the stroke's start and
+  end to the nearest endpoint of an existing stroke (a ring marks the target).
+  Works for freehand, straight-line, and curve drawing; the snap sensitivity
+  (1–20px, default 10px) and an on/off switch live in the settings. The
+  optional **Join stroke** setting (off by default) merges a snapped stroke
+  with the stroke it touches into one continuous stroke.
+- **Sketch Support tools** — a second toolbar section with **Rectangle**
+  (`R`, `Shift` for a square), **Ellipse** (`L`, `Shift` for a circle),
+  **Curve** (`V`: drag a chord that starts and ends at nearby stroke
+  endpoints by default, bend, click to place — click and hold the button for
+  the free-ends variant, or hold `Ctrl+Space` and drag with any tool),
+  **Paint Bucket** (`G`: fill an enclosed shape as a new selectable shape),
+  **Fill Color** (fill the selected element — or the element under the click —
+  with the selected color), **Eyedropper** (`I`: pick a color from the canvas
+  and fill the selected shape), and **Join strokes** (`Ctrl+J`).
+- **Fill Shape** — with the Select tool active and a shape selected, clicking
+  a Quick Access Color fills the shape with it. Fills are honored by the
+  canvas, thumbnails, and SVG/PDF export.
+- **Layer groups** — `Ctrl+G` groups the active layer (nesting allowed);
+  group visibility, lock, and opacity apply to every layer inside, and
+  `Ctrl+Shift+G` ungroups.
+- **Two synced settings views** — **Quick Settings** in-app (`Ctrl+,`: live
+  sharpen, wobble, smoothing, circle snap, taper, symmetry, text size) and
+  the **Verbose Settings** window (`Ctrl+Alt+,`, Edit menu, or the gear icon)
+  which holds those same Quick Settings plus zoom/pan sensitivity, inverted
+  zoom, the quick-feature timer, endpoint snap and Join stroke, the
+  eyedropper's select pixel sensitivity, the Copic quick nib-rotate options
   (on/off, hold time, hold/rotate keys, rotation speed), Quick Access Color
   count and values, toolbar placement (top / side / both) with drag-and-drop
-  **rearrange mode**, a light / dark / sepia **theme**, and auto-save. Settings
+  **rearrange mode** (covers every tool in both toolbar groups — tools can
+  even move between the groups — plus the Quick Access Colors), a light /
+  dark / sepia **theme**, and auto-save. Settings
   persist across launches and can be exported to and imported from a JSON file.
 - **Auto-sharpen engine** that recognizes intent (straight line, circle/ellipse,
   polygon, or freeform) and rebuilds an idealized, hand-drawn version.
@@ -47,9 +79,14 @@ hand-drawn rather than vector-perfect.
   - **Sharpen settings panel** — tune wobble, smoothing, circle snap, end taper,
     rotational **symmetry** (mandala mode), and text size.
 - **Layers** — every page has a layer stack with per-layer **opacity**,
-  **visibility**, **lock**, **rename**, and **reordering** (`Ctrl + L` opens the
-  panel). Drawing, erasing, and selection respect the active layer, and the
-  eraser only cuts holes in its own layer.
+  **visibility**, **lock**, **rename**, and **reordering** (`Ctrl + L` opens
+  the panel), managed like a common vector editor: every **new element gets
+  its own layer**, `Shift`-click **multi-selects** rows, canvas selection and
+  panel selection **highlight each other**, group rows **expand/collapse**,
+  rows **drag-and-drop** to reposition or to nest inside a group, and
+  deleting an element deletes its emptied layer (deleting a layer deletes its
+  elements). Drawing, erasing, and selection respect the active layer, and
+  the eraser only cuts holes in its own layer.
 - **Sketchbook pages** with a toggleable **thumbnail panel**, page-turn
   animation, and add/delete/navigate controls — flip back to any earlier page.
 - **Native application menus** — *File* (New, Open, Import, Save, Save As,
@@ -59,8 +96,9 @@ hand-drawn rather than vector-perfect.
   format offers **Export current page** or **Export all pages** — raster and
   SVG save `name_1.ext`, `name_2.ext`, …, while PDF writes all pages into one
   document.
-- **Import** (`Ctrl + I`) of **SVG** (vector shapes become editable strokes and
-  top-level groups become layers — napkin-sketch's own exports round-trip
+- **Import** (`Ctrl + I`) of **SVG** (vector shapes become editable strokes,
+  top-level groups become layers, and **nested groups become nested,
+  collapsible layer groups** — napkin-sketch's own exports round-trip
   losslessly), **PDF** (each page's vector content becomes a new sketch page,
   best effort), and **PNG / JPEG** (placed as a movable image on the active
   layer).
@@ -205,14 +243,32 @@ napkin-sketch ./notes.skbk
 | Rotate Copic nib         | Hold `Ctrl` 1s, then `Alt` / `Shift`      |
 | Eraser                   | `E`                                       |
 | Select                   | `S`                                       |
+| Direct Select            | `A`                                       |
 | Text                     | `T`                                       |
 | Sharpen all              | `H`                                       |
 | Quick width              | `W` then a number                         |
 | Quick opacity            | `Q` then a number                         |
+| Quick zoom               | `Z` then a digit (`9` = 90%, `0` = 100%)  |
+| Zoom (mouse)             | Hold `Alt` and scroll the wheel           |
+| Pan (mouse)              | Scroll to pan; `Ctrl+Shift` + scroll pans across |
+| Pan (Select tool)        | Hold `Space` and drag                     |
 | Cycle Quick Access color | `C` (forward) / `Shift + C` (back)        |
 | Straight line            | Hold `Space` and drag                     |
-| Sharpen settings         | `Ctrl/Cmd + ,`                            |
-| App settings             | `Ctrl/Cmd + Alt + ,`                      |
+| Quick curve              | Hold `Ctrl + Space` and drag              |
+| Endpoint snap            | Hold `Shift` while drawing                |
+| Rectangle                | `R` (`Shift` = square)                    |
+| Ellipse                  | `L` (`Shift` = circle)                    |
+| Curve                    | `V` (click and hold the button for variants) |
+| Paint Bucket             | `G`                                       |
+| Fill Color               | toolbar button                            |
+| Eyedropper               | `I` (hold `Ctrl` to select a shape)       |
+| Join strokes             | `Ctrl/Cmd + J`                            |
+| Group layers             | `Ctrl/Cmd + G` (groups the selected layers) |
+| Ungroup layer            | `Ctrl/Cmd + Shift + G`                    |
+| Select all               | `Ctrl/Cmd + A`                            |
+| Deselect all             | `Ctrl/Cmd + Shift + A`                    |
+| Quick Settings           | `Ctrl/Cmd + ,`                            |
+| Verbose Settings         | `Ctrl/Cmd + Alt + ,`                      |
 | Toggle pages             | `Ctrl/Cmd + B`                            |
 | Toggle layers            | `Ctrl/Cmd + L`                            |
 | Import file              | `Ctrl/Cmd + I`                            |
@@ -225,8 +281,19 @@ napkin-sketch ./notes.skbk
 **Text tool:** *click* to place an auto-sizing text box; *drag* to draw a
 fixed-width text box (text wraps to fit the drawn width).
 
-**Select tool:** *click* a stroke to select and drag it; *drag over empty
-space* to rubber-band-select multiple strokes at once.
+**Select tool:** *click* a stroke to select and drag it; *`Shift`-click* to
+add it to (or remove it from) the current selection; *drag over empty space*
+to rubber-band-select multiple strokes at once; `Ctrl+A` selects everything
+and `Ctrl+Shift+A` deselects. Hold `Space` and drag to pan the canvas.
+Selecting elements highlights their rows in the Layers panel.
+
+**Direct Select tool (`A`):** *click* an element to show its **anchor
+points**, then *drag* an anchor to reshape the path. *`Shift`-click* selects
+multiple anchors to move together; a single selected anchor exposes its
+neighbour **handles** for fine adjustment; *click the path* (not an anchor)
+to select and move the whole path. Selected anchors and paths render blue,
+the grab sensitivity is configurable (Sketch Support, default 3px), and `Esc`
+drops the edit (`Ctrl+Z` restores the shape).
 
 **Copic marker:** the cursor shows the flat nib as a rotated bar matching the
 current width and angle. To rotate the nib, hold `Ctrl` until the rotation
@@ -241,14 +308,63 @@ ends rotate mode, and hands back the tool and width you were using before
 hold time (0.5–2s), the rotation speed, and whether the quick feature is
 enabled at all — lives under **Copic Marker** in the Settings window.
 
+**Endpoint snap:** hold `Shift` while drawing with the pen, marker, or Copic
+marker and the stroke snaps to the nearest **endpoint** of an existing stroke —
+the start point snaps on pen-down and the end point on pen-up (straight lines
+and curve chords snap both ends live; `Shift+Space` and `Shift+Ctrl+Space`
+snap the quick straight-line and quick-curve modes). A small ring shows the
+endpoint you will snap to whenever one is within the **snap sensitivity** (a
+screen-pixel radius, so zooming in gives finer control). The sensitivity
+(1–20px, default 10px) and the feature's on/off switch live under **Quick
+Features** in the Verbose Settings window, alongside **Join stroke** (off by
+default): when on, a snapped stroke merges with the stroke it touched (same
+tool and color) into one continuous stroke.
+
+**Sketch Support tools:** **Rectangle** (`R`) and **Ellipse** (`L`) drag out a
+shape (hold `Shift` for a uniform square or circle) and commit it as an
+editable pen stroke. **Curve** (`V`) works in two steps: drag the chord,
+release, move the pointer to bend the curve through it, then click to place
+(`Esc` cancels). By default the chord's **start and end snap to nearby stroke
+endpoints**; click and hold the Curve button to open its flyout and switch to
+the **free ends** variant (the small corner triangle marks tools with a
+flyout) — or hold `Ctrl+Space` and drag to curve with whichever drawing tool
+is active. **Paint Bucket** (`G`) fills the enclosed path or
+shape under the click with the current ink color, added as a new selectable
+shape. **Fill Color** fills the selected element(s) with the selected ink
+color — or the element under the click when nothing is selected (open strokes
+and text are recolored). **Eyedropper** (`I`) picks the color under the click
+(averaged over the **Select pixel sensitivity**, 1–36px, default 10px), makes
+it the ink color, and fills the selected shape when one is selected; hold
+`Ctrl` to temporarily switch to the Select tool and pick a shape, then
+release `Ctrl` to return to the eyedropper. **Join strokes** (`Ctrl+J` or the
+Join button) merges the selected strokes end-to-end into one stroke.
+
+**Layers panel:** every **new drawn element gets its own layer** named after
+the tool (an empty active layer is reused; eraser strokes stay on the active
+layer so they keep cutting its content). *Click* a row to make it active and
+highlight its elements on the canvas; *`Shift`-click* to multi-select rows;
+*drag* a row to reposition it in the stack, or drop it onto a group row to
+nest it inside. Deleting an element deletes its layer once the layer is
+empty, and the Delete button removes every selected layer together with its
+elements.
+
+**Layer groups:** `Ctrl+G` (or the Group button in the Layers panel) groups
+the selected layers (or the active layer) into one group; press it again on a
+group to nest. A group's
+visibility, lock, and opacity apply to every layer inside it, the panel
+indents grouped layers under a collapsible header (click the caret to
+expand/collapse), and `Ctrl+Shift+G` dissolves the active group while
+keeping its layers. Deleting a group deletes the layers inside it. Imported
+SVGs keep their nested groups as nested layer groups.
+
 **CapsLock cursor:** while any drawing tool is active, **CapsLock on** shows a
 precision crosshair; **CapsLock off** shows a circle preview matching the
 current stroke width.
 
-**Live sharpen is off by default.** Toggle it in the **Settings** panel to
-beautify strokes automatically as you draw, or leave it off and use **Sharpen
-all** when you are ready. The Settings panel also exposes wobble, smoothing,
-circle snap, end taper, rotational symmetry, and text size.
+**Live sharpen is off by default.** Toggle it in the **Quick Settings** panel
+to beautify strokes automatically as you draw, or leave it off and use
+**Sharpen all** when you are ready. The Quick Settings panel also exposes
+wobble, smoothing, circle snap, end taper, rotational symmetry, and text size.
 
 ## How auto-sharpen works
 

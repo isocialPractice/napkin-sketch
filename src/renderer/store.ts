@@ -8,10 +8,17 @@
 
 import { basename } from '../core/paths.js';
 import {
+  createGroupLayer,
   createId,
   createLayer,
   createSketch,
   DEFAULT_NIB_ANGLE,
+  descendantLayerIds,
+  effectiveLayer,
+  isClosedStroke,
+  isImageStroke,
+  isTextStroke,
+  layerOf,
   type Layer,
   type Sketch,
   type SketchBook,
@@ -44,6 +51,23 @@ export interface ToolState {
 
 const HISTORY_LIMIT = 100;
 
+/** Display-name stems for the auto-created per-element layers. */
+const TOOL_LAYER_NAMES: Partial<Record<Tool, string>> = {
+  pen: 'Pen',
+  marker: 'Marker',
+  copic: 'Copic',
+  text: 'Text',
+  image: 'Image',
+};
+
+/** One layer parsed from an imported file; may nest (SVG group layers). */
+export interface ImportedLayerNode {
+  name: string;
+  opacity: number;
+  strokes: Stroke[];
+  children?: ImportedLayerNode[];
+}
+
 type Listener = () => void;
 
 /** One undo/redo snapshot of the active page (strokes + layer stack). */
@@ -61,6 +85,9 @@ export class Store {
 
   /** Id of the layer new strokes are drawn on. */
   activeLayerId = '';
+
+  /** Ids of the layers highlighted in the layers panel (Shift multi-select). */
+  selectedLayerIds = new Set<string>();
 
   /** Ids of currently selected strokes (Select tool). */
   selectedIds = new Set<string>();
@@ -112,7 +139,9 @@ export class Store {
   /** True when the active layer accepts new marks. */
   get canDraw(): boolean {
     const layer = this.activeLayer;
-    return layer.visible && !layer.locked;
+    if (layer.group) return false;
+    const effective = effectiveLayer(this.sketch, layer);
+    return effective.visible && !effective.locked;
   }
 
   /** Human-readable document name derived from the file path or book name. */
@@ -131,6 +160,7 @@ export class Store {
     this.undoStack = [];
     this.redoStack = [];
     this.selectedIds.clear();
+    this.selectedLayerIds.clear();
     this.dirty = false;
     this.emit();
   }
@@ -160,21 +190,49 @@ export class Store {
     return strokes.map((s) => ({ ...s, points: s.points.map((p) => ({ ...p })) }));
   }
 
-  /** Commits a finished stroke to the active page's active layer. */
+  /**
+   * Commits a finished stroke to the active page. Every new non-eraser
+   * element gets its own layer (an empty active layer is reused), mirroring
+   * per-object layer rows in vector editors; eraser strokes stay on the
+   * active layer so they keep cutting its content.
+   */
   addStroke(stroke: Stroke): void {
     this.pushHistory();
-    stroke.layer = this.activeLayer.id;
+    stroke.layer =
+      stroke.tool === 'eraser' ? this.activeLayer.id : this.elementLayerFor(stroke.tool).id;
     this.sketch.strokes.push(stroke);
     this.touch();
   }
 
-  /** Commits several strokes to the active layer as a single history step. */
+  /** Commits several strokes as a single history step (one shared new layer). */
   addStrokes(strokes: Stroke[]): void {
     if (strokes.length === 0) return;
     this.pushHistory();
-    for (const stroke of strokes) stroke.layer = this.activeLayer.id;
+    const target =
+      strokes[0].tool === 'eraser' ? this.activeLayer : this.elementLayerFor(strokes[0].tool);
+    for (const stroke of strokes) stroke.layer = target.id;
     this.sketch.strokes.push(...strokes);
     this.touch();
+  }
+
+  /**
+   * The layer a new element lands on: reuses the active layer while it is an
+   * empty non-group layer, otherwise creates a sibling right above it (inside
+   * the same group, if any) named after the tool.
+   */
+  private elementLayerFor(tool: Tool): Layer {
+    const active = this.activeLayer;
+    if (active && !active.group && !this.sketch.strokes.some((s) => layerOf(this.sketch, s).id === active.id)) {
+      return active;
+    }
+    const base = TOOL_LAYER_NAMES[tool] ?? 'Layer';
+    const n = this.sketch.layers.filter((l) => l.name.startsWith(base)).length + 1;
+    const layer = createLayer(`${base} ${n}`);
+    layer.parent = active?.parent;
+    const index = this.sketch.layers.findIndex((l) => l.id === active?.id);
+    this.sketch.layers.splice(index + 1, 0, layer);
+    this.activeLayerId = layer.id;
+    return layer;
   }
 
   /** Replaces a stroke (used by live-sharpen) without adding a new history entry. */
@@ -192,27 +250,105 @@ export class Store {
     this.touch();
   }
 
-  /** Clears the active page. */
+  /** Clears the active page (strokes and the per-element layer stack). */
   clear(): void {
     if (this.sketch.strokes.length === 0) return;
     this.pushHistory();
     this.sketch.strokes = [];
+    this.sketch.layers = [createLayer()];
+    this.activeLayerId = this.sketch.layers[0].id;
     this.selectedIds.clear();
+    this.selectedLayerIds.clear();
     this.touch();
   }
 
   // ---- Selection -----------------------------------------------------------
 
-  /** Sets the current selection set. */
-  setSelection(ids: Iterable<string>): void {
+  /**
+   * Sets the current selection set. Unless `syncLayers` is false, the layers
+   * panel highlight follows the selection (the selected strokes' layers are
+   * highlighted and the first becomes the active layer).
+   */
+  setSelection(ids: Iterable<string>, syncLayers = true): void {
     this.selectedIds = new Set(ids);
+    if (syncLayers) this.syncLayerHighlight();
     this.emit();
   }
 
-  /** Clears the current selection. */
+  /** Mirrors the canvas selection into the layers-panel highlight. */
+  private syncLayerHighlight(): void {
+    const layerIds = new Set<string>();
+    for (const stroke of this.sketch.strokes) {
+      if (this.selectedIds.has(stroke.id)) layerIds.add(layerOf(this.sketch, stroke).id);
+    }
+    this.selectedLayerIds = layerIds;
+    const first = layerIds.values().next().value;
+    if (first) this.activeLayerId = first;
+  }
+
+  /**
+   * Selects a layer row in the panel (Shift = add/remove) and highlights the
+   * strokes on every selected layer, groups including their descendants.
+   */
+  selectLayer(id: string, additive = false): void {
+    const layer = this.sketch.layers.find((l) => l.id === id);
+    if (!layer) return;
+    if (additive) {
+      if (this.selectedLayerIds.has(id)) this.selectedLayerIds.delete(id);
+      else this.selectedLayerIds.add(id);
+    } else {
+      this.selectedLayerIds = new Set([id]);
+    }
+    if (this.selectedLayerIds.has(id)) {
+      this.activeLayerId = id;
+    } else if (!this.selectedLayerIds.has(this.activeLayerId)) {
+      const fallback = this.selectedLayerIds.values().next().value;
+      if (fallback) this.activeLayerId = fallback;
+    }
+    const layerIds = new Set<string>();
+    for (const lid of this.selectedLayerIds) {
+      layerIds.add(lid);
+      for (const d of descendantLayerIds(this.sketch, lid)) layerIds.add(d);
+    }
+    this.selectedIds = new Set(
+      this.sketch.strokes.filter((s) => layerIds.has(layerOf(this.sketch, s).id)).map((s) => s.id),
+    );
+    this.emit();
+  }
+
+  /**
+   * Selects every layer between the active (anchor) layer and `id` in the
+   * stack, inclusive (Ctrl+Shift+click range select), and highlights their
+   * elements on the canvas.
+   */
+  selectLayerRange(id: string): void {
+    const anchor = this.sketch.layers.findIndex((l) => l.id === this.activeLayerId);
+    const target = this.sketch.layers.findIndex((l) => l.id === id);
+    if (target === -1) return;
+    if (anchor === -1) {
+      this.selectLayer(id);
+      return;
+    }
+    const lo = Math.min(anchor, target);
+    const hi = Math.max(anchor, target);
+    this.selectedLayerIds = new Set(this.sketch.layers.slice(lo, hi + 1).map((l) => l.id));
+    this.activeLayerId = id;
+    const layerIds = new Set<string>();
+    for (const lid of this.selectedLayerIds) {
+      layerIds.add(lid);
+      for (const d of descendantLayerIds(this.sketch, lid)) layerIds.add(d);
+    }
+    this.selectedIds = new Set(
+      this.sketch.strokes.filter((s) => layerIds.has(layerOf(this.sketch, s).id)).map((s) => s.id),
+    );
+    this.emit();
+  }
+
+  /** Clears the current selection (strokes and layer highlight). */
   clearSelection(): void {
-    if (this.selectedIds.size === 0) return;
+    if (this.selectedIds.size === 0 && this.selectedLayerIds.size === 0) return;
     this.selectedIds.clear();
+    this.selectedLayerIds.clear();
     this.emit();
   }
 
@@ -229,13 +365,76 @@ export class Store {
     this.touch();
   }
 
-  /** Deletes the selected strokes (with history). */
+  /** Moves the given anchor points of a stroke by (dx, dy) (no history). */
+  nudgeStrokePoints(strokeId: string, indices: number[], dx: number, dy: number): void {
+    const stroke = this.sketch.strokes.find((s) => s.id === strokeId);
+    if (!stroke) return;
+    for (const index of indices) {
+      const point = stroke.points[index];
+      if (!point) continue;
+      point.x += dx;
+      point.y += dy;
+    }
+    this.touch();
+  }
+
+  /** Moves every point of a stroke by (dx, dy) — Direct Select path move (no history). */
+  nudgeStroke(strokeId: string, dx: number, dy: number): void {
+    const stroke = this.sketch.strokes.find((s) => s.id === strokeId);
+    if (!stroke) return;
+    for (const point of stroke.points) {
+      point.x += dx;
+      point.y += dy;
+    }
+    this.touch();
+  }
+
+  /**
+   * Deletes the selected strokes (with history). Layers left empty by the
+   * delete are removed with their elements, as are groups this empties.
+   */
   deleteSelected(): void {
     if (this.selectedIds.size === 0) return;
     this.pushHistory();
+    const affected = new Set<string>();
+    for (const stroke of this.sketch.strokes) {
+      if (this.selectedIds.has(stroke.id)) affected.add(layerOf(this.sketch, stroke).id);
+    }
     this.sketch.strokes = this.sketch.strokes.filter((s) => !this.selectedIds.has(s.id));
+    this.pruneEmptyLayers(affected);
     this.selectedIds.clear();
+    this.selectedLayerIds.clear();
     this.touch();
+  }
+
+  /**
+   * Removes the candidate layers that no longer hold strokes, then any group
+   * emptied by that removal. Always keeps at least one drawable layer.
+   */
+  private pruneEmptyLayers(candidates: Set<string>): void {
+    const hadChildren = new Set(
+      this.sketch.layers
+        .filter((l) => l.group && this.sketch.layers.some((c) => c.parent === l.id))
+        .map((l) => l.id),
+    );
+    let layers = this.sketch.layers.filter(
+      (l) =>
+        l.group ||
+        !candidates.has(l.id) ||
+        this.sketch.strokes.some((s) => layerOf(this.sketch, s).id === l.id),
+    );
+    for (;;) {
+      const next = layers.filter(
+        (l) => !l.group || !hadChildren.has(l.id) || layers.some((c) => c.parent === l.id),
+      );
+      if (next.length === layers.length) break;
+      layers = next;
+    }
+    if (!layers.some((l) => !l.group)) layers = [createLayer()];
+    this.sketch.layers = layers;
+    if (!layers.some((l) => l.id === this.activeLayerId)) {
+      this.activeLayerId = layers.find((l) => !l.group)!.id;
+    }
   }
 
   // ---- Undo / redo ---------------------------------------------------------
@@ -246,6 +445,7 @@ export class Store {
     this.redoStack.push(this.snapshot());
     this.restore(prev);
     this.selectedIds.clear();
+    this.selectedLayerIds.clear();
     this.touch();
   }
 
@@ -255,6 +455,7 @@ export class Store {
     this.undoStack.push(this.snapshot());
     this.restore(next);
     this.selectedIds.clear();
+    this.selectedLayerIds.clear();
     this.touch();
   }
 
@@ -312,69 +513,211 @@ export class Store {
     this.undoStack = [];
     this.redoStack = [];
     this.selectedIds.clear();
+    this.selectedLayerIds.clear();
     this.activeLayerId = this.sketch.layers[0]?.id ?? '';
   }
 
   // ---- Layers ---------------------------------------------------------------
 
-  /** Makes a layer the target for new strokes. */
-  setActiveLayer(id: string): void {
-    if (!this.sketch.layers.some((l) => l.id === id) || id === this.activeLayerId) return;
-    this.activeLayerId = id;
-    this.selectedIds.clear();
-    this.emit();
-  }
-
   /** Adds a new empty layer above the active one and makes it active. */
   addLayer(): void {
     this.pushHistory();
     const layer = createLayer(`Layer ${this.sketch.layers.length + 1}`);
+    // New layers sit beside the active layer, inside the same group (if any).
+    layer.parent = this.activeLayer.parent;
     const index = this.sketch.layers.findIndex((l) => l.id === this.activeLayer.id);
     this.sketch.layers.splice(index + 1, 0, layer);
     this.activeLayerId = layer.id;
     this.touch();
   }
 
-  /** Appends imported layers (with their strokes) above the current stack. */
-  addImportedLayers(imported: { name: string; opacity: number; strokes: Stroke[] }[]): void {
+  /**
+   * Wraps the active layer (or group — nesting allowed) in a new group and
+   * returns the group.
+   */
+  groupActiveLayer(): Layer {
+    return this.groupLayers([this.activeLayer.id]);
+  }
+
+  /**
+   * Wraps the given layers in one new group (fixing "selected layers do not
+   * group"). Selection roots — members whose parent is not also selected —
+   * are reparented into the group; their descendants come along, and the
+   * grouped block is made contiguous with the group header rendered on top.
+   * Falls back to the active layer when `ids` is empty.
+   */
+  groupLayers(ids: string[]): Layer {
+    this.pushHistory();
+    const members = new Set(
+      (ids.length > 0 ? ids : [this.activeLayer.id]).filter((id) =>
+        this.sketch.layers.some((l) => l.id === id),
+      ),
+    );
+    if (members.size === 0) members.add(this.activeLayer.id);
+
+    // Roots: selected layers not nested inside another selected layer.
+    const roots = [...members].filter((id) => {
+      const parent = this.sketch.layers.find((l) => l.id === id)?.parent;
+      return !parent || !members.has(parent);
+    });
+
+    const count = this.sketch.layers.filter((l) => l.group).length;
+    const group = createGroupLayer(`Group ${count + 1}`);
+    group.parent = this.sketch.layers.find((l) => l.id === roots[0])?.parent;
+
+    // The block is every root plus everything already nested beneath it.
+    const blockIds = new Set<string>();
+    for (const root of roots) {
+      blockIds.add(root);
+      for (const d of descendantLayerIds(this.sketch, root)) blockIds.add(d);
+      this.sketch.layers.find((l) => l.id === root)!.parent = group.id;
+    }
+
+    const original = this.sketch.layers;
+    const block = original.filter((l) => blockIds.has(l.id));
+    const rest = original.filter((l) => !blockIds.has(l.id));
+    const topIndex = Math.max(...block.map((l) => original.indexOf(l)));
+    const insertAt = rest.filter((l) => original.indexOf(l) < topIndex).length;
+    rest.splice(insertAt, 0, ...block, group);
+    this.sketch.layers = rest;
+
+    this.activeLayerId = group.id;
+    this.selectedLayerIds = new Set([group.id]);
+    this.touch();
+    return group;
+  }
+
+  /**
+   * Dissolves the active group: its children move up to the group's parent
+   * and keep their strokes. Returns false when the active layer is no group.
+   */
+  ungroupActiveLayer(): boolean {
+    const group = this.activeLayer;
+    if (!group.group) return false;
+    this.pushHistory();
+    let firstChild: Layer | null = null;
+    for (const layer of this.sketch.layers) {
+      if (layer.parent === group.id) {
+        layer.parent = group.parent;
+        firstChild ??= layer;
+      }
+    }
+    this.sketch.layers = this.sketch.layers.filter((l) => l.id !== group.id);
+    this.activeLayerId =
+      firstChild?.id ?? this.sketch.layers.find((l) => !l.group)?.id ?? this.sketch.layers[0].id;
+    this.touch();
+    return true;
+  }
+
+  /**
+   * Appends imported layers (with their strokes) above the current stack.
+   * Nested children (SVG group layers) become group rows whose child layers
+   * carry the strokes, so imported structure can expand/collapse in the panel.
+   */
+  addImportedLayers(imported: ImportedLayerNode[]): void {
     if (imported.length === 0) return;
     this.pushHistory();
-    for (const item of imported) {
+    const appendLeaf = (item: ImportedLayerNode, parent?: string, opacity = item.opacity): void => {
       const layer = createLayer(item.name);
-      layer.opacity = item.opacity;
+      layer.opacity = opacity;
+      layer.parent = parent;
       this.sketch.layers.push(layer);
       for (const stroke of item.strokes) {
         this.sketch.strokes.push({ ...stroke, id: createId('st'), layer: layer.id });
       }
       this.activeLayerId = layer.id;
-    }
+    };
+    const append = (item: ImportedLayerNode, parent?: string): void => {
+      if (item.children && item.children.length > 0) {
+        const group = createGroupLayer(item.name);
+        group.opacity = item.opacity;
+        group.parent = parent;
+        // Children push first: the group header renders above them in the panel.
+        for (const child of item.children) append(child, group.id);
+        if (item.strokes.length > 0) appendLeaf(item, group.id, 1);
+        this.sketch.layers.push(group);
+      } else {
+        appendLeaf(item, parent);
+      }
+    };
+    for (const item of imported) append(item);
     this.touch();
   }
 
-  /** Deletes a layer and its strokes (keeps at least one layer). */
+  /**
+   * Deletes a layer and its strokes. Deleting a group deletes every layer
+   * inside it (nested included). Always keeps at least one drawable layer.
+   */
   removeLayer(id: string): void {
-    if (this.sketch.layers.length <= 1) return;
     const index = this.sketch.layers.findIndex((l) => l.id === id);
     if (index === -1) return;
+    const doomed = new Set<string>([id, ...descendantLayerIds(this.sketch, id)]);
+    const survivors = this.sketch.layers.filter((l) => !doomed.has(l.id));
+    if (!survivors.some((l) => !l.group)) return;
     this.pushHistory();
-    this.sketch.layers.splice(index, 1);
-    this.sketch.strokes = this.sketch.strokes.filter((s) => s.layer !== id);
-    if (this.activeLayerId === id) {
-      this.activeLayerId = this.sketch.layers[Math.max(0, index - 1)].id;
+    this.sketch.layers = survivors;
+    this.sketch.strokes = this.sketch.strokes.filter((s) => !s.layer || !doomed.has(s.layer));
+    if (doomed.has(this.activeLayerId)) {
+      this.activeLayerId = survivors.find((l) => !l.group)!.id;
     }
     this.selectedIds.clear();
+    this.selectedLayerIds = new Set([...this.selectedLayerIds].filter((lid) => !doomed.has(lid)));
     this.touch();
   }
 
-  /** Moves a layer one step up (+1, toward the top) or down (-1) in the stack. */
+  /**
+   * Moves a layer one step up (+1, toward the top) or down (-1) in the stack.
+   * Group rows themselves stay put (their children carry the paint order).
+   */
   moveLayer(id: string, direction: 1 | -1): void {
     const index = this.sketch.layers.findIndex((l) => l.id === id);
+    if (index === -1 || this.sketch.layers[index].group) return;
     const target = index + direction;
-    if (index === -1 || target < 0 || target >= this.sketch.layers.length) return;
+    if (target < 0 || target >= this.sketch.layers.length) return;
     this.pushHistory();
     const [layer] = this.sketch.layers.splice(index, 1);
     this.sketch.layers.splice(target, 0, layer);
     this.touch();
+  }
+
+  /**
+   * Drag-and-drop reorder for the layers panel. Moves `dragId` (together with
+   * everything nested under it) so it sits panel-above or panel-below
+   * `targetId`, or drops it `into` a group. Returns false for invalid drops
+   * (dropping a group into its own descendant, `into` a non-group, ...).
+   */
+  reorderLayer(dragId: string, targetId: string, position: 'above' | 'below' | 'into'): boolean {
+    if (dragId === targetId) return false;
+    const drag = this.sketch.layers.find((l) => l.id === dragId);
+    const target = this.sketch.layers.find((l) => l.id === targetId);
+    if (!drag || !target) return false;
+    const dragBlockIds = new Set<string>([dragId, ...descendantLayerIds(this.sketch, dragId)]);
+    if (dragBlockIds.has(targetId)) return false;
+    if (position === 'into' && !target.group) return false;
+    this.pushHistory();
+    const block = this.sketch.layers.filter((l) => dragBlockIds.has(l.id));
+    const rest = this.sketch.layers.filter((l) => !dragBlockIds.has(l.id));
+    const targetIndex = rest.findIndex((l) => l.id === targetId);
+    let insertAt: number;
+    if (position === 'into') {
+      drag.parent = target.id;
+      insertAt = targetIndex; // directly beneath the group header in the panel
+    } else if (position === 'above') {
+      drag.parent = target.parent;
+      insertAt = targetIndex + 1; // panel-above = later in paint order
+    } else {
+      // Panel-below = before the target and everything nested under it.
+      drag.parent = target.parent;
+      insertAt = targetIndex;
+      for (const id of descendantLayerIds(this.sketch, targetId)) {
+        const i = rest.findIndex((l) => l.id === id);
+        if (i !== -1 && i < insertAt) insertAt = i;
+      }
+    }
+    rest.splice(insertAt, 0, ...block);
+    this.sketch.layers = rest;
+    this.touch();
+    return true;
   }
 
   /**
@@ -387,13 +730,116 @@ export class Store {
     if (history) this.pushHistory();
     Object.assign(layer, patch);
     if ((patch.visible === false || patch.locked === true) && this.selectedIds.size > 0) {
-      // Hidden/locked content must not stay selected.
+      // Hidden/locked content must not stay selected (group toggles cascade).
+      const layerIds = new Set<string>([id, ...descendantLayerIds(this.sketch, id)]);
       const affected = new Set(
-        this.sketch.strokes.filter((s) => s.layer === id).map((s) => s.id),
+        this.sketch.strokes.filter((s) => s.layer && layerIds.has(s.layer)).map((s) => s.id),
       );
       this.selectedIds = new Set([...this.selectedIds].filter((sid) => !affected.has(sid)));
     }
     this.touch();
+  }
+
+  // ---- Join / fill ----------------------------------------------------------
+
+  /**
+   * Joins two or more selected drawing strokes end-to-end into one stroke
+   * (nearest endpoints first), keeping the first stroke's style. Returns the
+   * merged stroke, or null when fewer than two drawing strokes are selected.
+   */
+  joinSelectedStrokes(): Stroke | null {
+    const candidates = this.sketch.strokes.filter(
+      (s) =>
+        this.selectedIds.has(s.id) &&
+        s.tool !== 'eraser' &&
+        !isTextStroke(s) &&
+        !isImageStroke(s) &&
+        s.points.length > 0,
+    );
+    if (candidates.length < 2) return null;
+    this.pushHistory();
+
+    // Greedy chain: repeatedly merge the pair with the closest endpoints.
+    const pool = candidates.map((s) => s.points.map((p) => ({ ...p })));
+    while (pool.length > 1) {
+      let best = { i: 0, j: 1, flipI: false, flipJ: false, dist: Infinity };
+      for (let i = 0; i < pool.length; i++) {
+        for (let j = i + 1; j < pool.length; j++) {
+          const a = pool[i];
+          const b = pool[j];
+          // Try every endpoint pairing: i's tail meets j's head after flips.
+          const pairs = [
+            { flipI: false, flipJ: false, pa: a[a.length - 1], pb: b[0] },
+            { flipI: false, flipJ: true, pa: a[a.length - 1], pb: b[b.length - 1] },
+            { flipI: true, flipJ: false, pa: a[0], pb: b[0] },
+            { flipI: true, flipJ: true, pa: a[0], pb: b[b.length - 1] },
+          ];
+          for (const pair of pairs) {
+            const dist = Math.hypot(pair.pa.x - pair.pb.x, pair.pa.y - pair.pb.y);
+            if (dist < best.dist) best = { i, j, flipI: pair.flipI, flipJ: pair.flipJ, dist };
+          }
+        }
+      }
+      const a = best.flipI ? pool[best.i].reverse() : pool[best.i];
+      const b = best.flipJ ? pool[best.j].reverse() : pool[best.j];
+      a.push(...b);
+      pool.splice(best.j, 1);
+      pool[best.i] = a;
+    }
+
+    const first = candidates[0];
+    const merged: Stroke = {
+      ...first,
+      id: createId('st'),
+      points: pool[0],
+      fill: undefined,
+      sharpened: candidates.every((s) => s.sharpened),
+    };
+    const removeIds = new Set(candidates.map((s) => s.id));
+    const at = this.sketch.strokes.findIndex((s) => removeIds.has(s.id));
+    this.sketch.strokes = this.sketch.strokes.filter((s) => !removeIds.has(s.id));
+    this.sketch.strokes.splice(at, 0, merged);
+    this.selectedIds = new Set([merged.id]);
+    this.touch();
+    return merged;
+  }
+
+  /**
+   * Replaces the given strokes with one merged stroke in a single history
+   * step (used by the Join-stroke-on-snap setting).
+   */
+  replaceWithJoined(removeIds: string[], merged: Stroke): void {
+    this.pushHistory();
+    const doomed = new Set(removeIds);
+    const at = this.sketch.strokes.findIndex((s) => doomed.has(s.id));
+    this.sketch.strokes = this.sketch.strokes.filter((s) => !doomed.has(s.id));
+    this.sketch.strokes.splice(at === -1 ? this.sketch.strokes.length : at, 0, merged);
+    this.touch();
+  }
+
+  /**
+   * Applies `color` to the selection: closed shapes are filled, other
+   * drawing strokes and text recolored. Returns the counts of each.
+   */
+  fillSelected(color: string): { filled: number; recolored: number } {
+    const targets = this.sketch.strokes.filter(
+      (s) => this.selectedIds.has(s.id) && !isImageStroke(s) && s.tool !== 'eraser',
+    );
+    if (targets.length === 0) return { filled: 0, recolored: 0 };
+    this.pushHistory();
+    let filled = 0;
+    let recolored = 0;
+    for (const stroke of targets) {
+      if (isClosedStroke(stroke)) {
+        stroke.fill = color;
+        filled++;
+      } else {
+        stroke.color = color;
+        recolored++;
+      }
+    }
+    this.touch();
+    return { filled, recolored };
   }
 
   // ---- Tool settings -------------------------------------------------------

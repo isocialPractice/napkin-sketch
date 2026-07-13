@@ -7,12 +7,16 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Settings — napkin-sketch</title>
+    <title>Verbose Settings — napkin-sketch</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body class="settings-body">
     <main class="settings-window">
-      <h1 class="settings-title">Settings</h1>
+      <h1 class="settings-title">Verbose Settings</h1>
+      <p class="settings-hint">
+        Everything here persists across launches. The in-app panel (Ctrl+,)
+        shows the same Quick Settings for fast access while drawing.
+      </p>
 
       <section class="settings-section" aria-label="Pan and zoom">
         <h2>Pan &amp; Zoom</h2>
@@ -29,6 +33,29 @@
           <span class="switch-track" aria-hidden="true"></span>
           <span class="switch-text">Invert zoom direction</span>
         </label>
+        <label class="switch settings-row">
+          <input id="invert-scroll-zoom" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Invert Alt + scroll-wheel zoom direction</span>
+        </label>
+        <p class="settings-hint">
+          Hold Alt and scroll the mouse wheel to zoom. By default scroll up
+          zooms in and scroll down zooms out.
+        </p>
+        <label class="switch settings-row">
+          <input id="invert-scroll-pan" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Invert scroll-wheel pan direction</span>
+        </label>
+        <p class="settings-hint">
+          Scroll the wheel to pan vertically; hold Ctrl + Shift to pan
+          horizontally.
+        </p>
+        <label class="switch settings-row">
+          <input id="invert-pan-drag" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Invert Select + Space drag pan direction</span>
+        </label>
       </section>
 
       <section class="settings-section" aria-label="Quick features">
@@ -39,6 +66,86 @@
         </label>
         <p class="settings-hint">
           Time allowed to type a value after pressing W (width) or Q (opacity).
+        </p>
+        <label class="switch settings-row">
+          <input id="endpoint-snap" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Endpoint snap</span>
+        </label>
+        <label class="settings-field">
+          <span>Snap sensitivity <em id="endpoint-snap-px-value">5px</em></span>
+          <input id="endpoint-snap-px" type="range" />
+        </label>
+        <p class="settings-hint">
+          Hold Shift while drawing to snap the stroke to the nearest endpoint
+          of an existing stroke within the sensitivity radius.
+        </p>
+        <label class="switch settings-row">
+          <input id="join-stroke" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Join stroke</span>
+        </label>
+        <p class="settings-hint">
+          When on, a stroke that snaps onto another stroke's endpoint (same
+          tool and color) merges with it into one stroke.
+        </p>
+      </section>
+
+      <section class="settings-section" aria-label="Sketch support">
+        <h2>Sketch Support</h2>
+        <label class="settings-field">
+          <span>Select pixel sensitivity <em id="eyedrop-px-value">10px</em></span>
+          <input id="eyedrop-px" type="range" />
+        </label>
+        <p class="settings-hint">
+          Radius the eyedropper (I) averages when picking a color from the
+          canvas.
+        </p>
+        <label class="settings-field">
+          <span>Direct Select sensitivity <em id="direct-select-px-value">3px</em></span>
+          <input id="direct-select-px" type="range" />
+        </label>
+        <p class="settings-hint">
+          Grab radius for selecting anchor points, handles, and paths with the
+          Direct Select tool (A).
+        </p>
+      </section>
+
+      <section class="settings-section" aria-label="Quick settings">
+        <h2>Quick Settings</h2>
+        <label class="switch settings-row">
+          <input id="qs-live-sharpen" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Live sharpen</span>
+        </label>
+        <label class="settings-field">
+          <span>Wobble <em id="qs-wobble-value">1.1</em></span>
+          <input id="qs-wobble" type="range" />
+        </label>
+        <label class="settings-field">
+          <span>Smoothing <em id="qs-smoothing-value">2.5</em></span>
+          <input id="qs-smoothing" type="range" />
+        </label>
+        <label class="settings-field">
+          <span>Circle snap <em id="qs-circle-value">0.12</em></span>
+          <input id="qs-circle" type="range" />
+        </label>
+        <label class="switch settings-row">
+          <input id="qs-taper" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Taper stroke ends</span>
+        </label>
+        <label class="settings-field">
+          <span>Symmetry <em id="qs-symmetry-value">off</em></span>
+          <input id="qs-symmetry" type="range" />
+        </label>
+        <label class="settings-field">
+          <span>Text size <em id="qs-textsize-value">24px</em></span>
+          <input id="qs-textsize" type="range" />
+        </label>
+        <p class="settings-hint">
+          Mirrors the in-app Quick Settings panel (Ctrl+,); both edit the same
+          persisted values.
         </p>
       </section>
 

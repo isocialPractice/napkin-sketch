@@ -17,6 +17,7 @@ import {
   DEFAULT_FONT_FAMILY,
   DEFAULT_NIB_ANGLE,
   defaultOpacityFor,
+  effectiveLayer,
   isImageStroke,
   isTextStroke,
   layerOf,
@@ -44,6 +45,20 @@ export interface Overlay {
   selectBox?: { x1: number; y1: number; x2: number; y2: number };
   /** Dashed straight-line preview (Space + drag) in sketch coordinates. */
   straightLine?: { a: Point; b: Point; color: string; width: number };
+  /** Ring marking the endpoint the pointer will snap to (Shift held while drawing). */
+  snapTarget?: Point;
+  /**
+   * Direct Select overlay: the edited stroke's anchor points, which of them
+   * are selected (drawn blue), the handle points around a lone selected
+   * anchor, and whether the whole path is selected (drawn blue).
+   */
+  anchors?: {
+    points: Point[];
+    selected?: number[];
+    handles?: number[];
+    handleOrigin?: number;
+    pathSelected?: boolean;
+  };
 }
 
 /** Pan/zoom viewport applied to the drawn content (in CSS pixels / unitless zoom). */
@@ -123,6 +138,41 @@ export class Surface {
     return this.cssHeight;
   }
 
+  /**
+   * Average rendered color inside a circle around a canvas-local CSS point
+   * (used by the eyedropper; the radius is its pixel sensitivity).
+   */
+  sampleAverageColor(cssX: number, cssY: number, radiusCss: number): string {
+    const r = Math.max(1, Math.round(radiusCss * this.dpr));
+    const cx = Math.round(cssX * this.dpr);
+    const cy = Math.round(cssY * this.dpr);
+    const x0 = Math.max(0, cx - r);
+    const y0 = Math.max(0, cy - r);
+    const w = Math.min(this.canvas.width, cx + r + 1) - x0;
+    const h = Math.min(this.canvas.height, cy + r + 1) - y0;
+    if (w <= 0 || h <= 0) return '#000000';
+    const data = this.ctx.getImageData(x0, y0, w, h).data;
+    let sr = 0;
+    let sg = 0;
+    let sb = 0;
+    let n = 0;
+    for (let yy = 0; yy < h; yy++) {
+      for (let xx = 0; xx < w; xx++) {
+        const dx = x0 + xx - cx;
+        const dy = y0 + yy - cy;
+        if (dx * dx + dy * dy > r * r) continue;
+        const idx = (yy * w + xx) * 4;
+        sr += data[idx];
+        sg += data[idx + 1];
+        sb += data[idx + 2];
+        n++;
+      }
+    }
+    if (n === 0) return '#000000';
+    const hex = (v: number): string => Math.round(v / n).toString(16).padStart(2, '0');
+    return `#${hex(sr)}${hex(sg)}${hex(sb)}`;
+  }
+
   /** Converts a client (event) coordinate into sketch-space pixels (viewport-aware). */
   toSketchPoint(clientX: number, clientY: number, pressure: number): Point {
     const rect = this.canvas.getBoundingClientRect();
@@ -199,7 +249,9 @@ export class Surface {
     ink.clearRect(0, 0, this.ink.width, this.ink.height);
     const liveLayerId = live ? layerOf(sketch, live).id : null;
     for (const layer of sketch.layers) {
-      if (!layer.visible) continue;
+      if (layer.group) continue; // groups paint nothing; they scale their children
+      const effective = effectiveLayer(sketch, layer);
+      if (!effective.visible) continue;
       const strokes = strokesOnLayer(sketch, layer.id);
       const liveHere = live && live.points.length > 0 && liveLayerId === layer.id ? live : null;
       if (strokes.length === 0 && !liveHere) continue;
@@ -216,7 +268,7 @@ export class Surface {
       if (liveHere) this.paintStroke(scratch, liveHere);
       scratch.restore();
 
-      ink.globalAlpha = layer.opacity;
+      ink.globalAlpha = effective.opacity;
       ink.drawImage(this.scratch, 0, 0);
     }
     ink.restore();
@@ -247,6 +299,14 @@ export class Surface {
 
     if (overlay?.straightLine) {
       this.paintStraightPreview(ctx, overlay.straightLine);
+    }
+
+    if (overlay?.snapTarget) {
+      this.paintSnapTarget(ctx, overlay.snapTarget);
+    }
+
+    if (overlay?.anchors) {
+      this.paintAnchors(ctx, overlay.anchors);
     }
 
     ctx.restore();
@@ -336,6 +396,84 @@ export class Surface {
     ctx.restore();
   }
 
+  /** Draws a small ring marking the endpoint the pointer will snap to. */
+  private paintSnapTarget(ctx: CanvasRenderingContext2D, pt: Point): void {
+    ctx.save();
+    // Divide by zoom so the ring keeps a constant on-screen size.
+    ctx.strokeStyle = '#2f6feb';
+    ctx.lineWidth = 1.5 / this.zoom;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 6 / this.zoom, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Draws Direct Select anchor squares at a constant on-screen size. */
+  private paintAnchors(
+    ctx: CanvasRenderingContext2D,
+    anchors: {
+      points: Point[];
+      selected?: number[];
+      handles?: number[];
+      handleOrigin?: number;
+      pathSelected?: boolean;
+    },
+  ): void {
+    const pts = anchors.points;
+    if (pts.length === 0) return;
+    const blue = '#2f6feb';
+    const half = 3 / this.zoom;
+    const selected = new Set(anchors.selected ?? []);
+    const handles = new Set(anchors.handles ?? []);
+    ctx.save();
+    ctx.lineWidth = 1 / this.zoom;
+
+    // A selected path draws its outline in blue so the whole stroke reads as
+    // picked and movable.
+    if (anchors.pathSelected) {
+      ctx.strokeStyle = blue;
+      ctx.lineWidth = 1.5 / this.zoom;
+      ctx.beginPath();
+      pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.stroke();
+      ctx.lineWidth = 1 / this.zoom;
+    }
+
+    // Handle guides: thin lines from the lone selected anchor to its handles.
+    if (anchors.handleOrigin !== undefined && handles.size > 0) {
+      const origin = pts[anchors.handleOrigin];
+      if (origin) {
+        ctx.strokeStyle = blue;
+        for (const h of handles) {
+          const p = pts[h];
+          if (!p) continue;
+          ctx.beginPath();
+          ctx.moveTo(origin.x, origin.y);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    ctx.strokeStyle = blue;
+    pts.forEach((p, i) => {
+      if (handles.has(i)) {
+        // Handles: small hollow blue circles, distinct from square anchors.
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, half, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        return;
+      }
+      // Anchors: blue when selected, white otherwise.
+      ctx.fillStyle = selected.has(i) ? blue : '#ffffff';
+      ctx.fillRect(p.x - half, p.y - half, half * 2, half * 2);
+      ctx.strokeRect(p.x - half, p.y - half, half * 2, half * 2);
+    });
+    ctx.restore();
+  }
+
   private paintStroke(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
     if (isTextStroke(stroke)) {
       this.paintText(ctx, stroke);
@@ -364,6 +502,18 @@ export class Surface {
       ctx.fillStyle = stroke.color;
       // Explicit opacity (Quick Opacity) overrides the per-tool default.
       ctx.globalAlpha = stroke.opacity ?? defaultOpacityFor(stroke.tool);
+    }
+
+    // Filled shape (paint bucket / Fill Shape): paint the closed interior
+    // first so the outline still reads on top of the fill.
+    if (stroke.fill && stroke.tool !== 'eraser' && pts.length > 2) {
+      ctx.save();
+      ctx.fillStyle = stroke.fill;
+      ctx.beginPath();
+      pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     }
 
     // Copic marker: a flat chisel nib stamped along the path.
@@ -551,12 +701,14 @@ export class Surface {
     const groups: string[] = [];
 
     sketch.layers.forEach((layer, li) => {
-      if (!layer.visible) return;
+      if (layer.group) return; // groups export via their children's effective props
+      const effective = effectiveLayer(sketch, layer);
+      if (!effective.visible) return;
       const strokes = strokesOnLayer(sketch, layer.id);
       if (strokes.length === 0) return;
 
       const attrs = [`id="layer-${li}"`, `data-name="${escXml(layer.name)}"`];
-      if (layer.opacity < 1) attrs.push(`opacity="${layer.opacity}"`);
+      if (effective.opacity < 1) attrs.push(`opacity="${effective.opacity}"`);
 
       const erasers = strokes.filter((s) => s.tool === 'eraser');
       if (erasers.length > 0) {
@@ -739,7 +891,12 @@ function svgPath(stroke: Stroke, order: number, colorOverride?: string): string 
     return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${color}" opacity="${opacity}" ${data}/>`;
   }
   const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  return `<path d="${d}" stroke="${color}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${opacity}" ${data}/>`;
+  // Filled shapes paint their interior (SVG auto-closes fills, so the path
+  // data stays an M/L polyline and round-trips through import unchanged);
+  // `data-fill` lets import restore the fill exactly.
+  const fill = !colorOverride && stroke.fill ? escXml(stroke.fill) : null;
+  const fillAttrs = fill ? `fill="${fill}" data-fill="${fill}"` : 'fill="none"';
+  return `<path d="${d}" stroke="${color}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round" ${fillAttrs} opacity="${opacity}" ${data}/>`;
 }
 
 /**

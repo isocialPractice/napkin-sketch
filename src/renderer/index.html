@@ -29,8 +29,35 @@
           <button id="tool-select" class="tool" type="button" title="Select (S)" aria-label="Select">
             <span class="icon" aria-hidden="true">⤢</span><span class="label">Select</span>
           </button>
+          <button id="tool-point" class="tool" type="button" title="Direct Select (A) — select and move anchor points" aria-label="Direct Select">
+            <span class="icon" aria-hidden="true">▷</span><span class="label">Direct</span>
+          </button>
           <button id="tool-text" class="tool" type="button" title="Text (T)" aria-label="Text">
             <span class="icon" aria-hidden="true">T</span><span class="label">Text</span>
+          </button>
+        </section>
+
+        <section id="sketch-group" class="group" aria-label="Sketch support">
+          <button id="tool-rect" class="tool" type="button" title="Rectangle (R) — hold Shift for a square" aria-label="Rectangle">
+            <span class="icon" aria-hidden="true">▭</span><span class="label">Rect</span>
+          </button>
+          <button id="tool-ellipse" class="tool" type="button" title="Ellipse (L) — hold Shift for a circle" aria-label="Ellipse">
+            <span class="icon" aria-hidden="true">◯</span><span class="label">Ellipse</span>
+          </button>
+          <button id="tool-curve" class="tool has-flyout" type="button" title="Curve (V) — drag a chord (ends snap to stroke endpoints), then bend and click. Click and hold for curve options" aria-label="Curve">
+            <span class="icon" aria-hidden="true">⌒</span><span class="label">Curve</span>
+          </button>
+          <button id="tool-bucket" class="tool" type="button" title="Paint Bucket (G) — fill an enclosed shape" aria-label="Paint Bucket">
+            <span class="icon" aria-hidden="true">🪣</span><span class="label">Paint Bucket</span>
+          </button>
+          <button id="tool-fill" class="tool" type="button" title="Fill Color — fill the selected element with the selected color" aria-label="Fill Color">
+            <span class="icon" aria-hidden="true">◧</span><span class="label">Fill Color</span>
+          </button>
+          <button id="tool-eyedrop" class="tool" type="button" title="Eyedropper (I) — pick a color; fills the selected shape" aria-label="Eyedropper">
+            <span class="icon" aria-hidden="true">💧</span><span class="label">Pick</span>
+          </button>
+          <button id="join-strokes" class="btn" type="button" title="Join selected strokes (Ctrl+J)">
+            Join
           </button>
         </section>
 
@@ -53,8 +80,8 @@
           <button id="sharpen-all" class="btn btn-accent" type="button" title="Sharpen every stroke (H)">
             Sharpen all
           </button>
-          <button id="settings-toggle" class="btn" type="button" title="Sharpen settings (Ctrl+,)">
-            Settings
+          <button id="settings-toggle" class="btn" type="button" title="Quick Settings (Ctrl+,)">
+            Quick Settings
           </button>
         </section>
 
@@ -72,7 +99,7 @@
           <button id="import" class="btn" type="button" title="Import SVG, PDF, PNG, or JPEG (Ctrl+I)">Import</button>
           <button id="save" class="btn btn-primary" type="button" title="Save (Ctrl+S)">Save</button>
           <button id="save-as" class="btn" type="button" title="Save as (Ctrl+Shift+S)">Save As</button>
-          <button id="app-settings" class="btn btn-ghost" type="button" title="Settings" aria-label="Open settings">
+          <button id="app-settings" class="btn btn-ghost" type="button" title="Verbose Settings" aria-label="Open verbose settings">
             <span class="icon" aria-hidden="true">⚙</span>
           </button>
         </section>
@@ -103,7 +130,8 @@
             <span>Layers</span>
             <div class="pages-panel-actions">
               <button id="add-layer" class="btn btn-ghost" type="button" title="Add layer">+ Layer</button>
-              <button id="delete-layer" class="btn btn-ghost" type="button" title="Delete layer">Delete</button>
+              <button id="group-layer" class="btn btn-ghost" type="button" title="Group the active layer (Ctrl+G)">Group</button>
+              <button id="delete-layer" class="btn btn-ghost" type="button" title="Delete selected layers">Delete</button>
             </div>
           </div>
           <div id="layers-list" class="layers-list" role="listbox" aria-label="Layer stack"></div>
@@ -120,9 +148,9 @@
           </div>
         </aside>
 
-        <aside id="settings-panel" class="settings-panel is-hidden" aria-label="Sharpen settings">
+        <aside id="settings-panel" class="settings-panel is-hidden" aria-label="Quick settings">
           <div class="settings-head">
-            <span>Auto-sharpen settings</span>
+            <span>Quick Settings</span>
             <button id="settings-close" class="btn btn-ghost" type="button" aria-label="Close settings">✕</button>
           </div>
 

@@ -13,9 +13,13 @@ import {
   createSketchBook,
   DEFAULT_FONT_FAMILY,
   defaultOpacityFor,
+  descendantLayerIds,
+  effectiveLayer,
+  isClosedStroke,
   isImageStroke,
   isTextStroke,
   layerOf,
+  type Layer,
   type Point,
   type Sketch,
   type Stroke,
@@ -57,6 +61,31 @@ const MODIFIER_EVENT_KEYS: Record<QuickModifier, string> = {
   alt: 'Alt',
   shift: 'Shift',
 };
+
+/** All tool buttons (main group + Sketch Support group). */
+const TOOL_IDS = [
+  'tool-pen',
+  'tool-marker',
+  'tool-copic',
+  'tool-eraser',
+  'tool-select',
+  'tool-point',
+  'tool-text',
+  'tool-rect',
+  'tool-ellipse',
+  'tool-curve',
+  'tool-bucket',
+  'tool-fill',
+  'tool-eyedrop',
+] as const;
+
+/** An endpoint-snap hit: the endpoint position plus the stroke it ends. */
+interface SnapHit {
+  x: number;
+  y: number;
+  strokeId: string;
+  at: 'start' | 'end';
+}
 
 class App {
   private readonly surface: Surface;
@@ -107,10 +136,57 @@ class App {
   private straightStart: Point | null = null;
   private straightEnd: Point | null = null;
 
+  // Select-tool Space + drag pan state (screen-space pointer tracking).
+  private panDragging = false;
+  private panLast: { x: number; y: number } | null = null;
+
+  // Endpoint snap (hold Shift while drawing): the endpoint the pointer will
+  // snap to, shown as a ring while within the configured sensitivity.
+  private snapTarget: SnapHit | null = null;
+  // Snap hit recorded when the stroke started (for Join stroke on snap).
+  private startSnapHit: SnapHit | null = null;
+
+  // Shape tools (Rectangle / Ellipse): drag origin while a shape is drawn.
+  private shapeStart: Point | null = null;
+
+  // Curve tool: chord endpoints; after the chord drag is released the tool
+  // enters the bend phase (move to bow the curve, click to commit).
+  private curveA: Point | null = null;
+  private curveB: Point | null = null;
+  private curveBending = false;
+  // Stroke tool the pending curve commits as (current tool in quick mode).
+  private curveTool: Tool = 'pen';
+  // Curve variant (tool flyout): the default snaps the chord's start and end
+  // to nearby stroke endpoints; 'free' keeps the ends where the pointer is.
+  private curveVariant: 'endpoints' | 'free' = 'endpoints';
+  // Curve stylus mode: a pen draws the whole curve in one gesture (the drag
+  // path defines both the chord and the bend), since it cannot hover between
+  // the mouse tool's two clicks. Holds the sampled drag path while active.
+  private curveStylus = false;
+  private curvePath: Point[] = [];
+
+  // Direct Select (A): stroke whose anchor points are shown, which anchors
+  // are selected (Shift adds), whether the whole path is selected, and the
+  // in-progress drag (an anchor set, a single handle, or the whole path).
+  private anchorStrokeId: string | null = null;
+  private selectedAnchors = new Set<number>();
+  private pathSelected = false;
+  private anchorDragKind: 'anchor' | 'handle' | 'path' | null = null;
+  private anchorDragHandle: number | null = null;
+  private anchorDragLast: Point | null = null;
+
+  // Eyedropper: true while Ctrl temporarily switched to the select tool.
+  private eyedropTempSelect = false;
+
   // Quick-feature digit entry (Quick Width "W" / Quick Opacity "Q").
   private quickMode: 'width' | 'opacity' | null = null;
   private quickBuffer = '';
   private quickTimer: number | null = null;
+
+  // Quick Zoom ("Z" then a digit): armed while waiting for the digit that
+  // sets the zoom level (9 => 90%, 0 => 100%).
+  private quickZoomArmed = false;
+  private quickZoomTimer: number | null = null;
 
   // Copic quick nib-rotate (hold Ctrl → Alt/Shift rotate the broad nib).
   private nibHoldDown = false;
@@ -128,6 +204,10 @@ class App {
 
   // Toolbar rearrange mode.
   private rearranging = false;
+
+  // Layers panel UI state: collapsed group rows and the row being dragged.
+  private collapsedGroups = new Set<string>();
+  private layerDragId: string | null = null;
 
   // Captured toolbar group order, for top/side/both menu placement.
   private toolbarGroups: HTMLElement[] = [];
@@ -219,9 +299,47 @@ class App {
                 color: this.store.tool.color,
                 width: this.store.tool.width,
               }
-            : undefined,
+            : this.curveA && this.curveB && !this.curveBending
+              ? {
+                  a: this.curveA,
+                  b: this.curveB,
+                  color: this.store.tool.color,
+                  width: this.store.tool.width,
+                }
+              : undefined,
+        snapTarget: this.snapTarget ?? undefined,
+        anchors: this.anchorOverlay() ?? undefined,
       });
     });
+  }
+
+  /** Anchor points to overlay while the Direct Select tool edits a stroke. */
+  private anchorOverlay(): {
+    points: Point[];
+    selected?: number[];
+    handles?: number[];
+    handleOrigin?: number;
+    pathSelected?: boolean;
+  } | null {
+    if (this.store.tool.tool !== 'point' || !this.anchorStrokeId) return null;
+    const stroke = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
+    if (!stroke || isTextStroke(stroke) || isImageStroke(stroke)) return null;
+    // A single selected anchor exposes its neighbours as draggable handles.
+    let handleOrigin: number | undefined;
+    let handles: number[] = [];
+    if (this.selectedAnchors.size === 1) {
+      handleOrigin = [...this.selectedAnchors][0];
+      handles = [handleOrigin - 1, handleOrigin + 1].filter(
+        (h) => h >= 0 && h < stroke.points.length,
+      );
+    }
+    return {
+      points: stroke.points,
+      selected: [...this.selectedAnchors],
+      handles,
+      handleOrigin,
+      pathSelected: this.pathSelected,
+    };
   }
 
   private resizeSurface(): void {
@@ -244,7 +362,41 @@ class App {
     c.addEventListener('pointerleave', (e) => {
       if (this.activePointerId !== null) this.onPointerUp(e);
     });
+    c.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
     c.style.touchAction = 'none';
+  }
+
+  /**
+   * Mouse-wheel navigation. Alt + wheel zooms toward the pointer; Ctrl+Shift +
+   * wheel pans horizontally (scroll down = left, up = right); a plain wheel
+   * pans vertically (scroll up = up, down = down). Zoom and pan directions
+   * are configurable; plain wheel events over the canvas are consumed.
+   */
+  private onWheel(e: WheelEvent): void {
+    if (e.deltaY === 0) return;
+    const scrollUp = e.deltaY < 0;
+
+    if (e.altKey) {
+      e.preventDefault();
+      const rect = this.canvas.getBoundingClientRect();
+      let zoomIn = scrollUp;
+      if (this.settings.invertScrollZoom) zoomIn = !zoomIn;
+      const factor = zoomIn ? 1.1 : 1 / 1.1;
+      this.surface.zoomAt(factor, e.clientX - rect.left, e.clientY - rect.top);
+      this.scheduleRender();
+      return;
+    }
+
+    // Pan: Ctrl+Shift scrolls horizontally, otherwise vertically.
+    e.preventDefault();
+    const step = 60 * this.settings.panSensitivity;
+    const sign = (this.settings.invertScrollPan ? -1 : 1) * (scrollUp ? 1 : -1);
+    if (e.ctrlKey && e.shiftKey) {
+      this.surface.panBy(step * sign, 0);
+    } else {
+      this.surface.panBy(0, step * sign);
+    }
+    this.scheduleRender();
   }
 
   private onPointerDown(e: PointerEvent): void {
@@ -259,13 +411,69 @@ class App {
     const tool = this.store.tool.tool;
     const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
 
+    // Eyedropper reads the canvas; it needs no editable layer.
+    if (tool === 'eyedrop') {
+      e.preventDefault();
+      this.applyEyedrop(e);
+      return;
+    }
+
+    // Direct Select: grab an anchor point, or pick a stroke to edit.
+    if (tool === 'point') {
+      e.preventDefault();
+      this.beginPointSelect(e, pt);
+      return;
+    }
+
+    // Fill Color: fill the selection, or the element under the click.
+    if (tool === 'fill') {
+      e.preventDefault();
+      this.applyFillColor(pt);
+      return;
+    }
+
     // Every mark-making tool needs an editable (visible, unlocked) layer.
     if (tool !== 'select' && !this.store.canDraw) {
+      const layer = this.store.activeLayer;
+      const effective = effectiveLayer(this.store.sketch, layer);
       this.toast(
-        this.store.activeLayer.locked
-          ? `Layer "${this.store.activeLayer.name}" is locked.`
-          : `Layer "${this.store.activeLayer.name}" is hidden.`,
+        layer.group
+          ? `"${layer.name}" is a group — pick a layer inside it to draw.`
+          : effective.locked
+            ? `Layer "${layer.name}" is locked.`
+            : `Layer "${layer.name}" is hidden.`,
       );
+      return;
+    }
+
+    // Curve tool, bend phase: a click commits the pending curve.
+    if (this.curveBending) {
+      e.preventDefault();
+      this.commitCurve();
+      return;
+    }
+
+    // Curve chord: the Curve tool, or the Ctrl+Space quick feature
+    // (Shift+Ctrl+Space additionally snaps the chord ends).
+    if (
+      (tool === 'curve' || (this.spaceDown && e.ctrlKey && tool !== 'select' && tool !== 'text')) &&
+      tool !== 'bucket'
+    ) {
+      e.preventDefault();
+      this.activePointerId = e.pointerId;
+      this.canvas.setPointerCapture(e.pointerId);
+      this.curveTool = drawingToolOf(tool);
+      // The default Curve variant starts (and ends) at nearby stroke endpoints.
+      const snapEnds = e.shiftKey || (tool === 'curve' && this.curveVariant === 'endpoints');
+      const start = this.applyEndpointSnap(pt, snapEnds, this.curveTool);
+      this.startSnapHit = this.snapTarget;
+      this.curveA = start;
+      this.curveB = start;
+      this.curveBending = false;
+      // A pen/stylus draws the curve in one gesture (see commitStylusCurve).
+      this.curveStylus = e.pointerType === 'pen';
+      this.curvePath = this.curveStylus ? [start] : [];
+      this.scheduleRender();
       return;
     }
 
@@ -274,8 +482,48 @@ class App {
       e.preventDefault();
       this.activePointerId = e.pointerId;
       this.canvas.setPointerCapture(e.pointerId);
-      this.straightStart = pt;
-      this.straightEnd = pt;
+      const start = this.applyEndpointSnap(pt, e.shiftKey, tool);
+      this.startSnapHit = this.snapTarget;
+      this.straightStart = start;
+      this.straightEnd = start;
+      this.scheduleRender();
+      return;
+    }
+
+    // Select tool + Space: drag to pan the canvas (quick-feature pan).
+    if (this.spaceDown && tool === 'select') {
+      e.preventDefault();
+      this.activePointerId = e.pointerId;
+      this.canvas.setPointerCapture(e.pointerId);
+      this.panDragging = true;
+      this.panLast = { x: e.clientX, y: e.clientY };
+      return;
+    }
+
+    // Paint bucket: fill the enclosed shape under the click.
+    if (tool === 'bucket') {
+      e.preventDefault();
+      this.applyBucket(pt);
+      return;
+    }
+
+    // Shape tools: drag out a rectangle or ellipse (Shift = square / circle).
+    if (tool === 'rect' || tool === 'ellipse') {
+      e.preventDefault();
+      this.activePointerId = e.pointerId;
+      this.canvas.setPointerCapture(e.pointerId);
+      this.shapeStart = pt;
+      const { color, width, opacity } = this.store.tool;
+      this.live = {
+        id: createId('st'),
+        tool: 'pen',
+        color,
+        width,
+        points: [{ ...pt }],
+        layer: this.store.activeLayer.id,
+        sharpened: true,
+        ...(opacity != null ? { opacity } : {}),
+      };
       this.scheduleRender();
       return;
     }
@@ -298,12 +546,14 @@ class App {
     this.activePointerId = e.pointerId;
     this.canvas.setPointerCapture(e.pointerId);
     const { color, width, opacity, nibAngle } = this.store.tool;
+    const start = this.applyEndpointSnap(pt, e.shiftKey, tool);
+    this.startSnapHit = this.snapTarget;
     this.live = {
       id: createId('st'),
       tool,
       color,
       width,
-      points: [pt],
+      points: [start],
       // Preview on the layer the stroke will land on.
       layer: this.store.activeLayer.id,
       ...(opacity != null ? { opacity } : {}),
@@ -324,9 +574,89 @@ class App {
 
     const tool = this.store.tool.tool;
 
-    // Straight-line mode: update the dashed preview endpoint.
+    // Select-tool Space + drag: pan the canvas following the pointer.
+    if (this.panDragging && this.activePointerId === e.pointerId && this.panLast) {
+      const sign = this.settings.invertPanDrag ? -1 : 1;
+      this.surface.panBy((e.clientX - this.panLast.x) * sign, (e.clientY - this.panLast.y) * sign);
+      this.panLast = { x: e.clientX, y: e.clientY };
+      this.scheduleRender();
+      return;
+    }
+
+    // Direct Select: drag the grabbed anchor(s), handle, or whole path.
+    if (this.anchorDragKind && this.anchorStrokeId && this.activePointerId === e.pointerId) {
+      const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      if (this.anchorDragLast) {
+        const dx = pt.x - this.anchorDragLast.x;
+        const dy = pt.y - this.anchorDragLast.y;
+        if (this.anchorDragKind === 'anchor') {
+          this.store.nudgeStrokePoints(this.anchorStrokeId, [...this.selectedAnchors], dx, dy);
+        } else if (this.anchorDragKind === 'handle' && this.anchorDragHandle !== null) {
+          this.store.nudgeStrokePoints(this.anchorStrokeId, [this.anchorDragHandle], dx, dy);
+        } else if (this.anchorDragKind === 'path') {
+          this.store.nudgeStroke(this.anchorStrokeId, dx, dy);
+        }
+      }
+      this.anchorDragLast = pt;
+      return;
+    }
+
+    // Curve, chord phase: update the dashed chord endpoint (Shift snaps it).
+    if (this.curveA !== null && !this.curveBending && this.activePointerId === e.pointerId) {
+      const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      if (this.curveStylus) {
+        // Sample the freehand path; preview the simulated single-gesture curve.
+        this.curvePath.push(pt);
+        this.curveB = pt;
+        this.previewStylusCurve();
+        return;
+      }
+      const snapEnds = e.shiftKey || (tool === 'curve' && this.curveVariant === 'endpoints');
+      this.curveB = this.applyEndpointSnap(pt, snapEnds, this.curveTool);
+      this.scheduleRender();
+      return;
+    }
+
+    // Curve, bend phase (no button held): the pointer bows the curve through
+    // itself; the pending stroke previews live until a click commits it.
+    if (this.curveBending && this.curveA && this.curveB) {
+      const m = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      const control = {
+        x: 2 * m.x - (this.curveA.x + this.curveB.x) / 2,
+        y: 2 * m.y - (this.curveA.y + this.curveB.y) / 2,
+      };
+      const { color, width, opacity, nibAngle } = this.store.tool;
+      this.live = {
+        id: this.live?.id ?? createId('st'),
+        tool: this.curveTool,
+        color,
+        width,
+        points: quadraticPoints(this.curveA, control, this.curveB),
+        layer: this.store.activeLayer.id,
+        sharpened: true,
+        ...(opacity != null ? { opacity } : {}),
+        ...(this.curveTool === 'copic' ? { nibAngle } : {}),
+      };
+      this.scheduleRender();
+      return;
+    }
+
+    // Shape tools: rebuild the live outline from the drag box.
+    if (this.shapeStart !== null && this.activePointerId === e.pointerId && this.live) {
+      const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      this.live.points =
+        tool === 'ellipse'
+          ? ellipsePoints(this.shapeStart, pt, e.shiftKey)
+          : rectPoints(this.shapeStart, pt, e.shiftKey);
+      this.scheduleRender();
+      return;
+    }
+
+    // Straight-line mode: update the dashed preview endpoint (snapped to the
+    // nearest stroke endpoint while Shift is held).
     if (this.straightStart !== null && this.activePointerId === e.pointerId) {
-      this.straightEnd = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      this.straightEnd = this.applyEndpointSnap(pt, e.shiftKey, tool);
       this.scheduleRender();
       return;
     }
@@ -376,6 +706,12 @@ class App {
         this.live.points.push(pt);
       }
     }
+
+    // Endpoint snap: preview where the stroke end will land if released now.
+    if (this.snapApplies(this.live.tool)) {
+      const tip = this.live.points[this.live.points.length - 1];
+      this.setSnapTarget(e.shiftKey ? this.nearestEndpoint(tip) : null);
+    }
     this.scheduleRender();
   }
 
@@ -389,6 +725,84 @@ class App {
 
     const tool = this.store.tool.tool;
 
+    // Select-tool Space + drag: end the pan.
+    if (this.panDragging && this.activePointerId === e.pointerId) {
+      if (this.canvas.hasPointerCapture(e.pointerId)) {
+        this.canvas.releasePointerCapture(e.pointerId);
+      }
+      this.panDragging = false;
+      this.panLast = null;
+      this.activePointerId = null;
+      return;
+    }
+
+    // Direct Select: release the dragged anchor(s), handle, or path.
+    if (this.anchorDragKind && this.activePointerId === e.pointerId) {
+      if (this.canvas.hasPointerCapture(e.pointerId)) {
+        this.canvas.releasePointerCapture(e.pointerId);
+      }
+      this.anchorDragKind = null;
+      this.anchorDragHandle = null;
+      this.anchorDragLast = null;
+      this.activePointerId = null;
+      this.scheduleRender();
+      return;
+    }
+
+    // Curve, chord release: enter the bend phase (move to bow, click commits).
+    if (this.curveA !== null && !this.curveBending && this.activePointerId === e.pointerId) {
+      if (this.canvas.hasPointerCapture(e.pointerId)) {
+        this.canvas.releasePointerCapture(e.pointerId);
+      }
+      this.activePointerId = null;
+      // Stylus: the single drag already defines the whole curve — commit it.
+      if (this.curveStylus) {
+        this.commitStylusCurve();
+        return;
+      }
+      const a = this.curveA;
+      const b = this.curveB ?? a;
+      // A click without a drag never entered a usable chord: cancel.
+      if (Math.hypot(b.x - a.x, b.y - a.y) < 2) {
+        this.cancelCurve();
+        return;
+      }
+      this.curveBending = true;
+      const { color, width, opacity, nibAngle } = this.store.tool;
+      this.live = {
+        id: createId('st'),
+        tool: this.curveTool,
+        color,
+        width,
+        points: quadraticPoints(a, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, b),
+        layer: this.store.activeLayer.id,
+        sharpened: true,
+        ...(opacity != null ? { opacity } : {}),
+        ...(this.curveTool === 'copic' ? { nibAngle } : {}),
+      };
+      this.toast('Move to bend the curve, click to place it (Esc cancels).');
+      this.scheduleRender();
+      return;
+    }
+
+    // Shape tools: commit the dragged rectangle / ellipse outline.
+    if (this.shapeStart !== null && this.activePointerId === e.pointerId) {
+      if (this.canvas.hasPointerCapture(e.pointerId)) {
+        this.canvas.releasePointerCapture(e.pointerId);
+      }
+      this.shapeStart = null;
+      this.activePointerId = null;
+      const finished = this.live;
+      this.live = null;
+      if (finished && finished.points.length > 2) {
+        const extras = this.symmetryCopies(finished);
+        this.store.addStrokes([finished, ...extras]);
+      } else {
+        this.scheduleRender();
+      }
+      return;
+    }
+
     // Straight-line mode: commit a clean two-point line on release.
     if (this.straightStart !== null && this.activePointerId === e.pointerId) {
       if (this.canvas.hasPointerCapture(e.pointerId)) {
@@ -396,24 +810,28 @@ class App {
       }
       const a = this.straightStart;
       const b = this.straightEnd ?? a;
+      const startHit = this.startSnapHit;
+      const endHit = this.snapTarget;
       this.straightStart = null;
       this.straightEnd = null;
+      this.startSnapHit = null;
       this.activePointerId = null;
+      this.setSnapTarget(null);
+      const lineTool = drawingToolOf(tool);
       const { color, width, opacity, nibAngle } = this.store.tool;
       let finished: Stroke = {
         id: createId('st'),
-        tool,
+        tool: lineTool,
         color,
         width,
         points: [a, b],
         ...(opacity != null ? { opacity } : {}),
-        ...(tool === 'copic' ? { nibAngle } : {}),
+        ...(lineTool === 'copic' ? { nibAngle } : {}),
       };
-      if (this.store.tool.liveSharpen && tool !== 'eraser') {
+      if (this.store.tool.liveSharpen && lineTool !== 'eraser') {
         finished = sharpenStroke(finished, this.store.tool.sharpen);
       }
-      const extras = this.symmetryCopies(finished);
-      this.store.addStrokes([finished, ...extras]);
+      this.commitWithJoin(finished, startHit, endHit);
       return;
     }
 
@@ -493,12 +911,401 @@ class App {
     this.live = null;
     this.activePointerId = null;
 
-    if (this.store.tool.liveSharpen && finished.tool !== 'eraser') {
+    // Endpoint snap: pull the stroke's final point onto the nearest endpoint.
+    let endHit: SnapHit | null = null;
+    if (e.shiftKey && this.snapApplies(finished.tool) && finished.points.length > 1) {
+      const tail = finished.points[finished.points.length - 1];
+      endHit = this.nearestEndpoint(tail);
+      if (endHit) {
+        finished.points[finished.points.length - 1] = { ...tail, x: endHit.x, y: endHit.y };
+      }
+    }
+    const startHit = this.startSnapHit;
+    this.startSnapHit = null;
+    this.setSnapTarget(null);
+
+    if (this.store.tool.liveSharpen && finished.tool !== 'eraser' && !finished.sharpened) {
       finished = sharpenStroke(finished, this.store.tool.sharpen);
     }
 
+    this.commitWithJoin(finished, startHit, endHit);
+  }
+
+  /**
+   * Commits a finished stroke. With the Join-stroke setting on, a stroke
+   * whose snapped start/end landed on another stroke's endpoint (same tool
+   * and color) merges into that stroke instead of stacking on top of it.
+   */
+  private commitWithJoin(finished: Stroke, startHit: SnapHit | null, endHit: SnapHit | null): void {
+    const extras = this.symmetryCopies(finished);
+    // Symmetry copies and joins don't mix; plain add covers that case.
+    if (!this.settings.joinStrokeOnSnap || extras.length > 0 || (!startHit && !endHit)) {
+      this.store.addStrokes([finished, ...extras]);
+      return;
+    }
+
+    const removeIds: string[] = [];
+    let points = finished.points.map((p) => ({ ...p }));
+    const joinable = (hit: SnapHit | null): Stroke | null => {
+      if (!hit) return null;
+      const target = this.store.sketch.strokes.find((s) => s.id === hit.strokeId);
+      if (!target || removeIds.includes(target.id)) return null;
+      if (target.tool !== finished.tool || target.color !== finished.color) return null;
+      return target;
+    };
+
+    const startTarget = joinable(startHit);
+    if (startTarget) {
+      // The target's snapped endpoint must lead into the new stroke's start.
+      const tpts = startTarget.points.map((p) => ({ ...p }));
+      if (startHit!.at === 'start') tpts.reverse();
+      points = [...tpts, ...points];
+      removeIds.push(startTarget.id);
+    }
+    const endTarget = joinable(endHit);
+    if (endTarget) {
+      // The new stroke's end must lead into the target's snapped endpoint.
+      const tpts = endTarget.points.map((p) => ({ ...p }));
+      if (endHit!.at === 'end') tpts.reverse();
+      points = [...points, ...tpts];
+      removeIds.push(endTarget.id);
+    }
+
+    if (removeIds.length === 0) {
+      this.store.addStrokes([finished]);
+      return;
+    }
+    const merged: Stroke = { ...finished, points, layer: this.store.activeLayer.id };
+    this.store.replaceWithJoined(removeIds, merged);
+    this.toast('Joined stroke.');
+  }
+
+  /** Commits the pending curve stroke (bend phase click). */
+  private commitCurve(): void {
+    const finished = this.live;
+    this.cancelCurve();
+    if (!finished || finished.points.length < 2) return;
     const extras = this.symmetryCopies(finished);
     this.store.addStrokes([finished, ...extras]);
+  }
+
+  /**
+   * Single-gesture curve for a stylus. Because a pen cannot hover between the
+   * mouse tool's two clicks (select the chord, then move to bend), the pen's
+   * whole drag path is drawn as the curve directly — so a curved pen stroke
+   * stays a curve and never collapses to a straight line, and no "select and
+   * move" bend step is needed. Returns the smoothed drawn points.
+   */
+  private stylusCurvePoints(): Point[] {
+    // Drop points too close together so the curve stays smooth and light.
+    const out: Point[] = [];
+    for (const p of this.curvePath) {
+      const last = out[out.length - 1];
+      if (!last || Math.hypot(p.x - last.x, p.y - last.y) >= 1) out.push({ ...p });
+    }
+    return out.length >= 2 ? out : this.curvePath.map((p) => ({ ...p }));
+  }
+
+  /** Live preview of the drawn stylus curve while the pen drags. */
+  private previewStylusCurve(): void {
+    if (this.curvePath.length < 2) {
+      this.scheduleRender();
+      return;
+    }
+    const { color, width, opacity, nibAngle } = this.store.tool;
+    this.live = {
+      id: this.live?.id ?? createId('st'),
+      tool: this.curveTool,
+      color,
+      width,
+      points: this.stylusCurvePoints(),
+      layer: this.store.activeLayer.id,
+      sharpened: true,
+      ...(opacity != null ? { opacity } : {}),
+      ...(this.curveTool === 'copic' ? { nibAngle } : {}),
+    };
+    this.scheduleRender();
+  }
+
+  /** Commits the drawn stylus curve on pen-up (a tap cancels). */
+  private commitStylusCurve(): void {
+    const path = this.curvePath;
+    const a = path[0];
+    const b = path.length > 0 ? path[path.length - 1] : a;
+    // A tap (no real drag) is not a usable curve: cancel like the mouse flow.
+    if (path.length < 2 || Math.hypot(b.x - a.x, b.y - a.y) < 2) {
+      this.cancelCurve();
+      return;
+    }
+    const { color, width, opacity, nibAngle } = this.store.tool;
+    const finished: Stroke = {
+      id: createId('st'),
+      tool: this.curveTool,
+      color,
+      width,
+      points: this.stylusCurvePoints(),
+      layer: this.store.activeLayer.id,
+      sharpened: true,
+      ...(opacity != null ? { opacity } : {}),
+      ...(this.curveTool === 'copic' ? { nibAngle } : {}),
+    };
+    this.cancelCurve();
+    const extras = this.symmetryCopies(finished);
+    this.store.addStrokes([finished, ...extras]);
+  }
+
+  /** Abandons any in-progress curve (Esc, gesture, or an empty chord). */
+  private cancelCurve(): void {
+    this.curveA = null;
+    this.curveB = null;
+    this.curveBending = false;
+    this.curveStylus = false;
+    this.curvePath = [];
+    this.startSnapHit = null;
+    this.live = null;
+    this.setSnapTarget(null);
+    this.scheduleRender();
+  }
+
+  // ---- Sketch Support actions ----------------------------------------------
+
+  /**
+   * Paint bucket: fills the topmost enclosed shape under the click with the
+   * current ink color, added as a new selectable shape on the active layer.
+   */
+  private applyBucket(pt: Point): void {
+    const strokes = this.store.sketch.strokes;
+    for (let i = strokes.length - 1; i >= 0; i--) {
+      const s = strokes[i];
+      if (!this.strokeEditable(s) || !isClosedStroke(s)) continue;
+      if (!pointInPolygon(pt, s.points)) continue;
+      const color = this.store.tool.color;
+      const points = s.points.map((p) => ({ ...p }));
+      const first = points[0];
+      const last = points[points.length - 1];
+      if (first.x !== last.x || first.y !== last.y) points.push({ ...first });
+      this.store.addStroke({
+        id: createId('st'),
+        tool: 'pen',
+        color,
+        fill: color,
+        width: 1,
+        points,
+        sharpened: true,
+      });
+      this.toast(`Filled shape with ${color}.`);
+      return;
+    }
+    this.toast('No enclosed shape under the pointer.');
+  }
+
+  /**
+   * Eyedropper: picks the average rendered color around the click (within
+   * the configured pixel sensitivity). The pick becomes the ink color and,
+   * when a shape is selected, fills that shape.
+   */
+  private applyEyedrop(e: PointerEvent): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const color = this.surface.sampleAverageColor(
+      e.clientX - rect.left,
+      e.clientY - rect.top,
+      this.settings.eyedropSensitivityPx,
+    );
+    this.store.setTool({ color });
+    this.updateCursor();
+    if (this.store.selectedIds.size > 0) {
+      const result = this.store.fillSelected(color);
+      if (result.filled + result.recolored > 0) {
+        this.toast(
+          result.filled > 0
+            ? `Picked ${color} and filled the selected shape.`
+            : `Picked ${color} and recolored the selection.`,
+        );
+        return;
+      }
+    }
+    this.toast(`Picked ${color}.`);
+  }
+
+  /** Join strokes (Ctrl+J / toolbar): merges the selected strokes into one. */
+  private joinSelectedStrokes(): void {
+    const merged = this.store.joinSelectedStrokes();
+    this.toast(merged ? 'Joined selected strokes.' : 'Select two or more strokes to join.');
+  }
+
+  /**
+   * Fill Color tool: applies the selected ink color to the selected
+   * element(s), or to the element under the click when nothing is selected.
+   */
+  private applyFillColor(pt: Point): void {
+    if (this.store.selectedIds.size === 0) {
+      const hit = this.hitTest(pt);
+      if (!hit) {
+        this.toast('Select an element (or click one) to fill.');
+        return;
+      }
+      this.store.setSelection([hit.id]);
+    }
+    const color = this.store.tool.color;
+    const result = this.store.fillSelected(color);
+    if (result.filled > 0) this.toast(`Filled ${result.filled} element(s) with ${color}.`);
+    else if (result.recolored > 0) this.toast(`Recolored ${result.recolored} element(s) with ${color}.`);
+    else this.toast('Nothing fillable in the selection.');
+  }
+
+  /**
+   * Direct Select (A): grabs an anchor, a handle, or the whole path of the
+   * edited stroke to drag; Shift extends the anchor selection. Clicking a
+   * different stroke picks it for editing; clicking empty canvas drops it.
+   */
+  private beginPointSelect(e: PointerEvent, pt: Point): void {
+    const grab = this.settings.directSelectSensitivityPx / this.surface.getViewport().zoom;
+    const stroke = this.anchorStrokeId
+      ? this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId)
+      : null;
+
+    if (stroke && this.strokeEditable(stroke)) {
+      // 1. A handle around a lone selected anchor grabs that neighbour point.
+      if (this.selectedAnchors.size === 1) {
+        const origin = [...this.selectedAnchors][0];
+        for (const h of [origin - 1, origin + 1]) {
+          const hp = stroke.points[h];
+          if (hp && Math.hypot(hp.x - pt.x, hp.y - pt.y) <= grab) {
+            this.store.pushHistory();
+            this.anchorDragKind = 'handle';
+            this.anchorDragHandle = h;
+            this.anchorDragLast = pt;
+            this.beginPointerDrag(e);
+            return;
+          }
+        }
+      }
+
+      // 2. An anchor point: Shift toggles it in the selection, else selects it
+      //    alone; then the whole selection drags together.
+      let bestDist = grab;
+      let best = -1;
+      stroke.points.forEach((p, i) => {
+        const d = Math.hypot(p.x - pt.x, p.y - pt.y);
+        if (d <= bestDist) {
+          bestDist = d;
+          best = i;
+        }
+      });
+      if (best !== -1) {
+        if (e.shiftKey) {
+          if (this.selectedAnchors.has(best)) this.selectedAnchors.delete(best);
+          else this.selectedAnchors.add(best);
+        } else if (!this.selectedAnchors.has(best)) {
+          this.selectedAnchors = new Set([best]);
+        }
+        this.pathSelected = false;
+        if (this.selectedAnchors.has(best)) {
+          this.store.pushHistory();
+          this.anchorDragKind = 'anchor';
+          this.anchorDragLast = pt;
+          this.beginPointerDrag(e);
+        } else {
+          this.scheduleRender();
+        }
+        return;
+      }
+
+      // 3. The path body (a segment within range): select and move the path.
+      if (this.pointOnPath(stroke, pt, grab)) {
+        this.selectedAnchors.clear();
+        this.pathSelected = true;
+        this.store.setSelection([stroke.id]);
+        this.store.pushHistory();
+        this.anchorDragKind = 'path';
+        this.anchorDragLast = pt;
+        this.beginPointerDrag(e);
+        return;
+      }
+    }
+
+    // 4. Pick a different stroke for editing, or drop the edit on empty canvas.
+    const hit = this.hitTest(pt);
+    if (hit && !isTextStroke(hit) && !isImageStroke(hit)) {
+      this.anchorStrokeId = hit.id;
+      this.selectedAnchors.clear();
+      this.pathSelected = false;
+      this.store.setSelection([hit.id]);
+    } else {
+      this.anchorStrokeId = null;
+      this.selectedAnchors.clear();
+      this.pathSelected = false;
+      this.store.clearSelection();
+    }
+    this.scheduleRender();
+  }
+
+  /** Captures the pointer and marks it active for a Direct Select drag. */
+  private beginPointerDrag(e: PointerEvent): void {
+    this.activePointerId = e.pointerId;
+    this.canvas.setPointerCapture(e.pointerId);
+    this.scheduleRender();
+  }
+
+  /** True when `pt` lies within `tol` of any segment of the stroke's path. */
+  private pointOnPath(stroke: Stroke, pt: Point, tol: number): boolean {
+    const pts = stroke.points;
+    if (pts.length === 1) return Math.hypot(pts[0].x - pt.x, pts[0].y - pt.y) <= tol;
+    for (let i = 1; i < pts.length; i++) {
+      if (distToSegment(pt, pts[i - 1], pts[i]) <= tol) return true;
+    }
+    return false;
+  }
+
+  // ---- Endpoint snap (hold Shift while drawing) ----------------------------
+
+  /** True when endpoint snapping applies to the given tool. */
+  private snapApplies(tool: Tool): boolean {
+    return this.settings.endpointSnap && (tool === 'pen' || tool === 'marker' || tool === 'copic');
+  }
+
+  /**
+   * Finds the endpoint (first or last point) of an existing drawing stroke on
+   * a visible layer nearest to `pt`, or null when none is within the snap
+   * sensitivity. The sensitivity is measured in screen pixels so the snap
+   * feel stays the same at any zoom level.
+   */
+  private nearestEndpoint(pt: Point): SnapHit | null {
+    let bestDist = this.settings.endpointSnapPx / this.surface.getViewport().zoom;
+    let best: SnapHit | null = null;
+    for (const stroke of this.store.sketch.strokes) {
+      if (stroke.tool === 'eraser' || stroke.tool === 'text' || stroke.tool === 'image') continue;
+      if (!effectiveLayer(this.store.sketch, layerOf(this.store.sketch, stroke)).visible) continue;
+      const pts = stroke.points;
+      if (pts.length === 0) continue;
+      for (const at of ['start', 'end'] as const) {
+        const end = at === 'start' ? pts[0] : pts[pts.length - 1];
+        const dist = Math.hypot(end.x - pt.x, end.y - pt.y);
+        if (dist <= bestDist) {
+          bestDist = dist;
+          best = { x: end.x, y: end.y, strokeId: stroke.id, at };
+        }
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Returns `pt` moved onto the nearest stroke endpoint when Shift is held
+   * and one is in range, updating the snap-indicator ring either way.
+   */
+  private applyEndpointSnap(pt: Point, shiftKey: boolean, tool: Tool): Point {
+    const target = shiftKey && this.snapApplies(tool) ? this.nearestEndpoint(pt) : null;
+    this.setSnapTarget(target);
+    return target ? { ...pt, x: target.x, y: target.y } : pt;
+  }
+
+  /** Updates the snap-indicator ring, re-rendering only when it changes. */
+  private setSnapTarget(target: SnapHit | null): void {
+    const prev = this.snapTarget;
+    if (prev === target || (prev && target && prev.x === target.x && prev.y === target.y)) return;
+    this.snapTarget = target;
+    this.scheduleRender();
   }
 
   /** Generates rotational symmetry copies of a finished stroke (mandala mode). */
@@ -540,12 +1347,25 @@ class App {
     this.live = null;
     this.straightStart = null;
     this.straightEnd = null;
+    this.shapeStart = null;
+    this.curveA = null;
+    this.curveB = null;
+    this.curveBending = false;
+    this.curveStylus = false;
+    this.curvePath = [];
+    this.startSnapHit = null;
+    this.setSnapTarget(null);
     this.dragging = false;
     this.dragLast = null;
     this.rubberBandStart = null;
     this.rubberBandBox = null;
     this.textDragStart = null;
     this.textDragLive = null;
+    this.anchorDragKind = null;
+    this.anchorDragHandle = null;
+    this.anchorDragLast = null;
+    this.panDragging = false;
+    this.panLast = null;
     if (this.activePointerId !== null && this.canvas.hasPointerCapture(this.activePointerId)) {
       this.canvas.releasePointerCapture(this.activePointerId);
     }
@@ -604,7 +1424,16 @@ class App {
   private beginSelect(e: PointerEvent, pt: Point): void {
     const hit = this.hitTest(pt);
     if (hit) {
-      if (!this.store.selectedIds.has(hit.id)) this.store.setSelection([hit.id]);
+      if (e.shiftKey) {
+        // Shift-click toggles membership without dropping the rest.
+        const ids = new Set(this.store.selectedIds);
+        if (ids.has(hit.id)) ids.delete(hit.id);
+        else ids.add(hit.id);
+        this.store.setSelection(ids);
+        if (!ids.has(hit.id)) return; // removed from the selection: no drag
+      } else if (!this.store.selectedIds.has(hit.id)) {
+        this.store.setSelection([hit.id]);
+      }
       this.dragging = true;
       this.dragLast = pt;
       this.store.pushHistory();
@@ -623,8 +1452,19 @@ class App {
 
   /** True when a stroke's layer allows selecting and editing it. */
   private strokeEditable(stroke: Stroke): boolean {
-    const layer = layerOf(this.store.sketch, stroke);
-    return layer.visible && !layer.locked;
+    const effective = effectiveLayer(this.store.sketch, layerOf(this.store.sketch, stroke));
+    return effective.visible && !effective.locked;
+  }
+
+  /** Selects every editable stroke on the page (Ctrl/Cmd + A). */
+  private selectAll(): void {
+    const ids = this.store.sketch.strokes.filter((s) => this.strokeEditable(s)).map((s) => s.id);
+    if (ids.length === 0) {
+      this.toast('Nothing to select.');
+      return;
+    }
+    this.store.setSelection(ids);
+    this.toast(`Selected ${ids.length} element${ids.length === 1 ? '' : 's'}.`);
   }
 
   /** Returns the topmost editable stroke under a point, or null. */
@@ -788,12 +1628,18 @@ class App {
   private updateCursor(): void {
     const tool = this.store.tool.tool;
 
+    // Select + Space pans: show a grab cursor instead of the crosshair.
+    if (this.spaceDown && tool === 'select') {
+      this.canvas.style.cursor = this.panDragging ? 'grabbing' : 'grab';
+      return;
+    }
+
     if (this.capsLockOn || this.spaceDown) {
       this.canvas.style.cursor = 'crosshair';
       return;
     }
 
-    if (tool === 'select') {
+    if (tool === 'select' || tool === 'point') {
       this.canvas.style.cursor = 'default';
       return;
     }
@@ -803,6 +1649,17 @@ class App {
     }
     if (tool === 'eraser') {
       this.canvas.style.cursor = 'cell';
+      return;
+    }
+    if (
+      tool === 'rect' ||
+      tool === 'ellipse' ||
+      tool === 'curve' ||
+      tool === 'bucket' ||
+      tool === 'fill' ||
+      tool === 'eyedrop'
+    ) {
+      this.canvas.style.cursor = 'crosshair';
       return;
     }
 
@@ -830,19 +1687,24 @@ class App {
     const toolbar = el('toolbar');
     this.toolbarGroups = Array.from(toolbar.querySelectorAll<HTMLElement>(':scope > .group'));
 
-    for (const t of ['pen', 'marker', 'copic', 'eraser', 'select', 'text'] as const) {
-      el(`tool-${t}`).addEventListener('click', () => {
+    for (const id of TOOL_IDS) {
+      el(id).addEventListener('click', () => {
         if (this.rearranging) return;
-        this.store.setTool({ tool: t });
+        this.store.setTool({ tool: id.replace('tool-', '') as Tool });
         this.updateCursor();
       });
     }
 
+    this.bindCurveFlyout();
+
+    el('join-strokes').addEventListener('click', () => this.joinSelectedStrokes());
+
     this.rebuildSwatches();
 
-    // Drag-to-reorder support (active only in rearrange mode).
-    this.makeSortable(el('tool-group'), '.tool', () => this.persistToolOrder());
-    this.makeSortable(el('swatches'), '.swatch', () => this.persistQuickColors());
+    // Drag-to-reorder support (active only in rearrange mode). Every tool in
+    // both toolbar groups takes part, and tools may move between the groups.
+    this.makeSortable([el('tool-group'), el('sketch-group')], '.tool', () => this.persistToolOrder());
+    this.makeSortable([el('swatches')], '.swatch', () => this.persistQuickColors());
 
     const custom = el<HTMLInputElement>('color-custom');
     custom.addEventListener('input', () => {
@@ -870,6 +1732,92 @@ class App {
     });
   }
 
+  /**
+   * Curve tool flyout: click and hold the Curve button to show its sibling
+   * variants (like tool groups in common vector editors). The default variant
+   * starts and ends the chord at nearby stroke endpoints; the sibling keeps
+   * the chord ends free.
+   */
+  private bindCurveFlyout(): void {
+    const btn = el('tool-curve');
+    let holdTimer: number | null = null;
+
+    const options = [
+      { id: 'endpoints' as const, label: 'Curve — start and end at endpoints' },
+      { id: 'free' as const, label: 'Curve — free ends' },
+    ];
+
+    const openFlyout = (): void => {
+      this.closeToolFlyout();
+      const menu = document.createElement('div');
+      menu.className = 'tool-flyout';
+      menu.id = 'tool-flyout';
+      const rect = btn.getBoundingClientRect();
+      menu.style.left = `${Math.round(rect.left)}px`;
+      menu.style.top = `${Math.round(rect.bottom + 4)}px`;
+      for (const option of options) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.textContent = option.label;
+        item.classList.toggle('is-active', this.curveVariant === option.id);
+        item.addEventListener('click', () => {
+          this.curveVariant = option.id;
+          this.closeToolFlyout();
+          this.updateCurveTitle();
+          this.store.setTool({ tool: 'curve' });
+          this.updateCursor();
+          this.toast(
+            option.id === 'endpoints'
+              ? 'Curve snaps its start and end to stroke endpoints.'
+              : 'Curve ends stay where the pointer is.',
+          );
+        });
+        menu.appendChild(item);
+      }
+      document.body.appendChild(menu);
+      // Dismiss on the next press outside the flyout.
+      window.setTimeout(() => {
+        window.addEventListener(
+          'pointerdown',
+          (ev) => {
+            if (!(ev.target instanceof Node) || !menu.contains(ev.target)) this.closeToolFlyout();
+          },
+          { once: true, capture: true },
+        );
+      });
+    };
+
+    const cancelHold = (): void => {
+      if (holdTimer !== null) {
+        window.clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+    };
+    btn.addEventListener('pointerdown', () => {
+      if (this.rearranging) return;
+      cancelHold();
+      holdTimer = window.setTimeout(() => {
+        holdTimer = null;
+        openFlyout();
+      }, 400);
+    });
+    btn.addEventListener('pointerup', cancelHold);
+    btn.addEventListener('pointerleave', cancelHold);
+  }
+
+  /** Removes any open tool flyout menu. */
+  private closeToolFlyout(): void {
+    document.getElementById('tool-flyout')?.remove();
+  }
+
+  /** Reflects the active curve variant in the Curve button's hover text. */
+  private updateCurveTitle(): void {
+    el('tool-curve').title =
+      this.curveVariant === 'endpoints'
+        ? 'Curve (V) — drag a chord (ends snap to stroke endpoints), then bend and click. Click and hold for curve options'
+        : 'Curve (V) — drag a chord, then bend and click. Click and hold for curve options';
+  }
+
   /** (Re)builds the quick-access color swatches from the current settings. */
   private rebuildSwatches(): void {
     const swatches = el('swatches');
@@ -884,6 +1832,14 @@ class App {
       btn.draggable = this.rearranging;
       btn.addEventListener('click', () => {
         if (this.rearranging) return;
+        // Fill Shape: with the select tool active and a selection made,
+        // picking a color fills the selected shape(s) instead of only
+        // changing the ink color.
+        if (this.store.tool.tool === 'select' && this.store.selectedIds.size > 0) {
+          const result = this.store.fillSelected(color);
+          if (result.filled > 0) this.toast(`Filled ${result.filled} shape(s) with ${color}.`);
+          else if (result.recolored > 0) this.toast(`Recolored the selection with ${color}.`);
+        }
         this.store.setTool({ color });
         this.updateCursor();
       });
@@ -895,6 +1851,20 @@ class App {
 
   /** Applies every setting to the live UI (called on load and on change). */
   private applySettings(): void {
+    // Quick Settings live in AppSettings so the in-app panel and the
+    // Verbose Settings window edit the same persisted values.
+    const s = this.settings;
+    this.store.setTool({
+      liveSharpen: s.liveSharpen,
+      symmetry: s.symmetry,
+      fontSize: s.textSize,
+    });
+    this.store.setSharpen({
+      wobble: s.sharpenWobble,
+      simplifyEpsilon: s.sharpenSmoothing,
+      circleTolerance: s.sharpenCircleSnap,
+      taperEnds: s.sharpenTaperEnds,
+    });
     this.rebuildSwatches();
     this.applyMenuPlacement();
     this.applyToolOrder();
@@ -921,12 +1891,14 @@ class App {
     requestAnimationFrame(() => this.resizeSurface());
   }
 
-  /** Reorders the tool buttons to match the saved tool order. */
+  /** Reorders the tool buttons (both groups) to match the saved tool order. */
   private applyToolOrder(): void {
-    const group = el('tool-group');
     for (const id of this.settings.toolOrder) {
       const node = document.getElementById(id);
-      if (node && node.parentElement === group) group.appendChild(node);
+      const parent = node?.parentElement;
+      if (node && parent && (parent.id === 'tool-group' || parent.id === 'sketch-group')) {
+        parent.appendChild(node);
+      }
     }
   }
 
@@ -958,6 +1930,7 @@ class App {
 
     const draggables = [
       ...Array.from(el('tool-group').querySelectorAll<HTMLElement>('.tool')),
+      ...Array.from(el('sketch-group').querySelectorAll<HTMLElement>('.tool')),
       ...Array.from(el('swatches').querySelectorAll<HTMLElement>('.swatch')),
     ];
     for (const node of draggables) node.draggable = this.rearranging;
@@ -969,9 +1942,11 @@ class App {
     );
   }
 
-  /** Persists the current DOM order of the tool buttons. */
+  /** Persists the current DOM order of every tool button (both groups). */
   private persistToolOrder(): void {
-    const order = Array.from(el('tool-group').querySelectorAll<HTMLElement>('.tool')).map((n) => n.id);
+    const order = Array.from(
+      document.querySelectorAll<HTMLElement>('#tool-group .tool, #sketch-group .tool'),
+    ).map((n) => n.id);
     void this.saveSettings({ toolOrder: order });
   }
 
@@ -995,38 +1970,42 @@ class App {
   }
 
   /**
-   * Generic drag-to-reorder for a container's children, active only while in
-   * rearrange mode. Calls `onReorder` after a drop so the order can be saved.
+   * Generic drag-to-reorder for the children of one or more containers,
+   * active only while in rearrange mode. Items can move between the given
+   * containers (like docking a tool elsewhere in a vector editor's toolbar).
+   * Calls `onReorder` after a drop so the order can be saved.
    */
-  private makeSortable(container: HTMLElement, itemSelector: string, onReorder: () => void): void {
+  private makeSortable(containers: HTMLElement[], itemSelector: string, onReorder: () => void): void {
     let dragEl: HTMLElement | null = null;
 
-    container.addEventListener('dragstart', (e) => {
-      if (!this.rearranging) return;
-      const target = (e.target as HTMLElement).closest(itemSelector) as HTMLElement | null;
-      if (!target || !container.contains(target)) return;
-      dragEl = target;
-      target.classList.add('dragging');
-      e.dataTransfer?.setData('text/plain', target.id || 'item');
-    });
+    for (const container of containers) {
+      container.addEventListener('dragstart', (e) => {
+        if (!this.rearranging) return;
+        const target = (e.target as HTMLElement).closest(itemSelector) as HTMLElement | null;
+        if (!target || !container.contains(target)) return;
+        dragEl = target;
+        target.classList.add('dragging');
+        e.dataTransfer?.setData('text/plain', target.id || 'item');
+      });
 
-    container.addEventListener('dragover', (e) => {
-      if (!this.rearranging || !dragEl) return;
-      e.preventDefault();
-      const after = dragAfterElement(container, itemSelector, e.clientX, e.clientY);
-      if (after === null) container.appendChild(dragEl);
-      else if (after !== dragEl) container.insertBefore(dragEl, after);
-    });
+      container.addEventListener('dragover', (e) => {
+        if (!this.rearranging || !dragEl) return;
+        e.preventDefault();
+        const after = dragAfterElement(container, itemSelector, e.clientX, e.clientY);
+        if (after === null) container.appendChild(dragEl);
+        else if (after !== dragEl) container.insertBefore(dragEl, after);
+      });
 
-    container.addEventListener('drop', (e) => {
-      if (this.rearranging) e.preventDefault();
-    });
+      container.addEventListener('drop', (e) => {
+        if (this.rearranging) e.preventDefault();
+      });
 
-    container.addEventListener('dragend', () => {
-      if (dragEl) dragEl.classList.remove('dragging');
-      dragEl = null;
-      if (this.rearranging) onReorder();
-    });
+      container.addEventListener('dragend', () => {
+        if (dragEl) dragEl.classList.remove('dragging');
+        dragEl = null;
+        if (this.rearranging) onReorder();
+      });
+    }
   }
 
   // ---- Quick features (Quick Width "W" / Quick Opacity "Q") ----------------
@@ -1089,6 +2068,36 @@ class App {
     this.toast(`Opacity set to ${percent}%.`);
   }
 
+  // ---- Quick Zoom ("Z" then a digit) ---------------------------------------
+
+  /** Arms Quick Zoom; the next digit within the timer sets the zoom level. */
+  private startQuickZoom(): void {
+    this.quickZoomArmed = true;
+    if (this.quickZoomTimer !== null) window.clearTimeout(this.quickZoomTimer);
+    this.quickZoomTimer = window.setTimeout(() => {
+      this.quickZoomArmed = false;
+      this.quickZoomTimer = null;
+    }, this.settings.quickTimerMs);
+    this.toast('Quick zoom: press a digit (9 = 90%, 0 = 100%)…');
+  }
+
+  /** Applies a Quick Zoom digit: 1–9 => 10%–90%, 0 => 100% (centered). */
+  private applyQuickZoom(digit: string): void {
+    this.quickZoomArmed = false;
+    if (this.quickZoomTimer !== null) {
+      window.clearTimeout(this.quickZoomTimer);
+      this.quickZoomTimer = null;
+    }
+    const d = Number(digit);
+    const percent = d === 0 ? 100 : d * 10;
+    const zoom = this.surface.getViewport().zoom;
+    if (zoom > 0) {
+      this.surface.zoomAt(percent / 100 / zoom, this.surface.width / 2, this.surface.height / 2);
+    }
+    this.scheduleRender();
+    this.toast(`Zoom ${percent}%.`);
+  }
+
   // ---- Copic quick nib-rotate (hold Ctrl, then Alt / Shift) ----------------
 
   /**
@@ -1098,6 +2107,9 @@ class App {
    */
   private beginNibHold(): void {
     if (this.nibHoldDown) return;
+    // Space (straight-line / quick-curve modes) and the eyedropper both
+    // borrow modifier keys; never arm nib rotate underneath them.
+    if (this.spaceDown || this.eyedropTempSelect || this.store.tool.tool === 'eyedrop') return;
     this.nibHoldDown = true;
     this.nibHoldTimer = window.setTimeout(
       () => this.activateNibRotate(),
@@ -1122,6 +2134,15 @@ class App {
     this.store.setTool({ tool: 'copic', width: this.nibModeWidth });
     this.updateNibIndicator();
     el('nib-indicator').classList.remove('is-hidden');
+  }
+
+  /** Cancels a pending (not yet active) nib-rotate hold. */
+  private cancelNibHold(): void {
+    this.nibHoldDown = false;
+    if (this.nibHoldTimer !== null) {
+      window.clearTimeout(this.nibHoldTimer);
+      this.nibHoldTimer = null;
+    }
   }
 
   /** Ends rotate mode (hold key released, window blurred, or feature off). */
@@ -1214,27 +2235,43 @@ class App {
     el('settings-toggle').addEventListener('click', () => this.toggleSettings());
     el('settings-close').addEventListener('click', () => this.toggleSettings(false));
 
-    el<HTMLInputElement>('live-sharpen').addEventListener('change', (e) =>
-      this.store.setTool({ liveSharpen: (e.target as HTMLInputElement).checked }),
-    );
-    el<HTMLInputElement>('set-wobble').addEventListener('input', (e) =>
-      this.store.setSharpen({ wobble: Number((e.target as HTMLInputElement).value) }),
-    );
-    el<HTMLInputElement>('set-simplify').addEventListener('input', (e) =>
-      this.store.setSharpen({ simplifyEpsilon: Number((e.target as HTMLInputElement).value) }),
-    );
-    el<HTMLInputElement>('set-circle').addEventListener('input', (e) =>
-      this.store.setSharpen({ circleTolerance: Number((e.target as HTMLInputElement).value) }),
-    );
-    el<HTMLInputElement>('set-taper').addEventListener('change', (e) =>
-      this.store.setSharpen({ taperEnds: (e.target as HTMLInputElement).checked }),
-    );
-    el<HTMLInputElement>('set-symmetry').addEventListener('input', (e) =>
-      this.store.setTool({ symmetry: Number((e.target as HTMLInputElement).value) }),
-    );
-    el<HTMLInputElement>('set-fontsize').addEventListener('input', (e) =>
-      this.store.setTool({ fontSize: Number((e.target as HTMLInputElement).value) }),
-    );
+    // Each Quick Setting applies immediately AND persists via the shared
+    // settings store, keeping the Verbose Settings window in sync.
+    el<HTMLInputElement>('live-sharpen').addEventListener('change', (e) => {
+      const liveSharpen = (e.target as HTMLInputElement).checked;
+      this.store.setTool({ liveSharpen });
+      void this.saveSettings({ liveSharpen });
+    });
+    el<HTMLInputElement>('set-wobble').addEventListener('input', (e) => {
+      const wobble = Number((e.target as HTMLInputElement).value);
+      this.store.setSharpen({ wobble });
+      void this.saveSettings({ sharpenWobble: wobble });
+    });
+    el<HTMLInputElement>('set-simplify').addEventListener('input', (e) => {
+      const simplifyEpsilon = Number((e.target as HTMLInputElement).value);
+      this.store.setSharpen({ simplifyEpsilon });
+      void this.saveSettings({ sharpenSmoothing: simplifyEpsilon });
+    });
+    el<HTMLInputElement>('set-circle').addEventListener('input', (e) => {
+      const circleTolerance = Number((e.target as HTMLInputElement).value);
+      this.store.setSharpen({ circleTolerance });
+      void this.saveSettings({ sharpenCircleSnap: circleTolerance });
+    });
+    el<HTMLInputElement>('set-taper').addEventListener('change', (e) => {
+      const taperEnds = (e.target as HTMLInputElement).checked;
+      this.store.setSharpen({ taperEnds });
+      void this.saveSettings({ sharpenTaperEnds: taperEnds });
+    });
+    el<HTMLInputElement>('set-symmetry').addEventListener('input', (e) => {
+      const symmetry = Number((e.target as HTMLInputElement).value);
+      this.store.setTool({ symmetry });
+      void this.saveSettings({ symmetry });
+    });
+    el<HTMLInputElement>('set-fontsize').addEventListener('input', (e) => {
+      const fontSize = Number((e.target as HTMLInputElement).value);
+      this.store.setTool({ fontSize });
+      void this.saveSettings({ textSize: fontSize });
+    });
   }
 
   private toggleSettings(force?: boolean): void {
@@ -1517,18 +2554,8 @@ class App {
       this.store.addLayer();
       this.toast(`Added layer "${this.store.activeLayer.name}".`);
     });
-    el('delete-layer').addEventListener('click', () => {
-      if (this.store.sketch.layers.length <= 1) {
-        this.toast('A sketch needs at least one layer.');
-        return;
-      }
-      const layer = this.store.activeLayer;
-      const strokes = this.store.sketch.strokes.filter((s) => s.layer === layer.id).length;
-      if (strokes > 0 && !confirm(`Delete layer "${layer.name}" and its ${strokes} stroke(s)?`)) {
-        return;
-      }
-      this.store.removeLayer(layer.id);
-    });
+    el('group-layer').addEventListener('click', () => this.groupActiveLayer());
+    el('delete-layer').addEventListener('click', () => this.deleteSelectedLayers());
     el('layer-up').addEventListener('click', () => this.store.moveLayer(this.store.activeLayer.id, 1));
     el('layer-down').addEventListener('click', () => this.store.moveLayer(this.store.activeLayer.id, -1));
 
@@ -1553,6 +2580,80 @@ class App {
     requestAnimationFrame(() => this.resizeSurface());
   }
 
+  /** Wraps the selected layers (or the active layer) in a new group. */
+  private groupActiveLayer(): void {
+    const ids =
+      this.store.selectedLayerIds.size > 0
+        ? [...this.store.selectedLayerIds]
+        : [this.store.activeLayer.id];
+    const group = this.store.groupLayers(ids);
+    this.toast(
+      ids.length > 1
+        ? `Grouped ${ids.length} layers into "${group.name}" (Ctrl+Shift+G ungroups).`
+        : `Grouped "${group.name}" (Ctrl+Shift+G ungroups).`,
+    );
+  }
+
+  /** Dissolves the active group, keeping its layers and strokes. */
+  private ungroupActiveLayer(): void {
+    const layer = this.store.activeLayer;
+    if (this.store.ungroupActiveLayer()) this.toast(`Ungrouped "${layer.name}".`);
+    else this.toast('Select a group row to ungroup (Ctrl+Shift+G).');
+  }
+
+  /**
+   * Deletes every selected layer (falling back to the active one) together
+   * with the elements on it, after a confirmation when strokes are involved.
+   */
+  private deleteSelectedLayers(): void {
+    const ids =
+      this.store.selectedLayerIds.size > 0
+        ? [...this.store.selectedLayerIds]
+        : [this.store.activeLayer.id];
+    const doomed = new Set<string>();
+    for (const id of ids) {
+      doomed.add(id);
+      for (const d of descendantLayerIds(this.store.sketch, id)) doomed.add(d);
+    }
+    if (!this.store.sketch.layers.some((l) => !l.group && !doomed.has(l.id))) {
+      this.toast('A sketch needs at least one layer.');
+      return;
+    }
+    const strokes = this.store.sketch.strokes.filter((s) => s.layer && doomed.has(s.layer)).length;
+    if (
+      strokes > 0 &&
+      !confirm(`Delete ${ids.length} layer(s) and the ${strokes} element(s) on them?`)
+    ) {
+      return;
+    }
+    for (const id of ids) this.store.removeLayer(id);
+  }
+
+  /** Nesting depth of a layer (0 = top level), cycle-safe. */
+  private layerDepth(layer: Layer): number {
+    let depth = 0;
+    const seen = new Set<string>([layer.id]);
+    let parent = layer.parent;
+    while (parent && !seen.has(parent)) {
+      seen.add(parent);
+      depth++;
+      parent = this.store.sketch.layers.find((l) => l.id === parent)?.parent;
+    }
+    return depth;
+  }
+
+  /** True when any ancestor group of `layer` is collapsed in the panel. */
+  private hasCollapsedAncestor(layer: Layer): boolean {
+    const seen = new Set<string>([layer.id]);
+    let parent = layer.parent;
+    while (parent && !seen.has(parent)) {
+      if (this.collapsedGroups.has(parent)) return true;
+      seen.add(parent);
+      parent = this.store.sketch.layers.find((l) => l.id === parent)?.parent;
+    }
+    return false;
+  }
+
   /** Rebuilds the layers panel (topmost layer first). */
   private renderLayers(): void {
     if (!this.layersOpen) return;
@@ -1563,12 +2664,48 @@ class App {
 
     for (let i = layers.length - 1; i >= 0; i--) {
       const layer = layers[i];
+      // Rows inside a collapsed group stay hidden.
+      if (this.hasCollapsedAncestor(layer)) continue;
       const row = document.createElement('div');
       row.className = 'layer-row';
       row.classList.toggle('is-active', layer.id === active.id);
-      row.classList.toggle('is-hidden', !layer.visible);
+      row.classList.toggle(
+        'is-selected',
+        this.store.selectedLayerIds.has(layer.id) && layer.id !== active.id,
+      );
+      row.classList.toggle('is-hidden', !effectiveLayer(this.store.sketch, layer).visible);
+      row.classList.toggle('is-group', layer.group === true);
+      // Indent nested layers under their group.
+      const depth = this.layerDepth(layer);
+      if (depth > 0) row.style.paddingLeft = `${depth * 14}px`;
       row.setAttribute('role', 'option');
       row.setAttribute('aria-selected', String(layer.id === active.id));
+      row.dataset.layerId = layer.id;
+      row.draggable = true;
+
+      // Disclosure caret: groups expand/collapse their nested rows.
+      if (layer.group) {
+        const caret = document.createElement('button');
+        caret.className = 'layer-caret';
+        caret.type = 'button';
+        const collapsed = this.collapsedGroups.has(layer.id);
+        caret.textContent = collapsed ? '▸' : '▾';
+        caret.title = collapsed ? 'Expand group' : 'Collapse group';
+        caret.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} ${layer.name}`);
+        caret.setAttribute('aria-expanded', String(!collapsed));
+        caret.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          if (collapsed) this.collapsedGroups.delete(layer.id);
+          else this.collapsedGroups.add(layer.id);
+          this.renderLayers();
+        });
+        row.appendChild(caret);
+      } else {
+        const spacer = document.createElement('span');
+        spacer.className = 'layer-caret is-blank';
+        spacer.setAttribute('aria-hidden', 'true');
+        row.appendChild(spacer);
+      }
 
       const eye = document.createElement('button');
       eye.className = 'layer-toggle';
@@ -1608,16 +2745,80 @@ class App {
       badge.textContent = layer.opacity < 1 ? `${Math.round(layer.opacity * 100)}%` : '';
 
       row.append(eye, lock, name, badge);
-      row.addEventListener('click', () => this.store.setActiveLayer(layer.id));
+      // Click selects the layer and highlights its elements on the canvas;
+      // Shift-click adds/removes it; Ctrl/Cmd+Shift-click selects the range
+      // between the active layer and this one.
+      row.addEventListener('click', (ev) => {
+        if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey) this.store.selectLayerRange(layer.id);
+        else this.store.selectLayer(layer.id, ev.shiftKey);
+      });
+      this.bindLayerRowDnD(row, layer);
       list.appendChild(row);
     }
 
     const index = layers.findIndex((l) => l.id === active.id);
     el<HTMLInputElement>('layer-opacity').value = String(Math.round(active.opacity * 100));
     el('layer-opacity-value').textContent = `${Math.round(active.opacity * 100)}%`;
-    el<HTMLButtonElement>('delete-layer').disabled = layers.length <= 1;
-    el<HTMLButtonElement>('layer-up').disabled = index >= layers.length - 1;
-    el<HTMLButtonElement>('layer-down').disabled = index <= 0;
+    el<HTMLButtonElement>('delete-layer').disabled = layers.filter((l) => !l.group).length <= 1;
+    // Group rows themselves are not reorderable; their children are.
+    el<HTMLButtonElement>('layer-up').disabled = active.group === true || index >= layers.length - 1;
+    el<HTMLButtonElement>('layer-down').disabled = active.group === true || index <= 0;
+  }
+
+  /** HTML5 drag-and-drop for a layer row: reposition, or drop into a group. */
+  private bindLayerRowDnD(row: HTMLElement, layer: Layer): void {
+    row.addEventListener('dragstart', (e) => {
+      this.layerDragId = layer.id;
+      row.classList.add('dragging');
+      e.dataTransfer?.setData('text/plain', layer.id);
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => {
+      this.layerDragId = null;
+      row.classList.remove('dragging');
+      this.clearLayerDropMarkers();
+    });
+    row.addEventListener('dragover', (e) => {
+      if (!this.layerDragId || this.layerDragId === layer.id) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      const zone = this.layerDropZone(row, layer, e.clientY);
+      this.clearLayerDropMarkers();
+      row.classList.add(zone === 'into' ? 'drop-into' : zone === 'above' ? 'drop-above' : 'drop-below');
+    });
+    row.addEventListener('dragleave', () => {
+      row.classList.remove('drop-above', 'drop-below', 'drop-into');
+    });
+    row.addEventListener('drop', (e) => {
+      if (!this.layerDragId || this.layerDragId === layer.id) return;
+      e.preventDefault();
+      const zone = this.layerDropZone(row, layer, e.clientY);
+      const moved = this.store.reorderLayer(this.layerDragId, layer.id, zone);
+      this.layerDragId = null;
+      this.clearLayerDropMarkers();
+      if (!moved) this.toast('That layer cannot be dropped there.');
+      else if (zone === 'into') this.collapsedGroups.delete(layer.id);
+    });
+  }
+
+  /**
+   * Drop zone for a pointer over a layer row: group rows accept `into`
+   * (their body) or `above` (their top edge); plain rows split above/below.
+   */
+  private layerDropZone(row: HTMLElement, layer: Layer, clientY: number): 'above' | 'below' | 'into' {
+    const rect = row.getBoundingClientRect();
+    const ratio = (clientY - rect.top) / Math.max(1, rect.height);
+    if (layer.group) return ratio < 0.3 ? 'above' : 'into';
+    return ratio < 0.5 ? 'above' : 'below';
+  }
+
+  /** Clears every drop-position marker in the layers panel. */
+  private clearLayerDropMarkers(): void {
+    for (const node of Array.from(
+      el('layers-list').querySelectorAll('.drop-above, .drop-below, .drop-into'),
+    )) {
+      node.classList.remove('drop-above', 'drop-below', 'drop-into');
+    }
   }
 
   /** Swaps a layer's name label for an inline rename input. */
@@ -1688,13 +2889,18 @@ class App {
         tctx.lineJoin = 'round';
         for (const s of sketch.strokes) {
           if (isTextStroke(s) || isImageStroke(s)) continue;
-          const layer = layerOf(sketch, s);
-          if (!layer.visible) continue;
-          tctx.globalAlpha = (s.opacity ?? defaultOpacityFor(s.tool)) * layer.opacity;
+          const effective = effectiveLayer(sketch, layerOf(sketch, s));
+          if (!effective.visible) continue;
+          tctx.globalAlpha = (s.opacity ?? defaultOpacityFor(s.tool)) * effective.opacity;
           tctx.strokeStyle = s.tool === 'eraser' ? sketch.background : s.color;
           tctx.lineWidth = s.width;
           tctx.beginPath();
           s.points.forEach((p, i) => (i ? tctx.lineTo(p.x, p.y) : tctx.moveTo(p.x, p.y)));
+          if (s.fill && s.tool !== 'eraser' && s.points.length > 2) {
+            tctx.closePath();
+            tctx.fillStyle = s.fill;
+            tctx.fill();
+          }
           tctx.stroke();
         }
       }
@@ -1788,6 +2994,34 @@ class App {
 
       if (document.activeElement instanceof HTMLTextAreaElement) return;
 
+      // Escape abandons a pending curve (chord or bend phase).
+      if (e.key === 'Escape' && (this.curveA !== null || this.curveBending)) {
+        e.preventDefault();
+        this.cancelCurve();
+        return;
+      }
+
+      // Escape drops the Direct Select anchor edit.
+      if (e.key === 'Escape' && this.anchorStrokeId !== null) {
+        e.preventDefault();
+        this.anchorStrokeId = null;
+        this.selectedAnchors.clear();
+        this.pathSelected = false;
+        this.anchorDragKind = null;
+        this.anchorDragHandle = null;
+        this.anchorDragLast = null;
+        this.scheduleRender();
+        return;
+      }
+
+      // Eyedropper: holding Ctrl temporarily switches to the select tool so
+      // a shape can be picked; releasing Ctrl returns to the eyedropper.
+      if (e.key === 'Control' && this.store.tool.tool === 'eyedrop' && !this.eyedropTempSelect) {
+        this.eyedropTempSelect = true;
+        this.store.setTool({ tool: 'select' });
+        this.updateCursor();
+      }
+
       // Copic quick nib-rotate: holding the hold key arms the timer; once
       // active, the rotate keys steer the broad nib and are consumed.
       if (this.settings.copicQuickRotate) {
@@ -1808,11 +3042,13 @@ class App {
         }
       }
 
-      // Space (held) arms straight-line mode for the next single-pointer drag.
+      // Space (held) arms straight-line mode for the next single-pointer
+      // drag; with Ctrl also held it arms the quick curve instead.
       if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
         if (!this.spaceDown) {
           this.spaceDown = true;
+          this.cancelNibHold();
           this.updateCursor();
         }
         return;
@@ -1825,6 +3061,13 @@ class App {
         return;
       }
 
+      // Quick Zoom: after Z, the next digit sets the zoom (9 => 90%, 0 => 100%).
+      if (this.quickZoomArmed && /^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        this.applyQuickZoom(e.key);
+        return;
+      }
+
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
       if (mod && key === 'z' && !e.shiftKey) {
@@ -1833,6 +3076,14 @@ class App {
       } else if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) {
         e.preventDefault();
         this.store.redo();
+      } else if (mod && key === 'a' && e.shiftKey) {
+        // Deselect all (Ctrl/Cmd + Shift + A).
+        e.preventDefault();
+        this.store.clearSelection();
+      } else if (mod && key === 'a') {
+        // Select all editable strokes (Ctrl/Cmd + A).
+        e.preventDefault();
+        this.selectAll();
       } else if (mod && key === 's') {
         e.preventDefault();
         void this.saveBook(e.shiftKey);
@@ -1845,6 +3096,15 @@ class App {
       } else if (mod && key === 'i') {
         e.preventDefault();
         void this.importFile();
+      } else if (mod && key === 'j') {
+        e.preventDefault();
+        this.joinSelectedStrokes();
+      } else if (mod && key === 'g' && e.shiftKey) {
+        e.preventDefault();
+        this.ungroupActiveLayer();
+      } else if (mod && key === 'g') {
+        e.preventDefault();
+        this.groupActiveLayer();
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && this.store.selectedIds.size > 0) {
         e.preventDefault();
         this.store.deleteSelected();
@@ -1863,8 +3123,26 @@ class App {
       } else if (!mod && key === 's') {
         this.store.setTool({ tool: 'select' });
         this.updateCursor();
+      } else if (!mod && key === 'a') {
+        this.store.setTool({ tool: 'point' });
+        this.updateCursor();
       } else if (!mod && key === 't') {
         this.store.setTool({ tool: 'text' });
+        this.updateCursor();
+      } else if (!mod && key === 'r') {
+        this.store.setTool({ tool: 'rect' });
+        this.updateCursor();
+      } else if (!mod && key === 'l') {
+        this.store.setTool({ tool: 'ellipse' });
+        this.updateCursor();
+      } else if (!mod && key === 'v') {
+        this.store.setTool({ tool: 'curve' });
+        this.updateCursor();
+      } else if (!mod && key === 'g') {
+        this.store.setTool({ tool: 'bucket' });
+        this.updateCursor();
+      } else if (!mod && key === 'i') {
+        this.store.setTool({ tool: 'eyedrop' });
         this.updateCursor();
       } else if (!mod && key === 'h') {
         this.sharpenAll();
@@ -1872,6 +3150,8 @@ class App {
         this.startQuickEntry('width');
       } else if (!mod && key === 'q') {
         this.startQuickEntry('opacity');
+      } else if (!mod && key === 'z') {
+        this.startQuickZoom();
       } else if (!mod && key === 'c') {
         this.cycleColor(e.shiftKey ? -1 : 1);
       }
@@ -1885,6 +3165,16 @@ class App {
       }
       if (e.key === ' ' || e.code === 'Space') {
         this.spaceDown = false;
+        this.updateCursor();
+      }
+
+      // Endpoint snap: releasing Shift dismisses the snap-indicator ring.
+      if (e.key === 'Shift') this.setSnapTarget(null);
+
+      // Eyedropper: releasing Ctrl ends the temporary select tool.
+      if (e.key === 'Control' && this.eyedropTempSelect) {
+        this.eyedropTempSelect = false;
+        this.store.setTool({ tool: 'eyedrop' });
         this.updateCursor();
       }
 
@@ -1907,8 +3197,17 @@ class App {
       }
     });
 
-    // A lost focus swallows keyup events; never leave rotate mode stuck on.
-    window.addEventListener('blur', () => this.endNibRotate());
+    // A lost focus swallows keyup events; never leave rotate mode, the
+    // eyedropper's temporary select, or a pending curve stuck on.
+    window.addEventListener('blur', () => {
+      this.endNibRotate();
+      if (this.eyedropTempSelect) {
+        this.eyedropTempSelect = false;
+        this.store.setTool({ tool: 'eyedrop' });
+        this.updateCursor();
+      }
+      if (this.curveA !== null || this.curveBending) this.cancelCurve();
+    });
   }
 
   private bindResize(): void {
@@ -1924,7 +3223,17 @@ class App {
   private syncUi(): void {
     const { tool, color, width, liveSharpen, sharpen, symmetry, fontSize } = this.store.tool;
 
-    for (const id of ['tool-pen', 'tool-marker', 'tool-copic', 'tool-eraser', 'tool-select', 'tool-text']) {
+    // Leaving the Direct Select tool drops its anchor-edit state.
+    if (tool !== 'point' && this.anchorStrokeId !== null) {
+      this.anchorStrokeId = null;
+      this.selectedAnchors.clear();
+      this.pathSelected = false;
+      this.anchorDragKind = null;
+      this.anchorDragHandle = null;
+      this.anchorDragLast = null;
+    }
+
+    for (const id of TOOL_IDS) {
       el(id).classList.toggle('is-active', id === `tool-${tool}`);
     }
     this.canvas.dataset.tool = tool;
@@ -2048,6 +3357,83 @@ function dragAfterElement(
     }
   }
   return closest?.element ?? null;
+}
+
+/**
+ * Maps the active tool to the drawing tool a quick-mode stroke commits as
+ * (UI-only tools like the shape tools and bucket fall back to the pen).
+ */
+function drawingToolOf(tool: Tool): Tool {
+  return tool === 'pen' || tool === 'marker' || tool === 'copic' || tool === 'eraser'
+    ? tool
+    : 'pen';
+}
+
+/** Closed rectangle outline for a drag from `a` to `b` (uniform = square). */
+function rectPoints(a: Point, b: Point, uniform: boolean): Point[] {
+  let dx = b.x - a.x;
+  let dy = b.y - a.y;
+  if (uniform) {
+    const size = Math.min(Math.abs(dx), Math.abs(dy));
+    dx = (Math.sign(dx) || 1) * size;
+    dy = (Math.sign(dy) || 1) * size;
+  }
+  const x2 = a.x + dx;
+  const y2 = a.y + dy;
+  const P = (x: number, y: number): Point => ({ x, y, pressure: 0.5 });
+  return [P(a.x, a.y), P(x2, a.y), P(x2, y2), P(a.x, y2), P(a.x, a.y)];
+}
+
+/** Closed ellipse outline for a drag from `a` to `b` (uniform = circle). */
+function ellipsePoints(a: Point, b: Point, uniform: boolean, samples = 64): Point[] {
+  let dx = b.x - a.x;
+  let dy = b.y - a.y;
+  if (uniform) {
+    const size = Math.min(Math.abs(dx), Math.abs(dy));
+    dx = (Math.sign(dx) || 1) * size;
+    dy = (Math.sign(dy) || 1) * size;
+  }
+  const cx = a.x + dx / 2;
+  const cy = a.y + dy / 2;
+  const rx = Math.abs(dx) / 2;
+  const ry = Math.abs(dy) / 2;
+  const pts: Point[] = [];
+  for (let i = 0; i <= samples; i++) {
+    const angle = (Math.PI * 2 * i) / samples;
+    pts.push({ x: cx + Math.cos(angle) * rx, y: cy + Math.sin(angle) * ry, pressure: 0.5 });
+  }
+  return pts;
+}
+
+/** Samples a quadratic bezier from `a` to `b` through control point `c`. */
+function quadraticPoints(a: Point, c: { x: number; y: number }, b: Point, samples = 48): Point[] {
+  const pts: Point[] = [];
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const mt = 1 - t;
+    pts.push({
+      x: mt * mt * a.x + 2 * mt * t * c.x + t * t * b.x,
+      y: mt * mt * a.y + 2 * mt * t * c.y + t * t * b.y,
+      pressure: 0.5,
+    });
+  }
+  return pts;
+}
+
+/** Even-odd (ray cast) point-in-polygon test; the polygon closes implicitly. */
+function pointInPolygon(pt: Point, polygon: Point[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i];
+    const b = polygon[j];
+    if (
+      a.y > pt.y !== b.y > pt.y &&
+      pt.x < ((b.x - a.x) * (pt.y - a.y)) / (b.y - a.y) + a.x
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
 }
 
 /** Distance from a point to a line segment a-b. */

@@ -89,7 +89,7 @@ function openSettingsWindow(): void {
     minHeight: 480,
     parent: mainWindow ?? undefined,
     backgroundColor: '#eef1f4',
-    title: 'Settings — napkin-sketch',
+    title: 'Verbose Settings — napkin-sketch',
     icon: loadIcon(),
     show: false,
     webPreferences: {
@@ -143,7 +143,7 @@ function buildMenu(): void {
         { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => dispatch('undo') },
         { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: () => dispatch('redo') },
         { type: 'separator' },
-        { label: 'Settings…', accelerator: 'CmdOrCtrl+Alt+,', click: () => openSettingsWindow() },
+        { label: 'Verbose Settings…', accelerator: 'CmdOrCtrl+Alt+,', click: () => openSettingsWindow() },
         { label: 'Rearrange Toolbar', click: () => dispatch('toggle-rearrange') },
       ],
     },
@@ -152,7 +152,7 @@ function buildMenu(): void {
       submenu: [
         { label: 'Toggle Pages Panel', accelerator: 'CmdOrCtrl+B', click: () => dispatch('toggle-pages') },
         { label: 'Toggle Layers Panel', accelerator: 'CmdOrCtrl+L', click: () => dispatch('toggle-layers') },
-        { label: 'Sharpen Settings', accelerator: 'CmdOrCtrl+,', click: () => dispatch('toggle-settings') },
+        { label: 'Quick Settings', accelerator: 'CmdOrCtrl+,', click: () => dispatch('toggle-settings') },
         { type: 'separator' },
         { role: 'reload' },
         { role: 'toggleDevTools' },

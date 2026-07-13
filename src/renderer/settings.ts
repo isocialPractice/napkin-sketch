@@ -56,6 +56,14 @@ class SettingsApp {
     this.setRange('zoom-sensitivity', lim.zoomSensitivity);
     this.setRange('pan-sensitivity', lim.panSensitivity);
     this.setRange('quick-timer', lim.quickTimerMs);
+    this.setRange('endpoint-snap-px', lim.endpointSnapPx);
+    this.setRange('eyedrop-px', lim.eyedropSensitivityPx);
+    this.setRange('direct-select-px', lim.directSelectSensitivityPx);
+    this.setRange('qs-wobble', lim.sharpenWobble);
+    this.setRange('qs-smoothing', lim.sharpenSmoothing);
+    this.setRange('qs-circle', lim.sharpenCircleSnap);
+    this.setRange('qs-symmetry', lim.symmetry);
+    this.setRange('qs-textsize', lim.textSize);
     this.setRange('quick-color-count', lim.quickColorCount);
     this.setRange('autosave', lim.autoSaveIntervalSec);
     this.setRange('copic-hold', lim.copicHoldSec);
@@ -95,8 +103,53 @@ class SettingsApp {
     el<HTMLInputElement>('invert-zoom').addEventListener('change', (e) =>
       this.patch({ invertZoom: (e.target as HTMLInputElement).checked }),
     );
+    el<HTMLInputElement>('invert-scroll-zoom').addEventListener('change', (e) =>
+      this.patch({ invertScrollZoom: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('invert-scroll-pan').addEventListener('change', (e) =>
+      this.patch({ invertScrollPan: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('invert-pan-drag').addEventListener('change', (e) =>
+      this.patch({ invertPanDrag: (e.target as HTMLInputElement).checked }),
+    );
     el<HTMLInputElement>('quick-timer').addEventListener('input', (e) =>
       this.patch({ quickTimerMs: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('endpoint-snap').addEventListener('change', (e) =>
+      this.patch({ endpointSnap: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('endpoint-snap-px').addEventListener('input', (e) =>
+      this.patch({ endpointSnapPx: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('join-stroke').addEventListener('change', (e) =>
+      this.patch({ joinStrokeOnSnap: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('eyedrop-px').addEventListener('input', (e) =>
+      this.patch({ eyedropSensitivityPx: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('direct-select-px').addEventListener('input', (e) =>
+      this.patch({ directSelectSensitivityPx: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('qs-live-sharpen').addEventListener('change', (e) =>
+      this.patch({ liveSharpen: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('qs-wobble').addEventListener('input', (e) =>
+      this.patch({ sharpenWobble: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('qs-smoothing').addEventListener('input', (e) =>
+      this.patch({ sharpenSmoothing: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('qs-circle').addEventListener('input', (e) =>
+      this.patch({ sharpenCircleSnap: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('qs-taper').addEventListener('change', (e) =>
+      this.patch({ sharpenTaperEnds: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('qs-symmetry').addEventListener('input', (e) =>
+      this.patch({ symmetry: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('qs-textsize').addEventListener('input', (e) =>
+      this.patch({ textSize: Number((e.target as HTMLInputElement).value) }),
     );
     el<HTMLInputElement>('quick-color-count').addEventListener('input', (e) =>
       this.patch({ quickColorCount: Number((e.target as HTMLInputElement).value) }),
@@ -184,9 +237,35 @@ class SettingsApp {
     this.setValue('pan-sensitivity', s.panSensitivity);
     el('pan-sensitivity-value').textContent = s.panSensitivity.toFixed(2);
     el<HTMLInputElement>('invert-zoom').checked = s.invertZoom;
+    el<HTMLInputElement>('invert-scroll-zoom').checked = s.invertScrollZoom;
+    el<HTMLInputElement>('invert-scroll-pan').checked = s.invertScrollPan;
+    el<HTMLInputElement>('invert-pan-drag').checked = s.invertPanDrag;
 
     this.setValue('quick-timer', s.quickTimerMs);
     el('quick-timer-value').textContent = `${(s.quickTimerMs / 1000).toFixed(1)}s`;
+
+    el<HTMLInputElement>('endpoint-snap').checked = s.endpointSnap;
+    this.setValue('endpoint-snap-px', s.endpointSnapPx);
+    el('endpoint-snap-px-value').textContent = `${s.endpointSnapPx}px`;
+    el<HTMLInputElement>('join-stroke').checked = s.joinStrokeOnSnap;
+
+    this.setValue('eyedrop-px', s.eyedropSensitivityPx);
+    el('eyedrop-px-value').textContent = `${s.eyedropSensitivityPx}px`;
+    this.setValue('direct-select-px', s.directSelectSensitivityPx);
+    el('direct-select-px-value').textContent = `${s.directSelectSensitivityPx}px`;
+
+    el<HTMLInputElement>('qs-live-sharpen').checked = s.liveSharpen;
+    this.setValue('qs-wobble', s.sharpenWobble);
+    el('qs-wobble-value').textContent = s.sharpenWobble.toFixed(1);
+    this.setValue('qs-smoothing', s.sharpenSmoothing);
+    el('qs-smoothing-value').textContent = s.sharpenSmoothing.toFixed(1);
+    this.setValue('qs-circle', s.sharpenCircleSnap);
+    el('qs-circle-value').textContent = s.sharpenCircleSnap.toFixed(2);
+    el<HTMLInputElement>('qs-taper').checked = s.sharpenTaperEnds;
+    this.setValue('qs-symmetry', s.symmetry);
+    el('qs-symmetry-value').textContent = s.symmetry > 1 ? `${s.symmetry}×` : 'off';
+    this.setValue('qs-textsize', s.textSize);
+    el('qs-textsize-value').textContent = `${s.textSize}px`;
 
     this.setValue('quick-color-count', s.quickColorCount);
     el('quick-color-count-value').textContent = String(s.quickColorCount);

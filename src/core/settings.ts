@@ -31,8 +31,51 @@ export interface AppSettings {
    * When true: the directions are swapped.
    */
   invertZoom: boolean;
+  /**
+   * Alt + mouse-wheel zoom direction. When false (default): scroll up zooms
+   * in, scroll down zooms out. When true: the directions are swapped.
+   */
+  invertScrollZoom: boolean;
+  /**
+   * Mouse-wheel pan direction (plain scroll pans vertically, Ctrl+Shift pans
+   * horizontally). When false (default): scroll up pans up / right. When
+   * true: the directions are swapped.
+   */
+  invertScrollPan: boolean;
+  /**
+   * Direction of the Select-tool Space + drag pan. When false (default) the
+   * canvas follows the pointer; when true it moves opposite the pointer.
+   */
+  invertPanDrag: boolean;
   /** Idle window (ms) for the quick-feature digit entry (Quick Width / Opacity). */
   quickTimerMs: number;
+  /** Endpoint snap: hold Shift while drawing to snap to the nearest stroke endpoint. */
+  endpointSnap: boolean;
+  /** Endpoint snap: search radius around the pointer, in screen pixels (1-20). */
+  endpointSnapPx: number;
+  /** Direct Select: anchor/handle grab radius around the pointer (1-20px). */
+  directSelectSensitivityPx: number;
+  /**
+   * Join stroke: when true, a stroke whose end snaps onto another stroke's
+   * endpoint (endpoint snap) is merged with that stroke into one stroke.
+   */
+  joinStrokeOnSnap: boolean;
+  /** Eyedropper: color-sampling radius around the click, in screen pixels (1-36). */
+  eyedropSensitivityPx: number;
+  /** Quick Settings: auto-sharpen each stroke on pen-up. */
+  liveSharpen: boolean;
+  /** Quick Settings: hand-drawn wobble amplitude (px) for sharpened strokes. */
+  sharpenWobble: number;
+  /** Quick Settings: smoothing (simplify epsilon, px) for sharpened strokes. */
+  sharpenSmoothing: number;
+  /** Quick Settings: circle-snap tolerance (relative error) for sharpening. */
+  sharpenCircleSnap: number;
+  /** Quick Settings: taper sharpened stroke ends. */
+  sharpenTaperEnds: boolean;
+  /** Quick Settings: rotational symmetry axes (1 = off). */
+  symmetry: number;
+  /** Quick Settings: text tool font size in pixels. */
+  textSize: number;
   /** Number of quick-access colors offered in the toolbar (2-20). */
   quickColorCount: number;
   /** The quick-access color values (CSS hex), length tracks quickColorCount. */
@@ -77,14 +120,21 @@ export const DEFAULT_QUICK_COLORS = [
   '#c0392b',
 ] as const;
 
-/** Stable identifiers for the reorderable tool buttons. */
+/** Stable identifiers for the reorderable tool buttons (both toolbar groups). */
 export const DEFAULT_TOOL_ORDER = [
   'tool-pen',
   'tool-marker',
   'tool-copic',
   'tool-eraser',
   'tool-select',
+  'tool-point',
   'tool-text',
+  'tool-rect',
+  'tool-ellipse',
+  'tool-curve',
+  'tool-bucket',
+  'tool-fill',
+  'tool-eyedrop',
 ] as const;
 
 /** Allowed bounds for the numeric settings (single source of truth for the UI). */
@@ -92,6 +142,14 @@ export const SETTINGS_LIMITS = {
   zoomSensitivity: { min: 0.25, max: 4, step: 0.05 },
   panSensitivity: { min: 0.25, max: 4, step: 0.05 },
   quickTimerMs: { min: 500, max: 3000, step: 100 },
+  endpointSnapPx: { min: 1, max: 20, step: 1 },
+  directSelectSensitivityPx: { min: 1, max: 20, step: 1 },
+  eyedropSensitivityPx: { min: 1, max: 36, step: 1 },
+  sharpenWobble: { min: 0, max: 4, step: 0.1 },
+  sharpenSmoothing: { min: 0.5, max: 8, step: 0.5 },
+  sharpenCircleSnap: { min: 0.02, max: 0.3, step: 0.01 },
+  symmetry: { min: 1, max: 12, step: 1 },
+  textSize: { min: 10, max: 96, step: 1 },
   quickColorCount: { min: 2, max: 20, step: 1 },
   autoSaveIntervalSec: { min: 0, max: 600, step: 5 },
   copicHoldSec: { min: 0.5, max: 2, step: 0.1 },
@@ -105,7 +163,22 @@ export function defaultSettings(): AppSettings {
     zoomSensitivity: 1,
     panSensitivity: 1,
     invertZoom: false,
+    invertScrollZoom: false,
+    invertScrollPan: false,
+    invertPanDrag: false,
     quickTimerMs: 1000,
+    endpointSnap: true,
+    endpointSnapPx: 10,
+    directSelectSensitivityPx: 3,
+    joinStrokeOnSnap: false,
+    eyedropSensitivityPx: 10,
+    liveSharpen: false,
+    sharpenWobble: 1.1,
+    sharpenSmoothing: 2.5,
+    sharpenCircleSnap: 0.12,
+    sharpenTaperEnds: true,
+    symmetry: 1,
+    textSize: 24,
     quickColorCount: DEFAULT_QUICK_COLORS.length,
     quickColors: [...DEFAULT_QUICK_COLORS],
     menuPlacement: 'top',
@@ -157,7 +230,49 @@ export function normalizeSettings(input: unknown): AppSettings {
     zoomSensitivity: clampNumber(raw.zoomSensitivity, lim.zoomSensitivity.min, lim.zoomSensitivity.max, base.zoomSensitivity),
     panSensitivity: clampNumber(raw.panSensitivity, lim.panSensitivity.min, lim.panSensitivity.max, base.panSensitivity),
     invertZoom: typeof raw.invertZoom === 'boolean' ? raw.invertZoom : base.invertZoom,
+    invertScrollZoom:
+      typeof raw.invertScrollZoom === 'boolean' ? raw.invertScrollZoom : base.invertScrollZoom,
+    invertScrollPan:
+      typeof raw.invertScrollPan === 'boolean' ? raw.invertScrollPan : base.invertScrollPan,
+    invertPanDrag:
+      typeof raw.invertPanDrag === 'boolean' ? raw.invertPanDrag : base.invertPanDrag,
     quickTimerMs: clampNumber(raw.quickTimerMs, lim.quickTimerMs.min, lim.quickTimerMs.max, base.quickTimerMs),
+    endpointSnap: typeof raw.endpointSnap === 'boolean' ? raw.endpointSnap : base.endpointSnap,
+    endpointSnapPx: Math.round(
+      clampNumber(raw.endpointSnapPx, lim.endpointSnapPx.min, lim.endpointSnapPx.max, base.endpointSnapPx),
+    ),
+    directSelectSensitivityPx: Math.round(
+      clampNumber(
+        raw.directSelectSensitivityPx,
+        lim.directSelectSensitivityPx.min,
+        lim.directSelectSensitivityPx.max,
+        base.directSelectSensitivityPx,
+      ),
+    ),
+    joinStrokeOnSnap:
+      typeof raw.joinStrokeOnSnap === 'boolean' ? raw.joinStrokeOnSnap : base.joinStrokeOnSnap,
+    eyedropSensitivityPx: Math.round(
+      clampNumber(
+        raw.eyedropSensitivityPx,
+        lim.eyedropSensitivityPx.min,
+        lim.eyedropSensitivityPx.max,
+        base.eyedropSensitivityPx,
+      ),
+    ),
+    liveSharpen: typeof raw.liveSharpen === 'boolean' ? raw.liveSharpen : base.liveSharpen,
+    sharpenWobble: clampNumber(
+      raw.sharpenWobble, lim.sharpenWobble.min, lim.sharpenWobble.max, base.sharpenWobble,
+    ),
+    sharpenSmoothing: clampNumber(
+      raw.sharpenSmoothing, lim.sharpenSmoothing.min, lim.sharpenSmoothing.max, base.sharpenSmoothing,
+    ),
+    sharpenCircleSnap: clampNumber(
+      raw.sharpenCircleSnap, lim.sharpenCircleSnap.min, lim.sharpenCircleSnap.max, base.sharpenCircleSnap,
+    ),
+    sharpenTaperEnds:
+      typeof raw.sharpenTaperEnds === 'boolean' ? raw.sharpenTaperEnds : base.sharpenTaperEnds,
+    symmetry: Math.round(clampNumber(raw.symmetry, lim.symmetry.min, lim.symmetry.max, base.symmetry)),
+    textSize: Math.round(clampNumber(raw.textSize, lim.textSize.min, lim.textSize.max, base.textSize)),
     quickColorCount: Math.round(
       clampNumber(raw.quickColorCount, lim.quickColorCount.min, lim.quickColorCount.max, base.quickColorCount),
     ),

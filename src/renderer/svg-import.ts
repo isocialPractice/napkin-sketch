@@ -2,19 +2,26 @@
  * SVG import (browser-only; relies on DOM SVG geometry APIs).
  *
  * Converts an SVG document into layered napkin-sketch strokes:
- * - Top-level `<g>` elements become layers (name from `data-name`,
- *   `inkscape:label`, or `id`; group `opacity` becomes layer opacity), so
- *   napkin-sketch exports and Inkscape/Illustrator layer conventions both
- *   round-trip. Loose top-level elements are gathered into synthetic layers
- *   that preserve document z-order.
+ * - `<g>` elements become layers (name from `data-name`, `inkscape:label`, or
+ *   `id`; group `opacity` becomes layer opacity), so napkin-sketch exports and
+ *   Inkscape/Illustrator layer conventions both round-trip. Nested `<g>`
+ *   elements become nested layer groups.
+ * - Named geometry becomes its own layer. Illustrator (and any editor that
+ *   writes object names into `id`) exports a named object as a loose
+ *   `<path id="outline">` beside its sibling groups; those keep their name and
+ *   their z-order position instead of being flattened onto the parent layer.
+ * - Unnamed geometry stays on its group's layer. A run of unnamed siblings
+ *   next to named ones collects into one `<Path>` layer that holds its
+ *   document position; pass `unnamedElements: 'split'` to give every unnamed
+ *   element a layer of its own.
  * - napkin-sketch exports restore exactly: `data-tool`/`data-i` attributes
  *   recover each mark's tool and paint order, and eraser strokes are read
  *   back out of the layer's `<mask>`.
  * - Generic geometry (`path`, `line`, `polyline`, `polygon`, `rect`,
  *   `circle`, `ellipse`) is sampled along its length with transforms applied,
  *   so beziers and shapes become editable freehand strokes. Fill-only shapes
- *   import as thin outlines. `<text>` becomes text items and `<image>`
- *   becomes placed image items.
+ *   import filled. `<text>` becomes text items and `<image>` becomes placed
+ *   image items.
  */
 
 import {
@@ -42,8 +49,61 @@ export interface ImportedSvg {
   layers: ImportedLayer[];
 }
 
+/** Tuning for {@link importSvg}. */
+export interface SvgImportOptions {
+  /**
+   * How geometry that carries no name is imported.
+   * - `'merge'` (default): consecutive unnamed siblings share one layer, and a
+   *   group holding nothing but unnamed geometry stays a single layer.
+   * - `'split'`: every unnamed element becomes its own `<Path>` layer, mirroring
+   *   an Illustrator layers panel exactly (verbose on stroke-heavy artwork).
+   */
+  unnamedElements?: 'merge' | 'split';
+}
+
 const GEOMETRY_TAGS = new Set(['path', 'line', 'polyline', 'polygon', 'rect', 'circle', 'ellipse']);
 const NAPKIN_TOOLS = new Set<Tool>(['pen', 'marker', 'copic', 'eraser', 'text', 'image']);
+
+/** Non-drawing children skipped wherever elements are walked. */
+const NON_CONTENT_TAGS = new Set(['defs', 'title', 'metadata', 'desc', 'style']);
+
+/**
+ * Id stems editors auto-generate (`path4521`, `g830`); an id built from one of
+ * these plus digits names nothing and is treated as unnamed.
+ */
+const AUTO_ID_STEMS = new Set([
+  'path',
+  'rect',
+  'circle',
+  'ellipse',
+  'line',
+  'polyline',
+  'polygon',
+  'g',
+  'text',
+  'tspan',
+  'image',
+  'use',
+  'svg',
+  'defs',
+  'mask',
+  'clippath',
+  'symbol',
+  'marker',
+]);
+
+/** Illustrator-style placeholder names for geometry that has no name. */
+const UNNAMED_LABELS: Record<string, string> = {
+  path: '<Path>',
+  polyline: '<Path>',
+  polygon: '<Path>',
+  line: '<Line>',
+  rect: '<Rectangle>',
+  circle: '<Ellipse>',
+  ellipse: '<Ellipse>',
+  text: '<Text>',
+  image: '<Image>',
+};
 
 /** Longest sampled polyline per imported path. */
 const MAX_SAMPLES = 300;
@@ -62,7 +122,8 @@ interface OrderedStroke {
  *
  * @throws Error when the text is not a valid SVG document.
  */
-export function importSvg(svgText: string): ImportedSvg {
+export function importSvg(svgText: string, options: SvgImportOptions = {}): ImportedSvg {
+  const splitUnnamed = options.unnamedElements === 'split';
   const parsed = new DOMParser().parseFromString(svgText, 'image/svg+xml');
   if (parsed.querySelector('parsererror') || !(parsed.documentElement instanceof SVGSVGElement)) {
     throw new Error('Not a valid SVG document.');
@@ -85,10 +146,7 @@ export function importSvg(svgText: string): ImportedSvg {
     let scope: Element = root;
     let wrapperOpacity = 1;
     for (;;) {
-      const meaningful = Array.from(scope.children).filter((c) => {
-        const tag = c.tagName.toLowerCase();
-        return tag !== 'defs' && tag !== 'title' && tag !== 'metadata' && tag !== 'desc' && tag !== 'style';
-      });
+      const meaningful = contentChildren(scope);
       const only = meaningful.length === 1 ? meaningful[0] : null;
       if (
         only &&
@@ -105,54 +163,24 @@ export function importSvg(svgText: string): ImportedSvg {
 
     // Group direct children into layer buckets, preserving z-order.
     let docOrder = 0;
-    let syntheticCount = 0;
-    let groupCount = 0;
-    for (const child of Array.from(scope.children)) {
-      const tag = child.tagName.toLowerCase();
-      if (tag === 'defs' || tag === 'title' || tag === 'metadata' || tag === 'desc' || tag === 'style') {
-        continue;
-      }
-
-      // Skip a full-canvas background rect (napkin exports and many tools emit one).
+    const nextOrder = () => docOrder++;
+    const top = contentChildren(scope).filter((child, index) => {
+      // Skip a leading full-canvas background rect (napkin exports and many
+      // other tools emit one).
       if (
-        result.layers.length === 0 &&
-        tag === 'rect' &&
+        index === 0 &&
+        child.tagName.toLowerCase() === 'rect' &&
         !child.hasAttribute('data-tool') &&
         coversCanvas(child, width, height)
       ) {
         result.background = child.getAttribute('fill') ?? undefined;
-        continue;
+        return false;
       }
+      return true;
+    });
 
-      if (tag === 'g') {
-        groupCount += 1;
-        const layer = groupToLayer(
-          child as SVGGElement,
-          root,
-          () => docOrder++,
-          layerName(child, groupCount),
-        );
-        layer.opacity *= wrapperOpacity;
-        result.layers.push(layer);
-        continue;
-      }
-
-      // Loose top-level element: append to the current synthetic layer, or
-      // start a new one so ordering relative to groups is preserved.
-      let bucket = result.layers[result.layers.length - 1];
-      if (!bucket || !bucket.name.startsWith('Imported')) {
-        syntheticCount += 1;
-        bucket = {
-          name: syntheticCount === 1 ? 'Imported' : `Imported ${syntheticCount}`,
-          opacity: wrapperOpacity,
-          strokes: [],
-        };
-        result.layers.push(bucket);
-      }
-      const items: OrderedStroke[] = [];
-      elementToStrokes(child as SVGElement, root, items, () => docOrder++);
-      bucket.strokes.push(...sortByOrder(items));
-    }
+    result.layers = childLayers(top, root, nextOrder, splitUnnamed, 'Imported');
+    for (const layer of result.layers) layer.opacity *= wrapperOpacity;
 
     result.layers = pruneEmptyLayers(result.layers);
     if (result.layers.length === 0) {
@@ -183,13 +211,69 @@ function sortByOrder(items: OrderedStroke[]): Stroke[] {
   return items.sort((a, b) => a.order - b.order).map((i) => i.stroke);
 }
 
-function layerName(group: Element, index: number): string {
-  return (
-    group.getAttribute('data-name') ||
-    group.getAttribute('inkscape:label') ||
-    group.getAttribute('id') ||
-    `Layer ${index}`
+/** Direct children that can hold drawable content. */
+function contentChildren(parent: Element): Element[] {
+  return Array.from(parent.children).filter(
+    (child) => !NON_CONTENT_TAGS.has(child.tagName.toLowerCase()),
   );
+}
+
+/**
+ * The author-given name of an element, or null when it has none.
+ *
+ * `data-name` (napkin, Illustrator) and `inkscape:label` are real names and are
+ * taken verbatim. An `id` is a real name too, but XML ids must be unique, so
+ * editors uniquify repeats by appending `-2`, `-3`, … and escape characters
+ * that are illegal in an id as `_xHH_`; both are undone so `strokes-10` reads
+ * as `strokes`, matching what the source editor's layers panel shows.
+ *
+ * Marks written by napkin-sketch's own exporter (`data-tool`) are never named:
+ * they are strokes on their layer, not layers of their own.
+ */
+function elementName(el: Element): string | null {
+  const label = el.getAttribute('data-name') ?? el.getAttribute('inkscape:label');
+  if (label && label.trim()) return label.trim();
+  if (el.hasAttribute('data-tool')) return null;
+  const id = el.getAttribute('id');
+  if (!id || !id.trim()) return null;
+  const name = decodeIdName(id.trim());
+  return isAutoId(name) ? null : name;
+}
+
+/**
+ * True for an id an editor made up rather than one the author typed.
+ *
+ * Inkscape gives every element an id whether or not it is named (`path4521`,
+ * `g830`, `rect12`); treating those as layer names would bury the drawing in
+ * meaningless rows, so a tag name *followed by digits* is read as "unnamed".
+ * The digits are required: a layer the author called `text` or `line` keeps
+ * its name.
+ */
+export function isAutoId(name: string): boolean {
+  const stem = /^(.*?)[\s_-]*\d+$/.exec(name);
+  return stem !== null && AUTO_ID_STEMS.has(stem[1].toLowerCase());
+}
+
+/** Undoes an editor's `_xHH_` escaping and `-N` uniquifier suffix on an id. */
+export function decodeIdName(id: string): string {
+  const decoded = id.replace(/_x([0-9A-Fa-f]{2,6})_/g, (match, hex: string) => {
+    const code = Number.parseInt(hex, 16);
+    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+  });
+  // Only `-2` and up: editors leave the first use of a name unsuffixed, so a
+  // trailing `-0` or `-1` is part of the name the author chose.
+  const suffix = /-(\d+)$/.exec(decoded);
+  if (!suffix || Number(suffix[1]) < 2) return decoded;
+  return decoded.slice(0, -suffix[0].length) || decoded;
+}
+
+/** Placeholder name for geometry the source document left unnamed. */
+function unnamedLabel(el: Element): string {
+  return UNNAMED_LABELS[el.tagName.toLowerCase()] ?? '<Path>';
+}
+
+function layerName(group: Element, index: number): string {
+  return elementName(group) ?? `Layer ${index}`;
 }
 
 function svgSize(root: SVGSVGElement): { width: number; height: number } {
@@ -230,36 +314,114 @@ function matrixScale(m: DOMMatrix): number {
 }
 
 /**
- * Converts a `<g>` into a layer. Nested `<g>` children become child layers so
- * grouped SVG structure survives import as expandable/collapsible group rows;
- * loose geometry stays on the group's own layer.
+ * Converts a `<g>` into a layer.
+ *
+ * A group whose children are all unnamed geometry stays one layer holding those
+ * marks as its strokes - nesting them would add rows, not structure. As soon as
+ * the group holds a nested `<g>` or a named element it becomes a group layer
+ * and every child (named element, nested group, run of unnamed geometry) gets
+ * its own child layer in document order, so both names and z-order survive.
  */
 function groupToLayer(
   group: SVGGElement,
   root: SVGSVGElement,
   nextOrder: () => number,
   name: string,
+  splitUnnamed: boolean,
 ): ImportedLayer {
-  const items: OrderedStroke[] = [];
-  const children: ImportedLayer[] = [];
-  let childGroups = 0;
-  for (const child of Array.from(group.children)) {
-    if (child.tagName.toLowerCase() === 'g') {
-      childGroups += 1;
-      children.push(
-        groupToLayer(child as SVGGElement, root, nextOrder, layerName(child, childGroups)),
-      );
-    } else {
-      elementToStrokes(child as SVGElement, root, items, nextOrder);
-    }
+  const opacity = clamp01(Number(group.getAttribute('opacity') ?? 1));
+  const kids = contentChildren(group);
+  const structured =
+    splitUnnamed ||
+    kids.some((child) => child.tagName.toLowerCase() === 'g' || elementName(child) !== null);
+
+  if (!structured) {
+    const items: OrderedStroke[] = [];
+    for (const child of kids) elementToStrokes(child as SVGElement, root, items, nextOrder);
+    collectMaskErasers(group, root, items, nextOrder);
+    return { name, opacity, strokes: sortByOrder(items) };
   }
-  collectMaskErasers(group, root, items, nextOrder);
-  return {
-    name,
-    opacity: clamp01(Number(group.getAttribute('opacity') ?? 1)),
-    strokes: sortByOrder(items),
-    children: children.length > 0 ? children : undefined,
+
+  const children = childLayers(kids, root, nextOrder, splitUnnamed);
+  // Erased areas are recovered from the layer's mask; they belong on top of
+  // everything the group paints.
+  const erased: OrderedStroke[] = [];
+  collectMaskErasers(group, root, erased, nextOrder);
+  if (erased.length > 0) {
+    children.push({ name: 'Erased', opacity: 1, strokes: sortByOrder(erased) });
+  }
+  return { name, opacity, strokes: [], children };
+}
+
+/**
+ * Builds one child layer per element in `elements`, preserving document order.
+ *
+ * Nested `<g>` elements recurse, named elements keep their name, and unnamed
+ * geometry collects into placeholder layers - one per run of adjacent unnamed
+ * siblings, or one per element when `splitUnnamed` is set.
+ *
+ * @param unnamedName Name for placeholder layers; defaults to an
+ *   Illustrator-style tag label such as `<Path>`.
+ */
+function childLayers(
+  elements: Element[],
+  root: SVGSVGElement,
+  nextOrder: () => number,
+  splitUnnamed: boolean,
+  unnamedName?: string,
+): ImportedLayer[] {
+  const layers: ImportedLayer[] = [];
+  let groupIndex = 0;
+  let unnamedIndex = 0;
+  let run: OrderedStroke[] = [];
+  let runName = '';
+  let runOpen = false;
+
+  const flushRun = (): void => {
+    if (run.length > 0) layers.push({ name: runName, opacity: 1, strokes: sortByOrder(run) });
+    run = [];
+    runOpen = false;
   };
+
+  for (const child of elements) {
+    if (child.tagName.toLowerCase() === 'g') {
+      flushRun();
+      groupIndex += 1;
+      layers.push(
+        groupToLayer(
+          child as SVGGElement,
+          root,
+          nextOrder,
+          layerName(child, groupIndex),
+          splitUnnamed,
+        ),
+      );
+      continue;
+    }
+
+    const named = elementName(child);
+    if (named !== null) {
+      flushRun();
+      const marks: OrderedStroke[] = [];
+      elementToStrokes(child as SVGElement, root, marks, nextOrder);
+      layers.push({ name: named, opacity: 1, strokes: sortByOrder(marks) });
+      continue;
+    }
+
+    if (splitUnnamed) flushRun();
+    if (!runOpen) {
+      unnamedIndex += 1;
+      runName = unnamedName
+        ? unnamedIndex === 1
+          ? unnamedName
+          : `${unnamedName} ${unnamedIndex}`
+        : unnamedLabel(child);
+      runOpen = true;
+    }
+    elementToStrokes(child as SVGElement, root, run, nextOrder);
+  }
+  flushRun();
+  return layers;
 }
 
 /** Recovers eraser strokes from a napkin-sketch layer mask, if present. */

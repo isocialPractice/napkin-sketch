@@ -4,6 +4,42 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1-alpha] - 2026-07-30
+
+### Fixed
+
+- SVG import now rebuilds nested layers the way the source editor shows them.
+  Illustrator (and any editor that writes object names into `id`) exports a
+  named object as a loose `<path id="outline">` beside its sibling groups;
+  those paths were flattened onto their parent group's layer, so names such as
+  `outline`, `glove`, `beard`, `teeth`, or `white`/`black` were lost and the
+  marks jumped in front of or behind the groups they sat between. Named
+  geometry now imports as its own layer, in its document position, at every
+  nesting depth.
+- Layer names imported from an `id` drop the `-2`, `-3`, … suffix editors add
+  to keep XML ids unique, and undo `_xHH_` escaping, so rows read `strokes`,
+  `outline`, and `arm` instead of `strokes-10`, `outline-5`, and `arm-2`. A
+  trailing `-0` or `-1` is kept, and `data-name` / `inkscape:label` names are
+  always taken verbatim.
+- The ids Inkscape hands to unnamed elements (`path4521`, `g830`, `rect12`) no
+  longer become layer names — a tag name followed by digits reads as unnamed,
+  so Inkscape files import as layers rather than as a wall of ids. A layer the
+  author actually called `text` or `line` keeps its name.
+- A group that mixed loose marks with nested groups produced a child row
+  carrying the parent's own name (`shirt-assembly > shirt-assembly`). Groups
+  no longer duplicate their name; a group's own leftover marks land on a row
+  named `<name> contents`.
+- Unnamed geometry keeps its z-order relative to its named siblings: a run of
+  adjacent unnamed elements imports as one `<Path>` layer in place, rather
+  than being pooled onto the parent layer.
+
+### Added
+
+- `importSvg(text, { unnamedElements: 'split' })` gives every unnamed element
+  its own `<Path>` layer, mirroring an Illustrator layers panel exactly. The
+  default, `'merge'`, keeps unnamed marks as strokes on their group's layer so
+  stroke-heavy artwork does not explode into hundreds of rows.
+
 ## [3.0.0-alpha] - 2026-07-12
 
 ### Added

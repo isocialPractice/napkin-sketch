@@ -3,7 +3,12 @@
 Roadmap for **napkin-sketch**, grouped by semantic-version impact. Items are
 aspirational and unordered within each group.
 
-## Major (breaking / large features → next `2.0.0`)
+## Resolve Issues (`x.y.++`)
+
+- [ ] Maintain SVG layer names on export
+- [ ] Imported nested group element layers without a unique or custom `id` value.
+
+## Major (breaking / large features → next `++.y.z`)
 
 - [x] **Layers**: per-sketch layer stack with opacity, lock, and reordering.
 - [ ] **Pressure-aware brush engine**: replace the width model with a velocity- and
@@ -16,7 +21,7 @@ aspirational and unordered within each group.
 - [x] **Vector import**: import SVG/PDF in addition to PNG/JPEG, keeping layers
   intact for imported SVGs.
 
-## Quick Features (ideas → next `1.x`)
+## Quick Features (ideas → next `x.++.z`)
 
 Follow-on shortcuts in the spirit of Quick Width (`W`) and Quick Opacity (`Q`):
 press a letter, type a value within the quick-feature timer, and it applies.
@@ -32,7 +37,7 @@ press a letter, type a value within the quick-feature timer, and it applies.
 - [ ] **Quick Hex** (`#`): type a six-digit hex value to set an exact ink color
   without opening the color picker.
 
-## Minor (backward-compatible features → next `1.x`)
+## Minor (backward-compatible features → next `x.++.z`)
 
 - [ ] **Lasso + transform**: free-form lasso selection with scale/rotate handles
   (current Select is rectangular move/delete only).
@@ -45,8 +50,11 @@ press a letter, type a value within the quick-feature timer, and it applies.
 - [ ] **Auto-save & recovery**: periodic snapshots and crash recovery of `.skbk`.
 - [ ] **Export options dialog**: DPI/scale and transparent-vs-paper background
   choices for raster export.
+- [ ] **Export Selection**: Export only the currently selected layers or elements.
+- [ ] **Prompt to Save**: If a file contains data, and has not been saved; when
+ GUI is closed, prompt user to save file.
 
-## Patch (fixes, polish, internal → next `1.0.x`)
+## Patch (fixes, polish, internal → next `x.y.++`)
 
 - [ ] **High-DPI thumbnails**: render the pages-panel thumbnails at device pixel
   ratio to avoid blur.
@@ -62,3 +70,6 @@ press a letter, type a value within the quick-feature timer, and it applies.
   embeddable `NapkinSketch` editor via a DOM test environment.
 - [ ] **Docs**: API reference for the embeddable package and a WordPress block
   example.
+- [ ] **Panel Improvements**:
+  - [ ] **Resize Panels**: Allow the side and top panels to be resized.
+  - [ ] **Undock Panels**: Allow the side and top panels to be undocked and moved freely outside of the GUI window.

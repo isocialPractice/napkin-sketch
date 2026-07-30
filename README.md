@@ -97,8 +97,9 @@ hand-drawn rather than vector-perfect.
   SVG save `name_1.ext`, `name_2.ext`, …, while PDF writes all pages into one
   document.
 - **Import** (`Ctrl + I`) of **SVG** (vector shapes become editable strokes,
-  top-level groups become layers, and **nested groups become nested,
-  collapsible layer groups** — napkin-sketch's own exports round-trip
+  **groups become nested, collapsible layer groups, and every named object
+  becomes its own layer**, so an Illustrator or Inkscape file lands with the
+  same layer tree it left with — napkin-sketch's own exports round-trip
   losslessly), **PDF** (each page's vector content becomes a new sketch page,
   best effort), and **PNG / JPEG** (placed as a movable image on the active
   layer).
@@ -354,8 +355,18 @@ group to nest. A group's
 visibility, lock, and opacity apply to every layer inside it, the panel
 indents grouped layers under a collapsible header (click the caret to
 expand/collapse), and `Ctrl+Shift+G` dissolves the active group while
-keeping its layers. Deleting a group deletes the layers inside it. Imported
-SVGs keep their nested groups as nested layer groups.
+keeping its layers. Deleting a group deletes the layers inside it.
+
+**Imported SVGs keep their layer tree.** Nested `<g>` elements become nested
+layer groups, and every *named* object becomes its own layer in its original
+z-order position — Illustrator writes an object's name into `id`, so a
+`<path id="outline">` sitting between two groups imports as an `outline` layer
+between them rather than being flattened onto the parent. Names shed the `-2`,
+`-3`, … suffix editors add to keep XML ids unique, so rows read `strokes` and
+`outline`, not `strokes-10` and `outline-5`. *Unnamed* marks stay strokes on
+their group's layer, which keeps stroke-heavy artwork from arriving as hundreds
+of rows; adjacent unnamed siblings of a named object collect into one `<Path>`
+layer that holds their place in the stack.
 
 **CapsLock cursor:** while any drawing tool is active, **CapsLock on** shows a
 precision crosshair; **CapsLock off** shows a circle preview matching the
@@ -472,6 +483,11 @@ generate PDFs, or parse an SVG into layered strokes (browser only):
 
 ```ts
 import { sharpenStrokes, parseSketchBook, sketchesToPdf, importSvg } from 'napkin-sketch';
+
+// Nested groups and named objects come back as a nested layer tree. Pass
+// `unnamedElements: 'split'` to also give every unnamed element its own
+// `<Path>` layer, mirroring an Illustrator layers panel exactly.
+const { width, height, layers } = importSvg(svgText, { unnamedElements: 'split' });
 ```
 
 ## Packaging a desktop installer

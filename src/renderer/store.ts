@@ -617,8 +617,13 @@ export class Store {
   addImportedLayers(imported: ImportedLayerNode[]): void {
     if (imported.length === 0) return;
     this.pushHistory();
-    const appendLeaf = (item: ImportedLayerNode, parent?: string, opacity = item.opacity): void => {
-      const layer = createLayer(item.name);
+    const appendLeaf = (
+      item: ImportedLayerNode,
+      parent?: string,
+      opacity = item.opacity,
+      name = item.name,
+    ): void => {
+      const layer = createLayer(name);
       layer.opacity = opacity;
       layer.parent = parent;
       this.sketch.layers.push(layer);
@@ -634,7 +639,9 @@ export class Store {
         group.parent = parent;
         // Children push first: the group header renders above them in the panel.
         for (const child of item.children) append(child, group.id);
-        if (item.strokes.length > 0) appendLeaf(item, group.id, 1);
+        // Marks the source kept on the group itself get a row of their own; it
+        // is named apart from the group so the panel shows no duplicate name.
+        if (item.strokes.length > 0) appendLeaf(item, group.id, 1, `${item.name} contents`);
         this.sketch.layers.push(group);
       } else {
         appendLeaf(item, parent);

@@ -62,7 +62,7 @@ export { sketchesToPdf } from '../core/pdf.js';
 
 // Vector import (browser-only: relies on DOM SVG geometry APIs)
 export { importSvg } from '../renderer/svg-import.js';
-export type { ImportedLayer, ImportedSvg } from '../renderer/svg-import.js';
+export type { ImportedLayer, ImportedSvg, SvgImportOptions } from '../renderer/svg-import.js';
 
 // Rendering surface (advanced use)
 export { Surface, strokeBounds } from '../renderer/surface.js';

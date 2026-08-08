@@ -1103,3 +1103,90 @@ body {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* ==== LOCAL WEATHER START ====
+   Generated for the local weather: night background, hot tone, stormy
+   precipitation. See local-weather-style/STYLE.md for the contract; replace
+   everything between these two markers on the next render, and never edit
+   above the start marker. Deleting this block restores the baseline palette.
+
+   Composition: warm charcoal ground (60%), storm-steel surfaces and primary
+   (30%), ember accent (10%), lamplit cream napkin, deep diffuse shadows, and a
+   lightning-yellow focus ring. */
+
+/* The selector list matches the specificity of the :root[data-theme="..."]
+   blocks above, so the weather wins for light, dark, and sepia alike. */
+:root,
+:root[data-theme] {
+  /* Night ground, biased warm for the hot tone. Off-black, not pure black. */
+  --bg: #191512;
+  --surface: #221d19;
+  --surface-2: #2b2521;
+
+  /* Lamplit napkin: dimmed and warm, still light enough to draw dark ink on. */
+  --paper: #e6dccb;
+
+  /* Light warm text, descending contrast. --ink-faint is the closest to the
+     4.5:1 floor: 4.68:1 on --surface-2, the darkest ground it lands on. */
+  --ink: #f0e6da;
+  --ink-soft: #bdae9d;
+  --ink-faint: #9b8d7e;
+
+  --border: #3a322b;
+  --border-strong: #4e443b;
+
+  /* Storm steel keeps its role as the Save CTA and active-state highlight. It
+     carries dark ink for a 5.7:1 label. */
+  --primary: #6f93ab;
+  --primary-hover: #86a7bd;
+  --primary-ink: #14100d;
+
+  /* Ember, still reserved for Sharpen and the dirty marker. */
+  --accent: #e07a3c;
+  --accent-hover: #ee8b4d;
+  --accent-ink: #1a1410;
+
+  --danger: #f2705c;
+
+  /* Lightning: a high-contrast focus ring that reads on every surface here. */
+  --focus: #ffd86b;
+
+  /* Stormy elevation: deeper, wider, and warm-black. */
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.55);
+  --shadow-2: 0 10px 28px rgba(0, 0, 0, 0.62);
+  --shadow-paper: 0 18px 48px rgba(0, 0, 0, 0.7);
+}
+
+/* Storm sky behind the napkin, replacing the light radial gradient. */
+.stage {
+  background: radial-gradient(circle at 50% 0%, #2f2620 0%, var(--bg) 62%);
+}
+
+/* Hardcoded colors the token layer does not reach (STYLE.md rule 5). */
+
+/* --ink is light now, so the toast needs its own dark ground. */
+.toast {
+  background: #100d0b;
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+}
+
+/* The white pill would glare against the dimmed page thumbnails. */
+.thumb-label {
+  color: var(--ink-soft);
+  background: rgba(16, 13, 11, 0.72);
+}
+
+/* Warm the modal scrim to match the storm rather than the cool baseline. */
+.export-dialog {
+  background: rgba(10, 8, 7, 0.55);
+}
+
+/* Lightning yellow alone would vanish on the cream napkin (1.01:1) and on the
+   primary and accent fills. A dark halo sits on both sides of the 2px outline,
+   so the ring reads against every ground in the app at 14:1 or better. */
+:focus-visible {
+  outline-color: var(--focus);
+  box-shadow: 0 0 0 6px rgba(16, 13, 11, 0.92);
+}
+/* ==== LOCAL WEATHER END ==== */

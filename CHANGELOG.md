@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.1.0-alpha] - 2026-08-08
 
 ### Added
 
@@ -30,6 +30,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   corner dialog with **Smooth** and **Simplify** sliders previews the result
   live on the canvas; Apply commits one undo step, Cancel or `Esc` restores
   the original geometry exactly.
+- **Vector Path** tool (`B`, in the Sketch Support toolbar): an
+  Illustrator-style pen. Click to place corner points joined by straight
+  segments; click-drag to place a smooth point and pull out symmetric Bézier
+  direction handles; the next segment previews live as a rubber band. Click
+  the first point to close the path, `Enter` or double-click to finish it
+  open, `Esc` to abandon. Paths commit as editable pen strokes with the
+  current color, width, and opacity, are never auto-sharpened, and respect
+  symmetry mode; Direct Select can rework the committed points.
 
 ### Changed
 
@@ -70,23 +78,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   arrow** while `Ctrl` is held over anything grabbable, and a **stemless
   arrowhead** while `Alt` is held for handle toggling. Modifier presses
   restyle the pointer immediately, without waiting for the mouse to move.
-
-### Fixed
-
-- `Ctrl` and `Alt` now work reliably in Vector Path edit mode. Holding
-  `Ctrl` armed the Copic quick nib-rotate hold (its default hold key), which
-  switched tools after a second and collapsed the edit; the hold no longer
-  arms while the Vector Path tool is active. An `Alt` press could focus the
-  native menu bar, blurring the canvas and dropping the edit before the
-  click landed; `Alt` is consumed while the tool is active.
-- Anchors, handles, and the rounding target were nearly impossible to click:
-  the hit radius followed the Direct Select sensitivity (default 3 screen
-  pixels). Vector-edit targets now use a radius of at least 8 screen pixels.
-
-## [3.1.0-alpha] - 2026-08-08
-
-### Changed
-
 - Quick curve (`Ctrl + Space` + drag) now draws a quarter ellipse in a single
   gesture instead of a chord you bend afterwards. The arc leaves the press
   point with a flat tangent and meets the pointer with an upright one, bowing
@@ -125,16 +116,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   longer or shorter stretches the span. Sparse strokes (a two-point line)
   swing rigidly, so the handles work on every stroke shape.
 
-### Added
+### Fixed
 
-- **Vector Path** tool (`B`, in the Sketch Support toolbar): an
-  Illustrator-style pen. Click to place corner points joined by straight
-  segments; click-drag to place a smooth point and pull out symmetric Bézier
-  direction handles; the next segment previews live as a rubber band. Click
-  the first point to close the path, `Enter` or double-click to finish it
-  open, `Esc` to abandon. Paths commit as editable pen strokes with the
-  current color, width, and opacity, are never auto-sharpened, and respect
-  symmetry mode; Direct Select can rework the committed points.
+- `Ctrl` and `Alt` now work reliably in Vector Path edit mode. Holding
+  `Ctrl` armed the Copic quick nib-rotate hold (its default hold key), which
+  switched tools after a second and collapsed the edit; the hold no longer
+  arms while the Vector Path tool is active. An `Alt` press could focus the
+  native menu bar, blurring the canvas and dropping the edit before the
+  click landed; `Alt` is consumed while the tool is active.
+- Anchors, handles, and the rounding target were nearly impossible to click:
+  the hit radius followed the Direct Select sensitivity (default 3 screen
+  pixels). Vector-edit targets now use a radius of at least 8 screen pixels.
 
 The Curve tool (`V`) is unchanged: drag a chord, bend, click to place.
 

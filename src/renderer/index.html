@@ -47,6 +47,9 @@
           <button id="tool-curve" class="tool has-flyout" type="button" title="Curve (V) — drag a chord (ends snap to stroke endpoints), then bend and click. Click and hold for curve options" aria-label="Curve">
             <span class="icon" aria-hidden="true">⌒</span><span class="label">Curve</span>
           </button>
+          <button id="tool-vector" class="tool" type="button" title="Vector Path (B) — click for corner points, drag for smooth curves; click the first point to close, Enter or double-click to finish, Esc cancels" aria-label="Vector Path">
+            <span class="icon" aria-hidden="true">✒</span><span class="label">Vector Path</span>
+          </button>
           <button id="tool-bucket" class="tool" type="button" title="Paint Bucket (G) — fill an enclosed shape" aria-label="Paint Bucket">
             <span class="icon" aria-hidden="true">🪣</span><span class="label">Paint Bucket</span>
           </button>
@@ -59,6 +62,10 @@
           <button id="join-strokes" class="btn" type="button" title="Join selected strokes (Ctrl+J)">
             Join
           </button>
+          <label id="vector-options" class="vector-options is-hidden" for="vector-radius" title="Corner radius — rounds the selected Vector Path anchor">
+            <span class="slider-text">Radius</span>
+            <input id="vector-radius" type="number" min="0" max="999" step="1" value="12" aria-label="Corner radius" />
+          </label>
         </section>
 
         <section class="group" aria-label="Ink color">
@@ -79,6 +86,9 @@
         <section class="group" aria-label="Auto sharpen">
           <button id="sharpen-all" class="btn btn-accent" type="button" title="Sharpen every stroke (H)">
             Sharpen all
+          </button>
+          <button id="sharpen-selection" class="btn" type="button" title="Sharpen Selection — smooth and simplify the selected strokes with a live preview">
+            Sharpen Selection
           </button>
           <button id="settings-toggle" class="btn" type="button" title="Quick Settings (Ctrl+,)">
             Quick Settings
@@ -212,6 +222,26 @@
           <span id="nib-indicator-bar" class="nib-indicator-bar"></span>
         </span>
         <span id="nib-indicator-value" class="nib-indicator-value">45°</span>
+      </div>
+
+      <!-- Sharpen Selection dialog: sits in a corner so the live preview on
+           the canvas stays visible while the sliders move -->
+      <div id="sharpen-dialog" class="export-dialog dialog-corner is-hidden" role="dialog" aria-label="Sharpen Selection">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Sharpen Selection</p>
+          <label class="settings-field">
+            <span>Smooth</span>
+            <input id="sharpen-smooth" type="range" min="0" max="10" step="1" value="4" />
+          </label>
+          <label class="settings-field">
+            <span>Simplify</span>
+            <input id="sharpen-simplify" type="range" min="0" max="10" step="0.5" value="2" />
+          </label>
+          <div class="export-dialog-actions">
+            <button id="sharpen-apply-btn" class="btn btn-primary" type="button">Apply</button>
+            <button id="sharpen-cancel-btn" class="btn btn-ghost" type="button">Cancel</button>
+          </div>
+        </div>
       </div>
 
       <!-- Export page-selection dialog -->

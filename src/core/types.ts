@@ -21,12 +21,12 @@ export interface Point {
 /**
  * Tool used to lay down a stroke or interact with the canvas.
  *
- * The Sketch Support tools (`rect`, `ellipse`, `curve`, `bucket`, `fill`,
- * `eyedrop`) and the Direct Select tool (`point`) are UI-only: they never
- * persist on a stroke. Shape tools commit their outlines as `pen` strokes,
- * the bucket commits a filled `pen` shape, Fill Color recolors existing
- * strokes, Direct Select edits anchor points, and the eyedropper commits
- * nothing.
+ * The Sketch Support tools (`rect`, `ellipse`, `curve`, `vector`, `bucket`,
+ * `fill`, `eyedrop`) and the Direct Select tool (`point`) are UI-only: they
+ * never persist on a stroke. Shape tools and the Vector Path commit their
+ * outlines as `pen` strokes, the bucket commits a filled `pen` shape, Fill
+ * Color recolors existing strokes, Direct Select edits anchor points, and
+ * the eyedropper commits nothing.
  */
 export type Tool =
   | 'pen'
@@ -40,6 +40,7 @@ export type Tool =
   | 'rect'
   | 'ellipse'
   | 'curve'
+  | 'vector'
   | 'bucket'
   | 'fill'
   | 'eyedrop';
@@ -67,6 +68,23 @@ export interface Layer {
   group?: boolean;
   /** Id of the parent group layer. Absent = top level. */
   parent?: string;
+}
+
+/**
+ * A Vector Path anchor point with optional Bézier direction handles, stored
+ * as absolute positions. The segment leaving an anchor is a cubic Bézier
+ * B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3 where P0/P3 are the two
+ * anchors, P1 is this anchor's `hOut`, and P2 is the next anchor's `hIn`; a
+ * missing handle collapses onto its anchor, so two plain corners join with a
+ * straight segment.
+ */
+export interface VectorAnchor {
+  /** Anchor position (a path endpoint). */
+  p: { x: number; y: number };
+  /** Incoming direction handle (control point of the arriving segment). */
+  hIn?: { x: number; y: number };
+  /** Outgoing direction handle (control point of the leaving segment). */
+  hOut?: { x: number; y: number };
 }
 
 /**
@@ -117,6 +135,13 @@ export interface Stroke {
    * the sketch's first (bottom) layer.
    */
   layer?: string;
+  /**
+   * Editable vector structure for strokes whose `points` were sampled from
+   * Bézier anchors (Vector Path, Curve, and quick-curve commits). The Vector
+   * Path tool edits these anchors and resamples `points` from them; strokes
+   * without this field are plain freehand polylines.
+   */
+  vector?: { anchors: VectorAnchor[]; closed?: boolean };
   /** Image data URL (only present when `tool === 'image'`). */
   image?: string;
   /** Rendered image width in pixels (image items). `points[0]` is the top-left anchor. */

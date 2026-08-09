@@ -4,6 +4,140 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Strokes committed by the Vector Path, Curve, and quick-curve tools carry
+  their **Bézier anchor structure** in the `.skbk` file (an optional
+  `vector` field with anchors and absolute-position handles), so paths stay
+  editable across saves. Unknown or malformed data is dropped on load and
+  the stroke still renders from its sampled points.
+- **Vector Path edit mode**: with no path in progress, clicking a committed
+  vector stroke opens it for anchor editing. A plain click on a segment adds
+  an anchor there (de Casteljau split, shape preserved) and on an anchor
+  removes it; `Ctrl` drags a single anchor, one of its handles, or the
+  corner-rounding target; `Alt`-clicking an anchor toggles its handles
+  (smooth point to corner and back). Every change resamples the stroke from
+  its anchors, and `Esc` or an empty-canvas click puts the path down.
+- **Corner rounding**: with `Ctrl` held, the selected anchor of an edited
+  path shows a target icon inside its corner — dragging it rounds the corner
+  into a circular fillet, clamped to half the shorter adjacent chord — and a
+  **Radius** field in the top toolbar (visible while the Vector Path tool is
+  active) applies an exact radius to the selected anchor.
+- **Sharpen Selection** (toolbar button): smooths and simplifies the
+  selected strokes, in the spirit of a vector editor's simplify command. A
+  corner dialog with **Smooth** and **Simplify** sliders previews the result
+  live on the canvas; Apply commits one undo step, Cancel or `Esc` restores
+  the original geometry exactly.
+
+### Changed
+
+- The **Curve** tool now branches on pointer type: a mouse keeps the
+  two-phase chord-and-bend flow, while pen and touch input — which cannot
+  hover between clicks — draw with the quick curve's single-gesture quarter
+  arc. The former stylus freehand mode is replaced by that flow.
+- A finished **quick curve** is now exactly one cubic Bézier — two anchors
+  and two control points (the circle-constant construction, deviation under
+  a thousandth of the radius) — instead of an anchor per sample, so editing
+  it shows four points rather than dozens. The mouse Curve tool's bend
+  likewise commits its quadratic lifted to a cubic with two control points.
+- **Direct Select** pans with `Space` + drag, matching the Select tool, and
+  shows the same grab cursor while panning.
+- Finishing a Vector Path is more forgiving: **switching tools accepts the
+  pending path** — a tool shortcut (`S` for Select, `P` for Pen, …) or a
+  toolbar click commits the curve as drawn, as does the window losing focus.
+  `Enter`, double-click, and closing on the first point still work, and
+  `Esc` remains the only way to abandon a path.
+- Dragging a direction handle on a smooth anchor keeps the **opposite handle
+  collinear** through the anchor (the smooth reflection H' = 2P − H, with
+  each handle keeping its own length), so the curve bends smoothly instead
+  of creasing into a cusp at the anchor.
+- **Direct Select** edits Bézier-structured strokes through their anchors:
+  a stroke from the Vector Path, Curve, or quick-curve tools shows its few
+  anchor points (a quick curve shows two) with the selected anchor's
+  curvature handles, instead of a square on every sample. Dragging an
+  anchor carries its handles, dragging a handle bends the curve with the
+  smooth collinear reflection, and whole-path moves (Direct Select or the
+  Select tool) carry the anchor structure along so it never drifts from the
+  drawn points. Freehand strokes keep the sampled-point editing and
+  tangent-handle bend.
+- Tool pointers follow the vector-editor convention: the Select tool shows a
+  **black arrow** and Direct Select a **white arrow**. In Vector Path edit
+  mode the pointer telegraphs the click: a **"−" badge** over an anchor
+  (removable), a **"+" badge** over the path between anchors (insertable —
+  `Ctrl`-clicking a bare segment now inserts too), the **black Select
+  arrow** while `Ctrl` is held over anything grabbable, and a **stemless
+  arrowhead** while `Alt` is held for handle toggling. Modifier presses
+  restyle the pointer immediately, without waiting for the mouse to move.
+
+### Fixed
+
+- `Ctrl` and `Alt` now work reliably in Vector Path edit mode. Holding
+  `Ctrl` armed the Copic quick nib-rotate hold (its default hold key), which
+  switched tools after a second and collapsed the edit; the hold no longer
+  arms while the Vector Path tool is active. An `Alt` press could focus the
+  native menu bar, blurring the canvas and dropping the edit before the
+  click landed; `Alt` is consumed while the tool is active.
+- Anchors, handles, and the rounding target were nearly impossible to click:
+  the hit radius followed the Direct Select sensitivity (default 3 screen
+  pixels). Vector-edit targets now use a radius of at least 8 screen pixels.
+
+## [3.1.0-alpha] - 2026-08-08
+
+### Changed
+
+- Quick curve (`Ctrl + Space` + drag) now draws a quarter ellipse in a single
+  gesture instead of a chord you bend afterwards. The arc leaves the press
+  point with a flat tangent and meets the pointer with an upright one, bowing
+  through the far corner of the drag, and it reshapes live as the pointer
+  moves; the release (mouse-up or touch-up) places its far end. Pen, touch,
+  and mouse all take the same path, so the quick curve no longer borrows the
+  Curve tool's bend phase or its stylus special case.
+- Holding `Alt` during a quick curve makes the arc a quarter circle, with the
+  shorter drag axis setting the radius (matching `Shift` on the Ellipse tool).
+  `Alt` is tracked for as long as the drag runs, so pressing or releasing it
+  mid-drag toggles between circle and ellipse.
+- Each `Shift` press during a quick curve swings its apex — the bowed-out
+  belly of the arc — a further 90 degrees clockwise. Both ends stay exactly
+  where the drag put them, so the start remains anchored to whatever the
+  curve was begun on and the far end remains under the pointer; only the side
+  the curve bellies out to moves. Two presses mirror the sweep across its
+  chord and four bring the apex back around; on an `Alt` quarter circle (or a
+  square drag) the odd stops flatten the arc onto its chord, since a quarter
+  arc pinned at both ends can only bow two ways. Key auto-repeat is ignored,
+  so holding `Shift` parks the apex at one angle rather than spinning it.
+- Because `Shift` now aims a quick curve's apex, the quick curve's far end no
+  longer snaps to stroke endpoints; `Shift+Ctrl+Space` still snaps its
+  **start** on pointer-down. Endpoint snap is untouched everywhere else.
+- The quick straight line (`Space` + drag) locks **strictly horizontal or
+  vertical** while `Shift` is held mid-drag — whichever axis the drag favours
+  — and frees again the moment `Shift` is released, without waiting for the
+  pointer to move. The line's end therefore no longer snaps to stroke
+  endpoints (`Shift+Space` at press still snaps its start).
+- Direct Select's lone-anchor handles are now real **tangent handles**:
+  hollow tips on guide lines reaching a fixed screen distance out along the
+  path each way, instead of the raw neighbour samples (which sit a pixel or
+  two from the anchor on a dense stroke — too close to see or grab).
+  Dragging a handle bends the stroke around the pinned anchor: the span
+  between anchor and handle turns rigidly so the tip tracks the pointer, the
+  bend eases smoothly into the untouched remainder, and pulling the handle
+  longer or shorter stretches the span. Sparse strokes (a two-point line)
+  swing rigidly, so the handles work on every stroke shape.
+
+### Added
+
+- **Vector Path** tool (`B`, in the Sketch Support toolbar): an
+  Illustrator-style pen. Click to place corner points joined by straight
+  segments; click-drag to place a smooth point and pull out symmetric Bézier
+  direction handles; the next segment previews live as a rubber band. Click
+  the first point to close the path, `Enter` or double-click to finish it
+  open, `Esc` to abandon. Paths commit as editable pen strokes with the
+  current color, width, and opacity, are never auto-sharpened, and respect
+  symmetry mode; Direct Select can rework the committed points.
+
+The Curve tool (`V`) is unchanged: drag a chord, bend, click to place.
+
 ## [3.0.1-alpha] - 2026-07-30
 
 ### Fixed

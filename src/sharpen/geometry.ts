@@ -1,9 +1,10 @@
 /**
- * Geometry primitives and curve utilities used by the auto-sharpen engine.
- * Pure, dependency-free, and shared by both the Node and browser builds.
+ * Geometry primitives and curve utilities used by the auto-sharpen engine and
+ * the drawing tools. Pure, dependency-free, and shared by both the Node and
+ * browser builds.
  */
 
-import type { Point } from '../core/types.js';
+import type { Point, VectorAnchor } from '../core/types.js';
 
 /** A 2D vector / point with only spatial fields. */
 export interface Vec2 {
@@ -184,6 +185,215 @@ export function catmullRom(points: Point[], segments = 16, tension = 0.5): Point
   }
   out.push({ ...pts[pts.length - 1] });
   return out;
+}
+
+/**
+ * Quarter-ellipse arc from `a` to `b` — the quick-curve shape.
+ *
+ * Unturned, the arc leaves `a` with a horizontal tangent and reaches `b` with a
+ * vertical one, so it bows through the `(b.x, a.y)` corner of the drag box: the
+ * ellipse it belongs to is centred on the opposite corner, `(a.x, b.y)`. Both
+ * radii follow the drag, so the arc reshapes live as the pointer moves.
+ *
+ * `apexDegrees` swings the **apex** — the bowed-out belly of the arc — clockwise
+ * around the chord, without moving either end. It works because that centring
+ * corner sits on the circle having the chord `a`-`b` as its diameter: turning
+ * the centre around that circle keeps its two spokes to `a` and `b` at a right
+ * angle (Thales' theorem), so the sweep stays a true quarter ellipse pinned at
+ * both ends, and the apex orbits the chord's midpoint at a fixed distance.
+ * Since the radii are the spokes, they stretch as the apex turns — a turned
+ * quarter circle is an ellipse again, because a quarter circle through two
+ * fixed points can only bow two ways.
+ *
+ * `uniform` equalises the radii to make the unturned arc a quarter circle. The
+ * smaller drag axis sets the radius, matching the Shift-constrained ellipse
+ * tool, so the far end sits on the drag's shorter reach rather than at the
+ * pointer.
+ *
+ * Returns `samples + 1` points; a degenerate drag (either radius zero under
+ * `uniform`) collapses to a run of identical points, which callers reject.
+ */
+export function quarterArcPoints(
+  a: Point,
+  b: Point,
+  uniform: boolean,
+  apexDegrees = 0,
+  samples = 48,
+): Point[] {
+  const { cx, cy, ux, uy, vx, vy } = quarterArcBasis(a, b, uniform, apexDegrees);
+  const pts: Point[] = [];
+  for (let i = 0; i <= samples; i++) {
+    const t = (Math.PI / 2) * (i / samples);
+    const cos = Math.cos(t);
+    const sin = Math.sin(t);
+    pts.push({
+      x: cx + ux * cos + vx * sin,
+      y: cy + uy * cos + vy * sin,
+      pressure: 0.5,
+    });
+  }
+  return pts;
+}
+
+/**
+ * Centre and spoke vectors of the quarter arc: the sweep is
+ * c + u·cos(t) + v·sin(t) for t in [0, π/2], from `c + u` (the drag start)
+ * to `c + v` (the far end).
+ */
+function quarterArcBasis(
+  a: Point,
+  b: Point,
+  uniform: boolean,
+  apexDegrees: number,
+): { cx: number; cy: number; ux: number; uy: number; vx: number; vy: number } {
+  let dx = b.x - a.x;
+  let dy = b.y - a.y;
+  if (uniform) {
+    const size = Math.min(Math.abs(dx), Math.abs(dy));
+    dx = (Math.sign(dx) || 1) * size;
+    dy = (Math.sign(dy) || 1) * size;
+  }
+  const end = { x: a.x + dx, y: a.y + dy };
+
+  // Unturned, the centre sits level with the end point on the start point's
+  // vertical: the start is then an up/down extreme of the ellipse and the end a
+  // left/right one, which is exactly the flat-then-turning quarter the tool
+  // draws. Turning swings that centre around the chord's midpoint.
+  const mx = (a.x + end.x) / 2;
+  const my = (a.y + end.y) / 2;
+  const spokeX = a.x - mx;
+  const spokeY = end.y - my;
+  const rad = (apexDegrees * Math.PI) / 180;
+  const turnCos = Math.cos(rad);
+  const turnSin = Math.sin(rad);
+  const cx = mx + spokeX * turnCos - spokeY * turnSin;
+  const cy = my + spokeX * turnSin + spokeY * turnCos;
+  return { cx, cy, ux: a.x - cx, uy: a.y - cy, vx: end.x - cx, vy: end.y - cy };
+}
+
+/**
+ * Fraction of a quarter arc's spoke that places a cubic Bézier's control
+ * points so the cubic hugs the arc: 4/3 · tan(π/8), the standard circle
+ * constant (max deviation ≈ 0.03% of the radius).
+ */
+const KAPPA = 0.5522847498307936;
+
+/**
+ * The quarter arc as one cubic Bézier — two anchors and two control points.
+ * `p0`/`p3` are the arc's ends and `c1`/`c2` sit `KAPPA` spokes along the
+ * tangents, per B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3.
+ */
+export function quarterArcCubic(
+  a: Point,
+  b: Point,
+  uniform: boolean,
+  apexDegrees = 0,
+): {
+  p0: { x: number; y: number };
+  c1: { x: number; y: number };
+  c2: { x: number; y: number };
+  p3: { x: number; y: number };
+} {
+  const { cx, cy, ux, uy, vx, vy } = quarterArcBasis(a, b, uniform, apexDegrees);
+  const p0 = { x: cx + ux, y: cy + uy };
+  const p3 = { x: cx + vx, y: cy + vy };
+  return {
+    p0,
+    // The tangent at the start runs along v, and at the end along u.
+    c1: { x: p0.x + KAPPA * vx, y: p0.y + KAPPA * vy },
+    c2: { x: p3.x + KAPPA * ux, y: p3.y + KAPPA * uy },
+    p3,
+  };
+}
+
+/**
+ * Splits a cubic Bézier at parameter `t` (de Casteljau), returning the split
+ * point and the control points of the two halves. Both halves together trace
+ * exactly the original curve, which is what lets an anchor be inserted into
+ * a segment without changing its shape.
+ */
+export function splitCubicBezier(
+  p0: Vec2,
+  c1: Vec2,
+  c2: Vec2,
+  p3: Vec2,
+  t: number,
+): {
+  point: { x: number; y: number };
+  left: { c1: Vec2; c2: Vec2 };
+  right: { c1: Vec2; c2: Vec2 };
+} {
+  const mix = (a: Vec2, b: Vec2): Vec2 => ({
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+  });
+  const q0 = mix(p0, c1);
+  const q1 = mix(c1, c2);
+  const q2 = mix(c2, p3);
+  const r0 = mix(q0, q1);
+  const r1 = mix(q1, q2);
+  const m = mix(r0, r1);
+  return { point: m, left: { c1: q0, c2: r0 }, right: { c1: r1, c2: q2 } };
+}
+
+/**
+ * Rounds the corner at `anchor` into a circular fillet: the anchor is
+ * replaced by two anchors sitting `radius` back along each adjacent chord,
+ * with handles reaching `KAPPA · radius` toward the old corner so the fillet
+ * approximates a circle arc. The radius is clamped to half of the shorter
+ * adjacent chord; returns null when the corner is degenerate (a zero-length
+ * side).
+ */
+export function roundedCornerAnchors(
+  prev: Vec2,
+  corner: Vec2,
+  next: Vec2,
+  radius: number,
+): [VectorAnchor, VectorAnchor] | null {
+  const inLen = Math.hypot(corner.x - prev.x, corner.y - prev.y);
+  const outLen = Math.hypot(next.x - corner.x, next.y - corner.y);
+  if (inLen < 1e-6 || outLen < 1e-6) return null;
+  const r = Math.max(0, Math.min(radius, Math.min(inLen, outLen) / 2));
+  const inDir = { x: (corner.x - prev.x) / inLen, y: (corner.y - prev.y) / inLen };
+  const outDir = { x: (next.x - corner.x) / outLen, y: (next.y - corner.y) / outLen };
+  const a1 = { x: corner.x - inDir.x * r, y: corner.y - inDir.y * r };
+  const a2 = { x: corner.x + outDir.x * r, y: corner.y + outDir.y * r };
+  const k = KAPPA * r;
+  return [
+    { p: a1, hOut: { x: a1.x + inDir.x * k, y: a1.y + inDir.y * k } },
+    { p: a2, hIn: { x: a2.x - outDir.x * k, y: a2.y - outDir.y * k } },
+  ];
+}
+
+/**
+ * Samples a cubic Bézier from `a` to `b` with control points `c1` and `c2`.
+ * Returns `samples + 1` points including both endpoints — the segment shape
+ * used by the Vector Path tool (each anchor's out-handle is `c1`, the next
+ * anchor's in-handle is `c2`; a missing handle collapses onto its anchor,
+ * which is what makes corner-to-corner segments straight).
+ */
+export function cubicBezierPoints(
+  a: Point,
+  c1: Vec2,
+  c2: Vec2,
+  b: Point,
+  samples = 24,
+): Point[] {
+  const pts: Point[] = [];
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const mt = 1 - t;
+    const w0 = mt * mt * mt;
+    const w1 = 3 * mt * mt * t;
+    const w2 = 3 * mt * t * t;
+    const w3 = t * t * t;
+    pts.push({
+      x: w0 * a.x + w1 * c1.x + w2 * c2.x + w3 * b.x,
+      y: w0 * a.y + w1 * c1.y + w2 * c2.y + w3 * b.y,
+      pressure: 0.5,
+    });
+  }
+  return pts;
 }
 
 /** Least-squares circle fit (Kåsa method). Returns center, radius, and RMS error. */

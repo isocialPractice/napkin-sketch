@@ -20,6 +20,7 @@ import {
   isTextStroke,
   layerOf,
   type Layer,
+  type Point,
   type Sketch,
   type SketchBook,
   type Stroke,
@@ -187,7 +188,22 @@ export class Store {
   }
 
   private cloneStrokes(strokes: Stroke[]): Stroke[] {
-    return strokes.map((s) => ({ ...s, points: s.points.map((p) => ({ ...p })) }));
+    return strokes.map((s) => ({
+      ...s,
+      points: s.points.map((p) => ({ ...p })),
+      ...(s.vector
+        ? {
+            vector: {
+              anchors: s.vector.anchors.map((a) => ({
+                p: { ...a.p },
+                ...(a.hIn ? { hIn: { ...a.hIn } } : {}),
+                ...(a.hOut ? { hOut: { ...a.hOut } } : {}),
+              })),
+              ...(s.vector.closed ? { closed: true as const } : {}),
+            },
+          }
+        : {}),
+    }));
   }
 
   /**
@@ -352,6 +368,23 @@ export class Store {
     this.emit();
   }
 
+  /** Shifts a stroke's Bézier anchor structure with its points. */
+  private shiftVector(stroke: Stroke, dx: number, dy: number): void {
+    if (!stroke.vector) return;
+    for (const anchor of stroke.vector.anchors) {
+      anchor.p.x += dx;
+      anchor.p.y += dy;
+      if (anchor.hIn) {
+        anchor.hIn.x += dx;
+        anchor.hIn.y += dy;
+      }
+      if (anchor.hOut) {
+        anchor.hOut.x += dx;
+        anchor.hOut.y += dy;
+      }
+    }
+  }
+
   /** Moves all selected strokes by (dx, dy) without pushing history. */
   nudgeSelected(dx: number, dy: number): void {
     if (this.selectedIds.size === 0) return;
@@ -361,6 +394,7 @@ export class Store {
         p.x += dx;
         p.y += dy;
       }
+      this.shiftVector(stroke, dx, dy);
     }
     this.touch();
   }
@@ -378,6 +412,42 @@ export class Store {
     this.touch();
   }
 
+  /**
+   * Replaces a stroke's sampled points and editable vector structure — the
+   * Vector Path edit and Sharpen Selection flows, which regenerate geometry
+   * wholesale (no history; callers push it per discrete operation). Passing
+   * no `vector` clears the structure, since points reshaped outside the
+   * anchor model no longer match it.
+   */
+  setStrokeGeometry(strokeId: string, points: Point[], vector?: Stroke['vector']): void {
+    const stroke = this.sketch.strokes.find((s) => s.id === strokeId);
+    if (!stroke || points.length === 0) return;
+    stroke.points = points;
+    if (vector) stroke.vector = vector;
+    else delete stroke.vector;
+    this.touch();
+  }
+
+  /**
+   * Sets absolute positions for specific points of a stroke — the Direct
+   * Select handle drag, which recomputes every affected point from the
+   * geometry captured at drag start (no history; pushed at drag start).
+   */
+  setStrokePointPositions(
+    strokeId: string,
+    updates: Array<{ index: number; x: number; y: number }>,
+  ): void {
+    const stroke = this.sketch.strokes.find((s) => s.id === strokeId);
+    if (!stroke) return;
+    for (const { index, x, y } of updates) {
+      const point = stroke.points[index];
+      if (!point) continue;
+      point.x = x;
+      point.y = y;
+    }
+    this.touch();
+  }
+
   /** Moves every point of a stroke by (dx, dy) — Direct Select path move (no history). */
   nudgeStroke(strokeId: string, dx: number, dy: number): void {
     const stroke = this.sketch.strokes.find((s) => s.id === strokeId);
@@ -386,6 +456,7 @@ export class Store {
       point.x += dx;
       point.y += dy;
     }
+    this.shiftVector(stroke, dx, dy);
     this.touch();
   }
 

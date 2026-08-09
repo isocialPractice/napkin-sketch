@@ -758,6 +758,41 @@ body {
   gap: var(--s2);
 }
 
+/* Corner variant: no backdrop, anchored bottom-right, so a live preview on
+   the canvas stays visible while the dialog is open. */
+.export-dialog.dialog-corner {
+  inset: auto var(--s5) var(--s5) auto;
+  background: none;
+  backdrop-filter: none;
+}
+
+.export-dialog.dialog-corner .export-dialog-inner {
+  min-width: 220px;
+}
+
+/* Vector Path corner-radius field in the toolbar. */
+.vector-options {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.vector-options input[type="number"] {
+  width: 56px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.vector-options.is-hidden {
+  display: none;
+}
+
 /* ---- Focus & accessibility ---------------------------------------------- */
 
 :focus-visible {

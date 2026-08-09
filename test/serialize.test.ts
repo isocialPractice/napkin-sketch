@@ -153,3 +153,63 @@ test('image items keep their data and are dropped when the data is missing', () 
   assert.equal(strokes[0].imageWidth, 40);
   assert.equal(strokes[0].imageHeight, 30);
 });
+
+test('vector anchor structure survives a save/load round trip', () => {
+  const book = normalizeSketchBook(
+    {
+      sketches: [
+        {
+          strokes: [
+            {
+              tool: 'pen',
+              points: [
+                { x: 0, y: 0 },
+                { x: 50, y: 50 },
+              ],
+              vector: {
+                anchors: [
+                  { p: { x: 0, y: 0 }, hOut: { x: 10, y: -10 } },
+                  { p: { x: 50, y: 50 }, hIn: { x: 40, y: 60 } },
+                ],
+                closed: true,
+              },
+            },
+          ],
+        },
+      ],
+    },
+    'demo',
+  );
+  const restored = parseSketchBook(serializeSketchBook(book), 'demo');
+  const vector = restored.sketches[0].strokes[0].vector;
+  assert.ok(vector);
+  assert.equal(vector.anchors.length, 2);
+  assert.deepEqual(vector.anchors[0].hOut, { x: 10, y: -10 });
+  assert.deepEqual(vector.anchors[1].hIn, { x: 40, y: 60 });
+  assert.equal(vector.closed, true);
+});
+
+test('malformed vector data drops cleanly while the stroke survives', () => {
+  const book = normalizeSketchBook(
+    {
+      sketches: [
+        {
+          strokes: [
+            {
+              tool: 'pen',
+              points: [
+                { x: 0, y: 0 },
+                { x: 9, y: 9 },
+              ],
+              vector: { anchors: [{ p: { x: 'bad' } }] },
+            },
+          ],
+        },
+      ],
+    },
+    'demo',
+  );
+  const stroke = book.sketches[0].strokes[0];
+  assert.equal(stroke.vector, undefined);
+  assert.equal(stroke.points.length, 2);
+});

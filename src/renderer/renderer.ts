@@ -24,11 +24,20 @@ import {
   type Sketch,
   type Stroke,
   type Tool,
+  type VectorAnchor,
 } from '../core/types.js';
 import type { ExportFormat, ImageFormat, MenuAction } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
 import { sketchesToPdf } from '../core/pdf.js';
 import { defaultSettings, type AppSettings, type QuickModifier } from '../core/settings.js';
+import {
+  catmullRom,
+  cubicBezierPoints,
+  quarterArcCubic,
+  roundedCornerAnchors,
+  simplify,
+  splitCubicBezier,
+} from '../sharpen/geometry.js';
 import { sharpenStroke } from '../sharpen/sharpen.js';
 import { Surface, strokeBounds, type LiveStroke } from './surface.js';
 import { Store, type ToolState } from './store.js';
@@ -51,9 +60,60 @@ const TEXT_DRAG_THRESHOLD = 10;
  */
 const PAN_ZOOM_THRESHOLD = 72;
 
+/** Degrees the quick curve's apex swings clockwise on each `Shift` press. */
+const QUICK_CURVE_APEX_STEP = 90;
+
+/**
+ * Direct Select tangent handles: how far along the path (screen px) a lone
+ * selected anchor's handles reach, and the multiple of that reach over which
+ * a handle drag's bend fades back into the untouched remainder of the stroke.
+ */
+const HANDLE_REACH_PX = 42;
+const HANDLE_FALLOFF = 2.5;
+
 /** Stroke-width bounds (mirrors the width slider in the toolbar). */
 const MIN_WIDTH = 1;
 const MAX_WIDTH = 40;
+
+/** Builds a CSS cursor value from inline SVG with a hotspot and fallback. */
+function svgCursor(svg: string, x: number, y: number, fallback = 'default'): string {
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${x} ${y}, ${fallback}`;
+}
+
+/**
+ * Custom pointers. The Select tool carries the filled black arrow and Direct
+ * Select the white one, mirroring the selection/direct-selection convention
+ * of vector editors; the stemless arrowhead marks the Vector Path tool's
+ * Alt (handle-toggle) mode, and the +/- badges show where a click will add
+ * an anchor to the edited path or remove one from it.
+ */
+const CURSOR_ARROW_BLACK = svgCursor(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18'><path d='M1 1 L1 14.5 L4.6 11.4 L6.8 16 L9.3 14.9 L7.1 10.5 L11.8 10.5 Z' fill='#1f2328' stroke='#ffffff' stroke-width='1.2' stroke-linejoin='round'/></svg>`,
+  1,
+  1,
+);
+const CURSOR_ARROW_WHITE = svgCursor(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18'><path d='M1 1 L1 14.5 L4.6 11.4 L6.8 16 L9.3 14.9 L7.1 10.5 L11.8 10.5 Z' fill='#ffffff' stroke='#1f2328' stroke-width='1.2' stroke-linejoin='round'/></svg>`,
+  1,
+  1,
+);
+const CURSOR_ARROWHEAD = svgCursor(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><path d='M1.5 1.5 L4 13.5 L12.5 6.5 Z' fill='#ffffff' stroke='#1f2328' stroke-width='1.2' stroke-linejoin='round'/></svg>`,
+  1,
+  1,
+);
+const CURSOR_ADD_POINT = svgCursor(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><circle cx='8' cy='8' r='6.5' fill='#ffffff' stroke='#1f2328'/><path d='M8 4.5 V11.5 M4.5 8 H11.5' stroke='#1f2328' stroke-width='1.6'/></svg>`,
+  8,
+  8,
+  'copy',
+);
+const CURSOR_REMOVE_POINT = svgCursor(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><circle cx='8' cy='8' r='6.5' fill='#ffffff' stroke='#1f2328'/><path d='M4.5 8 H11.5' stroke='#1f2328' stroke-width='1.6'/></svg>`,
+  8,
+  8,
+  'no-drop',
+);
 
 /** KeyboardEvent.key value produced by each configurable quick-feature modifier. */
 const MODIFIER_EVENT_KEYS: Record<QuickModifier, string> = {
@@ -74,6 +134,7 @@ const TOOL_IDS = [
   'tool-rect',
   'tool-ellipse',
   'tool-curve',
+  'tool-vector',
   'tool-bucket',
   'tool-fill',
   'tool-eyedrop',
@@ -131,10 +192,14 @@ class App {
   private lastGestureDist = 0;
   private lastCentroid: { x: number; y: number } | null = null;
 
-  // Straight-line (Space + drag) state.
+  // Straight-line (Space + drag) state. `straightRaw` is the unconstrained
+  // pointer position, kept so pressing or releasing Shift mid-drag (which
+  // toggles the strict horizontal/vertical constraint) can recompute the end
+  // without waiting for the pointer to move.
   private spaceDown = false;
   private straightStart: Point | null = null;
   private straightEnd: Point | null = null;
+  private straightRaw: Point | null = null;
 
   // Select-tool Space + drag pan state (screen-space pointer tracking).
   private panDragging = false;
@@ -150,30 +215,89 @@ class App {
   private shapeStart: Point | null = null;
 
   // Curve tool: chord endpoints; after the chord drag is released the tool
-  // enters the bend phase (move to bow the curve, click to commit).
+  // enters the bend phase (move to bow the curve, click to commit). The bend
+  // control point is kept so the commit can carry the curve's editable
+  // two-anchor Bézier structure.
   private curveA: Point | null = null;
   private curveB: Point | null = null;
   private curveBending = false;
+  private curveControl: { x: number; y: number } | null = null;
   // Stroke tool the pending curve commits as (current tool in quick mode).
   private curveTool: Tool = 'pen';
   // Curve variant (tool flyout): the default snaps the chord's start and end
   // to nearby stroke endpoints; 'free' keeps the ends where the pointer is.
   private curveVariant: 'endpoints' | 'free' = 'endpoints';
-  // Curve stylus mode: a pen draws the whole curve in one gesture (the drag
-  // path defines both the chord and the bend), since it cannot hover between
-  // the mouse tool's two clicks. Holds the sampled drag path while active.
-  private curveStylus = false;
-  private curvePath: Point[] = [];
+  // Quick curve (Ctrl + Space + drag): true while the quarter-arc drag runs.
+  // Unlike the Curve tool it has no bend phase — the drag start and the point
+  // released at draw the whole arc, so pointer-up commits it. `Alt` swaps the
+  // quarter ellipse for a quarter circle and can be pressed or let go mid-drag.
+  // Each `Shift` press swings the arc's apex a further step clockwise
+  // (degrees); both ends stay where the drag put them.
+  private quickCurve = false;
+  private quickCurveUniform = false;
+  private quickCurveApex = 0;
 
   // Direct Select (A): stroke whose anchor points are shown, which anchors
   // are selected (Shift adds), whether the whole path is selected, and the
-  // in-progress drag (an anchor set, a single handle, or the whole path).
+  // in-progress drag. Freehand strokes edit raw samples ('anchor' moves
+  // them, 'handle' is the tangent-handle bend); strokes with Bézier
+  // structure edit their few vector anchors instead ('vanchor' moves one,
+  // 'vhIn'/'vhOut' steer its curvature handles), so a curve shows two or
+  // three points rather than every sample.
   private anchorStrokeId: string | null = null;
   private selectedAnchors = new Set<number>();
   private pathSelected = false;
-  private anchorDragKind: 'anchor' | 'handle' | 'path' | null = null;
-  private anchorDragHandle: number | null = null;
+  private anchorDragKind: 'anchor' | 'handle' | 'path' | 'vanchor' | 'vhIn' | 'vhOut' | null =
+    null;
   private anchorDragLast: Point | null = null;
+  // Tangent-handle drag, captured at grab time. The handle pivots the curve
+  // around the anchor: the span between anchor and handle turns rigidly and
+  // the effect fades to nothing over the falloff window, so each move is
+  // recomputed from these original positions (never accumulated).
+  private handleDrag: {
+    anchor: Point;
+    tip: { x: number; y: number };
+    points: Array<{ index: number; x: number; y: number; weight: number }>;
+  } | null = null;
+
+  // Vector Path (B): the pen-tool path being placed. Each anchor holds its
+  // position plus optional Bézier direction handles — `hOut` steers the
+  // segment leaving it, `hIn` the segment arriving (a drag on placement pulls
+  // both out symmetrically; a plain click leaves them unset for a corner).
+  // `vectorDragging` is true while that placement drag runs, and
+  // `vectorHover` previews the rubber-band segment to the pointer.
+  private vectorAnchors: VectorAnchor[] = [];
+  private vectorDragging = false;
+  private vectorHover: Point | null = null;
+
+  // Vector Path edit mode: a committed vector stroke whose anchors are being
+  // reworked. Plain clicks add (on a segment) or remove (on an anchor)
+  // points; Ctrl grabs a single anchor, handle, or the corner-rounding
+  // target; Alt toggles an anchor's direction handles. Every change
+  // regenerates the stroke's sampled points from the working anchors.
+  private vectorEditId: string | null = null;
+  private vectorEditAnchors: VectorAnchor[] = [];
+  private vectorEditClosed = false;
+  private vectorEditSelected: number | null = null;
+  private vectorEditDrag:
+    | { kind: 'anchor' | 'hIn' | 'hOut'; index: number; last: Point }
+    | { kind: 'round'; index: number; base: VectorAnchor[] }
+    | null = null;
+  // Live Ctrl/Alt tracking: Ctrl shows the corner-rounding target and the
+  // Select pointer in vector edit mode, Alt the handle-toggle arrowhead.
+  private ctrlDown = false;
+  private altDown = false;
+  // Last hover position inside a vector edit, so modifier presses can
+  // restyle the pointer without waiting for the mouse to move.
+  private vectorEditHoverPt: Point | null = null;
+
+  // Sharpen Selection: original geometry of the strokes being previewed in
+  // the dialog, keyed by stroke id, so Cancel restores them exactly and
+  // Apply can record one clean history step from the pre-dialog state.
+  private sharpenPreview: Map<
+    string,
+    { points: Point[]; vector?: Stroke['vector'] }
+  > | null = null;
 
   // Eyedropper: true while Ctrl temporarily switched to the select tool.
   private eyedropTempSelect = false;
@@ -233,6 +357,8 @@ class App {
     this.bindKeyboard();
     this.bindResize();
     this.bindMenu();
+    this.bindVectorOptions();
+    this.bindSharpenSelection();
 
     this.resizeSurface();
   }
@@ -299,7 +425,7 @@ class App {
                 color: this.store.tool.color,
                 width: this.store.tool.width,
               }
-            : this.curveA && this.curveB && !this.curveBending
+            : this.curveA && this.curveB && !this.curveBending && !this.quickCurve
               ? {
                   a: this.curveA,
                   b: this.curveB,
@@ -317,21 +443,81 @@ class App {
   private anchorOverlay(): {
     points: Point[];
     selected?: number[];
-    handles?: number[];
+    handles?: Point[];
     handleOrigin?: number;
     pathSelected?: boolean;
+    outline?: Point[];
+    roundTarget?: Point;
   } | null {
+    // Vector Path edit mode: every anchor of the edited path, the selected
+    // one with its direction handles, plus the corner-rounding target while
+    // Ctrl is held.
+    if (this.store.tool.tool === 'vector' && this.vectorEditId) {
+      const sel = this.vectorEditSelected;
+      const anchor = sel !== null ? this.vectorEditAnchors[sel] : undefined;
+      const handles: Point[] = [];
+      if (anchor?.hIn) handles.push({ ...anchor.hIn, pressure: 0.5 });
+      if (anchor?.hOut) handles.push({ ...anchor.hOut, pressure: 0.5 });
+      const target = this.ctrlDown && sel !== null ? this.roundTargetPos(sel) : null;
+      return {
+        points: this.vectorEditAnchors.map((a) => ({ ...a.p, pressure: 0.5 })),
+        selected: sel !== null ? [sel] : [],
+        handles,
+        handleOrigin: sel ?? undefined,
+        ...(target ? { roundTarget: target } : {}),
+      };
+    }
+
+    // Vector Path: show the placed anchors, the newest one selected, with its
+    // pulled-out direction handles.
+    if (this.store.tool.tool === 'vector' && this.vectorAnchors.length > 0) {
+      const lastIndex = this.vectorAnchors.length - 1;
+      const last = this.vectorAnchors[lastIndex];
+      const handles: Point[] = [];
+      if (last.hOut) handles.push({ ...last.hOut, pressure: 0.5 });
+      if (last.hIn) handles.push({ ...last.hIn, pressure: 0.5 });
+      return {
+        points: this.vectorAnchors.map((a) => a.p),
+        selected: [lastIndex],
+        handles,
+        handleOrigin: lastIndex,
+      };
+    }
+
     if (this.store.tool.tool !== 'point' || !this.anchorStrokeId) return null;
     const stroke = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
     if (!stroke || isTextStroke(stroke) || isImageStroke(stroke)) return null;
-    // A single selected anchor exposes its neighbours as draggable handles.
+
+    // A stroke with Bézier structure shows its few anchors — the curvature
+    // lives in the selected anchor's handles — instead of every sample.
+    if (stroke.vector) {
+      const anchors = stroke.vector.anchors;
+      let handleOrigin: number | undefined;
+      const handles: Point[] = [];
+      if (this.selectedAnchors.size === 1) {
+        handleOrigin = [...this.selectedAnchors][0];
+        const anchor = anchors[handleOrigin];
+        if (anchor?.hIn) handles.push({ ...anchor.hIn, pressure: 0.5 });
+        if (anchor?.hOut) handles.push({ ...anchor.hOut, pressure: 0.5 });
+      }
+      return {
+        points: anchors.map((a) => ({ ...a.p, pressure: 0.5 })),
+        selected: [...this.selectedAnchors],
+        handles,
+        handleOrigin,
+        pathSelected: this.pathSelected,
+        // The whole-path outline follows the sampled curve, not the chord
+        // between the two anchors.
+        outline: stroke.points,
+      };
+    }
+
+    // A single selected anchor exposes its tangent handles.
     let handleOrigin: number | undefined;
-    let handles: number[] = [];
+    let handles: Point[] = [];
     if (this.selectedAnchors.size === 1) {
       handleOrigin = [...this.selectedAnchors][0];
-      handles = [handleOrigin - 1, handleOrigin + 1].filter(
-        (h) => h >= 0 && h < stroke.points.length,
-      );
+      handles = this.anchorHandleTips(stroke, handleOrigin).map((h) => h.tip);
     }
     return {
       points: stroke.points,
@@ -340,6 +526,64 @@ class App {
       handleOrigin,
       pathSelected: this.pathSelected,
     };
+  }
+
+  /**
+   * Tangent-handle tips for an anchor: one per side of the stroke that has
+   * any length, sitting on the path at the handle reach (a fixed screen
+   * distance, so zoom changes the bend's grain, not the handle's size). On a
+   * dense freehand stroke the raw neighbour samples sit a pixel or two from
+   * the anchor — far too close to see or grab — so the tips reach out along
+   * the path instead, like a vector editor's direction handles.
+   */
+  private anchorHandleTips(
+    stroke: Stroke,
+    origin: number,
+  ): Array<{ side: -1 | 1; tip: Point; reach: number }> {
+    const reach = HANDLE_REACH_PX / this.surface.getViewport().zoom;
+    const tips: Array<{ side: -1 | 1; tip: Point; reach: number }> = [];
+    for (const side of [-1, 1] as const) {
+      const walked = this.walkPath(stroke.points, origin, side, reach);
+      if (walked && walked.distance > 1) {
+        tips.push({ side, tip: walked.point, reach: walked.distance });
+      }
+    }
+    return tips;
+  }
+
+  /**
+   * Walks the polyline from `origin` in `side` direction until `target` path
+   * distance, returning the (interpolated) point there — or the side's last
+   * point when the side is shorter. Null when the side has no points.
+   */
+  private walkPath(
+    points: Point[],
+    origin: number,
+    side: -1 | 1,
+    target: number,
+  ): { point: Point; distance: number } | null {
+    let travelled = 0;
+    let prev = points[origin];
+    if (!prev) return null;
+    for (let i = origin + side; i >= 0 && i < points.length; i += side) {
+      const curr = points[i];
+      const seg = Math.hypot(curr.x - prev.x, curr.y - prev.y);
+      if (travelled + seg >= target && seg > 0) {
+        const t = (target - travelled) / seg;
+        return {
+          point: {
+            x: prev.x + (curr.x - prev.x) * t,
+            y: prev.y + (curr.y - prev.y) * t,
+            pressure: 0.5,
+          },
+          distance: target,
+        };
+      }
+      travelled += seg;
+      prev = curr;
+    }
+    if (prev === points[origin]) return null;
+    return { point: { ...prev }, distance: travelled };
   }
 
   private resizeSurface(): void {
@@ -363,6 +607,12 @@ class App {
       if (this.activePointerId !== null) this.onPointerUp(e);
     });
     c.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
+    // Vector Path: a double-click finishes the open path where it stands.
+    c.addEventListener('dblclick', () => {
+      if (this.store.tool.tool === 'vector' && this.vectorAnchors.length >= 2) {
+        this.commitVectorPath(false);
+      }
+    });
     c.style.touchAction = 'none';
   }
 
@@ -418,9 +668,14 @@ class App {
       return;
     }
 
-    // Direct Select: grab an anchor point, or pick a stroke to edit.
+    // Direct Select: Space + drag pans (as with the Select tool); otherwise
+    // grab an anchor point, or pick a stroke to edit.
     if (tool === 'point') {
       e.preventDefault();
+      if (this.spaceDown) {
+        this.beginPanDrag(e);
+        return;
+      }
       this.beginPointSelect(e, pt);
       return;
     }
@@ -470,10 +725,56 @@ class App {
       this.curveA = start;
       this.curveB = start;
       this.curveBending = false;
-      // A pen/stylus draws the curve in one gesture (see commitStylusCurve).
-      this.curveStylus = e.pointerType === 'pen';
-      this.curvePath = this.curveStylus ? [start] : [];
+      // The quick curve draws the whole arc in one gesture. The Curve tool
+      // keeps its two-phase chord-and-bend flow for a mouse, which can hover
+      // between clicks; pen and touch input cannot, so they take the quick
+      // curve's single-gesture flow instead.
+      this.quickCurve = tool !== 'curve' || e.pointerType !== 'mouse';
+      this.quickCurveUniform = this.quickCurve && e.altKey;
+      this.quickCurveApex = 0;
       this.scheduleRender();
+      return;
+    }
+
+    // Vector Path: each press places an anchor (drag pulls out its Bézier
+    // handles; a plain click leaves a corner). Pressing on the first anchor
+    // closes the path and commits it. Space defers to the quick straight
+    // line, as with every drawing tool.
+    if (tool === 'vector' && !this.spaceDown) {
+      e.preventDefault();
+      // Editing a committed path claims every press; with no pending path, a
+      // press on an existing vector stroke picks it up for editing instead
+      // of starting a new path.
+      if (this.vectorEditId) {
+        this.vectorEditPointerDown(e, pt);
+        return;
+      }
+      if (this.vectorAnchors.length === 0) {
+        const editable = this.findVectorStroke(pt);
+        if (editable) {
+          this.enterVectorEdit(editable);
+          return;
+        }
+      }
+      const grab = this.vectorGrab();
+      const first = this.vectorAnchors[0];
+      if (
+        first &&
+        this.vectorAnchors.length >= 2 &&
+        Math.hypot(first.p.x - pt.x, first.p.y - pt.y) <= grab
+      ) {
+        this.commitVectorPath(true);
+        return;
+      }
+      this.activePointerId = e.pointerId;
+      this.canvas.setPointerCapture(e.pointerId);
+      this.vectorAnchors.push({ p: { x: pt.x, y: pt.y } });
+      this.vectorDragging = true;
+      this.vectorHover = null;
+      if (this.vectorAnchors.length === 1) {
+        this.toast('Click to add points, drag for curves; click the first point to close, Enter to finish (Esc cancels).');
+      }
+      this.previewVectorPath();
       return;
     }
 
@@ -486,17 +787,16 @@ class App {
       this.startSnapHit = this.snapTarget;
       this.straightStart = start;
       this.straightEnd = start;
+      this.straightRaw = start;
       this.scheduleRender();
       return;
     }
 
-    // Select tool + Space: drag to pan the canvas (quick-feature pan).
+    // Select tool + Space: drag to pan the canvas (quick-feature pan). The
+    // Direct Select branch above routes its own Space press here too.
     if (this.spaceDown && tool === 'select') {
       e.preventDefault();
-      this.activePointerId = e.pointerId;
-      this.canvas.setPointerCapture(e.pointerId);
-      this.panDragging = true;
-      this.panLast = { x: e.clientX, y: e.clientY };
+      this.beginPanDrag(e);
       return;
     }
 
@@ -591,8 +891,12 @@ class App {
         const dy = pt.y - this.anchorDragLast.y;
         if (this.anchorDragKind === 'anchor') {
           this.store.nudgeStrokePoints(this.anchorStrokeId, [...this.selectedAnchors], dx, dy);
-        } else if (this.anchorDragKind === 'handle' && this.anchorDragHandle !== null) {
-          this.store.nudgeStrokePoints(this.anchorStrokeId, [this.anchorDragHandle], dx, dy);
+        } else if (this.anchorDragKind === 'handle') {
+          this.applyHandleDrag(pt);
+        } else if (this.anchorDragKind === 'vanchor') {
+          this.dragVectorPointAnchors(dx, dy);
+        } else if (this.anchorDragKind === 'vhIn' || this.anchorDragKind === 'vhOut') {
+          this.dragVectorPointHandle(this.anchorDragKind, pt);
         } else if (this.anchorDragKind === 'path') {
           this.store.nudgeStroke(this.anchorStrokeId, dx, dy);
         }
@@ -601,16 +905,21 @@ class App {
       return;
     }
 
+    // Quick curve: the pointer sizes the arc, and Alt (tracked live) decides
+    // quarter circle versus quarter ellipse. The far end does not snap to
+    // stroke endpoints, because Shift is the apex key here, so the snap ring
+    // from a Shift-anchored start is dropped once the drag is under way.
+    if (this.quickCurve && this.curveA !== null && this.activePointerId === e.pointerId) {
+      this.curveB = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      this.quickCurveUniform = e.altKey;
+      this.setSnapTarget(null);
+      this.previewQuickCurve();
+      return;
+    }
+
     // Curve, chord phase: update the dashed chord endpoint (Shift snaps it).
     if (this.curveA !== null && !this.curveBending && this.activePointerId === e.pointerId) {
       const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
-      if (this.curveStylus) {
-        // Sample the freehand path; preview the simulated single-gesture curve.
-        this.curvePath.push(pt);
-        this.curveB = pt;
-        this.previewStylusCurve();
-        return;
-      }
       const snapEnds = e.shiftKey || (tool === 'curve' && this.curveVariant === 'endpoints');
       this.curveB = this.applyEndpointSnap(pt, snapEnds, this.curveTool);
       this.scheduleRender();
@@ -625,6 +934,7 @@ class App {
         x: 2 * m.x - (this.curveA.x + this.curveB.x) / 2,
         y: 2 * m.y - (this.curveA.y + this.curveB.y) / 2,
       };
+      this.curveControl = control;
       const { color, width, opacity, nibAngle } = this.store.tool;
       this.live = {
         id: this.live?.id ?? createId('st'),
@@ -652,12 +962,113 @@ class App {
       return;
     }
 
-    // Straight-line mode: update the dashed preview endpoint (snapped to the
-    // nearest stroke endpoint while Shift is held).
-    if (this.straightStart !== null && this.activePointerId === e.pointerId) {
+    // Vector Path edit mode: drag the grabbed anchor (handles ride along),
+    // handle, or corner-rounding target.
+    if (this.vectorEditDrag && this.vectorEditId && this.activePointerId === e.pointerId) {
       const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
-      this.straightEnd = this.applyEndpointSnap(pt, e.shiftKey, tool);
-      this.scheduleRender();
+      const drag = this.vectorEditDrag;
+      if (drag.kind === 'round') {
+        const corner = drag.base[drag.index];
+        if (corner) {
+          this.applyCornerRadius(drag, Math.hypot(pt.x - corner.p.x, pt.y - corner.p.y));
+        }
+      } else {
+        const anchor = this.vectorEditAnchors[drag.index];
+        if (anchor) {
+          if (drag.kind === 'anchor') {
+            const dx = pt.x - drag.last.x;
+            const dy = pt.y - drag.last.y;
+            anchor.p.x += dx;
+            anchor.p.y += dy;
+            if (anchor.hIn) {
+              anchor.hIn.x += dx;
+              anchor.hIn.y += dy;
+            }
+            if (anchor.hOut) {
+              anchor.hOut.x += dx;
+              anchor.hOut.y += dy;
+            }
+          } else {
+            const handle = drag.kind === 'hIn' ? anchor.hIn : anchor.hOut;
+            if (handle) {
+              handle.x = pt.x;
+              handle.y = pt.y;
+              // Smooth-point reflection: the opposite handle turns to stay
+              // collinear through the anchor (H' = P + (P - H) scaled to its
+              // own length), so the curve keeps a continuous tangent instead
+              // of creasing into a cusp at the anchor.
+              const opposite = drag.kind === 'hIn' ? anchor.hOut : anchor.hIn;
+              if (opposite) {
+                const dx = anchor.p.x - handle.x;
+                const dy = anchor.p.y - handle.y;
+                const len = Math.hypot(dx, dy);
+                if (len > 1e-6) {
+                  const oppLen = Math.hypot(
+                    opposite.x - anchor.p.x,
+                    opposite.y - anchor.p.y,
+                  );
+                  opposite.x = anchor.p.x + (dx / len) * oppLen;
+                  opposite.y = anchor.p.y + (dy / len) * oppLen;
+                }
+              }
+            }
+          }
+          drag.last = pt;
+          this.applyVectorEdit();
+        }
+      }
+      return;
+    }
+
+    // Vector Path edit mode, hovering: restyle the pointer for what a click
+    // would do at this position (add, remove, or grab).
+    if (
+      this.vectorEditId &&
+      tool === 'vector' &&
+      !this.vectorEditDrag &&
+      this.activePointerId === null &&
+      this.straightStart === null
+    ) {
+      this.vectorEditHoverPt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      this.updateVectorEditCursor();
+      return;
+    }
+
+    // Vector Path: while placing, the drag pulls the newest anchor's handles
+    // out symmetrically (Illustrator-style smooth point); otherwise the
+    // pointer position previews the next segment as a rubber band. An active
+    // quick straight line takes precedence over the hover preview.
+    if (tool === 'vector' && this.straightStart === null) {
+      const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      if (this.vectorDragging && this.activePointerId === e.pointerId) {
+        const anchor = this.vectorAnchors[this.vectorAnchors.length - 1];
+        const dx = pt.x - anchor.p.x;
+        const dy = pt.y - anchor.p.y;
+        if (Math.hypot(dx, dy) >= 3) {
+          anchor.hOut = { x: anchor.p.x + dx, y: anchor.p.y + dy };
+          anchor.hIn = { x: anchor.p.x - dx, y: anchor.p.y - dy };
+        } else {
+          // Back inside the click radius: the anchor reverts to a corner.
+          anchor.hOut = undefined;
+          anchor.hIn = undefined;
+        }
+        this.previewVectorPath();
+        return;
+      }
+      if (this.vectorAnchors.length > 0) {
+        this.vectorHover = pt;
+        this.previewVectorPath();
+        return;
+      }
+    }
+
+    // Straight-line mode: update the dashed preview endpoint. While Shift is
+    // held the line is strictly horizontal or vertical (whichever axis the
+    // drag favours); releasing Shift frees it again mid-drag.
+    if (this.straightStart !== null && this.activePointerId === e.pointerId) {
+      this.straightRaw = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      this.setSnapTarget(null);
+      this.updateStraightEnd(e.shiftKey);
       return;
     }
 
@@ -742,10 +1153,44 @@ class App {
         this.canvas.releasePointerCapture(e.pointerId);
       }
       this.anchorDragKind = null;
-      this.anchorDragHandle = null;
+      this.handleDrag = null;
       this.anchorDragLast = null;
       this.activePointerId = null;
       this.scheduleRender();
+      return;
+    }
+
+    // Vector Path edit mode: the release ends the anchor/handle/round drag.
+    if (this.vectorEditDrag && this.activePointerId === e.pointerId) {
+      if (this.canvas.hasPointerCapture(e.pointerId)) {
+        this.canvas.releasePointerCapture(e.pointerId);
+      }
+      this.activePointerId = null;
+      this.vectorEditDrag = null;
+      this.updateVectorEditCursor();
+      this.scheduleRender();
+      return;
+    }
+
+    // Vector Path: the release ends the anchor's handle pull. The path stays
+    // open for more points — commit comes from closing, Enter, or dblclick.
+    if (this.vectorDragging && this.activePointerId === e.pointerId) {
+      if (this.canvas.hasPointerCapture(e.pointerId)) {
+        this.canvas.releasePointerCapture(e.pointerId);
+      }
+      this.activePointerId = null;
+      this.vectorDragging = false;
+      this.previewVectorPath();
+      return;
+    }
+
+    // Quick curve: the release places the arc's far end and commits it.
+    if (this.quickCurve && this.curveA !== null && this.activePointerId === e.pointerId) {
+      if (this.canvas.hasPointerCapture(e.pointerId)) {
+        this.canvas.releasePointerCapture(e.pointerId);
+      }
+      this.activePointerId = null;
+      this.commitQuickCurve();
       return;
     }
 
@@ -755,11 +1200,6 @@ class App {
         this.canvas.releasePointerCapture(e.pointerId);
       }
       this.activePointerId = null;
-      // Stylus: the single drag already defines the whole curve — commit it.
-      if (this.curveStylus) {
-        this.commitStylusCurve();
-        return;
-      }
       const a = this.curveA;
       const b = this.curveB ?? a;
       // A click without a drag never entered a usable chord: cancel.
@@ -768,6 +1208,7 @@ class App {
         return;
       }
       this.curveBending = true;
+      this.curveControl = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
       const { color, width, opacity, nibAngle } = this.store.tool;
       this.live = {
         id: createId('st'),
@@ -811,9 +1252,12 @@ class App {
       const a = this.straightStart;
       const b = this.straightEnd ?? a;
       const startHit = this.startSnapHit;
-      const endHit = this.snapTarget;
+      // The end never snaps: Shift is the horizontal/vertical lock mid-drag,
+      // so only the start (snapped on pointer-down) can join a stroke.
+      const endHit = null;
       this.straightStart = null;
       this.straightEnd = null;
+      this.straightRaw = null;
       this.startSnapHit = null;
       this.activePointerId = null;
       this.setSnapTarget(null);
@@ -983,73 +1427,137 @@ class App {
   /** Commits the pending curve stroke (bend phase click). */
   private commitCurve(): void {
     const finished = this.live;
+    const a = this.curveA;
+    const b = this.curveB;
+    const control = this.curveControl;
     this.cancelCurve();
     if (!finished || finished.points.length < 2) return;
+    if (a && b && control) {
+      // The bend is a quadratic Bézier B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2;
+      // its exact cubic form lifts the control point to C1 = P0 + ⅔(P1-P0)
+      // and C2 = P2 + ⅔(P1-P2), giving the stroke two editable anchors.
+      finished.vector = {
+        anchors: [
+          {
+            p: { x: a.x, y: a.y },
+            hOut: { x: a.x + (2 / 3) * (control.x - a.x), y: a.y + (2 / 3) * (control.y - a.y) },
+          },
+          {
+            p: { x: b.x, y: b.y },
+            hIn: { x: b.x + (2 / 3) * (control.x - b.x), y: b.y + (2 / 3) * (control.y - b.y) },
+          },
+        ],
+      };
+    }
     const extras = this.symmetryCopies(finished);
     this.store.addStrokes([finished, ...extras]);
   }
 
   /**
-   * Single-gesture curve for a stylus. Because a pen cannot hover between the
-   * mouse tool's two clicks (select the chord, then move to bend), the pen's
-   * whole drag path is drawn as the curve directly — so a curved pen stroke
-   * stays a curve and never collapses to a straight line, and no "select and
-   * move" bend step is needed. Returns the smoothed drawn points.
+   * The in-progress quick curve as one cubic Bézier — two anchors and two
+   * control points. Null until the drag has enough reach for an arc (a
+   * nearly straight or, under Alt, a nearly axis-aligned drag has no usable
+   * radius); both ends are fixed by the drag whatever the apex is doing, so
+   * the reach test is the same at every angle.
    */
-  private stylusCurvePoints(): Point[] {
-    // Drop points too close together so the curve stays smooth and light.
-    const out: Point[] = [];
-    for (const p of this.curvePath) {
-      const last = out[out.length - 1];
-      if (!last || Math.hypot(p.x - last.x, p.y - last.y) >= 1) out.push({ ...p });
-    }
-    return out.length >= 2 ? out : this.curvePath.map((p) => ({ ...p }));
+  private quickCurveCubic(): ReturnType<typeof quarterArcCubic> | null {
+    const a = this.curveA;
+    const b = this.curveB;
+    if (!a || !b) return null;
+    const cubic = quarterArcCubic(a, b, this.quickCurveUniform, this.quickCurveApex);
+    return Math.hypot(cubic.p3.x - a.x, cubic.p3.y - a.y) < 2 ? null : cubic;
   }
 
-  /** Live preview of the drawn stylus curve while the pen drags. */
-  private previewStylusCurve(): void {
-    if (this.curvePath.length < 2) {
-      this.scheduleRender();
-      return;
-    }
+  /** Sampled points of the in-progress quick curve (empty while unusable). */
+  private quickCurvePoints(): Point[] {
+    const cubic = this.quickCurveCubic();
+    if (!cubic) return [];
+    return cubicBezierPoints(
+      { ...cubic.p0, pressure: 0.5 },
+      cubic.c1,
+      cubic.c2,
+      { ...cubic.p3, pressure: 0.5 },
+      48,
+    );
+  }
+
+  /** Builds the live quick-curve stroke, or clears it while the arc is empty. */
+  private quickCurveStroke(points: Point[]): LiveStroke | null {
+    if (points.length < 2) return null;
     const { color, width, opacity, nibAngle } = this.store.tool;
-    this.live = {
+    return {
       id: this.live?.id ?? createId('st'),
       tool: this.curveTool,
       color,
       width,
-      points: this.stylusCurvePoints(),
+      points,
       layer: this.store.activeLayer.id,
       sharpened: true,
       ...(opacity != null ? { opacity } : {}),
       ...(this.curveTool === 'copic' ? { nibAngle } : {}),
     };
+  }
+
+  /**
+   * Swings the in-progress quick curve's apex one step further clockwise. The
+   * arc's two ends stay put; only the side it bows out to moves. Two presses
+   * mirror the bow across the chord and four bring it back around. On an Alt
+   * quarter circle (or a square drag) the odd stops put the apex on the chord
+   * itself, flattening the arc into a straight segment — the price of pinning
+   * both ends — so mirroring a circle is two presses, not one.
+   */
+  private turnQuickCurveApex(): void {
+    if (!this.quickCurve) return;
+    this.quickCurveApex = (this.quickCurveApex + QUICK_CURVE_APEX_STEP) % 360;
+    this.previewQuickCurve();
+  }
+
+  /**
+   * Recomputes the straight-line preview end from the last raw pointer
+   * position. With Shift down the line locks to whichever axis the drag
+   * favours — strictly horizontal or strictly vertical; without it the end
+   * follows the pointer. Called from pointer moves and from Shift key
+   * transitions, so the lock engages and releases without pointer movement.
+   */
+  private updateStraightEnd(shift: boolean): void {
+    const a = this.straightStart;
+    const raw = this.straightRaw;
+    if (!a || !raw) return;
+    this.straightEnd =
+      shift && Math.abs(raw.x - a.x) >= Math.abs(raw.y - a.y)
+        ? { ...raw, y: a.y }
+        : shift
+          ? { ...raw, x: a.x }
+          : raw;
     this.scheduleRender();
   }
 
-  /** Commits the drawn stylus curve on pen-up (a tap cancels). */
-  private commitStylusCurve(): void {
-    const path = this.curvePath;
-    const a = path[0];
-    const b = path.length > 0 ? path[path.length - 1] : a;
-    // A tap (no real drag) is not a usable curve: cancel like the mouse flow.
-    if (path.length < 2 || Math.hypot(b.x - a.x, b.y - a.y) < 2) {
-      this.cancelCurve();
-      return;
-    }
-    const { color, width, opacity, nibAngle } = this.store.tool;
-    const finished: Stroke = {
-      id: createId('st'),
-      tool: this.curveTool,
-      color,
-      width,
-      points: this.stylusCurvePoints(),
-      layer: this.store.activeLayer.id,
-      sharpened: true,
-      ...(opacity != null ? { opacity } : {}),
-      ...(this.curveTool === 'copic' ? { nibAngle } : {}),
-    };
+  /** Switches an in-progress quick curve between quarter circle and ellipse. */
+  private setQuickCurveUniform(uniform: boolean): void {
+    if (!this.quickCurve || this.quickCurveUniform === uniform) return;
+    this.quickCurveUniform = uniform;
+    this.previewQuickCurve();
+  }
+
+  /** Live preview of the quick curve while the drag (or Alt) reshapes it. */
+  private previewQuickCurve(): void {
+    this.live = this.quickCurveStroke(this.quickCurvePoints());
+    this.scheduleRender();
+  }
+
+  /** Commits the quick curve on pointer-up (too small a drag cancels). */
+  private commitQuickCurve(): void {
+    const cubic = this.quickCurveCubic();
+    const finished = this.quickCurveStroke(this.quickCurvePoints());
     this.cancelCurve();
+    if (!finished || !cubic) return;
+    // The whole arc is one cubic: two anchors, two control points.
+    finished.vector = {
+      anchors: [
+        { p: { ...cubic.p0 }, hOut: { ...cubic.c1 } },
+        { p: { ...cubic.p3 }, hIn: { ...cubic.c2 } },
+      ],
+    };
     const extras = this.symmetryCopies(finished);
     this.store.addStrokes([finished, ...extras]);
   }
@@ -1059,12 +1567,565 @@ class App {
     this.curveA = null;
     this.curveB = null;
     this.curveBending = false;
-    this.curveStylus = false;
-    this.curvePath = [];
+    this.curveControl = null;
+    this.quickCurve = false;
+    this.quickCurveUniform = false;
+    this.quickCurveApex = 0;
     this.startSnapHit = null;
     this.live = null;
     this.setSnapTarget(null);
     this.scheduleRender();
+  }
+
+  // ---- Vector Path tool ----------------------------------------------------
+
+  /**
+   * Samples the pending vector path into stroke points. `rubberTo` appends
+   * the live preview segment from the last anchor toward the pointer, and
+   * `close` appends the segment back to the first anchor.
+   */
+  private vectorPathPoints(rubberTo: Point | null, close: boolean): Point[] {
+    const anchors = this.vectorAnchors;
+    if (anchors.length === 0) return [];
+    const withRubber = rubberTo
+      ? [...anchors, { p: { x: rubberTo.x, y: rubberTo.y } }]
+      : anchors;
+    return sampleVectorPathPoints(withRubber, close && !rubberTo);
+  }
+
+  /** Live preview of the pending vector path (with the rubber-band segment). */
+  private previewVectorPath(): void {
+    const points = this.vectorPathPoints(this.vectorDragging ? null : this.vectorHover, false);
+    if (points.length < 2) {
+      this.live = null;
+      this.scheduleRender();
+      return;
+    }
+    const { color, width, opacity } = this.store.tool;
+    this.live = {
+      id: this.live?.id ?? createId('st'),
+      tool: 'pen',
+      color,
+      width,
+      points,
+      layer: this.store.activeLayer.id,
+      sharpened: true,
+      ...(opacity != null ? { opacity } : {}),
+    };
+    this.scheduleRender();
+  }
+
+  /**
+   * Commits the pending vector path as a pen stroke — closed back to the
+   * first anchor, or open (Enter / double-click). The path is deliberate
+   * vector work, so it commits as drawn and is never auto-sharpened.
+   */
+  private commitVectorPath(close: boolean): void {
+    // A double-click lands a second anchor on top of the last one: drop it.
+    while (
+      this.vectorAnchors.length >= 2 &&
+      Math.hypot(
+        this.vectorAnchors[this.vectorAnchors.length - 1].p.x -
+          this.vectorAnchors[this.vectorAnchors.length - 2].p.x,
+        this.vectorAnchors[this.vectorAnchors.length - 1].p.y -
+          this.vectorAnchors[this.vectorAnchors.length - 2].p.y,
+      ) < 2
+    ) {
+      this.vectorAnchors.pop();
+    }
+    if (this.vectorAnchors.length < 2) {
+      this.cancelVectorPath();
+      return;
+    }
+    const points = this.vectorPathPoints(null, close);
+    const { color, width, opacity } = this.store.tool;
+    const finished: Stroke = {
+      id: createId('st'),
+      tool: 'pen',
+      color,
+      width,
+      points,
+      layer: this.store.activeLayer.id,
+      sharpened: true,
+      ...(opacity != null ? { opacity } : {}),
+      // The anchors persist so the path stays Vector Path editable.
+      vector: {
+        anchors: cloneAnchors(this.vectorAnchors),
+        ...(close ? { closed: true } : {}),
+      },
+    };
+    this.cancelVectorPath();
+    const extras = this.symmetryCopies(finished);
+    this.store.addStrokes([finished, ...extras]);
+  }
+
+  /** Abandons the pending vector path (Esc, blur, gesture, or tool switch). */
+  private cancelVectorPath(): void {
+    this.vectorAnchors = [];
+    this.vectorDragging = false;
+    this.vectorHover = null;
+    this.live = null;
+    this.scheduleRender();
+  }
+
+  // ---- Vector Path edit mode -----------------------------------------------
+
+  /**
+   * Grab radius for vector-edit interactions, in sketch units. Anchors,
+   * handles, and the rounding target are deliberate click targets, so the
+   * radius never drops below a comfortable 8 screen pixels even when the
+   * Direct Select sensitivity is tuned finer.
+   */
+  private vectorGrab(): number {
+    return (
+      Math.max(8, this.settings.directSelectSensitivityPx) / this.surface.getViewport().zoom
+    );
+  }
+
+  /** Topmost editable stroke with vector structure under the point, or null. */
+  private findVectorStroke(pt: Point): Stroke | null {
+    const grab = this.vectorGrab();
+    const strokes = this.store.sketch.strokes;
+    for (let i = strokes.length - 1; i >= 0; i--) {
+      const stroke = strokes[i];
+      if (!stroke.vector || !this.strokeEditable(stroke)) continue;
+      const onAnchor = stroke.vector.anchors.some(
+        (a) => Math.hypot(a.p.x - pt.x, a.p.y - pt.y) <= grab,
+      );
+      if (onAnchor || this.pointOnPath(stroke, pt, grab)) return stroke;
+    }
+    return null;
+  }
+
+  /** Starts editing a committed vector stroke's anchors. */
+  private enterVectorEdit(stroke: Stroke): void {
+    if (!stroke.vector) return;
+    this.vectorEditId = stroke.id;
+    this.vectorEditAnchors = cloneAnchors(stroke.vector.anchors);
+    this.vectorEditClosed = stroke.vector.closed === true;
+    this.vectorEditSelected = null;
+    this.vectorEditDrag = null;
+    this.vectorEditHoverPt = null;
+    this.store.setSelection([stroke.id]);
+    this.toast('Click a segment to add a point, a point to remove it; Ctrl moves points and rounds corners, Alt toggles handles.');
+    this.updateCursor();
+    this.scheduleRender();
+  }
+
+  /** Ends the anchor edit (Esc, empty-canvas click, blur, or tool switch). */
+  private exitVectorEdit(): void {
+    this.vectorEditId = null;
+    this.vectorEditAnchors = [];
+    this.vectorEditClosed = false;
+    this.vectorEditSelected = null;
+    this.vectorEditDrag = null;
+    this.vectorEditHoverPt = null;
+    this.updateCursor();
+    this.scheduleRender();
+  }
+
+  /** Writes the working anchors back to the stroke, resampling its points. */
+  private applyVectorEdit(): void {
+    if (!this.vectorEditId) return;
+    const points = sampleVectorPathPoints(this.vectorEditAnchors, this.vectorEditClosed);
+    if (points.length < 2) return;
+    this.store.setStrokeGeometry(this.vectorEditId, points, {
+      anchors: cloneAnchors(this.vectorEditAnchors),
+      ...(this.vectorEditClosed ? { closed: true } : {}),
+    });
+  }
+
+  /** The edited path's neighbour anchor in `dir`, wrapping on closed paths. */
+  private vectorNeighbor(index: number, dir: -1 | 1): VectorAnchor | null {
+    const n = this.vectorEditAnchors.length;
+    let j = index + dir;
+    if (this.vectorEditClosed) j = ((j % n) + n) % n;
+    else if (j < 0 || j >= n) return null;
+    return j === index ? null : (this.vectorEditAnchors[j] ?? null);
+  }
+
+  /** Index of the edited anchor within `tol` of the point, or null. */
+  private nearestVectorAnchor(pt: Point, tol: number): number | null {
+    let best: number | null = null;
+    let bestDist = tol;
+    this.vectorEditAnchors.forEach((a, i) => {
+      const d = Math.hypot(a.p.x - pt.x, a.p.y - pt.y);
+      if (d <= bestDist) {
+        bestDist = d;
+        best = i;
+      }
+    });
+    return best;
+  }
+
+  /**
+   * Corner-rounding target position for an anchor: a small way into the
+   * corner's wedge, along the bisector of its two chords (or beside the
+   * anchor when the path runs straight through). Endpoint anchors of an open
+   * path have no corner to round.
+   */
+  private roundTargetPos(index: number): Point | null {
+    const anchor = this.vectorEditAnchors[index];
+    const prev = this.vectorNeighbor(index, -1);
+    const next = this.vectorNeighbor(index, 1);
+    if (!anchor || !prev || !next) return null;
+    const uLen = Math.hypot(prev.p.x - anchor.p.x, prev.p.y - anchor.p.y);
+    const vLen = Math.hypot(next.p.x - anchor.p.x, next.p.y - anchor.p.y);
+    if (uLen < 1e-6 || vLen < 1e-6) return null;
+    let bx = (prev.p.x - anchor.p.x) / uLen + (next.p.x - anchor.p.x) / vLen;
+    let by = (prev.p.y - anchor.p.y) / uLen + (next.p.y - anchor.p.y) / vLen;
+    const bLen = Math.hypot(bx, by);
+    if (bLen < 1e-3) {
+      // A straight-through anchor has no wedge: offset perpendicular instead.
+      bx = -(next.p.y - anchor.p.y) / vLen;
+      by = (next.p.x - anchor.p.x) / vLen;
+    } else {
+      bx /= bLen;
+      by /= bLen;
+    }
+    const off = 18 / this.surface.getViewport().zoom;
+    return { x: anchor.p.x + bx * off, y: anchor.p.y + by * off, pressure: 0.5 };
+  }
+
+  /**
+   * Replaces the corner at `drag.index` (working from the pre-drag anchors in
+   * `drag.base`) with a circular fillet of the given radius; a sub-pixel
+   * radius restores the sharp corner. Recomputing from the base every time
+   * keeps the drag and the radius field idempotent.
+   */
+  private applyCornerRadius(drag: { index: number; base: VectorAnchor[] }, radius: number): void {
+    const base = drag.base;
+    const n = base.length;
+    const prevIdx = this.vectorEditClosed ? (drag.index - 1 + n) % n : drag.index - 1;
+    const nextIdx = this.vectorEditClosed ? (drag.index + 1) % n : drag.index + 1;
+    const prev = base[prevIdx];
+    const next = base[nextIdx];
+    const corner = base[drag.index];
+    if (!prev || !next || !corner) return;
+    const work = cloneAnchors(base);
+    const rounded =
+      radius >= 1 ? roundedCornerAnchors(prev.p, corner.p, next.p, radius) : null;
+    if (rounded) work.splice(drag.index, 1, ...rounded);
+    this.vectorEditAnchors = work;
+    this.vectorEditSelected = drag.index;
+    el<HTMLInputElement>('vector-radius').value = String(Math.max(0, Math.round(radius)));
+    this.applyVectorEdit();
+  }
+
+  /**
+   * Alt-click on an anchor: strips its direction handles when it has any
+   * (smooth point becomes a corner), otherwise grows a pair along the
+   * neighbour chord (corner becomes a smooth point) — each handle one third
+   * of its side's chord, per the standard smooth-tangent construction.
+   */
+  private toggleVectorHandles(index: number): void {
+    const anchor = this.vectorEditAnchors[index];
+    if (!anchor) return;
+    const prev = this.vectorNeighbor(index, -1);
+    const next = this.vectorNeighbor(index, 1);
+    if (!prev && !next) return;
+    this.store.pushHistory();
+    if (anchor.hIn || anchor.hOut) {
+      delete anchor.hIn;
+      delete anchor.hOut;
+    } else {
+      const from = prev ? prev.p : anchor.p;
+      const to = next ? next.p : anchor.p;
+      let dx = to.x - from.x;
+      let dy = to.y - from.y;
+      const len = Math.hypot(dx, dy) || 1;
+      dx /= len;
+      dy /= len;
+      if (prev) {
+        const reach = Math.hypot(anchor.p.x - prev.p.x, anchor.p.y - prev.p.y) / 3;
+        anchor.hIn = { x: anchor.p.x - dx * reach, y: anchor.p.y - dy * reach };
+      }
+      if (next) {
+        const reach = Math.hypot(next.p.x - anchor.p.x, next.p.y - anchor.p.y) / 3;
+        anchor.hOut = { x: anchor.p.x + dx * reach, y: anchor.p.y + dy * reach };
+      }
+    }
+    this.vectorEditSelected = index;
+    this.applyVectorEdit();
+  }
+
+  /** Removes an anchor from the edited path (a path keeps at least two). */
+  private removeVectorAnchor(index: number): void {
+    if (this.vectorEditAnchors.length <= 2) {
+      this.toast('A path needs at least two points.');
+      return;
+    }
+    this.store.pushHistory();
+    this.vectorEditAnchors.splice(index, 1);
+    this.vectorEditSelected = null;
+    this.applyVectorEdit();
+  }
+
+  /**
+   * Nearest edited segment within `tol` of the point, located by sampling
+   * each segment's cubic; `t` is the split parameter, kept off the exact
+   * ends (anchor hits are claimed before segment hits).
+   */
+  private locateVectorSegment(pt: Point, tol: number): { index: number; t: number } | null {
+    const anchors = this.vectorEditAnchors;
+    const segCount = anchors.length - 1 + (this.vectorEditClosed ? 1 : 0);
+    let best: { index: number; t: number; d: number } | null = null;
+    for (let i = 0; i < segCount; i++) {
+      const from = anchors[i];
+      const to = anchors[(i + 1) % anchors.length];
+      const a = { x: from.p.x, y: from.p.y, pressure: 0.5 };
+      const b = { x: to.p.x, y: to.p.y, pressure: 0.5 };
+      const samples = cubicBezierPoints(a, from.hOut ?? from.p, to.hIn ?? to.p, b, 32);
+      samples.forEach((s, k) => {
+        const d = Math.hypot(s.x - pt.x, s.y - pt.y);
+        if (!best || d < best.d) best = { index: i, t: k / 32, d };
+      });
+    }
+    if (!best) return null;
+    const hit = best as { index: number; t: number; d: number };
+    if (hit.d > tol) return null;
+    return { index: hit.index, t: Math.min(0.95, Math.max(0.05, hit.t)) };
+  }
+
+  /**
+   * Inserts an anchor into a segment without changing the path's shape: a
+   * curved segment splits by de Casteljau (the halves' control points become
+   * the neighbours' and the new anchor's handles); a straight segment just
+   * gains a plain corner on the line.
+   */
+  private insertVectorAnchor(hit: { index: number; t: number }): void {
+    const anchors = this.vectorEditAnchors;
+    const from = anchors[hit.index];
+    const to = anchors[(hit.index + 1) % anchors.length];
+    if (!from || !to) return;
+    this.store.pushHistory();
+    const split = splitCubicBezier(from.p, from.hOut ?? from.p, to.hIn ?? to.p, to.p, hit.t);
+    const straight = !from.hOut && !to.hIn;
+    const inserted: VectorAnchor = straight
+      ? { p: split.point }
+      : {
+          p: split.point,
+          hIn: { x: split.left.c2.x, y: split.left.c2.y },
+          hOut: { x: split.right.c1.x, y: split.right.c1.y },
+        };
+    if (!straight) {
+      from.hOut = { x: split.left.c1.x, y: split.left.c1.y };
+      to.hIn = { x: split.right.c2.x, y: split.right.c2.y };
+    }
+    anchors.splice(hit.index + 1, 0, inserted);
+    this.vectorEditSelected = hit.index + 1;
+    this.applyVectorEdit();
+  }
+
+  /**
+   * Corner-radius field in the toolbar: typing a value rounds the selected
+   * anchor of the edited path by that radius (the drag on the rounding
+   * target does the same thing by feel).
+   */
+  private bindVectorOptions(): void {
+    el<HTMLInputElement>('vector-radius').addEventListener('change', () => {
+      const value = Number(el<HTMLInputElement>('vector-radius').value);
+      if (!this.vectorEditId || this.vectorEditSelected === null || !Number.isFinite(value)) {
+        return;
+      }
+      const base = cloneAnchors(this.vectorEditAnchors);
+      this.store.pushHistory();
+      this.applyCornerRadius({ index: this.vectorEditSelected, base }, Math.max(0, value));
+    });
+  }
+
+  // ---- Sharpen Selection ---------------------------------------------------
+
+  /**
+   * Smoothed-and-simplified copy of a stroke's points at the dialog's
+   * current slider values: simplify drops noise nodes within the tolerance,
+   * then a Catmull-Rom pass draws a smooth curve through what remains.
+   */
+  private sharpenedPoints(original: Point[]): Point[] {
+    const smooth = Number(el<HTMLInputElement>('sharpen-smooth').value);
+    const epsilon = Number(el<HTMLInputElement>('sharpen-simplify').value);
+    let pts = original.map((p) => ({ ...p }));
+    if (epsilon > 0) pts = simplify(pts, epsilon);
+    if (smooth > 0 && pts.length >= 3) {
+      pts = catmullRom(pts, Math.max(4, Math.round(smooth * 1.6)));
+    }
+    return pts;
+  }
+
+  private bindSharpenSelection(): void {
+    el('sharpen-selection').addEventListener('click', () => this.openSharpenDialog());
+    el('sharpen-apply-btn').addEventListener('click', () => this.closeSharpenDialog(true));
+    el('sharpen-cancel-btn').addEventListener('click', () => this.closeSharpenDialog(false));
+    const update = (): void => this.updateSharpenPreview();
+    el<HTMLInputElement>('sharpen-smooth').addEventListener('input', update);
+    el<HTMLInputElement>('sharpen-simplify').addEventListener('input', update);
+  }
+
+  /** Opens the Sharpen Selection dialog over the selected drawing strokes. */
+  private openSharpenDialog(): void {
+    const targets = this.store.sketch.strokes.filter(
+      (s) =>
+        this.store.selectedIds.has(s.id) &&
+        !isTextStroke(s) &&
+        !isImageStroke(s) &&
+        s.tool !== 'eraser' &&
+        s.points.length >= 3,
+    );
+    if (targets.length === 0) {
+      this.toast('Select one or more strokes to sharpen first.');
+      return;
+    }
+    this.sharpenPreview = new Map(
+      targets.map((s) => [
+        s.id,
+        { points: s.points.map((p) => ({ ...p })), vector: s.vector },
+      ]),
+    );
+    el('sharpen-dialog').classList.remove('is-hidden');
+    this.updateSharpenPreview();
+  }
+
+  /** Re-applies the sliders to every previewed stroke, live on the canvas. */
+  private updateSharpenPreview(): void {
+    if (!this.sharpenPreview) return;
+    for (const [id, original] of this.sharpenPreview) {
+      const pts = this.sharpenedPoints(original.points);
+      if (pts.length >= 2) this.store.setStrokeGeometry(id, pts);
+    }
+  }
+
+  /**
+   * Closes the dialog. The preview always rolls back to the original
+   * geometry first; applying then re-runs the sliders as a single history
+   * step, so one undo returns the strokes to their pre-dialog shape.
+   */
+  private closeSharpenDialog(apply: boolean): void {
+    const preview = this.sharpenPreview;
+    if (!preview) return;
+    this.sharpenPreview = null;
+    for (const [id, original] of preview) {
+      this.store.setStrokeGeometry(id, original.points, original.vector);
+    }
+    if (apply) {
+      this.store.pushHistory();
+      for (const [id, original] of preview) {
+        const pts = this.sharpenedPoints(original.points);
+        // Reshaped points no longer match any stored anchor structure.
+        if (pts.length >= 2) this.store.setStrokeGeometry(id, pts);
+      }
+    }
+    el('sharpen-dialog').classList.add('is-hidden');
+  }
+
+  /**
+   * Pointer styling while a vector edit is open, from the hover position and
+   * the held modifier. Alt shows the stemless arrowhead (handle toggling).
+   * Ctrl is direct-select mode, so the pointer becomes the Select arrow over
+   * anything it can grab — an anchor, the selected anchor's handles, or the
+   * rounding target — and the add badge over a segment (Ctrl-clicking a
+   * segment inserts an anchor too). With no modifier, hovering an anchor
+   * shows the remove badge and hovering the path the add badge, matching
+   * what a plain click does there.
+   */
+  private updateVectorEditCursor(): void {
+    if (!this.vectorEditId || this.store.tool.tool !== 'vector') return;
+    if (this.altDown) {
+      this.canvas.style.cursor = CURSOR_ARROWHEAD;
+      return;
+    }
+    const pt = this.vectorEditHoverPt;
+    if (!pt) {
+      this.canvas.style.cursor = this.ctrlDown ? CURSOR_ARROW_BLACK : 'crosshair';
+      return;
+    }
+    const grab = this.vectorGrab();
+    const near = (q: { x: number; y: number } | null | undefined): boolean =>
+      !!q && Math.hypot(q.x - pt.x, q.y - pt.y) <= grab;
+    const overAnchor = this.nearestVectorAnchor(pt, grab) !== null;
+    if (this.ctrlDown) {
+      const sel = this.vectorEditSelected;
+      const anchor = sel !== null ? this.vectorEditAnchors[sel] : undefined;
+      const grabbable =
+        overAnchor ||
+        near(anchor?.hIn) ||
+        near(anchor?.hOut) ||
+        (sel !== null && near(this.roundTargetPos(sel)));
+      this.canvas.style.cursor = grabbable
+        ? CURSOR_ARROW_BLACK
+        : this.locateVectorSegment(pt, grab)
+          ? CURSOR_ADD_POINT
+          : CURSOR_ARROW_BLACK;
+      return;
+    }
+    this.canvas.style.cursor = overAnchor
+      ? CURSOR_REMOVE_POINT
+      : this.locateVectorSegment(pt, grab)
+        ? CURSOR_ADD_POINT
+        : 'crosshair';
+  }
+
+  /** Pointer-down dispatch while a committed vector stroke is being edited. */
+  private vectorEditPointerDown(e: PointerEvent, pt: Point): void {
+    const grab = this.vectorGrab();
+    const near = (q: { x: number; y: number } | null | undefined): boolean =>
+      !!q && Math.hypot(q.x - pt.x, q.y - pt.y) <= grab;
+
+    // Ctrl: direct-select mode — grab the rounding target, a handle, or an
+    // anchor, and drag just that.
+    if (e.ctrlKey) {
+      const sel = this.vectorEditSelected;
+      if (sel !== null) {
+        if (near(this.roundTargetPos(sel))) {
+          this.store.pushHistory();
+          this.vectorEditDrag = { kind: 'round', index: sel, base: cloneAnchors(this.vectorEditAnchors) };
+          this.beginPointerDrag(e);
+          return;
+        }
+        const anchor = this.vectorEditAnchors[sel];
+        for (const kind of ['hOut', 'hIn'] as const) {
+          if (near(anchor?.[kind])) {
+            this.store.pushHistory();
+            this.vectorEditDrag = { kind, index: sel, last: pt };
+            this.beginPointerDrag(e);
+            return;
+          }
+        }
+      }
+      const idx = this.nearestVectorAnchor(pt, grab);
+      if (idx !== null) {
+        this.vectorEditSelected = idx;
+        this.store.pushHistory();
+        this.vectorEditDrag = { kind: 'anchor', index: idx, last: pt };
+        this.beginPointerDrag(e);
+        return;
+      }
+      // Ctrl over a bare segment adds an anchor there, as the pointer's add
+      // badge promises.
+      const ctrlSeg = this.locateVectorSegment(pt, grab);
+      if (ctrlSeg) this.insertVectorAnchor(ctrlSeg);
+      return;
+    }
+
+    // Alt: toggle the clicked anchor's direction handles.
+    if (e.altKey) {
+      const idx = this.nearestVectorAnchor(pt, grab);
+      if (idx !== null) this.toggleVectorHandles(idx);
+      return;
+    }
+
+    // Plain click: an anchor removes itself, a segment gains one, empty
+    // canvas selects (near the path) or ends the edit.
+    const idx = this.nearestVectorAnchor(pt, grab);
+    if (idx !== null) {
+      this.removeVectorAnchor(idx);
+      return;
+    }
+    const seg = this.locateVectorSegment(pt, grab);
+    if (seg) {
+      this.insertVectorAnchor(seg);
+      return;
+    }
+    this.exitVectorEdit();
   }
 
   // ---- Sketch Support actions ----------------------------------------------
@@ -1165,66 +2226,16 @@ class App {
       : null;
 
     if (stroke && this.strokeEditable(stroke)) {
-      // 1. A handle around a lone selected anchor grabs that neighbour point.
-      if (this.selectedAnchors.size === 1) {
-        const origin = [...this.selectedAnchors][0];
-        for (const h of [origin - 1, origin + 1]) {
-          const hp = stroke.points[h];
-          if (hp && Math.hypot(hp.x - pt.x, hp.y - pt.y) <= grab) {
-            this.store.pushHistory();
-            this.anchorDragKind = 'handle';
-            this.anchorDragHandle = h;
-            this.anchorDragLast = pt;
-            this.beginPointerDrag(e);
-            return;
-          }
-        }
-      }
-
-      // 2. An anchor point: Shift toggles it in the selection, else selects it
-      //    alone; then the whole selection drags together.
-      let bestDist = grab;
-      let best = -1;
-      stroke.points.forEach((p, i) => {
-        const d = Math.hypot(p.x - pt.x, p.y - pt.y);
-        if (d <= bestDist) {
-          bestDist = d;
-          best = i;
-        }
-      });
-      if (best !== -1) {
-        if (e.shiftKey) {
-          if (this.selectedAnchors.has(best)) this.selectedAnchors.delete(best);
-          else this.selectedAnchors.add(best);
-        } else if (!this.selectedAnchors.has(best)) {
-          this.selectedAnchors = new Set([best]);
-        }
-        this.pathSelected = false;
-        if (this.selectedAnchors.has(best)) {
-          this.store.pushHistory();
-          this.anchorDragKind = 'anchor';
-          this.anchorDragLast = pt;
-          this.beginPointerDrag(e);
-        } else {
-          this.scheduleRender();
-        }
-        return;
-      }
-
-      // 3. The path body (a segment within range): select and move the path.
-      if (this.pointOnPath(stroke, pt, grab)) {
-        this.selectedAnchors.clear();
-        this.pathSelected = true;
-        this.store.setSelection([stroke.id]);
-        this.store.pushHistory();
-        this.anchorDragKind = 'path';
-        this.anchorDragLast = pt;
-        this.beginPointerDrag(e);
+      // Strokes with Bézier structure edit through their few anchors — the
+      // curvature lives in the handles — instead of raw samples.
+      if (stroke.vector) {
+        if (this.beginVectorPointSelect(e, pt, stroke)) return;
+      } else if (this.beginRawPointSelect(e, pt, stroke, grab)) {
         return;
       }
     }
 
-    // 4. Pick a different stroke for editing, or drop the edit on empty canvas.
+    // Pick a different stroke for editing, or drop the edit on empty canvas.
     const hit = this.hitTest(pt);
     if (hit && !isTextStroke(hit) && !isImageStroke(hit)) {
       this.anchorStrokeId = hit.id;
@@ -1240,11 +2251,296 @@ class App {
     this.scheduleRender();
   }
 
+  /**
+   * Direct Select interactions for a stroke with Bézier structure: the
+   * lone selected anchor's curvature handles, then the anchors, then the
+   * path body. Returns false when nothing was hit.
+   */
+  private beginVectorPointSelect(e: PointerEvent, pt: Point, stroke: Stroke): boolean {
+    const anchors = stroke.vector!.anchors;
+    const grab = this.vectorGrab();
+    const near = (q: { x: number; y: number } | null | undefined): boolean =>
+      !!q && Math.hypot(q.x - pt.x, q.y - pt.y) <= grab;
+
+    // 1. A curvature handle of the lone selected anchor.
+    if (this.selectedAnchors.size === 1) {
+      const origin = [...this.selectedAnchors][0];
+      const anchor = anchors[origin];
+      for (const kind of ['vhOut', 'vhIn'] as const) {
+        const handle = kind === 'vhIn' ? anchor?.hIn : anchor?.hOut;
+        if (near(handle)) {
+          this.store.pushHistory();
+          this.anchorDragKind = kind;
+          this.anchorDragLast = pt;
+          this.beginPointerDrag(e);
+          return true;
+        }
+      }
+    }
+
+    // 2. An anchor: Shift toggles it in the selection, else it selects
+    //    alone; the selection then drags together.
+    let best = -1;
+    let bestDist = grab;
+    anchors.forEach((a, i) => {
+      const d = Math.hypot(a.p.x - pt.x, a.p.y - pt.y);
+      if (d <= bestDist) {
+        bestDist = d;
+        best = i;
+      }
+    });
+    if (best !== -1) {
+      if (e.shiftKey) {
+        if (this.selectedAnchors.has(best)) this.selectedAnchors.delete(best);
+        else this.selectedAnchors.add(best);
+      } else if (!this.selectedAnchors.has(best)) {
+        this.selectedAnchors = new Set([best]);
+      }
+      this.pathSelected = false;
+      if (this.selectedAnchors.has(best)) {
+        this.store.pushHistory();
+        this.anchorDragKind = 'vanchor';
+        this.anchorDragLast = pt;
+        this.beginPointerDrag(e);
+      } else {
+        this.scheduleRender();
+      }
+      return true;
+    }
+
+    // 3. The path body: select and move the whole path (anchors follow).
+    if (this.pointOnPath(stroke, pt, grab)) {
+      this.selectedAnchors.clear();
+      this.pathSelected = true;
+      this.store.setSelection([stroke.id]);
+      this.store.pushHistory();
+      this.anchorDragKind = 'path';
+      this.anchorDragLast = pt;
+      this.beginPointerDrag(e);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Direct Select interactions for a freehand (sample-based) stroke: the
+   * tangent handles, then the raw anchor points, then the path body.
+   * Returns false when nothing was hit.
+   */
+  private beginRawPointSelect(
+    e: PointerEvent,
+    pt: Point,
+    stroke: Stroke,
+    grab: number,
+  ): boolean {
+    // 1. A tangent-handle tip around a lone selected anchor grabs it: the
+    //    drag bends the stroke around the anchor (see applyHandleDrag).
+    if (this.selectedAnchors.size === 1) {
+      const origin = [...this.selectedAnchors][0];
+      for (const handle of this.anchorHandleTips(stroke, origin)) {
+        if (Math.hypot(handle.tip.x - pt.x, handle.tip.y - pt.y) <= grab) {
+          this.store.pushHistory();
+          this.anchorDragKind = 'handle';
+          this.handleDrag = this.captureHandleDrag(stroke, origin, handle);
+          this.anchorDragLast = pt;
+          this.beginPointerDrag(e);
+          return true;
+        }
+      }
+    }
+
+    // 2. An anchor point: Shift toggles it in the selection, else selects it
+    //    alone; then the whole selection drags together.
+    let bestDist = grab;
+    let best = -1;
+    stroke.points.forEach((p, i) => {
+      const d = Math.hypot(p.x - pt.x, p.y - pt.y);
+      if (d <= bestDist) {
+        bestDist = d;
+        best = i;
+      }
+    });
+    if (best !== -1) {
+      if (e.shiftKey) {
+        if (this.selectedAnchors.has(best)) this.selectedAnchors.delete(best);
+        else this.selectedAnchors.add(best);
+      } else if (!this.selectedAnchors.has(best)) {
+        this.selectedAnchors = new Set([best]);
+      }
+      this.pathSelected = false;
+      if (this.selectedAnchors.has(best)) {
+        this.store.pushHistory();
+        this.anchorDragKind = 'anchor';
+        this.anchorDragLast = pt;
+        this.beginPointerDrag(e);
+      } else {
+        this.scheduleRender();
+      }
+      return true;
+    }
+
+    // 3. The path body (a segment within range): select and move the path.
+    if (this.pointOnPath(stroke, pt, grab)) {
+      this.selectedAnchors.clear();
+      this.pathSelected = true;
+      this.store.setSelection([stroke.id]);
+      this.store.pushHistory();
+      this.anchorDragKind = 'path';
+      this.anchorDragLast = pt;
+      this.beginPointerDrag(e);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Writes changed vector anchors back to a Direct Select-edited stroke,
+   * resampling its points so the drawn curve follows the anchors.
+   */
+  private commitVectorPointEdit(stroke: Stroke, anchors: VectorAnchor[]): void {
+    const closed = stroke.vector?.closed === true;
+    const points = sampleVectorPathPoints(anchors, closed);
+    if (points.length < 2) return;
+    this.store.setStrokeGeometry(stroke.id, points, {
+      anchors,
+      ...(closed ? { closed: true } : {}),
+    });
+  }
+
+  /** Moves the selected vector anchors (handles riding along) by a delta. */
+  private dragVectorPointAnchors(dx: number, dy: number): void {
+    const stroke = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
+    if (!stroke?.vector) return;
+    const anchors = cloneAnchors(stroke.vector.anchors);
+    for (const index of this.selectedAnchors) {
+      const anchor = anchors[index];
+      if (!anchor) continue;
+      anchor.p.x += dx;
+      anchor.p.y += dy;
+      if (anchor.hIn) {
+        anchor.hIn.x += dx;
+        anchor.hIn.y += dy;
+      }
+      if (anchor.hOut) {
+        anchor.hOut.x += dx;
+        anchor.hOut.y += dy;
+      }
+    }
+    this.commitVectorPointEdit(stroke, anchors);
+  }
+
+  /**
+   * Drags one curvature handle of the lone selected vector anchor. The
+   * opposite handle turns to stay collinear through the anchor (each keeps
+   * its own length) so the curve bends smoothly rather than creasing.
+   */
+  private dragVectorPointHandle(kind: 'vhIn' | 'vhOut', pt: Point): void {
+    const stroke = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
+    if (!stroke?.vector || this.selectedAnchors.size !== 1) return;
+    const origin = [...this.selectedAnchors][0];
+    const anchors = cloneAnchors(stroke.vector.anchors);
+    const anchor = anchors[origin];
+    const handle = kind === 'vhIn' ? anchor?.hIn : anchor?.hOut;
+    if (!anchor || !handle) return;
+    handle.x = pt.x;
+    handle.y = pt.y;
+    const opposite = kind === 'vhIn' ? anchor.hOut : anchor.hIn;
+    if (opposite) {
+      const dx = anchor.p.x - handle.x;
+      const dy = anchor.p.y - handle.y;
+      const len = Math.hypot(dx, dy);
+      if (len > 1e-6) {
+        const oppLen = Math.hypot(opposite.x - anchor.p.x, opposite.y - anchor.p.y);
+        opposite.x = anchor.p.x + (dx / len) * oppLen;
+        opposite.y = anchor.p.y + (dy / len) * oppLen;
+      }
+    }
+    this.commitVectorPointEdit(stroke, anchors);
+  }
+
   /** Captures the pointer and marks it active for a Direct Select drag. */
   private beginPointerDrag(e: PointerEvent): void {
     this.activePointerId = e.pointerId;
     this.canvas.setPointerCapture(e.pointerId);
     this.scheduleRender();
+  }
+
+  /** Starts a Space + drag canvas pan (Select and Direct Select tools). */
+  private beginPanDrag(e: PointerEvent): void {
+    this.activePointerId = e.pointerId;
+    this.canvas.setPointerCapture(e.pointerId);
+    this.panDragging = true;
+    this.panLast = { x: e.clientX, y: e.clientY };
+    this.updateCursor();
+  }
+
+  /**
+   * Captures the geometry a tangent-handle drag works from: the anchor (the
+   * fixed pivot), the grabbed tip, and every point on the tip's side of the
+   * stroke with its blend weight. Points between anchor and tip move rigidly
+   * (weight 1) so the tip tracks the pointer exactly; past the tip the
+   * weight eases to zero across the falloff window, blending the bend into
+   * the untouched remainder. A side too sparse to reach the window (a plain
+   * two-point line) keeps its nearest point rigid so the drag still works.
+   */
+  private captureHandleDrag(
+    stroke: Stroke,
+    origin: number,
+    handle: { side: -1 | 1; tip: Point; reach: number },
+  ): { anchor: Point; tip: { x: number; y: number }; points: Array<{ index: number; x: number; y: number; weight: number }> } {
+    const anchor = stroke.points[origin];
+    const falloffEnd = handle.reach * HANDLE_FALLOFF;
+    const points: Array<{ index: number; x: number; y: number; weight: number }> = [];
+    let travelled = 0;
+    let prev = anchor;
+    for (let i = origin + handle.side; i >= 0 && i < stroke.points.length; i += handle.side) {
+      const curr = stroke.points[i];
+      travelled += Math.hypot(curr.x - prev.x, curr.y - prev.y);
+      prev = curr;
+      if (travelled >= falloffEnd) break;
+      const over = Math.max(0, travelled - handle.reach) / (falloffEnd - handle.reach);
+      // Cosine ease from rigid (inside the reach) to untouched (window edge).
+      const weight = over <= 0 ? 1 : 0.5 * (1 + Math.cos(Math.PI * over));
+      points.push({ index: i, x: curr.x, y: curr.y, weight });
+    }
+    if (points.length === 0) {
+      const nearest = stroke.points[origin + handle.side];
+      if (nearest) points.push({ index: origin + handle.side, x: nearest.x, y: nearest.y, weight: 1 });
+    }
+    return { anchor: { ...anchor }, tip: { x: handle.tip.x, y: handle.tip.y }, points };
+  }
+
+  /**
+   * Applies a tangent-handle drag: the rotation and stretch that carry the
+   * grabbed tip onto the pointer are applied around the anchor to each
+   * captured point, scaled by its blend weight — always from the original
+   * captured positions, so the drag never accumulates error.
+   */
+  private applyHandleDrag(pt: Point): void {
+    const drag = this.handleDrag;
+    if (!drag || !this.anchorStrokeId) return;
+    const { anchor, tip } = drag;
+    const toTip = { x: tip.x - anchor.x, y: tip.y - anchor.y };
+    const toPtr = { x: pt.x - anchor.x, y: pt.y - anchor.y };
+    const tipLen = Math.hypot(toTip.x, toTip.y);
+    const ptrLen = Math.hypot(toPtr.x, toPtr.y);
+    if (tipLen < 1e-6 || ptrLen < 1) return;
+    const angle = Math.atan2(toPtr.y, toPtr.x) - Math.atan2(toTip.y, toTip.x);
+    const scale = Math.min(10, Math.max(0.1, ptrLen / tipLen));
+    const updates = drag.points.map(({ index, x, y, weight }) => {
+      const a = angle * weight;
+      const s = 1 + (scale - 1) * weight;
+      const cos = Math.cos(a) * s;
+      const sin = Math.sin(a) * s;
+      const dx = x - anchor.x;
+      const dy = y - anchor.y;
+      return {
+        index,
+        x: anchor.x + dx * cos - dy * sin,
+        y: anchor.y + dx * sin + dy * cos,
+      };
+    });
+    this.store.setStrokePointPositions(this.anchorStrokeId, updates);
   }
 
   /** True when `pt` lies within `tol` of any segment of the stroke's path. */
@@ -1322,6 +2618,9 @@ class App {
       copies.push({
         ...stroke,
         id: createId('st'),
+        // The copy's points are rotated below, so any anchor structure from
+        // the source no longer describes them.
+        vector: undefined,
         // Rotate the copic nib with the copy so every arm of the mandala
         // shows the same thick/thin chisel behaviour.
         ...(stroke.nibAngle != null
@@ -1347,12 +2646,19 @@ class App {
     this.live = null;
     this.straightStart = null;
     this.straightEnd = null;
+    this.straightRaw = null;
     this.shapeStart = null;
     this.curveA = null;
     this.curveB = null;
     this.curveBending = false;
-    this.curveStylus = false;
-    this.curvePath = [];
+    this.curveControl = null;
+    this.quickCurve = false;
+    this.quickCurveUniform = false;
+    this.quickCurveApex = 0;
+    this.vectorAnchors = [];
+    this.vectorDragging = false;
+    this.vectorHover = null;
+    this.vectorEditDrag = null;
     this.startSnapHit = null;
     this.setSnapTarget(null);
     this.dragging = false;
@@ -1362,7 +2668,7 @@ class App {
     this.textDragStart = null;
     this.textDragLive = null;
     this.anchorDragKind = null;
-    this.anchorDragHandle = null;
+    this.handleDrag = null;
     this.anchorDragLast = null;
     this.panDragging = false;
     this.panLast = null;
@@ -1628,8 +2934,8 @@ class App {
   private updateCursor(): void {
     const tool = this.store.tool.tool;
 
-    // Select + Space pans: show a grab cursor instead of the crosshair.
-    if (this.spaceDown && tool === 'select') {
+    // Select or Direct Select + Space pans: show a grab cursor.
+    if (this.spaceDown && (tool === 'select' || tool === 'point')) {
       this.canvas.style.cursor = this.panDragging ? 'grabbing' : 'grab';
       return;
     }
@@ -1639,8 +2945,21 @@ class App {
       return;
     }
 
-    if (tool === 'select' || tool === 'point') {
-      this.canvas.style.cursor = 'default';
+    // Selection arrows: black for Select, white for Direct Select — the
+    // selection / direct-selection convention of vector editors.
+    if (tool === 'select') {
+      this.canvas.style.cursor = CURSOR_ARROW_BLACK;
+      return;
+    }
+    if (tool === 'point') {
+      this.canvas.style.cursor = CURSOR_ARROW_WHITE;
+      return;
+    }
+
+    // Vector Path edit mode: the pointer follows the hover target and the
+    // held modifier (see updateVectorEditCursor).
+    if (tool === 'vector' && this.vectorEditId) {
+      this.updateVectorEditCursor();
       return;
     }
     if (tool === 'text') {
@@ -1655,6 +2974,7 @@ class App {
       tool === 'rect' ||
       tool === 'ellipse' ||
       tool === 'curve' ||
+      tool === 'vector' ||
       tool === 'bucket' ||
       tool === 'fill' ||
       tool === 'eyedrop'
@@ -2107,9 +3427,17 @@ class App {
    */
   private beginNibHold(): void {
     if (this.nibHoldDown) return;
-    // Space (straight-line / quick-curve modes) and the eyedropper both
-    // borrow modifier keys; never arm nib rotate underneath them.
-    if (this.spaceDown || this.eyedropTempSelect || this.store.tool.tool === 'eyedrop') return;
+    // Space (straight-line / quick-curve modes), the eyedropper, and the
+    // Vector Path tool (whose Ctrl is direct-select mode) all borrow
+    // modifier keys; never arm nib rotate underneath them.
+    if (
+      this.spaceDown ||
+      this.eyedropTempSelect ||
+      this.store.tool.tool === 'eyedrop' ||
+      this.store.tool.tool === 'vector'
+    ) {
+      return;
+    }
     this.nibHoldDown = true;
     this.nibHoldTimer = window.setTimeout(
       () => this.activateNibRotate(),
@@ -2994,10 +4322,83 @@ class App {
 
       if (document.activeElement instanceof HTMLTextAreaElement) return;
 
+      // Track Ctrl while a vector edit is open: holding it reveals the
+      // corner-rounding target and switches the pointer to the Select arrow.
+      if (e.key === 'Control' && !this.ctrlDown) {
+        this.ctrlDown = true;
+        if (this.vectorEditId) {
+          this.updateVectorEditCursor();
+          this.scheduleRender();
+        }
+      }
+
+      // Vector Path: Alt is the handle-toggle modifier — keep the keypress
+      // from reaching the native menu bar, which would steal focus (the
+      // resulting blur would put the edited path down mid-gesture). Holding
+      // it shows the stemless arrowhead pointer.
+      if (e.key === 'Alt' && this.store.tool.tool === 'vector') {
+        e.preventDefault();
+        if (!this.altDown) {
+          this.altDown = true;
+          if (this.vectorEditId) this.updateVectorEditCursor();
+        }
+      }
+
+      // Sharpen Selection dialog: Escape cancels the preview.
+      if (e.key === 'Escape' && this.sharpenPreview) {
+        e.preventDefault();
+        this.closeSharpenDialog(false);
+        return;
+      }
+
+      // Vector Path edit mode: Escape puts the path down.
+      if (e.key === 'Escape' && this.vectorEditId) {
+        e.preventDefault();
+        this.exitVectorEdit();
+        return;
+      }
+
+      // Vector Path: Enter commits the open path, Escape abandons it.
+      if (e.key === 'Enter' && this.store.tool.tool === 'vector' && this.vectorAnchors.length >= 2) {
+        e.preventDefault();
+        this.commitVectorPath(false);
+        return;
+      }
+      if (e.key === 'Escape' && this.vectorAnchors.length > 0) {
+        e.preventDefault();
+        this.cancelVectorPath();
+        return;
+      }
+
       // Escape abandons a pending curve (chord or bend phase).
       if (e.key === 'Escape' && (this.curveA !== null || this.curveBending)) {
         e.preventDefault();
         this.cancelCurve();
+        return;
+      }
+
+      // Quick curve: Alt swaps the quarter ellipse for a quarter circle for
+      // as long as it is held, so the arc can be toggled mid-drag. Claimed
+      // before the Copic nib-rotate block, which also listens for modifiers.
+      if (e.key === 'Alt' && this.quickCurve) {
+        e.preventDefault();
+        this.setQuickCurveUniform(true);
+        return;
+      }
+
+      // Quick curve: each Shift press swings the arc's apex another 90 degrees
+      // clockwise. Auto-repeat is ignored so a held key parks the apex at one
+      // angle instead of spinning it.
+      if (e.key === 'Shift' && this.quickCurve) {
+        e.preventDefault();
+        if (!e.repeat) this.turnQuickCurveApex();
+        return;
+      }
+
+      // Straight line: pressing Shift mid-drag locks the line to a strict
+      // horizontal or vertical immediately, before the pointer next moves.
+      if (e.key === 'Shift' && this.straightStart !== null && !e.repeat) {
+        this.updateStraightEnd(true);
         return;
       }
 
@@ -3008,7 +4409,7 @@ class App {
         this.selectedAnchors.clear();
         this.pathSelected = false;
         this.anchorDragKind = null;
-        this.anchorDragHandle = null;
+        this.handleDrag = null;
         this.anchorDragLast = null;
         this.scheduleRender();
         return;
@@ -3138,6 +4539,9 @@ class App {
       } else if (!mod && key === 'v') {
         this.store.setTool({ tool: 'curve' });
         this.updateCursor();
+      } else if (!mod && key === 'b') {
+        this.store.setTool({ tool: 'vector' });
+        this.updateCursor();
       } else if (!mod && key === 'g') {
         this.store.setTool({ tool: 'bucket' });
         this.updateCursor();
@@ -3168,8 +4572,40 @@ class App {
         this.updateCursor();
       }
 
+      // Quick curve: releasing Alt returns the arc to a quarter ellipse.
+      if (e.key === 'Alt' && this.quickCurve) {
+        e.preventDefault();
+        this.setQuickCurveUniform(false);
+      }
+
+      // Straight line: releasing Shift frees the horizontal/vertical lock.
+      if (e.key === 'Shift' && this.straightStart !== null) {
+        this.updateStraightEnd(false);
+      }
+
       // Endpoint snap: releasing Shift dismisses the snap-indicator ring.
       if (e.key === 'Shift') this.setSnapTarget(null);
+
+      // Releasing Ctrl hides the corner-rounding target and restores the
+      // hover pointer.
+      if (e.key === 'Control' && this.ctrlDown) {
+        this.ctrlDown = false;
+        if (this.vectorEditId) {
+          this.updateVectorEditCursor();
+          this.scheduleRender();
+        }
+      }
+
+      // Vector Path: an Alt keyup would otherwise focus the native menu bar
+      // and blur the canvas mid-edit. The held-Alt flag resets regardless of
+      // the active tool so a stale arrowhead pointer cannot linger.
+      if (e.key === 'Alt') {
+        if (this.store.tool.tool === 'vector') e.preventDefault();
+        if (this.altDown) {
+          this.altDown = false;
+          if (this.vectorEditId) this.updateVectorEditCursor();
+        }
+      }
 
       // Eyedropper: releasing Ctrl ends the temporary select tool.
       if (e.key === 'Control' && this.eyedropTempSelect) {
@@ -3207,6 +4643,14 @@ class App {
         this.updateCursor();
       }
       if (this.curveA !== null || this.curveBending) this.cancelCurve();
+      // A pending vector path is accepted rather than lost when the window
+      // loses focus (a too-short path drops in the commit).
+      if (this.vectorAnchors.length > 0) this.commitVectorPath(false);
+      this.vectorEditDrag = null;
+      this.ctrlDown = false;
+      this.altDown = false;
+      this.updateCursor();
+      if (this.sharpenPreview) this.closeSharpenDialog(false);
     });
   }
 
@@ -3223,13 +4667,25 @@ class App {
   private syncUi(): void {
     const { tool, color, width, liveSharpen, sharpen, symmetry, fontSize } = this.store.tool;
 
+    // Leaving the Vector Path tool commits its pending path — switching to
+    // any other tool (a shortcut like `S`, a toolbar click) accepts the
+    // curve as drawn; only `Esc` abandons it. A path still too short to be
+    // a stroke is dropped by the commit itself.
+    if (tool !== 'vector' && this.vectorAnchors.length > 0) {
+      this.commitVectorPath(false);
+    }
+    if (tool !== 'vector' && this.vectorEditId) {
+      this.exitVectorEdit();
+    }
+    el('vector-options').classList.toggle('is-hidden', tool !== 'vector');
+
     // Leaving the Direct Select tool drops its anchor-edit state.
     if (tool !== 'point' && this.anchorStrokeId !== null) {
       this.anchorStrokeId = null;
       this.selectedAnchors.clear();
       this.pathSelected = false;
       this.anchorDragKind = null;
-      this.anchorDragHandle = null;
+      this.handleDrag = null;
       this.anchorDragLast = null;
     }
 
@@ -3367,6 +4823,39 @@ function drawingToolOf(tool: Tool): Tool {
   return tool === 'pen' || tool === 'marker' || tool === 'copic' || tool === 'eraser'
     ? tool
     : 'pen';
+}
+
+/** Deep-copies vector anchors so working copies never alias stored strokes. */
+function cloneAnchors(anchors: VectorAnchor[]): VectorAnchor[] {
+  return anchors.map((a) => ({
+    p: { ...a.p },
+    ...(a.hIn ? { hIn: { ...a.hIn } } : {}),
+    ...(a.hOut ? { hOut: { ...a.hOut } } : {}),
+  }));
+}
+
+/**
+ * Samples the segments between vector anchors into stroke points. Each
+ * segment is the cubic Bézier steered by its anchors' handles; a segment
+ * with no handles on either end is a straight line and needs no
+ * intermediate samples. `closed` appends the segment back to the first
+ * anchor.
+ */
+function sampleVectorPathPoints(anchors: VectorAnchor[], closed: boolean): Point[] {
+  if (anchors.length === 0) return [];
+  const out: Point[] = [{ x: anchors[0].p.x, y: anchors[0].p.y, pressure: 0.5 }];
+  const addSegment = (from: VectorAnchor, to: VectorAnchor): void => {
+    if (!from.hOut && !to.hIn) {
+      out.push({ x: to.p.x, y: to.p.y, pressure: 0.5 });
+      return;
+    }
+    const a = { x: from.p.x, y: from.p.y, pressure: 0.5 };
+    const b = { x: to.p.x, y: to.p.y, pressure: 0.5 };
+    out.push(...cubicBezierPoints(a, from.hOut ?? from.p, to.hIn ?? to.p, b).slice(1));
+  };
+  for (let i = 1; i < anchors.length; i++) addSegment(anchors[i - 1], anchors[i]);
+  if (closed && anchors.length >= 2) addSegment(anchors[anchors.length - 1], anchors[0]);
+  return out;
 }
 
 /** Closed rectangle outline for a drag from `a` to `b` (uniform = square). */

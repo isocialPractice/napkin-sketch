@@ -34,21 +34,34 @@ hand-drawn rather than vector-perfect.
   beyond it), the **mouse wheel** (`Alt` + wheel zooms, plain wheel pans,
   `Ctrl+Shift` + wheel pans across — all directions configurable), or the
   **Select tool with `Space` + drag**, plus **straight-line drawing** (hold
-  `Space` and drag with a drawing tool).
+  `Space` and drag with a drawing tool; `Shift` mid-drag locks the line
+  strictly horizontal or vertical until released).
+- **Quick curve** — hold `Ctrl + Space` and drag to sweep a quarter ellipse
+  with the active drawing tool, or add `Alt` for a quarter circle; the arc
+  follows the drag and the release places its far end. `Alt` can be pressed or
+  let go mid-drag to switch between the two, and each `Shift` tap swings the
+  arc's apex a further 90° clockwise while both ends stay put.
 - **Quick features** — press `W` then a number for stroke width, `Q` then a
   number for opacity, `Z` then a digit to zoom (`9` = 90%, `0` = 100%), or
   `C` / `Shift + C` to cycle the **Quick Access Colors**.
 - **Endpoint snap** — hold `Shift` while drawing to snap the stroke's start and
   end to the nearest endpoint of an existing stroke (a ring marks the target).
-  Works for freehand, straight-line, and curve drawing; the snap sensitivity
-  (1–20px, default 10px) and an on/off switch live in the settings. The
-  optional **Join stroke** setting (off by default) merges a snapped stroke
-  with the stroke it touches into one continuous stroke.
+  Works for freehand and curve drawing (the quick straight line and quick
+  curve snap their start on press); the snap sensitivity (1–20px, default
+  10px) and an on/off switch live in the settings. The optional **Join
+  stroke** setting (off by default) merges a snapped stroke with the stroke
+  it touches into one continuous stroke.
 - **Sketch Support tools** — a second toolbar section with **Rectangle**
   (`R`, `Shift` for a square), **Ellipse** (`L`, `Shift` for a circle),
   **Curve** (`V`: drag a chord that starts and ends at nearby stroke
   endpoints by default, bend, click to place — click and hold the button for
-  the free-ends variant, or hold `Ctrl+Space` and drag with any tool),
+  the free-ends variant),
+  **Vector Path** (`B`: an Illustrator-style pen — click for corners, drag
+  for smooth Bézier points, click the first point to close or `Enter` to
+  finish open; click a committed path to edit its anchors — add, remove,
+  move, round, and re-handle points),
+  **Sharpen Selection** (smooth and simplify the selected strokes with a
+  live-preview dialog),
   **Paint Bucket** (`G`: fill an enclosed shape as a new selectable shape),
   **Fill Color** (fill the selected element — or the element under the click —
   with the selected color), **Eyedropper** (`I`: pick a color from the canvas
@@ -252,14 +265,21 @@ napkin-sketch ./notes.skbk
 | Quick zoom               | `Z` then a digit (`9` = 90%, `0` = 100%)  |
 | Zoom (mouse)             | Hold `Alt` and scroll the wheel           |
 | Pan (mouse)              | Scroll to pan; `Ctrl+Shift` + scroll pans across |
-| Pan (Select tool)        | Hold `Space` and drag                     |
+| Pan (Select / Direct)    | Hold `Space` and drag                     |
 | Cycle Quick Access color | `C` (forward) / `Shift + C` (back)        |
 | Straight line            | Hold `Space` and drag                     |
-| Quick curve              | Hold `Ctrl + Space` and drag              |
+| Lock line to 90°         | `Shift` while dragging (release to free)  |
+| Quick curve (ellipse)    | Hold `Ctrl + Space` and drag              |
+| Quick curve (circle)     | Hold `Ctrl + Space + Alt` and drag        |
+| Swing a quick curve apex | `Shift` (90° clockwise per press)         |
 | Endpoint snap            | Hold `Shift` while drawing                |
 | Rectangle                | `R` (`Shift` = square)                    |
 | Ellipse                  | `L` (`Shift` = circle)                    |
 | Curve                    | `V` (click and hold the button for variants) |
+| Vector Path              | `B` (click = corner, drag = curve)        |
+| Edit a vector path       | Vector Path tool, click a committed path  |
+| Move point / round corner| `Ctrl` (drag point, handle, or target)    |
+| Toggle anchor handles    | `Alt` + click the anchor                  |
 | Paint Bucket             | `G`                                       |
 | Fill Color               | toolbar button                            |
 | Eyedropper               | `I` (hold `Ctrl` to select a shape)       |
@@ -282,19 +302,33 @@ napkin-sketch ./notes.skbk
 **Text tool:** *click* to place an auto-sizing text box; *drag* to draw a
 fixed-width text box (text wraps to fit the drawn width).
 
-**Select tool:** *click* a stroke to select and drag it; *`Shift`-click* to
+**Select tool:** shows the **black arrow** pointer. *Click* a stroke to
+select and drag it; *`Shift`-click* to
 add it to (or remove it from) the current selection; *drag over empty space*
 to rubber-band-select multiple strokes at once; `Ctrl+A` selects everything
 and `Ctrl+Shift+A` deselects. Hold `Space` and drag to pan the canvas.
 Selecting elements highlights their rows in the Layers panel.
 
-**Direct Select tool (`A`):** *click* an element to show its **anchor
-points**, then *drag* an anchor to reshape the path. *`Shift`-click* selects
-multiple anchors to move together; a single selected anchor exposes its
-neighbour **handles** for fine adjustment; *click the path* (not an anchor)
-to select and move the whole path. Selected anchors and paths render blue,
-the grab sensitivity is configurable (Sketch Support, default 3px), and `Esc`
-drops the edit (`Ctrl+Z` restores the shape).
+**Direct Select tool (`A`):** shows the **white arrow** pointer — the
+selection / direct-selection pairing of vector editors. *Click* an element
+to show its **anchor points**, then *drag* an anchor to reshape the path. A
+stroke drawn by the Vector Path, Curve, or quick-curve tools shows **just
+its few Bézier anchors** (a quick curve is two), and the selected anchor's
+**curvature handles** — drag a handle to bend the curve, with the opposite
+handle staying collinear so the bend is smooth; freehand strokes show their
+sampled points as before. Hold `Space` and drag
+to **pan the canvas**, exactly as with the Select tool, and the other quick
+keys (quick zoom, width, opacity, colors) work here too. *`Shift`-click* selects
+multiple anchors to move together; *click the path* (not an anchor) to select
+and move the whole path. A single selected anchor grows two **tangent
+handles** — hollow circles on guide lines reaching out along the path each
+way, like a vector editor's direction handles. *Drag a handle* to bend the
+stroke around the anchor: the anchor stays pinned, the span between anchor
+and handle turns rigidly so the handle tracks the pointer exactly, and the
+bend fades smoothly into the rest of the stroke beyond it. Pulling a handle
+longer or shorter stretches that span too. Selected anchors and paths render
+blue, the grab sensitivity is configurable (Sketch Support, default 3px),
+and `Esc` drops the edit (`Ctrl+Z` restores the shape).
 
 **Copic marker:** the cursor shows the flat nib as a rotated bar matching the
 current width and angle. To rotate the nib, hold `Ctrl` until the rotation
@@ -309,11 +343,45 @@ ends rotate mode, and hands back the tool and width you were using before
 hold time (0.5–2s), the rotation speed, and whether the quick feature is
 enabled at all — lives under **Copic Marker** in the Settings window.
 
+**Quick curve:** hold `Ctrl + Space` and drag to sweep a **quarter ellipse**
+with whichever drawing tool is active — one gesture, no bend step. The arc
+leaves the point you pressed at flat and arrives at the pointer turning
+straight up, bowing through the corner of the drag, and it reshapes live as
+you move; **releasing places the far end**. Hold `Alt` for a **quarter
+circle** instead: the shorter side of the drag sets the radius, the same way
+`Shift` constrains the Ellipse tool. `Alt` is read continuously, so pressing
+or releasing it mid-drag flips the arc between circle and ellipse as often as
+you like.
+
+Tap `Shift` to **swing the apex 90° clockwise**, once per press. The apex is
+the arc's bowed-out belly, and only it moves: **both ends stay exactly where
+the drag put them**, so a curve begun on an existing stroke stays joined to it
+and its far end stays under the pointer while you choose which way the curve
+bellies out. Two taps mirror the sweep across its chord — the same arc bowed
+the other way — and four bring it back around. Holding `Shift` down does not
+spin the apex; it parks at one angle. Note that on an `Alt` quarter circle
+(or a square drag) the odd stops put the apex on the chord itself, flattening
+the arc into a straight segment — with both ends pinned, a quarter circle can
+only bow two ways — so mirroring a circle is two taps, not one.
+
+`Esc` cancels. The committed stroke is one cubic Bézier — **two anchors and
+two control points**, not a chain of dozens — so picking it up with the
+Vector Path tool shows just those four, ready to rework. For a curve you can
+bow by hand instead, use the **Curve** tool (`V`) below.
+
+**Straight line:** hold `Space` and drag with any drawing tool for a clean
+two-point line. Hold `Shift` during the drag to lock the line **strictly
+horizontal or vertical** — whichever axis the drag favours — and release
+`Shift` to free it again; the lock follows the key live, so you can toggle it
+as often as you like mid-drag, and it engages without waiting for the pointer
+to move.
+
 **Endpoint snap:** hold `Shift` while drawing with the pen, marker, or Copic
 marker and the stroke snaps to the nearest **endpoint** of an existing stroke —
-the start point snaps on pen-down and the end point on pen-up (straight lines
-and curve chords snap both ends live; `Shift+Space` and `Shift+Ctrl+Space`
-snap the quick straight-line and quick-curve modes). A small ring shows the
+the start point snaps on pen-down and the end point on pen-up (the Curve
+tool's chord snaps both ends live). The quick straight line and quick curve
+snap only their **start**, taken as you press down, because mid-drag `Shift`
+is the axis lock for one and the apex key for the other. A small ring shows the
 endpoint you will snap to whenever one is within the **snap sensitivity** (a
 screen-pixel radius, so zooming in gives finer control). The sensitivity
 (1–20px, default 10px) and the feature's on/off switch live under **Quick
@@ -323,13 +391,24 @@ tool and color) into one continuous stroke.
 
 **Sketch Support tools:** **Rectangle** (`R`) and **Ellipse** (`L`) drag out a
 shape (hold `Shift` for a uniform square or circle) and commit it as an
-editable pen stroke. **Curve** (`V`) works in two steps: drag the chord,
-release, move the pointer to bend the curve through it, then click to place
-(`Esc` cancels). By default the chord's **start and end snap to nearby stroke
-endpoints**; click and hold the Curve button to open its flyout and switch to
-the **free ends** variant (the small corner triangle marks tools with a
-flyout) — or hold `Ctrl+Space` and drag to curve with whichever drawing tool
-is active. **Paint Bucket** (`G`) fills the enclosed path or
+editable pen stroke. **Curve** (`V`) adapts to the input device: with a
+*mouse* it works in two steps — drag the chord, release, move the pointer to
+bend the curve through it, then click to place (`Esc` cancels) — because a
+mouse can hover between clicks. A *pen or touch* drag cannot hover, so those
+take the quick curve's single-gesture flow instead: the quarter arc follows
+the drag and lifting off places it. By default the mouse chord's **start and
+end snap to nearby stroke endpoints**; click and hold the Curve button to
+open its flyout and switch to the **free ends** variant (the small corner
+triangle marks tools with a flyout). **Vector Path** (`B`) works like a
+vector editor's pen tool: *click* to place corner points joined by straight
+segments, *click-drag* to place a smooth point and pull out its symmetric
+Bézier direction handles, with the next segment previewed live as a rubber
+band. *Click the first point* to close the path; to finish it open, press
+`Enter`, *double-click*, or simply **switch tools** — pressing `S` for
+Select, any other tool shortcut, or a toolbar button accepts the path as
+drawn. Only `Esc` abandons it. The path commits as an editable pen stroke,
+drawn exactly as placed (never auto-sharpened), and keeps its anchors —
+click it again with the Vector Path tool to rework them (see below). **Paint Bucket** (`G`) fills the enclosed path or
 shape under the click with the current ink color, added as a new selectable
 shape. **Fill Color** fills the selected element(s) with the selected ink
 color — or the element under the click when nothing is selected (open strokes
@@ -339,6 +418,46 @@ it the ink color, and fills the selected shape when one is selected; hold
 `Ctrl` to temporarily switch to the Select tool and pick a shape, then
 release `Ctrl` to return to the eyedropper. **Join strokes** (`Ctrl+J` or the
 Join button) merges the selected strokes end-to-end into one stroke.
+
+**Editing a vector path:** strokes drawn by the Vector Path, Curve, and
+quick-curve tools keep their **anchor points and Bézier control handles**
+(a cubic segment is B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3, where
+P0/P3 are anchors and P1/P2 the control points). With the Vector Path tool
+active and no path in progress, *click such a stroke* to open it for editing
+— every anchor shows, Illustrator-style. Then:
+
+- *Click a segment* to **add an anchor** there (the segment splits without
+  changing shape); *click an anchor* to **remove it**. The pointer telegraphs
+  both: hovering an anchor shows a **"−" badge**, hovering the path between
+  anchors a **"+" badge** (with `Ctrl` held too — `Ctrl`-clicking a bare
+  segment also inserts an anchor).
+- Hold `Ctrl` for direct-select edits: *drag an anchor* to move it (its
+  handles ride along), or *drag one of the selected anchor's handles* to
+  reshape the curve. A smooth point stays smooth: the opposite handle
+  rotates to keep both collinear through the anchor (each keeps its own
+  length), so the curve bends without creasing into a cusp.
+- Hold `Ctrl` with an anchor selected and a **target icon** appears beside
+  the corner: *drag the target* to **round the corner** into a circular
+  fillet, growing with the drag — or type an exact radius into the
+  **Radius** field that appears in the top toolbar while the Vector Path
+  tool is active.
+- Hold `Alt` and *click an anchor* to toggle its handles: a smooth point
+  loses them and becomes a corner, a corner grows a smooth pair along its
+  neighbour chord.
+- The pointer follows the held modifier: `Ctrl` shows the **black Select
+  arrow** (direct-select mode) over anything it can grab, and `Alt` a
+  **stemless arrowhead** — an arrow reduced to just its head — for handle
+  toggling.
+- Clicking empty canvas or pressing `Esc` puts the path down; every change
+  re-draws the stroke from its anchors immediately.
+
+**Sharpen Selection** (toolbar button): smooths and simplifies the selected
+strokes, like a vector editor's simplify command. A small dialog opens in the
+corner with **Smooth** and **Simplify** sliders and the strokes preview the
+result live on the canvas as the sliders move; **Apply** keeps the new shape
+(one undo step returns the originals) and **Cancel** or `Esc` restores them
+untouched. Distinct from **Sharpen all** (`H`), which runs the hand-drawn
+auto-sharpen engine over every stroke.
 
 **Layers panel:** every **new drawn element gets its own layer** named after
 the tool (an empty active layer is reused; eraser strokes stay on the active
@@ -423,7 +542,14 @@ A sketch book is a human-readable JSON document:
           "width": 3,
           "layer": "ly_…",
           "sharpened": true,
-          "points": [{ "x": 12, "y": 34, "pressure": 0.6 }]
+          "points": [{ "x": 12, "y": 34, "pressure": 0.6 }],
+          // Optional: Bézier anchors for Vector Path editable strokes.
+          "vector": {
+            "anchors": [
+              { "p": { "x": 12, "y": 34 }, "hOut": { "x": 20, "y": 30 } },
+              { "p": { "x": 60, "y": 80 }, "hIn": { "x": 52, "y": 70 } }
+            ]
+          }
         }
       ],
       "createdAt": "…",

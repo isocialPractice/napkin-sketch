@@ -22,6 +22,7 @@ import {
   type SketchBook,
   type Stroke,
   type Tool,
+  type VectorAnchor,
 } from './types.js';
 
 /** Ensures a path/name ends with the `.skbk` extension. */
@@ -38,6 +39,37 @@ export function deriveName(filePath: string): string {
 }
 
 const VALID_TOOLS: Tool[] = ['pen', 'marker', 'copic', 'eraser', 'select', 'text', 'image'];
+
+/** Reads an `{x, y}` position, or null when the shape is invalid. */
+function normalizeXY(raw: unknown): { x: number; y: number } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.x !== 'number' || typeof r.y !== 'number') return null;
+  return { x: r.x, y: r.y };
+}
+
+/**
+ * Reads a stroke's editable vector structure (Bézier anchors). Invalid or
+ * partial data drops the whole structure — the stroke still renders from its
+ * sampled points, it just stops being Vector Path editable.
+ */
+function normalizeVector(raw: unknown): Stroke['vector'] {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  if (!Array.isArray(r.anchors)) return undefined;
+  const anchors: VectorAnchor[] = [];
+  for (const entry of r.anchors) {
+    if (!entry || typeof entry !== 'object') return undefined;
+    const a = entry as Record<string, unknown>;
+    const p = normalizeXY(a.p);
+    if (!p) return undefined;
+    const hIn = normalizeXY(a.hIn);
+    const hOut = normalizeXY(a.hOut);
+    anchors.push({ p, ...(hIn ? { hIn } : {}), ...(hOut ? { hOut } : {}) });
+  }
+  if (anchors.length < 2) return undefined;
+  return { anchors, ...(r.closed === true ? { closed: true } : {}) };
+}
 
 function normalizeStroke(raw: unknown): Stroke | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -90,6 +122,7 @@ function normalizeStroke(raw: unknown): Stroke | null {
     fontFamily: isText && typeof r.fontFamily === 'string' ? r.fontFamily : undefined,
     textBoxWidth: isText && typeof r.textBoxWidth === 'number' ? r.textBoxWidth : undefined,
     layer: typeof r.layer === 'string' ? r.layer : undefined,
+    vector: !isText && !isImage && tool !== 'eraser' ? normalizeVector(r.vector) : undefined,
     image: isImage ? (r.image as string) : undefined,
     imageWidth: isImage && typeof r.imageWidth === 'number' ? r.imageWidth : undefined,
     imageHeight: isImage && typeof r.imageHeight === 'number' ? r.imageHeight : undefined,

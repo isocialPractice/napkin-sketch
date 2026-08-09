@@ -48,16 +48,27 @@ export interface Overlay {
   /** Ring marking the endpoint the pointer will snap to (Shift held while drawing). */
   snapTarget?: Point;
   /**
-   * Direct Select overlay: the edited stroke's anchor points, which of them
-   * are selected (drawn blue), the handle points around a lone selected
-   * anchor, and whether the whole path is selected (drawn blue).
+   * Anchor-point overlay, shared by Direct Select and the Vector Path tool:
+   * the anchor points, which of them are selected (drawn blue), tangent
+   * handles (tip positions, with guide lines from the anchor they belong
+   * to), and whether the whole path is selected (drawn blue).
    */
   anchors?: {
     points: Point[];
     selected?: number[];
-    handles?: number[];
+    /** Handle tip positions (not indices — tips sit between anchors). */
+    handles?: Point[];
+    /** Index of the anchor the handle guide lines radiate from. */
     handleOrigin?: number;
     pathSelected?: boolean;
+    /**
+     * Curve to outline when the whole path is selected. Defaults to
+     * `points`; Bézier-structured strokes pass their sampled curve here so
+     * the outline bows with the path instead of cutting anchor to anchor.
+     */
+    outline?: Point[];
+    /** Corner-rounding target icon position (Vector Path edit mode). */
+    roundTarget?: Point;
   };
 }
 
@@ -408,15 +419,17 @@ export class Surface {
     ctx.restore();
   }
 
-  /** Draws Direct Select anchor squares at a constant on-screen size. */
+  /** Draws anchor squares and tangent handles at a constant on-screen size. */
   private paintAnchors(
     ctx: CanvasRenderingContext2D,
     anchors: {
       points: Point[];
       selected?: number[];
-      handles?: number[];
+      handles?: Point[];
       handleOrigin?: number;
       pathSelected?: boolean;
+      outline?: Point[];
+      roundTarget?: Point;
     },
   ): void {
     const pts = anchors.points;
@@ -424,53 +437,66 @@ export class Surface {
     const blue = '#2f6feb';
     const half = 3 / this.zoom;
     const selected = new Set(anchors.selected ?? []);
-    const handles = new Set(anchors.handles ?? []);
     ctx.save();
     ctx.lineWidth = 1 / this.zoom;
 
     // A selected path draws its outline in blue so the whole stroke reads as
     // picked and movable.
     if (anchors.pathSelected) {
+      const outline = anchors.outline ?? pts;
       ctx.strokeStyle = blue;
       ctx.lineWidth = 1.5 / this.zoom;
       ctx.beginPath();
-      pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      outline.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
       ctx.stroke();
       ctx.lineWidth = 1 / this.zoom;
     }
 
-    // Handle guides: thin lines from the lone selected anchor to its handles.
-    if (anchors.handleOrigin !== undefined && handles.size > 0) {
-      const origin = pts[anchors.handleOrigin];
-      if (origin) {
-        ctx.strokeStyle = blue;
-        for (const h of handles) {
-          const p = pts[h];
-          if (!p) continue;
-          ctx.beginPath();
-          ctx.moveTo(origin.x, origin.y);
-          ctx.lineTo(p.x, p.y);
-          ctx.stroke();
-        }
+    // Tangent handles: a thin guide line from the owning anchor out to each
+    // tip, with a hollow circle at the tip itself.
+    const origin =
+      anchors.handleOrigin !== undefined ? pts[anchors.handleOrigin] : undefined;
+    if (origin && anchors.handles && anchors.handles.length > 0) {
+      ctx.strokeStyle = blue;
+      for (const tip of anchors.handles) {
+        ctx.beginPath();
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(tip.x, tip.y);
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(tip.x, tip.y, half * 1.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
       }
     }
 
+    // Anchors: blue when selected, white otherwise.
     ctx.strokeStyle = blue;
     pts.forEach((p, i) => {
-      if (handles.has(i)) {
-        // Handles: small hollow blue circles, distinct from square anchors.
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, half, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        return;
-      }
-      // Anchors: blue when selected, white otherwise.
       ctx.fillStyle = selected.has(i) ? blue : '#ffffff';
       ctx.fillRect(p.x - half, p.y - half, half * 2, half * 2);
       ctx.strokeRect(p.x - half, p.y - half, half * 2, half * 2);
     });
+
+    // Corner-rounding target: concentric rings with a centre dot, sitting
+    // inside the corner's wedge — drag it to round the corner.
+    if (anchors.roundTarget) {
+      const t = anchors.roundTarget;
+      ctx.strokeStyle = blue;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, half * 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, half * 1.1, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = blue;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, half * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 

@@ -3,7 +3,8 @@
  *
  * Converts an SVG document into layered napkin-sketch strokes:
  * - `<g>` elements become layers (name from `data-name`, `inkscape:label`, or
- *   `id`; group `opacity` becomes layer opacity), so napkin-sketch exports and
+ *   `id`, falling back to the `<Group>` placeholder when unnamed; group
+ *   `opacity` becomes layer opacity), so napkin-sketch exports and
  *   Inkscape/Illustrator layer conventions both round-trip. Nested `<g>`
  *   elements become nested layer groups.
  * - Named geometry becomes its own layer. Illustrator (and any editor that
@@ -11,9 +12,9 @@
  *   `<path id="outline">` beside its sibling groups; those keep their name and
  *   their z-order position instead of being flattened onto the parent layer.
  * - Unnamed geometry stays on its group's layer. A run of unnamed siblings
- *   next to named ones collects into one `<Path>` layer that holds its
- *   document position; pass `unnamedElements: 'split'` to give every unnamed
- *   element a layer of its own.
+ *   next to named ones collects into one tag-named layer (`path`, `line`, …)
+ *   that holds its document position; pass `unnamedElements: 'split'` to give
+ *   every unnamed element a layer of its own.
  * - napkin-sketch exports restore exactly: `data-tool`/`data-i` attributes
  *   recover each mark's tool and paint order, and eraser strokes are read
  *   back out of the layer's `<mask>`.
@@ -55,10 +56,16 @@ export interface SvgImportOptions {
    * How geometry that carries no name is imported.
    * - `'merge'` (default): consecutive unnamed siblings share one layer, and a
    *   group holding nothing but unnamed geometry stays a single layer.
-   * - `'split'`: every unnamed element becomes its own `<Path>` layer, mirroring
-   *   an Illustrator layers panel exactly (verbose on stroke-heavy artwork).
+   * - `'split'`: every unnamed element becomes its own tag-named layer,
+   *   mirroring the source markup exactly (verbose on stroke-heavy artwork).
    */
   unnamedElements?: 'merge' | 'split';
+  /**
+   * Name for top-level runs of unnamed geometry (a document with no names at
+   * all arrives as a single layer under this name). Callers pass the source
+   * file's stem; defaults to `'Imported'`.
+   */
+  unnamedRootName?: string;
 }
 
 const GEOMETRY_TAGS = new Set(['path', 'line', 'polyline', 'polygon', 'rect', 'circle', 'ellipse']);
@@ -92,21 +99,12 @@ const AUTO_ID_STEMS = new Set([
   'marker',
 ]);
 
-/** Illustrator-style placeholder names for geometry that has no name. */
-const UNNAMED_LABELS: Record<string, string> = {
-  path: '<Path>',
-  polyline: '<Path>',
-  polygon: '<Path>',
-  line: '<Line>',
-  rect: '<Rectangle>',
-  circle: '<Ellipse>',
-  ellipse: '<Ellipse>',
-  text: '<Text>',
-  image: '<Image>',
-};
+// Geometry with no id (or only an editor-generated one) is labeled with its
+// tag name, so an unnamed <line> imports as a "line" layer and an unnamed
+// <rect> as "rect" - the reader sees exactly what the source markup held.
 
 /** Longest sampled polyline per imported path. */
-const MAX_SAMPLES = 300;
+const MAX_SAMPLES = 1200;
 
 /** A stroke plus its recovered paint order (from `data-i`, else document order). */
 interface OrderedStroke {
@@ -139,32 +137,14 @@ export function importSvg(svgText: string, options: SvgImportOptions = {}): Impo
     const { width, height } = svgSize(root);
     const result: ImportedSvg = { width, height, layers: [] };
 
-    // Many editors export the whole document wrapped in a single top-level
-    // <g> (often named after the file). Descend through such solitary
-    // wrappers so the layer groups inside import as individual layers
-    // instead of one flattened layer; wrapper opacity carries down.
-    let scope: Element = root;
-    let wrapperOpacity = 1;
-    for (;;) {
-      const meaningful = contentChildren(scope);
-      const only = meaningful.length === 1 ? meaningful[0] : null;
-      if (
-        only &&
-        only.tagName.toLowerCase() === 'g' &&
-        !only.hasAttribute('mask') &&
-        Array.from(only.children).some((c) => c.tagName.toLowerCase() === 'g')
-      ) {
-        wrapperOpacity *= clamp01(Number(only.getAttribute('opacity') ?? 1));
-        scope = only;
-        continue;
-      }
-      break;
-    }
-
+    // Every top-level group imports as a layer group: a named one (e.g.
+    // <g id="circles">) under its name, an anonymous one as "<Group>" - no
+    // wrapper is ever flattened away, so the imported stack always mirrors
+    // the document. Top-level loose geometry collects under the file's name.
     // Group direct children into layer buckets, preserving z-order.
     let docOrder = 0;
     const nextOrder = () => docOrder++;
-    const top = contentChildren(scope).filter((child, index) => {
+    const top = contentChildren(root).filter((child, index) => {
       // Skip a leading full-canvas background rect (napkin exports and many
       // other tools emit one).
       if (
@@ -179,8 +159,16 @@ export function importSvg(svgText: string, options: SvgImportOptions = {}): Impo
       return true;
     });
 
-    result.layers = childLayers(top, root, nextOrder, splitUnnamed, 'Imported');
-    for (const layer of result.layers) layer.opacity *= wrapperOpacity;
+    const rootName = options.unnamedRootName ?? 'Imported';
+    result.layers = childLayers(top, root, nextOrder, splitUnnamed, rootName);
+
+    // A document with no <g> elements still gets a single top row: its loose
+    // tag-named layers collect inside one group named after the file, so the
+    // panel shows "file > path, line, rect, ..." instead of a flat pile.
+    const hasGroups = top.some((el) => el.tagName.toLowerCase() === 'g');
+    if (!hasGroups && !(result.layers.length === 1 && result.layers[0].name === rootName)) {
+      result.layers = [{ name: rootName, opacity: 1, strokes: [], children: result.layers }];
+    }
 
     result.layers = pruneEmptyLayers(result.layers);
     if (result.layers.length === 0) {
@@ -267,13 +255,14 @@ export function decodeIdName(id: string): string {
   return decoded.slice(0, -suffix[0].length) || decoded;
 }
 
-/** Placeholder name for geometry the source document left unnamed. */
+/** Placeholder name for geometry the source document left unnamed: its tag. */
 function unnamedLabel(el: Element): string {
-  return UNNAMED_LABELS[el.tagName.toLowerCase()] ?? '<Path>';
+  return el.tagName.toLowerCase();
 }
 
-function layerName(group: Element, index: number): string {
-  return elementName(group) ?? `Layer ${index}`;
+/** A group's author-given name, or the "<Group>" placeholder when unnamed. */
+function layerName(group: Element): string {
+  return elementName(group) ?? '<Group>';
 }
 
 function svgSize(root: SVGSVGElement): { width: number; height: number } {
@@ -331,9 +320,19 @@ function groupToLayer(
 ): ImportedLayer {
   const opacity = clamp01(Number(group.getAttribute('opacity') ?? 1));
   const kids = contentChildren(group);
+  // A group stays a single leaf layer only when it holds nothing but
+  // napkin's own exported marks (data-tool) - those merge back as the
+  // layer's strokes so exports round-trip. Any generic child (named, a
+  // nested group, or unnamed geometry from another editor) makes the group
+  // a group row whose children each get their own layer.
   const structured =
     splitUnnamed ||
-    kids.some((child) => child.tagName.toLowerCase() === 'g' || elementName(child) !== null);
+    kids.some(
+      (child) =>
+        child.tagName.toLowerCase() === 'g' ||
+        elementName(child) !== null ||
+        !child.hasAttribute('data-tool'),
+    );
 
   if (!structured) {
     const items: OrderedStroke[] = [];
@@ -371,7 +370,6 @@ function childLayers(
   unnamedName?: string,
 ): ImportedLayer[] {
   const layers: ImportedLayer[] = [];
-  let groupIndex = 0;
   let unnamedIndex = 0;
   let run: OrderedStroke[] = [];
   let runName = '';
@@ -386,15 +384,8 @@ function childLayers(
   for (const child of elements) {
     if (child.tagName.toLowerCase() === 'g') {
       flushRun();
-      groupIndex += 1;
       layers.push(
-        groupToLayer(
-          child as SVGGElement,
-          root,
-          nextOrder,
-          layerName(child, groupIndex),
-          splitUnnamed,
-        ),
+        groupToLayer(child as SVGGElement, root, nextOrder, layerName(child), splitUnnamed),
       );
       continue;
     }
@@ -405,6 +396,18 @@ function childLayers(
       const marks: OrderedStroke[] = [];
       elementToStrokes(child as SVGElement, root, marks, nextOrder);
       layers.push({ name: named, opacity: 1, strokes: sortByOrder(marks) });
+      continue;
+    }
+
+    // Generic unnamed geometry (anything that is not one of napkin's own
+    // data-tool marks) gets a layer of its own, named after its tag - "if no
+    // id, use the tag name". Only data-tool marks fall through to the run
+    // below and merge back onto their layer.
+    if (!child.hasAttribute('data-tool')) {
+      flushRun();
+      const marks: OrderedStroke[] = [];
+      elementToStrokes(child as SVGElement, root, marks, nextOrder);
+      layers.push({ name: unnamedLabel(child), opacity: 1, strokes: sortByOrder(marks) });
       continue;
     }
 
@@ -531,7 +534,9 @@ function elementToStrokes(
     }
   }
 
-  // Generic geometry: sample evenly along the element's length.
+  // Generic geometry: sample evenly along the element's length. One sample
+  // per unit of path length keeps curves smooth at import size instead of
+  // the visibly faceted outlines a coarser step produces.
   let length = 0;
   try {
     length = el.getTotalLength();
@@ -539,7 +544,7 @@ function elementToStrokes(
     return;
   }
   if (!Number.isFinite(length) || length <= 0) return;
-  const samples = Math.min(MAX_SAMPLES, Math.max(2, Math.ceil(length / 2)));
+  const samples = Math.min(MAX_SAMPLES, Math.max(2, Math.ceil(length)));
   const points: { x: number; y: number }[] = [];
   for (let i = 0; i <= samples; i++) {
     const p = el.getPointAtLength((length * i) / samples);

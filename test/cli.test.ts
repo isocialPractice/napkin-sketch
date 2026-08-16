@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeLaunchOptions, decodeLaunchOptions } from '../src/core/launch.js';
-import { parseArgs } from '../src/cli/args.js';
+import { parseArgs, splitImportList } from '../src/cli/args.js';
 
 test('launch options round-trip through the env string', () => {
   const opts = { mode: 'book', filePath: '/tmp/a.skbk' } as const;
@@ -60,6 +60,60 @@ test('parseArgs combines --new with --full-screen', () => {
   assert.equal(r.mode, 'new');
   assert.equal(r.target, 'ideas');
   assert.equal(r.fullScreen, true);
+});
+
+test('parseArgs reads -i / --import with a file', () => {
+  const r = parseArgs(['--import', 'logo.svg']);
+  assert.equal(r.importRequested, true);
+  assert.equal(r.importFile, 'logo.svg');
+  assert.equal(parseArgs(['-i', 'a.png']).importFile, 'a.png');
+});
+
+test('parseArgs flags --import given without a value', () => {
+  const r = parseArgs(['--import']);
+  assert.equal(r.importRequested, true);
+  assert.equal(r.importFile, undefined);
+});
+
+test('parseArgs reads -m / --multiple-imports as a comma list', () => {
+  const r = parseArgs(['-m', 'a.svg,b.png,c.jpg']);
+  assert.equal(r.multipleImportsRequested, true);
+  assert.deepEqual(r.multipleImports, ['a.svg', 'b.png', 'c.jpg']);
+});
+
+test('parseArgs joins multiple-imports tokens split by spaces after commas', () => {
+  // Shell tokens for: -m file.svg,"file name with space.eps", another.svg
+  const r = parseArgs(['-m', 'file.svg,file name with space.eps,', 'another.svg']);
+  assert.deepEqual(r.multipleImports, ['file.svg', 'file name with space.eps', 'another.svg']);
+});
+
+test('parseArgs combines --multiple-imports with other flags', () => {
+  const r = parseArgs(['--new', 'ideas', '-m', 'a.svg,b.svg', '-f']);
+  assert.equal(r.mode, 'new');
+  assert.equal(r.target, 'ideas');
+  assert.deepEqual(r.multipleImports, ['a.svg', 'b.svg']);
+  assert.equal(r.fullScreen, true);
+});
+
+test('splitImportList trims entries and drops empties', () => {
+  assert.deepEqual(splitImportList(['a.svg, b.svg ,', ' c.svg']), ['a.svg', 'b.svg', 'c.svg']);
+  assert.deepEqual(splitImportList([]), []);
+});
+
+test('import files survive the launch-options round-trip', () => {
+  const restored = decodeLaunchOptions(
+    encodeLaunchOptions({
+      mode: 'new',
+      sketchName: 'x',
+      importFiles: ['/tmp/a.svg', '/tmp/b.png'],
+      importGrid: true,
+    }),
+  );
+  assert.deepEqual(restored.importFiles, ['/tmp/a.svg', '/tmp/b.png']);
+  assert.equal(restored.importGrid, true);
+  const plain = decodeLaunchOptions(encodeLaunchOptions({ mode: 'new' }));
+  assert.equal(plain.importFiles, undefined);
+  assert.equal(plain.importGrid, false);
 });
 
 test('full-screen survives the launch-options round-trip', () => {

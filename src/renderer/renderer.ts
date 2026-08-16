@@ -26,7 +26,7 @@ import {
   type Tool,
   type VectorAnchor,
 } from '../core/types.js';
-import type { ExportFormat, ImageFormat, MenuAction } from '../core/ipc.js';
+import type { ExportFormat, ImageFormat, ImportFileResult, MenuAction } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
 import { sketchesToPdf } from '../core/pdf.js';
 import { defaultSettings, type AppSettings, type QuickModifier } from '../core/settings.js';
@@ -40,7 +40,7 @@ import {
 } from '../sharpen/geometry.js';
 import { sharpenStroke } from '../sharpen/sharpen.js';
 import { Surface, strokeBounds, type LiveStroke } from './surface.js';
-import { Store, type ToolState } from './store.js';
+import { Store, type ImportedLayerNode, type ToolState } from './store.js';
 import { importSvg } from './svg-import.js';
 
 /** Looks up a required element by id, throwing a clear error if absent. */
@@ -359,6 +359,9 @@ class App {
     this.bindMenu();
     this.bindVectorOptions();
     this.bindSharpenSelection();
+    this.bindContextMenus();
+    this.bindPageSettings();
+    this.bindPanelResize();
 
     this.resizeSurface();
   }
@@ -400,6 +403,15 @@ class App {
       const name = launch.sketchName || 'unnamed';
       this.store.setBook(createSketchBook(name, name), null);
     }
+
+    if (launch.importFiles && launch.importFiles.length > 0) {
+      await this.importLaunchFiles(launch.importFiles, launch.importGrid === true);
+    }
+
+    // Opening defaults: the layers panel is in view and Select is the active
+    // tool, so a fresh session starts in arrange-and-inspect mode.
+    this.toggleLayers(true);
+    this.store.setTool({ tool: 'select' });
 
     this.syncUi();
     this.scheduleRender();
@@ -590,8 +602,12 @@ class App {
     const stage = el<HTMLElement>('stage');
     const rect = stage.getBoundingClientRect();
     this.surface.resize(rect.width, rect.height);
-    this.store.sketch.width = Math.round(rect.width);
-    this.store.sketch.height = Math.round(rect.height);
+    // Endless pages track the window; sized pages keep their pinned
+    // dimensions (set in Page Settings) whatever the window does.
+    if (this.store.sketch.sizeMode !== 'sized') {
+      this.store.sketch.width = Math.round(rect.width);
+      this.store.sketch.height = Math.round(rect.height);
+    }
     this.scheduleRender();
   }
 
@@ -691,14 +707,20 @@ class App {
     if (tool !== 'select' && !this.store.canDraw) {
       const layer = this.store.activeLayer;
       const effective = effectiveLayer(this.store.sketch, layer);
-      this.toast(
-        layer.group
-          ? `"${layer.name}" is a group — pick a layer inside it to draw.`
-          : effective.locked
-            ? `Layer "${layer.name}" is locked.`
-            : `Layer "${layer.name}" is hidden.`,
-      );
-      return;
+      if (layer.group && effective.visible && !effective.locked) {
+        // A group holds no marks itself: drop a fresh layer inside it, tell
+        // the user, and let the stroke land there instead of being swallowed.
+        const created = this.store.addLayerInGroup(layer.id);
+        this.toast(`"${layer.name}" is a group — added layer "${created.name}" inside it to draw.`);
+      } else {
+        const kind = layer.group ? 'Group' : 'Layer';
+        this.toast(
+          effective.locked
+            ? `${kind} "${layer.name}" is locked.`
+            : `${kind} "${layer.name}" is hidden.`,
+        );
+        return;
+      }
     }
 
     // Curve tool, bend phase: a click commits the pending curve.
@@ -2199,13 +2221,17 @@ class App {
    * element(s), or to the element under the click when nothing is selected.
    */
   private applyFillColor(pt: Point): void {
-    if (this.store.selectedIds.size === 0) {
-      const hit = this.hitTest(pt);
-      if (!hit) {
-        this.toast('Select an element (or click one) to fill.');
-        return;
-      }
+    // Clicking an element selects it first — anywhere within the element's
+    // dimensions counts, not just its outline — and the fill applies to it.
+    // Strokes the tool cannot act on (erasers, images) are skipped so the
+    // pick falls through to the fillable element beneath them. With no
+    // element under the click, an existing selection is filled.
+    const hit = this.hitTestWithinBounds(pt, (s) => s.tool !== 'eraser' && !isImageStroke(s));
+    if (hit) {
       this.store.setSelection([hit.id]);
+    } else if (this.store.selectedIds.size === 0) {
+      this.toast('Select an element (or click one) to fill.');
+      return;
     }
     const color = this.store.tool.color;
     const result = this.store.fillSelected(color);
@@ -2236,7 +2262,8 @@ class App {
     }
 
     // Pick a different stroke for editing, or drop the edit on empty canvas.
-    const hit = this.hitTest(pt);
+    // As with the Select tool, a filled shape's interior counts as the shape.
+    const hit = this.hitTest(pt) ?? this.hitFilledInterior(pt);
     if (hit && !isTextStroke(hit) && !isImageStroke(hit)) {
       this.anchorStrokeId = hit.id;
       this.selectedAnchors.clear();
@@ -2638,6 +2665,48 @@ class App {
 
   // ---- Pan / zoom gestures -------------------------------------------------
 
+  /**
+   * Fits every graphic on the page into view (View > Fit All in View,
+   * Ctrl+0). The viewport zooms and pans so the bounding box of all strokes
+   * sits centered on the canvas with a little breathing room; an empty page
+   * resets to the 1:1 origin.
+   */
+  private fitAllInView(): void {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const stroke of this.store.sketch.strokes) {
+      const b = strokeBounds(stroke);
+      if (!b) continue;
+      minX = Math.min(minX, b.minX);
+      minY = Math.min(minY, b.minY);
+      maxX = Math.max(maxX, b.maxX);
+      maxY = Math.max(maxY, b.maxY);
+    }
+    if (!Number.isFinite(minX)) {
+      this.surface.resetViewport();
+      this.scheduleRender();
+      return;
+    }
+    const pad = 32;
+    const w = Math.max(1, maxX - minX + pad * 2);
+    const h = Math.max(1, maxY - minY + pad * 2);
+    // setViewport clamps the zoom, so read it back before centering.
+    this.surface.setViewport({
+      zoom: Math.min(this.surface.width / w, this.surface.height / h),
+      panX: 0,
+      panY: 0,
+    });
+    const zoom = this.surface.getViewport().zoom;
+    this.surface.setViewport({
+      zoom,
+      panX: (this.surface.width - (maxX - minX) * zoom) / 2 - minX * zoom,
+      panY: (this.surface.height - (maxY - minY) * zoom) / 2 - minY * zoom,
+    });
+    this.scheduleRender();
+  }
+
   /** Enters two-finger gesture mode, discarding any in-progress interaction. */
   private beginGesture(): void {
     this.gesturing = true;
@@ -2728,7 +2797,10 @@ class App {
   // ---- Select tool ---------------------------------------------------------
 
   private beginSelect(e: PointerEvent, pt: Point): void {
-    const hit = this.hitTest(pt);
+    // Outline hits win; failing that, a click on a shape's painted fill (its
+    // interior) selects the shape, so filled elements act solid. A click on
+    // genuinely empty canvas still starts a rubber-band selection.
+    const hit = this.hitTest(pt) ?? this.hitFilledInterior(pt);
     if (hit) {
       if (e.shiftKey) {
         // Shift-click toggles membership without dropping the rest.
@@ -2800,6 +2872,53 @@ class App {
       if (s.points.length === 1 && Math.hypot(pt.x - s.points[0].x, pt.y - s.points[0].y) <= pad) {
         return s;
       }
+    }
+    return null;
+  }
+
+  /**
+   * Topmost filled shape whose painted interior contains the point.
+   *
+   * Used by the selection tools so a shape with a fill reads as solid: a
+   * click on its color grabs it, while unfilled outlines stay click-through
+   * (their middle is empty canvas, where rubber-banding must still work).
+   */
+  private hitFilledInterior(pt: Point): Stroke | null {
+    const strokes = this.store.sketch.strokes;
+    for (let i = strokes.length - 1; i >= 0; i--) {
+      const s = strokes[i];
+      if (!s.fill || s.tool === 'eraser' || s.points.length < 3) continue;
+      if (!this.strokeEditable(s)) continue;
+      if (pointInPolygon(pt, s.points)) return s;
+    }
+    return null;
+  }
+
+  /**
+   * Like {@link hitTest}, but a click anywhere within an element's
+   * dimensions counts, not just near its outline. Three passes, each
+   * topmost-first: exact outline proximity, then shape interior
+   * (point-in-polygon over the stroke's points), then bounding box.
+   *
+   * @param eligible Optional filter; ineligible strokes are skipped so the
+   *   pick falls through to whatever sits beneath them.
+   */
+  private hitTestWithinBounds(pt: Point, eligible?: (s: Stroke) => boolean): Stroke | null {
+    const strokes = this.store.sketch.strokes;
+    const pickable = (s: Stroke): boolean =>
+      this.strokeEditable(s) && (eligible === undefined || eligible(s));
+    const exact = this.hitTest(pt);
+    if (exact && pickable(exact)) return exact;
+    for (let i = strokes.length - 1; i >= 0; i--) {
+      const s = strokes[i];
+      if (!pickable(s)) continue;
+      if (s.points.length >= 3 && pointInPolygon(pt, s.points)) return s;
+    }
+    for (let i = strokes.length - 1; i >= 0; i--) {
+      const s = strokes[i];
+      if (!pickable(s)) continue;
+      const b = strokeBounds(s, (t) => this.surface.measureText(t));
+      if (b && pt.x >= b.minX && pt.x <= b.maxX && pt.y >= b.minY && pt.y <= b.maxY) return s;
     }
     return null;
   }
@@ -3614,6 +3733,17 @@ class App {
     el('new-sketch').addEventListener('click', () => this.newSketch());
     el('open').addEventListener('click', () => this.openBook());
     el('import').addEventListener('click', () => this.importFile());
+    // Export offers the same four formats as File > Export, dropped down
+    // beneath the button via the shared context menu.
+    el('export').addEventListener('click', () => {
+      const rect = el('export').getBoundingClientRect();
+      this.showContextMenu(rect.left, rect.bottom + 4, [
+        { label: 'PNG Image…', action: () => void this.exportRaster('png') },
+        { label: 'JPEG Image…', action: () => void this.exportRaster('jpeg') },
+        { label: 'SVG Vector…', action: () => void this.exportSvg() },
+        { label: 'PDF Document…', action: () => void this.exportPdf() },
+      ]);
+    });
     el('save').addEventListener('click', () => this.saveBook(false));
     el('save-as').addEventListener('click', () => this.saveBook(true));
   }
@@ -3780,10 +3910,15 @@ class App {
       if (!result.cancelled) this.toast(result.error ?? 'Import failed.');
       return;
     }
+    await this.applyImportResult(result);
+  }
 
+  /** Applies one read import result to the current book (menu and CLI import). */
+  private async applyImportResult(result: ImportFileSuccess): Promise<void> {
     if (result.kind === 'svg') {
       try {
-        const imported = importSvg(result.text);
+        // Fully unnamed documents arrive as one layer named after the file.
+        const imported = importSvg(result.text, { unnamedRootName: result.name });
         this.store.addImportedLayers(imported.layers);
         this.renderLayers();
         this.toast(
@@ -3850,6 +3985,82 @@ class App {
     }
   }
 
+  /**
+   * Imports files handed over by the CLI (-i, --import / -m, --multiple-imports)
+   * once the opening book is in place.
+   *
+   * Without `grid`, each file imports exactly like the File > Import menu item.
+   * With `grid`, every file becomes its own layer and the graphics flow into
+   * rows across the page: each fills the current row left to right and wraps
+   * to a new row when the next one would overrun the page width.
+   */
+  private async importLaunchFiles(files: string[], grid: boolean): Promise<void> {
+    if (!grid) {
+      for (const file of files) {
+        const result = await window.napkin.readImportFile(file);
+        if (!result.ok) {
+          this.toast(result.error ?? `Could not import ${file}.`);
+          continue;
+        }
+        await this.applyImportResult(result);
+      }
+      return;
+    }
+
+    // Measure pass: read every file and record its graphic size (and the page
+    // size) before anything is placed, so the row layout knows each footprint.
+    const items: ImportGridItem[] = [];
+    for (const file of files) {
+      const result = await window.napkin.readImportFile(file);
+      if (!result.ok) {
+        this.toast(result.error ?? `Could not import ${file}.`);
+        continue;
+      }
+      try {
+        items.push(...(await importResultToGridItems(result)));
+      } catch (err) {
+        this.toast(`${result.name}: ${(err as Error).message}`);
+      }
+    }
+    if (items.length === 0) return;
+
+    this.placeImportedGrid(items);
+    this.renderLayers();
+    this.renderThumbnails();
+    this.toast(`Imported ${items.length} graphic${items.length === 1 ? '' : 's'} into a grid.`);
+  }
+
+  /** Flows measured graphics into rows across the page, one layer per graphic. */
+  private placeImportedGrid(items: ImportGridItem[]): void {
+    const sketch = this.store.sketch;
+    const margin = 24;
+    const gap = 24;
+    const maxRowWidth = Math.max(1, sketch.width - margin * 2);
+    const maxHeight = Math.max(1, sketch.height - margin * 2);
+
+    const nodes: ImportedLayerNode[] = [];
+    let x = 0;
+    let y = margin;
+    let rowHeight = 0;
+    for (const item of items) {
+      // Oversized graphics scale down to the page; smaller ones keep their size.
+      const scale = Math.min(1, maxRowWidth / item.width, maxHeight / item.height);
+      const w = item.width * scale;
+      const h = item.height * scale;
+      if (x > 0 && x + w > maxRowWidth) {
+        // The next graphic would overrun the page width: start a new row.
+        x = 0;
+        y += rowHeight + gap;
+        rowHeight = 0;
+      }
+      transformImportedLayers(item.layers, scale, margin + x, y);
+      nodes.push(...item.layers);
+      x += w + gap;
+      rowHeight = Math.max(rowHeight, h);
+    }
+    this.store.addImportedLayers(nodes);
+  }
+
   // ---- Pages ---------------------------------------------------------------
 
   private bindPages(): void {
@@ -3870,6 +4081,8 @@ class App {
   private togglePages(force?: boolean): void {
     this.pagesOpen = force ?? !this.pagesOpen;
     el('app').classList.toggle('pages-open', this.pagesOpen);
+    // "Panel in View" state on the toolbar toggle mirrors the panel.
+    el('pages-toggle').classList.toggle('is-open', this.pagesOpen);
     if (this.pagesOpen) this.renderThumbnails();
     requestAnimationFrame(() => this.resizeSurface());
   }
@@ -3904,8 +4117,218 @@ class App {
   private toggleLayers(force?: boolean): void {
     this.layersOpen = force ?? !this.layersOpen;
     el('app').classList.toggle('layers-open', this.layersOpen);
+    // "Panel in View" state on the toolbar toggle mirrors the panel.
+    el('layers-toggle').classList.toggle('is-open', this.layersOpen);
     if (this.layersOpen) this.renderLayers();
     requestAnimationFrame(() => this.resizeSurface());
+  }
+
+  // ---- Panel context menus & resize ----------------------------------------
+
+  /** Right-click menus on the pages and layers panels, scoped to each panel. */
+  private bindContextMenus(): void {
+    el('layers-panel').addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.showContextMenu(e.clientX, e.clientY, [
+        {
+          label: 'Add Layer',
+          action: () => {
+            this.store.addLayer();
+            this.toast(`Added layer "${this.store.activeLayer.name}".`);
+          },
+        },
+        { label: 'Group Layer', action: () => this.groupActiveLayer() },
+        {
+          label: 'Ungroup',
+          disabled: this.store.activeLayer.group !== true,
+          action: () => this.ungroupActiveLayer(),
+        },
+        { label: 'Rename', action: () => this.renameActiveLayerFromMenu() },
+        { label: 'Delete Layer(s)', action: () => this.deleteSelectedLayers() },
+        { separator: true },
+        { label: 'Move Layer Up', action: () => this.store.moveLayer(this.store.activeLayer.id, 1) },
+        { label: 'Move Layer Down', action: () => this.store.moveLayer(this.store.activeLayer.id, -1) },
+        { separator: true },
+        { label: 'Hide Layers Panel', action: () => this.toggleLayers(false) },
+      ]);
+    });
+
+    el('pages-panel').addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.showContextMenu(e.clientX, e.clientY, [
+        {
+          label: 'Add Page',
+          action: () => {
+            this.store.addPage('unnamed');
+            this.renderThumbnails();
+            this.toast('Added a new page.');
+          },
+        },
+        {
+          label: 'Delete Page',
+          disabled: this.store.book.sketches.length <= 1,
+          action: () => {
+            this.store.removePage();
+            this.renderThumbnails();
+          },
+        },
+        { separator: true },
+        { label: 'Page Settings…', action: () => this.openPageSettings() },
+        { separator: true },
+        { label: 'Hide Pages Panel', action: () => this.togglePages(false) },
+      ]);
+    });
+
+    window.addEventListener('pointerdown', (e) => {
+      if (!(e.target instanceof Node) || !el('context-menu').contains(e.target)) {
+        this.hideContextMenu();
+      }
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.hideContextMenu();
+    });
+    window.addEventListener('blur', () => this.hideContextMenu());
+  }
+
+  /** Builds and positions the shared context menu at a client point. */
+  private showContextMenu(x: number, y: number, items: ContextMenuItem[]): void {
+    const menu = el('context-menu');
+    menu.innerHTML = '';
+    for (const item of items) {
+      if (item.separator) {
+        const sep = document.createElement('div');
+        sep.className = 'context-menu-sep';
+        menu.appendChild(sep);
+        continue;
+      }
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = item.label ?? '';
+      btn.disabled = item.disabled === true;
+      btn.addEventListener('click', () => {
+        this.hideContextMenu();
+        item.action?.();
+      });
+      menu.appendChild(btn);
+    }
+    menu.classList.remove('is-hidden');
+    // Nudge the menu back on-screen when opened near a window edge.
+    const rect = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(0, Math.min(x, window.innerWidth - rect.width - 4))}px`;
+    menu.style.top = `${Math.max(0, Math.min(y, window.innerHeight - rect.height - 4))}px`;
+  }
+
+  private hideContextMenu(): void {
+    el('context-menu').classList.add('is-hidden');
+  }
+
+  /** Opens the inline rename input on the active layer's row (context menu). */
+  private renameActiveLayerFromMenu(): void {
+    const row = document.querySelector<HTMLElement>('.layer-row.is-active');
+    const label = row?.querySelector<HTMLElement>('.layer-name');
+    if (row && label) {
+      this.beginLayerRename(this.store.activeLayer.id, row, label);
+    } else {
+      this.toast('Select a layer row to rename it.');
+    }
+  }
+
+  /** Drag handles on the panels' inner edges adjust each panel's width. */
+  private bindPanelResize(): void {
+    // The layers panel sits on the right, so dragging its handle left widens
+    // it; the pages panel sits on the left and widens by dragging right.
+    this.bindPanelResizeHandle('layers-resize', 'layers-panel', '--layers-width', -1);
+    this.bindPanelResizeHandle('pages-resize', 'pages-panel', '--pages-width', 1);
+  }
+
+  /**
+   * Wires one resize handle to its panel.
+   *
+   * @param direction +1 when dragging right widens the panel, -1 when
+   *   dragging left does.
+   */
+  private bindPanelResizeHandle(
+    handleId: string,
+    panelId: string,
+    cssVar: string,
+    direction: 1 | -1,
+  ): void {
+    const handle = el(handleId);
+    const panel = el(panelId);
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      handle.classList.add('is-dragging');
+      panel.classList.add('is-resizing');
+      const startX = e.clientX;
+      const startWidth = panel.getBoundingClientRect().width;
+      const move = (ev: PointerEvent): void => {
+        const delta = (ev.clientX - startX) * direction;
+        const width = Math.min(480, Math.max(160, startWidth + delta));
+        document.documentElement.style.setProperty(cssVar, `${Math.round(width)}px`);
+        this.resizeSurface();
+      };
+      const up = (): void => {
+        handle.classList.remove('is-dragging');
+        panel.classList.remove('is-resizing');
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+        this.resizeSurface();
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+    });
+  }
+
+  // ---- Page Settings (endless / sized pages) --------------------------------
+
+  private bindPageSettings(): void {
+    const sized = el<HTMLInputElement>('page-sized');
+    sized.addEventListener('change', () => {
+      el<HTMLInputElement>('page-width').disabled = !sized.checked;
+      el<HTMLInputElement>('page-height').disabled = !sized.checked;
+    });
+    el('page-settings-apply').addEventListener('click', () => this.applyPageSettings());
+    el('page-settings-close').addEventListener('click', () =>
+      el('page-settings-dialog').classList.add('is-hidden'),
+    );
+  }
+
+  /** Opens the Page Settings dialog pre-filled from the active page. */
+  private openPageSettings(): void {
+    const sketch = this.store.sketch;
+    const sized = el<HTMLInputElement>('page-sized');
+    sized.checked = sketch.sizeMode === 'sized';
+    const width = el<HTMLInputElement>('page-width');
+    const height = el<HTMLInputElement>('page-height');
+    width.value = String(sketch.width);
+    height.value = String(sketch.height);
+    width.disabled = !sized.checked;
+    height.disabled = !sized.checked;
+    el('page-settings-dialog').classList.remove('is-hidden');
+  }
+
+  private applyPageSettings(): void {
+    const sized = el<HTMLInputElement>('page-sized').checked;
+    if (sized) {
+      const width = Math.round(Number(el<HTMLInputElement>('page-width').value));
+      const height = Math.round(Number(el<HTMLInputElement>('page-height').value));
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width < 64 || height < 64) {
+        this.toast('Enter a page width and height of at least 64 pixels.');
+        return;
+      }
+      this.store.setPageSize('sized', Math.min(8192, width), Math.min(8192, height));
+      this.toast(`Page sized to ${this.store.sketch.width} × ${this.store.sketch.height}.`);
+    } else {
+      // Endless pages fall back to tracking the window size.
+      this.store.setPageSize('endless');
+      this.toast('Page set to endless (fills the window).');
+    }
+    el('page-settings-dialog').classList.add('is-hidden');
+    this.resizeSurface();
+    this.renderThumbnails();
   }
 
   /** Wraps the selected layers (or the active layer) in a new group. */
@@ -4286,6 +4709,9 @@ class App {
         break;
       case 'redo':
         this.store.redo();
+        break;
+      case 'fit-view':
+        this.fitAllInView();
         break;
       case 'toggle-pages':
         this.togglePages();
@@ -4764,6 +5190,104 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error('Could not decode image.'));
     img.src = src;
   });
+}
+
+/** One entry in the shared right-click context menu. */
+interface ContextMenuItem {
+  label?: string;
+  action?: () => void;
+  disabled?: boolean;
+  /** Renders a divider line instead of a button. */
+  separator?: boolean;
+}
+
+/** A successfully read import, before it is applied to the book. */
+type ImportFileSuccess = Extract<ImportFileResult, { ok: true }>;
+
+/** One measured graphic waiting for a spot in the CLI import grid. */
+interface ImportGridItem {
+  name: string;
+  /** Natural (unscaled) size of the graphic in page units. */
+  width: number;
+  height: number;
+  /** Layer tree holding the graphic's strokes in its own local coordinates. */
+  layers: ImportedLayerNode[];
+}
+
+/**
+ * Converts a read import into measured grid items.
+ *
+ * An SVG becomes one item (multi-layer documents keep their layers under a
+ * group named after the file), a raster image becomes one image item, and a
+ * PDF contributes one item per page.
+ */
+async function importResultToGridItems(result: ImportFileSuccess): Promise<ImportGridItem[]> {
+  if (result.kind === 'svg') {
+    // Unnamed content is named after the file; a lone named top layer (e.g.
+    // a document-wide "circles" group) keeps the name the author gave it.
+    const imported = importSvg(result.text, { unnamedRootName: result.name });
+    const layers: ImportedLayerNode[] =
+      imported.layers.length > 1
+        ? [{ name: result.name, opacity: 1, strokes: [], children: imported.layers }]
+        : imported.layers;
+    return [{ name: result.name, width: imported.width, height: imported.height, layers }];
+  }
+
+  if (result.kind === 'pdf') {
+    return result.pages.map((page, index) => {
+      const name = result.pages.length === 1 ? result.name : `${result.name}-${index + 1}`;
+      return {
+        name,
+        width: Math.max(1, page.width),
+        height: Math.max(1, page.height),
+        layers: [{ name, opacity: 1, strokes: page.strokes.map((s) => ({ ...s })) }],
+      };
+    });
+  }
+
+  const img = await loadImage(result.dataUrl);
+  const stroke: Stroke = {
+    id: createId('im'),
+    tool: 'image',
+    color: '#1f2328',
+    width: 1,
+    points: [{ x: 0, y: 0, pressure: 0.5 }],
+    image: result.dataUrl,
+    imageWidth: img.naturalWidth,
+    imageHeight: img.naturalHeight,
+    sharpened: true,
+  };
+  return [
+    {
+      name: result.name,
+      width: Math.max(1, img.naturalWidth),
+      height: Math.max(1, img.naturalHeight),
+      layers: [{ name: result.name, opacity: 1, strokes: [stroke] }],
+    },
+  ];
+}
+
+/** Scales and offsets every stroke in an imported layer tree, in place. */
+function transformImportedLayers(
+  layers: ImportedLayerNode[],
+  scale: number,
+  dx: number,
+  dy: number,
+): void {
+  for (const layer of layers) {
+    for (const stroke of layer.strokes) {
+      stroke.points = stroke.points.map((p) => ({
+        ...p,
+        x: p.x * scale + dx,
+        y: p.y * scale + dy,
+      }));
+      stroke.width = Math.max(0.5, stroke.width * scale);
+      if (stroke.fontSize !== undefined) stroke.fontSize *= scale;
+      if (stroke.imageWidth !== undefined) stroke.imageWidth *= scale;
+      if (stroke.imageHeight !== undefined) stroke.imageHeight *= scale;
+    }
+    if (layer.children) transformImportedLayers(layer.children, scale, dx, dy);
+  }
 }
 
 /** Euclidean distance between two screen points. */

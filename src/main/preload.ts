@@ -33,6 +33,8 @@ const bridge: NapkinBridge = {
   savePdf: (pdfContent: string, suggestedName: string): Promise<SaveResult> =>
     ipcRenderer.invoke(IPC.savePdf, pdfContent, suggestedName),
   importFile: (): Promise<ImportFileResult> => ipcRenderer.invoke(IPC.importFile),
+  readImportFile: (filePath: string): Promise<ImportFileResult> =>
+    ipcRenderer.invoke(IPC.readImportFile, filePath),
   saveImages: (format: ExportFormat, contents: string[], baseName: string): Promise<SaveImagesResult> =>
     ipcRenderer.invoke(IPC.saveImages, format, contents, baseName),
   setTitle: (title: string): void => ipcRenderer.send(IPC.setTitle, title),

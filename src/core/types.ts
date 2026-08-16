@@ -160,6 +160,12 @@ export interface Sketch {
   width: number;
   /** Surface height in pixels. */
   height: number;
+  /**
+   * How the page is sized. 'endless' (the default when absent) tracks the
+   * window, so the drawing surface always fills the stage; 'sized' pins
+   * width/height to the exact values chosen in Page Settings.
+   */
+  sizeMode?: 'endless' | 'sized';
   /** Background CSS color. */
   background: string;
   /** Layer stack, bottom first. Always holds at least one layer. */

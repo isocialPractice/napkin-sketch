@@ -3,23 +3,31 @@
 Roadmap for **napkin-sketch**, grouped by semantic-version impact. Items are
 aspirational and unordered within each group.
 
+## Current
+
+- [ ] **Export SVG File Size**: Exported SVG's are much larger than the imported
+  SVG when imported and exported without making changes.
+  - **GOAL**: Export with less date, while mainitaing the integrity of the graphic
+    being exported or keeping the graphic intact.
+  - From: Minor
+
 ## Resolve Issues (`x.y.++`)
 
 - [ ] Maintain SVG layer names on export
-- [ ] Imported nested group element layers without a unique or custom `id` value.
 
 ## Major (breaking / large features → next `++.y.z`)
 
-- [x] **Layers**: per-sketch layer stack with opacity, lock, and reordering.
 - [ ] **Pressure-aware brush engine**: replace the width model with a velocity- and
   tilt-aware dynamic brush (calligraphy, charcoal, ink-wash presets).
 - [ ] **Real-time collaboration**: shared sketch books over WebRTC/CRDT so multiple
   pointers can draw on the same page.
 - [ ] **Plugin API v2**: stable, documented extension points (custom tools, custom
   sharpen passes, export targets) with a semver contract.
-- [x] **Vector export**: export sketches to SVG/PDF in addition to PNG/JPEG.
-- [x] **Vector import**: import SVG/PDF in addition to PNG/JPEG, keeping layers
-  intact for imported SVGs.
+- [ ] **GUI Redesign**: update GUI overall design.
+  - Initial sketches
+  - Polish and apply
+  - System that is easily modified in order to inline with GUI desing trends
+    - Highly configurable where uses can also mod, or set and customize UI/UX
 
 ## Quick Features (ideas → next `x.++.z`)
 
@@ -73,3 +81,17 @@ press a letter, type a value within the quick-feature timer, and it applies.
 - [ ] **Panel Improvements**:
   - [ ] **Resize Panels**: Allow the side and top panels to be resized.
   - [ ] **Undock Panels**: Allow the side and top panels to be undocked and moved freely outside of the GUI window.
+
+## Complete
+
+- [x] Resize pages
+  - From: Minor
+- [x] **Vector export**: export sketches to SVG/PDF in addition to PNG/JPEG.
+  - From: Major (breaking / large features → next `++.y.z`)
+- [x] Imported nested group element layers without a unique or custom `id` value.
+  - From: Resolve Issues
+- [x] **Layers**: per-sketch layer stack with opacity, lock, and reordering.
+  - From: Major (breaking / large features → next `++.y.z`)
+- [x] **Vector import**: import SVG/PDF in addition to PNG/JPEG, keeping layers
+  intact for imported SVGs.
+  - From: Major (breaking / large features → next `++.y.z`)

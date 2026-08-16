@@ -63,8 +63,9 @@ hand-drawn rather than vector-perfect.
   **Sharpen Selection** (smooth and simplify the selected strokes with a
   live-preview dialog),
   **Paint Bucket** (`G`: fill an enclosed shape as a new selectable shape),
-  **Fill Color** (fill the selected element — or the element under the click —
-  with the selected color), **Eyedropper** (`I`: pick a color from the canvas
+  **Fill Color** (click anywhere within an element's dimensions to select and
+  fill it with the selected color; with nothing under the click the current
+  selection is filled), **Eyedropper** (`I`: pick a color from the canvas
   and fill the selected shape), and **Join strokes** (`Ctrl+J`).
 - **Fill Shape** — with the Select tool active and a shape selected, clicking
   a Quick Access Color fills the shape with it. Fills are honored by the
@@ -99,13 +100,26 @@ hand-drawn rather than vector-perfect.
   rows **drag-and-drop** to reposition or to nest inside a group, and
   deleting an element deletes its emptied layer (deleting a layer deletes its
   elements). Drawing, erasing, and selection respect the active layer, and
-  the eraser only cuts holes in its own layer.
-- **Sketchbook pages** with a toggleable **thumbnail panel**, page-turn
-  animation, and add/delete/navigate controls — flip back to any earlier page.
+  the eraser only cuts holes in its own layer. The panel is **in view by
+  default**, **resizable** (drag its inner edge), and offers a **right-click
+  menu** with its layer tools (Add, Group, Ungroup, Rename, Delete, Move
+  Up/Down, Hide Panel).
+- **Sketchbook pages** with a toggleable, **resizable thumbnail panel**,
+  page-turn animation, and add/delete/navigate controls — flip back to any
+  earlier page.
+  A **right-click menu** on the panel adds **Page Settings**, which toggles a
+  page between **endless** (fills the window, the default) and **sized**
+  (an exact width and height with a dashed page outline).
+- **Panel state at a glance** — the toolbar's Pages and Layers buttons fill
+  in ("Panel in View") while their panel is open and sit flat when it is
+  hidden.
 - **Native application menus** — *File* (New, Open, Import, Save, Save As,
-  Export PNG / JPEG / SVG / PDF) and *Edit* (Undo, Redo).
+  Export PNG / JPEG / SVG / PDF), *Edit* (Undo, Redo), and *View* with
+  **Fit All in View** (`Ctrl+0`) to bring every graphic on the page into
+  view at once.
 - **Export** to PNG (transparent), JPEG (flattened), **SVG** (lossless vector,
-  layers preserved as groups), or **PDF** (vector, no extra dependencies). Each
+  layers preserved as groups), or **PDF** (vector, no extra dependencies) —
+  from the File menu or the top toolbar's **Export** button beside Import. Each
   format offers **Export current page** or **Export all pages** — raster and
   SVG save `name_1.ext`, `name_2.ext`, …, while PDF writes all pages into one
   document.
@@ -212,15 +226,24 @@ npm install -g napkin-sketch
 napkin-sketch [option] [target]
 ```
 
-| Parameter           | Description                                                           |
-| :------------------ | :-------------------------------------------------------------------- |
-| `-h, --help`        | Show help for using the application from the command line.            |
-| `-v, --version`     | Show the current version of the application.                          |
-| `-b, --book`        | Open a saved sketch book file, using the `.skbk` extension.           |
-| `-n, --new`         | New sketch, using `unnamed` or the name passed as `[target]`.         |
-| `-f, --full-screen` | Open the GUI window in full-screen mode.                              |
-| `--sharpen`         | Auto-sharpen a saved sketch so it appears more hand-drawn, then open. |
-| `[target]`          | A `.skbk` file to open, or a name for a new sketch file.              |
+| Parameter                | Description                                                           |
+| :----------------------- | :-------------------------------------------------------------------- |
+| `-h, --help`             | Show help for using the application from the command line.            |
+| `-v, --version`          | Show the current version of the application.                          |
+| `-b, --book`             | Open a saved sketch book file, using the `.skbk` extension.           |
+| `-n, --new`              | New sketch, using `unnamed` or the name passed as `[target]`.         |
+| `-f, --full-screen`      | Open the GUI window in full-screen mode.                              |
+| `-i, --import`           | Import an SVG, PDF, PNG, or JPEG file into the opening sketch.        |
+| `-m, --multiple-imports` | Import a comma-separated list of files, laid out in a grid.           |
+| `--sharpen`              | Auto-sharpen a saved sketch so it appears more hand-drawn, then open. |
+| `[target]`               | A `.skbk` file to open, or a name for a new sketch file.              |
+
+With `--multiple-imports`, each file's graphic size is measured against the
+page first, then the graphics fill a row left to right and wrap to a new row
+whenever the next graphic would overrun the page width; oversized graphics
+scale down to fit the page. Every imported file becomes its own named layer.
+Quote file names that contain spaces, for example
+`-m logo.svg,"site map.svg",photo.png`.
 
 ### Examples
 
@@ -239,6 +262,12 @@ napkin-sketch --sharpen ./notes
 
 # Open a new sketch in full-screen mode
 napkin-sketch --new -f
+
+# Open a new sketch with logo.svg imported
+napkin-sketch --import logo.svg
+
+# Open a new sketch with three files laid out in a grid
+napkin-sketch -m logo.svg,"site map.svg",photo.png
 ```
 
 A bare path is treated as a sketch book to open:
@@ -263,6 +292,7 @@ napkin-sketch ./notes.skbk
 | Quick width              | `W` then a number                         |
 | Quick opacity            | `Q` then a number                         |
 | Quick zoom               | `Z` then a digit (`9` = 90%, `0` = 100%)  |
+| Fit All in View          | `Ctrl/Cmd + 0` (also in the View menu)    |
 | Zoom (mouse)             | Hold `Alt` and scroll the wheel           |
 | Pan (mouse)              | Scroll to pan; `Ctrl+Shift` + scroll pans across |
 | Pan (Select / Direct)    | Hold `Space` and drag                     |
@@ -302,8 +332,11 @@ napkin-sketch ./notes.skbk
 **Text tool:** *click* to place an auto-sizing text box; *drag* to draw a
 fixed-width text box (text wraps to fit the drawn width).
 
-**Select tool:** shows the **black arrow** pointer. *Click* a stroke to
-select and drag it; *`Shift`-click* to
+**Select tool:** the active tool when napkin-sketch opens. Shows the
+**black arrow** pointer. *Click* a stroke to
+select and drag it — a **filled shape's interior counts as the shape**, so
+clicking its color grabs it, while unfilled outlines stay click-through in
+the middle; *`Shift`-click* to
 add it to (or remove it from) the current selection; *drag over empty space*
 to rubber-band-select multiple strokes at once; `Ctrl+A` selects everything
 and `Ctrl+Shift+A` deselects. Hold `Space` and drag to pan the canvas.
@@ -410,9 +443,11 @@ drawn. Only `Esc` abandons it. The path commits as an editable pen stroke,
 drawn exactly as placed (never auto-sharpened), and keeps its anchors —
 click it again with the Vector Path tool to rework them (see below). **Paint Bucket** (`G`) fills the enclosed path or
 shape under the click with the current ink color, added as a new selectable
-shape. **Fill Color** fills the selected element(s) with the selected ink
-color — or the element under the click when nothing is selected (open strokes
-and text are recolored). **Eyedropper** (`I`) picks the color under the click
+shape. **Fill Color** selects the element under the click — anywhere within
+the element's dimensions counts, not just its outline, so clicking the middle
+of a shape picks it — and fills it with the selected ink color; with no
+element under the click it fills the current selection (open strokes and text
+are recolored). **Eyedropper** (`I`) picks the color under the click
 (averaged over the **Select pixel sensitivity**, 1–36px, default 10px), makes
 it the ink color, and fills the selected shape when one is selected; hold
 `Ctrl` to temporarily switch to the Select tool and pick a shape, then
@@ -470,7 +505,9 @@ elements.
 
 **Layer groups:** `Ctrl+G` (or the Group button in the Layers panel) groups
 the selected layers (or the active layer) into one group; press it again on a
-group to nest. A group's
+group to nest. Starting to draw while a group row is selected adds a fresh
+layer inside that group and puts the stroke there (a toast names the layer),
+since a group holds no marks of its own. A group's
 visibility, lock, and opacity apply to every layer inside it, the panel
 indents grouped layers under a collapsible header (click the caret to
 expand/collapse), and `Ctrl+Shift+G` dissolves the active group while
@@ -482,10 +519,16 @@ z-order position — Illustrator writes an object's name into `id`, so a
 `<path id="outline">` sitting between two groups imports as an `outline` layer
 between them rather than being flattened onto the parent. Names shed the `-2`,
 `-3`, … suffix editors add to keep XML ids unique, so rows read `strokes` and
-`outline`, not `strokes-10` and `outline-5`. *Unnamed* marks stay strokes on
-their group's layer, which keeps stroke-heavy artwork from arriving as hundreds
-of rows; adjacent unnamed siblings of a named object collect into one `<Path>`
-layer that holds their place in the stack.
+`outline`, not `strokes-10` and `outline-5`. *Unnamed* geometry inside a group
+gets a layer of its own too, named after its tag (`path`, `line`, `rect`, …),
+so every element in the source file has a row in the panel — only
+napkin-sketch's own exported marks merge back onto their layer, keeping
+napkin's exports round-tripping as clean single layers rather than one row
+per stroke. Every top-level group imports as a layer group — a named one
+(such as `<g id="circles">` around the whole drawing) under its name, an
+anonymous one as `<Group>` — so no wrapper is ever flattened away. A document
+with no groups at all arrives as one top group named after the imported file,
+holding a tag-named layer per element.
 
 **CapsLock cursor:** while any drawing tool is active, **CapsLock on** shows a
 precision crosshair; **CapsLock off** shows a circle preview matching the
@@ -687,6 +730,14 @@ npm run typecheck    # Type-check without emitting
 npm test             # Run the unit test suites
 npm run start        # Build, then launch a new sketch
 npm run clean        # Remove dist/
+
+# Print the layer tree an SVG would import as (runs the real importer in a
+# hidden Electron window; no GUI needed)
+npm run import-tree -- test/imports/applied_layer_names.svg
+
+# Archive checked TODO.md items into its "## Complete" section (kept at the
+# bottom of the file), noting which section each came from; safe to re-run
+npm run todo
 ```
 
 The build uses **esbuild** to bundle the Node-side code (CommonJS), the renderer

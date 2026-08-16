@@ -197,6 +197,7 @@ function normalizeSketch(raw: unknown): Sketch {
     name: typeof r.name === 'string' ? r.name : base.name,
     width: typeof r.width === 'number' && r.width > 0 ? r.width : base.width,
     height: typeof r.height === 'number' && r.height > 0 ? r.height : base.height,
+    sizeMode: r.sizeMode === 'sized' ? 'sized' : undefined,
     background: typeof r.background === 'string' ? r.background : base.background,
     layers,
     strokes,

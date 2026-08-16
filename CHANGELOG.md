@@ -4,6 +4,108 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0-alpha] - 2026-08-16
+
+### Added
+
+- **Panel context menus**: right-clicking the Layers panel offers Add,
+  Group, Delete, Move Up/Down, and Hide Panel; right-clicking the Pages
+  panel offers Add Page, Delete Page, Page Settings…, and Hide Panel — each
+  menu carries the tools relative to its panel, styled to match the GUI.
+- **Sized pages** (Page Settings, via the Pages panel's right-click menu):
+  a page can now be `sized` — pinned to an exact width and height, shown
+  with a dashed page outline — or left as the default `endless` page that
+  fills the window. Switching back to endless re-enables window tracking
+  and disables the dimension fields. The mode round-trips through `.skbk`
+  files.
+- **Resizable panels**: drag the layers panel's or the pages panel's inner
+  edge to set its width (160–480 px).
+- The layers panel's right-click menu also offers **Ungroup** (enabled on a
+  group row) and **Rename**, which opens the same inline rename as
+  double-clicking the layer's name.
+- **Fit All in View** (View menu, `Ctrl+0`): zooms and pans so every
+  graphic on the page is in view at once, replacing the stock Actual Size
+  zoom reset that did not act on the drawing.
+- **Panel state on the toolbar**: the Pages and Layers buttons fill in with
+  the "Panel in View" treatment while their panel is open and sit flat
+  ("Panel inactive") when it is hidden.
+- **Export button in the top toolbar**, beside Import: drops down the same
+  four formats as File > Export (PNG, JPEG, SVG, PDF), each opening the
+  usual page/all-pages export dialog.
+- **`npm run import-tree -- <file.svg>`** (dev tool): prints the layer tree
+  an SVG would import as, running the real importer in a hidden Electron
+  window — verify a file's imported layer names without opening the GUI.
+- **`npm run todo`** (dev tool): archives every checked item in TODO.md —
+  wrapped lines and nested sub-items move along with it — into a
+  `## Complete` section kept at the bottom of the file, creating the
+  section on first use. Each archived item gains a nested `From: <section>`
+  line recording the roadmap section it came from; an item that already
+  carries its own `From:` note (e.g. one pulled into Current from another
+  section) keeps that origin instead. Re-running is a no-op.
+
+### Changed
+
+- The **layers panel opens by default**, and the **Select tool is active on
+  startup** instead of the Pen.
+- Top toolbar restyle: a **separator bar** now distinguishes the Pages and
+  Layers toggles from the file actions, and the **Save** button uses the
+  same background as its neighbours (bold label and strong border keep it
+  prominent); the filled treatment it used to have now marks open panels.
+- The layer group **collapse caret is drawn at 200%** of its former size
+  for an easier target.
+- **SVG import samples curves at one point per path unit** (previously one
+  per two units, capped far lower), so imported artwork keeps the source
+  file's smoothness instead of arriving with faceted outlines.
+- A **named top-level wrapper group** in an imported SVG (e.g.
+  `<g id="circles">` around the whole drawing) now imports as the top layer
+  group under its name; previously it was flattened away and its name lost.
+  Anonymous export wrappers are still descended as before.
+- **Every unnamed imported element gets its own tag-named layer**: geometry
+  without an `id` inside a group now imports as a layer named after its SVG
+  tag (`path`, `line`, `rect`, …) instead of merging invisibly onto the
+  group's layer, so each element in the source file has a row in the panel.
+  Only napkin-sketch's own exported marks (`data-tool`) still merge, which
+  keeps napkin's exports round-tripping as clean single layers. An SVG with
+  no `<g>` elements at all imports as one top group **named after the
+  file**, holding a tag-named layer per element, and a lone named top-level
+  group keeps the author's name in grid (`-m`) imports rather than being
+  renamed to the file.
+- **Anonymous groups are never lost on import**: an unnamed `<g>` imports
+  as a `<Group>` layer (nested ones included) instead of being flattened
+  away or labeled `Layer N`, so the imported stack always mirrors the
+  source document — named groups keep their names, unnamed ones read
+  `<Group>`, loose geometry reads its tag name, and a group-less document
+  arrives under the file's name.
+- **Drawing on a selected group row now works**: instead of only warning
+  that a group holds no marks, napkin-sketch adds a fresh layer inside the
+  group, makes it active, and lands the stroke there — the toast names the
+  created layer (locked or hidden groups still just warn).
+- **Fill Color selects what you click**: with the Fill Color tool, a click
+  anywhere within an element's dimensions — its interior or bounding box,
+  not just near its outline — selects that element (highlighting it in the
+  Layers panel) and fills it with the selected ink color. Clicking empty
+  canvas still fills the current selection.
+- **Select and Direct Select treat a filled shape's interior as the
+  shape**: clicking anywhere on its painted fill selects it, where
+  previously only clicks near the outline registered. Unfilled outlines
+  stay click-through in the middle, so rubber-band selection over empty
+  canvas is unaffected.
+
+- **CLI import** (`-i, --import <file>`): launches the GUI with an SVG, PDF,
+  PNG, or JPEG imported into the opening sketch, exactly as the
+  File > Import menu item would place it — SVGs keep their layers, PDFs add
+  their pages, and raster images land centered on the active layer. Missing
+  files and unsupported types fail fast with a clear error before the window
+  opens.
+- **CLI multiple import** (`-m, --multiple-imports <file,file,…>`): imports a
+  comma-separated list of files in one go, laid out in a grid. Each file's
+  graphic size is measured against the page first, then the graphics fill a
+  row left to right and wrap to a new row whenever the next one would overrun
+  the page width; oversized graphics scale down to fit the page. Every
+  imported file becomes its own named layer (multi-layer SVGs keep their
+  layers grouped under the file's name, PDF pages arrive one layer per
+  page). Quoted names with spaces and spaces after commas both parse.
+
 ## [3.1.0-alpha] - 2026-08-08
 
 ### Added

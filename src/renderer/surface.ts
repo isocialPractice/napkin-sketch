@@ -244,6 +244,7 @@ export class Surface {
     ctx.scale(this.dpr, this.dpr);
     this.paintBackground(sketch.background);
     this.paintPaperTexture();
+    if (sketch.sizeMode === 'sized') this.paintPageBounds(sketch.width, sketch.height);
     if (overlay?.symmetry && overlay.symmetry > 1) {
       this.paintSymmetryGuide(overlay.symmetry);
     }
@@ -333,6 +334,21 @@ export class Surface {
     const ctx = this.ctx;
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, this.cssWidth, this.cssHeight);
+  }
+
+  /**
+   * Dashed outline marking a sized page's bounds, drawn in world space so it
+   * pans and zooms with the drawing.
+   */
+  private paintPageBounds(width: number, height: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    this.applyWorld(ctx);
+    ctx.strokeStyle = 'rgba(31, 35, 40, 0.35)';
+    ctx.lineWidth = 1.5 / this.zoom;
+    ctx.setLineDash([6 / this.zoom, 4 / this.zoom]);
+    ctx.strokeRect(0, 0, width, height);
+    ctx.restore();
   }
 
   /** Faint dot grid that gives the surface a tactile, napkin-like quality. */

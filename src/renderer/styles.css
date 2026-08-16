@@ -187,6 +187,35 @@ body {
   background: var(--surface-2);
 }
 
+/* Save keeps the shared button background ("Panel inactive") but stays the
+   standout file action through weight and a strong border. */
+.btn-strong {
+  font-weight: 600;
+  border-color: var(--ink);
+}
+
+/* Panel toggles: the filled "Panel in View" treatment (the former Save CTA
+   style) marks a panel that is currently open; closed panels sit flat. */
+.btn-panel.is-open {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-ink);
+}
+
+.btn-panel.is-open:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+/* Vertical bar separating the panel toggles from the file actions. */
+.toolbar-sep {
+  flex: 0 0 auto;
+  width: 8px;
+  align-self: stretch;
+  background: var(--primary);
+  border-radius: var(--r-sm);
+}
+
 /* Tool toggle buttons */
 .tool {
   display: inline-flex;
@@ -383,6 +412,7 @@ body {
 /* ---- Pages panel --------------------------------------------------------- */
 
 .pages-panel {
+  position: relative;
   width: 0;
   flex: 0 0 auto;
   overflow: hidden;
@@ -394,7 +424,11 @@ body {
 }
 
 .app.pages-open .pages-panel {
-  width: 200px;
+  width: var(--pages-width, 200px);
+}
+
+.pages-panel.is-resizing {
+  transition: none;
 }
 
 .pages-panel-head {
@@ -953,6 +987,7 @@ body {
    primary color reserved for the active-layer highlight. */
 
 .layers-panel {
+  position: relative;
   width: 0;
   flex: 0 0 auto;
   overflow: hidden;
@@ -964,7 +999,36 @@ body {
 }
 
 .app.layers-open .layers-panel {
-  width: 224px;
+  width: var(--layers-width, 224px);
+}
+
+/* Grab strip on a panel's inner edge for resizing by drag. Sits on the left
+   edge by default (layers panel); .panel-resize-right flips it for panels
+   docked on the left (pages panel). */
+.panel-resize {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 2;
+}
+
+.panel-resize-right {
+  left: auto;
+  right: 0;
+}
+
+.panel-resize:hover,
+.panel-resize.is-dragging {
+  background: var(--primary);
+  opacity: 0.35;
+}
+
+/* The width transition fights a live drag; suspend it while resizing. */
+.layers-panel.is-resizing {
+  transition: none;
 }
 
 .layers-list {
@@ -1031,13 +1095,14 @@ body {
   color: var(--ink-soft);
 }
 
-/* Disclosure caret on group rows (blank spacer keeps plain rows aligned). */
+/* Disclosure caret on group rows (blank spacer keeps plain rows aligned).
+   Glyph is drawn at 200% of its former 11px size for an easier touch target. */
 .layer-caret {
   flex: 0 0 auto;
-  width: 16px;
+  width: 24px;
   height: 24px;
   padding: 0;
-  font-size: 11px;
+  font-size: 22px;
   line-height: 24px;
   text-align: center;
   color: var(--ink-soft);
@@ -1137,4 +1202,58 @@ body {
   min-width: 38px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---- Context menu ---------------------------------------------------------
+   Shared right-click menu for the pages and layers panels; surfaces and
+   radii match the rest of the GUI chrome. */
+
+.context-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 180px;
+  padding: var(--s1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+}
+
+.context-menu.is-hidden {
+  display: none;
+}
+
+.context-menu button {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: var(--s2) var(--s3);
+  cursor: pointer;
+}
+
+.context-menu button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.context-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.context-menu .context-menu-sep {
+  height: 1px;
+  margin: var(--s1) var(--s2);
+  background: var(--border);
+}
+
+/* Page Settings: dimension fields grey out while the page is endless. */
+.page-dim input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

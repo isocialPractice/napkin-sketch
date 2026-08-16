@@ -1,0 +1,21 @@
+circles:
+  top-row
+    circle-blue
+      strokes
+      fill
+    circle-green
+      strokes
+      fill
+  bottom-row
+    circle-red
+      strokes
+        circle
+        horizontal
+        vertical
+      fill
+    circle-orange
+      strokes
+        circle
+        horizontal
+        vertical
+      fill

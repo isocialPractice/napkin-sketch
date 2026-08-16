@@ -1,6 +1,6 @@
 {
   "name": "napkin-sketch",
-  "version": "3.1.0-alpha",
+  "version": "3.2.0-alpha",
   "description": "Quick and easy computer sketching with a drawing GUI that simulates pen and paper/napkin sketching, featuring an auto-sharpen algorithm that turns stiff computer strokes into more hand-drawn forms.",
   "keywords": [
     "sketch",
@@ -46,6 +46,8 @@
     "icon": "node scripts/make-icon.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test.mjs",
+    "import-tree": "node scripts/import-tree.mjs",
+    "todo": "node scripts/todo.mjs",
     "start": "npm run build && node dist/cli/index.js --new",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win nsis",

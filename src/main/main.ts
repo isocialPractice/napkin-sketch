@@ -157,7 +157,9 @@ function buildMenu(): void {
         { role: 'reload' },
         { role: 'toggleDevTools' },
         { type: 'separator' },
-        { role: 'resetZoom' },
+        // Replaces the stock "Actual Size" zoom reset: Ctrl+0 now fits every
+        // graphic on the canvas into view instead of resetting page zoom.
+        { label: 'Fit All in View', accelerator: 'CmdOrCtrl+0', click: () => dispatch('fit-view') },
         { role: 'zoomIn' },
         { role: 'zoomOut' },
         { type: 'separator' },
@@ -201,6 +203,30 @@ function dataUrlToBuffer(dataUrl: string): Buffer {
   const comma = dataUrl.indexOf(',');
   const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
   return Buffer.from(base64, 'base64');
+}
+
+/** Reads an importable SVG/PDF/PNG/JPEG file from a known path. */
+async function readImportable(filePath: string): Promise<ImportFileResult> {
+  const name = basename(filePath, extname(filePath));
+  const ext = extname(filePath).toLowerCase();
+  try {
+    if (ext === '.svg') {
+      const text = await readFile(filePath, 'utf-8');
+      return { ok: true, kind: 'svg', name, text };
+    }
+    if (ext === '.pdf') {
+      const pages = importPdf(await readFile(filePath));
+      return { ok: true, kind: 'pdf', name, pages };
+    }
+    if (ext !== '.png' && ext !== '.jpg' && ext !== '.jpeg') {
+      return { ok: false, error: `Unsupported import type: ${ext || filePath}` };
+    }
+    const mime = ext === '.png' ? 'image/png' : 'image/jpeg';
+    const bytes = await readFile(filePath);
+    return { ok: true, kind: 'raster', name, dataUrl: `data:${mime};base64,${bytes.toString('base64')}` };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
 }
 
 function registerIpc(): void {
@@ -345,26 +371,13 @@ function registerIpc(): void {
       properties: ['openFile'],
     });
     if (picked.canceled || picked.filePaths.length === 0) return { ok: false, cancelled: true };
-
-    const filePath = picked.filePaths[0];
-    const name = basename(filePath, extname(filePath));
-    const ext = extname(filePath).toLowerCase();
-    try {
-      if (ext === '.svg') {
-        const text = await readFile(filePath, 'utf-8');
-        return { ok: true, kind: 'svg', name, text };
-      }
-      if (ext === '.pdf') {
-        const pages = importPdf(await readFile(filePath));
-        return { ok: true, kind: 'pdf', name, pages };
-      }
-      const mime = ext === '.png' ? 'image/png' : 'image/jpeg';
-      const bytes = await readFile(filePath);
-      return { ok: true, kind: 'raster', name, dataUrl: `data:${mime};base64,${bytes.toString('base64')}` };
-    } catch (err) {
-      return { ok: false, error: (err as Error).message };
-    }
+    return readImportable(picked.filePaths[0]);
   });
+
+  ipcMain.handle(
+    IPC.readImportFile,
+    (_event, filePath: string): Promise<ImportFileResult> => readImportable(filePath),
+  );
 
   ipcMain.handle(
     IPC.saveImages,

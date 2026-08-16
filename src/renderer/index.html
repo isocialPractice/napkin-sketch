@@ -102,12 +102,14 @@
         </section>
 
         <section class="group group-right" aria-label="File">
-          <button id="pages-toggle" class="btn" type="button" title="Toggle pages panel (Ctrl+B)">Pages</button>
-          <button id="layers-toggle" class="btn" type="button" title="Toggle layers panel (Ctrl+L)">Layers</button>
+          <button id="pages-toggle" class="btn btn-panel" type="button" title="Toggle pages panel (Ctrl+B)">Pages</button>
+          <button id="layers-toggle" class="btn btn-panel" type="button" title="Toggle layers panel (Ctrl+L)">Layers</button>
+          <span class="toolbar-sep" role="separator" aria-orientation="vertical"></span>
           <button id="new-sketch" class="btn" type="button" title="New sketch">New</button>
           <button id="open" class="btn" type="button" title="Open sketch book">Open</button>
           <button id="import" class="btn" type="button" title="Import SVG, PDF, PNG, or JPEG (Ctrl+I)">Import</button>
-          <button id="save" class="btn btn-primary" type="button" title="Save (Ctrl+S)">Save</button>
+          <button id="export" class="btn" type="button" title="Export as PNG, JPEG, SVG, or PDF">Export</button>
+          <button id="save" class="btn btn-strong" type="button" title="Save (Ctrl+S)">Save</button>
           <button id="save-as" class="btn" type="button" title="Save as (Ctrl+Shift+S)">Save As</button>
           <button id="app-settings" class="btn btn-ghost" type="button" title="Verbose Settings" aria-label="Open verbose settings">
             <span class="icon" aria-hidden="true">⚙</span>
@@ -119,6 +121,7 @@
         <aside id="side-rail" class="side-rail" aria-label="Side toolbar"></aside>
 
         <aside id="pages-panel" class="pages-panel" aria-label="Pages">
+          <div id="pages-resize" class="panel-resize panel-resize-right" title="Drag to resize the pages panel" aria-hidden="true"></div>
           <div class="pages-panel-head">
             <span>Pages</span>
             <div class="pages-panel-actions">
@@ -136,6 +139,7 @@
         </main>
 
         <aside id="layers-panel" class="layers-panel" aria-label="Layers">
+          <div id="layers-resize" class="panel-resize" title="Drag to resize the layers panel" aria-hidden="true"></div>
           <div class="pages-panel-head">
             <span>Layers</span>
             <div class="pages-panel-actions">
@@ -243,6 +247,33 @@
           </div>
         </div>
       </div>
+
+      <!-- Page Settings dialog: toggle a page between endless and sized -->
+      <div id="page-settings-dialog" class="export-dialog dialog-corner is-hidden" role="dialog" aria-label="Page Settings">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Page Settings</p>
+          <label class="switch settings-row" title="Sized pages keep an exact width and height; endless pages fill the window">
+            <input id="page-sized" type="checkbox" />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">Sized page</span>
+          </label>
+          <label class="settings-field page-dim">
+            <span>Width</span>
+            <input id="page-width" type="number" min="64" max="8192" step="1" value="1280" disabled />
+          </label>
+          <label class="settings-field page-dim">
+            <span>Height</span>
+            <input id="page-height" type="number" min="64" max="8192" step="1" value="800" disabled />
+          </label>
+          <div class="export-dialog-actions">
+            <button id="page-settings-apply" class="btn btn-primary" type="button">Apply</button>
+            <button id="page-settings-close" class="btn btn-ghost" type="button">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right-click context menu (layers and pages panels) -->
+      <div id="context-menu" class="context-menu is-hidden" role="menu"></div>
 
       <!-- Export page-selection dialog -->
       <div id="export-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Export options">

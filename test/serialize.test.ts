@@ -213,3 +213,20 @@ test('malformed vector data drops cleanly while the stroke survives', () => {
   assert.equal(stroke.vector, undefined);
   assert.equal(stroke.points.length, 2);
 });
+
+test('page sizeMode survives the round-trip and junk values are dropped', () => {
+  const book = createSketchBook('demo');
+  book.sketches[0].sizeMode = 'sized';
+  book.sketches[0].width = 640;
+  book.sketches[0].height = 480;
+  const restored = parseSketchBook(serializeSketchBook(book));
+  assert.equal(restored.sketches[0].sizeMode, 'sized');
+  assert.equal(restored.sketches[0].width, 640);
+  assert.equal(restored.sketches[0].height, 480);
+
+  const junk = normalizeSketchBook(
+    { format: 'napkin-sketch', sketches: [{ sizeMode: 'bogus' }] },
+    'demo',
+  );
+  assert.equal(junk.sketches[0].sizeMode, undefined);
+});

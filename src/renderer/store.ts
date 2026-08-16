@@ -251,6 +251,24 @@ export class Store {
     return layer;
   }
 
+  /**
+   * Adds a new empty layer inside a group (topmost within it) and makes it
+   * active. Used when drawing starts while a group row is selected: the
+   * group itself holds no marks, so the stroke needs a real layer.
+   */
+  addLayerInGroup(groupId: string): Layer {
+    this.pushHistory();
+    const layer = createLayer(`Layer ${this.sketch.layers.length + 1}`);
+    layer.parent = groupId;
+    // Children sit before their group header in the stack; inserting at the
+    // header's index places the new layer topmost inside the group.
+    const index = this.sketch.layers.findIndex((l) => l.id === groupId);
+    this.sketch.layers.splice(Math.max(0, index), 0, layer);
+    this.activeLayerId = layer.id;
+    this.touch();
+    return layer;
+  }
+
   /** Replaces a stroke (used by live-sharpen) without adding a new history entry. */
   replaceStroke(id: string, next: Stroke): void {
     const idx = this.sketch.strokes.findIndex((s) => s.id === id);
@@ -558,6 +576,19 @@ export class Store {
     this.book.sketches.splice(this.activeIndex + 1, 0, ...pages);
     this.activeIndex += 1;
     this.resetPageState();
+    this.touch();
+  }
+
+  /**
+   * Sets the active page's size mode. A 'sized' page pins the given
+   * dimensions; an 'endless' page goes back to tracking the window.
+   */
+  setPageSize(mode: 'endless' | 'sized', width?: number, height?: number): void {
+    this.sketch.sizeMode = mode;
+    if (mode === 'sized') {
+      if (typeof width === 'number' && width > 0) this.sketch.width = Math.round(width);
+      if (typeof height === 'number' && height > 0) this.sketch.height = Math.round(height);
+    }
     this.touch();
   }
 

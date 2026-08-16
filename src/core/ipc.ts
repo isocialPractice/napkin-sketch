@@ -33,6 +33,8 @@ export const IPC = {
   saveImages: 'napkin:save-images',
   /** Renderer → main: pick and read an importable file (SVG/PDF/PNG/JPEG). */
   importFile: 'napkin:import-file',
+  /** Renderer → main: read a known importable file without a picker (CLI import). */
+  readImportFile: 'napkin:read-import-file',
   /** Renderer → main: report the current document title for the window. */
   setTitle: 'napkin:set-title',
   /** Main → renderer: a native menu item was activated. */
@@ -68,6 +70,7 @@ export type MenuAction =
   | 'export-pdf'
   | 'undo'
   | 'redo'
+  | 'fit-view'
   | 'toggle-pages'
   | 'toggle-layers'
   | 'toggle-settings'
@@ -131,6 +134,8 @@ export interface NapkinBridge {
   savePdf(pdfContent: string, suggestedName: string): Promise<SaveResult>;
   /** Opens a file picker and reads an importable SVG/PDF/PNG/JPEG file. */
   importFile(): Promise<ImportFileResult>;
+  /** Reads a known importable file by absolute path, without a picker. */
+  readImportFile(filePath: string): Promise<ImportFileResult>;
   /**
    * Saves multiple pages as sequentially numbered files.
    * `contents` are data-URLs for PNG/JPEG, or raw SVG strings for SVG.

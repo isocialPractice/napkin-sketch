@@ -75,6 +75,25 @@ const HANDLE_FALLOFF = 2.5;
 const MIN_WIDTH = 1;
 const MAX_WIDTH = 40;
 
+/** Page-turn animation length; must match `.turn-next`/`.turn-prev` in styles.css. */
+const PAGE_TURN_MS = 360;
+
+/**
+ * Page thumbnails: the fallback CSS width used before the pages panel has been
+ * laid out, and the horizontal chrome to subtract from the list's client width
+ * (`.thumbs` padding plus the `.thumb` border, both sides).
+ */
+const THUMB_WIDTH = 150;
+const THUMB_CHROME_PX = 28;
+
+/** How long the mandala symmetry guide takes to fade in or out. */
+const SYMMETRY_FADE_MS = 220;
+
+/** True when the OS asks for reduced motion; animations are skipped outright. */
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
+
 /** Builds a CSS cursor value from inline SVG with a hotspot and fallback. */
 function svgCursor(svg: string, x: number, y: number, fallback = 'default'): string {
   return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${x} ${y}, ${fallback}`;
@@ -157,6 +176,12 @@ class App {
   private activePointerId: number | null = null;
   private renderQueued = false;
   private toastTimer: number | null = null;
+
+  // Symmetry guide fade: current opacity, the axis count it is drawn with
+  // (held through a fade-out), and the timestamp of the last fade step.
+  private symmetryFade = 0;
+  private symmetryGuideAxes = 1;
+  private symmetryFadeAt = 0;
 
   // Select-tool drag state (moving selected strokes).
   private dragging = false;
@@ -422,11 +447,13 @@ class App {
   private scheduleRender(): void {
     if (this.renderQueued) return;
     this.renderQueued = true;
-    requestAnimationFrame(() => {
+    requestAnimationFrame((now) => {
       this.renderQueued = false;
+      const fading = this.stepSymmetryFade(now);
       this.surface.render(this.store.sketch, this.live, {
         selectedIds: this.store.selectedIds,
-        symmetry: this.store.tool.symmetry,
+        symmetry: this.symmetryGuideAxes,
+        symmetryAlpha: this.symmetryFade,
         liveTextBox: this.textDragLive ?? undefined,
         selectBox: this.rubberBandBox ?? undefined,
         straightLine:
@@ -448,7 +475,32 @@ class App {
         snapTarget: this.snapTarget ?? undefined,
         anchors: this.anchorOverlay() ?? undefined,
       });
+      if (fading) this.scheduleRender();
     });
+  }
+
+  /**
+   * Advances the symmetry guide's fade one frame toward its target (visible
+   * while symmetry is on, hidden while it is off) and reports whether more
+   * frames are needed. The axis count is held through a fade-out so the
+   * guide dissolves as the shape it was rather than snapping to one axis.
+   */
+  private stepSymmetryFade(now: number): boolean {
+    const target = this.store.tool.symmetry > 1 ? 1 : 0;
+    if (target === 1) this.symmetryGuideAxes = this.store.tool.symmetry;
+    const elapsed = this.symmetryFadeAt === 0 ? 0 : now - this.symmetryFadeAt;
+    this.symmetryFadeAt = now;
+    if (this.symmetryFade === target) return false;
+    if (prefersReducedMotion()) {
+      this.symmetryFade = target;
+      return false;
+    }
+    const step = elapsed / SYMMETRY_FADE_MS;
+    this.symmetryFade =
+      target > this.symmetryFade
+        ? Math.min(target, this.symmetryFade + step)
+        : Math.max(target, this.symmetryFade - step);
+    return this.symmetryFade !== target;
   }
 
   /** Anchor points to overlay while the Direct Select tool edits a stroke. */
@@ -3086,7 +3138,10 @@ class App {
       return;
     }
     if (tool === 'eraser') {
-      this.canvas.style.cursor = 'cell';
+      const eraser = Surface.makeEraserCursorDataUrl(this.store.tool.width);
+      this.canvas.style.cursor = eraser.url
+        ? `url('${eraser.url}') ${eraser.hotspotX} ${eraser.hotspotY}, cell`
+        : 'cell';
       return;
     }
     if (
@@ -4275,6 +4330,8 @@ class App {
         handle.removeEventListener('pointerup', up);
         handle.removeEventListener('pointercancel', up);
         this.resizeSurface();
+        // Thumbnails are drawn for an exact pixel width; redraw at the new one.
+        if (panelId === 'pages-panel') this.renderThumbnails();
       };
       handle.addEventListener('pointermove', move);
       handle.addEventListener('pointerup', up);
@@ -4606,18 +4663,25 @@ class App {
     const forward = clamped > this.store.activeIndex;
     const stageEl = el('canvas-wrap');
     stageEl.classList.remove('turn-next', 'turn-prev');
-    // Force reflow so the animation restarts each time.
-    void stageEl.offsetWidth;
-    stageEl.classList.add(forward ? 'turn-next' : 'turn-prev');
+    if (!prefersReducedMotion()) {
+      // Force reflow so the animation restarts each time.
+      void stageEl.offsetWidth;
+      stageEl.classList.add(forward ? 'turn-next' : 'turn-prev');
+      window.setTimeout(() => stageEl.classList.remove('turn-next', 'turn-prev'), PAGE_TURN_MS);
+    }
     this.store.goToPage(clamped);
     this.renderThumbnails();
-    window.setTimeout(() => stageEl.classList.remove('turn-next', 'turn-prev'), 360);
   }
 
   /** Renders the thumbnail strip for the pages panel. */
   private renderThumbnails(): void {
     if (!this.pagesOpen) return;
     const list = el('thumbs');
+    // The canvases stretch to the list's content width (see `.thumb canvas`),
+    // and the panel is resizable, so draw at that width times the device
+    // pixel ratio - anything less is upscaled and blurry.
+    const cssWidth = Math.max(80, Math.round(list.clientWidth - THUMB_CHROME_PX) || THUMB_WIDTH);
+    const dpr = Math.min(4, Math.max(1, window.devicePixelRatio || 1));
     list.textContent = '';
     this.store.book.sketches.forEach((sketch, index) => {
       const item = document.createElement('button');
@@ -4626,12 +4690,13 @@ class App {
       item.setAttribute('aria-label', `Go to page ${index + 1}`);
 
       const c = document.createElement('canvas');
-      const tw = 150;
+      const tw = cssWidth;
       const th = Math.round((sketch.height / sketch.width) * tw) || 96;
-      c.width = tw;
-      c.height = th;
+      c.width = Math.round(tw * dpr);
+      c.height = Math.round(th * dpr);
       const tctx = c.getContext('2d');
       if (tctx) {
+        tctx.scale(dpr, dpr);
         tctx.fillStyle = sketch.background;
         tctx.fillRect(0, 0, tw, th);
         const scale = tw / sketch.width;

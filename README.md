@@ -106,7 +106,8 @@ hand-drawn rather than vector-perfect.
   Up/Down, Hide Panel).
 - **Sketchbook pages** with a toggleable, **resizable thumbnail panel**,
   page-turn animation, and add/delete/navigate controls — flip back to any
-  earlier page.
+  earlier page. Thumbnails render at the display's device pixel ratio, so they
+  stay crisp on HiDPI screens and at any panel width.
   A **right-click menu** on the panel adds **Page Settings**, which toggles a
   page between **endless** (fills the window, the default) and **sized**
   (an exact width and height with a dashed page outline).
@@ -118,7 +119,10 @@ hand-drawn rather than vector-perfect.
   **Fit All in View** (`Ctrl+0`) to bring every graphic on the page into
   view at once.
 - **Export** to PNG (transparent), JPEG (flattened), **SVG** (lossless vector,
-  layers preserved as groups), or **PDF** (vector, no extra dependencies) —
+  layers preserved as named groups that Inkscape and Illustrator both read;
+  vector-tool strokes write exact cubic Béziers and
+  freehand strokes shed sub-pixel-redundant samples, keeping files compact), or
+  **PDF** (vector, no extra dependencies) —
   from the File menu or the top toolbar's **Export** button beside Import. Each
   format offers **Export current page** or **Export all pages** — raster and
   SVG save `name_1.ext`, `name_2.ext`, …, while PDF writes all pages into one
@@ -131,14 +135,17 @@ hand-drawn rather than vector-perfect.
   best effort), and **PNG / JPEG** (placed as a movable image on the active
   layer).
 - **CapsLock cursor** — crosshair while CapsLock is on; a circle matching the
-  current stroke width when off.
+  current stroke width when off. The eraser carries a dashed circle the size of
+  the area it will clear.
 - **Multi-page sketch books** saved as portable `.skbk` JSON files.
 - **Undo / redo**, clear, custom ink colors, and keyboard shortcuts.
 - **Embeddable API** — drop the same editor into a website, WordPress block, or
   VS Code webview (see [Embedding](#embedding-the-editor)).
 - **Installable desktop app** with a Start-menu/desktop shortcut and app icon
   (via electron-builder).
-- Calm, accessible UI (WCAG-AA contrast, reduced-motion support).
+- Calm, accessible UI (WCAG-AA contrast, reduced-motion support — the
+  page-turn animation and the symmetry-guide fade both stand still when the
+  OS asks for reduced motion).
 
 ## Installation
 
@@ -532,12 +539,23 @@ holding a tag-named layer per element.
 
 **CapsLock cursor:** while any drawing tool is active, **CapsLock on** shows a
 precision crosshair; **CapsLock off** shows a circle preview matching the
-current stroke width.
+current stroke width. The **eraser** shows a dashed circle the size of its
+footprint, so the area about to be cleared is visible before pressing.
+
+**Exported SVGs keep their layer names.** Each layer's group carries its name
+three ways — `data-name` (napkin's own), `inkscape:label` with
+`inkscape:groupmode="layer"` (what Inkscape's layers panel reads), and the
+group `id` (what Illustrator reads) — so a sketch exported from napkin opens
+with its layer names intact wherever it lands, and re-imports under the same
+names. Characters an XML id may not hold are escaped as `_xHH_` and repeated
+names take the `-2`, `-3`, … suffix editors expect; the importer undoes both.
 
 **Live sharpen is off by default.** Toggle it in the **Quick Settings** panel
 to beautify strokes automatically as you draw, or leave it off and use
 **Sharpen all** when you are ready. The Quick Settings panel also exposes
 wobble, smoothing, circle snap, end taper, rotational symmetry, and text size.
+Raising rotational symmetry above 1 fades the mandala guide axes in, and
+dropping it back to 1 fades them out.
 
 ## How auto-sharpen works
 

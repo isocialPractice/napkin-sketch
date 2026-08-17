@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Surface } from '../src/renderer/surface.js';
+import { decodeIdName, isAutoId } from '../src/renderer/svg-import.js';
 import { createLayer, createSketch, type Sketch } from '../src/core/types.js';
 
 function layeredSketch(): Sketch {
@@ -96,10 +97,113 @@ test('toSVG exports copic strokes as filled nib outlines with round-trip data', 
   });
   const svg = Surface.toSVG(sketch);
   assert.match(svg, /<path [^>]*fill="#27486d"[^>]*fill-rule="nonzero"[^>]*data-tool="copic"/);
-  assert.match(svg, /data-nib="30.0"/);
+  assert.match(svg, /data-nib="30"/);
   assert.match(svg, /data-width="12"/);
-  assert.match(svg, /data-pts="10.0,10.0 50.0,40.0"/);
+  assert.match(svg, /data-pts="10,10 50,40"/);
   // The filled outline uses the copic default opacity when none is set.
   assert.match(svg, /data-tool="copic"[^>]*/);
   assert.match(svg, /opacity="0.5"/);
+});
+
+test('toSVG writes coordinates without a redundant trailing .0', () => {
+  const svg = Surface.toSVG(layeredSketch());
+  assert.match(svg, /d="M0,0 L10,10"/);
+  assert.match(svg, /<text x="20" y="30"/);
+});
+
+test('toSVG prunes polyline samples that add nothing within tolerance', () => {
+  const sketch = createSketch('dense');
+  // 200 samples along a straight line plus one real corner: only the three
+  // defining points survive export.
+  const points: { x: number; y: number }[] = [];
+  for (let i = 0; i <= 200; i++) points.push({ x: i / 2, y: 0 });
+  points.push({ x: 100, y: 50 });
+  sketch.strokes.push({
+    id: 'd1',
+    tool: 'pen',
+    color: '#123456',
+    width: 2,
+    layer: sketch.layers[0].id,
+    points,
+  });
+  const svg = Surface.toSVG(sketch);
+  assert.match(svg, /d="M0,0 L100,0 L100,50"/);
+});
+
+test('toSVG exports vector strokes as exact cubic Béziers, not their samples', () => {
+  const sketch = createSketch('vector');
+  sketch.strokes.push({
+    id: 'v1',
+    tool: 'pen',
+    color: '#123456',
+    width: 2,
+    layer: sketch.layers[0].id,
+    // Dense samples stand in for the resampled curve; the anchors must win.
+    points: Array.from({ length: 300 }, (_, i) => ({ x: i, y: i })),
+    vector: {
+      anchors: [
+        { p: { x: 10, y: 10 }, hOut: { x: 40, y: 10 } },
+        { p: { x: 90, y: 60 }, hIn: { x: 60, y: 60 } },
+        { p: { x: 120, y: 90 } },
+      ],
+    },
+  });
+  const svg = Surface.toSVG(sketch);
+  assert.match(svg, /d="M10,10 C40,10 60,60 90,60 L120,90"/);
+  assert.ok(!svg.includes('L1,1'), 'sampled points must not be written');
+});
+
+test('toSVG closes a closed vector stroke with its closing segment and Z', () => {
+  const sketch = createSketch('closed');
+  sketch.strokes.push({
+    id: 'v2',
+    tool: 'pen',
+    color: '#123456',
+    width: 2,
+    layer: sketch.layers[0].id,
+    points: [
+      { x: 0, y: 0 },
+      { x: 50, y: 0 },
+      { x: 25, y: 40 },
+      { x: 0, y: 0 },
+    ],
+    vector: {
+      anchors: [
+        { p: { x: 0, y: 0 } },
+        { p: { x: 50, y: 0 } },
+        { p: { x: 25, y: 40 } },
+      ],
+      closed: true,
+    },
+  });
+  const svg = Surface.toSVG(sketch);
+  assert.match(svg, /d="M0,0 L50,0 L25,40 L0,0 Z"/);
+});
+
+test('toSVG names every layer group for other editors', () => {
+  const svg = Surface.toSVG(layeredSketch());
+  assert.match(svg, /<svg [^>]*xmlns:inkscape="http:\/\/www\.inkscape\.org\/namespaces\/inkscape"/);
+  assert.match(svg, /<g id="Base" [^>]*inkscape:label="Base" inkscape:groupmode="layer"/);
+  assert.match(svg, /<g id="Top" [^>]*inkscape:label="Top" inkscape:groupmode="layer"/);
+  // Names must not read as editor-generated ids, or an importer discards them.
+  assert.ok(!isAutoId('Base'));
+  assert.ok(!isAutoId('Top'));
+});
+
+test('toSVG escapes ids so a layer name survives the round trip', () => {
+  const sketch = layeredSketch();
+  sketch.layers[0].name = 'Rough draft (2 of 3)';
+  const svg = Surface.toSVG(sketch);
+  const id = /<g id="([^"]+)"/.exec(svg)?.[1] ?? '';
+  assert.ok(!/[^A-Za-z0-9._-]/.test(id), `id "${id}" must be XML-safe`);
+  assert.equal(decodeIdName(id), 'Rough draft (2 of 3)');
+});
+
+test('toSVG uniquifies ids when two layers share a name', () => {
+  const sketch = layeredSketch();
+  sketch.layers[1].name = 'Base';
+  const ids = [...Surface.toSVG(sketch).matchAll(/<g id="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(ids, ['Base', 'Base-2']);
+  // The `-2` uniquifier is an editor convention the importer strips back off.
+  assert.equal(decodeIdName('Base-2'), 'Base');
 });

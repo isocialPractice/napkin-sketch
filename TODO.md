@@ -5,15 +5,20 @@ aspirational and unordered within each group.
 
 ## Current
 
-- [ ] **Export SVG File Size**: Exported SVG's are much larger than the imported
-  SVG when imported and exported without making changes.
-  - **GOAL**: Export with less date, while mainitaing the integrity of the graphic
-    being exported or keeping the graphic intact.
-  - From: Minor
+- [ ] **Text editor UX**: commit on `Esc`, keep caret styling in sync with the
+  selected font size, and reposition on window resize.
+  - From: Patch
+- [ ] **Icon rasterization**: ship multi-resolution `.ico`/`.icns` instead of a
+  single PNG.
+  - From: Patch
+- [ ] **More tests**: cover the renderer store (undo/redo, pages, selection) and the
+  embeddable `NapkinSketch` editor via a DOM test environment.
+  - From: Patch
+- [ ] **Docs**: API reference for the embeddable package and a WordPress block
+  example.
+  - From: Patch
 
 ## Resolve Issues (`x.y.++`)
-
-- [ ] Maintain SVG layer names on export
 
 ## Major (breaking / large features → next `++.y.z`)
 
@@ -64,20 +69,6 @@ press a letter, type a value within the quick-feature timer, and it applies.
 
 ## Patch (fixes, polish, internal → next `x.y.++`)
 
-- [ ] **High-DPI thumbnails**: render the pages-panel thumbnails at device pixel
-  ratio to avoid blur.
-- [ ] **Text editor UX**: commit on `Esc`, keep caret styling in sync with the
-  selected font size, and reposition on window resize.
-- [ ] **Eraser cursor preview**: show a circle the size of the eraser width.
-- [ ] **Symmetry guide fade**: animate the mandala guide axes in/out.
-- [ ] **Reduced-motion support**: honor `prefers-reduced-motion` for the page-turn
-  animation.
-- [ ] **Icon rasterization**: ship multi-resolution `.ico`/`.icns` instead of a
-  single PNG.
-- [ ] **More tests**: cover the renderer store (undo/redo, pages, selection) and the
-  embeddable `NapkinSketch` editor via a DOM test environment.
-- [ ] **Docs**: API reference for the embeddable package and a WordPress block
-  example.
 - [ ] **Panel Improvements**:
   - [ ] **Resize Panels**: Allow the side and top panels to be resized.
   - [ ] **Undock Panels**: Allow the side and top panels to be undocked and moved freely outside of the GUI window.
@@ -95,3 +86,20 @@ press a letter, type a value within the quick-feature timer, and it applies.
 - [x] **Vector import**: import SVG/PDF in addition to PNG/JPEG, keeping layers
   intact for imported SVGs.
   - From: Major (breaking / large features → next `++.y.z`)
+- [x] **Export SVG File Size**: Exported SVG's are much larger than the imported
+  SVG when imported and exported without making changes.
+  - **GOAL**: Export with less date, while mainitaing the integrity of the graphic
+    being exported or keeping the graphic intact.
+  - From: Patch
+- [x] Maintain SVG layer names on export
+  - From: Resolve Issues
+- [x] **High-DPI thumbnails**: render the pages-panel thumbnails at device pixel
+  ratio to avoid blur.
+  - From: Patch
+- [x] **Eraser cursor preview**: show a circle the size of the eraser width.
+  - From: Patch
+- [x] **Symmetry guide fade**: animate the mandala guide axes in/out.
+  - From: Patch
+- [x] **Reduced-motion support**: honor `prefers-reduced-motion` for the page-turn
+  animation.
+  - From: Patch

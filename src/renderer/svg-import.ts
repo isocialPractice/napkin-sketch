@@ -30,6 +30,7 @@ import {
   createId,
   type Stroke,
   type Tool,
+  type VectorAnchor,
 } from '../core/types.js';
 
 /** One layer recovered from an imported SVG; nested groups become children. */
@@ -534,6 +535,11 @@ function elementToStrokes(
     }
   }
 
+  // Napkin's vector strokes export as exact cubic Bézier paths; rebuild their
+  // editable anchors so the structure survives the round-trip, and let the
+  // generic sampler below turn the curve into stroke points.
+  const vector = dataTool && tag === 'path' ? parseVectorD(el.getAttribute('d') ?? '') : null;
+
   // Generic geometry: sample evenly along the element's length. One sample
   // per unit of path length keeps curves smooth at import size instead of
   // the visibly faceted outlines a coarser step produces.
@@ -553,6 +559,14 @@ function elementToStrokes(
   const stroke = makeStroke(tool, color, width, points, opacity);
   // Filled source shapes stay filled (previously they imported as outlines).
   if (hasFill && tool !== 'eraser' && points.length > 2) stroke.fill = style.fill;
+  if (vector) {
+    const mapped = vector.anchors.map((a) => ({
+      p: applyMatrix(matrix, a.p.x, a.p.y),
+      ...(a.hIn ? { hIn: applyMatrix(matrix, a.hIn.x, a.hIn.y) } : {}),
+      ...(a.hOut ? { hOut: applyMatrix(matrix, a.hOut.x, a.hOut.y) } : {}),
+    }));
+    stroke.vector = { anchors: mapped, ...(vector.closed ? { closed: true } : {}) };
+  }
   out.push({ order, stroke });
 }
 
@@ -579,6 +593,71 @@ function parsePolylineD(d: string): { x: number; y: number }[] | null {
     points.push({ x: Number(matches[i]), y: Number(matches[i + 1]) });
   }
   return points;
+}
+
+/**
+ * Parses a napkin-exported vector path — one absolute `M`, then `L`/`C`
+ * segments and an optional trailing `Z` — back into Bézier anchors. A control
+ * point sitting on its anchor reads as a collapsed (absent) handle, and a
+ * closed path's duplicate final anchor folds onto the first. Returns null on
+ * anything else (relative commands, arcs, subpaths), in which case the caller
+ * falls back to sampling. Exported for tests.
+ */
+export function parseVectorD(d: string): { anchors: VectorAnchor[]; closed: boolean } | null {
+  if (!d || !/[CZ]/.test(d)) return null; // open pure polylines parse elsewhere
+  if (/[^MLCZ\s,\-.\d]/.test(d)) return null;
+  const tokens = d.match(/[MLCZ]|-?\d*\.?\d+/g);
+  if (!tokens) return null;
+  let i = 0;
+  const readPoint = (): { x: number; y: number } | null => {
+    const x = Number(tokens[i]);
+    const y = Number(tokens[i + 1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    i += 2;
+    return { x, y };
+  };
+  if (tokens[i++] !== 'M') return null;
+  const start = readPoint();
+  if (!start) return null;
+  const anchors: VectorAnchor[] = [{ p: start }];
+  let closed = false;
+  while (i < tokens.length) {
+    const cmd = tokens[i++];
+    if (cmd === 'Z') {
+      // Z must be the final command; anything after it is not our format.
+      if (i !== tokens.length) return null;
+      closed = true;
+      break;
+    }
+    if (cmd === 'L') {
+      const p = readPoint();
+      if (!p) return null;
+      anchors.push({ p });
+      continue;
+    }
+    if (cmd === 'C') {
+      const c1 = readPoint();
+      const c2 = readPoint();
+      const p = readPoint();
+      if (!c1 || !c2 || !p) return null;
+      const from = anchors[anchors.length - 1];
+      if (c1.x !== from.p.x || c1.y !== from.p.y) from.hOut = c1;
+      const to: VectorAnchor = { p };
+      if (c2.x !== p.x || c2.y !== p.y) to.hIn = c2;
+      anchors.push(to);
+      continue;
+    }
+    return null;
+  }
+  if (closed && anchors.length >= 3) {
+    const first = anchors[0];
+    const last = anchors[anchors.length - 1];
+    if (last.p.x === first.p.x && last.p.y === first.p.y) {
+      if (last.hIn) first.hIn = last.hIn;
+      anchors.pop();
+    }
+  }
+  return anchors.length >= 2 ? { anchors, closed } : null;
 }
 
 function makeStroke(

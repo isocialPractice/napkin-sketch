@@ -25,8 +25,10 @@ import {
   type Point,
   type Sketch,
   type Stroke,
+  type VectorAnchor,
 } from '../core/types.js';
 import { copicNibPolygons } from '../core/nib.js';
+import { simplify } from '../sharpen/geometry.js';
 
 /** A live (in-progress) stroke being drawn by the user. */
 export interface LiveStroke extends Stroke {
@@ -39,6 +41,11 @@ export interface Overlay {
   selectedIds?: Set<string>;
   /** When > 1, draws faint mirror axes for symmetry drawing. */
   symmetry?: number;
+  /**
+   * Opacity of the symmetry axes, 0-1 (default 1). Drives the fade in/out
+   * when symmetry is switched on or off; 0 skips the guide entirely.
+   */
+  symmetryAlpha?: number;
   /** Dashed rectangle preview while dragging a new text box. */
   liveTextBox?: { x1: number; y1: number; x2: number; y2: number };
   /** Dashed rectangle preview while rubber-band selecting. */
@@ -245,8 +252,9 @@ export class Surface {
     this.paintBackground(sketch.background);
     this.paintPaperTexture();
     if (sketch.sizeMode === 'sized') this.paintPageBounds(sketch.width, sketch.height);
-    if (overlay?.symmetry && overlay.symmetry > 1) {
-      this.paintSymmetryGuide(overlay.symmetry);
+    const symmetryAlpha = overlay?.symmetryAlpha ?? 1;
+    if (overlay?.symmetry && overlay.symmetry > 1 && symmetryAlpha > 0) {
+      this.paintSymmetryGuide(overlay.symmetry, symmetryAlpha);
     }
     ctx.restore();
 
@@ -368,9 +376,10 @@ export class Surface {
   }
 
   /** Draws faint mirror axes used by symmetry ("surprise") mode. */
-  private paintSymmetryGuide(axes: number): void {
+  private paintSymmetryGuide(axes: number, alpha = 1): void {
     const ctx = this.ctx;
     ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.strokeStyle = 'rgba(39, 73, 109, 0.18)';
     ctx.lineWidth = 1;
     ctx.setLineDash([6, 6]);
@@ -736,11 +745,17 @@ export class Surface {
    * eraser strokes become a black-on-white `<mask>` on the group so they cut
    * holes only in their own layer. Marks carry `data-tool` and `data-i`
    * (original paint order) so importing the file restores the layer stack.
+   *
+   * A layer's name is written three ways so it survives the trip into other
+   * editors: `data-name` (napkin's own), `inkscape:label` plus
+   * `inkscape:groupmode="layer"` (what Inkscape's layers panel reads), and
+   * the group `id` (what Illustrator reads).
    */
   static toSVG(sketch: Sketch): string {
     const { width, height, background } = sketch;
     const defs: string[] = [];
     const groups: string[] = [];
+    const usedIds = new Set<string>();
 
     sketch.layers.forEach((layer, li) => {
       if (layer.group) return; // groups export via their children's effective props
@@ -749,7 +764,13 @@ export class Surface {
       const strokes = strokesOnLayer(sketch, layer.id);
       if (strokes.length === 0) return;
 
-      const attrs = [`id="layer-${li}"`, `data-name="${escXml(layer.name)}"`];
+      const name = escXml(layer.name);
+      const attrs = [
+        `id="${uniqueId(idFromName(layer.name) || `layer-${li}`, usedIds)}"`,
+        `data-name="${name}"`,
+        `inkscape:label="${name}"`,
+        `inkscape:groupmode="layer"`,
+      ];
       if (effective.opacity < 1) attrs.push(`opacity="${effective.opacity}"`);
 
       const erasers = strokes.filter((s) => s.tool === 'eraser');
@@ -780,7 +801,7 @@ export class Surface {
 
     const parts: string[] = [
       `<?xml version="1.0" encoding="utf-8"?>`,
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-generator="napkin-sketch">`,
+      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-generator="napkin-sketch">`,
       `<rect width="${width}" height="${height}" fill="${escXml(background)}"/>`,
     ];
     if (defs.length > 0) parts.push(`<defs>\n${defs.join('\n')}\n</defs>`);
@@ -871,6 +892,51 @@ export class Surface {
       hotspotY: Math.round(cy),
     };
   }
+
+  /**
+   * Generates the eraser cursor: a dashed circle the size of the eraser's
+   * footprint, so the area about to be cleared is visible before pressing.
+   * Returns the URL and the hotspot coordinates (center of the circle).
+   */
+  static makeEraserCursorDataUrl(
+    cssWidth: number,
+  ): { url: string; hotspotX: number; hotspotY: number } {
+    const r = Math.max(3, cssWidth / 2);
+    const pad = 3;
+    const size = Math.min(128, Math.ceil(r * 2 + pad * 2));
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return { url: '', hotspotX: 0, hotspotY: 0 };
+    const cx = size / 2;
+    const cy = size / 2;
+    const drawR = Math.min(r, cx - 1.5);
+    const ring = (stroke: string, lineWidth: number, dashOffset: number): void => {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = lineWidth;
+      ctx.setLineDash([4, 3]);
+      ctx.lineDashOffset = dashOffset;
+      ctx.beginPath();
+      ctx.arc(cx, cy, drawR, 0, Math.PI * 2);
+      ctx.stroke();
+    };
+    // Interleaved light/dark dashes so the ring reads on any background.
+    ring('rgba(255,255,255,0.9)', 2.5, 0);
+    ring('rgba(31,35,40,0.85)', 1.25, 0);
+    ring('rgba(31,35,40,0.35)', 1.25, 4);
+    // Center dot marks the exact hotspot on a wide eraser.
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(31,35,40,0.6)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1, 0, Math.PI * 2);
+    ctx.fill();
+    return {
+      url: canvas.toDataURL(),
+      hotspotX: Math.round(cx),
+      hotspotY: Math.round(cy),
+    };
+  }
 }
 
 /** Axis-aligned bounds of a stroke (or text item) in CSS pixels. */
@@ -913,8 +979,76 @@ export function strokeBounds(
 
 // ---- SVG helpers ------------------------------------------------------------
 
+/**
+ * Tolerance (px) for dropping redundant polyline samples on export. Matches
+ * the written coordinate precision (one decimal), so the pruned points sit
+ * within the quantisation the file could express anyway.
+ */
+const EXPORT_SIMPLIFY_EPSILON = 0.1;
+
+/** Formats a coordinate at one-decimal precision without a trailing ".0". */
+function fmt(n: number): string {
+  return String(Math.round(n * 10) / 10);
+}
+
 function escXml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/**
+ * Turns a layer name into an XML id, escaping everything an id may not hold
+ * as `_xHH_`. Inverse of the importer's `decodeIdName`, so a name written
+ * here reads back as itself in editors that show ids as object names.
+ * Returns `''` for a name with nothing usable left in it.
+ */
+function idFromName(name: string): string {
+  const escaped = name
+    .trim()
+    .replace(/[^A-Za-z0-9._-]/g, (c) => `_x${c.codePointAt(0)!.toString(16).toUpperCase()}_`);
+  if (escaped === '') return '';
+  // XML ids must begin with a letter or an underscore.
+  return /^[A-Za-z_]/.test(escaped) ? escaped : `_${escaped}`;
+}
+
+/** Uniquifies an id with the `-2`, `-3`, … suffix editors use for repeats. */
+function uniqueId(id: string, used: Set<string>): string {
+  let candidate = id;
+  for (let n = 2; used.has(candidate); n++) candidate = `${id}-${n}`;
+  used.add(candidate);
+  return candidate;
+}
+
+/**
+ * Path data for a stroke: strokes carrying Bézier anchor structure export as
+ * exact cubic curves (a handful of C segments instead of hundreds of sampled
+ * L points), everything else as its sampled polyline with samples that sit
+ * within {@link EXPORT_SIMPLIFY_EPSILON} of the line through their
+ * neighbours pruned away.
+ */
+function pathD(stroke: Stroke): string {
+  const anchors = stroke.vector?.anchors;
+  if (anchors && anchors.length >= 2) {
+    const parts = [`M${fmt(anchors[0].p.x)},${fmt(anchors[0].p.y)}`];
+    const segment = (from: VectorAnchor, to: VectorAnchor): void => {
+      if (!from.hOut && !to.hIn) {
+        parts.push(`L${fmt(to.p.x)},${fmt(to.p.y)}`);
+        return;
+      }
+      const c1 = from.hOut ?? from.p;
+      const c2 = to.hIn ?? to.p;
+      parts.push(
+        `C${fmt(c1.x)},${fmt(c1.y)} ${fmt(c2.x)},${fmt(c2.y)} ${fmt(to.p.x)},${fmt(to.p.y)}`,
+      );
+    };
+    for (let i = 1; i < anchors.length; i++) segment(anchors[i - 1], anchors[i]);
+    if (stroke.vector?.closed) {
+      segment(anchors[anchors.length - 1], anchors[0]);
+      parts.push('Z');
+    }
+    return parts.join(' ');
+  }
+  const pts = simplify(stroke.points, EXPORT_SIMPLIFY_EPSILON);
+  return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${fmt(p.x)},${fmt(p.y)}`).join(' ');
 }
 
 /**
@@ -929,10 +1063,10 @@ function svgPath(stroke: Stroke, order: number, colorOverride?: string): string 
   const data = `data-tool="${stroke.tool}" data-i="${order}"`;
   if (pts.length === 1) {
     const p = pts[0];
-    const r = (stroke.width / 2).toFixed(1);
-    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${color}" opacity="${opacity}" ${data}/>`;
+    const r = fmt(stroke.width / 2);
+    return `<circle cx="${fmt(p.x)}" cy="${fmt(p.y)}" r="${r}" fill="${color}" opacity="${opacity}" ${data}/>`;
   }
-  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const d = pathD(stroke);
   // Filled shapes paint their interior (SVG auto-closes fills, so the path
   // data stays an M/L polyline and round-trips through import unchanged);
   // `data-fill` lets import restore the fill exactly.
@@ -951,11 +1085,18 @@ function svgCopic(stroke: Stroke, order: number): string {
   const polys = copicNibPolygons(stroke);
   if (polys.length === 0) return '';
   const opacity = stroke.opacity ?? defaultOpacityFor('copic');
+  // The chisel outline is derived viewer-only data (import rebuilds it from
+  // `data-pts`), so its samples can be pruned like any other polyline.
   const d = polys
-    .map((poly) => poly.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ' Z')
+    .map(
+      (poly) =>
+        simplify(poly, EXPORT_SIMPLIFY_EPSILON)
+          .map((p, i) => `${i === 0 ? 'M' : 'L'}${fmt(p.x)},${fmt(p.y)}`)
+          .join(' ') + ' Z',
+    )
     .join(' ');
-  const pts = stroke.points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const nib = (stroke.nibAngle ?? DEFAULT_NIB_ANGLE).toFixed(1);
+  const pts = stroke.points.map((p) => `${fmt(p.x)},${fmt(p.y)}`).join(' ');
+  const nib = fmt(stroke.nibAngle ?? DEFAULT_NIB_ANGLE);
   return `<path d="${d}" fill="${escXml(stroke.color)}" fill-rule="nonzero" opacity="${opacity}" data-tool="copic" data-i="${order}" data-nib="${nib}" data-width="${stroke.width}" data-pts="${pts}"/>`;
 }
 
@@ -969,9 +1110,9 @@ function svgText(stroke: Stroke, order: number): string {
   const opacity = typeof stroke.opacity === 'number' ? ` opacity="${stroke.opacity}"` : '';
   const lines = stroke.text.split('\n');
   const tspans = lines
-    .map((line, i) => `<tspan x="${anchor.x.toFixed(1)}" dy="${i === 0 ? 0 : lineHeight.toFixed(1)}">${escXml(line)}</tspan>`)
+    .map((line, i) => `<tspan x="${fmt(anchor.x)}" dy="${i === 0 ? 0 : fmt(lineHeight)}">${escXml(line)}</tspan>`)
     .join('');
-  return `<text x="${anchor.x.toFixed(1)}" y="${anchor.y.toFixed(1)}" font-size="${size}" font-family="${family}" fill="${color}" dominant-baseline="hanging"${opacity} data-tool="text" data-i="${order}">${tspans}</text>`;
+  return `<text x="${fmt(anchor.x)}" y="${fmt(anchor.y)}" font-size="${size}" font-family="${family}" fill="${color}" dominant-baseline="hanging"${opacity} data-tool="text" data-i="${order}">${tspans}</text>`;
 }
 
 function svgImage(stroke: Stroke, order: number): string {
@@ -980,7 +1121,7 @@ function svgImage(stroke: Stroke, order: number): string {
   const w = stroke.imageWidth ?? 100;
   const h = stroke.imageHeight ?? 100;
   const opacity = typeof stroke.opacity === 'number' ? ` opacity="${stroke.opacity}"` : '';
-  return `<image x="${anchor.x.toFixed(1)}" y="${anchor.y.toFixed(1)}" width="${w}" height="${h}" href="${escXml(stroke.image)}"${opacity} data-tool="image" data-i="${order}"/>`;
+  return `<image x="${fmt(anchor.x)}" y="${fmt(anchor.y)}" width="${w}" height="${h}" href="${escXml(stroke.image)}"${opacity} data-tool="image" data-i="${order}"/>`;
 }
 
 // ---- Word-wrap helper -------------------------------------------------------

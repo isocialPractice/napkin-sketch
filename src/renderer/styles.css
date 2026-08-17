@@ -835,9 +835,23 @@ body {
   border-radius: var(--r-sm);
 }
 
+/* Reduced motion: transitions and keyframe animations (the page turn) both
+   collapse to a single frame, so state still changes but nothing moves. */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  .canvas-wrap.turn-next,
+  .canvas-wrap.turn-prev {
+    animation: none !important;
   }
 }
 

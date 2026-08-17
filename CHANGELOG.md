@@ -4,6 +4,71 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.2-alpha] - 2026-08-17
+
+### Fixed
+
+- **Exported SVGs keep their layer names.** A layer's group used to be
+  written out as `id="layer-0"` with the real name only in the private
+  `data-name` attribute, so a napkin export opened in Inkscape or
+  Illustrator arrived as a stack of anonymous groups. Each group now
+  carries its name three ways: `data-name`, `inkscape:label` alongside
+  `inkscape:groupmode="layer"`, and the `id` itself. Characters an XML id
+  may not hold are escaped as `_xHH_` and repeated names take the `-2`,
+  `-3`, … suffix editors expect - both of which the importer already
+  undoes, so the names round-trip unchanged.
+- **Page thumbnails are no longer blurry.** The pages-panel thumbnails were
+  drawn into a fixed 150-pixel canvas and then stretched to the panel's
+  width, so they were upscaled twice over on HiDPI displays. They now draw
+  at the panel's actual width times the device pixel ratio, and redraw
+  after the panel is resized.
+
+### Changed
+
+- The **eraser cursor is a dashed circle the size of the eraser**, matching
+  the circle preview the drawing tools already carry, instead of the
+  fixed-size `cell` pointer that gave no hint of what a stroke would clear.
+- The **mandala symmetry guide fades in and out** over 220 ms when
+  rotational symmetry is switched on or off, instead of the axes appearing
+  and vanishing between frames. The axis count is held through a fade-out,
+  so the guide dissolves as the shape it was.
+- **`prefers-reduced-motion` now covers keyframe animations.** The
+  reduced-motion rule only collapsed `transition-duration`, which left the
+  360 ms page-turn animation (an `animation`, not a transition) running at
+  full swing. Animations, delays, and `scroll-behavior` are now included,
+  the page turn is switched off outright, and the renderer skips both the
+  page-turn class and the symmetry fade when the OS asks for reduced
+  motion.
+
+## [3.2.1-alpha] - 2026-08-17
+
+### Fixed
+
+- **Exported SVGs are far smaller.** Importing an SVG samples its curves at
+  one point per path unit, and every sample used to be written back out as
+  its own `L` command — so a file that arrived at a few kilobytes could
+  leave orders of magnitude larger without a single edit. Two changes close
+  the gap while keeping the graphic intact:
+  - Strokes that carry Bézier anchor structure (Vector Path, Curve, and
+    quick-curve commits) now export as their **exact cubic Bézier
+    segments** — a handful of `C` commands instead of hundreds of sampled
+    points — which is both smaller and geometrically truer than the
+    polyline it replaces.
+  - Sampled polylines (freehand strokes, imported artwork, eraser masks,
+    and the Copic chisel outline) shed the samples that sit within a tenth
+    of a pixel of the line through their neighbours — below the file's own
+    one-decimal coordinate precision, so nothing visible changes.
+  - Coordinates drop the redundant trailing `.0` (`10` instead of `10.0`).
+
+### Changed
+
+- A vector stroke's **anchor structure now survives an SVG round-trip**:
+  the importer rebuilds the editable anchors (handles, corner points, and
+  closure) from napkin's exported cubic paths, so a re-imported Vector Path
+  stroke opens for anchor editing exactly as it was drawn. Previously the
+  structure was kept only in `.skbk` files and a re-imported stroke fell
+  back to a plain freehand polyline.
+
 ## [3.2.0-alpha] - 2026-08-16
 
 ### Added

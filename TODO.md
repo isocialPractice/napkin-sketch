@@ -75,6 +75,10 @@ press a letter, type a value within the quick-feature timer, and it applies.
 
 ## Complete
 
+- [x] **Maintain exported layers**: exported SVGs flattened layer groups into a
+  flat list of `<g>` elements; groups now export as nested `<g>` elements that
+  mirror the layer tree, so an imported document's hierarchy survives re-export.
+  - From: Resolve Issues
 - [x] Resize pages
   - From: Minor
 - [x] **Vector export**: export sketches to SVG/PDF in addition to PNG/JPEG.

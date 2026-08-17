@@ -22,6 +22,7 @@ import {
   isTextStroke,
   layerOf,
   strokesOnLayer,
+  type Layer,
   type Point,
   type Sketch,
   type Stroke,
@@ -741,9 +742,12 @@ export class Surface {
   /**
    * Serialises a sketch to an SVG string (lossless vector).
    *
-   * Each visible layer becomes a `<g>` group carrying its name and opacity;
-   * eraser strokes become a black-on-white `<mask>` on the group so they cut
-   * holes only in their own layer. Marks carry `data-tool` and `data-i`
+   * Each visible layer becomes a `<g>` group carrying its name and opacity,
+   * and layer groups become nested `<g>` elements holding their children, so
+   * the exported markup mirrors the layer tree instead of flattening it -
+   * an imported document's group hierarchy survives the round trip. Eraser
+   * strokes become a black-on-white `<mask>` on their layer's group so they
+   * cut holes only in that layer. Marks carry `data-tool` and `data-i`
    * (original paint order) so importing the file restores the layer stack.
    *
    * A layer's name is written three ways so it survives the trip into other
@@ -754,16 +758,34 @@ export class Surface {
   static toSVG(sketch: Sketch): string {
     const { width, height, background } = sketch;
     const defs: string[] = [];
-    const groups: string[] = [];
     const usedIds = new Set<string>();
+    const layerIndex = new Map(sketch.layers.map((layer, i) => [layer.id, i]));
 
-    sketch.layers.forEach((layer, li) => {
-      if (layer.group) return; // groups export via their children's effective props
-      const effective = effectiveLayer(sketch, layer);
-      if (!effective.visible) return;
-      const strokes = strokesOnLayer(sketch, layer.id);
-      if (strokes.length === 0) return;
+    // Rebuild the tree from the flat stack: a layer belongs under its parent
+    // when that parent exists and is a group; anything else (no parent, or a
+    // dangling id) exports at the top level. Sibling order follows the stack,
+    // and since the store keeps a group's children adjacent to their group
+    // row, tree order is paint order.
+    const byId = new Map(sketch.layers.map((layer) => [layer.id, layer]));
+    const childrenOf = new Map<string, Layer[]>();
+    const topLevel: Layer[] = [];
+    for (const layer of sketch.layers) {
+      const parent = layer.parent ? byId.get(layer.parent) : undefined;
+      if (parent?.group) {
+        const siblings = childrenOf.get(parent.id) ?? [];
+        siblings.push(layer);
+        childrenOf.set(parent.id, siblings);
+      } else {
+        topLevel.push(layer);
+      }
+    }
 
+    // Visibility and opacity are written per group and inherit through the
+    // nesting (SVG multiplies a child's opacity into its ancestors'), which
+    // matches how effectiveLayer resolves them for rendering.
+    const emitLayer = (layer: Layer): string | null => {
+      if (!layer.visible) return null;
+      const li = layerIndex.get(layer.id) ?? 0;
       const name = escXml(layer.name);
       const attrs = [
         `id="${uniqueId(idFromName(layer.name) || `layer-${li}`, usedIds)}"`,
@@ -771,7 +793,18 @@ export class Surface {
         `inkscape:label="${name}"`,
         `inkscape:groupmode="layer"`,
       ];
-      if (effective.opacity < 1) attrs.push(`opacity="${effective.opacity}"`);
+      if (layer.opacity < 1) attrs.push(`opacity="${layer.opacity}"`);
+
+      if (layer.group) {
+        const inner = (childrenOf.get(layer.id) ?? [])
+          .map(emitLayer)
+          .filter((g): g is string => g !== null);
+        if (inner.length === 0) return null;
+        return `<g ${attrs.join(' ')}>\n${inner.join('\n')}\n</g>`;
+      }
+
+      const strokes = strokesOnLayer(sketch, layer.id);
+      if (strokes.length === 0) return null;
 
       const erasers = strokes.filter((s) => s.tool === 'eraser');
       if (erasers.length > 0) {
@@ -796,8 +829,10 @@ export class Surface {
         })
         .filter(Boolean);
 
-      groups.push(`<g ${attrs.join(' ')}>\n${marks.join('\n')}\n</g>`);
-    });
+      return `<g ${attrs.join(' ')}>\n${marks.join('\n')}\n</g>`;
+    };
+
+    const groups = topLevel.map(emitLayer).filter((g): g is string => g !== null);
 
     const parts: string[] = [
       `<?xml version="1.0" encoding="utf-8"?>`,

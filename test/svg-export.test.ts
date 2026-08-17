@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Surface } from '../src/renderer/surface.js';
 import { decodeIdName, isAutoId } from '../src/renderer/svg-import.js';
-import { createLayer, createSketch, type Sketch } from '../src/core/types.js';
+import { createGroupLayer, createLayer, createSketch, type Sketch } from '../src/core/types.js';
 
 function layeredSketch(): Sketch {
   const sketch = createSketch('layered');
@@ -178,6 +178,74 @@ test('toSVG closes a closed vector stroke with its closing segment and Z', () =>
   });
   const svg = Surface.toSVG(sketch);
   assert.match(svg, /d="M0,0 L50,0 L25,40 L0,0 Z"/);
+});
+
+/** A sketch with a layer group, laid out in store order (children, then group row). */
+function groupedSketch(): Sketch {
+  const sketch = createSketch('grouped');
+  sketch.layers[0].name = 'Base';
+  const group = createGroupLayer('circle-orange');
+  const fill = createLayer('fill');
+  fill.parent = group.id;
+  const strokes = createLayer('strokes');
+  strokes.parent = group.id;
+  sketch.layers.push(fill, strokes, group);
+
+  const mark = (id: string, layer: string) => ({
+    id,
+    tool: 'pen' as const,
+    color: '#123456',
+    width: 2,
+    layer,
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 10 },
+    ],
+  });
+  sketch.strokes.push(
+    mark('b1', sketch.layers[0].id),
+    mark('f1', fill.id),
+    mark('s1', strokes.id),
+  );
+  return sketch;
+}
+
+test('toSVG nests layer groups as nested <g> elements', () => {
+  const svg = Surface.toSVG(groupedSketch());
+  // The group wraps its children instead of being flattened away.
+  assert.match(
+    svg,
+    /<g id="circle-orange"[^>]*>\n<g id="fill"[^>]*>[^]*<\/g>\n<g id="strokes"[^>]*>[^]*<\/g>\n<\/g>/,
+  );
+  // The sibling leaf layer stays at the top level, painted first.
+  assert.ok(svg.indexOf('data-name="Base"') < svg.indexOf('data-name="circle-orange"'));
+});
+
+test('toSVG writes each layer its own opacity and lets nesting compose them', () => {
+  const sketch = groupedSketch();
+  sketch.layers.find((l) => l.group)!.opacity = 0.5;
+  sketch.layers.find((l) => l.name === 'fill')!.opacity = 0.8;
+  const svg = Surface.toSVG(sketch);
+  assert.match(svg, /<g id="circle-orange"[^>]*opacity="0.5"/);
+  // The child keeps its own opacity rather than a pre-multiplied effective one.
+  assert.match(svg, /<g id="fill"[^>]*opacity="0.8"/);
+});
+
+test('toSVG drops a hidden group with its whole subtree', () => {
+  const sketch = groupedSketch();
+  sketch.layers.find((l) => l.group)!.visible = false;
+  const svg = Surface.toSVG(sketch);
+  assert.ok(!svg.includes('circle-orange'));
+  assert.ok(!svg.includes('data-name="fill"'));
+  assert.ok(svg.includes('data-name="Base"'));
+});
+
+test('toSVG prunes groups whose descendants hold no exportable strokes', () => {
+  const sketch = groupedSketch();
+  sketch.strokes = sketch.strokes.filter((s) => s.id === 'b1');
+  const svg = Surface.toSVG(sketch);
+  assert.ok(!svg.includes('circle-orange'));
+  assert.ok(svg.includes('data-name="Base"'));
 });
 
 test('toSVG names every layer group for other editors', () => {

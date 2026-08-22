@@ -87,6 +87,35 @@ export interface VectorAnchor {
   hOut?: { x: number; y: number };
 }
 
+/** One color stop along a gradient fill. */
+export interface GradientStop {
+  /** Position along the gradient axis, 0 (start) to 1 (end). */
+  offset: number;
+  /** CSS color string. */
+  color: string;
+}
+
+/**
+ * A gradient painted inside a closed stroke outline, in place of a flat fill.
+ * A linear gradient runs across the shape's bounding box at `angle` degrees
+ * (0 = left to right, increasing clockwise); a radial gradient runs from the
+ * box's centre out to the corner.
+ */
+export interface Gradient {
+  /** Gradient geometry. */
+  type: 'linear' | 'radial';
+  /** Linear only: direction in degrees. Absent = 0 (left to right). */
+  angle?: number;
+  /** Two or more stops, ordered by offset. */
+  stops: GradientStop[];
+}
+
+/** Dash pattern painted along a stroke's outline. */
+export type StrokeStyle = 'solid' | 'dashed' | 'dotted';
+
+/** Every stroke style, in the order the properties panel lists them. */
+export const STROKE_STYLES: StrokeStyle[] = ['solid', 'dashed', 'dotted'];
+
 /**
  * A continuous drawing stroke, a text item when `tool === 'text'`, or a
  * placed raster image when `tool === 'image'`.
@@ -114,6 +143,23 @@ export interface Stroke {
    * outline itself is drawn. Set by the paint bucket and Fill Shape features.
    */
   fill?: string;
+  /**
+   * Gradient fill painted inside the closed outline. Takes precedence over
+   * `fill`, which is kept so removing the gradient restores the flat color.
+   */
+  gradient?: Gradient;
+  /**
+   * Dash pattern for the outline. Absent = `'solid'`. A dashed or dotted
+   * stroke paints at a uniform width: the per-segment pressure taper would
+   * restart the dash rhythm at every sample.
+   */
+  strokeStyle?: StrokeStyle;
+  /**
+   * True when the outline is switched off, leaving a fill-only shape.
+   * `color` and `width` are kept so the outline can be restored. Shapes
+   * only: a text item's ink is its `color`, with no separate outline.
+   */
+  noStroke?: boolean;
   /**
    * Broad-nib rotation in degrees for Copic marker strokes (0 = horizontal,
    * increasing clockwise on screen). Only present when `tool === 'copic'`.
@@ -225,6 +271,44 @@ export function defaultOpacityFor(tool: Tool): number {
   if (tool === 'marker') return 0.38;
   if (tool === 'copic') return 0.5;
   return 1;
+}
+
+/**
+ * Dash pattern (in canvas units) for a stroke style at a given width, ready
+ * for `setLineDash` or an SVG `stroke-dasharray`. Dashes scale with the
+ * stroke so a thick line does not read as a solid one. Dotted uses a
+ * zero-length dash, which a round line cap renders as a circle.
+ */
+export function dashPatternFor(style: StrokeStyle | undefined, width: number): number[] {
+  const unit = Math.max(1, width);
+  if (style === 'dashed') return [unit * 3, unit * 2];
+  if (style === 'dotted') return [0, unit * 2];
+  return [];
+}
+
+/** True when a stroke paints an outline (a `noStroke` shape paints only its fill). */
+export function hasOutline(stroke: Stroke): boolean {
+  return stroke.noStroke !== true;
+}
+
+/**
+ * Normalizes a gradient for painting: stops sorted by offset, clamped to
+ * 0-1. Returns null when there is nothing paintable (fewer than two stops).
+ */
+export function normalizedStops(gradient: Gradient): GradientStop[] | null {
+  const stops = gradient.stops
+    .filter((s) => typeof s.color === 'string' && Number.isFinite(s.offset))
+    .map((s) => ({ offset: Math.min(1, Math.max(0, s.offset)), color: s.color }))
+    .sort((a, b) => a.offset - b.offset);
+  return stops.length >= 2 ? stops : null;
+}
+
+/** Creates the two-stop linear gradient the properties panel starts from. */
+export function createGradient(color = '#1f2328'): Gradient {
+  return { type: 'linear', angle: 0, stops: [
+    { offset: 0, color },
+    { offset: 1, color: '#ffffff' },
+  ] };
 }
 
 /**

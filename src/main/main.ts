@@ -152,6 +152,7 @@ function buildMenu(): void {
       submenu: [
         { label: 'Toggle Pages Panel', accelerator: 'CmdOrCtrl+B', click: () => dispatch('toggle-pages') },
         { label: 'Toggle Layers Panel', accelerator: 'CmdOrCtrl+L', click: () => dispatch('toggle-layers') },
+        { label: 'Toggle Properties Panel', accelerator: 'CmdOrCtrl+P', click: () => dispatch('toggle-properties') },
         { label: 'Quick Settings', accelerator: 'CmdOrCtrl+,', click: () => dispatch('toggle-settings') },
         { type: 'separator' },
         { role: 'reload' },

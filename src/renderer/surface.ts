@@ -16,12 +16,15 @@
 import {
   DEFAULT_FONT_FAMILY,
   DEFAULT_NIB_ANGLE,
+  dashPatternFor,
   defaultOpacityFor,
   effectiveLayer,
   isImageStroke,
   isTextStroke,
   layerOf,
+  normalizedStops,
   strokesOnLayer,
+  type Gradient,
   type Layer,
   type Point,
   type Sketch,
@@ -556,11 +559,12 @@ export class Surface {
       ctx.globalAlpha = stroke.opacity ?? defaultOpacityFor(stroke.tool);
     }
 
-    // Filled shape (paint bucket / Fill Shape): paint the closed interior
-    // first so the outline still reads on top of the fill.
-    if (stroke.fill && stroke.tool !== 'eraser' && pts.length > 2) {
+    // Filled shape (paint bucket / Fill Shape / properties panel): paint the
+    // closed interior first so the outline still reads on top of the fill.
+    const fillPaint = stroke.tool === 'eraser' ? null : fillPaintFor(ctx, stroke);
+    if (fillPaint && pts.length > 2) {
       ctx.save();
-      ctx.fillStyle = stroke.fill;
+      ctx.fillStyle = fillPaint;
       ctx.beginPath();
       pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
       ctx.closePath();
@@ -568,9 +572,29 @@ export class Surface {
       ctx.restore();
     }
 
+    // An outline switched off in the properties panel leaves the fill alone.
+    if (stroke.noStroke) {
+      ctx.restore();
+      return;
+    }
+
     // Copic marker: a flat chisel nib stamped along the path.
     if (stroke.tool === 'copic') {
       this.paintCopicNib(ctx, stroke);
+      ctx.restore();
+      return;
+    }
+
+    // Dashed and dotted outlines paint as one continuous path at a uniform
+    // width: the per-segment pressure taper below restarts the dash pattern
+    // at every sample, which would render as a solid line.
+    const dash = dashPatternFor(stroke.strokeStyle, stroke.width);
+    if (dash.length > 0 && pts.length > 1) {
+      ctx.setLineDash(dash);
+      ctx.lineWidth = Math.max(0.5, stroke.width);
+      ctx.beginPath();
+      pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.stroke();
       ctx.restore();
       return;
     }
@@ -825,7 +849,7 @@ export class Surface {
           if (isTextStroke(s)) return svgText(s, order);
           if (isImageStroke(s)) return svgImage(s, order);
           if (s.tool === 'copic') return svgCopic(s, order);
-          return svgPath(s, order);
+          return svgPath(s, order, undefined, defs);
         })
         .filter(Boolean);
 
@@ -974,6 +998,53 @@ export class Surface {
   }
 }
 
+/**
+ * The paint for a stroke's interior: a canvas gradient when the stroke
+ * carries one, otherwise its flat fill color (or null when it has neither).
+ */
+function fillPaintFor(
+  ctx: CanvasRenderingContext2D,
+  stroke: Stroke,
+): string | CanvasGradient | null {
+  if (stroke.gradient) {
+    const paint = canvasGradient(ctx, stroke.gradient, strokeBounds(stroke));
+    if (paint) return paint;
+  }
+  return stroke.fill ?? null;
+}
+
+/**
+ * Builds a canvas gradient spanning a shape's bounding box. A linear gradient
+ * runs across the box at its angle (0 = left to right, clockwise); a radial
+ * one runs from the box's centre out to its corner.
+ */
+function canvasGradient(
+  ctx: CanvasRenderingContext2D,
+  gradient: Gradient,
+  box: { minX: number; minY: number; maxX: number; maxY: number } | null,
+): CanvasGradient | null {
+  const stops = normalizedStops(gradient);
+  if (!box || !stops) return null;
+  const cx = (box.minX + box.maxX) / 2;
+  const cy = (box.minY + box.maxY) / 2;
+  const w = Math.max(1, box.maxX - box.minX);
+  const h = Math.max(1, box.maxY - box.minY);
+  let paint: CanvasGradient;
+  if (gradient.type === 'radial') {
+    paint = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(w, h) / 2);
+  } else {
+    // Project the box's half-diagonal onto the gradient axis so the ramp
+    // spans the whole shape at any angle, matching CSS linear-gradient.
+    const rad = ((gradient.angle ?? 0) * Math.PI) / 180;
+    const reach = (Math.abs(Math.cos(rad)) * w + Math.abs(Math.sin(rad)) * h) / 2;
+    const dx = Math.cos(rad) * reach;
+    const dy = Math.sin(rad) * reach;
+    paint = ctx.createLinearGradient(cx - dx, cy - dy, cx + dx, cy + dy);
+  }
+  for (const stop of stops) paint.addColorStop(stop.offset, stop.color);
+  return paint;
+}
+
 /** Axis-aligned bounds of a stroke (or text item) in CSS pixels. */
 export function strokeBounds(
   stroke: Stroke,
@@ -1090,7 +1161,12 @@ function pathD(stroke: Stroke): string {
  * Serialises a drawing stroke as an SVG path (or dot). `colorOverride` is
  * used for eraser strokes inside a layer's mask, where black means "hide".
  */
-function svgPath(stroke: Stroke, order: number, colorOverride?: string): string {
+function svgPath(
+  stroke: Stroke,
+  order: number,
+  colorOverride?: string,
+  defs?: string[],
+): string {
   const pts = stroke.points;
   if (pts.length === 0) return '';
   const opacity = colorOverride ? 1 : stroke.opacity ?? defaultOpacityFor(stroke.tool);
@@ -1104,10 +1180,66 @@ function svgPath(stroke: Stroke, order: number, colorOverride?: string): string 
   const d = pathD(stroke);
   // Filled shapes paint their interior (SVG auto-closes fills, so the path
   // data stays an M/L polyline and round-trips through import unchanged);
-  // `data-fill` lets import restore the fill exactly.
-  const fill = !colorOverride && stroke.fill ? escXml(stroke.fill) : null;
-  const fillAttrs = fill ? `fill="${fill}" data-fill="${fill}"` : 'fill="none"';
-  return `<path d="${d}" stroke="${color}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round" ${fillAttrs} opacity="${opacity}" ${data}/>`;
+  // `data-fill` lets import restore the fill exactly. A gradient registers a
+  // paint server in <defs> and rides along as `data-gradient` so napkin's own
+  // importer restores the editable stops rather than re-reading the server.
+  let fillAttrs = 'fill="none"';
+  if (!colorOverride && stroke.gradient && defs) {
+    const id = `grad-${order}`;
+    const server = svgGradient(stroke, id);
+    if (server) {
+      defs.push(server);
+      const json = escXml(JSON.stringify(stroke.gradient));
+      // The flat fill rides along beside the gradient: the model keeps it so
+      // removing the gradient restores it, and the round trip must too.
+      const kept = stroke.fill ? ` data-fill="${escXml(stroke.fill)}"` : '';
+      fillAttrs = `fill="url(#${id})" data-gradient="${json}"${kept}`;
+    }
+  }
+  if (fillAttrs === 'fill="none"' && !colorOverride && stroke.fill) {
+    const fill = escXml(stroke.fill);
+    fillAttrs = `fill="${fill}" data-fill="${fill}"`;
+  }
+  // An outline switched off exports as `stroke="none"` - the SVG spelling of
+  // a fill-only shape - with the kept color/width riding along for re-import.
+  if (!colorOverride && stroke.noStroke) {
+    return `<path d="${d}" stroke="none" ${fillAttrs} opacity="${opacity}" ${data} data-nostroke="1" data-color="${escXml(stroke.color)}" data-width="${stroke.width}"/>`;
+  }
+  const dash = dashPatternFor(stroke.strokeStyle, stroke.width);
+  const dashAttrs =
+    dash.length > 0
+      ? ` stroke-dasharray="${dash.map(fmt).join(',')}" data-dash="${stroke.strokeStyle}"`
+      : '';
+  return `<path d="${d}" stroke="${color}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round"${dashAttrs} ${fillAttrs} opacity="${opacity}" ${data}/>`;
+}
+
+/**
+ * A gradient paint server for a stroke's fill, sized to the shape's bounding
+ * box in user space (`gradientUnits="userSpaceOnUse"`) so it lines up with
+ * the canvas rendering exactly. Returns null when the gradient has too few
+ * stops to paint or the stroke has no bounds.
+ */
+function svgGradient(stroke: Stroke, id: string): string | null {
+  const gradient = stroke.gradient;
+  const box = strokeBounds(stroke);
+  const stops = gradient ? normalizedStops(gradient) : null;
+  if (!gradient || !box || !stops) return null;
+  const cx = (box.minX + box.maxX) / 2;
+  const cy = (box.minY + box.maxY) / 2;
+  const w = Math.max(1, box.maxX - box.minX);
+  const h = Math.max(1, box.maxY - box.minY);
+  const body = stops
+    .map((s) => `<stop offset="${fmt(s.offset * 100)}%" stop-color="${escXml(s.color)}"/>`)
+    .join('');
+  if (gradient.type === 'radial') {
+    const r = Math.hypot(w, h) / 2;
+    return `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${fmt(cx)}" cy="${fmt(cy)}" r="${fmt(r)}">${body}</radialGradient>`;
+  }
+  const rad = ((gradient.angle ?? 0) * Math.PI) / 180;
+  const reach = (Math.abs(Math.cos(rad)) * w + Math.abs(Math.sin(rad)) * h) / 2;
+  const dx = Math.cos(rad) * reach;
+  const dy = Math.sin(rad) * reach;
+  return `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${fmt(cx - dx)}" y1="${fmt(cy - dy)}" x2="${fmt(cx + dx)}" y2="${fmt(cy + dy)}">${body}</linearGradient>`;
 }
 
 /**

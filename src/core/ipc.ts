@@ -73,6 +73,7 @@ export type MenuAction =
   | 'fit-view'
   | 'toggle-pages'
   | 'toggle-layers'
+  | 'toggle-properties'
   | 'toggle-settings'
   | 'open-app-settings'
   | 'toggle-rearrange';

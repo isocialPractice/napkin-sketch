@@ -28,6 +28,13 @@ aspirational and unordered within each group.
   pointers can draw on the same page.
 - [ ] **Plugin API v2**: stable, documented extension points (custom tools, custom
   sharpen passes, export targets) with a semver contract.
+- [ ] **Animation Mode** (removed 2026-08-22 pending redesign - the first
+  implementation did not work): pages-as-frames app mode toggled with
+  `Ctrl + Shift + N` or from the Edit menu. Next graphic generated from the
+  selected layer(s)/group(s); frame sequences mapped by layer and page
+  names (`<base>_<n>`, no suffix = frame 1); onion skin; ready-made
+  character/object presets; sequence playback; Help-menu reference for the
+  layer-naming rules.
 - [ ] **GUI Redesign**: update GUI overall design.
   - Initial sketches
   - Polish and apply
@@ -74,6 +81,23 @@ press a letter, type a value within the quick-feature timer, and it applies.
   - [ ] **Undock Panels**: Allow the side and top panels to be undocked and moved freely outside of the GUI window.
 
 ## Complete
+
+- [x] **Delete key deletes selected layers**: elements first, else the
+  highlighted layer rows.
+  - From: Minor
+- [x] **Properties panel**: an element property sheet with Position (px / in /
+  mm / pt), Appearance (fill, gradient editor, stroke width / style / none),
+  and Scale (% or absolute, uniform by default).
+  - From: Minor
+- [x] **Layer position shortcuts**: `Ctrl + ]` and `Ctrl + [` restack the
+  active layer.
+  - From: Minor
+- [x] **Join consolidates layers**: joined strokes merge onto one layer and
+  the layers the pieces vacated are pruned.
+  - From: Resolve Issues
+- [x] **Layer rename shortcuts**: `F2` and a double-click anywhere on a layer
+  row open the inline rename with the current name highlighted.
+  - From: Minor
 
 - [x] **Maintain exported layers**: exported SVGs flattened layer groups into a
   flat list of `<g>` elements; groups now export as nested `<g>` elements that

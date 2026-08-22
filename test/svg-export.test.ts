@@ -275,3 +275,115 @@ test('toSVG uniquifies ids when two layers share a name', () => {
   // The `-2` uniquifier is an editor convention the importer strips back off.
   assert.equal(decodeIdName('Base-2'), 'Base');
 });
+
+/** A sketch with one closed shape carrying properties-panel paint. */
+function paintedSketch(patch: Partial<Sketch['strokes'][number]>): Sketch {
+  const sketch = createSketch('painted');
+  sketch.strokes.push({
+    id: 'p1',
+    tool: 'pen',
+    color: '#112233',
+    width: 4,
+    layer: sketch.layers[0].id,
+    points: [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 20, y: 20 },
+      { x: 0, y: 20 },
+      { x: 0, y: 0 },
+    ],
+    ...patch,
+  });
+  return sketch;
+}
+
+test('a gradient fill exports as a paint server and an editable data attribute', () => {
+  const svg = Surface.toSVG(
+    paintedSketch({
+      fill: '#eeeeee',
+      gradient: {
+        type: 'linear',
+        angle: 0,
+        stops: [
+          { offset: 0, color: '#ff0000' },
+          { offset: 1, color: '#0000ff' },
+        ],
+      },
+    }),
+  );
+  // A real SVG paint server, so other editors show the gradient...
+  assert.match(svg, /<defs>[\s\S]*<linearGradient id="grad-0"/);
+  assert.match(svg, /gradientUnits="userSpaceOnUse"/);
+  assert.match(svg, /<stop offset="0%" stop-color="#ff0000"\/>/);
+  assert.match(svg, /fill="url\(#grad-0\)"/);
+  // ...plus napkin's own round-trip data, the flat fill included.
+  assert.match(svg, /data-gradient="/);
+  assert.match(svg, /data-fill="#eeeeee"/);
+});
+
+test('a radial gradient exports as a radial paint server', () => {
+  const svg = Surface.toSVG(
+    paintedSketch({
+      gradient: {
+        type: 'radial',
+        stops: [
+          { offset: 0, color: '#ffffff' },
+          { offset: 1, color: '#000000' },
+        ],
+      },
+    }),
+  );
+  assert.match(svg, /<radialGradient id="grad-0"[^>]*r="/);
+  assert.doesNotMatch(svg, /<linearGradient/);
+});
+
+test('a one-stop gradient falls back to the flat fill', () => {
+  const svg = Surface.toSVG(
+    paintedSketch({ fill: '#abcdef', gradient: { type: 'linear', stops: [{ offset: 0, color: '#f00' }] } }),
+  );
+  assert.doesNotMatch(svg, /linearGradient/);
+  assert.match(svg, /fill="#abcdef"/);
+});
+
+test('a dashed stroke exports a stroke-dasharray scaled to its width', () => {
+  const svg = Surface.toSVG(paintedSketch({ strokeStyle: 'dashed' }));
+  assert.match(svg, /stroke-dasharray="12,8"/);
+  assert.match(svg, /data-dash="dashed"/);
+});
+
+test('a solid stroke carries no dash attributes', () => {
+  const svg = Surface.toSVG(paintedSketch({}));
+  assert.doesNotMatch(svg, /stroke-dasharray/);
+  assert.doesNotMatch(svg, /data-dash/);
+});
+
+test('a fill-only shape exports as stroke="none" with its outline kept aside', () => {
+  const svg = Surface.toSVG(paintedSketch({ fill: '#00ff00', noStroke: true }));
+  assert.match(svg, /stroke="none"/);
+  assert.match(svg, /data-nostroke="1"/);
+  // The color and width are kept so re-importing restores the outline.
+  assert.match(svg, /data-color="#112233"/);
+  assert.match(svg, /data-width="4"/);
+});
+
+test('eraser masks are unaffected by the new paint attributes', () => {
+  const sketch = paintedSketch({ noStroke: true, strokeStyle: 'dashed' });
+  sketch.strokes.push({
+    id: 'e2',
+    tool: 'eraser',
+    color: '#000000',
+    width: 8,
+    layer: sketch.layers[0].id,
+    points: [
+      { x: 2, y: 2 },
+      { x: 8, y: 8 },
+    ],
+  });
+  const svg = Surface.toSVG(sketch);
+  const mask = svg.slice(svg.indexOf('<mask'), svg.indexOf('</mask>'));
+  // Inside the mask, black means "hide": no dash pattern and no stroke="none"
+  // may reach it, or the mask would stop cutting.
+  assert.doesNotMatch(mask, /stroke-dasharray/);
+  assert.doesNotMatch(mask, /stroke="none"/);
+  assert.match(mask, /stroke="#000"/);
+});

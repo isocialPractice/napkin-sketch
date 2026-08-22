@@ -27,6 +27,7 @@ import {
   type Tool,
 } from '../core/types.js';
 import { DEFAULT_SHARPEN_OPTIONS, type SharpenOptions } from '../sharpen/sharpen.js';
+import { catmullRom, cubicBezierPoints } from '../sharpen/geometry.js';
 
 /** Snapshot of the current tool configuration. */
 export interface ToolState {
@@ -777,16 +778,19 @@ export class Store {
   /**
    * Moves a layer one step up (+1, toward the top) or down (-1) in the stack.
    * Group rows themselves stay put (their children carry the paint order).
+   * Returns false when the move was not possible, so a keyboard caller can
+   * say why nothing happened.
    */
-  moveLayer(id: string, direction: 1 | -1): void {
+  moveLayer(id: string, direction: 1 | -1): boolean {
     const index = this.sketch.layers.findIndex((l) => l.id === id);
-    if (index === -1 || this.sketch.layers[index].group) return;
+    if (index === -1 || this.sketch.layers[index].group) return false;
     const target = index + direction;
-    if (target < 0 || target >= this.sketch.layers.length) return;
+    if (target < 0 || target >= this.sketch.layers.length) return false;
     this.pushHistory();
     const [layer] = this.sketch.layers.splice(index, 1);
     this.sketch.layers.splice(target, 0, layer);
     this.touch();
+    return true;
   }
 
   /**
@@ -849,6 +853,172 @@ export class Store {
     this.touch();
   }
 
+  // ---- Close shape ----------------------------------------------------------
+
+  /**
+   * Closes each selected drawing stroke by joining its two end points.
+   * 'sharp' bridges them with a straight segment; 'smooth' runs a Catmull-Rom
+   * blend through the surrounding points so the seam continues each end's
+   * direction. Strokes whose ends already touch are skipped, as are text,
+   * images, erasers, and anything too short to enclose space. Returns how
+   * many strokes were closed.
+   */
+  closeSelectedStrokes(mode: 'sharp' | 'smooth'): number {
+    const candidates = this.sketch.strokes.filter((s) => {
+      if (!this.selectedIds.has(s.id)) return false;
+      if (s.tool === 'eraser' || isTextStroke(s) || isImageStroke(s)) return false;
+      if (s.points.length < 3) return false;
+      const first = s.points[0];
+      const last = s.points[s.points.length - 1];
+      return Math.hypot(first.x - last.x, first.y - last.y) > 0.5;
+    });
+    if (candidates.length === 0) return 0;
+    this.pushHistory();
+    for (const stroke of candidates) {
+      this.closeStroke(stroke, mode);
+    }
+    this.touch();
+    return candidates.length;
+  }
+
+  /** Closes one stroke's end gap (see {@link closeSelectedStrokes}). */
+  private closeStroke(stroke: Stroke, mode: 'sharp' | 'smooth'): void {
+    const pts = stroke.points;
+    const first = pts[0];
+    const last = pts[pts.length - 1];
+
+    if (stroke.vector && stroke.vector.anchors.length >= 2) {
+      // Bezier-structured strokes close through their anchor model, so the
+      // seam stays editable with the Vector Path tool and exports as a true
+      // closing segment. A smooth close adds Catmull-Rom-derived tangents on
+      // the closing pair - only where no handle exists, so the drawn curve
+      // keeps its shape.
+      const anchors = stroke.vector.anchors;
+      const head = anchors[0];
+      const tail = anchors[anchors.length - 1];
+      stroke.vector.closed = true;
+      if (mode === 'smooth') {
+        const prev = anchors[anchors.length - 2] ?? head;
+        const next = anchors[1] ?? tail;
+        if (!tail.hOut) {
+          tail.hOut = {
+            x: tail.p.x + (head.p.x - prev.p.x) / 6,
+            y: tail.p.y + (head.p.y - prev.p.y) / 6,
+          };
+        }
+        if (!head.hIn) {
+          head.hIn = {
+            x: head.p.x - (next.p.x - tail.p.x) / 6,
+            y: head.p.y - (next.p.y - tail.p.y) / 6,
+          };
+        }
+      }
+      if (mode === 'sharp') {
+        // A sharp close is a straight closing segment, so the two handles
+        // that would bend it are dropped. Neither is used while the path is
+        // open - nothing follows the last anchor and nothing precedes the
+        // first - so clearing them changes the seam and nothing else.
+        delete tail.hOut;
+        delete head.hIn;
+      }
+      // Resample the closing run onto the drawn points so the canvas shows
+      // the seam at once: one straight segment when neither end has a handle.
+      const straight = !tail.hOut && !head.hIn;
+      const bridge = cubicBezierPoints(
+        { ...tail.p, pressure: last.pressure },
+        tail.hOut ?? tail.p,
+        head.hIn ?? head.p,
+        { ...head.p, pressure: first.pressure },
+        straight ? 1 : 16,
+      );
+      pts.push(...bridge.slice(1));
+      return;
+    }
+
+    if (mode === 'sharp') {
+      // A straight bridge: one segment from the last point back to the first.
+      pts.push({ x: first.x, y: first.y, pressure: last.pressure });
+      return;
+    }
+
+    // Smooth: a Catmull-Rom span between the two ends, with one context
+    // point on each side so the bridge leaves and arrives along the drawn
+    // directions instead of kinking at the seam.
+    const context = [pts[pts.length - 2], last, first, pts[1]];
+    const sampled = catmullRom(context, 12);
+    // The middle span (last -> first) sits between the two context spans.
+    const bridge = sampled.slice(12, 25);
+    pts.push(...bridge.slice(1, -1), { x: first.x, y: first.y, pressure: first.pressure });
+  }
+
+  // ---- Drag copy ------------------------------------------------------------
+
+  /**
+   * Duplicates the current selection in place - the Alt-drag copy. Selected
+   * strokes are cloned onto cloned layers: every involved layer is copied (a
+   * group row selected in the panel brings its whole subtree), a copied
+   * root's name takes the " - copy" suffix while layers nested under a
+   * copied group keep their names, and the clones become the selection so
+   * the drag that follows moves the copy. Pushes no history step of its own:
+   * the caller wraps the copy and the drag into one.
+   */
+  duplicateSelectedElements(): number {
+    const strokes = this.sketch.strokes.filter((s) => this.selectedIds.has(s.id));
+    if (strokes.length === 0) return 0;
+
+    // Layers to copy: each selected stroke's layer, plus the full subtree of
+    // every group row picked in the panel (so a group copies as a group).
+    const involved = new Set<string>();
+    for (const stroke of strokes) involved.add(layerOf(this.sketch, stroke).id);
+    for (const id of this.selectedLayerIds) {
+      const layer = this.sketch.layers.find((l) => l.id === id);
+      if (!layer) continue;
+      involved.add(id);
+      for (const d of descendantLayerIds(this.sketch, id)) involved.add(d);
+    }
+
+    // Clone the involved layers in stack order, remapping parents that were
+    // copied too; a parent left behind keeps nesting the copy where the
+    // original lives. Only the copied roots take the " - copy" name.
+    const idMap = new Map<string, string>();
+    const clones: Layer[] = [];
+    let insertAt = -1;
+    this.sketch.layers.forEach((layer, index) => {
+      if (!involved.has(layer.id)) return;
+      insertAt = index;
+      const clone: Layer = { ...layer, id: createId(layer.group ? 'gp' : 'ly') };
+      idMap.set(layer.id, clone.id);
+      clones.push(clone);
+    });
+    for (const clone of clones) {
+      const mapped = clone.parent ? idMap.get(clone.parent) : undefined;
+      if (mapped) {
+        // Copied along with its group: nest under the copy, keep the name.
+        clone.parent = mapped;
+      } else {
+        // A copied root (top level, or left nested in an uncopied group):
+        // this is the row that reads as "the copy", so it takes the suffix.
+        clone.name = `${clone.name} - copy`;
+      }
+    }
+    this.sketch.layers.splice(insertAt + 1, 0, ...clones);
+
+    // Clone the strokes onto the copied layers, appended so the copies paint
+    // above their originals within each layer.
+    const copies = strokes.map((stroke) => {
+      const clone = JSON.parse(JSON.stringify(stroke)) as Stroke;
+      clone.id = createId('st');
+      clone.layer = idMap.get(layerOf(this.sketch, stroke).id);
+      return clone;
+    });
+    this.sketch.strokes.push(...copies);
+
+    this.selectedIds = new Set(copies.map((s) => s.id));
+    this.syncLayerHighlight();
+    this.touch();
+    return copies.length;
+  }
+
   // ---- Join / fill ----------------------------------------------------------
 
   /**
@@ -896,19 +1066,29 @@ export class Store {
       pool[best.i] = a;
     }
 
+    // One stroke means one layer: the merge lands on the first stroke's
+    // layer and the layers the other pieces vacated are pruned, rather than
+    // leaving a row per piece behind with nothing on it.
     const first = candidates[0];
+    const home = layerOf(this.sketch, first);
     const merged: Stroke = {
       ...first,
       id: createId('st'),
       points: pool[0],
       fill: undefined,
+      layer: home.id,
       sharpened: candidates.every((s) => s.sharpened),
     };
+    const vacated = new Set(candidates.map((s) => layerOf(this.sketch, s).id));
+    vacated.delete(home.id);
     const removeIds = new Set(candidates.map((s) => s.id));
     const at = this.sketch.strokes.findIndex((s) => removeIds.has(s.id));
     this.sketch.strokes = this.sketch.strokes.filter((s) => !removeIds.has(s.id));
     this.sketch.strokes.splice(at, 0, merged);
+    this.pruneEmptyLayers(vacated);
+    this.activeLayerId = home.id;
     this.selectedIds = new Set([merged.id]);
+    this.selectedLayerIds = new Set([home.id]);
     this.touch();
     return merged;
   }
@@ -920,9 +1100,16 @@ export class Store {
   replaceWithJoined(removeIds: string[], merged: Stroke): void {
     this.pushHistory();
     const doomed = new Set(removeIds);
+    // Layers the absorbed pieces leave behind are pruned, so a join reads as
+    // one element on one layer (see joinSelectedStrokes).
+    const vacated = new Set(
+      this.sketch.strokes.filter((s) => doomed.has(s.id)).map((s) => layerOf(this.sketch, s).id),
+    );
     const at = this.sketch.strokes.findIndex((s) => doomed.has(s.id));
     this.sketch.strokes = this.sketch.strokes.filter((s) => !doomed.has(s.id));
     this.sketch.strokes.splice(at === -1 ? this.sketch.strokes.length : at, 0, merged);
+    vacated.delete(layerOf(this.sketch, merged).id);
+    this.pruneEmptyLayers(vacated);
     this.touch();
   }
 
@@ -949,6 +1136,96 @@ export class Store {
     }
     this.touch();
     return { filled, recolored };
+  }
+
+  // ---- Element properties (properties panel) -------------------------------
+
+  /**
+   * Applies a property patch to specific strokes. Keys set to `undefined` are
+   * deleted rather than stored, so `{ fill: undefined }` removes a fill.
+   * Continuous edits (a color picker being dragged) pass `history: false`
+   * after the first tick so the whole drag collapses into one undo step.
+   */
+  setStrokeProps(ids: Iterable<string>, patch: Partial<Stroke>, history = true): number {
+    const targets = new Set(ids);
+    const strokes = this.sketch.strokes.filter((s) => targets.has(s.id));
+    if (strokes.length === 0) return 0;
+    if (history) this.pushHistory();
+    for (const stroke of strokes) {
+      const record = stroke as unknown as Record<string, unknown>;
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === undefined) delete record[key];
+        else record[key] = value;
+      }
+    }
+    this.touch();
+    return strokes.length;
+  }
+
+  /** Moves specific strokes by (dx, dy) with an optional history step. */
+  moveStrokes(ids: Iterable<string>, dx: number, dy: number, history = true): void {
+    const targets = new Set(ids);
+    const strokes = this.sketch.strokes.filter((s) => targets.has(s.id));
+    if (strokes.length === 0 || (dx === 0 && dy === 0)) return;
+    if (history) this.pushHistory();
+    for (const stroke of strokes) {
+      for (const p of stroke.points) {
+        p.x += dx;
+        p.y += dy;
+      }
+      this.shiftVector(stroke, dx, dy);
+    }
+    this.touch();
+  }
+
+  /**
+   * Scales specific strokes about (ox, oy) by the given factors. Text and
+   * image items have no points to spread, so their footprint is scaled
+   * instead: a text item's font size (and fixed box width) and an image's
+   * rendered width and height, each anchored the same way as the geometry.
+   */
+  scaleStrokes(
+    ids: Iterable<string>,
+    sx: number,
+    sy: number,
+    ox: number,
+    oy: number,
+    history = true,
+  ): void {
+    if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx === 0 || sy === 0) return;
+    if (sx === 1 && sy === 1) return;
+    const targets = new Set(ids);
+    const strokes = this.sketch.strokes.filter((s) => targets.has(s.id));
+    if (strokes.length === 0) return;
+    if (history) this.pushHistory();
+    const map = (p: { x: number; y: number }): void => {
+      p.x = ox + (p.x - ox) * sx;
+      p.y = oy + (p.y - oy) * sy;
+    };
+    for (const stroke of strokes) {
+      for (const p of stroke.points) map(p);
+      if (stroke.vector) {
+        for (const anchor of stroke.vector.anchors) {
+          map(anchor.p);
+          if (anchor.hIn) map(anchor.hIn);
+          if (anchor.hOut) map(anchor.hOut);
+        }
+      }
+      if (isImageStroke(stroke)) {
+        stroke.imageWidth = Math.max(1, (stroke.imageWidth ?? 100) * sx);
+        stroke.imageHeight = Math.max(1, (stroke.imageHeight ?? 100) * sy);
+      } else if (isTextStroke(stroke)) {
+        // Type scales by one factor; the mean of the two keeps a non-uniform
+        // scale from silently ignoring one axis.
+        stroke.fontSize = Math.max(1, (stroke.fontSize ?? 24) * ((sx + sy) / 2));
+        if (stroke.textBoxWidth) stroke.textBoxWidth = Math.max(1, stroke.textBoxWidth * sx);
+      } else {
+        // Line weight follows the shape so a scaled-down element does not
+        // keep a disproportionately heavy outline.
+        stroke.width = Math.max(0.5, stroke.width * Math.sqrt(Math.abs(sx * sy)));
+      }
+    }
+    this.touch();
   }
 
   // ---- Tool settings -------------------------------------------------------

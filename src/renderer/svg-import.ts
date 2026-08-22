@@ -32,6 +32,7 @@ import {
   type Tool,
   type VectorAnchor,
 } from '../core/types.js';
+import { normalizeGradient } from '../core/serialize.js';
 
 /** One layer recovered from an imported SVG; nested groups become children. */
 export interface ImportedLayer {
@@ -482,10 +483,27 @@ function elementToStrokes(
   const hasStroke = style.stroke !== 'none' && style.stroke !== '';
   const hasFill = style.fill !== 'none' && style.fill !== '';
   if (!hasStroke && !hasFill) return;
-  const color = tool === 'eraser' ? '#000000' : hasStroke ? style.stroke : style.fill;
-  const width = hasStroke
-    ? Math.max(0.5, (parseFloat(style.strokeWidth) || 1) * matrixScale(matrix))
-    : 1;
+  // A napkin shape whose outline was switched off exports as stroke="none"
+  // with the kept color and width in data attributes. Read those back rather
+  // than deriving a color from the fill, which may be a gradient paint server
+  // (`url(#…)`) and not a color at all.
+  const keptColor = el.getAttribute('data-color');
+  const keptWidth = Number(el.getAttribute('data-width'));
+  const outlineOff = el.getAttribute('data-nostroke') === '1';
+  const color =
+    tool === 'eraser'
+      ? '#000000'
+      : outlineOff && keptColor
+        ? keptColor
+        : hasStroke
+          ? style.stroke
+          : style.fill;
+  const width =
+    outlineOff && Number.isFinite(keptWidth) && keptWidth > 0
+      ? Math.max(0.5, keptWidth * matrixScale(matrix))
+      : hasStroke
+        ? Math.max(0.5, (parseFloat(style.strokeWidth) || 1) * matrixScale(matrix))
+        : 1;
   const opacity = clamp01(
     Number(style.opacity || 1) * Number(hasStroke ? style.strokeOpacity || 1 : style.fillOpacity || 1),
   );
@@ -530,6 +548,7 @@ function elementToStrokes(
       const stroke = makeStroke(tool, color, width, points.map((p) => applyMatrix(matrix, p.x, p.y)), opacity);
       const dataFill = el.getAttribute('data-fill');
       if (dataFill) stroke.fill = dataFill;
+      applyNapkinPaint(el, stroke);
       out.push({ order, stroke });
       return;
     }
@@ -558,7 +577,13 @@ function elementToStrokes(
   }
   const stroke = makeStroke(tool, color, width, points, opacity);
   // Filled source shapes stay filled (previously they imported as outlines).
-  if (hasFill && tool !== 'eraser' && points.length > 2) stroke.fill = style.fill;
+  // A `url(#…)` paint server is not a color: the gradient it points at is
+  // restored from `data-gradient` below for napkin's own exports, and a
+  // foreign one is dropped rather than stored as a broken fill string.
+  if (hasFill && tool !== 'eraser' && points.length > 2 && !style.fill.startsWith('url(')) {
+    stroke.fill = style.fill;
+  }
+  applyNapkinPaint(el, stroke);
   if (vector) {
     const mapped = vector.anchors.map((a) => ({
       p: applyMatrix(matrix, a.p.x, a.p.y),
@@ -568,6 +593,37 @@ function elementToStrokes(
     stroke.vector = { anchors: mapped, ...(vector.closed ? { closed: true } : {}) };
   }
   out.push({ order, stroke });
+}
+
+/**
+ * Restores the properties-panel paint a napkin export carries in its data
+ * attributes: an editable gradient fill (`data-gradient`), a dash style
+ * (`data-dash`), and a switched-off outline (`data-nostroke`). Foreign SVGs
+ * carry none of these and pass through untouched.
+ */
+function applyNapkinPaint(el: Element, stroke: Stroke): void {
+  const raw = el.getAttribute('data-gradient');
+  if (raw) {
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = null; // Malformed attribute: keep whatever flat fill was read.
+    }
+    const gradient = normalizeGradient(parsed);
+    if (gradient) {
+      stroke.gradient = gradient;
+      // The flat fill beneath the gradient is kept when the export carried
+      // one; without it the computed `url(#…)` paint is not a color and must
+      // not be stored as one.
+      const kept = el.getAttribute('data-fill');
+      if (kept) stroke.fill = kept;
+      else delete stroke.fill;
+    }
+  }
+  const dash = el.getAttribute('data-dash');
+  if (dash === 'dashed' || dash === 'dotted') stroke.strokeStyle = dash;
+  if (el.getAttribute('data-nostroke') === '1') stroke.noStroke = true;
 }
 
 /** Parses a `data-pts` attribute of space-separated "x,y" pairs. */

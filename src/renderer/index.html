@@ -62,6 +62,9 @@
           <button id="join-strokes" class="btn" type="button" title="Join selected strokes (Ctrl+J)">
             Join
           </button>
+          <button id="close-shape" class="btn" type="button" title="Close Shape - join the selected stroke's two end points (press for Sharp or Smooth)">
+            Close Shape
+          </button>
           <label id="vector-options" class="vector-options is-hidden" for="vector-radius" title="Corner radius — rounds the selected Vector Path anchor">
             <span class="slider-text">Radius</span>
             <input id="vector-radius" type="number" min="0" max="999" step="1" value="12" aria-label="Corner radius" />
@@ -104,6 +107,7 @@
         <section class="group group-right" aria-label="File">
           <button id="pages-toggle" class="btn btn-panel" type="button" title="Toggle pages panel (Ctrl+B)">Pages</button>
           <button id="layers-toggle" class="btn btn-panel" type="button" title="Toggle layers panel (Ctrl+L)">Layers</button>
+          <button id="properties-toggle" class="btn btn-panel" type="button" title="Toggle properties panel (Ctrl+P)">Properties</button>
           <span class="toolbar-sep" role="separator" aria-orientation="vertical"></span>
           <button id="new-sketch" class="btn" type="button" title="New sketch">New</button>
           <button id="open" class="btn" type="button" title="Open sketch book">Open</button>
@@ -159,6 +163,104 @@
               <input id="layer-opacity" type="range" min="5" max="100" step="1" value="100" />
               <span id="layer-opacity-value">100%</span>
             </label>
+          </div>
+        </aside>
+
+        <aside id="properties-panel" class="properties-panel" aria-label="Properties">
+          <div id="properties-resize" class="panel-resize" title="Drag to resize the properties panel" aria-hidden="true"></div>
+          <div class="pages-panel-head">
+            <span>Properties</span>
+            <div class="pages-panel-actions">
+              <button id="properties-close" class="btn btn-ghost" type="button" title="Hide properties panel" aria-label="Hide properties panel">✕</button>
+            </div>
+          </div>
+
+          <div class="properties-body">
+            <p id="prop-summary" class="prop-summary">Nothing selected</p>
+
+            <div id="prop-fields" class="prop-fields">
+              <section class="prop-section" aria-labelledby="prop-position-title">
+                <h3 id="prop-position-title" class="prop-title">Position</h3>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-x"><span>X</span></label>
+                  <input id="prop-x" class="prop-num" type="number" step="0.1" aria-label="X position" />
+                  <select id="prop-x-unit" class="prop-unit" aria-label="X position unit"></select>
+                </div>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-y"><span>Y</span></label>
+                  <input id="prop-y" class="prop-num" type="number" step="0.1" aria-label="Y position" />
+                  <select id="prop-y-unit" class="prop-unit" aria-label="Y position unit"></select>
+                </div>
+              </section>
+
+              <section class="prop-section" aria-labelledby="prop-appearance-title">
+                <h3 id="prop-appearance-title" class="prop-title">Appearance</h3>
+
+                <p class="prop-subtitle">Fill</p>
+                <div class="prop-row">
+                  <input id="prop-fill" class="prop-color" type="color" value="#1f2328" aria-label="Fill color" />
+                  <button id="prop-fill-remove" class="btn btn-ghost" type="button" title="Remove the fill">No fill</button>
+                  <button id="prop-fill-gradient" class="btn btn-ghost" type="button" title="Fill with a gradient">Gradient</button>
+                </div>
+
+                <div id="gradient-editor" class="gradient-editor is-hidden">
+                  <div id="gradient-bar" class="gradient-bar" role="group" aria-label="Gradient stops" title="Drag a handle to move a stop; double-click the bar to add one"></div>
+                  <div class="prop-row">
+                    <input id="gradient-stop-color" class="prop-color" type="color" value="#1f2328" aria-label="Selected stop color" />
+                    <input id="gradient-stop-offset" class="prop-num" type="number" min="0" max="100" step="1" value="0" aria-label="Selected stop position, percent" />
+                    <span class="prop-unit-static">%</span>
+                    <button id="gradient-add-stop" class="btn btn-ghost" type="button" title="Add a stop">+</button>
+                    <button id="gradient-remove-stop" class="btn btn-ghost" type="button" title="Remove the selected stop">−</button>
+                  </div>
+                  <div class="prop-row">
+                    <select id="gradient-type" class="prop-unit prop-unit-wide" aria-label="Gradient type">
+                      <option value="linear">Linear</option>
+                      <option value="radial">Radial</option>
+                    </select>
+                    <button id="gradient-remove" class="btn btn-ghost" type="button" title="Remove the gradient">Remove</button>
+                  </div>
+                  <div id="gradient-angle-row" class="prop-row">
+                    <label class="prop-field" for="gradient-angle"><span>Angle</span></label>
+                    <input id="gradient-angle" type="range" min="0" max="359" step="1" value="0" />
+                    <span id="gradient-angle-value" class="prop-value">0°</span>
+                  </div>
+                </div>
+
+                <p class="prop-subtitle">Stroke</p>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-stroke-width"><span>Width</span></label>
+                  <input id="prop-stroke-width" class="prop-num" type="number" min="0.5" max="400" step="0.5" aria-label="Stroke width in pixels" />
+                  <span class="prop-unit-static">px</span>
+                </div>
+                <div class="prop-row">
+                  <select id="prop-stroke-style" class="prop-unit prop-unit-wide" aria-label="Stroke style">
+                    <option value="solid">Solid</option>
+                    <option value="dashed">Dashed</option>
+                    <option value="dotted">Dotted</option>
+                  </select>
+                  <button id="prop-stroke-remove" class="btn btn-ghost" type="button" title="Remove the outline">No stroke</button>
+                </div>
+              </section>
+
+              <section class="prop-section" aria-labelledby="prop-scale-title">
+                <h3 id="prop-scale-title" class="prop-title">Scale</h3>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-scale-x"><span>X</span></label>
+                  <input id="prop-scale-x" class="prop-num" type="number" min="0" step="1" aria-label="Horizontal scale" />
+                  <select id="prop-scale-x-unit" class="prop-unit" aria-label="Horizontal scale unit"></select>
+                </div>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-scale-y"><span>Y</span></label>
+                  <input id="prop-scale-y" class="prop-num" type="number" min="0" step="1" aria-label="Vertical scale" />
+                  <select id="prop-scale-y-unit" class="prop-unit" aria-label="Vertical scale unit"></select>
+                </div>
+                <label class="switch prop-switch" title="Scale both axes together">
+                  <input id="prop-scale-uniform" type="checkbox" checked />
+                  <span class="switch-track" aria-hidden="true"></span>
+                  <span class="switch-text">Uniform scaling</span>
+                </label>
+              </section>
+            </div>
           </div>
         </aside>
 

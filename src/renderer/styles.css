@@ -1271,3 +1271,230 @@ body {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ---- Properties panel ---------------------------------------------------- */
+/* Right-most dock, a sibling of the layers panel: element-level editing for
+   whatever is selected on the canvas (or highlighted in the layers panel).
+   Same surfaces as the other panels so the three docks read as one system. */
+
+.properties-panel {
+  position: relative;
+  width: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width var(--motion);
+}
+
+.app.properties-open .properties-panel {
+  width: var(--properties-width, 252px);
+}
+
+.properties-panel.is-resizing {
+  transition: none;
+}
+
+.properties-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+/* Selection read-out: what the fields below are about to edit. */
+.prop-summary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* The fields grey out together while nothing is selected. */
+.prop-fields.is-empty {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.prop-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.prop-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.prop-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.prop-subtitle {
+  margin: var(--s1) 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.prop-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.prop-field {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.prop-num {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--s1) var(--s2);
+}
+
+.prop-num:focus-visible,
+.prop-unit:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.prop-num:disabled,
+.prop-unit:disabled,
+.prop-color:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.prop-unit {
+  flex: 0 0 auto;
+  width: 58px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--s1);
+}
+
+.prop-unit-wide {
+  width: auto;
+  flex: 1;
+}
+
+/* Fixed-unit fields (stroke width, stop offset) label their unit in text. */
+.prop-unit-static {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.prop-value {
+  flex: 0 0 auto;
+  min-width: 34px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+.prop-color {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.prop-switch {
+  margin-top: var(--s1);
+}
+
+.prop-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- Gradient editor ----------------------------------------------------- */
+/* The familiar ramp-and-handles control: the bar previews the gradient, each
+   stop is a draggable handle on it, and the fields below edit the selected
+   handle. Double-clicking the bar adds a stop where it was clicked. */
+
+.gradient-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.gradient-bar {
+  position: relative;
+  height: 26px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  cursor: copy;
+  /* Checkerboard behind the ramp so translucent stops read as translucent. */
+  background-image:
+    linear-gradient(45deg, var(--border) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--border) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--border) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--border) 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+}
+
+/* The ramp itself, painted over the checkerboard. */
+.gradient-bar-ramp {
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--r-sm) - 1px);
+}
+
+.gradient-stop-handle {
+  position: absolute;
+  top: 100%;
+  width: 12px;
+  height: 12px;
+  margin: 1px 0 0 -6px;
+  padding: 0;
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  border-radius: var(--r-full);
+  cursor: ew-resize;
+  transform: none;
+}
+
+.gradient-stop-handle.is-active {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 2px rgba(47, 111, 235, 0.25);
+}
+
+.gradient-editor.is-radial #gradient-angle-row {
+  display: none;
+}

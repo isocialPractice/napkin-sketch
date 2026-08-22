@@ -8,6 +8,7 @@
  */
 
 import {
+  createGradient,
   createId,
   createSketch,
   createSketchBook,
@@ -19,13 +20,29 @@ import {
   isImageStroke,
   isTextStroke,
   layerOf,
+  normalizedStops,
+  STROKE_STYLES,
+  type Gradient,
+  type GradientStop,
   type Layer,
   type Point,
   type Sketch,
   type Stroke,
+  type StrokeStyle,
   type Tool,
   type VectorAnchor,
 } from '../core/types.js';
+import {
+  formatLength,
+  isLengthUnit,
+  isScaleUnit,
+  LENGTH_UNITS,
+  SCALE_UNITS,
+  toPx,
+  unitStep,
+  type LengthUnit,
+  type ScaleUnit,
+} from '../core/units.js';
 import type { ExportFormat, ImageFormat, ImportFileResult, MenuAction } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
 import { sketchesToPdf } from '../core/pdf.js';
@@ -49,6 +66,14 @@ function el<T extends HTMLElement>(id: string): T {
   if (!node) throw new Error(`Missing required element #${id}`);
   return node as T;
 }
+
+/**
+ * Bounds on a single scale operation from the properties panel. A stray digit
+ * in a percentage field would otherwise throw the geometry clean off the page
+ * (or collapse it to nothing, which no later scale could recover).
+ */
+const SCALE_FACTOR_MIN = 0.01;
+const SCALE_FACTOR_MAX = 100;
 
 /** Minimum drag distance (px) before a text-tool press becomes a box draw. */
 const TEXT_DRAG_THRESHOLD = 10;
@@ -203,6 +228,24 @@ class App {
 
   private pagesOpen = false;
   private layersOpen = false;
+  private propertiesOpen = false;
+
+  // Units the properties panel reads and writes its fields in.
+  private propUnits: { x: LengthUnit; y: LengthUnit; scaleX: ScaleUnit; scaleY: ScaleUnit } = {
+    x: 'px',
+    y: 'px',
+    scaleX: '%',
+    scaleY: '%',
+  };
+
+  // Index of the gradient stop the editor's fields are pointed at.
+  private gradientStop = 0;
+  // True while a gradient handle or the angle slider is being dragged: the
+  // bar must not be rebuilt under the pointer, and the whole drag collapses
+  // into one history step.
+  private gradientDragging = false;
+  // True while the fill color picker is open (same one-history-step rule).
+  private fillDragging = false;
 
   // True while a layer-opacity slider drag is in progress (one history step).
   private layerOpacityDragging = false;
@@ -386,6 +429,7 @@ class App {
     this.bindSharpenSelection();
     this.bindContextMenus();
     this.bindPageSettings();
+    this.bindProperties();
     this.bindPanelResize();
 
     this.resizeSurface();
@@ -2867,6 +2911,14 @@ class App {
       this.dragging = true;
       this.dragLast = pt;
       this.store.pushHistory();
+      // Alt-drag copies the selection: the layers panel gains " - copy"
+      // rows, the clones become the selection, and this drag moves them
+      // while the originals stay put. The history step above covers the
+      // copy and the move together, so one undo removes both.
+      if (e.altKey) {
+        const copied = this.store.duplicateSelectedElements();
+        if (copied > 0) this.toast(`Dragging a copy of ${copied} element(s).`);
+      }
       this.canvas.setPointerCapture(e.pointerId);
       this.activePointerId = e.pointerId;
     } else {
@@ -3192,6 +3244,20 @@ class App {
     this.bindCurveFlyout();
 
     el('join-strokes').addEventListener('click', () => this.joinSelectedStrokes());
+    // Close Shape offers its two joins as a submenu on press (mousedown),
+    // reusing the shared context menu the panels already build. The press
+    // must not reach the window listener that dismisses that menu on any
+    // pointerdown outside it - the menu would be built and torn down within
+    // this one event dispatch, and nothing would ever appear.
+    el('close-shape').addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = el('close-shape').getBoundingClientRect();
+      this.showContextMenu(rect.left, rect.bottom + 4, [
+        { label: 'Sharp - straight line between the end points', action: () => this.closeSelectedShapes('sharp') },
+        { label: 'Smooth - curve on through the end points', action: () => this.closeSelectedShapes('smooth') },
+      ]);
+    });
 
     this.rebuildSwatches();
 
@@ -4152,8 +4218,8 @@ class App {
     });
     el('group-layer').addEventListener('click', () => this.groupActiveLayer());
     el('delete-layer').addEventListener('click', () => this.deleteSelectedLayers());
-    el('layer-up').addEventListener('click', () => this.store.moveLayer(this.store.activeLayer.id, 1));
-    el('layer-down').addEventListener('click', () => this.store.moveLayer(this.store.activeLayer.id, -1));
+    el('layer-up').addEventListener('click', () => this.moveActiveLayer(1));
+    el('layer-down').addEventListener('click', () => this.moveActiveLayer(-1));
 
     // Opacity drags collapse into one history step (pushed on the first tick).
     const opacity = el<HTMLInputElement>('layer-opacity');
@@ -4198,7 +4264,7 @@ class App {
           disabled: this.store.activeLayer.group !== true,
           action: () => this.ungroupActiveLayer(),
         },
-        { label: 'Rename', action: () => this.renameActiveLayerFromMenu() },
+        { label: 'Rename', action: () => this.renameActiveLayer() },
         { label: 'Delete Layer(s)', action: () => this.deleteSelectedLayers() },
         { separator: true },
         { label: 'Move Layer Up', action: () => this.store.moveLayer(this.store.activeLayer.id, 1) },
@@ -4277,15 +4343,45 @@ class App {
     el('context-menu').classList.add('is-hidden');
   }
 
-  /** Opens the inline rename input on the active layer's row (context menu). */
-  private renameActiveLayerFromMenu(): void {
-    const row = document.querySelector<HTMLElement>('.layer-row.is-active');
-    const label = row?.querySelector<HTMLElement>('.layer-name');
-    if (row && label) {
-      this.beginLayerRename(this.store.activeLayer.id, row, label);
-    } else {
+  /**
+   * Starts an inline rename on the active layer's row. Shared by the layers
+   * panel's context menu and the `F2` shortcut. The panel is opened first when
+   * it is hidden, since the input takes the place of a rendered row, and the
+   * row is scrolled into view so a rename below the fold is not typed blind.
+   */
+  private renameActiveLayer(): void {
+    if (!this.layersOpen) this.toggleLayers(true);
+    const id = this.store.activeLayer.id;
+    this.expandLayerAncestors(this.store.activeLayer);
+    const row = this.layerRow(id);
+    if (!row) {
       this.toast('Select a layer row to rename it.');
+      return;
     }
+    row.scrollIntoView({ block: 'nearest' });
+    this.beginLayerRename(id);
+  }
+
+  /**
+   * Expands every collapsed group above a layer so its row is rendered, and
+   * redraws the panel when that changed anything. A layer can be the active
+   * one while its group is folded shut, which would otherwise leave `F2` with
+   * no row to edit.
+   */
+  private expandLayerAncestors(layer: Layer): void {
+    let changed = false;
+    let parent = layer.parent;
+    while (parent) {
+      if (this.collapsedGroups.delete(parent)) changed = true;
+      parent = this.store.sketch.layers.find((l) => l.id === parent)?.parent;
+    }
+    if (changed) this.renderLayers();
+  }
+
+  /** The layers panel row for a layer id, if that row is currently rendered. */
+  private layerRow(id: string): HTMLElement | null {
+    const rows = el('layers-list').querySelectorAll<HTMLElement>('.layer-row');
+    return Array.from(rows).find((row) => row.dataset.layerId === id) ?? null;
   }
 
   /** Drag handles on the panels' inner edges adjust each panel's width. */
@@ -4294,6 +4390,19 @@ class App {
     // it; the pages panel sits on the left and widens by dragging right.
     this.bindPanelResizeHandle('layers-resize', 'layers-panel', '--layers-width', -1);
     this.bindPanelResizeHandle('pages-resize', 'pages-panel', '--pages-width', 1);
+    this.bindPanelResizeHandle('properties-resize', 'properties-panel', '--properties-width', -1);
+
+    // The panels animate their width over 160 ms, but the open/close toggles
+    // can only resize the canvas on the next frame - mid-transition, when
+    // the stage still has (nearly) its old size - so closing a panel left
+    // the canvas sized as if it were still open. Resize again once the
+    // width transition actually lands. (Under reduced motion the transition
+    // collapses and the toggles' immediate resize is already correct.)
+    for (const panelId of ['pages-panel', 'layers-panel', 'properties-panel']) {
+      el(panelId).addEventListener('transitionend', (e) => {
+        if (e.target === el(panelId) && e.propertyName === 'width') this.resizeSurface();
+      });
+    }
   }
 
   /**
@@ -4542,17 +4651,23 @@ class App {
       const name = document.createElement('span');
       name.className = 'layer-name';
       name.textContent = layer.name;
-      name.title = `${layer.name} (double-click to rename)`;
-      name.addEventListener('dblclick', (ev) => {
-        ev.stopPropagation();
-        this.beginLayerRename(layer.id, row, name);
-      });
+      name.title = `${layer.name} (double-click or F2 to rename)`;
 
       const badge = document.createElement('span');
       badge.className = 'layer-opacity-badge';
       badge.textContent = layer.opacity < 1 ? `${Math.round(layer.opacity * 100)}%` : '';
 
       row.append(eye, lock, name, badge);
+      // Double-click anywhere on the row - not just the name - starts the
+      // rename, the pointer counterpart of `F2`. The caret and the two
+      // toggles keep their own single-click jobs: a double-click on one of
+      // them has already re-rendered the panel, leaving this row detached, so
+      // those targets are skipped rather than renamed.
+      row.addEventListener('dblclick', (ev) => {
+        if (ev.target instanceof Element && ev.target.closest('button')) return;
+        ev.preventDefault();
+        this.beginLayerRename(layer.id);
+      });
       // Click selects the layer and highlights its elements on the canvas;
       // Shift-click adds/removes it; Ctrl/Cmd+Shift-click selects the range
       // between the active layer and this one.
@@ -4629,12 +4744,31 @@ class App {
     }
   }
 
-  /** Swaps a layer's name label for an inline rename input. */
-  private beginLayerRename(id: string, row: HTMLElement, label: HTMLElement): void {
+  /**
+   * Swaps a layer's name label for an inline rename input. The row is looked
+   * up by layer id rather than handed in, because selecting a row redraws the
+   * whole panel - the first click of a double-click can replace the very row
+   * the second click lands on.
+   */
+  private beginLayerRename(id: string): void {
+    // A rename already in flight keeps its input; re-focusing it re-selects
+    // the text instead of starting a second edit over the top of the first.
+    const open = el('layers-list').querySelector<HTMLInputElement>('.layer-name-input');
+    if (open) {
+      open.focus();
+      open.select();
+      return;
+    }
+    const row = this.layerRow(id);
+    const label = row?.querySelector<HTMLElement>('.layer-name');
+    if (!row || !label) return;
+
     const input = document.createElement('input');
     input.className = 'layer-name-input';
     input.value = label.textContent ?? '';
     row.replaceChild(input, label);
+    // The current name arrives highlighted, so typing replaces it outright
+    // and an arrow key drops the caret without clearing the name.
     input.focus();
     input.select();
 
@@ -4784,6 +4918,9 @@ class App {
       case 'toggle-layers':
         this.toggleLayers();
         break;
+      case 'toggle-properties':
+        this.toggleProperties();
+        break;
       case 'toggle-settings':
         this.toggleSettings();
         break;
@@ -4800,6 +4937,597 @@ class App {
     }
   }
 
+  // ---- Properties panel ----------------------------------------------------
+
+  /**
+   * Wires the properties panel: the position, appearance, and scale fields
+   * for whatever is selected. The panel edits the canvas selection, and the
+   * store keeps that in step with the layers panel - selecting a layer row
+   * selects the elements on it - so a selected layer's stroke width is
+   * editable here too.
+   */
+  private bindProperties(): void {
+    el('properties-toggle').addEventListener('click', () => this.toggleProperties());
+    el('properties-close').addEventListener('click', () => this.toggleProperties(false));
+
+    // The unit pickers are built from the shared unit tables, so the options
+    // offered and the conversions applied can never drift apart.
+    this.fillUnitSelect('prop-x-unit', LENGTH_UNITS, this.propUnits.x);
+    this.fillUnitSelect('prop-y-unit', LENGTH_UNITS, this.propUnits.y);
+    this.fillUnitSelect('prop-scale-x-unit', SCALE_UNITS, this.propUnits.scaleX);
+    this.fillUnitSelect('prop-scale-y-unit', SCALE_UNITS, this.propUnits.scaleY);
+
+    const onUnitChange = (id: string, apply: (value: string) => void): void => {
+      const select = el<HTMLSelectElement>(id);
+      select.addEventListener('change', () => {
+        apply(select.value);
+        this.renderProperties();
+      });
+    };
+    onUnitChange('prop-x-unit', (v) => {
+      if (isLengthUnit(v)) this.propUnits.x = v;
+    });
+    onUnitChange('prop-y-unit', (v) => {
+      if (isLengthUnit(v)) this.propUnits.y = v;
+    });
+    onUnitChange('prop-scale-x-unit', (v) => {
+      if (isScaleUnit(v)) this.propUnits.scaleX = v;
+    });
+    onUnitChange('prop-scale-y-unit', (v) => {
+      if (isScaleUnit(v)) this.propUnits.scaleY = v;
+    });
+
+    // Position: the field holds the selection's top-left corner, so typing a
+    // value moves the whole selection to it rather than resizing anything.
+    el<HTMLInputElement>('prop-x').addEventListener('change', () => this.commitPosition('x'));
+    el<HTMLInputElement>('prop-y').addEventListener('change', () => this.commitPosition('y'));
+
+    // Fill: a live color drag collapses into one history step, the same way
+    // the layer-opacity slider does.
+    const fill = el<HTMLInputElement>('prop-fill');
+    fill.addEventListener('input', () => {
+      this.applyPropertyFill(fill.value, !this.fillDragging);
+      this.fillDragging = true;
+    });
+    fill.addEventListener('change', () => {
+      this.fillDragging = false;
+    });
+    el('prop-fill-remove').addEventListener('click', () => {
+      const targets = this.propertyTargets();
+      if (targets.length === 0) return;
+      this.store.setStrokeProps(targets, { fill: undefined, gradient: undefined });
+      this.toast('Removed the fill.');
+    });
+    el('prop-fill-gradient').addEventListener('click', () => this.startGradient());
+
+    this.bindGradientEditor();
+
+    // Stroke.
+    const strokeWidth = el<HTMLInputElement>('prop-stroke-width');
+    strokeWidth.addEventListener('change', () => {
+      const shapes = this.propertyShapes().map((stroke) => stroke.id);
+      const value = Number(strokeWidth.value);
+      if (shapes.length === 0 || !Number.isFinite(value) || value <= 0) {
+        this.renderProperties();
+        return;
+      }
+      this.store.setStrokeProps(shapes, { width: Math.min(400, Math.max(0.5, value)) });
+    });
+
+    const strokeStyle = el<HTMLSelectElement>('prop-stroke-style');
+    strokeStyle.addEventListener('change', () => {
+      const shapes = this.propertyShapes().map((stroke) => stroke.id);
+      if (shapes.length === 0) return;
+      const value = strokeStyle.value as StrokeStyle;
+      const style = STROKE_STYLES.includes(value) ? value : 'solid';
+      // 'solid' is the absent state, not a stored one.
+      this.store.setStrokeProps(shapes, { strokeStyle: style === 'solid' ? undefined : style });
+    });
+
+    el('prop-stroke-remove').addEventListener('click', () => {
+      const strokes = this.propertyShapes();
+      if (strokes.length === 0) return;
+      // A mixed selection turns every outline off; an all-off one turns them
+      // back on, so the button always has an unambiguous next state.
+      const restore = strokes.every((stroke) => stroke.noStroke === true);
+      this.store.setStrokeProps(
+        strokes.map((stroke) => stroke.id),
+        { noStroke: restore ? undefined : true },
+      );
+      this.toast(restore ? 'Restored the outline.' : 'Removed the outline.');
+    });
+
+    // Scale.
+    el<HTMLInputElement>('prop-scale-x').addEventListener('change', () => this.commitScale('x'));
+    el<HTMLInputElement>('prop-scale-y').addEventListener('change', () => this.commitScale('y'));
+    el<HTMLInputElement>('prop-scale-uniform').addEventListener('change', () =>
+      this.renderProperties(),
+    );
+  }
+
+  /** Fills a unit picker with the shared unit list and selects one. */
+  private fillUnitSelect(id: string, units: readonly string[], selected: string): void {
+    const select = el<HTMLSelectElement>(id);
+    select.textContent = '';
+    for (const unit of units) {
+      const option = document.createElement('option');
+      option.value = unit;
+      option.textContent = unit;
+      select.appendChild(option);
+    }
+    select.value = selected;
+  }
+
+  /**
+   * Restacks the active layer one step (Ctrl+] / Ctrl+[ and the panel's move
+   * buttons). Group rows carry no paint order of their own, and the ends of
+   * the stack have nowhere to go, so both cases say what happened instead of
+   * failing silently.
+   */
+  private moveActiveLayer(direction: 1 | -1): void {
+    const layer = this.store.activeLayer;
+    if (layer.group) {
+      this.toast('Group rows cannot be restacked - move the layers inside it.');
+      return;
+    }
+    if (!this.store.moveLayer(layer.id, direction)) {
+      this.toast(direction === 1 ? 'Already the top layer.' : 'Already the bottom layer.');
+    }
+  }
+
+  private toggleProperties(force?: boolean): void {
+    this.propertiesOpen = force ?? !this.propertiesOpen;
+    el('app').classList.toggle('properties-open', this.propertiesOpen);
+    el('properties-toggle').classList.toggle('is-open', this.propertiesOpen);
+    if (this.propertiesOpen) this.renderProperties();
+    requestAnimationFrame(() => this.resizeSurface());
+  }
+
+  /**
+   * The elements the panel edits. Selecting a layer row selects that layer's
+   * elements (see `Store.selectLayer`), so this covers both the canvas
+   * selection and a layer picked in the layers panel.
+   */
+  private propertyStrokes(): Stroke[] {
+    return this.store.sketch.strokes.filter((s) => this.store.selectedIds.has(s.id));
+  }
+
+  private propertyTargets(): string[] {
+    return this.propertyStrokes().map((stroke) => stroke.id);
+  }
+
+  /**
+   * The selected elements an outline applies to. A text item's weight is its
+   * font size and a placed image has no outline at all, so neither takes a
+   * stroke width, dash style, or fill-only state.
+   */
+  private propertyShapes(): Stroke[] {
+    return this.propertyStrokes().filter((s) => !isTextStroke(s) && !isImageStroke(s));
+  }
+
+  /** Union of the selected elements' bounds, or null when nothing is selected. */
+  private selectionBounds(): { minX: number; minY: number; maxX: number; maxY: number } | null {
+    let box: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
+    for (const stroke of this.propertyStrokes()) {
+      const b = strokeBounds(stroke, (t) => this.surface.measureText(t));
+      if (!b) continue;
+      box = box
+        ? {
+            minX: Math.min(box.minX, b.minX),
+            minY: Math.min(box.minY, b.minY),
+            maxX: Math.max(box.maxX, b.maxX),
+            maxY: Math.max(box.maxY, b.maxY),
+          }
+        : { ...b };
+    }
+    return box;
+  }
+
+  /** Moves the selection so its bounding box starts at the typed coordinate. */
+  private commitPosition(axis: 'x' | 'y'): void {
+    const input = el<HTMLInputElement>(axis === 'x' ? 'prop-x' : 'prop-y');
+    const box = this.selectionBounds();
+    const targets = this.propertyTargets();
+    const value = Number(input.value);
+    if (!box || targets.length === 0 || !Number.isFinite(value)) {
+      this.renderProperties();
+      return;
+    }
+    const px = toPx(value, axis === 'x' ? this.propUnits.x : this.propUnits.y);
+    this.store.moveStrokes(
+      targets,
+      axis === 'x' ? px - box.minX : 0,
+      axis === 'y' ? px - box.minY : 0,
+    );
+  }
+
+  /**
+   * Resizes the selection from a Scale field. A percentage is a factor
+   * outright; a length is read as the size the selection should end up, so
+   * the factor is that size over the current one. The scale is anchored at
+   * the selection's top-left corner, which keeps the Position fields above
+   * steady while the size changes.
+   */
+  private commitScale(axis: 'x' | 'y'): void {
+    const input = el<HTMLInputElement>(axis === 'x' ? 'prop-scale-x' : 'prop-scale-y');
+    const box = this.selectionBounds();
+    const targets = this.propertyTargets();
+    const value = Number(input.value);
+    if (!box || targets.length === 0 || !Number.isFinite(value) || value <= 0) {
+      this.renderProperties();
+      return;
+    }
+    const unit = axis === 'x' ? this.propUnits.scaleX : this.propUnits.scaleY;
+    const current = Math.max(0.01, axis === 'x' ? box.maxX - box.minX : box.maxY - box.minY);
+    const raw = unit === '%' ? value / 100 : toPx(value, unit) / current;
+    if (!Number.isFinite(raw) || raw <= 0) {
+      this.renderProperties();
+      return;
+    }
+    // A stray keystroke in a percentage field can ask for a factor that would
+    // throw the geometry clean off the page; clamp it and say so.
+    const factor = Math.min(SCALE_FACTOR_MAX, Math.max(SCALE_FACTOR_MIN, raw));
+    if (factor !== raw) this.toast('Scaling is limited to 1% - 10000%.');
+    const uniform = el<HTMLInputElement>('prop-scale-uniform').checked;
+    this.store.scaleStrokes(
+      targets,
+      uniform || axis === 'x' ? factor : 1,
+      uniform || axis === 'y' ? factor : 1,
+      box.minX,
+      box.minY,
+    );
+    this.renderProperties();
+  }
+
+  /**
+   * Applies a flat color to the selection: shapes take it as their fill (and
+   * drop any gradient), text items as their ink, since a text item has no
+   * separate interior to fill. Images are left alone.
+   */
+  private applyPropertyFill(color: string, history: boolean): void {
+    const strokes = this.propertyStrokes();
+    const shapes = strokes.filter((s) => !isTextStroke(s) && !isImageStroke(s)).map((s) => s.id);
+    const texts = strokes.filter((s) => isTextStroke(s)).map((s) => s.id);
+    let push = history;
+    if (shapes.length > 0) {
+      this.store.setStrokeProps(shapes, { fill: color, gradient: undefined }, push);
+      push = false;
+    }
+    if (texts.length > 0) this.store.setStrokeProps(texts, { color }, push);
+  }
+
+  // ---- Gradient editor -----------------------------------------------------
+
+  /** The gradient the editor is pointed at (the first selected element's). */
+  private currentGradient(): Gradient | null {
+    return this.propertyShapes()[0]?.gradient ?? null;
+  }
+
+  /** Writes a gradient to every selected shape, keeping their flat fills. */
+  private applyGradient(next: Gradient, history = true): void {
+    const shapes = this.propertyShapes().map((s) => s.id);
+    if (shapes.length > 0) this.store.setStrokeProps(shapes, { gradient: next }, history);
+  }
+
+  /** Starts (or re-opens) a gradient fill on the selection. */
+  private startGradient(): void {
+    const strokes = this.propertyShapes();
+    if (strokes.length === 0) return;
+    if (this.currentGradient()) {
+      // Already gradient-filled: just make sure the editor is showing.
+      el('gradient-editor').classList.remove('is-hidden');
+      return;
+    }
+    const first = strokes[0];
+    this.gradientStop = 0;
+    this.applyGradient(createGradient(first.fill ?? first.color));
+    this.renderProperties();
+  }
+
+  /** Wires the gradient ramp, its stop fields, and the geometry controls. */
+  private bindGradientEditor(): void {
+    const bar = el('gradient-bar');
+    // Double-clicking the ramp drops a new stop where it was clicked - the
+    // gesture every gradient editor uses.
+    bar.addEventListener('dblclick', (e) => {
+      // Double-clicking a stop handle opens the color picker for that stop -
+      // the gesture gradient editors share; the empty ramp adds a stop.
+      const handle =
+        e.target instanceof Element ? e.target.closest<HTMLElement>('.gradient-stop-handle') : null;
+      if (handle) {
+        e.preventDefault();
+        this.gradientStop = Number(handle.dataset.index ?? 0);
+        this.renderProperties();
+        el<HTMLInputElement>('gradient-stop-color').click();
+        return;
+      }
+      if (!this.currentGradient()) return;
+      e.preventDefault();
+      this.addGradientStop(this.gradientOffsetAt(e.clientX));
+    });
+
+    const color = el<HTMLInputElement>('gradient-stop-color');
+    color.addEventListener('input', () => {
+      this.updateGradientStop(this.gradientStop, { color: color.value }, !this.fillDragging);
+      this.fillDragging = true;
+    });
+    color.addEventListener('change', () => {
+      this.fillDragging = false;
+    });
+
+    const offset = el<HTMLInputElement>('gradient-stop-offset');
+    offset.addEventListener('change', () => {
+      const value = Number(offset.value);
+      if (!Number.isFinite(value)) {
+        this.renderProperties();
+        return;
+      }
+      this.updateGradientStop(this.gradientStop, { offset: Math.min(1, Math.max(0, value / 100)) });
+    });
+
+    el('gradient-add-stop').addEventListener('click', () => {
+      const gradient = this.currentGradient();
+      if (!gradient) return;
+      // A new stop lands midway between the selected one and its neighbour,
+      // which is where a user reaching for "+" almost always wants it.
+      const here = gradient.stops[this.gradientStop]?.offset ?? 0;
+      const after = gradient.stops
+        .map((stop) => stop.offset)
+        .filter((o) => o > here)
+        .sort((a, b) => a - b)[0];
+      this.addGradientStop(after === undefined ? Math.min(1, here + 0.25) : (here + after) / 2);
+    });
+
+    el('gradient-remove-stop').addEventListener('click', () => {
+      const gradient = this.currentGradient();
+      if (!gradient) return;
+      if (gradient.stops.length <= 2) {
+        this.toast('A gradient needs at least two stops.');
+        return;
+      }
+      const stops = gradient.stops.filter((_, i) => i !== this.gradientStop);
+      this.gradientStop = Math.max(0, Math.min(this.gradientStop, stops.length - 1));
+      this.applyGradient({ ...gradient, stops });
+      this.renderProperties();
+    });
+
+    const type = el<HTMLSelectElement>('gradient-type');
+    type.addEventListener('change', () => {
+      const gradient = this.currentGradient();
+      if (!gradient) return;
+      this.applyGradient({ ...gradient, type: type.value === 'radial' ? 'radial' : 'linear' });
+      this.renderProperties();
+    });
+
+    const angle = el<HTMLInputElement>('gradient-angle');
+    angle.addEventListener('input', () => {
+      const gradient = this.currentGradient();
+      if (!gradient) return;
+      this.applyGradient({ ...gradient, angle: Number(angle.value) }, !this.gradientDragging);
+      this.gradientDragging = true;
+      el('gradient-angle-value').textContent = angle.value + '°';
+      this.refreshGradientRamp();
+    });
+    angle.addEventListener('change', () => {
+      this.gradientDragging = false;
+    });
+
+    el('gradient-remove').addEventListener('click', () => {
+      const targets = this.propertyTargets();
+      if (targets.length === 0) return;
+      // The flat fill was kept alongside the gradient, so it comes back.
+      this.store.setStrokeProps(targets, { gradient: undefined });
+      this.toast('Removed the gradient.');
+    });
+  }
+
+  /** Applies a Close Shape join to the selection and reports the result. */
+  private closeSelectedShapes(mode: 'sharp' | 'smooth'): void {
+    const closed = this.store.closeSelectedStrokes(mode);
+    this.toast(
+      closed > 0
+        ? `Closed ${closed} shape${closed === 1 ? '' : 's'} (${mode}).`
+        : 'Select an open stroke to close its end points.',
+    );
+  }
+
+  /** Position (0-1) along the gradient ramp for a client X coordinate. */
+  private gradientOffsetAt(clientX: number): number {
+    const rect = el('gradient-bar').getBoundingClientRect();
+    return Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(1, rect.width)));
+  }
+
+  /** Inserts a stop at `offset`, colored to match the ramp already there. */
+  private addGradientStop(offset: number): void {
+    const gradient = this.currentGradient();
+    if (!gradient) return;
+    const stops = [...gradient.stops, { offset, color: sampleGradient(gradient, offset) }];
+    this.gradientStop = stops.length - 1;
+    this.applyGradient({ ...gradient, stops });
+    this.renderProperties();
+  }
+
+  /** Patches one stop of the current gradient in place. */
+  private updateGradientStop(index: number, patch: Partial<GradientStop>, history = true): void {
+    const gradient = this.currentGradient();
+    if (!gradient || !gradient.stops[index]) return;
+    const stops = gradient.stops.map((stop, i) =>
+      i === index ? { ...stop, ...patch } : { ...stop },
+    );
+    this.applyGradient({ ...gradient, stops }, history);
+  }
+
+  /**
+   * Drags one stop along the ramp. The bar is not rebuilt during the drag -
+   * that would destroy the handle holding the pointer capture - so the handle
+   * and the ramp preview are moved directly instead.
+   */
+  private beginGradientStopDrag(event: PointerEvent, handle: HTMLElement, index: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.gradientStop = index;
+    // The selected-handle highlight is moved by hand rather than by a
+    // re-render: rebuilding the bar here would replace the very handle about
+    // to take the pointer capture, and the drag would never start.
+    this.gradientDragging = true;
+    for (const node of Array.from(
+      el('gradient-bar').querySelectorAll<HTMLElement>('.gradient-stop-handle'),
+    )) {
+      node.classList.toggle('is-active', node === handle);
+    }
+    handle.setPointerCapture(event.pointerId);
+    let first = true;
+    const move = (ev: PointerEvent): void => {
+      const offset = this.gradientOffsetAt(ev.clientX);
+      this.updateGradientStop(index, { offset }, first);
+      first = false;
+      handle.style.left = offset * 100 + '%';
+      this.refreshGradientRamp();
+      const percent = el<HTMLInputElement>('gradient-stop-offset');
+      if (document.activeElement !== percent) percent.value = String(Math.round(offset * 100));
+    };
+    const up = (): void => {
+      this.gradientDragging = false;
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      this.renderProperties();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  }
+
+  /** Repaints just the ramp preview (used mid-drag, when the bar must stand). */
+  private refreshGradientRamp(): void {
+    const gradient = this.currentGradient();
+    const ramp = el('gradient-bar').querySelector<HTMLElement>('.gradient-bar-ramp');
+    if (gradient && ramp) ramp.style.background = cssGradient(gradient);
+  }
+
+  // ---- Properties panel rendering ------------------------------------------
+
+  /** Refreshes every field in the properties panel from the selection. */
+  private renderProperties(): void {
+    if (!this.propertiesOpen) return;
+    const strokes = this.propertyStrokes();
+    const box = this.selectionBounds();
+
+    el('prop-summary').textContent = describeSelection(strokes, this.store.sketch);
+    el('prop-fields').classList.toggle('is-empty', strokes.length === 0 || box === null);
+    if (strokes.length === 0 || !box) {
+      el('gradient-editor').classList.add('is-hidden');
+      return;
+    }
+
+    // Position and scale.
+    setFieldValue('prop-x', formatLength(box.minX, this.propUnits.x));
+    setFieldValue('prop-y', formatLength(box.minY, this.propUnits.y));
+    el<HTMLInputElement>('prop-x').step = String(unitStep(this.propUnits.x));
+    el<HTMLInputElement>('prop-y').step = String(unitStep(this.propUnits.y));
+
+    const width = Math.max(0, box.maxX - box.minX);
+    const height = Math.max(0, box.maxY - box.minY);
+    // A percentage field always reads 100: it is the factor to apply next,
+    // not a size. A length field reads the size the selection is now.
+    setFieldValue(
+      'prop-scale-x',
+      this.propUnits.scaleX === '%' ? '100' : formatLength(width, this.propUnits.scaleX),
+    );
+    setFieldValue(
+      'prop-scale-y',
+      this.propUnits.scaleY === '%' ? '100' : formatLength(height, this.propUnits.scaleY),
+    );
+    el<HTMLInputElement>('prop-scale-x').step =
+      this.propUnits.scaleX === '%' ? '1' : String(unitStep(this.propUnits.scaleX));
+    el<HTMLInputElement>('prop-scale-y').step =
+      this.propUnits.scaleY === '%' ? '1' : String(unitStep(this.propUnits.scaleY));
+
+    // Appearance. A placed image carries no paint of its own, and a text item
+    // has ink but no outline, so each control is switched off for the kinds
+    // it cannot act on. The fields read the first element they apply to.
+    const paintable = strokes.filter((s) => !isImageStroke(s));
+    const shapes = this.propertyShapes();
+    const fillFirst = paintable[0];
+    const fillSource = fillFirst
+      ? isTextStroke(fillFirst)
+        ? fillFirst.color
+        : fillFirst.fill ?? fillFirst.color
+      : '#1f2328';
+    setFieldValue('prop-fill', toHexColor(fillSource) ?? '#1f2328');
+    el<HTMLInputElement>('prop-fill').disabled = paintable.length === 0;
+    el<HTMLButtonElement>('prop-fill-remove').disabled = paintable.length === 0;
+    // Only a shape has an interior a gradient can run across.
+    el<HTMLButtonElement>('prop-fill-gradient').disabled = shapes.length === 0;
+
+    const outlineFirst = shapes[0];
+    setFieldValue(
+      'prop-stroke-width',
+      outlineFirst ? String(Math.round(outlineFirst.width * 10) / 10) : '',
+    );
+    el<HTMLInputElement>('prop-stroke-width').disabled = shapes.length === 0;
+    const styleSelect = el<HTMLSelectElement>('prop-stroke-style');
+    if (document.activeElement !== styleSelect) {
+      styleSelect.value = outlineFirst?.strokeStyle ?? 'solid';
+    }
+    styleSelect.disabled = shapes.length === 0;
+    const removeStroke = el<HTMLButtonElement>('prop-stroke-remove');
+    const allOff = shapes.length > 0 && shapes.every((s) => s.noStroke === true);
+    removeStroke.textContent = allOff ? 'Add stroke' : 'No stroke';
+    removeStroke.disabled = shapes.length === 0;
+
+    this.renderGradientEditor();
+  }
+
+  /** Rebuilds the gradient ramp, its handles, and the stop fields. */
+  private renderGradientEditor(): void {
+    const editor = el('gradient-editor');
+    const gradient = this.currentGradient();
+    editor.classList.toggle('is-hidden', gradient === null);
+    if (!gradient) return;
+    // Mid-drag the bar must stand: rebuilding it would destroy the handle
+    // holding the pointer capture.
+    if (this.gradientDragging) {
+      this.refreshGradientRamp();
+      return;
+    }
+    editor.classList.toggle('is-radial', gradient.type === 'radial');
+    this.gradientStop = Math.max(0, Math.min(this.gradientStop, gradient.stops.length - 1));
+
+    const bar = el('gradient-bar');
+    bar.textContent = '';
+    const ramp = document.createElement('div');
+    ramp.className = 'gradient-bar-ramp';
+    ramp.style.background = cssGradient(gradient);
+    bar.appendChild(ramp);
+
+    gradient.stops.forEach((stop, index) => {
+      const handle = document.createElement('button');
+      handle.type = 'button';
+      handle.className = 'gradient-stop-handle';
+      handle.classList.toggle('is-active', index === this.gradientStop);
+      handle.style.left = Math.min(1, Math.max(0, stop.offset)) * 100 + '%';
+      handle.style.background = stop.color;
+      const percent = Math.round(stop.offset * 100);
+      handle.dataset.index = String(index);
+      handle.title = 'Stop ' + (index + 1) + ' at ' + percent + '% - drag to move, double-click to recolor';
+      handle.setAttribute('aria-label', 'Gradient stop ' + (index + 1) + ' at ' + percent + ' percent');
+      handle.addEventListener('pointerdown', (ev) => this.beginGradientStopDrag(ev, handle, index));
+      bar.appendChild(handle);
+    });
+
+    const active = gradient.stops[this.gradientStop];
+    if (active) {
+      setFieldValue('gradient-stop-color', toHexColor(active.color) ?? '#000000');
+      setFieldValue('gradient-stop-offset', String(Math.round(active.offset * 100)));
+    }
+    const type = el<HTMLSelectElement>('gradient-type');
+    if (document.activeElement !== type) type.value = gradient.type;
+    setFieldValue('gradient-angle', String(Math.round(gradient.angle ?? 0)));
+    el('gradient-angle-value').textContent = Math.round(gradient.angle ?? 0) + '°';
+    el<HTMLButtonElement>('gradient-remove-stop').disabled = gradient.stops.length <= 2;
+  }
+
   // ---- Keyboard shortcuts --------------------------------------------------
 
   private bindKeyboard(): void {
@@ -4811,7 +5539,11 @@ class App {
         this.updateCursor();
       }
 
-      if (document.activeElement instanceof HTMLTextAreaElement) return;
+      // A focused text field owns its keys: the tool shortcuts, Delete, and
+      // the document's own undo must not fire while a name, a coordinate, or
+      // a scale is being typed. Sliders, checkboxes, and color wells consume
+      // no letters, so they keep the shortcuts working.
+      if (isTextEntry(document.activeElement)) return;
 
       // Track Ctrl while a vector edit is open: holding it reveals the
       // corner-rounding target and switches the pointer to the Select arrow.
@@ -4960,6 +5692,15 @@ class App {
         return;
       }
 
+      // F2 renames the active layer - the same inline edit a double-click on
+      // its row opens. The rename input stops its own keys short of this
+      // handler, so a second press cannot restart an edit mid-flight.
+      if (e.key === 'F2') {
+        e.preventDefault();
+        this.renameActiveLayer();
+        return;
+      }
+
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
       if (mod && key === 'z' && !e.shiftKey) {
@@ -4997,9 +5738,26 @@ class App {
       } else if (mod && key === 'g') {
         e.preventDefault();
         this.groupActiveLayer();
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && this.store.selectedIds.size > 0) {
+      } else if (mod && key === 'p') {
         e.preventDefault();
-        this.store.deleteSelected();
+        this.toggleProperties();
+      } else if (mod && (key === ']' || key === '[')) {
+        // Ctrl+] / Ctrl+[ restack the active layer, matching the panel's
+        // move buttons.
+        e.preventDefault();
+        this.moveActiveLayer(key === ']' ? 1 : -1);
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Selected elements delete first (emptied layers prune away with
+        // them); with none, Delete removes the selected layer rows - the
+        // keyboard twin of the panel's Delete button, empty layers and
+        // groups included.
+        if (this.store.selectedIds.size > 0) {
+          e.preventDefault();
+          this.store.deleteSelected();
+        } else if (this.store.selectedLayerIds.size > 0) {
+          e.preventDefault();
+          this.deleteSelectedLayers();
+        }
       } else if (!mod && key === 'p') {
         this.store.setTool({ tool: 'pen' });
         this.updateCursor();
@@ -5236,6 +5994,7 @@ class App {
     // Keep the layers panel current, but never mid-slider-drag (the rebuild
     // would interrupt the pointer capture).
     if (this.layersOpen && !this.layerOpacityDragging) this.renderLayers();
+    this.renderProperties();
   }
 
   private toast(message: string): void {
@@ -5245,6 +6004,98 @@ class App {
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2400);
   }
+}
+
+/**
+ * True when an element is a field that swallows typing: a text area, a select,
+ * or any input that is not one of the widget types (slider, checkbox, radio,
+ * color well, button) that consume no letters of their own.
+ */
+function isTextEntry(node: Element | null): boolean {
+  if (node instanceof HTMLTextAreaElement || node instanceof HTMLSelectElement) return true;
+  if (!(node instanceof HTMLInputElement)) return false;
+  return !WIDGET_INPUT_TYPES.has(node.type);
+}
+
+/** Input types that pass keystrokes through to the application shortcuts. */
+const WIDGET_INPUT_TYPES = new Set(['range', 'checkbox', 'radio', 'color', 'button', 'submit']);
+
+/**
+ * Sets a panel field's value unless the user is typing in it - a store change
+ * arriving mid-edit must not overwrite what is being typed.
+ */
+function setFieldValue(id: string, value: string): void {
+  const input = el<HTMLInputElement>(id);
+  if (document.activeElement === input) return;
+  input.value = value;
+}
+
+/**
+ * Scratch context used to normalize CSS colors. Assigning to \`fillStyle\`
+ * leaves the previous value in place when the color does not parse, so an
+ * unreadable color reads back as the sentinel it was primed with.
+ */
+let colorProbe: CanvasRenderingContext2D | null = null;
+
+/**
+ * Normalizes any CSS color to \`#rrggbb\` for an \`<input type="color">\`, or
+ * null when it has no opaque hex form (a named color resolves; \`rgba()\` with
+ * alpha and an unparseable string do not).
+ */
+function toHexColor(color: string): string | null {
+  if (/^#[0-9a-f]{6}$/i.test(color)) return color.toLowerCase();
+  if (!colorProbe) colorProbe = document.createElement('canvas').getContext('2d');
+  if (!colorProbe) return null;
+  colorProbe.fillStyle = '#000000';
+  colorProbe.fillStyle = color;
+  const value = colorProbe.fillStyle;
+  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : null;
+}
+
+/**
+ * CSS for a gradient's preview ramp. CSS measures a linear gradient's angle
+ * from "to top" clockwise while the model measures from "to right", hence the
+ * quarter turn; the radial preview is drawn as a horizontal ramp so the stop
+ * handles below it still line up with what they control.
+ */
+function cssGradient(gradient: Gradient): string {
+  const stops = normalizedStops(gradient);
+  if (!stops) return 'transparent';
+  const body = stops.map((s) => s.color + ' ' + Math.round(s.offset * 100) + '%').join(', ');
+  if (gradient.type === 'radial') return 'linear-gradient(90deg, ' + body + ')';
+  return 'linear-gradient(' + (((gradient.angle ?? 0) + 90) % 360) + 'deg, ' + body + ')';
+}
+
+/**
+ * The color a gradient shows at \`offset\`, used to color a stop dropped onto
+ * the ramp so adding one does not change what the gradient looks like. Picks
+ * the nearer neighbour rather than blending, which keeps the sampled value a
+ * real CSS color whatever notation the stops use.
+ */
+function sampleGradient(gradient: Gradient, offset: number): string {
+  const stops = normalizedStops(gradient);
+  if (!stops) return '#1f2328';
+  let nearest = stops[0];
+  for (const stop of stops) {
+    if (Math.abs(stop.offset - offset) < Math.abs(nearest.offset - offset)) nearest = stop;
+  }
+  return nearest.color;
+}
+
+/**
+ * One-line description of what the properties panel is about to edit: how
+ * many elements, of what kind, and on how many layers.
+ */
+function describeSelection(strokes: Stroke[], sketch: Sketch): string {
+  if (strokes.length === 0) return 'Nothing selected';
+  const layers = new Set(strokes.map((s) => layerOf(sketch, s).id));
+  if (strokes.length === 1) {
+    const stroke = strokes[0];
+    const kind = isTextStroke(stroke) ? 'text' : isImageStroke(stroke) ? 'image' : stroke.tool;
+    return kind + ' on "' + layerOf(sketch, stroke).name + '"';
+  }
+  const where = layers.size === 1 ? '1 layer' : layers.size + ' layers';
+  return strokes.length + ' elements on ' + where;
 }
 
 /** Loads an image from a data URL, resolving once it is decoded. */

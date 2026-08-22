@@ -4,6 +4,113 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0-alpha] - 2026-08-22
+
+### Fixed
+
+- **Closing a side panel now hands its space back to the canvas.** The
+  pages, layers, and properties panels animate their width over 160 ms, but
+  the canvas was resized on the next frame - mid-transition, when the stage
+  still had (nearly) its old size - so closing a panel left the drawing
+  surface sized as if the panel were still open. The canvas now resizes
+  again when the width transition lands.
+
+### Added
+
+- **Close Shape**: a Sketch Support button that joins a selected stroke's
+  two end points; pressing it offers **Sharp** (a straight bridge) or
+  **Smooth** (a Catmull-Rom blend that continues each end's drawn
+  direction through the seam). Strokes with Bezier anchor structure close
+  through their anchor model - the seam stays Vector Path-editable and
+  exports as a true closing segment, with a sharp close dropping the two
+  end handles that would otherwise bend it - and already-closed, too-short,
+  text, image, and eraser strokes are skipped.
+- **Alt-drag copies the selection.** Holding `Alt` as a selection drag
+  starts duplicates the selected elements and the drag moves the copies
+  while the originals stay put. The duplicates land on new layer rows named
+  `<layer name> - copy`; a copied group keeps its inner layer names, with
+  only the group row taking the suffix. The copy and the move share one
+  history step, so a single undo removes both.
+- **`Delete` removes the selected layer rows.** Selected elements still
+  delete first (their emptied layers prune away as before); with no element
+  selected, `Delete` now removes the highlighted layer rows - the keyboard
+  twin of the panel's Delete button, and the only way empty layers and
+  groups could be deleted without the mouse.
+
+- **Properties panel** (`Ctrl + P`, the View menu, or the toolbar's
+  Properties button): a third right-hand dock that edits the selected
+  element rather than the tool that drew it. Because selecting a layer row
+  selects that layer's elements, it doubles as a layer property sheet - the
+  stroke width of everything on a layer is now adjustable in one place.
+  - **Position** - the X and Y of the selection's top-left corner, each with
+    its own unit: `px` (default), `in`, `mm`, or `pt`. Conversions run
+    through the CSS reference of 96 pixels per inch, the same ratio the SVG
+    and PDF exports assume, so a value typed in millimetres reads back as
+    the same millimetres.
+  - **Appearance** - fill color, **No fill**, or a **gradient**, edited with
+    the ramp-and-handles control gradient editors have settled on: drag a
+    handle to move a stop, double-click the ramp to add one where you
+    clicked, `+` / `−` to add and remove, and a Linear (with an angle
+    slider) or Radial type. Stroke gains a width, a **Solid / Dashed /
+    Dotted** style, and **No stroke** for a fill-only shape.
+  - **Scale** - X and Y as a `%` factor (the default) or as an exact
+    `px`/`in`/`mm`/`pt` size, with **uniform scaling** on by default.
+    Scaling is anchored at the selection's top-left corner so the Position
+    fields above hold steady, and line weight scales with the shape.
+- **Gradient fills and dash styles are part of the document.** They save and
+  load with a `.skbk`, and export as real SVG `<linearGradient>` /
+  `<radialGradient>` paint servers and `stroke-dasharray` values so other
+  editors render them, with napkin's own editable structure riding along in
+  `data-` attributes for a lossless round trip. A fill-only shape exports as
+  `stroke="none"` with its outline color and width kept aside.
+- **`Ctrl + ]` and `Ctrl + [` restack the active layer** one step up or
+  down, matching the Layers panel's move buttons. Both the shortcuts and the
+  buttons now say why a move did not happen - a group row carries no paint
+  order of its own, and the ends of the stack have nowhere to go - instead
+  of failing silently.
+
+- **`F2` renames the active layer.** Renaming used to be reachable only by
+  double-clicking a layer's name label or by picking Rename from the layers
+  panel's right-click menu, with nothing on the keyboard. `F2` - the rename
+  key of file managers and vector editors alike - now opens the same inline
+  edit on the active row. It opens the layers panel first when the panel is
+  hidden, unfolds any collapsed group the layer is nested in, and scrolls the
+  row into view, so the shortcut works from anywhere rather than only when
+  the row already happens to be on screen.
+- **Double-clicking anywhere on a layer row starts the rename**, not just the
+  narrow name label. The visibility, lock, and group-caret buttons keep their
+  own single-click jobs and are skipped, so a quick double toggle of an eye
+  no longer has to dodge the rename.
+
+### Changed
+
+- **A gradient stop recolors on double-click.** Double-clicking a handle on
+  the gradient ramp selects that stop and opens the color picker directly,
+  alongside the existing drag-to-move and double-click-the-ramp-to-add
+  gestures.
+- **Joining strokes now leaves one element on one layer.** Every new element
+  gets its own layer, so joining three strokes used to leave the merged
+  stroke on the first one's layer and two empty rows behind it. The merge
+  lands on the first stroke's layer and the layers the other pieces vacated
+  are pruned with them, in the same history step. A layer that still holds
+  other elements is left alone. The Join-on-snap setting consolidates the
+  same way.
+- **A focused text field now keeps its keystrokes.** The tool shortcuts,
+  `Delete`, and the document's undo fired while a number or text field had
+  focus, so typing a page width could switch tools or delete the selection.
+  Text areas, selects, and text-like inputs now consume their own keys;
+  sliders, checkboxes, and color wells, which consume no letters, still pass
+  the shortcuts through.
+- Both rename gestures open the input with the **current name already
+  highlighted**, so a new name can be typed straight over it and an arrow key
+  drops the caret into the old one instead of clearing it.
+- The rename edit is now looked up by **layer id** rather than by holding on
+  to the row element the gesture started from. Selecting a row redraws the
+  whole panel, so the first click of a double-click could replace the very
+  row the second click landed on; a rename already in flight now re-focuses
+  its input instead of starting a second edit over the top of the first.
+- A layer row's tooltip reads `(double-click or F2 to rename)`.
+
 ## [3.2.2-alpha] - 2026-08-17
 
 ### Fixed

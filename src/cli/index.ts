@@ -10,7 +10,7 @@
  *   -v, --version       Show version.
  *   -b, --book <file>   Open a .skbk sketch book.
  *   -n, --new [name]    New sketch named "unnamed" or [name].
- *   -f, --full-screen   Open the GUI window in full-screen mode.
+ *   -f, --full-screen   Open the GUI window full screen (default: maximized).
  *   -i, --import <f>    Import a file into the opening sketch.
  *   -m, --multiple-imports <f,f,…>  Import several files in a grid.
  *       --sharpen <f>   Auto-sharpen a saved sketch, then open it.
@@ -64,7 +64,9 @@ Options:
   -v, --version         Show the installed version and exit.
   -b, --book <file>     Open a saved sketch book (.skbk) to view or edit.
   -n, --new [name]      Start a new sketch named "unnamed" or [name].
-  -f, --full-screen     Open the GUI window in full-screen mode.
+  -f, --full-screen     Open the GUI window full screen, which hides the window
+                        controls. Without it the window opens maximized, so the
+                        minimize, restore-down, and close buttons stay in view.
   -i, --import <file>   Import an SVG, PDF, PNG, or JPEG into the opening sketch.
   -m, --multiple-imports <file,file,…>
                         Import several files at once, laid out in a grid: files
@@ -82,7 +84,7 @@ Examples:
   napkin-sketch --new ideas           New sketch named "ideas".
   napkin-sketch --book ./notes.skbk   Open an existing sketch book.
   napkin-sketch --sharpen ./notes     Sharpen ./notes.skbk and open it.
-  napkin-sketch --new -f              New sketch opened full screen.
+  napkin-sketch --new -f              New sketch opened full screen (no controls).
   napkin-sketch --import logo.svg     New sketch with logo.svg imported.
   napkin-sketch -m a.svg,b.png,"two words.svg"
                                       New sketch with three files in a grid.

@@ -43,7 +43,35 @@ import {
   type LengthUnit,
   type ScaleUnit,
 } from '../core/units.js';
-import type { ExportFormat, ImageFormat, ImportFileResult, MenuAction } from '../core/ipc.js';
+import {
+  animationFrameJob,
+  animationFrameName,
+  animationFrameOffsetX,
+  animationFrameTransforms,
+  animationPoseStep,
+  animationTypeSpec,
+  ANIMATION_TYPES,
+  assemblyPivot,
+  buildAnimationForm,
+  expandBounds,
+  findAssemblyLayers,
+  matchesAssembly,
+  missingAssemblies,
+  topMostParent,
+  REQUIRED_ASSEMBLIES,
+  type AnimationBounds,
+  type AnimationCategory,
+  type AnimationFrameJob,
+  type AnimationPoint,
+  type RequiredAssembly,
+} from '../core/animation.js';
+import type {
+  AnimationFrameOutput,
+  ExportFormat,
+  ImageFormat,
+  ImportFileResult,
+  MenuAction,
+} from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
 import { sketchesToPdf } from '../core/pdf.js';
 import { defaultSettings, type AppSettings, type QuickModifier } from '../core/settings.js';
@@ -407,6 +435,35 @@ class App {
   // Auto-save interval handle.
   private autoSaveTimer: number | null = null;
 
+  /**
+   * True when Animation Mode is installed. The feature is an optional add-on
+   * (npm run animation-mode -- --install) because it needs an AI tool the app
+   * does not ship; with no install every entry point into it stays shut and
+   * the rest of the app is untouched.
+   */
+  private animationInstalled = false;
+
+  /** Executable of the AI tool the run needs, learned from a failed run. */
+  private animationToolBinary = '';
+
+  /** True while Animation Mode is active (Edit menu, Ctrl+Shift+N). */
+  private animationMode = false;
+
+  /** True while the animation wizard is drawing frames (one run at a time). */
+  private animationBusy = false;
+
+  /** Set when Cancel is pressed while a frame is drawing; checked after the await. */
+  private animationCancelled = false;
+
+  /** Latest note from the helper run, rendered into the dialog's readout. */
+  private animationNote = '';
+
+  /** Frames kept so far in this wizard run (for the readout). */
+  private animationKept = 0;
+
+  /** When the running frame started (for the elapsed readout). */
+  private animationStartedAt = 0;
+
   constructor() {
     this.canvas = el<HTMLCanvasElement>('canvas');
     this.surface = new Surface(this.canvas);
@@ -428,6 +485,7 @@ class App {
     this.bindVectorOptions();
     this.bindSharpenSelection();
     this.bindContextMenus();
+    this.bindAnimationMode();
     this.bindPageSettings();
     this.bindProperties();
     this.bindPanelResize();
@@ -454,6 +512,12 @@ class App {
       // running outside Electron — settings sync unavailable
     }
 
+    try {
+      this.animationInstalled = (await window.napkin.getAnimationMode()).installed;
+    } catch {
+      // Outside Electron the feature has no install record, so it is absent.
+    }
+
     let launch: LaunchOptions = { mode: 'new', sketchName: 'unnamed' };
     try {
       launch = await window.napkin.getLaunch();
@@ -478,9 +542,14 @@ class App {
     }
 
     // Opening defaults: the layers panel is in view and Select is the active
-    // tool, so a fresh session starts in arrange-and-inspect mode.
+    // tool, so a fresh session starts in arrange-and-inspect mode. Animation
+    // Mode is a per-session mode and always starts off, whatever state the
+    // markup or a stale class might carry.
     this.toggleLayers(true);
     this.store.setTool({ tool: 'select' });
+    this.animationMode = false;
+    document.body.classList.remove('animation-mode');
+    el('animation-banner').classList.add('is-hidden');
 
     this.syncUi();
     this.scheduleRender();
@@ -4934,7 +5003,704 @@ class App {
       case 'toggle-rearrange':
         this.toggleRearrange();
         break;
+      case 'toggle-animation':
+        this.toggleAnimationMode();
+        break;
     }
+  }
+
+  // ---- Animation Mode ------------------------------------------------------
+
+  private bindAnimationMode(): void {
+    el('animation-exit').addEventListener('click', () => this.toggleAnimationMode(false));
+    el('animation-generate').addEventListener('click', () => void this.startAnimationWizard());
+  }
+
+  /**
+   * Enters or leaves Animation Mode. Entering validates the active page
+   * against the required character assemblies and switches to the Select
+   * tool, so the smart edit tools (Select, Direct Select, Vector Path,
+   * Sharpen Selection) work the existing frame layers instead of laying
+   * down new ink by accident.
+   */
+  private toggleAnimationMode(force?: boolean): void {
+    // The one gate for the whole feature: without an install there is no
+    // banner, no wizard, and no AI tool in the picture.
+    if (!this.animationInstalled) return;
+    const next = force ?? !this.animationMode;
+    if (next === this.animationMode) return;
+    this.animationMode = next;
+    document.body.classList.toggle('animation-mode', next);
+    el('animation-banner').classList.toggle('is-hidden', !next);
+    if (next) {
+      this.store.setTool({ tool: 'select' });
+      this.toggleLayers(true);
+      this.refreshAnimationStatus();
+    }
+    this.syncUi();
+  }
+
+  /**
+   * Updates the banner with the required-assembly validation result for the
+   * active page. Rerun on every store change while the mode is active, so
+   * renaming or grouping layers flips the status live.
+   */
+  private refreshAnimationStatus(): void {
+    const status = el('animation-status');
+    const missing = missingAssemblies(this.store.sketch);
+    if (missing.length === 0) {
+      status.textContent = 'Character assemblies found. Ready to animate.';
+      status.classList.remove('is-missing');
+    } else {
+      // Only character animations need the assemblies; an object animation
+      // moves the graphic as a whole, so this reads as a note, not a block.
+      status.textContent = `Missing character assemblies: ${missing.join(', ')} (object animations do not need them)`;
+      status.classList.add('is-missing');
+    }
+  }
+
+  /**
+   * Runs the animation wizard: pick the category and animation type, map any
+   * missing assemblies onto existing layers, then draw the sequence one
+   * frame at a time through the AI helper. The temp form file is cleared
+   * when the run ends.
+   *
+   * Setup comes first because it decides whether the assemblies are needed
+   * at all: a character animation moves the six required assemblies, while
+   * an object animation moves the graphic as a whole and would have nothing
+   * to map an arm or a leg onto.
+   */
+  private async startAnimationWizard(): Promise<void> {
+    if (this.animationBusy) return;
+
+    const setup = await this.animationStep2(this.animationSourceLayer()?.name ?? null);
+    if (!setup) return;
+
+    if (setup.category === 'character') {
+      const missing = missingAssemblies(this.store.sketch);
+      if (missing.length > 0) {
+        const mapped = await this.animationStep1(missing);
+        if (!mapped) return;
+      }
+    }
+
+    await this.animationStep3(setup);
+  }
+
+  /**
+   * Step 1: one dialog per missing assembly asking which layers make it up.
+   * Each confirmed selection is grouped under a new group layer named for
+   * the assembly, so the page validates from then on. Resolves false when
+   * the user cancels (Back revisits the previous assembly).
+   */
+  private async animationStep1(missing: RequiredAssembly[]): Promise<boolean> {
+    const chosen = new Map<RequiredAssembly, string[]>();
+    let i = 0;
+    while (i < missing.length) {
+      const taken = new Set([...chosen.values()].flat());
+      const result = await this.animationStep1Prompt(missing[i], i > 0, taken);
+      if (result === null) return false;
+      if (result === 'back') {
+        i = Math.max(0, i - 1);
+        chosen.delete(missing[i]);
+        continue;
+      }
+      chosen.set(missing[i], result);
+      i++;
+    }
+    for (const [assembly, ids] of chosen) {
+      const group = this.store.groupLayers(ids);
+      this.store.setLayerProps(group.id, { name: assembly }, false);
+    }
+    return true;
+  }
+
+  /** Shows the step-1 dialog for one assembly; resolves with layer ids, 'back', or null. */
+  private animationStep1Prompt(
+    assembly: RequiredAssembly,
+    canGoBack: boolean,
+    taken: Set<string>,
+  ): Promise<string[] | 'back' | null> {
+    return new Promise((resolve) => {
+      const dlg = el('anim-step1-dialog');
+      el('anim-step1-msg').textContent =
+        `Missing required layers, select layers that consist of the ${assembly}`;
+
+      const list = el('anim-step1-list');
+      list.innerHTML = '';
+      const candidates = this.store.sketch.layers.filter((l) => !l.parent && !taken.has(l.id));
+      for (const layer of candidates) {
+        const item = document.createElement('label');
+        item.className = 'anim-layer-item';
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.value = layer.id;
+        const name = document.createElement('span');
+        name.textContent = layer.group ? `${layer.name} (group)` : layer.name;
+        item.append(box, name);
+        list.append(item);
+      }
+
+      const back = el('anim-step1-back');
+      back.classList.toggle('is-hidden', !canGoBack);
+      const done = (value: string[] | 'back' | null): void => {
+        dlg.classList.add('is-hidden');
+        resolve(value);
+      };
+      el('anim-step1-next').onclick = () => {
+        const ids = [...list.querySelectorAll<HTMLInputElement>('input:checked')].map(
+          (input) => input.value,
+        );
+        if (ids.length === 0) {
+          this.toast('Select at least one layer.');
+          return;
+        }
+        done(ids);
+      };
+      back.onclick = () => done('back');
+      el('anim-step1-cancel').onclick = () => done(null);
+      dlg.classList.remove('is-hidden');
+    });
+  }
+
+  /**
+   * Step 2: category and animation type.
+   *
+   * Both lists are built from `ANIMATION_TYPES`, so every type the table
+   * describes is offered and none can appear without the prompt template
+   * behind it. Only `walk` runs off a measured cycle; the rest are marked
+   * **Work in Progress** and are posed by the AI helper from their template,
+   * which is what makes them usable now rather than later.
+   *
+   * There is no frame count - frames are drawn one at a time and the
+   * sequence ends when the user says so - so the note names the frame the
+   * first run will draw.
+   */
+  private animationStep2(sourceName: string | null): Promise<{
+    category: AnimationCategory;
+    type: string;
+  } | null> {
+    return new Promise((resolve) => {
+      const dlg = el('anim-step2-dialog');
+      const category = el<HTMLSelectElement>('anim-category');
+      const type = el<HTMLSelectElement>('anim-type');
+
+      const categories: AnimationCategory[] = ['character', 'object'];
+      category.innerHTML = '';
+      for (const value of categories) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value === 'character' ? 'Character' : 'Object';
+        category.append(option);
+      }
+      if (!categories.includes(category.value as AnimationCategory)) category.value = 'character';
+
+      // The type list follows the category, so the two can never disagree.
+      const fillTypes = (): void => {
+        const chosen = category.value as AnimationCategory;
+        type.innerHTML = '';
+        for (const spec of ANIMATION_TYPES.filter((t) => t.category === chosen)) {
+          const option = document.createElement('option');
+          option.value = spec.id;
+          option.textContent =
+            spec.status === 'ready' ? spec.label : `${spec.label} (Work in Progress)`;
+          type.append(option);
+        }
+      };
+
+      const updateNote = (): void => {
+        const spec = animationTypeSpec(type.value);
+        const name = animationFrameName(animationFrameJob(sourceName, type.value));
+        const note = `First frame drawn: ${name}`;
+        el('anim-next-frame').textContent =
+          spec && spec.status !== 'ready'
+            ? `${note} · work in progress: the AI helper poses this one from a template, so check each frame.`
+            : note;
+      };
+
+      category.onchange = () => {
+        fillTypes();
+        updateNote();
+      };
+      type.onchange = updateNote;
+      fillTypes();
+      updateNote();
+
+      const done = (value: { category: AnimationCategory; type: string } | null): void => {
+        dlg.classList.add('is-hidden');
+        resolve(value);
+      };
+      el('anim-step2-next').onclick = () =>
+        done({ category: category.value as AnimationCategory, type: type.value });
+      el('anim-step2-cancel').onclick = () => done(null);
+      dlg.classList.remove('is-hidden');
+    });
+  }
+
+  /**
+   * Step 3: draw the sequence one frame at a time. Each run hands the AI
+   * helper a single pose to advance by one step, so the work stays small
+   * enough to finish; the drawn frame imports as a group layer and then
+   * becomes the source for the next run. After each frame the dialog offers
+   * Redraw, Keep and draw next, or Done, so the sequence runs as long as the
+   * user wants without ever committing to a frame count up front.
+   */
+  private async animationStep3(setup: {
+    category: AnimationCategory;
+    type: string;
+  }): Promise<void> {
+    const dlg = el('anim-step3-dialog');
+    const assemblyNames: Partial<Record<RequiredAssembly, string>> = {};
+    for (const [key, layer] of findAssemblyLayers(this.store.sketch)) {
+      assemblyNames[key] = layer.name;
+    }
+
+    // The first source is the existing frame: its enclosing group when the
+    // assemblies share one, the assembly layers themselves when they sit at
+    // the top level, and the whole page when there are no assemblies at all -
+    // which is how an object animation starts, since it has none.
+    const rootLayer = this.animationSourceLayer();
+    let sourceName = rootLayer?.name ?? null;
+    const assemblyIds = [...findAssemblyLayers(this.store.sketch).values()].map((l) => l.id);
+    let sourceIds = rootLayer
+      ? [rootLayer.id]
+      : assemblyIds.length > 0
+        ? assemblyIds
+        : this.store.sketch.layers.filter((l) => !l.parent).map((l) => l.id);
+
+    this.animationBusy = true;
+    this.animationKept = 0;
+    dlg.classList.remove('is-hidden');
+    try {
+      for (;;) {
+        const job = animationFrameJob(sourceName, setup.type);
+        const frameName = animationFrameName(job);
+        // The pose is measured here, from the frame the helper will edit, so
+        // the form can hand over finished transform values instead of asking
+        // an AI to work out joint positions from the geometry.
+        const step = animationPoseStep(setup.type, job.frameIndex);
+        const pose = this.animationPose(sourceIds);
+        const form = buildAnimationForm({
+          category: setup.category,
+          type: setup.type,
+          job,
+          sourceLayerName: sourceName,
+          assemblies: assemblyNames,
+          transforms: step
+            ? animationFrameTransforms(step, pose.pivots, pose.figureHeight, pose.figurePivot)
+            : {},
+        });
+
+        const frame = await this.animationDrawFrame(
+          frameName,
+          form,
+          job,
+          this.animationSubtreeSvg(sourceIds),
+        );
+        if (!frame) return;
+
+        const layerId = this.importAnimationFrame(frameName, frame.svg);
+        if (!layerId) {
+          this.toast(`${frameName} came back empty. See logs/animation-helper.log.`);
+          return;
+        }
+        // Stand the frame beside its source and bring the strip into view, so
+        // the pose can actually be judged before Keep or Redraw.
+        this.animationPlaceFrame(layerId, sourceIds);
+        this.fitAllInView();
+        // Rewrite the saved file from what actually landed: cropped to the
+        // ink and transparent, which the helper's own copy of a page-sized
+        // source would not be.
+        try {
+          await window.napkin.saveAnimationFrame(frameName, this.animationSubtreeSvg([layerId]));
+        } catch {
+          // Outside Electron there is no output folder to rewrite.
+        }
+
+        const choice = await this.animationFrameChoice(frameName);
+        if (choice === 'redraw') {
+          this.store.removeLayer(layerId);
+          continue;
+        }
+        this.animationKept++;
+        this.toast(`Kept ${frameName}.`);
+        if (choice === 'done') return;
+        sourceName = frameName;
+        sourceIds = [layerId];
+      }
+    } finally {
+      this.animationBusy = false;
+      dlg.classList.add('is-hidden');
+      try {
+        await window.napkin.clearAnimationTemp();
+      } catch {
+        // Temp cleanup is main-process-only; nothing to clear outside Electron.
+      }
+    }
+  }
+
+  /**
+   * Runs one frame through the AI helper with the dialog in its working
+   * state. Resolves with the drawn frame, or null when the run was
+   * cancelled or failed (already reported).
+   */
+  private async animationDrawFrame(
+    frameName: string,
+    form: string,
+    job: AnimationFrameJob,
+    sourceSvg: string,
+  ): Promise<AnimationFrameOutput | null> {
+    this.animationCancelled = false;
+    this.animationStartedAt = Date.now();
+    this.animationNote = 'Starting the AI helper…';
+    el('anim-step3-title').textContent = `Drawing ${frameName}`;
+    this.animationSetDialogState('working');
+    this.animationRenderStatus();
+    el('anim-step3-cancel').onclick = () => {
+      this.animationCancelled = true;
+      this.animationNote = 'Cancelling…';
+      this.animationRenderStatus();
+      try {
+        window.napkin.cancelAnimationHelper();
+      } catch {
+        // Outside Electron there is no helper process to kill.
+      }
+    };
+
+    // The helper reports what it is doing; the ticker keeps the elapsed
+    // readout moving between reports.
+    let unsubscribe: (() => void) | null = null;
+    try {
+      unsubscribe = window.napkin.onAnimationStatus((update) => {
+        this.animationNote = update.note;
+        this.animationRenderStatus();
+      });
+    } catch {
+      // Outside Electron there is no status feed.
+    }
+    const ticker = window.setInterval(() => this.animationRenderStatus(), 1000);
+
+    try {
+      let result;
+      try {
+        result = await window.napkin.runAnimationHelper(form, job, sourceSvg);
+      } catch {
+        this.toast('The AI helper is only available in the desktop app.');
+        return null;
+      }
+      if (this.animationCancelled || result.cancelled) return null;
+      if (!result.ok || !result.frame) {
+        // A tool that is missing or not signed in is not a drawing problem,
+        // and pointing at a log file does not fix it: walk the user into the
+        // tool's own sign-in instead.
+        if (result.failure === 'auth' || result.failure === 'missing-tool') {
+          this.animationToolBinary = result.tool ?? '';
+          await this.animationSignInPrompt(
+            result.failure,
+            result.toolLabel ?? result.tool ?? 'your AI tool',
+          );
+          return null;
+        }
+        this.toast(
+          `${result.error ?? 'AI helper produced no frame.'} See logs/animation-helper.log.`,
+        );
+        return null;
+      }
+      return result.frame;
+    } finally {
+      window.clearInterval(ticker);
+      unsubscribe?.();
+    }
+  }
+
+  /**
+   * Puts the drawn frame up for approval: Redraw discards it and draws the
+   * same index again, Next keeps it as the source for the frame after it,
+   * and Done ends the sequence with the frame kept.
+   */
+  private animationFrameChoice(frameName: string): Promise<'redraw' | 'next' | 'done'> {
+    return new Promise((resolve) => {
+      el('anim-step3-title').textContent = `${frameName} drawn`;
+      this.animationNote = 'Keep this frame and draw the next, redraw it, or finish here.';
+      this.animationSetDialogState('decision');
+      this.animationRenderStatus();
+      const done = (choice: 'redraw' | 'next' | 'done'): void => resolve(choice);
+      el('anim-step3-redraw').onclick = () => done('redraw');
+      el('anim-step3-next').onclick = () => done('next');
+      el('anim-step3-done').onclick = () => done('done');
+    });
+  }
+
+  /**
+   * Walks the user into their AI tool's own sign-in.
+   *
+   * Animation Mode is the only feature that needs an outside tool, so the two
+   * ways it can fail before drawing anything - the tool is not on the PATH,
+   * or nobody has signed in to it - deserve an answer rather than a toast
+   * pointing at a log. **Open sign-in** starts the tool in a terminal of its
+   * own, where it runs whatever sign-in it uses.
+   *
+   * napkin-sketch never asks for, reads, or stores a credential. It starts
+   * the tool and steps out of the way; the account stays between the user and
+   * that tool.
+   */
+  private animationSignInPrompt(
+    failure: 'auth' | 'missing-tool',
+    toolLabel: string,
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      const dlg = el('anim-signin-dialog');
+      const missing = failure === 'missing-tool';
+      el('anim-signin-title').textContent = missing
+        ? `${toolLabel} was not found`
+        : `Sign in to ${toolLabel}`;
+      el('anim-signin-msg').textContent = missing
+        ? `Animation Mode runs ${toolLabel}, and it is not on this machine's PATH. Install it, or point the helper command at the tool you do have.`
+        : `Animation Mode ran ${toolLabel}, which reported that it is not signed in. Sign in once and the frame can be drawn.`;
+
+      const steps = el('anim-signin-steps');
+      steps.innerHTML = '';
+      const addStep = (text: string, code?: string): void => {
+        const li = document.createElement('li');
+        li.textContent = text;
+        if (code) {
+          const tag = document.createElement('code');
+          tag.textContent = code;
+          li.append(' ', tag);
+        }
+        steps.append(li);
+      };
+      if (missing) {
+        addStep(`Install ${toolLabel} and make sure its command runs in a terminal.`);
+        addStep('Or set a different tool in Verbose Settings:', 'animationHelperCommand');
+      } else {
+        addStep('Open sign-in below, or start the tool yourself:', this.animationToolBinary);
+        addStep('Follow the prompt the tool shows to sign in to your account.');
+        addStep('Come back and press Generate again.');
+      }
+
+      const done = (): void => {
+        dlg.classList.add('is-hidden');
+        resolve();
+      };
+      const open = el('anim-signin-open');
+      open.classList.toggle('is-hidden', missing || !this.animationToolBinary);
+      open.onclick = () => {
+        void (async () => {
+          try {
+            const result = await window.napkin.openAiToolSignIn(this.animationToolBinary);
+            this.toast(
+              result.ok
+                ? `Opened a terminal for ${toolLabel}. Sign in there, then press Generate again.`
+                : (result.error ?? `Could not start ${toolLabel}.`),
+            );
+          } catch {
+            this.toast('Starting the AI tool is only available in the desktop app.');
+          }
+          done();
+        })();
+      };
+      el('anim-signin-cancel').onclick = () => done();
+      dlg.classList.remove('is-hidden');
+    });
+  }
+
+  /** Swaps the generation dialog between its working and approval states. */
+  private animationSetDialogState(state: 'working' | 'decision'): void {
+    const working = state === 'working';
+    el('anim-progress').classList.toggle('is-busy', working);
+    el('anim-progress').classList.toggle('is-hidden', !working);
+    el('anim-step3-cancel').classList.toggle('is-hidden', !working);
+    for (const id of ['anim-step3-redraw', 'anim-step3-next', 'anim-step3-done']) {
+      el(id).classList.toggle('is-hidden', working);
+    }
+  }
+
+  /** Renders the helper's latest note, the elapsed time, and the frame tally. */
+  private animationRenderStatus(): void {
+    const seconds = Math.floor((Date.now() - this.animationStartedAt) / 1000);
+    const kept = `${this.animationKept} frame${this.animationKept === 1 ? '' : 's'} kept`;
+    el('anim-step3-status').textContent = `${this.animationNote} · ${seconds}s · ${kept}`;
+  }
+
+  /**
+   * The group layer holding the required assemblies, when a single one does.
+   * That layer is the source frame and its name drives the sequence naming;
+   * assemblies sitting at the top level have no shared parent and start a
+   * fresh `animationLayer-<type>` sequence instead.
+   */
+  private animationSourceLayer(): Layer | undefined {
+    const sketch = this.store.sketch;
+    const roots = new Set(
+      [...findAssemblyLayers(sketch).values()].map((layer) => topMostParent(sketch, layer).id),
+    );
+    if (roots.size !== 1) return undefined;
+    return sketch.layers.find((l) => l.id === [...roots][0] && l.group);
+  }
+
+  /**
+   * Imports one drawn frame as a group layer continuing the sequence and
+   * returns the new layer's id, so the next frame can be drawn from it (and
+   * a redraw can drop it again). Null when the markup held no layers.
+   */
+  private importAnimationFrame(name: string, svg: string): string | null {
+    const before = new Set(this.store.sketch.layers.map((l) => l.id));
+    const imported = importSvg(svg, { unnamedRootName: name });
+    if (imported.layers.length === 0) return null;
+    const node: ImportedLayerNode =
+      imported.layers.length === 1
+        ? { ...imported.layers[0], name }
+        : { name, opacity: 1, strokes: [], children: imported.layers };
+    this.store.addImportedLayers([node]);
+    const added = this.store.sketch.layers.find((l) => !before.has(l.id) && !l.parent);
+    return added?.id ?? null;
+  }
+
+  /**
+   * Measures the source frame: where each assembly's joint sits and how tall
+   * the whole figure is. The helper is handed finished `transform` values
+   * built from these numbers, so it never has to work out a pivot from the
+   * geometry - the app already knows where every stroke is.
+   *
+   * Assemblies are resolved inside the source subtree, not across the page:
+   * once a generated frame lands, the document holds more than one set of
+   * assemblies and only the source frame's own may be measured.
+   */
+  private animationPose(rootIds: string[]): {
+    pivots: Partial<Record<RequiredAssembly, AnimationPoint>>;
+    figureHeight: number;
+    figurePivot?: AnimationPoint;
+  } {
+    const sketch = this.store.sketch;
+    const scope = new Set<string>();
+    for (const rootId of rootIds) {
+      scope.add(rootId);
+      for (const id of descendantLayerIds(sketch, rootId)) scope.add(id);
+    }
+
+    const pivots: Partial<Record<RequiredAssembly, AnimationPoint>> = {};
+    let figureTop = Infinity;
+    let figureBottom = -Infinity;
+    for (const assembly of REQUIRED_ASSEMBLIES) {
+      const layer = sketch.layers.find(
+        (l) => scope.has(l.id) && matchesAssembly(l.name, assembly),
+      );
+      if (!layer) continue;
+      const bounds = this.animationLayerBounds([layer.id]);
+      if (!bounds) continue;
+      figureTop = Math.min(figureTop, bounds.minY);
+      figureBottom = Math.max(figureBottom, bounds.maxY);
+      const pivot = assemblyPivot(assembly, bounds);
+      if (pivot) pivots[assembly] = pivot;
+    }
+    const figureHeight = figureBottom > figureTop ? figureBottom - figureTop : 0;
+    // A figure tips about the ground it stands on, so the whole-figure pivot
+    // is the bottom-centre of its bounds rather than a joint.
+    const whole = this.animationLayerBounds(rootIds);
+    const figurePivot = whole
+      ? { x: (whole.minX + whole.maxX) / 2, y: whole.maxY }
+      : undefined;
+    return { pivots, figureHeight, figurePivot };
+  }
+
+  /**
+   * Moves a drawn frame so it stands to the right of the frame it came from
+   * instead of on top of it. A generated frame is a copy of its source with
+   * the assemblies turned, so it lands in the source's own coordinates and
+   * the two overlap exactly - the new pose is invisible under the old one,
+   * and there is nothing to judge before keeping or redrawing it.
+   *
+   * Frames chain, so each run pushes another panel further right and the
+   * sequence reads as an animation strip. Only x moves: the cycle's vertical
+   * bob is part of the pose.
+   */
+  private animationPlaceFrame(frameLayerId: string, sourceIds: string[]): void {
+    const source = this.animationLayerBounds(sourceIds);
+    const frame = this.animationLayerBounds([frameLayerId]);
+    if (!source || !frame) return;
+    const dx = animationFrameOffsetX(source, frame);
+    if (dx === 0) return;
+    const strokeIds = this.animationStrokesIn([frameLayerId]).map((s) => s.id);
+    // No history step of its own: the placement belongs to the import that
+    // preceded it, so one undo takes the whole frame back off the page.
+    this.store.moveStrokes(strokeIds, dx, 0, false);
+  }
+
+  /** Every stroke on the given layers and their descendants. */
+  private animationStrokesIn(layerIds: string[]): Stroke[] {
+    const sketch = this.store.sketch;
+    const ids = new Set<string>();
+    for (const layerId of layerIds) {
+      ids.add(layerId);
+      for (const id of descendantLayerIds(sketch, layerId)) ids.add(id);
+    }
+    return sketch.strokes.filter((s) => ids.has(layerOf(sketch, s).id));
+  }
+
+  /** Bounds of every stroke on the given layers and their descendants. */
+  private animationLayerBounds(layerIds: string[]): AnimationBounds | null {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const stroke of this.animationStrokesIn(layerIds)) {
+      const b = strokeBounds(stroke, (t) => this.surface.measureText(t));
+      if (!b) continue;
+      minX = Math.min(minX, b.minX);
+      minY = Math.min(minY, b.minY);
+      maxX = Math.max(maxX, b.maxX);
+      maxY = Math.max(maxY, b.maxY);
+    }
+    return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+  }
+
+  /**
+   * Bounds to size an exported frame by: the stroke bounds grown by half the
+   * widest stroke. `strokeBounds` follows centerlines, so a box drawn on them
+   * alone would slice the outer edge of the ink off the sprite.
+   */
+  private animationCropBounds(layerIds: string[]): AnimationBounds | null {
+    const bounds = this.animationLayerBounds(layerIds);
+    if (!bounds) return null;
+    let widest = 0;
+    for (const stroke of this.animationStrokesIn(layerIds)) {
+      widest = Math.max(widest, stroke.width ?? 0);
+    }
+    return expandBounds(bounds, widest / 2);
+  }
+
+  /**
+   * A frame as a standalone SVG document: the given layers (with their
+   * descendants and enclosing groups) exported alone, sized to the ink and
+   * left transparent.
+   *
+   * Both the pose handed to the AI helper and the file kept in
+   * `animations/` are written this way, so a frame is a sprite as it stands -
+   * no page-sized margin of empty space around it, and no paper rectangle
+   * behind it to punch a hole in a composition.
+   */
+  private animationSubtreeSvg(rootIds: string[]): string {
+    const sketch = this.store.sketch;
+    const keep = new Set<string>();
+    for (const rootId of rootIds) {
+      const layer = sketch.layers.find((l) => l.id === rootId);
+      if (!layer) continue;
+      keep.add(layer.id);
+      for (const id of descendantLayerIds(sketch, layer.id)) keep.add(id);
+      let parent = sketch.layers.find((l) => l.id === layer.parent);
+      while (parent && !keep.has(parent.id)) {
+        keep.add(parent.id);
+        parent = sketch.layers.find((l) => l.id === parent!.parent);
+      }
+    }
+    const layers = sketch.layers.filter((l) => keep.has(l.id));
+    const strokes = sketch.strokes.filter((s) => keep.has(layerOf(sketch, s).id));
+    const crop = this.animationCropBounds(rootIds);
+    return Surface.toSVG(
+      { ...sketch, layers, strokes },
+      { transparent: true, ...(crop ? { crop } : {}) },
+    );
+    return Surface.toSVG({ ...sketch, layers, strokes });
   }
 
   // ---- Properties panel ----------------------------------------------------
@@ -5741,6 +6507,9 @@ class App {
       } else if (mod && key === 'p') {
         e.preventDefault();
         this.toggleProperties();
+      } else if (mod && key === 'n' && e.shiftKey && this.animationInstalled) {
+        e.preventDefault();
+        this.toggleAnimationMode();
       } else if (mod && (key === ']' || key === '[')) {
         // Ctrl+] / Ctrl+[ restack the active layer, matching the panel's
         // move buttons.
@@ -5915,6 +6684,9 @@ class App {
 
   private syncUi(): void {
     const { tool, color, width, liveSharpen, sharpen, symmetry, fontSize } = this.store.tool;
+
+    // Animation Mode: keep the banner's layer-validation status live.
+    if (this.animationMode) this.refreshAnimationStatus();
 
     // Leaving the Vector Path tool commits its pending path — switching to
     // any other tool (a shortcut like `S`, a toolbar click) accepts the
@@ -6192,12 +6964,21 @@ function transformImportedLayers(
 ): void {
   for (const layer of layers) {
     for (const stroke of layer.strokes) {
-      stroke.points = stroke.points.map((p) => ({
-        ...p,
+      const map = (p: { x: number; y: number }): { x: number; y: number } => ({
         x: p.x * scale + dx,
         y: p.y * scale + dy,
-      }));
-      stroke.width = Math.max(0.5, stroke.width * scale);
+      });
+      stroke.points = stroke.points.map((p) => ({ ...p, ...map(p) }));
+      // The Bézier structure moves with its samples, or the export (which
+      // writes anchors, not samples) would draw the curve where it was.
+      if (stroke.vector) {
+        stroke.vector.anchors = stroke.vector.anchors.map((a) => ({
+          p: map(a.p),
+          ...(a.hIn ? { hIn: map(a.hIn) } : {}),
+          ...(a.hOut ? { hOut: map(a.hOut) } : {}),
+        }));
+      }
+      stroke.width = Math.max(0.1, stroke.width * scale);
       if (stroke.fontSize !== undefined) stroke.fontSize *= scale;
       if (stroke.imageWidth !== undefined) stroke.imageWidth *= scale;
       if (stroke.imageHeight !== undefined) stroke.imageHeight *= scale;
@@ -6271,6 +7052,7 @@ function cloneAnchors(anchors: VectorAnchor[]): VectorAnchor[] {
     p: { ...a.p },
     ...(a.hIn ? { hIn: { ...a.hIn } } : {}),
     ...(a.hOut ? { hOut: { ...a.hOut } } : {}),
+    ...(a.move ? { move: true as const } : {}),
   }));
 }
 
@@ -6293,8 +7075,19 @@ function sampleVectorPathPoints(anchors: VectorAnchor[], closed: boolean): Point
     const b = { x: to.p.x, y: to.p.y, pressure: 0.5 };
     out.push(...cubicBezierPoints(a, from.hOut ?? from.p, to.hIn ?? to.p, b).slice(1));
   };
-  for (let i = 1; i < anchors.length; i++) addSegment(anchors[i - 1], anchors[i]);
-  if (closed && anchors.length >= 2) addSegment(anchors[anchors.length - 1], anchors[0]);
+  // A compound path's subpaths each close back to their own first anchor,
+  // and the pen lifts (a `move` point) between them.
+  let subStart = 0;
+  for (let i = 1; i < anchors.length; i++) {
+    if (anchors[i].move) {
+      if (closed) addSegment(anchors[i - 1], anchors[subStart]);
+      out.push({ x: anchors[i].p.x, y: anchors[i].p.y, pressure: 0.5, move: true });
+      subStart = i;
+      continue;
+    }
+    addSegment(anchors[i - 1], anchors[i]);
+  }
+  if (closed && anchors.length >= 2) addSegment(anchors[anchors.length - 1], anchors[subStart]);
   return out;
 }
 

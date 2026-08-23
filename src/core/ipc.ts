@@ -6,6 +6,9 @@
  * goes through the `window.napkin` bridge exposed by the preload script.
  */
 
+import type { AnimationFrameJob } from './animation.js';
+import type { AnimationModeStatus } from './animation-install.js';
+import type { HelperFailure } from './ai-tool.js';
 import type { LaunchOptions } from './launch.js';
 import type { ImportedPdfPage } from './pdf-import.js';
 import type { AppSettings } from './settings.js';
@@ -55,6 +58,20 @@ export const IPC = {
   toggleRearrange: 'napkin:toggle-rearrange',
   /** Main → renderer: enter/leave toolbar rearrange mode. */
   rearrangeMode: 'napkin:rearrange-mode',
+  /** Renderer → main: write the animation form and draw one frame with the AI helper. */
+  runAnimationHelper: 'napkin:run-animation-helper',
+  /** Renderer → main: kill the in-flight AI helper run (Cancel pressed). */
+  cancelAnimationHelper: 'napkin:cancel-animation-helper',
+  /** Main → renderer: a note on what the helper run is doing. */
+  animationStatus: 'napkin:animation-status',
+  /** Renderer → main: is Animation Mode installed, and for which AI tool? */
+  getAnimationMode: 'napkin:get-animation-mode',
+  /** Renderer → main: start the AI tool in a terminal so it can sign in. */
+  openAiToolSignIn: 'napkin:open-ai-tool-sign-in',
+  /** Renderer → main: rewrite a frame file in the animations folder. */
+  saveAnimationFrame: 'napkin:save-animation-frame',
+  /** Renderer → main: delete the transient animation temp folder. */
+  clearAnimationTemp: 'napkin:clear-animation-temp',
 } as const;
 
 /** Actions the native application menu can trigger in the renderer. */
@@ -76,7 +93,8 @@ export type MenuAction =
   | 'toggle-properties'
   | 'toggle-settings'
   | 'open-app-settings'
-  | 'toggle-rearrange';
+  | 'toggle-rearrange'
+  | 'toggle-animation';
 
 /** Raster image export formats. */
 export type ImageFormat = 'png' | 'jpeg';
@@ -110,6 +128,45 @@ export interface OpenResult {
   error?: string;
   /** True if the user cancelled a dialog. */
   cancelled?: boolean;
+}
+
+/** The generated frame collected from the output folder after a run. */
+export interface AnimationFrameOutput {
+  /** Frame layer/file stem, e.g. `character-walk_3`. */
+  name: string;
+  /** The frame's SVG markup. */
+  svg: string;
+}
+
+/** Result of one AI-helper run: the single frame it drew, or why it did not. */
+export interface AnimationHelperResult {
+  ok: boolean;
+  /**
+   * What went wrong, when the app can tell from the outside: the tool is not
+   * installed, the tool is installed but nobody has signed in to it, or
+   * something else. Drives whether the renderer offers a sign-in walkthrough.
+   */
+  failure?: HelperFailure;
+  /** Executable the helper command names, when a tool problem is the failure. */
+  tool?: string;
+  /** Human-readable name of that tool (`Claude Code`), for dialogs. */
+  toolLabel?: string;
+  /** The frame the run produced, when it produced one. */
+  frame?: AnimationFrameOutput;
+  /** Failure detail when `ok` is false (spawn error, non-zero exit, stall). */
+  error?: string;
+  /** True when the run ended because the user cancelled it (no error toast). */
+  cancelled?: boolean;
+}
+
+/**
+ * A note on what the in-flight run is doing, for the dialog's status line.
+ * One frame per run leaves nothing to count, so the feed reports liveness
+ * ("the helper is working") rather than a fraction.
+ */
+export interface AnimationStatusUpdate {
+  /** Human-readable state, e.g. `Helper is working…`. */
+  note: string;
 }
 
 /** Result of a save operation. */
@@ -146,6 +203,42 @@ export interface NapkinBridge {
   setTitle(title: string): void;
   /** Subscribes to native-menu actions; returns an unsubscribe function. */
   onMenuAction(handler: (action: MenuAction) => void): () => void;
+  /**
+   * Writes `formText` and `sourceSvg` to the animation temp folder and runs
+   * the configured AI helper command to draw one frame. Resolves as soon as
+   * the frame lands in the output folder; `job` tells the watcher which file
+   * to expect.
+   */
+  runAnimationHelper(
+    formText: string,
+    job: AnimationFrameJob,
+    sourceSvg: string,
+  ): Promise<AnimationHelperResult>;
+  /**
+   * Kills the in-flight AI helper run; the pending `runAnimationHelper`
+   * promise resolves immediately with `cancelled: true`.
+   */
+  cancelAnimationHelper(): void;
+  /** Subscribes to the run's status notes; returns an unsubscribe function. */
+  onAnimationStatus(handler: (update: AnimationStatusUpdate) => void): () => void;
+  /**
+   * Whether Animation Mode is installed, and which AI tool it was installed
+   * for. The renderer hides every trace of the mode when it is not.
+   */
+  getAnimationMode(): Promise<AnimationModeStatus>;
+  /**
+   * Starts the named AI tool in a terminal of its own so the tool can run
+   * its own sign-in. napkin-sketch never handles the credential.
+   */
+  openAiToolSignIn(binary: string): Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Rewrites `animations/<name>.svg` with the frame as the app holds it:
+   * cropped to the ink and transparent, so the file is a usable sprite
+   * whatever shape the helper happened to save.
+   */
+  saveAnimationFrame(name: string, svg: string): Promise<void>;
+  /** Removes the animation temp folder (called when a run completes). */
+  clearAnimationTemp(): Promise<void>;
 
   // ---- Application settings -------------------------------------------------
 

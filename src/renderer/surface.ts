@@ -34,6 +34,24 @@ import {
 import { copicNibPolygons } from '../core/nib.js';
 import { simplify } from '../sharpen/geometry.js';
 
+/** How much of the page {@link Surface.toSVG} writes, and on what. */
+export interface SvgExportOptions {
+  /**
+   * Size the document to this box (in sketch coordinates) instead of to the
+   * page, so the file holds the graphic and no empty margin around it. The
+   * viewBox is offset to the box rather than the geometry being moved, which
+   * keeps every coordinate identical to a full-page export.
+   */
+  crop?: { minX: number; minY: number; maxX: number; maxY: number };
+  /** Leave the background rect out, so the document is transparent. */
+  transparent?: boolean;
+}
+
+/** Rounds to two decimals, so bounds-derived sizes stay readable. */
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 /** A live (in-progress) stroke being drawn by the user. */
 export interface LiveStroke extends Stroke {
   points: Point[];
@@ -566,7 +584,9 @@ export class Surface {
       ctx.save();
       ctx.fillStyle = fillPaint;
       ctx.beginPath();
-      pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      // A compound shape's contours are separate subpaths, so the winding
+      // rule cuts its holes out instead of filling across them.
+      tracePoints(ctx, pts);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
@@ -593,7 +613,7 @@ export class Surface {
       ctx.setLineDash(dash);
       ctx.lineWidth = Math.max(0.5, stroke.width);
       ctx.beginPath();
-      pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      tracePoints(ctx, pts);
       ctx.stroke();
       ctx.restore();
       return;
@@ -615,6 +635,7 @@ export class Surface {
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1];
       const b = pts[i];
+      if (b.move) continue; // pen lifts between a compound shape's contours
       const avgPressure = ((a.pressure ?? 0.5) + (b.pressure ?? 0.5)) / 2;
       const widthScale =
         stroke.tool === 'marker' || stroke.tool === 'eraser' ? 1 : 0.4 + 0.6 * avgPressure;
@@ -778,12 +799,33 @@ export class Surface {
    * editors: `data-name` (napkin's own), `inkscape:label` plus
    * `inkscape:groupmode="layer"` (what Inkscape's layers panel reads), and
    * the group `id` (what Illustrator reads).
+   *
+   * {@link SvgExportOptions} trims the document down for use as a sprite:
+   * `crop` sizes it to a box instead of the page, and `transparent` leaves
+   * the background rect out. Called without options the output is the full
+   * page on its paper color.
    */
-  static toSVG(sketch: Sketch): string {
-    const { width, height, background } = sketch;
+  static toSVG(sketch: Sketch, options: SvgExportOptions = {}): string {
+    const { background } = sketch;
+    // The document window: the page by default, or the crop box, which is
+    // reached by offsetting the viewBox rather than moving the geometry -
+    // the marks keep the coordinates every other export writes.
+    const crop = options.crop;
+    const viewX = crop ? round2(crop.minX) : 0;
+    const viewY = crop ? round2(crop.minY) : 0;
+    const width = crop ? Math.max(round2(crop.maxX - crop.minX), 1) : sketch.width;
+    const height = crop ? Math.max(round2(crop.maxY - crop.minY), 1) : sketch.height;
     const defs: string[] = [];
     const usedIds = new Set<string>();
     const layerIndex = new Map(sketch.layers.map((layer, i) => [layer.id, i]));
+
+    // A rect covering the whole document window, wherever the viewBox sits.
+    // The eraser mask needs that cover as much as the paper does: a mask rect
+    // left at the origin while the viewBox is offset would fall outside the
+    // crop and black out the layer it was meant to keep whole.
+    const coverAt = crop ? `x="${viewX}" y="${viewY}" ` : '';
+    const coverRect = (fill: string): string =>
+      `<rect ${coverAt}width="${width}" height="${height}" fill="${fill}"/>`;
 
     // Rebuild the tree from the flat stack: a layer belongs under its parent
     // when that parent exists and is a group; anything else (no parent, or a
@@ -835,7 +877,7 @@ export class Surface {
         const maskId = `erase-${li}`;
         defs.push(
           `<mask id="${maskId}">` +
-            `<rect width="${width}" height="${height}" fill="#fff"/>` +
+            coverRect('#fff') +
             erasers.map((s) => svgPath(s, sketch.strokes.indexOf(s), '#000')).join('') +
             `</mask>`,
         );
@@ -857,12 +899,15 @@ export class Surface {
     };
 
     const groups = topLevel.map(emitLayer).filter((g): g is string => g !== null);
-
     const parts: string[] = [
       `<?xml version="1.0" encoding="utf-8"?>`,
-      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-generator="napkin-sketch">`,
-      `<rect width="${width}" height="${height}" fill="${escXml(background)}"/>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${width}" height="${height}" viewBox="${viewX} ${viewY} ${width} ${height}" data-generator="napkin-sketch">`,
     ];
+    // A transparent document leaves no paper under the marks, which is what
+    // lets a frame drop into a composition without a rectangle behind it.
+    if (!options.transparent) {
+      parts.push(coverRect(escXml(background)));
+    }
     if (defs.length > 0) parts.push(`<defs>\n${defs.join('\n')}\n</defs>`);
     parts.push(...groups, '</svg>');
     return parts.join('\n');
@@ -1083,18 +1128,32 @@ export function strokeBounds(
   return { minX, minY, maxX, maxY };
 }
 
+/**
+ * Adds a stroke's points to the current canvas path, starting a new subpath
+ * at every `move` point so compound shapes keep their holes and islands.
+ */
+function tracePoints(ctx: CanvasRenderingContext2D, pts: Point[]): void {
+  pts.forEach((p, i) => (i === 0 || p.move ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+}
+
 // ---- SVG helpers ------------------------------------------------------------
 
 /**
- * Tolerance (px) for dropping redundant polyline samples on export. Matches
- * the written coordinate precision (one decimal), so the pruned points sit
- * within the quantisation the file could express anyway.
+ * Tolerance (px) for dropping redundant polyline samples on export: a tenth
+ * of a pixel is below anything a freehand stroke can show, so pruning to it
+ * keeps files compact without a visible change. Vector anchors are never
+ * pruned - they are the curve's definition, not samples of it.
  */
 const EXPORT_SIMPLIFY_EPSILON = 0.1;
 
-/** Formats a coordinate at one-decimal precision without a trailing ".0". */
+/**
+ * Formats a coordinate at two-decimal precision without trailing zeros.
+ * Two decimals keep artwork authored in small user units (a sprite in a
+ * 43-unit viewBox, where the source itself carries hundredths) intact on the
+ * round trip; one decimal was a visible distortion at that scale.
+ */
 function fmt(n: number): string {
-  return String(Math.round(n * 10) / 10);
+  return String(Math.round(n * 100) / 100);
 }
 
 function escXml(s: string): string {
@@ -1146,9 +1205,23 @@ function pathD(stroke: Stroke): string {
         `C${fmt(c1.x)},${fmt(c1.y)} ${fmt(c2.x)},${fmt(c2.y)} ${fmt(to.p.x)},${fmt(to.p.y)}`,
       );
     };
-    for (let i = 1; i < anchors.length; i++) segment(anchors[i - 1], anchors[i]);
-    if (stroke.vector?.closed) {
-      segment(anchors[anchors.length - 1], anchors[0]);
+    // A compound path is several subpaths; each closes back to its own start.
+    const closed = stroke.vector?.closed === true;
+    let subStart = 0;
+    for (let i = 1; i < anchors.length; i++) {
+      if (anchors[i].move) {
+        if (closed) {
+          segment(anchors[i - 1], anchors[subStart]);
+          parts.push('Z');
+        }
+        parts.push(`M${fmt(anchors[i].p.x)},${fmt(anchors[i].p.y)}`);
+        subStart = i;
+        continue;
+      }
+      segment(anchors[i - 1], anchors[i]);
+    }
+    if (closed) {
+      segment(anchors[anchors.length - 1], anchors[subStart]);
       parts.push('Z');
     }
     return parts.join(' ');
@@ -1210,7 +1283,7 @@ function svgPath(
     dash.length > 0
       ? ` stroke-dasharray="${dash.map(fmt).join(',')}" data-dash="${stroke.strokeStyle}"`
       : '';
-  return `<path d="${d}" stroke="${color}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round"${dashAttrs} ${fillAttrs} opacity="${opacity}" ${data}/>`;
+  return `<path d="${d}" stroke="${color}" stroke-width="${fmt(stroke.width)}" stroke-linecap="round" stroke-linejoin="round"${dashAttrs} ${fillAttrs} opacity="${opacity}" ${data}/>`;
 }
 
 /**

@@ -1,0 +1,197 @@
+{
+  "generatedFrom": "character-wireframes.svg",
+  "note": "Measured joint rotations per step. Limb angles are relative to the spine; figureRotate tips the whole figure about its base; shiftYPercent moves it as a percent of its height.",
+  "cycles": {
+    "walk": {
+      "skeleton": "Walk-Animation",
+      "frames": 8,
+      "loops": true,
+      "steps": [
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": -10,
+            "back-arm-assembly": 21.1,
+            "front-leg-assembly": 12.3,
+            "back-leg-assembly": -13.5
+          }
+        },
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": -24.1,
+            "back-arm-assembly": 40.7,
+            "front-leg-assembly": 15.8,
+            "back-leg-assembly": -9
+          }
+        },
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": 18.1,
+            "back-arm-assembly": -21.9,
+            "front-leg-assembly": -8.5,
+            "back-leg-assembly": 4.6
+          }
+        },
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": 31,
+            "back-arm-assembly": -0.3,
+            "front-leg-assembly": -20.2,
+            "back-leg-assembly": 7.6
+          }
+        },
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": 18.3,
+            "back-arm-assembly": -21,
+            "front-leg-assembly": -8.7,
+            "back-leg-assembly": 31.3
+          }
+        },
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": 12.5,
+            "back-arm-assembly": -35.4,
+            "front-leg-assembly": -13.1,
+            "back-leg-assembly": 11.4
+          }
+        },
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": -16.8,
+            "back-arm-assembly": 10.4,
+            "front-leg-assembly": 9.1,
+            "back-leg-assembly": -13.4
+          }
+        },
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": -28.9,
+            "back-arm-assembly": 6.4,
+            "front-leg-assembly": 13.3,
+            "back-leg-assembly": -18.9
+          }
+        }
+      ]
+    },
+    "ideal": {
+      "skeleton": "Ideal_Stance-Animation",
+      "frames": 4,
+      "loops": true,
+      "steps": [
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": 13.2,
+            "back-arm-assembly": 11.8,
+            "front-leg-assembly": 2.4
+          }
+        },
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": -18.4,
+            "back-arm-assembly": -14.9,
+            "front-leg-assembly": -2.4,
+            "back-leg-assembly": -2.3
+          }
+        },
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": -17.1,
+            "back-arm-assembly": -10.5,
+            "front-leg-assembly": -1.6,
+            "back-leg-assembly": -2.3
+          }
+        },
+        {
+          "shiftYPercent": 0,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": 22.3,
+            "back-arm-assembly": 13.6,
+            "front-leg-assembly": 1.6,
+            "back-leg-assembly": 4.7
+          }
+        }
+      ]
+    },
+    "knocked-down": {
+      "skeleton": "Knockdown-Animation",
+      "frames": 7,
+      "loops": false,
+      "steps": [
+        {
+          "shiftYPercent": 0.3,
+          "figureRotate": -13.5,
+          "rotate": {
+            "front-arm-assembly": 10.1,
+            "front-leg-assembly": 13.5,
+            "back-leg-assembly": 13.5
+          }
+        },
+        {
+          "shiftYPercent": 1.4,
+          "figureRotate": 42.2,
+          "rotate": {
+            "front-leg-assembly": -42.2,
+            "back-leg-assembly": -39.6
+          }
+        },
+        {
+          "shiftYPercent": 7.9,
+          "figureRotate": -62.8,
+          "rotate": {
+            "front-leg-assembly": 25,
+            "back-leg-assembly": 15.8
+          }
+        },
+        {
+          "shiftYPercent": 14.8,
+          "figureRotate": -32.2,
+          "rotate": {
+            "front-arm-assembly": -10.5,
+            "back-arm-assembly": 8.9,
+            "front-leg-assembly": 10.6
+          }
+        },
+        {
+          "shiftYPercent": 15,
+          "figureRotate": -21.5,
+          "rotate": {
+            "front-arm-assembly": -30.4,
+            "back-arm-assembly": 8.7,
+            "front-leg-assembly": 13.8,
+            "back-leg-assembly": -9
+          }
+        },
+        {
+          "shiftYPercent": -1.6,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": 13
+          }
+        }
+      ]
+    }
+  }
+}

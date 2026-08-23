@@ -1,0 +1,16 @@
+node_modules/
+dist/
+dist-test/
+release/
+.tmp/
+_temp/
+logs/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+*.skbk.bak
+itworked.*
+layerNames.txt
+animations/
+ai-helper/installed.json

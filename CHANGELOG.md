@@ -4,6 +4,303 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0-alpha] - 2026-08-28
+
+### Added
+
+- **A generated frame can no longer be a copy of the frame before it.** The app
+  collects the helper's output file the moment it appears, so a helper that
+  copied the source to that path and only then began posing it had its copy
+  taken and its work killed - and the frame that landed on the page was the
+  previous frame over again, shifted right by the strip placement.
+  - **A copy no longer ends the run.** When the output file turns up matching
+    its source, the app keeps waiting and says so ("Helper saved a copy;
+    waiting for the pose…"), which turns a copy-then-edit helper from a
+    failure into a success.
+  - **A copy is refused rather than imported.** If the helper exits having
+    written nothing but the source over again, the run fails with that in
+    words instead of putting a duplicate layer on the page.
+  - The check reads path data **and** transforms together, because posing a
+    frame leaves the path data untouched: a posed frame and a copy differ only
+    by the transforms, so comparing geometry alone would call them the same.
+  - The helper contract now says outright not to copy the source to the output
+    path and edit it there.
+
+- **Animation cycles are measured from the wireframe skeleton, not invented.**
+  `character-wireframes.svg` is a rig: one stick-figure skeleton per frame,
+  carrying the same assembly group names a drawn character does, with each
+  limb a polyline that runs joint-first. `npm run wireframe-cycles` reads the
+  angle of every limb in every frame and writes the step-by-step rotations the
+  app poses frames with, so the numbers come off drawn poses instead of
+  guesswork.
+  - **It fixed a walk that swung the wrong way.** The hand-written table had
+    the arms and legs rotating opposite to the drawn skeleton on every step -
+    a walk whose limbs contradict each other, which is what made generated
+    frames look wrong. The measured cycle also shows the drawing has no bob
+    and asymmetric arms, neither of which the invented table had.
+  - **Two more types became measured**: `knocked-down` from
+    `Knockdown-Animation` and `ideal` from `Ideal_Stance-Animation`. They are
+    no longer "work in progress" in the wizard, and the app hands the helper
+    finished transforms for them the way it already did for `walk`.
+  - **A repeated skeleton is not measurable.** `Punch-Animation` draws the
+    same pose for its last two frames, so the step between them moves nothing
+    and a frame generated from it copies its source. `attack` is offered from
+    its written template instead until the punch gets a distinct last pose,
+    the generator warns when a skeleton produces a still step, and a step that
+    moves nothing is never handed over as finished transforms - the form falls
+    back to the type's template rather than telling the helper to change
+    nothing.
+  - **Limb angles are read against the spine**, so a limb that moved only
+    because the whole figure tipped reads as no joint rotation; the tipping is
+    a new `figureRotate` applied to every assembly about the figure's base.
+    That is most of what a knockdown is, and it is why the two do not
+    double-count.
+  - **A cycle that does not loop no longer closes.** Knockdown has seven
+    skeletons and six steps: the wrap-around step that would snap the figure
+    back upright is not generated for a type that runs start to end.
+  - **The readings ship as an asset too**: `skeleton-cycles.json` beside the
+    wireframes names which skeleton drives which type and lists every step, so
+    an AI helper posing a type by hand can follow the same guide.
+
+- **Every animation type is selectable**: all fourteen - ten character types
+  and four object types - with everything except `walk` marked **(Work in
+  Progress)** rather than held back as a disabled option.
+  - **A prompt template per type** is what makes them usable before their
+    cycle tables exist. Each type carries one sentence describing what a
+    single step of that movement does - which joints turn, which way, how far
+    - and whether the sequence loops, and the form hands that to the AI helper
+    in place of exact angles. `walk` still runs off its measured eight-step
+    cycle.
+  - **One table drives both** the dropdown and the prompt, so an option can
+    never appear without the template behind it: the wizard builds its lists
+    from `ANIMATION_TYPES` at runtime instead of from hand-kept HTML.
+  - **Object animations no longer ask for arms and legs.** Setup now runs
+    before the assembly mapping, because the category decides whether the six
+    character assemblies are needed at all; an object animation skips the
+    mapping step entirely and moves the frame's root group. The banner says
+    which animations the assemblies are for rather than reporting a blocker.
+- **The `vector-graphics` skill is plugged into the helper prompt.** The form
+  names it beside `svg-animations` and points at its installed copy, so a
+  frame that needs real curve work rather than a joint rotation - the fracture
+  lines of a `break`, the piece outlines of an `explode` - has somewhere to go.
+
+- **Animation Mode installs and uninstalls separately.** It is the only
+  feature that needs software the app does not ship - an agentic AI
+  command-line tool, with its own installation, account, and usually cost - so
+  it is no longer part of a default install. `npm install` adds nothing: no
+  Edit-menu entry, no `Ctrl + Shift + N`, no banner, and no AI tool needed to
+  run the app at all.
+  - **One command adds or removes it**: `npm run animation-mode -- --install
+    [--to claude|copilot|codex|gemini|…]`, `--uninstall`, and `--status`.
+    Installing copies the helper's skills and instructions into that tool's
+    dot-folder and writes `ai-helper/installed.json`; uninstalling removes
+    exactly what it installed - anything else in that dot-folder is left
+    alone - and deletes the record.
+  - **One record decides**, so the feature is genuinely plugged in and out
+    rather than hidden: the main process reads `ai-helper/installed.json`
+    before the menu is built, and with no record the Edit entry, the
+    accelerator, the keyboard shortcut, and every path into the wizard are
+    all shut. A damaged record reads as "not installed", so a bad file costs
+    the add-on rather than the app.
+  - **Uninstalling keeps everything else intact**: sketching, layers, export,
+    import, pages, and the rest are untouched.
+- **A sign-in walkthrough for the AI tool.** The two ways a run can fail
+  before any drawing starts - the tool is not on the PATH, or nobody has
+  signed in to it - are now told apart and answered instead of being reported
+  as a stalled run.
+  - The tool's executable is checked before the run starts, so a missing tool
+    names itself immediately.
+  - A failed run is classified from its exit code and output, and an
+    authentication failure opens a walkthrough naming the tool, with an
+    **Open sign-in** button that starts that tool in a terminal of its own so
+    it can run its own sign-in.
+  - **No credential is ever read, requested, or stored by napkin-sketch.**
+    The app starts the tool and steps out of the way; the install record names
+    which tool was chosen and nothing about the account behind it.
+  - The helper command's executable is resolved the same way whatever its
+    shape (`claude`, `"C:\bin\claude.exe"`, `/usr/local/bin/codex`), so the
+    right tool is named in dialogs and started for sign-in.
+
+- **Animation Mode** (`Ctrl + Shift + N` or **Edit > Animation Mode**): a new
+  app mode that turns a page's layer tree into frame-by-frame animation
+  material with the help of an AI tool. Entering the mode switches to the
+  Select tool, opens the Layers panel, and shows a banner that validates the
+  page live against the six required character assemblies
+  (`front-arm-assembly`, `body`, `front-leg-assembly`, `back-leg-assembly`,
+  `back-arm-assembly`, `Head` - matched case-insensitively, editor
+  uniqueness suffixes ignored). The mode is per-session and always starts off
+  when the app opens; it only opens from the Edit menu or its shortcut.
+  - **Generation wizard** behind the banner's **Generate…** button. Setup
+    comes first, then - for character animations whose page does not already
+    validate - a Cancel / Back / Next dialog per missing assembly asks which
+    layers make it up and groups them under a group named for the assembly.
+    Setup collects the animation category and type and names the frame the
+    first run will draw. There is **no frame count**: a sequence is as long
+    as the user keeps making it.
+  - **One frame per run.** Each run hands the AI helper a single pose and asks
+    for a single step of movement, which is small enough for a helper to
+    finish. The drawn frame imports immediately as a group layer and the
+    dialog offers **Redraw** (discard it and draw the same index again),
+    **Keep and draw next** (that frame becomes the source for the one after
+    it), and **Done**. The status line carries the helper's latest note, the
+    elapsed time, and the frames kept so far.
+  - **Frames stand side by side.** A drawn frame is a copy of its source with
+    the assemblies turned, so left where it lands it would sit exactly on top
+    of that source and hide the new pose entirely. Each frame is placed one
+    gap to the right of the frame it came from (15 percent of the source's
+    width, with an 8 px floor) and the view fits the page afterwards, so a
+    sequence builds left to right as an animation strip and every frame can
+    be seen before Keep or Redraw. Only the horizontal position moves - the
+    cycle's vertical bob is part of the pose - and the placement shares the
+    import's history step, so one undo takes the whole frame back off.
+  - **Frame files are sprites.** The SVG kept in `animations/` is sized to the
+    ink rather than to the napkin-sketch page, and carries no paper rect, so a
+    frame drops into an animation composition as it stands - no page-sized
+    margin of empty space around the drawing and no opaque rectangle behind
+    it. The box is the frame's stroke bounds grown by half the widest stroke,
+    so the outline is not shaved off, and it is reached by offsetting the
+    document's `viewBox` rather than moving the geometry, so every coordinate
+    still matches what the app holds. The app rewrites the file from the frame
+    it imported, which makes the sizing exact whatever shape the AI helper
+    happened to save.
+  - **Frames are transforms, not redrawn documents.** An SVG group transform
+    rotates every anchor and its Bezier handles together about a chosen
+    pivot, which is exactly the rigid joint rotation a frame needs, and
+    napkin-sketch resolves group transforms when it imports a frame. So the
+    helper sets one `transform` per assembly rather than re-emitting 50 to 80
+    KB of path data - one attribute instead of tens of thousands of output
+    tokens.
+  - **The app measures the pose.** Each assembly's joint pivot is taken from
+    its own bounds (shoulder and hip at the top, neck at the bottom of the
+    head; the body only bobs), and the form hands the helper finished
+    `transform` values to copy character for character. Nothing about the
+    geometry has to be worked out by an AI.
+  - **A ready-made walk cycle.** Eight steps carry frame 0 through a stride
+    and back: arms swing against the legs, the head counter-rotates, the
+    figure bobs by 1.5 percent of its height, and every column sums to zero so
+    the cycle closes and loops. Frame `n` uses step `((n - 1) mod 8) + 1`. A
+    type with no cycle asks the helper to choose the angles with the same
+    mechanics.
+  - **AI helper integration**: the source frame is written to
+    `_temp/animation-source.svg` for the helper to edit in place and a short
+    form (under 3 KB, no geometry in it) to `_temp/animation-form.txt`, which
+    is handed to a configurable shell command (default `claude -p --model
+    sonnet --dangerously-skip-permissions < _temp/animation-form.txt` - a
+    Sonnet-class model is pinned because setting six attributes in a file is
+    mechanical work a mid-size model does quickly; any agentic CLI works -
+    Copilot, Codex, a plain LLM tool). The finished frame is saved to the
+    `animations/` folder (created if missing) as `<base>_<n>.svg`. The app
+    watches for that file and **ends the run the moment a complete document
+    appears**, instead of waiting for the helper process to exit - an agentic
+    CLI keeps working and talking well past its last write, and that wait is
+    what made runs look hung. There is **no overall time limit** - instead a
+    stall guard kills a run with no frame and no output for 5 minutes, so it
+    can never hang - and **Cancel** kills the helper's process tree
+    immediately. A helper that prints its SVG instead of saving it still
+    counts: the markup is taken from stdout when the run ends, saved to the
+    path the form named, and imported like any other frame. The command is the
+    new `animationHelperCommand` setting (a persisted copy of an outdated
+    default upgrades itself on load), and the temp folder is cleared when the
+    wizard ends. Every helper run is recorded in `logs/animation-helper.log`
+    (the `animationLogFile` setting; folder auto-created, kept across temp
+    cleanup): command, the frame it asked for, exit, duration, stderr, and the
+    head of stdout - the place to look when frames do not arrive.
+  - **Frame naming**: a source frame already carrying the animation type
+    (`hero-walk_0`) continues its sequence (`hero-walk_1`, …); anything else
+    starts `animationLayer-<type>_<n>`. The file stem, the root group's `id`,
+    and its `data-name` are all the same string, and each generated frame
+    mirrors its source's nested group structure.
+  - **AI-tool support files**: a new `svg-animations` skill (SKILL.md with the
+    joint-pivot and walk-cycle tables and the transform recipe, Bezier-curve
+    and animation-essentials references, and wireframe pose assets) plus
+    `animation-mode.instructions.md` defining the helper contract, including a
+    worked example of the exact edit a frame requires. Both live canonically
+    in the version-tracked `ai-helper/` folder; the
+    `npm run ai-helper -- --to <claude|github|...>` script (also wired as an
+    env-gated `postinstall`: `NAPKIN_AI_HELPER=claude npm install`) copies
+    them into the gitignored dot-folder an AI tool reads, and every generated
+    form names the skill and points the helper at both locations.
+  - **`vector-graphics` skill**: a second, general-purpose skill installed
+    beside `svg-animations`, covering how to draw a vector graphic from the
+    Bezier formulas rather than by dragging control points. It is written for
+    any project, not for this one: nothing in it assumes napkin-sketch or
+    Animation Mode.
+    - **References** for each degree - `linear-bezier-curve.md` (parametric
+      versus implicit form, De Casteljau's base case, degree elevation),
+      `quadratic-bezier-curve.md` (the spline, tangent-vector, and Bezier
+      forms and the conversions between them; the method of splines),
+      `cubic-bezier-curve.md` (Hermite conversion, coincident-point pull,
+      tool paths, continuity grades, subdivision, and CSS easing) - each with
+      mermaid diagrams, the SVG commands it maps to, and a worked example
+      checked against the textbook derivation.
+    - **`scripts/matlib-script.js`**, a dependency-free CLI and library that
+      takes control points of any degree and emits evaluated points, the
+      parametric polynomial equations, an SVG `d` string, or a complete SVG
+      document. It solves control points from on-curve points (`--through`),
+      splits and elevates curves, approximates a circle with four cubics, and
+      reduces degree 4 and above to a cubic chain by flatness. It uses no
+      imports, so it loads under both CommonJS and ESM projects on Node 18+.
+      `scripts/template.md` is the procedure that drives it.
+    - **Degree elevation** section in SKILL.md: the algorithm that raises a
+      curve's degree without changing its shape
+      ($Q_i = \frac{i}{n+1}P_{i-1} + (1 - \frac{i}{n+1})P_i$, endpoints kept),
+      why it reads as cutting the corner at every original control point, and
+      the fact that repeated elevation walks the control polyline onto the
+      curve as a limiting position. Backed by the script's `--elevate` flag,
+      which leaves the emitted path data byte-identical.
+    - **Shared drawing assets** moved here from `svg-animations`
+      (`shapes.svg`, `objects.svg`, `alphabet.svg`), since they are drawing
+      material rather than animation material; the wireframe pose skeletons
+      stay with `svg-animations`. Both skills now install side by side, so the
+      cross-links between them resolve after install as they do in the
+      repository.
+
+### Changed
+
+- **Default window opens maximized.** The GUI window used to open at its
+  1280x860 default size; it now opens maximized. Maximized is deliberately not
+  the same as full screen: it fills the screen while keeping the title bar's
+  minimize, restore-down, and close buttons in view, and restore-down returns
+  the window to 1280x860. `-f, --full-screen` still opens true full screen,
+  where those buttons are not in view.
+
+### Fixed
+
+- **SVG import keeps the source geometry instead of sampling it.** Generic
+  path data used to be walked with `getPointAtLength` into a polyline - one
+  sample per unit of length - which at a sprite's scale (a 43-unit viewBox)
+  turned every curve into a handful of straight facets, exported as a larger
+  file than the source, and threw the Bézier structure away. The importer
+  now parses path data itself (`M L H V C S Q T A Z`, absolute and relative,
+  implicit repeats, Illustrator's packed numbers) into the cubic anchors the
+  Vector Path tool edits: quadratics are degree-elevated to the identical
+  cubic, arcs become quarter-turn cubic pieces with 4/3·tan(Δθ/4) handles,
+  and `circle`, `ellipse`, `rect` (rounded corners included), `line`,
+  `polyline`, and `polygon` are built from their attributes. Export then
+  writes the same few control points the source held. A compound path stays
+  one stroke: its contours are separate subpaths (a `move` marker on the
+  first anchor and point of each later contour) so an outlined stroke's
+  inner contour, a ring's hole, or a letter's counter fills as a hole on the
+  canvas, in PDF, and in the exported `… Z M …` path data, instead of each
+  contour becoming a solid shape that blacks out what sits beneath it. Data
+  the parser cannot read falls back to length sampling.
+- **Fill-only shapes no longer grow an outline on import.** A source shape
+  with `fill` and no `stroke` was imported as a filled stroke painted with a
+  1-unit outline in the fill color - half a unit of growth all round, which
+  at small scales visibly fattened every shape and exported as
+  `stroke="…"`. Such shapes now import with the outline switched off
+  (`noStroke`) and export as `stroke="none"`, the SVG spelling of what the
+  source said.
+- **Export precision is two decimals**, up from one, so artwork authored in
+  small user units round-trips without its coordinates being quantised to a
+  tenth; `stroke-width` is formatted the same way, so an untransformed
+  element no longer exports as `0.9999999999999999`. Computed `rgb(r, g, b)`
+  colors are written back as `#rrggbb`. Import widths floor at 0.1 instead of
+  0.5, so hairlines in small-unit artwork keep their proportion.
+- **Grid import (`-m`) now scales and offsets vector anchors with their
+  points**; previously only the sampled points moved, so a vector stroke's
+  export would have drawn the curve where it was before placement.
+
 ## [3.3.0-alpha] - 2026-08-22
 
 ### Fixed

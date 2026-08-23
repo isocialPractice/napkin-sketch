@@ -1,7 +1,8 @@
 {
   "name": "napkin-sketch",
-  "version": "3.3.0-alpha",
+  "version": "4.0.0-alpha",
   "description": "Quick and easy computer sketching with a drawing GUI that simulates pen and paper/napkin sketching, featuring an auto-sharpen algorithm that turns stiff computer strokes into more hand-drawn forms.",
+  "author": "John Haugabook",
   "keywords": [
     "sketch",
     "drawing",
@@ -34,6 +35,9 @@
   "files": [
     "dist",
     "assets",
+    "ai-helper",
+    "scripts/install-ai-helper.mjs",
+    "scripts/animation-mode.mjs",
     "README.md",
     "CHANGELOG.md",
     "TODO.md"
@@ -48,6 +52,10 @@
     "test": "node scripts/test.mjs",
     "import-tree": "node scripts/import-tree.mjs",
     "todo": "node scripts/todo.mjs",
+    "wireframe-cycles": "node scripts/wireframe-cycles.mjs",
+    "ai-helper": "node scripts/install-ai-helper.mjs",
+    "animation-mode": "node scripts/animation-mode.mjs",
+    "postinstall": "node scripts/install-ai-helper.mjs --on-clone",
     "start": "npm run build && node dist/cli/index.js --new",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win nsis",
@@ -55,11 +63,9 @@
     "dist:linux": "npm run build && electron-builder --linux AppImage",
     "prepublishOnly": "npm run build && npm run build:types"
   },
-  "dependencies": {
-    "electron": "^31.0.0"
-  },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "electron": "^31.0.0",
     "electron-builder": "^24.13.3",
     "esbuild": "^0.23.0",
     "typescript": "^5.5.0"

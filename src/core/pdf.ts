@@ -262,8 +262,11 @@ export function sketchesToPdf(sketches: Sketch[]): string {
         // Filled shape interior, painted before its outline.
         if (stroke.fill && stroke.tool !== 'eraser' && pts.length > 2) {
           const [fr, fg, fb] = parseCssColor(stroke.fill);
+          // Each `move` point opens a new subpath so compound shapes keep
+          // their holes (`h` closes only the current subpath; `f` closes
+          // the rest implicitly).
           const fillPath =
-            pts.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 ? 'm' : 'l'}`).join(' ') +
+            pts.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 || p.move ? 'm' : 'l'}`).join(' ') +
             ' h f';
           ops.push('q', ...(gs ? [gs] : []), `${col(fr)} ${col(fg)} ${col(fb)} rg`, fillPath, 'Q');
         }
@@ -289,7 +292,7 @@ export function sketchesToPdf(sketches: Sketch[]): string {
             ? // Zero-length round-capped segment renders as a dot.
               `${num(pts[0].x)} ${num(H - pts[0].y)} m ${num(pts[0].x)} ${num(H - pts[0].y)} l S`
             : pts
-                .map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 ? 'm' : 'l'}`)
+                .map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 || p.move ? 'm' : 'l'}`)
                 .join(' ') + ' S';
         ops.push(
           'q',

@@ -4,8 +4,11 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
+import type { AnimationFrameJob } from '../core/animation.js';
 import {
   IPC,
+  type AnimationHelperResult,
+  type AnimationStatusUpdate,
   type ExportFormat,
   type ImageFormat,
   type ImportFileResult,
@@ -15,6 +18,7 @@ import {
   type SaveImagesResult,
   type SaveResult,
 } from '../core/ipc.js';
+import type { AnimationModeStatus } from '../core/animation-install.js';
 import type { LaunchOptions } from '../core/launch.js';
 import type { AppSettings } from '../core/settings.js';
 import type { SketchBook } from '../core/types.js';
@@ -43,6 +47,25 @@ const bridge: NapkinBridge = {
     ipcRenderer.on(IPC.menuAction, listener);
     return () => ipcRenderer.removeListener(IPC.menuAction, listener);
   },
+  runAnimationHelper: (
+    formText: string,
+    job: AnimationFrameJob,
+    sourceSvg: string,
+  ): Promise<AnimationHelperResult> =>
+    ipcRenderer.invoke(IPC.runAnimationHelper, formText, job, sourceSvg),
+  cancelAnimationHelper: (): void => ipcRenderer.send(IPC.cancelAnimationHelper),
+  onAnimationStatus: (handler: (update: AnimationStatusUpdate) => void): (() => void) => {
+    const listener = (_event: unknown, update: AnimationStatusUpdate): void => handler(update);
+    ipcRenderer.on(IPC.animationStatus, listener);
+    return () => ipcRenderer.removeListener(IPC.animationStatus, listener);
+  },
+  getAnimationMode: (): Promise<AnimationModeStatus> =>
+    ipcRenderer.invoke(IPC.getAnimationMode),
+  openAiToolSignIn: (binary: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.openAiToolSignIn, binary),
+  saveAnimationFrame: (name: string, svg: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.saveAnimationFrame, name, svg),
+  clearAnimationTemp: (): Promise<void> => ipcRenderer.invoke(IPC.clearAnimationTemp),
 
   getSettings: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.getSettings),
   updateSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>

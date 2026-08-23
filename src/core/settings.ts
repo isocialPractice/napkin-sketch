@@ -8,6 +8,12 @@
  * stale file can never put the app into an invalid state.
  */
 
+import {
+  DEFAULT_ANIMATION_HELPER_COMMAND,
+  DEFAULT_ANIMATION_LOG_FILE,
+  LEGACY_ANIMATION_HELPER_COMMANDS,
+} from './animation.js';
+
 /** Where the application menu (toolbar) is rendered. */
 export type MenuPlacement = 'top' | 'side' | 'both';
 
@@ -108,6 +114,18 @@ export interface AppSettings {
    * app-wide maximum stroke width.
    */
   copicWidthMultiplier: number;
+  /**
+   * Animation Mode: shell command that runs the AI helper. The command runs
+   * with the temp folder's parent as its working directory and must read the
+   * form from `_temp/animation-form.txt`, then write the frame SVG to the
+   * `animations/` path the form names (or print it to stdout).
+   */
+  animationHelperCommand: string;
+  /**
+   * Animation Mode: where AI helper runs are logged, relative to the
+   * helper's working directory. An empty string disables the log.
+   */
+  animationLogFile: string;
 }
 
 /** Canonical default quick-access colors (the project ink palette). */
@@ -193,6 +211,8 @@ export function defaultSettings(): AppSettings {
     copicRotateCcwKey: 'shift',
     copicRotateSpeedDeg: 90,
     copicWidthMultiplier: 2,
+    animationHelperCommand: DEFAULT_ANIMATION_HELPER_COMMAND,
+    animationLogFile: DEFAULT_ANIMATION_LOG_FILE,
   };
 }
 
@@ -296,6 +316,9 @@ export function normalizeSettings(input: unknown): AppSettings {
     copicWidthMultiplier: clampNumber(
       raw.copicWidthMultiplier, lim.copicWidthMultiplier.min, lim.copicWidthMultiplier.max, base.copicWidthMultiplier,
     ),
+    animationHelperCommand: normalizeAnimationCommand(raw.animationHelperCommand, base),
+    animationLogFile:
+      typeof raw.animationLogFile === 'string' ? raw.animationLogFile.trim() : base.animationLogFile,
   };
 
   result.quickColors = normalizeQuickColors(raw.quickColors, result.quickColorCount);
@@ -311,6 +334,18 @@ export function normalizeSettings(input: unknown): AppSettings {
     used.add(result[field]);
   }
   return result;
+}
+
+/**
+ * Coerces the AI helper command, upgrading a persisted copy of an outdated
+ * default so command fixes reach existing installs; a hand-customized
+ * command is kept verbatim.
+ */
+function normalizeAnimationCommand(value: unknown, base: AppSettings): string {
+  if (typeof value !== 'string' || value.trim().length === 0) return base.animationHelperCommand;
+  const trimmed = value.trim();
+  if (LEGACY_ANIMATION_HELPER_COMMANDS.includes(trimmed)) return base.animationHelperCommand;
+  return trimmed;
 }
 
 /** Coerces an arbitrary value into a valid quick-feature modifier key. */

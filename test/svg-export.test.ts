@@ -387,3 +387,138 @@ test('eraser masks are unaffected by the new paint attributes', () => {
   assert.doesNotMatch(mask, /stroke="none"/);
   assert.match(mask, /stroke="#000"/);
 });
+
+test('toSVG writes the page and its paper by default', () => {
+  const sketch = layeredSketch();
+  const svg = Surface.toSVG(sketch);
+  assert.ok(svg.includes(`viewBox="0 0 ${sketch.width} ${sketch.height}"`));
+  assert.ok(svg.includes(`width="${sketch.width}" height="${sketch.height}"`));
+  assert.match(svg, /<rect width="\d+" height="\d+" fill="[^"]+"\/>/);
+});
+
+test('toSVG crops to a box by offsetting the viewBox, not the geometry', () => {
+  const sketch = layeredSketch();
+  const before = Surface.toSVG(sketch);
+  const svg = Surface.toSVG(sketch, { crop: { minX: 10, minY: 20, maxX: 60, maxY: 100 } });
+  assert.ok(svg.includes('width="50" height="80"'));
+  assert.ok(svg.includes('viewBox="10 20 50 80"'));
+  // Cropping must not move a single mark: the path data is untouched.
+  const paths = (s: string): string[] => [...s.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(paths(svg), paths(before));
+});
+
+test('toSVG rounds a fractional crop and keeps a degenerate box usable', () => {
+  const sketch = layeredSketch();
+  const svg = Surface.toSVG(sketch, {
+    crop: { minX: 1.234, minY: 2.126, maxX: 3.5, maxY: 4.25 },
+  });
+  assert.ok(svg.includes('viewBox="1.23 2.13 2.27 2.12"'), svg.slice(0, 400));
+  const flat = Surface.toSVG(sketch, { crop: { minX: 5, minY: 5, maxX: 5, maxY: 5 } });
+  assert.ok(flat.includes('width="1" height="1"'), 'an empty box still needs a viewport');
+});
+
+test('toSVG leaves out the paper rect when asked for a transparent document', () => {
+  const sketch = layeredSketch();
+  const svg = Surface.toSVG(sketch, { transparent: true });
+  assert.ok(!svg.includes(`fill="${sketch.background}"`), 'no paper rect may remain');
+  assert.match(svg, /<g [^>]*data-name="Base"/, 'the marks are still there');
+  // The eraser mask keeps its own white cover; only the paper goes.
+  assert.ok(svg.includes('<mask'), 'the eraser mask survives');
+});
+
+test('toSVG cropped and transparent is a sprite: sized to the box, no paper', () => {
+  const svg = Surface.toSVG(layeredSketch(), {
+    crop: { minX: 0, minY: 0, maxX: 12, maxY: 14 },
+    transparent: true,
+  });
+  assert.ok(svg.includes('width="12" height="14"'));
+  assert.ok(svg.includes('viewBox="0 0 12 14"'));
+  assert.ok(
+    !svg.includes(`fill="${layeredSketch().background}"`),
+    'a sprite carries no background rectangle',
+  );
+});
+
+test('a cropped export moves the eraser mask cover with the viewBox', () => {
+  // A mask rect left at the origin while the viewBox sits elsewhere covers
+  // none of the ink, and the mask then erases the whole layer.
+  const svg = Surface.toSVG(layeredSketch(), {
+    crop: { minX: 100, minY: 50, maxX: 160, maxY: 130 },
+  });
+  const mask = /<mask id="[^"]+"><rect ([^>]*)\/>/.exec(svg);
+  assert.ok(mask, 'the eraser still exports as a mask');
+  assert.equal(mask[1], 'x="100" y="50" width="60" height="80" fill="#fff"');
+});
+
+test('toSVG writes coordinates and widths at two decimals, without trailing zeros', () => {
+  const sketch = createSketch('fine');
+  sketch.strokes.push({
+    id: 'f1',
+    tool: 'pen',
+    color: '#123456',
+    // Transform dust from an import must not leak into the file.
+    width: 0.9999999999999999,
+    layer: sketch.layers[0].id,
+    points: [
+      { x: 10.256, y: 3.5 },
+      { x: 20.004, y: 8.125 },
+    ],
+  });
+  const svg = Surface.toSVG(sketch);
+  assert.match(svg, /d="M10.26,3.5 L20,8.13"/);
+  assert.match(svg, /stroke-width="1"/);
+});
+
+test('toSVG writes an imported fill-only shape as fill with no outline', () => {
+  const sketch = createSketch('fill-only');
+  sketch.strokes.push({
+    id: 'n1',
+    tool: 'pen',
+    color: '#e9af80',
+    width: 1,
+    fill: '#e9af80',
+    noStroke: true,
+    layer: sketch.layers[0].id,
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+    ],
+    vector: {
+      anchors: [{ p: { x: 0, y: 0 } }, { p: { x: 10, y: 0 } }, { p: { x: 10, y: 10 } }],
+      closed: true,
+    },
+  });
+  const svg = Surface.toSVG(sketch);
+  assert.match(svg, /<path d="M0,0 L10,0 L10,10 L0,0 Z" stroke="none" fill="#e9af80"/);
+});
+
+test('toSVG writes a compound vector stroke as one path with a subpath per contour', () => {
+  const sketch = createSketch('compound');
+  // A square with a square hole: the inner contour starts at a `move` anchor.
+  const outer = [
+    { p: { x: 0, y: 0 } },
+    { p: { x: 10, y: 0 } },
+    { p: { x: 10, y: 10 } },
+    { p: { x: 0, y: 10 } },
+  ];
+  const inner = [
+    { p: { x: 3, y: 3 }, move: true as const },
+    { p: { x: 3, y: 7 } },
+    { p: { x: 7, y: 7 } },
+    { p: { x: 7, y: 3 } },
+  ];
+  sketch.strokes.push({
+    id: 'k1',
+    tool: 'pen',
+    color: '#000000',
+    width: 1,
+    fill: '#000000',
+    noStroke: true,
+    layer: sketch.layers[0].id,
+    points: [...outer, ...inner].map((a) => ({ ...a.p, ...(a.move ? { move: true as const } : {}) })),
+    vector: { anchors: [...outer, ...inner], closed: true },
+  });
+  const svg = Surface.toSVG(sketch);
+  assert.match(svg, /d="M0,0 L10,0 L10,10 L0,10 L0,0 Z M3,3 L3,7 L7,7 L7,3 L3,3 Z"/);
+});

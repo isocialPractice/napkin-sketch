@@ -68,7 +68,12 @@ function normalizeVector(raw: unknown): Stroke['vector'] {
     if (!p) return undefined;
     const hIn = normalizeXY(a.hIn);
     const hOut = normalizeXY(a.hOut);
-    anchors.push({ p, ...(hIn ? { hIn } : {}), ...(hOut ? { hOut } : {}) });
+    anchors.push({
+      p,
+      ...(hIn ? { hIn } : {}),
+      ...(hOut ? { hOut } : {}),
+      ...(a.move === true ? { move: true as const } : {}),
+    });
   }
   if (anchors.length < 2) return undefined;
   return { anchors, ...(r.closed === true ? { closed: true } : {}) };
@@ -118,6 +123,7 @@ function normalizeStroke(raw: unknown): Stroke | null {
             y: pr.y,
             pressure: typeof pr.pressure === 'number' ? pr.pressure : undefined,
             t: typeof pr.t === 'number' ? pr.t : undefined,
+            ...(pr.move === true ? { move: true as const } : {}),
           };
         })
         .filter((p): p is NonNullable<typeof p> => p !== null)

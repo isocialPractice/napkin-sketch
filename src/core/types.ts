@@ -16,6 +16,13 @@ export interface Point {
   pressure?: number;
   /** Timestamp (ms, relative to stroke start) used for velocity-aware sharpening. */
   t?: number;
+  /**
+   * Starts a new subpath. A compound shape (an outline with a hole, a ring,
+   * an island) is one stroke whose points run through several closed
+   * contours; the painter lifts the pen before a `move` point and the fill
+   * rule punches the inner contours out of the outer one.
+   */
+  move?: true;
 }
 
 /**
@@ -85,6 +92,12 @@ export interface VectorAnchor {
   hIn?: { x: number; y: number };
   /** Outgoing direction handle (control point of the leaving segment). */
   hOut?: { x: number; y: number };
+  /**
+   * Starts a new subpath (see {@link Point.move}). A closed compound path
+   * closes every subpath; the segment back to each subpath's own first
+   * anchor is implied, never stored.
+   */
+  move?: true;
 }
 
 /** One color stop along a gradient fill. */

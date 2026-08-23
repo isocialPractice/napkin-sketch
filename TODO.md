@@ -28,13 +28,13 @@ aspirational and unordered within each group.
   pointers can draw on the same page.
 - [ ] **Plugin API v2**: stable, documented extension points (custom tools, custom
   sharpen passes, export targets) with a semver contract.
-- [ ] **Animation Mode** (removed 2026-08-22 pending redesign - the first
-  implementation did not work): pages-as-frames app mode toggled with
-  `Ctrl + Shift + N` or from the Edit menu. Next graphic generated from the
-  selected layer(s)/group(s); frame sequences mapped by layer and page
-  names (`<base>_<n>`, no suffix = frame 1); onion skin; ready-made
-  character/object presets; sequence playback; Help-menu reference for the
-  layer-naming rules.
+- [ ] **Animation Mode follow-ons**: build on the shipped AI-assisted core.
+  - [ ] **Onion skin**: show the neighboring frames at low opacity while a
+    frame layer is active.
+  - [ ] **Sequence playback**: play a page's `<type>_<n>` frame layers in
+    order at a chosen frame rate.
+  - [ ] **Help-menu reference**: an in-app page documenting the required
+    assemblies and the frame layer-naming rules.
 - [ ] **GUI Redesign**: update GUI overall design.
   - Initial sketches
   - Polish and apply
@@ -59,6 +59,40 @@ press a letter, type a value within the quick-feature timer, and it applies.
 
 ## Minor (backward-compatible features → next `x.++.z`)
 
+- [ ] **Animation preset cycles**: walk, idle, and knocked down are driven by
+  cycles measured from skeletons in `character-wireframes.svg`. The
+  rest are offered but posed from a prompt template; each needs a skeleton
+  drawn into the asset, after which `npm run wireframe-cycles` measures it and
+  the type becomes ready with no further code.
+  - [ ] **Character: run**: run cycle with airborne frames and deeper limb swing.
+  - [ ] **Character: damage**: hit reaction recoil and recovery.
+  - [ ] **Character: taunt**: short expressive gesture loop.
+  - [ ] **Character: talk**: mouth and head movement loop for dialogue.
+  - [ ] **Character: jump**: crouch, launch, airborne, and landing frames.
+  - [ ] **Character: fall down**: losing balance through landing prone.
+  - [ ] **Character: attack**: `Punch-Animation` is drawn but not measurable -
+    punch_6 and punch_7 are the same pose, so the step between them moves
+    nothing and duplicates its source frame. Give the punch a distinct last
+    pose, re-run `npm run wireframe-cycles`, and re-map it in the generator.
+  - [ ] **Character: ideal fighting stance**: `Ideal_Fight_Stance-Animation` is
+    drawn in the asset but has no animation type mapped to it yet.
+  - [ ] **Object: rotate**: spin an object around its center or an axis.
+  - [ ] **Object: break**: crack and separate an object into pieces.
+  - [ ] **Object: move**: translate an object along a path with easing.
+  - [ ] **Object: explode**: burst an object outward with debris.
+  - [ ] **Object frame validation**: object animations skip the character
+    assembly check, so nothing yet validates that an object page holds a
+    single group worth animating.
+- [ ] **`vector-graphics` skill follow-ons**: build on the shipped Bezier-curve
+  skill in `ai-helper/skills/vector-graphics/`.
+  - [ ] **Path parser**: teach `matlib-script.js` to read an existing SVG `d`
+    string, not only emit one, so a path can be measured, split, or simplified
+    in place.
+  - [ ] **Simplify pass**: apply the skill's resourcefulness rules to a parsed
+    path - demote collinear-handle cubics to `L`, fold smooth joins into `S`
+    and `T`, and drop control points that do not change the rendered shape.
+  - [ ] **B-spline and NURBS reference**: the source material covers both, and
+    they are what a true circle and local (rather than global) control need.
 - [ ] **Lasso + transform**: free-form lasso selection with scale/rotate handles
   (current Select is rectangular move/delete only).
 - [ ] **Shape tools**: explicit line/rectangle/ellipse/arrow tools that emit clean
@@ -82,6 +116,32 @@ press a letter, type a value within the quick-feature timer, and it applies.
 
 ## Complete
 
+- [x] **Maintain SVG integrity on import and export**: imported path data is
+  parsed into Bézier anchors (quadratics elevated, arcs approximated, shapes
+  built from attributes) rather than sampled into polylines, fill-only shapes
+  stay fill-only, and export writes two-decimal coordinates - so a file
+  imported and exported unedited keeps its geometry. Guided by the
+  `vector-graphics` skill's simplified/resourceful standard.
+  - From: Resolve Issues
+- [x] **Maximized default window**: the GUI window opens maximized instead of at
+  its 1280x860 default size, keeping the minimize, restore-down, and close
+  buttons in view; `-f, --full-screen` still opens full screen without them.
+  - From: Patch
+
+- [x] **Animation Mode** (redesigned; the removed 2026-08-22 first
+  implementation was replaced by an AI-assisted design, and the 2026-08-23
+  batch generation by one frame at a time): app mode toggled with
+  `Ctrl + Shift + N` or Edit > Animation Mode. Validates the page against the
+  required character assemblies, then a wizard maps missing assemblies onto
+  layers and collects the category and animation type (ready-made preset:
+  character walk) - no frame count. Each run hands one pose to a configurable
+  AI helper command, which applies the `svg-animations` skill and advances it a
+  single step by setting one SVG transform per assembly (the app measures the
+  joints and supplies the finished values, so a frame is a file edit, not a
+  redrawn document); the drawn frame imports as a `<type>_<n>` group layer
+  mirroring its source and is offered for Redraw / Keep and draw next / Done,
+  so the sequence runs as long as the cycle needs.
+  - From: Major
 - [x] **Delete key deletes selected layers**: elements first, else the
   highlighted layer rows.
   - From: Minor

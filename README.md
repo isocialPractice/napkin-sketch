@@ -124,10 +124,24 @@ hand-drawn rather than vector-perfect.
 - **Panel state at a glance** — the toolbar's Pages and Layers buttons fill
   in ("Panel in View") while their panel is open and sit flat when it is
   hidden.
+- **Animation Mode** (`Ctrl+Shift+N`, or Edit > Animation Mode) — an
+  **optional add-on** (`npm run animation-mode -- --install`; not part of a
+  default install) that adds a frame-by-frame animation mode driven by an AI
+  helper tool you install and sign in to yourself. The mode
+  validates the page against the required character assemblies, then a
+  wizard maps any missing assemblies onto existing layers, collects the
+  animation type (**character: walk** ships ready-made), and draws the
+  sequence **one frame at a time** through a configurable AI command. The app
+  measures each joint and hands the helper finished SVG transforms, so a frame
+  is a small file edit rather than a redrawn document. Each frame lands as a
+  group layer continuing the `<type>_<n>` sequence and is offered for
+  **Redraw / Keep and draw next / Done**, so there is no frame count to pick
+  up front. See [Animation Mode](#animation-mode) for the
+  workflow and requirements.
 - **Native application menus** — *File* (New, Open, Import, Save, Save As,
-  Export PNG / JPEG / SVG / PDF), *Edit* (Undo, Redo), and *View* with
-  **Fit All in View** (`Ctrl+0`) to bring every graphic on the page into
-  view at once.
+  Export PNG / JPEG / SVG / PDF), *Edit* (Undo, Redo, **Animation Mode**),
+  and *View* with **Fit All in View** (`Ctrl+0`) to bring every graphic on
+  the page into view at once.
 - **Export** to PNG (transparent), JPEG (flattened), **SVG** (lossless vector,
   layers preserved as named groups that Inkscape and Illustrator both read;
   vector-tool strokes write exact cubic Béziers and
@@ -249,11 +263,17 @@ napkin-sketch [option] [target]
 | `-v, --version`          | Show the current version of the application.                          |
 | `-b, --book`             | Open a saved sketch book file, using the `.skbk` extension.           |
 | `-n, --new`              | New sketch, using `unnamed` or the name passed as `[target]`.         |
-| `-f, --full-screen`      | Open the GUI window in full-screen mode.                              |
+| `-f, --full-screen`      | Open the GUI window full screen; the default window is maximized.     |
 | `-i, --import`           | Import an SVG, PDF, PNG, or JPEG file into the opening sketch.        |
 | `-m, --multiple-imports` | Import a comma-separated list of files, laid out in a grid.           |
 | `--sharpen`              | Auto-sharpen a saved sketch so it appears more hand-drawn, then open. |
 | `[target]`               | A `.skbk` file to open, or a name for a new sketch file.              |
+
+The GUI window opens maximized by default, which is not the same as full
+screen: a maximized window fills the screen while keeping the title bar and its
+minimize, restore-down, and close buttons in view, and restore-down returns it
+to its 1280x860 size. Pass `-f, --full-screen` for true full screen, where
+those buttons are not in view.
 
 With `--multiple-imports`, each file's graphic size is measured against the
 page first, then the graphics fill a row left to right and wrap to a new row
@@ -277,7 +297,7 @@ napkin-sketch --book ./notes.skbk
 # Auto-sharpen a saved book on disk, then open it
 napkin-sketch --sharpen ./notes
 
-# Open a new sketch in full-screen mode
+# Open a new sketch full screen (the default window opens maximized)
 napkin-sketch --new -f
 
 # Open a new sketch with logo.svg imported
@@ -344,6 +364,7 @@ napkin-sketch ./notes.skbk
 | Toggle pages             | `Ctrl/Cmd + B`                            |
 | Toggle layers            | `Ctrl/Cmd + L`                            |
 | Toggle properties        | `Ctrl/Cmd + P`                            |
+| Animation Mode           | `Ctrl/Cmd + Shift + N`                    |
 | Import file              | `Ctrl/Cmd + I`                            |
 | Undo                     | `Ctrl/Cmd + Z`                            |
 | Redo                     | `Ctrl/Cmd + Y` or `Ctrl/Cmd + Shift + Z`  |
@@ -599,6 +620,21 @@ anonymous one as `<Group>` — so no wrapper is ever flattened away. A document
 with no groups at all arrives as one top group named after the imported file,
 holding a tag-named layer per element.
 
+**Imported SVGs keep their curves.** Path data is read command by command
+(`M L H V C S Q T A Z`, absolute or relative) into the same Bézier anchors the
+Vector Path tool edits: quadratics are degree-elevated to the identical cubic,
+arcs become the standard quarter-turn cubic approximation, and `<circle>`,
+`<ellipse>`, `<rect>` (rounded corners included), `<line>`, `<polyline>`, and
+`<polygon>` are built from their attributes. A curve that arrived as four
+numbers is exported as four numbers, at two-decimal precision, instead of a
+polyline through hundreds of samples, so a file imported and exported without
+edits keeps its geometry - and a `fill`-only source shape stays fill-only
+rather than gaining an outline in its fill color. A compound path (an outlined
+stroke with its inner contour, a ring, a letter with a counter) stays one
+stroke whose contours are separate subpaths, so its holes fill as holes and
+export as `… Z M …`. Path data the parser cannot read is sampled along its
+length as before.
+
 **CapsLock cursor:** while any drawing tool is active, **CapsLock on** shows a
 precision crosshair; **CapsLock off** shows a circle preview matching the
 current stroke width. The **eraser** shows a dashed circle the size of its
@@ -618,6 +654,186 @@ to beautify strokes automatically as you draw, or leave it off and use
 wobble, smoothing, circle snap, end taper, rotational symmetry, and text size.
 Raising rotational symmetry above 1 fades the mandala guide axes in, and
 dropping it back to 1 fades them out.
+
+### Animation Mode
+
+> **Animation Mode is an optional add-on and is not part of a default
+> install.** It is the only feature that needs software napkin-sketch does not
+> ship — an agentic AI command-line tool — so it is installed separately and
+> can be removed again. See
+> [Installing Animation Mode](#installing-animation-mode) first; everything
+> below assumes it is installed.
+
+`Ctrl + Shift + N` (or **Edit > Animation Mode**) toggles a frame-by-frame
+animation mode. Entering it switches to the Select tool, opens the Layers
+panel, and shows a banner that validates the page live against the six
+required character assemblies:
+
+```text
+front-arm-assembly   body   front-leg-assembly
+back-leg-assembly    back-arm-assembly   Head
+```
+
+Names match case-insensitively and tolerate the `-2` / `_3` uniqueness
+suffixes editors append. Each assembly is normally a layer group holding its
+part groups (for example `front-arm` plus `front-glove` or `front-hand`,
+each with `strokes` and fill sub-groups).
+
+#### Installing Animation Mode
+
+Every other feature of napkin-sketch runs on what the app ships. Animation
+Mode does not: it hands each frame to an **agentic AI command-line tool that
+you install and sign in to yourself** — Claude Code, GitHub Copilot CLI,
+Codex, Gemini, or another tool that can read a prompt file and edit an SVG.
+That is a real extra dependency, with its own installation, its own account,
+and in most cases its own cost, which is why the mode is opt-in rather than
+part of the app.
+
+**A default install leaves it out.** `npm install` adds nothing: no Edit-menu
+entry, no `Ctrl + Shift + N`, no banner, and no AI tool required to run the
+app. Add the mode explicitly:
+
+```bash
+npm run animation-mode -- --status                 # is it installed?
+npm run animation-mode -- --install                # defaults to Claude Code
+npm run animation-mode -- --install --to copilot   # or codex, gemini, cursor…
+npm run animation-mode -- --uninstall              # remove it again
+```
+
+Installing copies the `svg-animations` and `vector-graphics` skills plus the
+helper instructions into that tool's dot-folder (`.claude/`, `.github/`, …)
+and writes `ai-helper/installed.json`. That record is the only thing the app
+reads to decide whether the mode exists, so the feature is genuinely plugged
+in and out rather than merely hidden. **Restart the app** after either
+command.
+
+Before the first run, make sure the tool itself is ready:
+
+1. **Install the AI tool** and check its command runs in a terminal
+   (`claude`, `copilot`, `codex`, `gemini`, …).
+2. **Sign in to it.** Start the tool in a terminal once and follow its own
+   sign-in prompt.
+3. **Point napkin-sketch at it** if it is not Claude Code: set
+   `animationHelperCommand` in **Verbose Settings**.
+
+If a run cannot start the tool, or the tool reports that nobody is signed in,
+the app says so and offers **Open sign-in**, which starts that tool in a
+terminal of its own so it can run its own sign-in. **napkin-sketch never
+asks for, reads, or stores a credential** — your account stays between you
+and your AI tool, and the install record names only which tool was chosen.
+
+**Uninstalling keeps the rest of the app intact.** It removes the two skills
+and the instructions file it installed (anything else in that dot-folder is
+left alone) and deletes the install record. Sketching, layers, export,
+import, pages, and every other feature are unaffected, and the app stops
+needing an AI tool at all.
+
+With the mode installed, the banner's **Generate…** button runs the wizard:
+
+1. **Animation setup** — the category (**Character** or **Object**) and the
+   animation type. **There is no frame count**: frames are drawn one at a
+   time, and the note names the frame the first run will draw (`walk_1`, or
+   `animationLayer-walk_1` for an unnamed source).
+
+   **Every type is selectable.** Three — walk, idle, knocked down — run off
+   cycles **measured from the drawn skeletons** in
+   `character-wireframes.svg`; the other eleven are marked **Work in Progress**
+   and are posed by the AI helper from a **template** carried in the prompt — one sentence describing
+   what a single step of that movement does, and whether the sequence loops.
+   That is what makes them usable now, and why their frames need a closer
+   eye than a walk's:
+
+   | Category | Types |
+   |----------|-------|
+   | Character | walk · idle · run · attack · damage · taunt · talk · jump · fall down · knocked down |
+   | Object | rotate · break · move · explode |
+
+   The list and the templates come from one table in the source, so an option
+   can never appear without the prompt behind it.
+2. **Map missing layers** (character animations only, and skipped when the
+   page already validates) — for each missing assembly, a dialog asks which
+   layers consist of it (Cancel / Back / Next); the chosen layers are grouped
+   under a new group named for the assembly. **Object animations skip this
+   entirely**: they move the graphic as a whole and have no arms or legs to
+   map, so setup comes first and decides whether the assemblies are needed.
+3. **One frame at a time** — the source frame is written to
+   `_temp/animation-source.svg` and a short form (under 3 KB) to
+   `_temp/animation-form.txt`. The helper applies the `svg-animations` skill
+   and **edits that file rather than redrawing it**: it sets one `transform`
+   per assembly and saves the result as `animations/<type>_<n>.svg` (the
+   folder is created if missing). A source frame named `character-walk_1`
+   produces `animations/character-walk_2.svg`; an unnamed source starts a
+   0-based `animationLayer-<type>` sequence. The app ends the run the moment
+   the file is complete — it never waits for the helper to finish talking —
+   and imports the frame as a group layer mirroring the source's structure.
+
+   **Frames stand side by side.** A drawn frame is a copy of its source with
+   the assemblies turned, so it would otherwise land exactly on top of it and
+   hide the new pose. Each frame is placed one gap to the right of the frame
+   it came from and the view fits the page afterwards, so the sequence builds
+   left to right as an animation strip. Only the horizontal position moves;
+   the cycle's vertical bob is part of the pose.
+
+   **Frame files are sprites.** The SVG kept in `animations/` is sized to the
+   ink, not to the napkin-sketch page, and carries no background rect — so a
+   frame drops into an animation composition as it stands, with no empty
+   margin around it and nothing opaque behind it. The box is the frame's
+   stroke bounds grown by half the widest stroke, and it is reached by
+   offsetting the document's `viewBox` rather than moving the geometry. The
+   app rewrites the file from the frame it imported, so the sizing is exact
+   whatever the helper saved.
+
+   **The app measures the pose itself.** Each assembly's joint pivot comes
+   from its own bounds (shoulder and hip at the top, neck at the bottom of the
+   head; the body only bobs), and the form hands the helper finished
+   `transform` values to copy. A group transform rotates every anchor *and its
+   Bezier handles* together, which is the rigid joint rotation a frame needs,
+   and the importer resolves it — so a transformed frame and a redrawn one
+   import identically, but the transform costs one attribute instead of tens
+   of thousands of tokens of SVG. **character: walk** ships with an eight-step
+   cycle that closes and loops; a type without a cycle asks the helper to
+   choose the angles using the same mechanics.
+
+   Each frame is then offered for **Redraw** (discard it and draw the same
+   index again), **Keep and draw next** (that frame becomes the source for
+   the next one), or **Done** — so a sequence runs exactly as long as the
+   cycle needs. There is **no overall time limit**, but a run with no frame
+   and no output for 5 minutes is killed so it can never hang, and **Cancel**
+   kills it immediately. The temp folder is cleared when the wizard ends.
+
+The helper command is the `animationHelperCommand` setting (default
+`claude -p --model sonnet --dangerously-skip-permissions <
+_temp/animation-form.txt` — a Sonnet-class model is pinned because setting six
+attributes in a file is mechanical work that a mid-size model does quickly);
+any agentic CLI that reads the form and edits a file works — Claude Code,
+GitHub Copilot, Codex, or a plain LLM command-line tool. A tool that can only
+print falls back to printing the whole document, which the app recovers from
+stdout and saves itself. The AI-facing contract
+(`animation-mode.instructions.md`) and two supporting skills live canonically
+in the version-tracked `ai-helper/` folder: `svg-animations` (the assembly
+list, joint pivots, cycle tables, transform recipe, Bezier-curve and
+animation-essentials references, and wireframe pose assets) and
+`vector-graphics` (a general Bezier-curve skill - linear/quadratic/cubic
+references, shape, object, and letterform assets, and a dependency-free script
+that derives SVG path data from control points). Every generated form names
+the `svg-animations` skill and tells the helper where to find both; a frame
+turns existing geometry, so `vector-graphics` only comes into play when
+something has to be drawn from scratch. Because AI tool dot-folders are
+commonly gitignored, a fresh clone installs them with:
+
+```bash
+npm run ai-helper -- --to claude        # .claude (default when no --to)
+npm run ai-helper -- --to github        # .github (Copilot)
+npm run ai-helper -- --to cursor        # any other tool dot-folder
+NAPKIN_AI_HELPER=claude,github npm install   # or install on clone via env
+```
+
+**Debugging a run**: every helper invocation is logged to
+`logs/animation-helper.log` (the `animationLogFile` setting; the folder is
+created on first write, an empty value disables the log, and clearing the
+`_temp/` folder never touches it) with the command, the frame it asked for,
+the exit code, duration, stderr, and the start of stdout — check it when a
+frame does not appear.
 
 ## How auto-sharpen works
 

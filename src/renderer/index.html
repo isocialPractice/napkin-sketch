@@ -137,6 +137,13 @@
         </aside>
 
         <main id="stage" class="stage">
+          <!-- Animation Mode banner: mode indicator + required-layer status -->
+          <div id="animation-banner" class="animation-banner is-hidden" role="status" aria-live="polite">
+            <span class="animation-banner-title">Animation Mode</span>
+            <span id="animation-status" class="animation-status"></span>
+            <button id="animation-generate" class="btn btn-primary" type="button" title="Generate animation frames with the configured AI helper">Generate…</button>
+            <button id="animation-exit" class="btn btn-ghost" type="button" title="Exit Animation Mode (Ctrl+Shift+N)">Exit</button>
+          </div>
           <div id="canvas-wrap" class="canvas-wrap">
             <canvas id="canvas" aria-label="Drawing surface"></canvas>
           </div>
@@ -370,6 +377,77 @@
           <div class="export-dialog-actions">
             <button id="page-settings-apply" class="btn btn-primary" type="button">Apply</button>
             <button id="page-settings-close" class="btn btn-ghost" type="button">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animation wizard step 1: map layers onto a missing required assembly -->
+      <div id="anim-step1-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Missing required layers">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Missing required layers</p>
+          <p id="anim-step1-msg" class="anim-dialog-msg">Select layers that consist of the head</p>
+          <div id="anim-step1-list" class="anim-layer-list" role="group" aria-label="Layers to assign"></div>
+          <div class="export-dialog-actions">
+            <button id="anim-step1-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="anim-step1-back" class="btn" type="button">Back</button>
+            <button id="anim-step1-next" class="btn btn-primary" type="button">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animation wizard step 2: category and animation type -->
+      <div id="anim-step2-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Animation setup">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Animation setup</p>
+          <p class="anim-dialog-msg">Frames are drawn one at a time as layers named <code>&lt;type&gt;_0</code>, <code>&lt;type&gt;_1</code>, and on; keep drawing for as long as the cycle needs.</p>
+          <label class="settings-field">
+            <span>Category</span>
+            <!-- Both lists are built from ANIMATION_TYPES at runtime, so the
+                 options offered and the prompt templates behind them can
+                 never drift apart. -->
+            <select id="anim-category"></select>
+          </label>
+          <label class="settings-field">
+            <span>Animation</span>
+            <select id="anim-type"></select>
+          </label>
+          <p id="anim-next-frame" class="anim-dialog-note">First frame drawn: <code>walk_1</code></p>
+          <div class="export-dialog-actions">
+            <button id="anim-step2-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="anim-step2-next" class="btn btn-primary" type="button">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animation wizard step 3: one frame at a time, then keep/redraw/finish -->
+      <div id="anim-step3-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Drawing a frame">
+        <div class="export-dialog-inner">
+          <p id="anim-step3-title" class="export-dialog-title">Drawing frame</p>
+          <div id="anim-progress" class="anim-progress is-busy" role="progressbar" aria-label="The AI helper is drawing a frame">
+            <div id="anim-progress-fill" class="anim-progress-fill"></div>
+          </div>
+          <p id="anim-step3-status" class="anim-dialog-msg" role="status" aria-live="polite">Starting…</p>
+          <div class="export-dialog-actions">
+            <button id="anim-step3-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="anim-step3-redraw" class="btn btn-ghost is-hidden" type="button" title="Discard this frame and draw it again">Redraw</button>
+            <button id="anim-step3-done" class="btn is-hidden" type="button" title="Keep this frame and end the sequence">Done</button>
+            <button id="anim-step3-next" class="btn btn-primary is-hidden" type="button" title="Keep this frame and draw the next one from it">Keep and draw next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI tool sign-in walkthrough: shown when the helper cannot start or
+           is not signed in. napkin-sketch never handles the credential; it
+           only starts the tool so the tool can run its own sign-in. -->
+      <div id="anim-signin-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="AI tool sign-in">
+        <div class="export-dialog-inner">
+          <p id="anim-signin-title" class="export-dialog-title">Sign in to your AI tool</p>
+          <p id="anim-signin-msg" class="anim-dialog-msg" role="status" aria-live="polite"></p>
+          <ol id="anim-signin-steps" class="anim-signin-steps"></ol>
+          <p class="anim-dialog-note">napkin-sketch never sees or stores your credentials - the tool signs you in itself.</p>
+          <div class="export-dialog-actions">
+            <button id="anim-signin-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="anim-signin-open" class="btn btn-primary" type="button">Open sign-in</button>
           </div>
         </div>
       </div>

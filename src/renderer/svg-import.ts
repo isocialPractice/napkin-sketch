@@ -1197,30 +1197,36 @@ function parseDataPoints(attr: string | null): { x: number; y: number }[] | null
   return points.length > 0 ? points : null;
 }
 
-/** Parses a path `d` made only of absolute M/L pairs (napkin export format). */
+/**
+ * Parses a path made only of straight segments - the polyline napkin writes
+ * for a stroke that carries no Bézier structure - back into its points.
+ *
+ * Reads every spelling the exporter picks between: relative or absolute,
+ * `H`/`V` runs, and command letters left off a repeat. Returns null for
+ * anything that curves or closes, which the caller reads as Bézier geometry
+ * instead.
+ */
 function parsePolylineD(d: string): { x: number; y: number }[] | null {
-  if (!d || /[^MLml\s,\-.\d]/.test(d)) return null;
-  if (/[ml]/.test(d)) return null; // relative commands: fall back to sampling
-  const points: { x: number; y: number }[] = [];
-  const matches = d.match(/-?\d*\.?\d+/g);
-  if (!matches || matches.length < 2 || matches.length % 2 !== 0) return null;
-  for (let i = 0; i < matches.length; i += 2) {
-    points.push({ x: Number(matches[i]), y: Number(matches[i + 1]) });
-  }
-  return points;
+  if (!d || /[CcSsQqTtAaZz]/.test(d)) return null;
+  const subpaths = parsePathD(d);
+  if (!subpaths || subpaths.length !== 1) return null;
+  const [sub] = subpaths;
+  if (sub.closed || sub.anchors.some((a) => a.hIn || a.hOut)) return null;
+  return sub.anchors.map((a) => ({ x: a.p.x, y: a.p.y }));
 }
 
 /**
- * Parses a napkin-exported vector path — one absolute `M`, then `L`/`C`
- * segments and an optional trailing `Z` — back into Bézier anchors. A control
- * point sitting on its anchor reads as a collapsed (absent) handle, and a
- * closed path's duplicate final anchor folds onto the first. Returns null on
- * anything else (relative commands, arcs, subpaths), in which case the caller
- * falls back to sampling. Exported for tests.
+ * Parses a napkin-exported vector path - a single subpath of `M`, `L`/`H`/`V`,
+ * `C`/`S` segments and an optional trailing `Z`, in either the absolute or the
+ * relative spelling - back into Bézier anchors. A control point sitting on its
+ * anchor reads as a collapsed (absent) handle, and a closed path's duplicate
+ * final anchor folds onto the first. Returns null on anything else (a
+ * quadratic, an arc, several subpaths), in which case the caller falls back to
+ * sampling. Exported for tests.
  */
 export function parseVectorD(d: string): ParsedSubpath | null {
-  if (!d || !/[CZ]/.test(d)) return null; // open pure polylines parse elsewhere
-  if (/[^MLCZ\s,\-.\d]/.test(d)) return null;
+  if (!d || !/[CcSsZz]/.test(d)) return null; // open pure polylines parse elsewhere
+  if (/[QqTtAa]/.test(d)) return null;
   const subpaths = parsePathD(d);
   // Exactly one subpath: a `Z` followed by more drawing, or a second `M`,
   // is not the format napkin writes.

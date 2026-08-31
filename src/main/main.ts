@@ -5,7 +5,7 @@
  * and reads the launch options the CLI passes via the environment.
  */
 
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage } from 'electron';
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
@@ -160,6 +160,26 @@ function buildMenu(): void {
       submenu: [
         { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => dispatch('undo') },
         { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: () => dispatch('redo') },
+        { type: 'separator' },
+        // The clipboard items show their shortcut but do not claim it:
+        // `registerAccelerator: false` leaves the keypress to the page, where
+        // the renderer ignores it while a text field has focus. Claiming it
+        // here would take Ctrl+C away from the layer-rename box and the
+        // property fields, which is the one place these keys must not mean
+        // "copy the drawing".
+        { label: 'Cut', accelerator: 'CmdOrCtrl+X', registerAccelerator: false, click: () => dispatch('cut') },
+        { label: 'Copy', accelerator: 'CmdOrCtrl+C', registerAccelerator: false, click: () => dispatch('copy') },
+        { label: 'Paste', accelerator: 'CmdOrCtrl+V', registerAccelerator: false, click: () => dispatch('paste') },
+        {
+          label: 'Paste in Place',
+          accelerator: 'CmdOrCtrl+Shift+V',
+          registerAccelerator: false,
+          click: () => dispatch('paste-in-place'),
+        },
+        { label: 'Duplicate', accelerator: 'CmdOrCtrl+D', registerAccelerator: false, click: () => dispatch('duplicate') },
+        { type: 'separator' },
+        { label: 'Delete', accelerator: 'Delete', registerAccelerator: false, click: () => dispatch('delete-selection') },
+        { label: 'Select All', accelerator: 'CmdOrCtrl+A', registerAccelerator: false, click: () => dispatch('select-all') },
         { type: 'separator' },
         { label: 'Verbose Settings…', accelerator: 'CmdOrCtrl+Alt+,', click: () => openSettingsWindow() },
         { label: 'Rearrange Toolbar', click: () => dispatch('toggle-rearrange') },
@@ -908,6 +928,20 @@ function registerIpc(): void {
 
   ipcMain.on(IPC.setTitle, (_event, title: string) => {
     if (typeof title === 'string') mainWindow?.setTitle(title);
+  });
+
+  // ---- System clipboard -----------------------------------------------------
+
+  // A copied selection also goes out as SVG text, so it can be pasted straight
+  // into Illustrator or Inkscape; a paste reads text back the same way, which
+  // is how a graphic copied in one of those gets in here.
+  ipcMain.handle(IPC.writeClipboardSvg, (_event, svgContent: string): void => {
+    if (typeof svgContent === 'string' && svgContent !== '') clipboard.writeText(svgContent);
+  });
+
+  ipcMain.handle(IPC.readClipboardSvg, (): string | null => {
+    const text = clipboard.readText();
+    return typeof text === 'string' && /<svg[\s>]/i.test(text) ? text : null;
   });
 
   // ---- Settings -------------------------------------------------------------

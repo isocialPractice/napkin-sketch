@@ -4,6 +4,247 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0-alpha] - 2026-08-30
+
+### Added
+
+- **Copy and paste**, reachable three ways: the native **Edit** menu, a
+  **right-click on the canvas**, and the **keyboard**.
+  - `Ctrl+C` copy, `Ctrl+X` cut, `Ctrl+V` paste, `Ctrl+Shift+V` paste in
+    place, `Ctrl+D` duplicate. The Edit menu also gained Delete and Select
+    All, which the keyboard already had.
+  - **Paste aims at the pointer.** With the pointer over the canvas the
+    graphic's top-left lands on it; with the pointer elsewhere each paste
+    steps 16px down-right from the last, so repeats stack visibly rather than
+    piling into one spot.
+  - **Paste in Place** returns the elements to the coordinates they were
+    copied from. The clipboard belongs to the app rather than to a page, so
+    this is how a graphic moves to another page without drifting.
+  - **Pasted elements become the selection** and the Select tool takes over,
+    so the copy can be dragged immediately.
+  - **A copied group keeps its layers.** Copying a group and pasting rebuilds
+    the whole tree instead of merging it onto one layer: every nested layer
+    comes back with its own name, opacity, visibility, and lock, and the marks
+    are restacked in the paint order they had, so the pasted graphic is the
+    one that was copied. Exported side by side, the original and the copy are
+    byte-identical SVG.
+    - The copy lands as a **sibling of the original**, at that layer's own
+      nesting level, rather than nested inside the group it came from.
+    - Only the pasted root takes the **" - Copy"** suffix. The layers under it
+      keep the names the source file gave them, which is what leaves an
+      imported SVG readable after a copy.
+    - Pasted onto another page there is no original to sit beside, so the tree
+      goes in at the top level.
+    - A plain canvas selection still pastes flat onto one layer: a few marks
+      picked out with the rubber band are not a structure worth rebuilding.
+      The split is decided by whether the selected *layer rows* include a
+      group, which is exactly the gesture that means "this whole graphic".
+    - `Ctrl+D` duplicate follows the same rule.
+  - **The right-click menu selects what it was opened on**: right-clicking an
+    element that is not part of the selection picks it first, so *Copy* means
+    the thing just clicked rather than whatever was selected beforehand. The
+    layers panel's menu carries the same rows, since a lit row is a selection.
+  - **The system clipboard is included.** A copy also goes out as SVG (cropped
+    to its own ink, transparent), so it pastes into Illustrator or Inkscape;
+    and SVG copied in another editor pastes in here through the same importer
+    File > Import uses, layer tree and all. The SVG written on copy is
+    remembered, so an in-app copy is never replaced by its own lower-fidelity
+    echo, while a newer outside copy does win.
+  - **The clipboard shortcuts stay out of text fields.** The Edit menu items
+    carry `registerAccelerator: false`, which displays the shortcut without
+    claiming it, leaving the keypress to the page - where the renderer already
+    ignores shortcuts while a text field has focus. Claiming them in the menu
+    would have taken `Ctrl+C` away from the layer-rename box and the property
+    fields.
+
+- **The Pages panel has a menu, and there are now three ways to start a page.**
+  A hamburger button beside `+ Page` opens them:
+  - **From Selection** measures whatever is selected, gives the new page those
+    dimensions, and carries a copy of the selection onto it: the graphic gets
+    a page that fits it rather than the other way round, and arrives on that
+    page rather than being left behind on the old one. This copies rather than
+    moves - the originals stay where they were - and the copies land at the
+    new page's origin and become the selection, so the marks that were
+    selected before the page turned are the marks selected after it. Greyed
+    out with nothing selected.
+  - **Default New Page** matches the page in view, which is what `+ Page` has
+    always done and still does.
+  - **Custom New Page…** opens Page Settings with **Sized page** already
+    applied and the width field focused, so a size can be typed for a page
+    that does not exist yet. The dialog's title reads *New Page* and its
+    button reads *Add Page*; the page is only added when that button is
+    pressed, so closing the dialog leaves no empty page behind.
+
+- **Export can export just the selection, cut to its own dimensions.** The
+  Export dropdown gained a **Selection** row that opens the same four formats
+  (PNG, JPEG, SVG, PDF) in a panel beside it, and exports only the selected
+  marks on a document sized to their bounds - no page-sized margin of empty
+  space around the graphic. The bounds are grown by half the widest outline,
+  because stroke bounds follow centerlines and a box drawn on them alone would
+  slice the outer edge of the ink off.
+  - **PNG and SVG come out transparent**, since a graphic cropped to its ink
+    is one about to be dropped into a composition. JPEG and PDF keep the page
+    background, having no usable transparency of their own.
+  - **A lit layer row counts as a selection.** With nothing selected on the
+    canvas but rows highlighted in the Layers panel, those layers and their
+    descendants are what gets exported, so selecting a layer and exporting it
+    is the same gesture either way round.
+  - The SVG route offsets the viewBox rather than moving the marks, so every
+    coordinate is the one a full-page export would have written.
+
+- **Menus can hold nested entries.** The shared context menu grew submenus: a
+  row carrying nested items shows a chevron and opens them in a panel beside
+  itself on hover, on focus, or on a click, flipping to the row's left when a
+  panel on the right would overrun the window.
+
+- **Shift pins a drag to an axis or a 45-degree diagonal.** Held during a
+  drag, it constrains the movement to the nearest of the eight compass
+  directions.
+  - **The axis comes from the pointer's own travel** since the drag began, and
+    is re-chosen on every move, so swinging around the start point swaps the
+    drag onto the line it now points down.
+  - **The movement is projected onto that line** rather than having its
+    off-axis component zeroed, so the thing being dragged keeps level with the
+    pointer's component along the line instead of lagging at its perpendicular
+    foot. Letting Shift go hands the drag back to the pointer, because the
+    drag tracks where it actually put things rather than where the pointer is.
+  - Applied to **moving a selection** (and so to the Alt-drag copy, which
+    shares that path), to **Direct Select / Vector Path** drags of an anchor, a
+    handle, or a whole path, and to the **Space + drag pan**. Drags where
+    Shift already means something keep that meaning: the rubber-band marquee
+    (add to selection), drawing (endpoint snap), the quick curve (swing the
+    apex), and the shape tools.
+  - The axes are a fixed table of unit vectors rather than `cos`/`sin` of a
+    snapped angle, so a straight-across drag stays exactly straight instead of
+    picking up the 6e-17 of vertical that `Math.cos(Math.PI / 2)` returns.
+  - `constrainDrag` lives in `sharpen/geometry.ts` with the other pure
+    geometry, and is covered by unit tests.
+
+- **A Shift-press on an already-selected element no longer drops it before it
+  can be dragged.** Shift-click has always toggled selection membership, which
+  meant a Shift-press on a selected element removed it and returned without
+  starting a drag - leaving nothing for the new constraint to act on, and
+  making the most obvious gesture for it (Shift, then drag what is selected)
+  do the opposite of what it looks like. The removal now waits for the
+  release: a Shift-press that never moves is still a Shift-click, and one that
+  moves is a constrained drag.
+
+- **An Alt-drag copy says so in the pointer.** Holding Alt over a selection
+  with the Select tool - and for as long as the copy is being dragged - swaps
+  the arrow for two: the usual one at the hotspot, a second stepped out beside
+  it in the inverse fill, and a node square beside them. The offset arrow sits
+  clear to the right rather than laid over the first, because two arrows
+  sharing a diagonal tangle into one thick smear. Alt is tracked for every
+  tool now (it used to be read only by the Vector Path tool) and is re-read
+  from each pointer event, so the pointer stays right even when the keypress
+  landed in another window.
+
+- **A button that drops a menu now toggles it.** Pressing Export, the pages
+  panel's hamburger, or Close Shape a second time puts its menu away, and a
+  third press brings it back. The button reads as pressed for as long as its
+  menu is out, so it is clear which button the panel belongs to. The press
+  that lands on the owning button is exempted from the outside-press dismissal
+  that closes the menu, or that dismissal and the toggle would cancel each
+  other out and the menu would never close.
+
+### Fixed
+
+- **The layers panel moved only one row of a multi-row selection.** Select
+  several layers, press Move Up, and only the active one shifted. Every
+  selected row moves now.
+  - Each travels as a **block** - the layer plus everything nested under it -
+    and moves among its **own siblings**, so a layer never leaks out of the
+    group it lives in. (The old single-layer move swapped with whatever sat
+    next in the flat stack, which could carry a layer across a group boundary
+    without changing its parent.)
+  - Blocks move destination-first, which keeps the selection's internal order
+    and lets a block that has reached the end hold the ones behind it instead
+    of letting them pile through.
+  - **A selected group can be restacked now**, carrying its contents. It used
+    to be refused outright ("Group rows cannot be restacked"), and the panel's
+    move buttons greyed out whenever a group row was active. They now grey out
+    only where the selection genuinely has nowhere to go.
+
+- **The Alt-drag copy lost a graphic's groups when the selection came from the
+  canvas.** Selecting a whole imported graphic with `Ctrl+A` or a rubber band
+  and Alt-dragging produced a flat pile of `" - copy"` leaves scattered inside
+  the original groups, with every nested group gone; the same drag started
+  from the group's panel row kept the tree. The two now behave alike.
+  - The copy decides what a group is from the marks, not from which rows
+    happen to be lit: **a group joins the copy when every one of its
+    mark-carrying layers is in the copy already**. That makes a rubber band
+    around a whole graphic the same gesture as clicking the row above it, and
+    it is the rule for `Ctrl+C`/`Ctrl+V`, `Ctrl+D`, and Alt-drag alike.
+  - Alt-drag now runs through the same tree-rebuilding paste the clipboard
+    uses, so its copies land as a sibling of the original with only the root
+    suffixed. The suffix is `" - Copy"` everywhere now; Alt-drag used to spell
+    it `" - copy"`.
+
+- **Paste refused onto a group, calling it "locked or hidden".** Selecting an
+  imported graphic by clicking its group row - the obvious way to grab the
+  whole thing - made a group the active layer, and paste, duplicate, and
+  placing an imported raster all read that as a layer they could not draw on.
+  A group is neither locked nor hidden: it simply holds no marks itself, so a
+  fresh layer now drops inside it and the operation carries on, which is what
+  the drawing tools have always done in the same situation.
+  - The check the drawing tools use is now shared rather than half-copied,
+    so all four paths behave alike and the message says which of locked or
+    hidden actually applies instead of naming both.
+
+- **A nested menu panel could not be reached with the pointer.** Hovering
+  Export > Selection opened the panel, but it vanished before the pointer got
+  to it, which made the whole row unusable.
+  - **Its own rows were dismissing it.** Both panels are built by the same
+    routine, so every row in the nested panel carried the "a plain row was
+    entered, put the nested panel away" handler that belongs only to rows in
+    the *parent* menu. Entering the panel's first item therefore started its
+    own dismissal. The panel element's `pointerenter` could not undo that: it
+    fires once on the way in and never again as the pointer moves between the
+    rows inside. Rows in a nested panel now cancel the dismissal instead of
+    starting it.
+  - **Dismissal waits a moment.** The nested panel is a separate element
+    sitting beside the parent menu, so a pointer travelling toward it crosses
+    rows it is not aiming at. Entering a parent row now schedules the close
+    after a short grace period rather than closing outright, and reaching the
+    panel cancels it. Resting on another row still puts the panel away.
+
+### Changed
+
+- **An imported SVG re-exports smaller than it arrived, instead of nearly
+  double.** The exporter now writes path data at its shortest exact spelling,
+  and the geometry is unchanged to the coordinate. Four reductions, none of
+  which moves a curve:
+  - **Absolute or relative, whichever is shorter, per command.** A repeated
+    command letter is dropped, an axis-aligned line collapses onto `H`/`V`,
+    and a cubic whose incoming handle mirrors the outgoing handle before it
+    collapses onto `S` - the same curve in two numbers instead of four.
+    Relative deltas are measured from the *rounded* current point, so a reader
+    reconstructs the absolute coordinate exactly and nothing drifts along a
+    long path.
+  - **Numbers drop what nobody needs to read**: two decimals as before, but no
+    trailing zeros, no leading zero on a fraction (`.5`, not `0.5`), and no
+    separator where the next number already delimits itself.
+  - **Shared paint is stated once, on the root element.** `fill="none"`, round
+    caps and round joins, and whichever `stroke-width` most marks share ride
+    on the `<svg>` and inherit; only the odd mark out names its own.
+  - **Defaults go unwritten**: a fully opaque mark says nothing about
+    `opacity`, and a width of 1 is what SVG already assumes.
+  - Measured on the test fixtures and the vector-graphics skill's assets, a
+    round trip lands between **0.27x and 1.05x** of the source, against
+    **1.14x to 1.49x** before, and all 77 paths across those files parse back
+    to byte-identical anchors and handles.
+
+- **The importer reads the compacted spellings.** `parsePolylineD` and
+  `parseVectorD` are built on the full path parser now instead of their own
+  narrow regexes, so relative commands, `H`/`V` runs, reflected `S` handles,
+  and elided command letters all read back the way absolute `M`/`L`/`C` did.
+  Without this a napkin export would have re-imported through the sampling
+  fallback and stopped round-tripping losslessly.
+
+- **`Surface.render` can leave the paper off.** A new `transparent` option
+  skips the background, the paper texture, and the sized-page outline, which
+  is what lets a cropped raster export of a selection land on transparency.
+
 ## [4.0.0-alpha] - 2026-08-28
 
 ### Added

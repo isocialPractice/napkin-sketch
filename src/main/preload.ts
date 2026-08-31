@@ -47,6 +47,9 @@ const bridge: NapkinBridge = {
     ipcRenderer.on(IPC.menuAction, listener);
     return () => ipcRenderer.removeListener(IPC.menuAction, listener);
   },
+  writeClipboardSvg: (svgContent: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.writeClipboardSvg, svgContent),
+  readClipboardSvg: (): Promise<string | null> => ipcRenderer.invoke(IPC.readClipboardSvg),
   runAnimationHelper: (
     formText: string,
     job: AnimationFrameJob,

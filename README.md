@@ -114,16 +114,59 @@ hand-drawn rather than vector-perfect.
   exact `px`/`in`/`mm`/`pt` size, uniform by default). Because selecting a
   layer row selects its elements, it doubles as the layer's own property
   sheet.
+- **Hold Shift while dragging to pin the movement** to the nearest **axis or
+  45-degree diagonal**. The direction is taken from the pointer's own travel
+  since the drag began and re-chosen as it moves, so swinging around the start
+  point swaps the drag onto the line it now points down; the movement is
+  *projected* onto that line, so the thing being dragged keeps up with the
+  pointer instead of lagging at its perpendicular foot. Letting Shift go hands
+  the drag straight back to the pointer.
+  It applies to **moving a selection** (and so to the Alt-drag copy), to
+  **Direct Select and Vector Path** drags of an anchor, a handle, or a whole
+  path, and to the **Space + drag pan**. Drags where Shift already means
+  something else keep that meaning: the rubber-band marquee (Shift adds to the
+  selection), drawing (Shift snaps to an endpoint), the quick curve (Shift
+  swings the apex), and the shape tools.
+- **Shift-click still toggles selection membership** — but on an element that
+  is *already* selected the removal now waits for the release, so the same
+  press can start a Shift-constrained drag instead. A Shift-press that never
+  moves is still a Shift-click.
+- **Layer restacking moves the whole selection.** The panel's move buttons
+  (and `Ctrl+]` / `Ctrl+[`) shift every selected row one step, not just the
+  active one; the selection keeps its own order, unselected rows keep theirs,
+  and a row that has reached the end of the stack holds the ones behind it
+  rather than letting them pile through. A **selected group travels as a
+  block**, carrying everything nested inside it, and a layer only moves among
+  its own siblings, so it never leaks out of the group it lives in.
 - **Sketchbook pages** with a toggleable, **resizable thumbnail panel**,
   page-turn animation, and add/delete/navigate controls — flip back to any
   earlier page. Thumbnails render at the display's device pixel ratio, so they
   stay crisp on HiDPI screens and at any panel width.
   A **right-click menu** on the panel adds **Page Settings**, which toggles a
   page between **endless** (fills the window, the default) and **sized**
-  (an exact width and height with a dashed page outline).
+  (an exact width and height with a dashed page outline). The panel's
+  **hamburger menu** (the three bars beside `+ Page`) holds the three ways to
+  start a page: **From Selection** measures the current selection, gives the
+  new page those dimensions, and brings a **copy of the selection with it** -
+  the copies land at the new page's origin and stay selected, while the
+  originals stay where they were; **Default New Page** matches the page in
+  view (what `+ Page` has always done); and **Custom New Page…** opens Page
+  Settings with **Sized page** already applied so a width and height can be
+  typed - the page is only added when **Add Page** is pressed, so closing the
+  dialog leaves nothing behind.
 - **Panel state at a glance** — the toolbar's Pages and Layers buttons fill
   in ("Panel in View") while their panel is open and sit flat when it is
   hidden.
+- **Menu buttons toggle** — a button that drops a menu (Export, the pages
+  panel's hamburger, Close Shape) reads as pressed while its menu is out, and
+  pressing it again puts the menu away. A menu row with nested entries opens
+  them beside itself on hover, and that panel stays put long enough to be
+  reached across the rows in between.
+- **Right-click the canvas** for Cut, Copy, Paste, Paste in Place, Duplicate,
+  Delete, Select All, and Deselect All. Right-clicking an element that is not
+  selected picks it first, so *Copy* means the thing just clicked. The layers
+  panel's own menu carries the same clipboard rows, since a lit layer row is a
+  selection.
 - **Animation Mode** (`Ctrl+Shift+N`, or Edit > Animation Mode) — an
   **optional add-on** (`npm run animation-mode -- --install`; not part of a
   default install) that adds a frame-by-frame animation mode driven by an AI
@@ -139,9 +182,53 @@ hand-drawn rather than vector-perfect.
   up front. See [Animation Mode](#animation-mode) for the
   workflow and requirements.
 - **Native application menus** — *File* (New, Open, Import, Save, Save As,
-  Export PNG / JPEG / SVG / PDF), *Edit* (Undo, Redo, **Animation Mode**),
+  Export PNG / JPEG / SVG / PDF), *Edit* (Undo, Redo, **Cut / Copy / Paste /
+  Paste in Place / Duplicate**, Delete, Select All, **Animation Mode**),
   and *View* with **Fit All in View** (`Ctrl+0`) to bring every graphic on
   the page into view at once.
+- **Copy and paste** (`Ctrl+C` / `Ctrl+X` / `Ctrl+V`), from the Edit menu, a
+  right-click on the canvas, or the keyboard:
+  - **Paste lands under the pointer** when the pointer is over the canvas, and
+    steps down-right from the copied position when it is not, so a run of
+    pastes stacks visibly instead of piling up in one spot.
+  - **Paste in Place** (`Ctrl+Shift+V`) puts the elements back at the exact
+    coordinates they were copied from — the way to move a graphic to another
+    page without it drifting. The clipboard belongs to the app, not to a page,
+    so a copy taken on one page pastes onto any other.
+  - **Duplicate** (`Ctrl+D`) copies and pastes in one step without disturbing
+    the clipboard, and keeps a group's layers the same way a paste does.
+  - **Alt-drag** copies the selection and drags the copy, leaving the original
+    where it was. While Alt is held over a selection - and for as long as the
+    copy is being dragged - the pointer becomes **two arrows**: the usual one
+    at the hotspot and a second stepped out beside it in the inverse fill,
+    with a node square beside them, so the modifier shows its effect before
+    the drag commits to it.
+  - Pasted elements become the selection and the Select tool takes over, so
+    the new copy can be dragged straight away.
+  - **A copied group keeps its layers**, however the group was reached.
+    Clicking its row and rubber-banding its marks are the same gesture: a
+    group joins the copy when every one of its mark-carrying layers is in the
+    copy already. Pasting then rebuilds the tree rather than flattening it -
+    every nested layer comes back with its own name, opacity, visibility, and
+    lock, and the marks keep the paint order they had, so the graphic is
+    identical to the one copied. This holds for `Ctrl+V`, `Ctrl+D`, and the
+    Alt-drag copy alike. The copy lands as a **sibling of
+    the original**, at the same nesting level rather than inside it, and only
+    the pasted root takes a **" - Copy"** suffix; the layers under it keep the
+    names the source file gave them. Pasted onto another page, where there is
+    no original to sit beside, the tree goes in at the top level.
+  - **A plain canvas selection still pastes flat**, onto one layer, the way
+    any element lands - a few marks picked out with the rubber band are not a
+    structure worth rebuilding.
+  - **A group row is a fine place to paste onto.** Selecting an imported
+    graphic by its group row and pasting a *flat* clipboard drops a new layer
+    inside that group and carries on, the same way drawing on a group does.
+    Only a genuinely locked or hidden layer refuses, and it says which.
+  - **The system clipboard comes too**: a copy also goes out as SVG, so it can
+    be pasted into Illustrator or Inkscape, and a graphic copied in one of
+    those pastes in here (as layers, through the same importer the File >
+    Import path uses). An in-app copy wins over its own SVG echo; a newer
+    outside copy wins over the in-app one.
 - **Export** to PNG (transparent), JPEG (flattened), **SVG** (lossless vector,
   layers preserved as named groups that Inkscape and Illustrator both read;
   vector-tool strokes write exact cubic Béziers and
@@ -151,6 +238,13 @@ hand-drawn rather than vector-perfect.
   format offers **Export current page** or **Export all pages** — raster and
   SVG save `name_1.ext`, `name_2.ext`, …, while PDF writes all pages into one
   document.
+  The dropdown's **Selection** row opens the same four formats one level in and
+  exports **only what is selected, on a document cut to its own dimensions** —
+  no page-sized margin of empty space around the graphic. PNG and SVG come out
+  transparent, since a graphic cropped to its ink is one about to be dropped
+  into a composition; JPEG and PDF keep the page background, having no usable
+  transparency of their own. With nothing selected but layer rows lit in the
+  Layers panel, those layers and their descendants are what gets exported.
 - **Import** (`Ctrl + I`) of **SVG** (vector shapes become editable strokes,
   **groups become nested, collapsible layer groups, and every named object
   becomes its own layer**, so an Illustrator or Inkscape file lands with the
@@ -639,6 +733,34 @@ length as before.
 precision crosshair; **CapsLock off** shows a circle preview matching the
 current stroke width. The **eraser** shows a dashed circle the size of its
 footprint, so the area about to be cleared is visible before pressing.
+
+**Exported SVGs are written small.** An import followed by an export used to
+come back larger than the file that went in; it now comes back smaller, with
+the geometry unchanged to the coordinate. Four reductions do it, none of which
+moves a curve:
+
+- **Path data takes its shortest exact spelling.** Every command is offered in
+  both its absolute and its relative form and the shorter one wins, a repeated
+  command letter is dropped (readers carry it over), an axis-aligned line
+  collapses onto `H`/`V`, and a cubic whose incoming handle mirrors the
+  outgoing handle before it collapses onto `S` — the identical curve in two
+  numbers instead of four. Relative deltas are measured from the *rounded*
+  current point, so a reader reconstructs the absolute coordinate exactly and
+  nothing drifts along a long path.
+- **Numbers drop what nobody needs to read.** Two decimals, no trailing zeros,
+  no leading zero on a fraction (`.5`, not `0.5`), and no separator where the
+  next number already delimits itself.
+- **Shared paint is stated once, on the root element.** `fill="none"`, round
+  caps and round joins, and whichever `stroke-width` most marks happen to
+  share ride on the `<svg>` and inherit; only the odd mark out names its own.
+- **Defaults go unwritten.** A fully opaque mark says nothing about `opacity`,
+  and a width of 1 is what SVG already assumes.
+
+Measured on the test fixtures and the vector-graphics skill's own assets, a
+round trip lands between **0.27x and 1.05x** of the source file, against
+**1.14x to 1.49x** before — and all 77 paths across those files parse back to
+byte-identical anchors and handles. The importer reads every one of these
+spellings, so napkin's own exports still round-trip losslessly.
 
 **Exported SVGs keep their layer names.** Each layer's group carries its name
 three ways — `data-name` (napkin's own), `inkscape:label` with

@@ -57,6 +57,16 @@ export interface LiveStroke extends Stroke {
   points: Point[];
 }
 
+/** What a render puts under the ink. */
+export interface RenderOptions {
+  /**
+   * Leave the paper unpainted - no background, no texture, no page outline -
+   * so the ink lands on transparency. What a cropped export of a selection
+   * wants, for the same reason a sprite frame does.
+   */
+  transparent?: boolean;
+}
+
 /** Extra, transient things to overlay on top of the sketch. */
 export interface Overlay {
   /** Ids of currently selected strokes (drawn with a highlight outline). */
@@ -267,14 +277,20 @@ export class Surface {
   }
 
   /** Renders a full sketch plus an optional in-progress live stroke and overlay. */
-  render(sketch: Sketch, live?: LiveStroke | null, overlay?: Overlay): void {
+  render(sketch: Sketch, live?: LiveStroke | null, overlay?: Overlay, options?: RenderOptions): void {
     const ctx = this.ctx;
     ctx.save();
     ctx.scale(this.dpr, this.dpr);
-    this.paintBackground(sketch.background);
-    this.paintPaperTexture();
-    if (sketch.sizeMode === 'sized') this.paintPageBounds(sketch.width, sketch.height);
-    const symmetryAlpha = overlay?.symmetryAlpha ?? 1;
+    if (options?.transparent) {
+      // A cropped export drops into somebody else's composition, so no paper,
+      // no texture, and no page outline goes under the ink.
+      ctx.clearRect(0, 0, this.cssWidth, this.cssHeight);
+    } else {
+      this.paintBackground(sketch.background);
+      this.paintPaperTexture();
+      if (sketch.sizeMode === 'sized') this.paintPageBounds(sketch.width, sketch.height);
+    }
+    const symmetryAlpha = options?.transparent ? 0 : overlay?.symmetryAlpha ?? 1;
     if (overlay?.symmetry && overlay.symmetry > 1 && symmetryAlpha > 0) {
       this.paintSymmetryGuide(overlay.symmetry, symmetryAlpha);
     }
@@ -776,11 +792,12 @@ export class Surface {
   static renderSketchToDataURL(
     sketch: Sketch,
     format: 'image/png' | 'image/jpeg' = 'image/png',
+    options: RenderOptions = {},
   ): string {
     const canvas = document.createElement('canvas');
     const surf = new Surface(canvas);
     surf.resize(sketch.width, sketch.height);
-    surf.render(sketch);
+    surf.render(sketch, null, undefined, options);
     return surf.toDataURL(format, format === 'image/jpeg' ? sketch.background : undefined);
   }
 
@@ -818,6 +835,7 @@ export class Surface {
     const defs: string[] = [];
     const usedIds = new Set<string>();
     const layerIndex = new Map(sketch.layers.map((layer, i) => [layer.id, i]));
+    const defaults = paintDefaults(sketch);
 
     // A rect covering the whole document window, wherever the viewBox sits.
     // The eraser mask needs that cover as much as the paper does: a mask rect
@@ -878,7 +896,7 @@ export class Surface {
         defs.push(
           `<mask id="${maskId}">` +
             coverRect('#fff') +
-            erasers.map((s) => svgPath(s, sketch.strokes.indexOf(s), '#000')).join('') +
+            erasers.map((s) => svgPath(s, sketch.strokes.indexOf(s), defaults, '#000')).join('') +
             `</mask>`,
         );
         attrs.push(`mask="url(#${maskId})"`);
@@ -891,7 +909,7 @@ export class Surface {
           if (isTextStroke(s)) return svgText(s, order);
           if (isImageStroke(s)) return svgImage(s, order);
           if (s.tool === 'copic') return svgCopic(s, order);
-          return svgPath(s, order, undefined, defs);
+          return svgPath(s, order, defaults, undefined, defs);
         })
         .filter(Boolean);
 
@@ -899,9 +917,14 @@ export class Surface {
     };
 
     const groups = topLevel.map(emitLayer).filter((g): g is string => g !== null);
+    // Inherited paint, stated once. `stroke-width` is only worth naming when
+    // the shared width is not the 1 that SVG already defaults to.
+    const rootPaint =
+      ` fill="none" stroke-linecap="round" stroke-linejoin="round"` +
+      (defaults.strokeWidth === 1 ? '' : ` stroke-width="${fmt(defaults.strokeWidth)}"`);
     const parts: string[] = [
       `<?xml version="1.0" encoding="utf-8"?>`,
-      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${width}" height="${height}" viewBox="${viewX} ${viewY} ${width} ${height}" data-generator="napkin-sketch">`,
+      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${width}" height="${height}" viewBox="${viewX} ${viewY} ${width} ${height}"${rootPaint} data-generator="napkin-sketch">`,
     ];
     // A transparent document leaves no paper under the marks, which is what
     // lets a frame drop into a composition without a rectangle behind it.
@@ -1156,6 +1179,194 @@ function fmt(n: number): string {
   return String(Math.round(n * 100) / 100);
 }
 
+/**
+ * Formats a path-data coordinate: two decimals, no trailing zeros, and no
+ * leading zero in front of a fraction (`.5`, `-.5`). Path data is where the
+ * numbers are, so the two bytes every SVG reader is happy to do without are
+ * worth dropping there even though {@link fmt} keeps them in attributes.
+ */
+function fmtPathNum(n: number): string {
+  const s = String(Math.round(n * 100) / 100);
+  if (s.startsWith('0.')) return s.slice(1);
+  if (s.startsWith('-0.')) return `-${s.slice(2)}`;
+  return s;
+}
+
+/**
+ * Renders one path command without committing it, so a caller can price two
+ * spellings of the same segment against each other.
+ *
+ * The command letter is left out when it repeats the previous one (readers
+ * carry it over), and a separator is left out wherever the next number is
+ * self-delimiting: a leading `-` always is, and a leading `.` is once the
+ * number before it has already spent its decimal point.
+ */
+function renderCommand(
+  letter: string,
+  nums: number[],
+  lastLetter: string,
+  prevNum: string,
+): { text: string; prevNum: string } {
+  let text = letter === lastLetter ? '' : letter;
+  let prev = letter === lastLetter ? prevNum : '';
+  for (const n of nums) {
+    const token = fmtPathNum(n);
+    const joined =
+      prev !== '' && !(token.startsWith('-') || (token.startsWith('.') && prev.includes('.')));
+    text += joined ? ` ${token}` : token;
+    prev = token;
+  }
+  return { text, prevNum: prev };
+}
+
+/**
+ * Builds SVG path data at the smallest byte count that still parses back to
+ * the exact coordinates written.
+ *
+ * Four reductions, none of which moves a curve: every command is offered in
+ * both its absolute and its relative spelling and the shorter one wins; a
+ * repeated command letter is dropped; an axis-aligned line collapses to
+ * `H`/`V`; and a cubic whose incoming handle mirrors the outgoing handle of
+ * the cubic before it collapses to `S`, which draws the identical curve with
+ * two numbers instead of four.
+ *
+ * Relative deltas are measured from the *rounded* current point rather than
+ * the true one, so a reader reconstructs the rounded absolute coordinate
+ * exactly and nothing drifts along a long path.
+ */
+class PathData {
+  private text = '';
+  private prevNum = '';
+  private last = '';
+  private x = 0;
+  private y = 0;
+  private startX = 0;
+  private startY = 0;
+  /** Second control point of the cubic just written; null after anything else. */
+  private ctrl: { x: number; y: number } | null = null;
+
+  toString(): string {
+    return this.text;
+  }
+
+  moveTo(px: number, py: number): void {
+    const x = round2(px);
+    const y = round2(py);
+    this.emit('M', [x, y], [round2(x - this.x), round2(y - this.y)]);
+    // A further coordinate pair after a moveto is an implicit lineto, so that
+    // is the letter the next command has to beat.
+    this.last = this.last === 'M' ? 'L' : 'l';
+    this.x = x;
+    this.y = y;
+    this.startX = x;
+    this.startY = y;
+    this.ctrl = null;
+  }
+
+  lineTo(px: number, py: number): void {
+    const x = round2(px);
+    const y = round2(py);
+    if (y === this.y && x !== this.x) {
+      this.emit('H', [x], [round2(x - this.x)]);
+    } else if (x === this.x && y !== this.y) {
+      this.emit('V', [y], [round2(y - this.y)]);
+    } else {
+      this.emit('L', [x, y], [round2(x - this.x), round2(y - this.y)]);
+    }
+    this.x = x;
+    this.y = y;
+    this.ctrl = null;
+  }
+
+  curveTo(c1x: number, c1y: number, c2x: number, c2y: number, px: number, py: number): void {
+    const ax = round2(c1x);
+    const ay = round2(c1y);
+    const bx = round2(c2x);
+    const by = round2(c2y);
+    const x = round2(px);
+    const y = round2(py);
+    // A smooth join writes its leading handle as the reflection of the last
+    // one, which is what `S` infers for free.
+    const smooth =
+      this.ctrl !== null &&
+      ax === round2(2 * this.x - this.ctrl.x) &&
+      ay === round2(2 * this.y - this.ctrl.y);
+    if (smooth) {
+      this.emit(
+        'S',
+        [bx, by, x, y],
+        [round2(bx - this.x), round2(by - this.y), round2(x - this.x), round2(y - this.y)],
+      );
+    } else {
+      this.emit(
+        'C',
+        [ax, ay, bx, by, x, y],
+        [
+          round2(ax - this.x),
+          round2(ay - this.y),
+          round2(bx - this.x),
+          round2(by - this.y),
+          round2(x - this.x),
+          round2(y - this.y),
+        ],
+      );
+    }
+    this.x = x;
+    this.y = y;
+    this.ctrl = { x: bx, y: by };
+  }
+
+  close(): void {
+    this.emit('Z', [], []);
+    this.x = this.startX;
+    this.y = this.startY;
+    this.ctrl = null;
+  }
+
+  /** Writes whichever of the two spellings costs fewer bytes here. */
+  private emit(absolute: string, absArgs: number[], relArgs: number[]): void {
+    const abs = renderCommand(absolute, absArgs, this.last, this.prevNum);
+    const relative = absolute.toLowerCase();
+    const rel = renderCommand(relative, relArgs, this.last, this.prevNum);
+    const shorter = rel.text.length < abs.text.length;
+    this.text += shorter ? rel.text : abs.text;
+    this.prevNum = shorter ? rel.prevNum : abs.prevNum;
+    this.last = shorter ? relative : absolute;
+  }
+}
+
+/**
+ * Paint that the root `<svg>` element states once for every mark below it to
+ * inherit, instead of each `<path>` repeating it. `fill="none"`, round caps
+ * and round joins are what a napkin mark always is; the width is whichever
+ * one most of the marks on the page happen to share.
+ */
+interface SvgPaintDefaults {
+  strokeWidth: number;
+}
+
+/**
+ * The stroke width the most marks share. Ties keep the first width seen, so
+ * the same page always exports the same document.
+ */
+function paintDefaults(sketch: Sketch): SvgPaintDefaults {
+  const counts = new Map<number, number>();
+  for (const stroke of sketch.strokes) {
+    if (isTextStroke(stroke) || isImageStroke(stroke) || stroke.tool === 'copic') continue;
+    const width = round2(stroke.width);
+    counts.set(width, (counts.get(width) ?? 0) + 1);
+  }
+  let strokeWidth = 1;
+  let best = 0;
+  for (const [width, n] of counts) {
+    if (n > best) {
+      strokeWidth = width;
+      best = n;
+    }
+  }
+  return { strokeWidth };
+}
+
 function escXml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -1192,29 +1403,28 @@ function uniqueId(id: string, used: Set<string>): string {
  */
 function pathD(stroke: Stroke): string {
   const anchors = stroke.vector?.anchors;
+  const out = new PathData();
   if (anchors && anchors.length >= 2) {
-    const parts = [`M${fmt(anchors[0].p.x)},${fmt(anchors[0].p.y)}`];
     const segment = (from: VectorAnchor, to: VectorAnchor): void => {
       if (!from.hOut && !to.hIn) {
-        parts.push(`L${fmt(to.p.x)},${fmt(to.p.y)}`);
+        out.lineTo(to.p.x, to.p.y);
         return;
       }
       const c1 = from.hOut ?? from.p;
       const c2 = to.hIn ?? to.p;
-      parts.push(
-        `C${fmt(c1.x)},${fmt(c1.y)} ${fmt(c2.x)},${fmt(c2.y)} ${fmt(to.p.x)},${fmt(to.p.y)}`,
-      );
+      out.curveTo(c1.x, c1.y, c2.x, c2.y, to.p.x, to.p.y);
     };
     // A compound path is several subpaths; each closes back to its own start.
     const closed = stroke.vector?.closed === true;
+    out.moveTo(anchors[0].p.x, anchors[0].p.y);
     let subStart = 0;
     for (let i = 1; i < anchors.length; i++) {
       if (anchors[i].move) {
         if (closed) {
           segment(anchors[i - 1], anchors[subStart]);
-          parts.push('Z');
+          out.close();
         }
-        parts.push(`M${fmt(anchors[i].p.x)},${fmt(anchors[i].p.y)}`);
+        out.moveTo(anchors[i].p.x, anchors[i].p.y);
         subStart = i;
         continue;
       }
@@ -1222,12 +1432,13 @@ function pathD(stroke: Stroke): string {
     }
     if (closed) {
       segment(anchors[anchors.length - 1], anchors[subStart]);
-      parts.push('Z');
+      out.close();
     }
-    return parts.join(' ');
+    return out.toString();
   }
   const pts = simplify(stroke.points, EXPORT_SIMPLIFY_EPSILON);
-  return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${fmt(p.x)},${fmt(p.y)}`).join(' ');
+  pts.forEach((p, i) => (i === 0 ? out.moveTo(p.x, p.y) : out.lineTo(p.x, p.y)));
+  return out.toString();
 }
 
 /**
@@ -1237,18 +1448,22 @@ function pathD(stroke: Stroke): string {
 function svgPath(
   stroke: Stroke,
   order: number,
+  defaults: SvgPaintDefaults,
   colorOverride?: string,
   defs?: string[],
 ): string {
   const pts = stroke.points;
   if (pts.length === 0) return '';
   const opacity = colorOverride ? 1 : stroke.opacity ?? defaultOpacityFor(stroke.tool);
+  // `opacity` is not inherited and defaults to 1, so a fully opaque mark says
+  // nothing about it; everything else here is inherited from the root element.
+  const alpha = opacity === 1 ? '' : ` opacity="${opacity}"`;
   const color = escXml(colorOverride ?? stroke.color);
   const data = `data-tool="${stroke.tool}" data-i="${order}"`;
   if (pts.length === 1) {
     const p = pts[0];
     const r = fmt(stroke.width / 2);
-    return `<circle cx="${fmt(p.x)}" cy="${fmt(p.y)}" r="${r}" fill="${color}" opacity="${opacity}" ${data}/>`;
+    return `<circle cx="${fmt(p.x)}" cy="${fmt(p.y)}" r="${r}" fill="${color}"${alpha} ${data}/>`;
   }
   const d = pathD(stroke);
   // Filled shapes paint their interior (SVG auto-closes fills, so the path
@@ -1256,7 +1471,7 @@ function svgPath(
   // `data-fill` lets import restore the fill exactly. A gradient registers a
   // paint server in <defs> and rides along as `data-gradient` so napkin's own
   // importer restores the editable stops rather than re-reading the server.
-  let fillAttrs = 'fill="none"';
+  let fillAttrs = '';
   if (!colorOverride && stroke.gradient && defs) {
     const id = `grad-${order}`;
     const server = svgGradient(stroke, id);
@@ -1266,24 +1481,28 @@ function svgPath(
       // The flat fill rides along beside the gradient: the model keeps it so
       // removing the gradient restores it, and the round trip must too.
       const kept = stroke.fill ? ` data-fill="${escXml(stroke.fill)}"` : '';
-      fillAttrs = `fill="url(#${id})" data-gradient="${json}"${kept}`;
+      fillAttrs = ` fill="url(#${id})" data-gradient="${json}"${kept}`;
     }
   }
-  if (fillAttrs === 'fill="none"' && !colorOverride && stroke.fill) {
+  if (fillAttrs === '' && !colorOverride && stroke.fill) {
     const fill = escXml(stroke.fill);
-    fillAttrs = `fill="${fill}" data-fill="${fill}"`;
+    fillAttrs = ` fill="${fill}" data-fill="${fill}"`;
   }
   // An outline switched off exports as `stroke="none"` - the SVG spelling of
   // a fill-only shape - with the kept color/width riding along for re-import.
   if (!colorOverride && stroke.noStroke) {
-    return `<path d="${d}" stroke="none" ${fillAttrs} opacity="${opacity}" ${data} data-nostroke="1" data-color="${escXml(stroke.color)}" data-width="${stroke.width}"/>`;
+    return `<path d="${d}" stroke="none"${fillAttrs}${alpha} ${data} data-nostroke="1" data-color="${escXml(stroke.color)}" data-width="${stroke.width}"/>`;
   }
   const dash = dashPatternFor(stroke.strokeStyle, stroke.width);
   const dashAttrs =
     dash.length > 0
       ? ` stroke-dasharray="${dash.map(fmt).join(',')}" data-dash="${stroke.strokeStyle}"`
       : '';
-  return `<path d="${d}" stroke="${color}" stroke-width="${fmt(stroke.width)}" stroke-linecap="round" stroke-linejoin="round"${dashAttrs} ${fillAttrs} opacity="${opacity}" ${data}/>`;
+  // The root element carries the width most marks share; only the odd one out
+  // has to name its own.
+  const widthAttr =
+    round2(stroke.width) === defaults.strokeWidth ? '' : ` stroke-width="${fmt(stroke.width)}"`;
+  return `<path d="${d}" stroke="${color}"${widthAttr}${dashAttrs}${fillAttrs}${alpha} ${data}/>`;
 }
 
 /**
@@ -1324,20 +1543,21 @@ function svgGradient(stroke: Stroke, id: string): string | null {
 function svgCopic(stroke: Stroke, order: number): string {
   const polys = copicNibPolygons(stroke);
   if (polys.length === 0) return '';
-  const opacity = stroke.opacity ?? defaultOpacityFor('copic');
+  const raw = stroke.opacity ?? defaultOpacityFor('copic');
+  const opacity = raw === 1 ? '' : ` opacity="${raw}"`;
   // The chisel outline is derived viewer-only data (import rebuilds it from
   // `data-pts`), so its samples can be pruned like any other polyline.
-  const d = polys
-    .map(
-      (poly) =>
-        simplify(poly, EXPORT_SIMPLIFY_EPSILON)
-          .map((p, i) => `${i === 0 ? 'M' : 'L'}${fmt(p.x)},${fmt(p.y)}`)
-          .join(' ') + ' Z',
-    )
-    .join(' ');
+  const outline = new PathData();
+  for (const poly of polys) {
+    simplify(poly, EXPORT_SIMPLIFY_EPSILON).forEach((p, i) =>
+      i === 0 ? outline.moveTo(p.x, p.y) : outline.lineTo(p.x, p.y),
+    );
+    outline.close();
+  }
+  const d = outline.toString();
   const pts = stroke.points.map((p) => `${fmt(p.x)},${fmt(p.y)}`).join(' ');
   const nib = fmt(stroke.nibAngle ?? DEFAULT_NIB_ANGLE);
-  return `<path d="${d}" fill="${escXml(stroke.color)}" fill-rule="nonzero" opacity="${opacity}" data-tool="copic" data-i="${order}" data-nib="${nib}" data-width="${stroke.width}" data-pts="${pts}"/>`;
+  return `<path d="${d}" fill="${escXml(stroke.color)}" fill-rule="nonzero"${opacity} data-tool="copic" data-i="${order}" data-nib="${nib}" data-width="${stroke.width}" data-pts="${pts}"/>`;
 }
 
 function svgText(stroke: Stroke, order: number): string {

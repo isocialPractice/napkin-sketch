@@ -491,3 +491,40 @@ export function normal(a: Vec2, b: Vec2): Vec2 {
   const len = Math.hypot(dx, dy) || 1;
   return { x: -dy / len, y: dx / len };
 }
+
+/**
+ * The eight directions a Shift-held drag is allowed to run in: the axes and
+ * the diagonals between them.
+ */
+const DRAG_AXES: Vec2[] = [
+  { x: 1, y: 0 },
+  { x: Math.SQRT1_2, y: Math.SQRT1_2 },
+  { x: 0, y: 1 },
+  { x: -Math.SQRT1_2, y: Math.SQRT1_2 },
+  { x: -1, y: 0 },
+  { x: -Math.SQRT1_2, y: -Math.SQRT1_2 },
+  { x: 0, y: -1 },
+  { x: Math.SQRT1_2, y: -Math.SQRT1_2 },
+];
+
+/**
+ * Where a drag has reached once Shift constrains it: the travel from `origin`
+ * projected onto whichever of {@link DRAG_AXES} it lies closest to, so the
+ * drag runs strictly horizontal, vertical, or at 45 degrees.
+ *
+ * The axis is chosen from the pointer's own travel, and re-chosen on every
+ * move, so swinging the pointer around the origin swaps the drag onto the
+ * line it now points down. Projecting (rather than zeroing the off-axis
+ * component) keeps the thing being dragged level with the pointer's component
+ * along that line instead of lagging behind it.
+ */
+export function constrainDrag<T extends Vec2>(origin: Vec2, pt: T): T {
+  const dx = pt.x - origin.x;
+  const dy = pt.y - origin.y;
+  if (dx === 0 && dy === 0) return pt;
+  const eighth = Math.PI / 4;
+  const index = ((Math.round(Math.atan2(dy, dx) / eighth) % 8) + 8) % 8;
+  const axis = DRAG_AXES[index];
+  const along = dx * axis.x + dy * axis.y;
+  return { ...pt, x: origin.x + along * axis.x, y: origin.y + along * axis.y };
+}

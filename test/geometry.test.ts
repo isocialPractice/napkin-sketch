@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  constrainDrag,
   distance,
   pathLength,
   centroid,
@@ -328,4 +329,65 @@ test('fitCircle recovers a known circle', () => {
   assert.ok(fit);
   assert.ok(Math.abs(fit.center.x - 10) < 0.001);
   assert.ok(Math.abs(fit.radius - 5) < 0.001);
+});
+
+// ---- constrainDrag: the Shift-held drag ------------------------------------
+
+const near2 = (a: number, b: number, tol = 1e-9): boolean => Math.abs(a - b) < tol;
+const O = { x: 100, y: 100 };
+
+test('constrainDrag pins a mostly-sideways drag to the horizontal', () => {
+  const held = constrainDrag(O, { x: 180, y: 112 });
+  assert.ok(near2(held.x, 180), `x ${held.x}`);
+  assert.ok(near2(held.y, 100), `y ${held.y}`);
+});
+
+test('constrainDrag pins a mostly-upright drag to the vertical', () => {
+  const held = constrainDrag(O, { x: 88, y: 40 });
+  assert.ok(near2(held.x, 100), `x ${held.x}`);
+  assert.ok(near2(held.y, 40), `y ${held.y}`);
+});
+
+test('constrainDrag pins a corner-ward drag to 45 degrees', () => {
+  // 60 across and 50 down is nearest the down-right diagonal; the projection
+  // puts it at the average of the two, which is what running at 45 means.
+  const held = constrainDrag(O, { x: 160, y: 150 });
+  assert.ok(near2(held.x - O.x, held.y - O.y), `${held.x - O.x} vs ${held.y - O.y}`);
+  assert.ok(near2(held.x, 155) && near2(held.y, 155), `(${held.x}, ${held.y})`);
+});
+
+test('constrainDrag reaches all eight directions', () => {
+  const seen = new Set<string>();
+  for (let deg = 0; deg < 360; deg += 5) {
+    const rad = (deg * Math.PI) / 180;
+    const held = constrainDrag(O, { x: O.x + Math.cos(rad) * 90, y: O.y + Math.sin(rad) * 90 });
+    const dx = Math.round((held.x - O.x) * 1e6) / 1e6;
+    const dy = Math.round((held.y - O.y) * 1e6) / 1e6;
+    // Every result runs along an axis or an exact diagonal.
+    assert.ok(
+      near2(dx, 0) || near2(dy, 0) || near2(Math.abs(dx), Math.abs(dy)),
+      `${deg} degrees gave (${dx}, ${dy})`,
+    );
+    seen.add(`${Math.sign(dx)},${Math.sign(dy)}`);
+  }
+  assert.equal(seen.size, 8, [...seen].join(' '));
+});
+
+test('constrainDrag keeps the axes exact, with no floating-point dust', () => {
+  // A straight-across drag must not pick up a hair of vertical from cos/sin.
+  assert.equal(constrainDrag(O, { x: 200, y: 101 }).y, 100);
+  assert.equal(constrainDrag(O, { x: 101, y: 200 }).x, 100);
+  assert.equal(constrainDrag(O, { x: 0, y: 99 }).y, 100);
+  assert.equal(constrainDrag(O, { x: 99, y: 0 }).x, 100);
+});
+
+test('constrainDrag leaves a drag that has not moved alone', () => {
+  const same = constrainDrag(O, { x: 100, y: 100, pressure: 0.7 });
+  assert.deepEqual(same, { x: 100, y: 100, pressure: 0.7 });
+});
+
+test('constrainDrag carries the point through unchanged apart from x and y', () => {
+  const held = constrainDrag(O, { x: 180, y: 112, pressure: 0.42, move: true as const });
+  assert.equal(held.pressure, 0.42);
+  assert.equal(held.move, true);
 });

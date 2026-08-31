@@ -62,6 +62,27 @@ const TOOL_LAYER_NAMES: Partial<Record<Tool, string>> = {
   image: 'Image',
 };
 
+/**
+ * One copied layer: its own marks and whatever nested inside it. What the
+ * clipboard holds when a group was copied, so the paste can rebuild the tree
+ * instead of flattening it into a single layer.
+ */
+export interface LayerTreeNode {
+  name: string;
+  /** True for a group row, which holds no marks of its own. */
+  group: boolean;
+  opacity: number;
+  visible: boolean;
+  locked: boolean;
+  /**
+   * Marks sitting directly on this layer, each with the paint order it had on
+   * the page it came from. Rebuilding sorts by it, so a graphic whose parts
+   * overlap comes back stacked the way it was drawn.
+   */
+  marks: { stroke: Stroke; order: number }[];
+  children: LayerTreeNode[];
+}
+
 /** One layer parsed from an imported file; may nest (SVG group layers). */
 export interface ImportedLayerNode {
   name: string;
@@ -755,6 +776,65 @@ export class Store {
   }
 
   /**
+   * Rebuilds copied layers in the stack rather than flattening them: a group
+   * comes back a group, with everything that nested inside it still nested,
+   * and each layer keeps its own opacity, visibility, and lock.
+   *
+   * The tree lands beside `siblingOf` - the layer it was copied from - at that
+   * layer's own nesting level, so a pasted group sits *next to* the original
+   * rather than inside it. When that layer is not on this page (a paste onto
+   * another page) the tree goes to the top level instead.
+   *
+   * Returns the strokes that were added, which the caller makes the selection.
+   */
+  pasteLayerTree(
+    roots: LayerTreeNode[],
+    siblingOf: string | null,
+    options: { history?: boolean } = {},
+  ): Stroke[] {
+    if (roots.length === 0) return [];
+    // The Alt-drag copy pushes one step covering the copy and the drag that
+    // follows, so it asks for no step of its own here.
+    if (options.history !== false) this.pushHistory();
+    const source = siblingOf ? this.sketch.layers.find((l) => l.id === siblingOf) : undefined;
+    const built: Layer[] = [];
+    const marks: { stroke: Stroke; order: number }[] = [];
+
+    const build = (node: LayerTreeNode, parent: string | undefined): void => {
+      const layer = node.group ? createGroupLayer(node.name) : createLayer(node.name);
+      layer.opacity = node.opacity;
+      layer.visible = node.visible;
+      layer.locked = node.locked;
+      layer.parent = parent;
+      // Children go into the stack before their group header, which is what
+      // renders the header above them in the panel and keeps paint order.
+      for (const child of node.children) build(child, layer.id);
+      for (const mark of node.marks) {
+        marks.push({ stroke: { ...mark.stroke, id: createId('st'), layer: layer.id }, order: mark.order });
+      }
+      built.push(layer);
+    };
+    for (const root of roots) build(root, source?.parent);
+
+    // Right after the source layer's own row, so the copy reads as the
+    // sibling sitting above it in the panel.
+    const at = source
+      ? this.sketch.layers.findIndex((l) => l.id === source.id) + 1
+      : this.sketch.layers.length;
+    this.sketch.layers.splice(at, 0, ...built);
+
+    // Paint order within the copy is the order the originals had.
+    marks.sort((a, b) => a.order - b.order);
+    const added = marks.map((m) => m.stroke);
+    this.sketch.strokes.push(...added);
+
+    // The pasted root becomes the active row, the way a new layer does.
+    this.activeLayerId = built[built.length - 1]?.id ?? this.activeLayerId;
+    this.touch();
+    return added;
+  }
+
+  /**
    * Deletes a layer and its strokes. Deleting a group deletes every layer
    * inside it (nested included). Always keeps at least one drawable layer.
    */
@@ -791,6 +871,109 @@ export class Store {
     this.sketch.layers.splice(target, 0, layer);
     this.touch();
     return true;
+  }
+
+  /**
+   * Restacks every layer in `ids` one step up (+1, toward the top of the
+   * panel) or down (-1).
+   *
+   * Each one travels as a block - the layer plus everything nested under it,
+   * which the stack already keeps contiguous - and moves among its own
+   * siblings, so a layer never leaves the group it lives in. Blocks are moved
+   * destination-first, which keeps the selection's own order and lets a block
+   * that has reached the end hold the ones behind it rather than letting them
+   * pile through. A row selected inside a selected group travels with that
+   * group instead of separately.
+   *
+   * Returns false when nothing could move, so the caller can say why.
+   */
+  moveLayers(ids: Iterable<string>, direction: 1 | -1): boolean {
+    const plan = this.movePlan(ids);
+    if (!plan) return false;
+    const { blocks, moving } = plan;
+
+    const blockIds = (id: string): Set<string> =>
+      new Set([id, ...descendantLayerIds(this.sketch, id)]);
+
+    const step = (id: string): boolean => {
+      const neighbour = this.moveNeighbour(id, direction, moving);
+      if (!neighbour) return false;
+      const block = blockIds(id);
+      const past = blockIds(neighbour.id);
+      const rest = this.sketch.layers.filter((l) => !block.has(l.id));
+      const lifted = this.sketch.layers.filter((l) => block.has(l.id));
+      const anchor =
+        direction === 1
+          ? rest.findIndex((l) => l.id === neighbour.id) + 1
+          : Math.min(...[...past].map((pid) => rest.findIndex((l) => l.id === pid)).filter((i) => i >= 0));
+      rest.splice(anchor, 0, ...lifted);
+      this.sketch.layers = rest;
+      return true;
+    };
+
+    // Nearest the destination first.
+    const ordered = [...blocks]
+      .map((id) => ({ id, index: this.sketch.layers.findIndex((l) => l.id === id) }))
+      .sort((a, b) => (direction === 1 ? b.index - a.index : a.index - b.index))
+      .map((b) => b.id);
+
+    this.pushHistory();
+    let moved = false;
+    for (const id of ordered) moved = step(id) || moved;
+    if (!moved) {
+      // Nothing shifted, so the history step just pushed would be a no-op the
+      // user would have to undo twice past.
+      this.undoStack.pop();
+      return false;
+    }
+    this.touch();
+    return true;
+  }
+
+  /**
+   * Whether {@link moveLayers} would shift anything, so the panel's move
+   * buttons can grey out at the ends of the stack instead of doing nothing.
+   */
+  canMoveLayers(ids: Iterable<string>, direction: 1 | -1): boolean {
+    const plan = this.movePlan(ids);
+    if (!plan) return false;
+    return plan.blocks.some((id) => this.moveNeighbour(id, direction, plan.moving) !== null);
+  }
+
+  /**
+   * The blocks a move would shift: one per selected layer that no other
+   * selected layer already carries, plus every id travelling with them.
+   */
+  private movePlan(ids: Iterable<string>): { blocks: string[]; moving: Set<string> } | null {
+    const present = [...new Set(ids)].filter((id) => this.sketch.layers.some((l) => l.id === id));
+    if (present.length === 0) return null;
+    // Rows already carried by a selected group are not blocks of their own.
+    const carried = new Set<string>();
+    for (const id of present) {
+      const layer = this.sketch.layers.find((l) => l.id === id);
+      if (!layer?.group) continue;
+      for (const d of descendantLayerIds(this.sketch, id)) carried.add(d);
+    }
+    const blocks = present.filter((id) => !carried.has(id));
+    if (blocks.length === 0) return null;
+    // Everything that is moving, so a block never swaps with another block.
+    const moving = new Set<string>(blocks);
+    for (const id of blocks) for (const d of descendantLayerIds(this.sketch, id)) moving.add(d);
+    return { blocks, moving };
+  }
+
+  /**
+   * The sibling a block would swap with, or null when it has reached the end
+   * of the run it may travel in - no sibling that way, or the only one there
+   * is moving too.
+   */
+  private moveNeighbour(id: string, direction: 1 | -1, moving: Set<string>): Layer | null {
+    const layer = this.sketch.layers.find((l) => l.id === id);
+    if (!layer) return null;
+    const siblings = this.sketch.layers.filter((l) => l.parent === layer.parent);
+    const at = siblings.findIndex((sib) => sib.id === id);
+    const neighbour = siblings[at + direction];
+    return neighbour && !moving.has(neighbour.id) ? neighbour : null;
   }
 
   /**

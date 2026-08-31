@@ -78,11 +78,30 @@ test('parseVectorD reads a control point on its anchor as a collapsed handle', (
 test('parseVectorD rejects paths that are not the napkin export format', () => {
   // Open pure polylines parse through the polyline path instead.
   assert.equal(parseVectorD('M0,0 L10,10'), null);
-  // Relative commands, arcs, and subpaths fall back to sampling.
-  assert.equal(parseVectorD('M0,0 c5,5 10,10 20,0'), null);
+  // Arcs and quadratics are spellings the exporter never writes, and several
+  // subpaths in one path fall back to sampling.
   assert.equal(parseVectorD('M0,0 A5,5 0 0 1 10,10'), null);
+  assert.equal(parseVectorD('M0,0 Q5,5 10,0'), null);
   assert.equal(parseVectorD('M0,0 C1,1 2,2 3,3 M5,5 C6,6 7,7 8,8'), null);
   assert.equal(parseVectorD(''), null);
+});
+
+test('parseVectorD reads the compacted spellings the exporter writes', () => {
+  // Relative commands, a reflected `s` handle, and an elided command letter
+  // are all shorter ways of writing what an absolute `C` chain would say.
+  const relative = parseVectorD('M10,10c5,0 10,5 10,10s-5,10-10,10');
+  const absolute = parseVectorD('M10,10 C15,10 20,15 20,20 C20,25 15,30 10,30');
+  assert.ok(relative && absolute);
+  assert.deepEqual(relative.anchors, absolute.anchors);
+  // A closed path in its relative spelling closes just the same.
+  const closed = parseVectorD('M0 0H50L25 40 0 0Z');
+  assert.ok(closed);
+  assert.equal(closed.closed, true);
+  assert.deepEqual(closed.anchors.map((a) => a.p), [
+    { x: 0, y: 0 },
+    { x: 50, y: 0 },
+    { x: 25, y: 40 },
+  ]);
 });
 
 // ---- parsePathD: generic path data → cubic anchors ---------------------------

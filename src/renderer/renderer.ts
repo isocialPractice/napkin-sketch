@@ -77,6 +77,7 @@ import { sketchesToPdf } from '../core/pdf.js';
 import { defaultSettings, type AppSettings, type QuickModifier } from '../core/settings.js';
 import {
   catmullRom,
+  constrainDrag,
   cubicBezierPoints,
   quarterArcCubic,
   roundedCornerAnchors,
@@ -85,7 +86,7 @@ import {
 } from '../sharpen/geometry.js';
 import { sharpenStroke } from '../sharpen/sharpen.js';
 import { Surface, strokeBounds, type LiveStroke } from './surface.js';
-import { Store, type ImportedLayerNode, type ToolState } from './store.js';
+import { Store, type ImportedLayerNode, type LayerTreeNode, type ToolState } from './store.js';
 import { importSvg } from './svg-import.js';
 
 /** Looks up a required element by id, throwing a clear error if absent. */
@@ -128,6 +129,28 @@ const HANDLE_FALLOFF = 2.5;
 const MIN_WIDTH = 1;
 const MAX_WIDTH = 40;
 
+/**
+ * Sized-page bounds, matching the `min`/`max` on the Page Settings fields. A
+ * page measured from a selection is clamped to them too, so every route to a
+ * sized page lands somewhere the dialog would have accepted.
+ */
+const MIN_PAGE_SIZE = 64;
+const MAX_PAGE_SIZE = 8192;
+
+/**
+ * How far a paste or a duplicate lands from what it came from, when there is
+ * no pointer over the canvas to aim at. Far enough that the copy reads as a
+ * second object rather than a smudge on the first.
+ */
+const PASTE_OFFSET = 16;
+
+/**
+ * How long a nested menu panel stays put after the pointer leaves the row that
+ * opened it. Enough to cross the rows between that row and the panel, short
+ * enough that a panel deliberately left behind does not linger.
+ */
+const SUBMENU_GRACE_MS = 320;
+
 /** Page-turn animation length; must match `.turn-next`/`.turn-prev` in styles.css. */
 const PAGE_TURN_MS = 360;
 
@@ -168,6 +191,24 @@ const CURSOR_ARROW_WHITE = svgCursor(
   `<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18'><path d='M1 1 L1 14.5 L4.6 11.4 L6.8 16 L9.3 14.9 L7.1 10.5 L11.8 10.5 Z' fill='#ffffff' stroke='#1f2328' stroke-width='1.2' stroke-linejoin='round'/></svg>`,
   1,
   1,
+);
+/**
+ * The Alt-drag copy pointer: the Select arrow with a second one stepped out
+ * behind it, filled the inverse of the common cursor so the pair reads as two
+ * objects rather than one thick arrow, and a node square marking the copy the
+ * drag is carrying.
+ */
+const CURSOR_ARROW_COPY = svgCursor(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='28' height='25'>` +
+    // The offset arrow, stepped clear to the right rather than laid over the
+    // first: two arrows sharing a diagonal tangle into one thick smear.
+    `<g transform='translate(12 2)'><path d='M1 1 L1 14.5 L4.6 11.4 L6.8 16 L9.3 14.9 L7.1 10.5 L11.8 10.5 Z' fill='#ffffff' stroke='#1f2328' stroke-width='1.3' stroke-linejoin='round'/></g>` +
+    `<path d='M1 1 L1 14.5 L4.6 11.4 L6.8 16 L9.3 14.9 L7.1 10.5 L11.8 10.5 Z' fill='#1f2328' stroke='#ffffff' stroke-width='1.2' stroke-linejoin='round'/>` +
+    `<rect x='21' y='17' width='6' height='6' fill='#ffffff' stroke='#1f2328' stroke-width='1.3'/>` +
+    `</svg>`,
+  1,
+  1,
+  'copy',
 );
 const CURSOR_ARROWHEAD = svgCursor(
   `<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><path d='M1.5 1.5 L4 13.5 L12.5 6.5 Z' fill='#ffffff' stroke='#1f2328' stroke-width='1.2' stroke-linejoin='round'/></svg>`,
@@ -240,6 +281,20 @@ class App {
   private dragging = false;
   private dragLast: Point | null = null;
 
+  /** Where the move drag began, which a Shift-held drag measures its axis from. */
+  private dragOrigin: Point | null = null;
+
+  /** True once a move drag has actually shifted the selection. */
+  private dragMoved = false;
+
+  /**
+   * The element a Shift-press landed on while it was already selected. Shift
+   * there means either "take this out of the selection" or "constrain this
+   * drag", and which one only becomes clear when the pointer moves or does
+   * not, so the removal waits for the release.
+   */
+  private shiftToggleId: string | null = null;
+
   // Rubber-band selection state.
   private rubberBandStart: Point | null = null;
   private rubberBandBox: { x1: number; y1: number; x2: number; y2: number } | null = null;
@@ -253,6 +308,40 @@ class App {
 
   // CapsLock tracking.
   private capsLockOn = false;
+
+  /** Page Settings is standing in as the size prompt for a page not yet added. */
+  private pageSettingsAddsPage = false;
+
+  /** The button whose press opened the menu, so its next press closes it. */
+  private menuOwner: HTMLElement | null = null;
+
+  /**
+   * Copied elements, held by the app rather than by a page, so a copy taken
+   * on one page pastes onto another. `origin` is the top-left of what was
+   * copied, which is what Paste in Place puts back and what a pointer paste
+   * measures its offset from.
+   *
+   * A copy taken from layer rows that include a group keeps its `tree`: the
+   * paste rebuilds those layers instead of flattening the graphic onto one.
+   * Everything else copies `flat`, which is what a handful of marks picked
+   * out on the canvas should do.
+   */
+  private clipboard: ClipboardContents | null = null;
+
+  /** The SVG last written to the system clipboard, to spot a newer outside copy. */
+  private clipboardSvgSent = '';
+
+  /** How many times the clipboard has been pasted without a pointer to aim at. */
+  private pasteCascade = 0;
+
+  /** Latest pointer position over the canvas, in sketch coordinates. */
+  private lastCanvasPoint: Point | null = null;
+
+  /** Whether the pointer is currently over the canvas at all. */
+  private pointerOverCanvas = false;
+
+  /** Pending close of the nested panel, cancelled if the pointer reaches it. */
+  private submenuCloseTimer: number | null = null;
 
   private pagesOpen = false;
   private layersOpen = false;
@@ -301,6 +390,9 @@ class App {
   private panDragging = false;
   private panLast: { x: number; y: number } | null = null;
 
+  /** Where the pan began, in client pixels, for the Shift constraint. */
+  private panOrigin: { x: number; y: number } | null = null;
+
   // Endpoint snap (hold Shift while drawing): the endpoint the pointer will
   // snap to, shown as a ring while within the configured sensitivity.
   private snapTarget: SnapHit | null = null;
@@ -346,6 +438,9 @@ class App {
   private anchorDragKind: 'anchor' | 'handle' | 'path' | 'vanchor' | 'vhIn' | 'vhOut' | null =
     null;
   private anchorDragLast: Point | null = null;
+
+  /** Where the anchor/handle/path drag began, for the Shift constraint. */
+  private anchorDragOrigin: Point | null = null;
   // Tangent-handle drag, captured at grab time. The handle pivots the curve
   // around the anchor: the span between anchor and handle turns rigidly and
   // the effect fades to nothing over the falloff window, so each move is
@@ -383,6 +478,9 @@ class App {
   // Select pointer in vector edit mode, Alt the handle-toggle arrowhead.
   private ctrlDown = false;
   private altDown = false;
+
+  /** An Alt-drag copy is under way, so the pointer keeps the copy arrows. */
+  private copyDragging = false;
   // Last hover position inside a vector edit, so modifier presses can
   // restyle the pointer without waiting for the mouse to move.
   private vectorEditHoverPt: Point | null = null;
@@ -786,6 +884,11 @@ class App {
     c.addEventListener('pointercancel', (e) => this.onPointerUp(e));
     c.addEventListener('pointerleave', (e) => {
       if (this.activePointerId !== null) this.onPointerUp(e);
+      // Paste aims at the pointer only while there is one on the page.
+      this.pointerOverCanvas = false;
+    });
+    c.addEventListener('pointerenter', () => {
+      this.pointerOverCanvas = true;
     });
     c.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
     // Vector Path: a double-click finishes the open path where it stands.
@@ -869,24 +972,7 @@ class App {
     }
 
     // Every mark-making tool needs an editable (visible, unlocked) layer.
-    if (tool !== 'select' && !this.store.canDraw) {
-      const layer = this.store.activeLayer;
-      const effective = effectiveLayer(this.store.sketch, layer);
-      if (layer.group && effective.visible && !effective.locked) {
-        // A group holds no marks itself: drop a fresh layer inside it, tell
-        // the user, and let the stroke land there instead of being swallowed.
-        const created = this.store.addLayerInGroup(layer.id);
-        this.toast(`"${layer.name}" is a group — added layer "${created.name}" inside it to draw.`);
-      } else {
-        const kind = layer.group ? 'Group' : 'Layer';
-        this.toast(
-          effective.locked
-            ? `${kind} "${layer.name}" is locked.`
-            : `${kind} "${layer.name}" is hidden.`,
-        );
-        return;
-      }
-    }
+    if (tool !== 'select' && !this.ensureDrawableLayer()) return;
 
     // Curve tool, bend phase: a click commits the pending curve.
     if (this.curveBending) {
@@ -1054,6 +1140,15 @@ class App {
     if (this.pointers.has(e.pointerId)) {
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     }
+    // Where a paste with no explicit target lands.
+    this.lastCanvasPoint = this.surface.toSketchPoint(e.clientX, e.clientY, 0.5);
+    this.pointerOverCanvas = true;
+    // The event carries the live modifier state, which keeps the copy pointer
+    // right even when the Alt keydown landed in another window.
+    if (e.altKey !== this.altDown && !this.vectorEditId) {
+      this.altDown = e.altKey;
+      this.updateCursor();
+    }
     if (this.gesturing) {
       this.updateGesture();
       return;
@@ -1063,16 +1158,27 @@ class App {
 
     // Select-tool Space + drag: pan the canvas following the pointer.
     if (this.panDragging && this.activePointerId === e.pointerId && this.panLast) {
+      // Shift pins the pan to the nearest axis or diagonal too, so the page
+      // scrolls straight. The pan works in client pixels, so the constraint
+      // is applied there rather than in sketch coordinates.
+      const to =
+        e.shiftKey && this.panOrigin
+          ? constrainDrag(this.panOrigin, { x: e.clientX, y: e.clientY })
+          : { x: e.clientX, y: e.clientY };
       const sign = this.settings.invertPanDrag ? -1 : 1;
-      this.surface.panBy((e.clientX - this.panLast.x) * sign, (e.clientY - this.panLast.y) * sign);
-      this.panLast = { x: e.clientX, y: e.clientY };
+      this.surface.panBy((to.x - this.panLast.x) * sign, (to.y - this.panLast.y) * sign);
+      this.panLast = to;
       this.scheduleRender();
       return;
     }
 
     // Direct Select: drag the grabbed anchor(s), handle, or whole path.
     if (this.anchorDragKind && this.anchorStrokeId && this.activePointerId === e.pointerId) {
-      const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      const raw = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      // Shift pins the drag to the nearest axis or diagonal, whether it is
+      // carrying anchors, a handle, or the whole path.
+      const pt =
+        e.shiftKey && this.anchorDragOrigin ? constrainDrag(this.anchorDragOrigin, raw) : raw;
       if (this.anchorDragLast) {
         const dx = pt.x - this.anchorDragLast.x;
         const dy = pt.y - this.anchorDragLast.y;
@@ -1279,11 +1385,20 @@ class App {
       return;
     }
 
-    // Select: drag to move selected strokes.
+    // Select: drag to move selected strokes. Shift pins the move to the
+    // nearest axis or diagonal; `dragLast` tracks where the selection was
+    // actually put, so letting Shift go hands the selection back to the
+    // pointer rather than leaving it offset by the constraint.
     if (tool === 'select' && this.dragging) {
-      const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      const raw = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      const pt = e.shiftKey && this.dragOrigin ? constrainDrag(this.dragOrigin, raw) : raw;
       if (this.dragLast) {
-        this.store.nudgeSelected(pt.x - this.dragLast.x, pt.y - this.dragLast.y);
+        const dx = pt.x - this.dragLast.x;
+        const dy = pt.y - this.dragLast.y;
+        if (dx !== 0 || dy !== 0) {
+          this.store.nudgeSelected(dx, dy);
+          this.dragMoved = true;
+        }
       }
       this.dragLast = pt;
       return;
@@ -1316,6 +1431,11 @@ class App {
   private onPointerUp(e: PointerEvent): void {
     // Release this pointer from gesture tracking first.
     this.pointers.delete(e.pointerId);
+    // The copy has been put down: the pointer goes back to the plain arrow.
+    if (this.copyDragging) {
+      this.copyDragging = false;
+      this.updateCursor();
+    }
     if (this.gesturing) {
       if (this.pointers.size < 2) this.endGesture();
       return;
@@ -1330,6 +1450,7 @@ class App {
       }
       this.panDragging = false;
       this.panLast = null;
+      this.panOrigin = null;
       this.activePointerId = null;
       return;
     }
@@ -1342,6 +1463,7 @@ class App {
       this.anchorDragKind = null;
       this.handleDrag = null;
       this.anchorDragLast = null;
+      this.anchorDragOrigin = null;
       this.activePointerId = null;
       this.scheduleRender();
       return;
@@ -1525,6 +1647,16 @@ class App {
     if (tool === 'select' && this.dragging) {
       this.dragging = false;
       this.dragLast = null;
+      this.dragOrigin = null;
+      // A Shift-press on a selected element that never went anywhere was a
+      // click, so it means what a Shift-click has always meant.
+      if (this.shiftToggleId && !this.dragMoved) {
+        const ids = new Set(this.store.selectedIds);
+        ids.delete(this.shiftToggleId);
+        this.store.setSelection(ids);
+      }
+      this.shiftToggleId = null;
+      this.dragMoved = false;
       if (this.canvas.hasPointerCapture(e.pointerId)) {
         this.canvas.releasePointerCapture(e.pointerId);
       }
@@ -2464,6 +2596,7 @@ class App {
           this.store.pushHistory();
           this.anchorDragKind = kind;
           this.anchorDragLast = pt;
+          this.anchorDragOrigin = pt;
           this.beginPointerDrag(e);
           return true;
         }
@@ -2493,6 +2626,7 @@ class App {
         this.store.pushHistory();
         this.anchorDragKind = 'vanchor';
         this.anchorDragLast = pt;
+        this.anchorDragOrigin = pt;
         this.beginPointerDrag(e);
       } else {
         this.scheduleRender();
@@ -2508,6 +2642,7 @@ class App {
       this.store.pushHistory();
       this.anchorDragKind = 'path';
       this.anchorDragLast = pt;
+      this.anchorDragOrigin = pt;
       this.beginPointerDrag(e);
       return true;
     }
@@ -2663,6 +2798,7 @@ class App {
     this.canvas.setPointerCapture(e.pointerId);
     this.panDragging = true;
     this.panLast = { x: e.clientX, y: e.clientY };
+    this.panOrigin = { x: e.clientX, y: e.clientY };
     this.updateCursor();
   }
 
@@ -2968,25 +3104,33 @@ class App {
     const hit = this.hitTest(pt) ?? this.hitFilledInterior(pt);
     if (hit) {
       if (e.shiftKey) {
-        // Shift-click toggles membership without dropping the rest.
-        const ids = new Set(this.store.selectedIds);
-        if (ids.has(hit.id)) ids.delete(hit.id);
-        else ids.add(hit.id);
-        this.store.setSelection(ids);
-        if (!ids.has(hit.id)) return; // removed from the selection: no drag
+        // Shift-click toggles membership without dropping the rest. Taking
+        // something *out* waits for the release, because the same press with
+        // the same modifier is also how a drag is pinned to an axis - and
+        // dropping the element on the press would leave nothing to drag.
+        if (this.store.selectedIds.has(hit.id)) {
+          this.shiftToggleId = hit.id;
+        } else {
+          this.store.setSelection(new Set(this.store.selectedIds).add(hit.id));
+        }
       } else if (!this.store.selectedIds.has(hit.id)) {
         this.store.setSelection([hit.id]);
       }
       this.dragging = true;
       this.dragLast = pt;
+      this.dragOrigin = pt;
       this.store.pushHistory();
-      // Alt-drag copies the selection: the layers panel gains " - copy"
+      // Alt-drag copies the selection: the layers panel gains " - Copy"
       // rows, the clones become the selection, and this drag moves them
       // while the originals stay put. The history step above covers the
       // copy and the move together, so one undo removes both.
       if (e.altKey) {
-        const copied = this.store.duplicateSelectedElements();
-        if (copied > 0) this.toast(`Dragging a copy of ${copied} element(s).`);
+        const copied = this.duplicateForDrag();
+        if (copied > 0) {
+          this.copyDragging = true;
+          this.updateCursor();
+          this.toast(`Dragging a copy of ${copied} element${copied === 1 ? '' : 's'}.`);
+        }
       }
       this.canvas.setPointerCapture(e.pointerId);
       this.activePointerId = e.pointerId;
@@ -3237,6 +3381,17 @@ class App {
       return;
     }
 
+    // Alt-drag copy: the doubled arrow, both while the copy is being dragged
+    // and while Alt merely arms one, so the modifier shows its effect before
+    // the drag commits to it.
+    if (
+      tool === 'select' &&
+      (this.copyDragging || (this.altDown && this.store.selectedIds.size > 0))
+    ) {
+      this.canvas.style.cursor = CURSOR_ARROW_COPY;
+      return;
+    }
+
     // Selection arrows: black for Select, white for Direct Select — the
     // selection / direct-selection convention of vector editors.
     if (tool === 'select') {
@@ -3321,8 +3476,7 @@ class App {
     el('close-shape').addEventListener('pointerdown', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const rect = el('close-shape').getBoundingClientRect();
-      this.showContextMenu(rect.left, rect.bottom + 4, [
+      this.toggleMenuUnder(el('close-shape'), [
         { label: 'Sharp - straight line between the end points', action: () => this.closeSelectedShapes('sharp') },
         { label: 'Smooth - curve on through the end points', action: () => this.closeSelectedShapes('smooth') },
       ]);
@@ -3926,12 +4080,25 @@ class App {
     // Export offers the same four formats as File > Export, dropped down
     // beneath the button via the shared context menu.
     el('export').addEventListener('click', () => {
-      const rect = el('export').getBoundingClientRect();
-      this.showContextMenu(rect.left, rect.bottom + 4, [
+      // "Selection" holds the same four formats one level in, and exports
+      // only what is selected, on a page cut to fit it.
+      const selection = this.exportSelectionStrokes();
+      this.toggleMenuUnder(el('export'), [
         { label: 'PNG Image…', action: () => void this.exportRaster('png') },
         { label: 'JPEG Image…', action: () => void this.exportRaster('jpeg') },
         { label: 'SVG Vector…', action: () => void this.exportSvg() },
         { label: 'PDF Document…', action: () => void this.exportPdf() },
+        { separator: true },
+        {
+          label: 'Selection',
+          disabled: selection.length === 0,
+          items: [
+            { label: 'PNG Image…', action: () => void this.exportSelection('png') },
+            { label: 'JPEG Image…', action: () => void this.exportSelection('jpeg') },
+            { label: 'SVG Vector…', action: () => void this.exportSelection('svg') },
+            { label: 'PDF Document…', action: () => void this.exportSelection('pdf') },
+          ],
+        },
       ]);
     });
     el('save').addEventListener('click', () => this.saveBook(false));
@@ -4058,6 +4225,476 @@ class App {
     }
   }
 
+  // ---- Clipboard -----------------------------------------------------------
+
+  /**
+   * Copies the selection. The elements are kept in full inside the app, and
+   * the same graphic goes out to the system clipboard as SVG so it can be
+   * pasted into another vector editor.
+   */
+  private copySelection(): boolean {
+    const strokes = this.exportSelectionStrokes();
+    if (strokes.length === 0) {
+      this.toast('Select something to copy first.');
+      return false;
+    }
+    // The origin follows what can be seen, so a paste at the pointer puts the
+    // visible graphic under it even when a hidden sublayer reaches further.
+    const box = this.boundsOfStrokes(strokes);
+    const origin = { x: box?.minX ?? 0, y: box?.minY ?? 0 };
+    const tree = this.captureLayerTree();
+    this.clipboard = tree ? { kind: 'tree', ...tree, origin } : {
+      kind: 'flat',
+      strokes: strokes.map((stroke) => JSON.parse(JSON.stringify(stroke)) as Stroke),
+      origin,
+    };
+    this.pasteCascade = 0;
+    void this.publishClipboardSvg(strokes);
+    return true;
+  }
+
+  /**
+   * The layer subtree(s) behind the selection, whenever the selection amounts
+   * to a group. A group is a shape made of layers - flattening it onto one
+   * layer loses the structure the graphic was built from - so a copy of one
+   * carries the tree.
+   *
+   * Whether the group was reached by clicking its row or by picking out its
+   * marks on the canvas makes no difference: a group joins the copy when
+   * every one of its mark-carrying layers is in the copy already. That is
+   * what makes a rubber band around a whole graphic the same gesture as
+   * clicking the row above it. A selection that covers no group at all
+   * returns null and copies flat, which is what picking out a few marks
+   * should do.
+   */
+  private captureLayerTree(): { roots: LayerTreeNode[]; sourceId: string } | null {
+    const sketch = this.store.sketch;
+
+    // The layers the copy touches: those holding a selected mark, plus any
+    // row picked out in the panel together with everything under it.
+    const held = new Set<string>();
+    for (const stroke of sketch.strokes) {
+      if (this.store.selectedIds.has(stroke.id)) held.add(layerOf(sketch, stroke).id);
+    }
+    for (const id of this.store.selectedLayerIds) {
+      if (!sketch.layers.some((layer) => layer.id === id)) continue;
+      held.add(id);
+      for (const child of descendantLayerIds(sketch, id)) held.add(child);
+    }
+    if (held.size === 0) return null;
+
+    // Which layers carry marks at all: a group is judged on those alone, so
+    // an empty layer sitting in it does not keep it out of the copy.
+    const carries = new Set(sketch.strokes.map((stroke) => layerOf(sketch, stroke).id));
+    const fullyHeld = (group: Layer): boolean => {
+      let any = false;
+      for (const id of descendantLayerIds(sketch, group.id)) {
+        if (!carries.has(id)) continue;
+        any = true;
+        if (!held.has(id)) return false;
+      }
+      return any;
+    };
+    for (const layer of sketch.layers) {
+      if (layer.group && fullyHeld(layer)) held.add(layer.id);
+    }
+    // A group that joined brings everything inside it, empty rows included.
+    for (const id of [...held]) {
+      const layer = sketch.layers.find((l) => l.id === id);
+      if (layer?.group) for (const child of descendantLayerIds(sketch, id)) held.add(child);
+    }
+
+    // Roots are the held layers no held layer contains.
+    const roots = sketch.layers.filter(
+      (layer) => held.has(layer.id) && !(layer.parent && held.has(layer.parent)),
+    );
+    // Nothing grouped came out of it: a handful of marks, which copies flat.
+    if (roots.length === 0 || !roots.some((layer) => layer.group)) return null;
+
+    return {
+      roots: roots.map((layer) => this.layerToTree(layer)),
+      // The topmost copied row: what the paste lands beside.
+      sourceId: roots[roots.length - 1].id,
+    };
+  }
+
+  /**
+   * One layer and everything under it, deep-copied for the clipboard. Only
+   * selected marks come along, which for a layer row is all of them (picking
+   * a row selects its elements) and for a canvas selection is exactly what
+   * was picked out.
+   */
+  private layerToTree(layer: Layer): LayerTreeNode {
+    const sketch = this.store.sketch;
+    return {
+      name: layer.name,
+      group: layer.group === true,
+      opacity: layer.opacity,
+      visible: layer.visible,
+      locked: layer.locked,
+      marks: sketch.strokes
+        .map((stroke, order) => ({ stroke, order }))
+        .filter(
+          ({ stroke }) =>
+            layerOf(sketch, stroke).id === layer.id && this.store.selectedIds.has(stroke.id),
+        )
+        .map(({ stroke, order }) => ({
+          stroke: JSON.parse(JSON.stringify(stroke)) as Stroke,
+          order,
+        })),
+      children: sketch.layers
+        .filter((child) => child.parent === layer.id)
+        .map((child) => this.layerToTree(child)),
+    };
+  }
+
+  /** Puts the copied graphic on the system clipboard, cropped to its own ink. */
+  private async publishClipboardSvg(strokes: Stroke[]): Promise<void> {
+    try {
+      const crop = this.cropBoundsOfStrokes(strokes);
+      if (!crop) return;
+      const svg = Surface.toSVG(
+        { ...this.store.sketch, strokes },
+        { crop, transparent: true },
+      );
+      this.clipboardSvgSent = svg;
+      await window.napkin.writeClipboardSvg(svg);
+    } catch {
+      // An unavailable system clipboard is not worth failing the copy over:
+      // the in-app clipboard is already loaded and paste works from it.
+    }
+  }
+
+  private cutSelection(): void {
+    if (!this.copySelection()) return;
+    const count = clipboardMarkCount(this.clipboard);
+    // Cut acts on the canvas selection; a layer-row selection with nothing
+    // selected on the canvas would otherwise delete nothing and look broken.
+    if (this.store.selectedIds.size === 0) {
+      this.store.setSelection(this.exportSelectionStrokes().map((stroke) => stroke.id));
+    }
+    this.store.deleteSelected();
+    this.renderLayers();
+    this.toast(`Cut ${count} element${count === 1 ? '' : 's'}.`);
+  }
+
+  private copySelectionWithToast(): void {
+    if (!this.copySelection()) return;
+    const count = clipboardMarkCount(this.clipboard);
+    const layers = this.clipboard?.kind === 'tree' ? countTreeLayers(this.clipboard.roots) : 0;
+    this.toast(
+      layers > 0
+        ? `Copied ${count} element${count === 1 ? '' : 's'} across ${layers} layer${layers === 1 ? '' : 's'}.`
+        : `Copied ${count} element${count === 1 ? '' : 's'}.`,
+    );
+  }
+
+  /**
+   * Pastes the clipboard onto the active page.
+   *
+   * `inPlace` puts the elements back at the coordinates they were copied
+   * from - the way to move a graphic between pages without it drifting.
+   * Otherwise they land under the pointer when it is over the canvas, and
+   * cascade down-right from the copied position when it is not, so a run of
+   * pastes stacks visibly instead of piling up in one spot.
+   *
+   * A graphic copied in another editor since the last copy here wins: the
+   * system clipboard is checked first, and its SVG is imported instead.
+   */
+  private async pasteClipboard(inPlace: boolean): Promise<void> {
+    const outside = await this.readOutsideSvg();
+    if (outside) {
+      await this.pasteOutsideSvg(outside);
+      return;
+    }
+    const clip = this.clipboard;
+    if (!clip || clipboardMarkCount(clip) === 0) {
+      this.toast('Nothing to paste.');
+      return;
+    }
+
+    // Where the copy lands: under the pointer when there is one on the page,
+    // otherwise a step further down-right on each repeat.
+    let dx = 0;
+    let dy = 0;
+    if (!inPlace) {
+      if (this.pointerOverCanvas && this.lastCanvasPoint) {
+        dx = this.lastCanvasPoint.x - clip.origin.x;
+        dy = this.lastCanvasPoint.y - clip.origin.y;
+      } else {
+        this.pasteCascade += 1;
+        dx = PASTE_OFFSET * this.pasteCascade;
+        dy = PASTE_OFFSET * this.pasteCascade;
+      }
+    }
+
+    const added =
+      clip.kind === 'tree'
+        ? this.pasteLayerTree(clip, dx, dy)
+        : this.pasteFlat(clip, dx, dy);
+    if (added === null) return;
+
+    this.store.setSelection(added.map((stroke) => stroke.id));
+    // Land on the Select tool so the pasted graphic can be dragged at once.
+    this.store.setTool({ tool: 'select' });
+    this.updateCursor();
+    this.renderLayers();
+    this.renderThumbnails();
+    const layers = clip.kind === 'tree' ? countTreeLayers(clip.roots) : 0;
+    const where = inPlace ? ' in place' : '';
+    this.toast(
+      layers > 0
+        ? `Pasted ${added.length} element${added.length === 1 ? '' : 's'} across ${layers} layer${layers === 1 ? '' : 's'}${where}.`
+        : `Pasted ${added.length} element${added.length === 1 ? '' : 's'}${where}.`,
+    );
+  }
+
+  /**
+   * Pastes a copied group with its layers intact: the tree is rebuilt as a
+   * sibling of the layer it was copied from, so the copy sits beside the
+   * original rather than nested inside it, and only the pasted root takes the
+   * " - Copy" suffix - the layers under it keep the names the graphic gave
+   * them, which is what keeps an imported SVG readable after a copy.
+   */
+  private pasteLayerTree(
+    clip: Extract<ClipboardContents, { kind: 'tree' }>,
+    dx: number,
+    dy: number,
+  ): Stroke[] {
+    const roots = clip.roots.map((root) => ({
+      ...moveTreeNode(root, dx, dy),
+      name: `${root.name} - Copy`,
+    }));
+    // Beside the original when it is still on this page; a paste onto another
+    // page has no original to sit beside, so it goes to the top level.
+    const beside = this.store.sketch.layers.some((layer) => layer.id === clip.sourceId)
+      ? clip.sourceId
+      : null;
+    return this.store.pasteLayerTree(roots, beside);
+  }
+
+  /** Pastes a plain selection of marks onto one layer, as any element lands. */
+  private pasteFlat(
+    clip: Extract<ClipboardContents, { kind: 'flat' }>,
+    dx: number,
+    dy: number,
+  ): Stroke[] | null {
+    if (!this.ensureDrawableLayer()) return null;
+    const copies = translateStrokes(
+      clip.strokes.map((stroke) => JSON.parse(JSON.stringify(stroke)) as Stroke),
+      dx,
+      dy,
+    ).map((stroke) => ({ ...stroke, id: createId('st') }));
+    this.store.addStrokes(copies);
+    return copies;
+  }
+
+  /**
+   * SVG sitting on the system clipboard that did not come from this app's own
+   * last copy, or null. Comparing against what was written on copy is what
+   * keeps an in-app copy (which carries far more than SVG can) from being
+   * replaced by its own lower-fidelity echo.
+   */
+  private async readOutsideSvg(): Promise<string | null> {
+    try {
+      const text = await window.napkin.readClipboardSvg();
+      if (!text || text === this.clipboardSvgSent) return null;
+      return text;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Imports SVG copied in another editor as new layers on the active page. */
+  private async pasteOutsideSvg(svgText: string): Promise<void> {
+    try {
+      const imported = importSvg(svgText, { unnamedRootName: 'pasted' });
+      if (imported.layers.length === 0) {
+        this.toast('The clipboard held no drawable shapes.');
+        return;
+      }
+      this.store.addImportedLayers(imported.layers);
+      // The paste came from outside, so this app's own clipboard no longer
+      // describes what a further paste should produce.
+      this.clipboard = null;
+      this.clipboardSvgSent = svgText;
+      this.renderLayers();
+      this.renderThumbnails();
+      this.toast(
+        `Pasted ${imported.layers.length} layer${imported.layers.length === 1 ? '' : 's'} from the clipboard.`,
+      );
+    } catch (err) {
+      this.toast((err as Error).message);
+    }
+  }
+
+  /**
+   * Copy and paste in one step, leaving the clipboard alone. A group
+   * duplicates the way it pastes: the tree is rebuilt beside the original
+   * rather than flattened onto one layer.
+   */
+  private duplicateSelection(): void {
+    const strokes = this.exportSelectionStrokes();
+    if (strokes.length === 0) {
+      this.toast('Select something to duplicate first.');
+      return;
+    }
+    const tree = this.captureLayerTree();
+    const added = tree
+      ? this.pasteLayerTree(
+          { kind: 'tree', ...tree, origin: { x: 0, y: 0 } },
+          PASTE_OFFSET,
+          PASTE_OFFSET,
+        )
+      : this.pasteFlat(
+          {
+            kind: 'flat',
+            strokes: strokes.map((stroke) => JSON.parse(JSON.stringify(stroke)) as Stroke),
+            origin: { x: 0, y: 0 },
+          },
+          PASTE_OFFSET,
+          PASTE_OFFSET,
+        );
+    if (added === null) return;
+    this.store.setSelection(added.map((stroke) => stroke.id));
+    this.renderLayers();
+    const layers = tree ? countTreeLayers(tree.roots) : 0;
+    this.toast(
+      layers > 0
+        ? `Duplicated ${added.length} element${added.length === 1 ? '' : 's'} across ${layers} layer${layers === 1 ? '' : 's'}.`
+        : `Duplicated ${added.length} element${added.length === 1 ? '' : 's'}.`,
+    );
+  }
+
+  /**
+   * The Alt-drag copy: clones the selection where it stands and makes the
+   * clones the selection, so the drag that follows moves the copy while the
+   * originals stay put. A copied group keeps its layers, exactly as a paste
+   * of one does; anything else clones flat.
+   *
+   * Pushes no history step of its own - the caller wrapped the copy and the
+   * drag into a single one.
+   */
+  private duplicateForDrag(): number {
+    const tree = this.captureLayerTree();
+    if (!tree) return this.store.duplicateSelectedElements();
+    const roots = tree.roots.map((root) => ({ ...root, name: `${root.name} - Copy` }));
+    const beside = this.store.sketch.layers.some((layer) => layer.id === tree.sourceId)
+      ? tree.sourceId
+      : null;
+    // No offset: the drag that follows is what moves the copy.
+    const added = this.store.pasteLayerTree(roots, beside, { history: false });
+    this.store.setSelection(added.map((stroke) => stroke.id));
+    return added.length;
+  }
+
+  /** The clipboard rows, shared by the canvas menu and the layers-panel menu. */
+  private clipboardMenuItems(): ContextMenuItem[] {
+    const hasSelection = this.exportSelectionStrokes().length > 0;
+    const hasClipboard = clipboardMarkCount(this.clipboard) > 0;
+    return [
+      { label: 'Cut', disabled: !hasSelection, action: () => this.cutSelection() },
+      { label: 'Copy', disabled: !hasSelection, action: () => this.copySelectionWithToast() },
+      // Paste stays enabled with an empty in-app clipboard: the system
+      // clipboard may hold a graphic from another editor, and only reading it
+      // (which the action does) can tell.
+      { label: 'Paste', action: () => void this.pasteClipboard(false) },
+      {
+        label: 'Paste in Place',
+        disabled: !hasClipboard,
+        action: () => void this.pasteClipboard(true),
+      },
+      { label: 'Duplicate', disabled: !hasSelection, action: () => this.duplicateSelection() },
+    ];
+  }
+
+  // ---- Export > Selection --------------------------------------------------
+
+  /**
+   * What a Selection export covers: the selected elements, or - when the
+   * canvas selection is empty but rows are lit in the layers panel - every
+   * stroke on those layers and their descendants. Selecting a layer and
+   * exporting it is the same gesture either way round.
+   */
+  private exportSelectionStrokes(): Stroke[] {
+    const selected = this.propertyStrokes();
+    if (selected.length > 0) return selected;
+    if (this.store.selectedLayerIds.size === 0) return [];
+    // A hidden layer is left out of an exported document, so its marks must
+    // stay out of the measurement too - counting them would size the file to
+    // ink that is never drawn into it.
+    const sketch = this.store.sketch;
+    return this.strokesInLayerSubtree([...this.store.selectedLayerIds]).filter(
+      (stroke) => effectiveLayer(sketch, layerOf(sketch, stroke)).visible,
+    );
+  }
+
+  /**
+   * Exports the selection alone, on a page cut to its own dimensions.
+   *
+   * PNG and SVG come out transparent, since a graphic cropped to its ink is
+   * one somebody is about to drop into a composition. JPEG and PDF have no
+   * usable transparency, so those keep the page background behind the marks.
+   */
+  private async exportSelection(format: ExportFormat): Promise<void> {
+    const strokes = this.exportSelectionStrokes();
+    const crop = this.cropBoundsOfStrokes(strokes);
+    if (strokes.length === 0 || !crop) {
+      this.toast('Select something to export first.');
+      return;
+    }
+    const name = `${this.store.displayName}-selection`;
+    const size = `${Math.max(1, Math.round(crop.maxX - crop.minX))} × ${Math.max(1, Math.round(crop.maxY - crop.minY))}`;
+
+    if (format === 'svg') {
+      // The viewBox does the cropping, so every coordinate stays exactly
+      // what a full-page export would have written.
+      const svg = Surface.toSVG(
+        { ...this.store.sketch, strokes },
+        { crop, transparent: true },
+      );
+      const result = await window.napkin.saveSvg(svg, name);
+      if (result.cancelled) return;
+      this.toast(result.ok ? `Exported the selection as a ${size} SVG.` : result.error ?? 'Export failed.');
+      return;
+    }
+
+    const cropped = this.croppedSketch(strokes, crop);
+    if (format === 'pdf') {
+      const prepared = await this.flattenImagesForPdf(cropped);
+      const result = await window.napkin.savePdf(sketchesToPdf([prepared]), name);
+      if (result.cancelled) return;
+      this.toast(result.ok ? `Exported the selection as a ${size} PDF.` : result.error ?? 'Export failed.');
+      return;
+    }
+
+    const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const dataUrl = Surface.renderSketchToDataURL(cropped, mime, {
+      transparent: format === 'png',
+    });
+    const result = await window.napkin.saveImage(format, dataUrl, name);
+    if (result.cancelled) return;
+    this.toast(
+      result.ok ? `Exported the selection as a ${size} ${format.toUpperCase()}.` : result.error ?? 'Export failed.',
+    );
+  }
+
+  /**
+   * A one-page sketch holding `strokes` alone, moved so `crop` starts at the
+   * origin and sized to it. The raster and PDF writers both draw from the
+   * page origin, so for them the geometry has to move; the SVG export offsets
+   * its viewBox instead and leaves the coordinates alone.
+   */
+  private croppedSketch(strokes: Stroke[], crop: AnimationBounds): Sketch {
+    return {
+      ...this.store.sketch,
+      sizeMode: 'sized',
+      width: Math.max(1, Math.round(crop.maxX - crop.minX)),
+      height: Math.max(1, Math.round(crop.maxY - crop.minY)),
+      strokes: translateStrokes(strokes, -crop.minX, -crop.minY),
+    };
+  }
+
   /**
    * Returns a sketch whose image items all carry JPEG data URLs, converting
    * other formats via a canvas (the PDF writer embeds JPEG only). PNG
@@ -4138,10 +4775,7 @@ class App {
     }
 
     // Raster image: place on the active layer, scaled to fit the page.
-    if (!this.store.canDraw) {
-      this.toast(`Layer "${this.store.activeLayer.name}" is locked or hidden.`);
-      return;
-    }
+    if (!this.ensureDrawableLayer()) return;
     try {
       const img = await loadImage(result.dataUrl);
       const sketch = this.store.sketch;
@@ -4256,16 +4890,78 @@ class App {
   private bindPages(): void {
     el('prev-page').addEventListener('click', () => this.turnPage(this.store.activeIndex - 1));
     el('next-page').addEventListener('click', () => this.turnPage(this.store.activeIndex + 1));
-    el('new-page').addEventListener('click', () => {
-      this.store.addPage('unnamed');
-      this.renderThumbnails();
-      this.toast('Added a new page.');
-    });
+    el('new-page').addEventListener('click', () => this.addDefaultPage());
+    el('pages-menu').addEventListener('click', () =>
+      this.toggleMenuUnder(el('pages-menu'), this.pageMenuItems()),
+    );
     el('pages-toggle').addEventListener('click', () => this.togglePages());
     el('delete-page').addEventListener('click', () => {
       this.store.removePage();
       this.renderThumbnails();
     });
+  }
+
+  /** The three ways to start a page, behind the pages panel's hamburger. */
+  private pageMenuItems(): ContextMenuItem[] {
+    return [
+      {
+        label: 'From Selection',
+        disabled: this.exportSelectionStrokes().length === 0,
+        action: () => this.addPageFromSelection(),
+      },
+      { label: 'Default New Page', action: () => this.addDefaultPage() },
+      { label: 'Custom New Page…', action: () => this.openPageSettings({ forNewPage: true }) },
+    ];
+  }
+
+  /** A new page the size of the one in view - what "+ Page" has always done. */
+  private addDefaultPage(): void {
+    this.store.addPage('unnamed');
+    this.renderThumbnails();
+    this.toast('Added a new page.');
+  }
+
+  /**
+   * A new page cut to the selection's own dimensions, carrying a copy of the
+   * selection: the graphic gets a page that fits it rather than the other way
+   * round, and arrives on it rather than being left behind on the old page.
+   *
+   * The originals stay where they were - this copies, it does not move - and
+   * the copies land at the new page's origin and become the selection, so the
+   * marks that were selected before the page turned are still the marks that
+   * are selected after it.
+   */
+  private addPageFromSelection(): void {
+    const strokes = this.exportSelectionStrokes();
+    const crop = this.cropBoundsOfStrokes(strokes);
+    if (!crop) {
+      this.toast('Select something to measure the new page from first.');
+      return;
+    }
+    // The Page Settings floor applies here too: a page below it cannot be
+    // typed, so it should not be measurable either.
+    const width = Math.min(MAX_PAGE_SIZE, Math.max(MIN_PAGE_SIZE, Math.round(crop.maxX - crop.minX)));
+    const height = Math.min(MAX_PAGE_SIZE, Math.max(MIN_PAGE_SIZE, Math.round(crop.maxY - crop.minY)));
+
+    // Deep-copy before the page turns: fresh ids, and nothing (a gradient's
+    // stops, say) still shared with the marks left behind on the old page.
+    const copies = translateStrokes(
+      strokes.map((stroke) => JSON.parse(JSON.stringify(stroke)) as Stroke),
+      -crop.minX,
+      -crop.minY,
+    ).map((stroke) => ({ ...stroke, id: createId('st') }));
+
+    this.store.addPage('unnamed');
+    this.store.setPageSize('sized', width, height);
+    this.store.addStrokes(copies);
+    this.store.setSelection(copies.map((stroke) => stroke.id));
+    this.renderLayers();
+    this.renderThumbnails();
+    this.resizeSurface();
+    this.toast(
+      `Added a ${width} × ${height} page with ${copies.length} copied ` +
+        `${copies.length === 1 ? 'mark' : 'marks'}.`,
+    );
   }
 
   private togglePages(force?: boolean): void {
@@ -4287,8 +4983,8 @@ class App {
     });
     el('group-layer').addEventListener('click', () => this.groupActiveLayer());
     el('delete-layer').addEventListener('click', () => this.deleteSelectedLayers());
-    el('layer-up').addEventListener('click', () => this.moveActiveLayer(1));
-    el('layer-down').addEventListener('click', () => this.moveActiveLayer(-1));
+    el('layer-up').addEventListener('click', () => this.moveSelectedLayers(1));
+    el('layer-down').addEventListener('click', () => this.moveSelectedLayers(-1));
 
     // Opacity drags collapse into one history step (pushed on the first tick).
     const opacity = el<HTMLInputElement>('layer-opacity');
@@ -4336,10 +5032,44 @@ class App {
         { label: 'Rename', action: () => this.renameActiveLayer() },
         { label: 'Delete Layer(s)', action: () => this.deleteSelectedLayers() },
         { separator: true },
-        { label: 'Move Layer Up', action: () => this.store.moveLayer(this.store.activeLayer.id, 1) },
-        { label: 'Move Layer Down', action: () => this.store.moveLayer(this.store.activeLayer.id, -1) },
+        ...this.clipboardMenuItems(),
+        { separator: true },
+        { label: 'Move Layer(s) Up', action: () => this.moveSelectedLayers(1) },
+        { label: 'Move Layer(s) Down', action: () => this.moveSelectedLayers(-1) },
         { separator: true },
         { label: 'Hide Layers Panel', action: () => this.toggleLayers(false) },
+      ]);
+    });
+
+    // The canvas menu is where the clipboard lives for the pointer: right-click
+    // acts on what is under (or already picked out on) the page.
+    el('canvas-wrap').addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      // Right-clicking an unselected element picks it first, so "Copy" means
+      // the thing just clicked rather than whatever was selected before.
+      const pt = this.surface.toSketchPoint(e.clientX, e.clientY, 0.5);
+      const hit = this.hitTest(pt);
+      if (hit && !this.store.selectedIds.has(hit.id)) this.store.setSelection([hit.id]);
+      // Paste aims at the point that was right-clicked, not at wherever the
+      // pointer drifts to while the menu is open.
+      this.lastCanvasPoint = pt;
+      this.pointerOverCanvas = true;
+      const hasSelection = this.exportSelectionStrokes().length > 0;
+      this.showContextMenu(e.clientX, e.clientY, [
+        ...this.clipboardMenuItems(),
+        { separator: true },
+        {
+          label: 'Delete',
+          disabled: !hasSelection,
+          action: () => this.deleteSelectionOrLayers(),
+        },
+        { separator: true },
+        { label: 'Select All', action: () => this.selectAll() },
+        {
+          label: 'Deselect All',
+          disabled: this.store.selectedIds.size === 0,
+          action: () => this.store.clearSelection(),
+        },
       ]);
     });
 
@@ -4369,10 +5099,19 @@ class App {
       ]);
     });
 
+    // Reaching the nested panel keeps it: the pointer got there, whatever
+    // rows it crossed on the way.
+    el('context-submenu').addEventListener('pointerenter', () => this.cancelSubmenuClose());
+
     window.addEventListener('pointerdown', (e) => {
-      if (!(e.target instanceof Node) || !el('context-menu').contains(e.target)) {
-        this.hideContextMenu();
-      }
+      const inside =
+        e.target instanceof Node &&
+        (el('context-menu').contains(e.target) ||
+          el('context-submenu').contains(e.target) ||
+          // The owner's press is its own toggle; closing here would let that
+          // toggle reopen the menu it was meant to dismiss.
+          this.menuOwner?.contains(e.target) === true);
+      if (!inside) this.hideContextMenu();
     });
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') this.hideContextMenu();
@@ -4380,9 +5119,51 @@ class App {
     window.addEventListener('blur', () => this.hideContextMenu());
   }
 
-  /** Builds and positions the shared context menu at a client point. */
-  private showContextMenu(x: number, y: number, items: ContextMenuItem[]): void {
+  /**
+   * Drops `items` under `button`, or takes them back when that button's own
+   * menu is already out. The press that opens a menu is the press that
+   * dismisses it, which is what a toolbar dropdown does everywhere else.
+   */
+  private toggleMenuUnder(button: HTMLElement, items: ContextMenuItem[]): void {
+    if (this.menuOwner === button && !el('context-menu').classList.contains('is-hidden')) {
+      this.hideContextMenu();
+      return;
+    }
+    const rect = button.getBoundingClientRect();
+    this.showContextMenu(rect.left, rect.bottom + 4, items, button);
+  }
+
+  /**
+   * Builds and positions the shared context menu at a client point. `owner` is
+   * the button it was dropped from, if any: it lights up while the menu is out
+   * and its next press closes it.
+   */
+  private showContextMenu(
+    x: number,
+    y: number,
+    items: ContextMenuItem[],
+    owner: HTMLElement | null = null,
+  ): void {
     const menu = el('context-menu');
+    this.hideSubmenu();
+    this.menuOwner?.classList.remove('is-open');
+    this.menuOwner = owner;
+    owner?.classList.add('is-open');
+    this.fillMenu(menu, items);
+    menu.classList.remove('is-hidden');
+    // Nudge the menu back on-screen when opened near a window edge.
+    const rect = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(0, Math.min(x, window.innerWidth - rect.width - 4))}px`;
+    menu.style.top = `${Math.max(0, Math.min(y, window.innerHeight - rect.height - 4))}px`;
+  }
+
+  /**
+   * Fills one menu panel with rows, wiring nested entries to open beside them.
+   * `nested` marks the panel as the one opened by a row rather than the one
+   * holding that row, which is what decides whether hovering a plain row
+   * dismisses the nested panel or keeps it.
+   */
+  private fillMenu(menu: HTMLElement, items: ContextMenuItem[], nested = false): void {
     menu.innerHTML = '';
     for (const item of items) {
       if (item.separator) {
@@ -4395,21 +5176,96 @@ class App {
       btn.type = 'button';
       btn.textContent = item.label ?? '';
       btn.disabled = item.disabled === true;
-      btn.addEventListener('click', () => {
-        this.hideContextMenu();
-        item.action?.();
-      });
+      const children = item.items;
+      if (children && children.length > 0) {
+        btn.classList.add('has-submenu');
+        btn.setAttribute('aria-haspopup', 'menu');
+        const open = (): void => {
+          if (btn.disabled) return;
+          this.cancelSubmenuClose();
+          this.showSubmenu(btn, children);
+        };
+        // Hover opens it; so does keyboard focus, and so does a click, which
+        // is what a pointer that never rests on the row will do.
+        btn.addEventListener('pointerenter', open);
+        btn.addEventListener('focus', open);
+        btn.addEventListener('click', open);
+      } else {
+        btn.addEventListener('pointerenter', () => {
+          if (nested) {
+            // A row *inside* the nested panel: the pointer arrived, so keep
+            // the panel up. `pointerenter` on the panel itself fires only on
+            // the way in and never again as the pointer moves between its
+            // rows, so without this the first row reached would start the
+            // dismissal that the panel could no longer cancel.
+            this.cancelSubmenuClose();
+          } else {
+            // A plain row in the parent menu starts dismissing the nested
+            // panel - but only starts it. That panel is a separate element
+            // sitting beside this one, so a pointer travelling toward it
+            // crosses rows it is not aiming at, and closing on the first of
+            // them would put the panel out of reach.
+            this.scheduleSubmenuClose();
+          }
+        });
+        btn.addEventListener('click', () => {
+          this.hideContextMenu();
+          item.action?.();
+        });
+      }
       menu.appendChild(btn);
     }
-    menu.classList.remove('is-hidden');
-    // Nudge the menu back on-screen when opened near a window edge.
-    const rect = menu.getBoundingClientRect();
-    menu.style.left = `${Math.max(0, Math.min(x, window.innerWidth - rect.width - 4))}px`;
-    menu.style.top = `${Math.max(0, Math.min(y, window.innerHeight - rect.height - 4))}px`;
+  }
+
+  /** Opens a nested panel beside `anchor`, flipping left when it would overrun. */
+  private showSubmenu(anchor: HTMLElement, items: ContextMenuItem[]): void {
+    const sub = el('context-submenu');
+    for (const open of el('context-menu').querySelectorAll('.is-open')) {
+      open.classList.remove('is-open');
+    }
+    anchor.classList.add('is-open');
+    this.fillMenu(sub, items, true);
+    sub.classList.remove('is-hidden');
+    const box = anchor.getBoundingClientRect();
+    const rect = sub.getBoundingClientRect();
+    const right = box.right - 2;
+    const left = right + rect.width > window.innerWidth - 4 ? box.left - rect.width + 2 : right;
+    sub.style.left = `${Math.max(0, left)}px`;
+    sub.style.top = `${Math.max(0, Math.min(box.top, window.innerHeight - rect.height - 4))}px`;
+  }
+
+  /**
+   * Closes the nested panel after a grace period, long enough for a pointer
+   * travelling toward it to get there across the rows in between.
+   */
+  private scheduleSubmenuClose(): void {
+    if (el('context-submenu').classList.contains('is-hidden')) return;
+    this.cancelSubmenuClose();
+    this.submenuCloseTimer = window.setTimeout(() => {
+      this.submenuCloseTimer = null;
+      this.hideSubmenu();
+    }, SUBMENU_GRACE_MS);
+  }
+
+  private cancelSubmenuClose(): void {
+    if (this.submenuCloseTimer === null) return;
+    window.clearTimeout(this.submenuCloseTimer);
+    this.submenuCloseTimer = null;
+  }
+
+  private hideSubmenu(): void {
+    this.cancelSubmenuClose();
+    el('context-submenu').classList.add('is-hidden');
+    for (const open of el('context-menu').querySelectorAll('.is-open')) {
+      open.classList.remove('is-open');
+    }
   }
 
   private hideContextMenu(): void {
+    this.hideSubmenu();
     el('context-menu').classList.add('is-hidden');
+    this.menuOwner?.classList.remove('is-open');
+    this.menuOwner = null;
   }
 
   /**
@@ -4526,44 +5382,114 @@ class App {
       el<HTMLInputElement>('page-height').disabled = !sized.checked;
     });
     el('page-settings-apply').addEventListener('click', () => this.applyPageSettings());
-    el('page-settings-close').addEventListener('click', () =>
-      el('page-settings-dialog').classList.add('is-hidden'),
-    );
+    el('page-settings-close').addEventListener('click', () => this.closePageSettings());
   }
 
-  /** Opens the Page Settings dialog pre-filled from the active page. */
-  private openPageSettings(): void {
+  /**
+   * Opens the Page Settings dialog pre-filled from the active page.
+   *
+   * With `forNewPage`, the dialog is instead the size prompt for a page that
+   * does not exist yet: Sized Page comes up already applied, and the page is
+   * only added if Apply is pressed, so closing the dialog leaves no empty
+   * page behind.
+   */
+  private openPageSettings(options: { forNewPage?: boolean } = {}): void {
     const sketch = this.store.sketch;
+    const forNewPage = options.forNewPage === true;
+    this.pageSettingsAddsPage = forNewPage;
     const sized = el<HTMLInputElement>('page-sized');
-    sized.checked = sketch.sizeMode === 'sized';
+    sized.checked = forNewPage || sketch.sizeMode === 'sized';
     const width = el<HTMLInputElement>('page-width');
     const height = el<HTMLInputElement>('page-height');
     width.value = String(sketch.width);
     height.value = String(sketch.height);
     width.disabled = !sized.checked;
     height.disabled = !sized.checked;
+    el('page-settings-title').textContent = forNewPage ? 'New Page' : 'Page Settings';
+    el('page-settings-apply').textContent = forNewPage ? 'Add Page' : 'Apply';
     el('page-settings-dialog').classList.remove('is-hidden');
+    if (forNewPage) width.focus();
   }
 
   private applyPageSettings(): void {
     const sized = el<HTMLInputElement>('page-sized').checked;
+    const adding = this.pageSettingsAddsPage;
     if (sized) {
       const width = Math.round(Number(el<HTMLInputElement>('page-width').value));
       const height = Math.round(Number(el<HTMLInputElement>('page-height').value));
-      if (!Number.isFinite(width) || !Number.isFinite(height) || width < 64 || height < 64) {
-        this.toast('Enter a page width and height of at least 64 pixels.');
+      if (
+        !Number.isFinite(width) ||
+        !Number.isFinite(height) ||
+        width < MIN_PAGE_SIZE ||
+        height < MIN_PAGE_SIZE
+      ) {
+        this.toast(`Enter a page width and height of at least ${MIN_PAGE_SIZE} pixels.`);
         return;
       }
-      this.store.setPageSize('sized', Math.min(8192, width), Math.min(8192, height));
-      this.toast(`Page sized to ${this.store.sketch.width} × ${this.store.sketch.height}.`);
+      if (adding) this.store.addPage('unnamed');
+      this.store.setPageSize('sized', Math.min(MAX_PAGE_SIZE, width), Math.min(MAX_PAGE_SIZE, height));
+      this.toast(
+        adding
+          ? `Added a ${this.store.sketch.width} × ${this.store.sketch.height} page.`
+          : `Page sized to ${this.store.sketch.width} × ${this.store.sketch.height}.`,
+      );
     } else {
       // Endless pages fall back to tracking the window size.
+      if (adding) this.store.addPage('unnamed');
       this.store.setPageSize('endless');
-      this.toast('Page set to endless (fills the window).');
+      this.toast(adding ? 'Added an endless page.' : 'Page set to endless (fills the window).');
     }
-    el('page-settings-dialog').classList.add('is-hidden');
+    this.closePageSettings();
     this.resizeSurface();
     this.renderThumbnails();
+  }
+
+  /** Closes the dialog, dropping any pending new page with it. */
+  private closePageSettings(): void {
+    this.pageSettingsAddsPage = false;
+    el('page-settings-dialog').classList.add('is-hidden');
+  }
+
+  /**
+   * Makes sure there is a layer that can take new marks, and says whether
+   * there is.
+   *
+   * An active *group* is not a refusal: a group holds no marks itself, so a
+   * fresh layer drops inside it and the caller carries on - which is what
+   * happens when the row picked out in the panel is the group wrapping an
+   * imported graphic, the natural row to click to select the whole thing.
+   * Only a locked or hidden target actually refuses, and it says which.
+   */
+  private ensureDrawableLayer(): boolean {
+    if (this.store.canDraw) return true;
+    const layer = this.store.activeLayer;
+    const effective = effectiveLayer(this.store.sketch, layer);
+    if (layer.group && effective.visible && !effective.locked) {
+      const created = this.store.addLayerInGroup(layer.id);
+      this.toast(`"${layer.name}" is a group — added layer "${created.name}" inside it.`);
+      return true;
+    }
+    const kind = layer.group ? 'Group' : 'Layer';
+    this.toast(
+      effective.locked
+        ? `${kind} "${layer.name}" is locked.`
+        : `${kind} "${layer.name}" is hidden.`,
+    );
+    return false;
+  }
+
+  /**
+   * Delete as the Edit menu, the canvas menu, and the Delete key all mean it:
+   * selected elements go first (emptied layers prune away with them); with
+   * none, the selected layer rows go, empty layers and groups included.
+   */
+  private deleteSelectionOrLayers(): void {
+    if (this.store.selectedIds.size > 0) {
+      this.store.deleteSelected();
+      this.renderLayers();
+    } else if (this.store.selectedLayerIds.size > 0) {
+      this.deleteSelectedLayers();
+    }
   }
 
   /** Wraps the selected layers (or the active layer) in a new group. */
@@ -4748,13 +5674,15 @@ class App {
       list.appendChild(row);
     }
 
-    const index = layers.findIndex((l) => l.id === active.id);
     el<HTMLInputElement>('layer-opacity').value = String(Math.round(active.opacity * 100));
     el('layer-opacity-value').textContent = `${Math.round(active.opacity * 100)}%`;
     el<HTMLButtonElement>('delete-layer').disabled = layers.filter((l) => !l.group).length <= 1;
-    // Group rows themselves are not reorderable; their children are.
-    el<HTMLButtonElement>('layer-up').disabled = active.group === true || index >= layers.length - 1;
-    el<HTMLButtonElement>('layer-down').disabled = active.group === true || index <= 0;
+    // The move buttons act on the whole selection, groups included, and grey
+    // out only where that selection has nowhere left to go.
+    const movable =
+      this.store.selectedLayerIds.size > 0 ? [...this.store.selectedLayerIds] : [active.id];
+    el<HTMLButtonElement>('layer-up').disabled = !this.store.canMoveLayers(movable, 1);
+    el<HTMLButtonElement>('layer-down').disabled = !this.store.canMoveLayers(movable, -1);
   }
 
   /** HTML5 drag-and-drop for a layer row: reposition, or drop into a group. */
@@ -4977,6 +5905,27 @@ class App {
         break;
       case 'redo':
         this.store.redo();
+        break;
+      case 'cut':
+        this.cutSelection();
+        break;
+      case 'copy':
+        this.copySelectionWithToast();
+        break;
+      case 'paste':
+        void this.pasteClipboard(false);
+        break;
+      case 'paste-in-place':
+        void this.pasteClipboard(true);
+        break;
+      case 'duplicate':
+        this.duplicateSelection();
+        break;
+      case 'delete-selection':
+        this.deleteSelectionOrLayers();
+        break;
+      case 'select-all':
+        this.selectAll();
         break;
       case 'fit-view':
         this.fitAllInView();
@@ -5620,14 +6569,14 @@ class App {
     if (!source || !frame) return;
     const dx = animationFrameOffsetX(source, frame);
     if (dx === 0) return;
-    const strokeIds = this.animationStrokesIn([frameLayerId]).map((s) => s.id);
+    const strokeIds = this.strokesInLayerSubtree([frameLayerId]).map((s) => s.id);
     // No history step of its own: the placement belongs to the import that
     // preceded it, so one undo takes the whole frame back off the page.
     this.store.moveStrokes(strokeIds, dx, 0, false);
   }
 
   /** Every stroke on the given layers and their descendants. */
-  private animationStrokesIn(layerIds: string[]): Stroke[] {
+  private strokesInLayerSubtree(layerIds: string[]): Stroke[] {
     const sketch = this.store.sketch;
     const ids = new Set<string>();
     for (const layerId of layerIds) {
@@ -5637,13 +6586,13 @@ class App {
     return sketch.strokes.filter((s) => ids.has(layerOf(sketch, s).id));
   }
 
-  /** Bounds of every stroke on the given layers and their descendants. */
-  private animationLayerBounds(layerIds: string[]): AnimationBounds | null {
+  /** Union of the given strokes' bounds, or null when none of them has any. */
+  private boundsOfStrokes(strokes: Stroke[]): AnimationBounds | null {
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
-    for (const stroke of this.animationStrokesIn(layerIds)) {
+    for (const stroke of strokes) {
       const b = strokeBounds(stroke, (t) => this.surface.measureText(t));
       if (!b) continue;
       minX = Math.min(minX, b.minX);
@@ -5655,18 +6604,26 @@ class App {
   }
 
   /**
-   * Bounds to size an exported frame by: the stroke bounds grown by half the
-   * widest stroke. `strokeBounds` follows centerlines, so a box drawn on them
-   * alone would slice the outer edge of the ink off the sprite.
+   * Bounds to size an export by: the stroke bounds grown by half the widest
+   * outline. `strokeBounds` follows centerlines, so a box drawn on them alone
+   * would slice the outer edge of the ink off the graphic.
    */
-  private animationCropBounds(layerIds: string[]): AnimationBounds | null {
-    const bounds = this.animationLayerBounds(layerIds);
+  private cropBoundsOfStrokes(strokes: Stroke[]): AnimationBounds | null {
+    const bounds = this.boundsOfStrokes(strokes);
     if (!bounds) return null;
     let widest = 0;
-    for (const stroke of this.animationStrokesIn(layerIds)) {
-      widest = Math.max(widest, stroke.width ?? 0);
-    }
+    for (const stroke of strokes) widest = Math.max(widest, stroke.width ?? 0);
     return expandBounds(bounds, widest / 2);
+  }
+
+  /** Bounds of every stroke on the given layers and their descendants. */
+  private animationLayerBounds(layerIds: string[]): AnimationBounds | null {
+    return this.boundsOfStrokes(this.strokesInLayerSubtree(layerIds));
+  }
+
+  /** Bounds to size an exported animation frame by. */
+  private animationCropBounds(layerIds: string[]): AnimationBounds | null {
+    return this.cropBoundsOfStrokes(this.strokesInLayerSubtree(layerIds));
   }
 
   /**
@@ -5825,20 +6782,30 @@ class App {
   }
 
   /**
-   * Restacks the active layer one step (Ctrl+] / Ctrl+[ and the panel's move
-   * buttons). Group rows carry no paint order of their own, and the ends of
-   * the stack have nowhere to go, so both cases say what happened instead of
-   * failing silently.
+   * Restacks the selection one step (Ctrl+] / Ctrl+[ and the panel's move
+   * buttons). Every selected row moves, not just the active one, and a
+   * selected group takes its contents with it. The ends of the stack have
+   * nowhere to go, so that case says so instead of failing silently.
    */
-  private moveActiveLayer(direction: 1 | -1): void {
-    const layer = this.store.activeLayer;
-    if (layer.group) {
-      this.toast('Group rows cannot be restacked - move the layers inside it.');
+  private moveSelectedLayers(direction: 1 | -1): void {
+    const ids =
+      this.store.selectedLayerIds.size > 0
+        ? [...this.store.selectedLayerIds]
+        : [this.store.activeLayer.id];
+    if (!this.store.moveLayers(ids, direction)) {
+      const many = ids.length > 1;
+      this.toast(
+        direction === 1
+          ? many
+            ? 'Already at the top of the stack.'
+            : 'Already the top layer.'
+          : many
+            ? 'Already at the bottom of the stack.'
+            : 'Already the bottom layer.',
+      );
       return;
     }
-    if (!this.store.moveLayer(layer.id, direction)) {
-      this.toast(direction === 1 ? 'Already the top layer.' : 'Already the bottom layer.');
-    }
+    this.renderLayers();
   }
 
   private toggleProperties(force?: boolean): void {
@@ -6321,15 +7288,16 @@ class App {
         }
       }
 
-      // Vector Path: Alt is the handle-toggle modifier — keep the keypress
-      // from reaching the native menu bar, which would steal focus (the
-      // resulting blur would put the edited path down mid-gesture). Holding
-      // it shows the stemless arrowhead pointer.
-      if (e.key === 'Alt' && this.store.tool.tool === 'vector') {
-        e.preventDefault();
+      // Alt is tracked for every tool: the Vector Path tool shows the stemless
+      // arrowhead while it is held (and needs the keypress kept from the
+      // native menu bar, which would steal focus and put the edited path down
+      // mid-gesture), and the Select tool shows the copy arrows.
+      if (e.key === 'Alt') {
+        if (this.store.tool.tool === 'vector') e.preventDefault();
         if (!this.altDown) {
           this.altDown = true;
           if (this.vectorEditId) this.updateVectorEditCursor();
+          else this.updateCursor();
         }
       }
 
@@ -6483,6 +7451,20 @@ class App {
         // Select all editable strokes (Ctrl/Cmd + A).
         e.preventDefault();
         this.selectAll();
+      } else if (mod && key === 'c') {
+        e.preventDefault();
+        this.copySelectionWithToast();
+      } else if (mod && key === 'x') {
+        e.preventDefault();
+        this.cutSelection();
+      } else if (mod && key === 'v') {
+        // Shift pastes back at the copied coordinates instead of at the
+        // pointer - how a graphic moves between pages without drifting.
+        e.preventDefault();
+        void this.pasteClipboard(e.shiftKey);
+      } else if (mod && key === 'd') {
+        e.preventDefault();
+        this.duplicateSelection();
       } else if (mod && key === 's') {
         e.preventDefault();
         void this.saveBook(e.shiftKey);
@@ -6514,18 +7496,11 @@ class App {
         // Ctrl+] / Ctrl+[ restack the active layer, matching the panel's
         // move buttons.
         e.preventDefault();
-        this.moveActiveLayer(key === ']' ? 1 : -1);
+        this.moveSelectedLayers(key === ']' ? 1 : -1);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Selected elements delete first (emptied layers prune away with
-        // them); with none, Delete removes the selected layer rows - the
-        // keyboard twin of the panel's Delete button, empty layers and
-        // groups included.
-        if (this.store.selectedIds.size > 0) {
+        if (this.store.selectedIds.size > 0 || this.store.selectedLayerIds.size > 0) {
           e.preventDefault();
-          this.store.deleteSelected();
-        } else if (this.store.selectedLayerIds.size > 0) {
-          e.preventDefault();
-          this.deleteSelectedLayers();
+          this.deleteSelectionOrLayers();
         }
       } else if (!mod && key === 'p') {
         this.store.setTool({ tool: 'pen' });
@@ -6622,6 +7597,7 @@ class App {
         if (this.altDown) {
           this.altDown = false;
           if (this.vectorEditId) this.updateVectorEditCursor();
+          else this.updateCursor();
         }
       }
 
@@ -6880,6 +7856,75 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/** What the in-app clipboard is holding, and how a paste should rebuild it. */
+type ClipboardContents =
+  | { kind: 'flat'; strokes: Stroke[]; origin: { x: number; y: number } }
+  | {
+      kind: 'tree';
+      roots: LayerTreeNode[];
+      /** The layer the copy was taken from, which the paste lands beside. */
+      sourceId: string;
+      origin: { x: number; y: number };
+    };
+
+/** How many marks the clipboard holds, however it is holding them. */
+function clipboardMarkCount(clip: ClipboardContents | null): number {
+  if (!clip) return 0;
+  if (clip.kind === 'flat') return clip.strokes.length;
+  const count = (node: LayerTreeNode): number =>
+    node.marks.length + node.children.reduce((n, child) => n + count(child), 0);
+  return clip.roots.reduce((n, root) => n + count(root), 0);
+}
+
+/** How many layers a copied tree spans, counting groups and nesting. */
+function countTreeLayers(roots: LayerTreeNode[]): number {
+  const count = (node: LayerTreeNode): number =>
+    1 + node.children.reduce((n, child) => n + count(child), 0);
+  return roots.reduce((n, root) => n + count(root), 0);
+}
+
+/** A copied subtree with every mark in it shifted by (`dx`, `dy`). */
+function moveTreeNode(node: LayerTreeNode, dx: number, dy: number): LayerTreeNode {
+  return {
+    ...node,
+    marks: node.marks.map((mark, i) => ({
+      stroke: translateStrokes([mark.stroke], dx, dy)[0],
+      order: node.marks[i].order,
+    })),
+    children: node.children.map((child) => moveTreeNode(child, dx, dy)),
+  };
+}
+
+/**
+ * Copies strokes with every coordinate shifted by (`dx`, `dy`) - the sampled
+ * points and, where a stroke carries one, the Bézier anchors and their
+ * handles. The originals are left untouched.
+ */
+function translateStrokes(strokes: Stroke[], dx: number, dy: number): Stroke[] {
+  const shift = <T extends { x: number; y: number }>(p: T): T => ({
+    ...p,
+    x: p.x + dx,
+    y: p.y + dy,
+  });
+  return strokes.map((stroke) => ({
+    ...stroke,
+    points: stroke.points.map(shift),
+    ...(stroke.vector
+      ? {
+          vector: {
+            ...stroke.vector,
+            anchors: stroke.vector.anchors.map((a) => ({
+              ...a,
+              p: shift(a.p),
+              ...(a.hIn ? { hIn: shift(a.hIn) } : {}),
+              ...(a.hOut ? { hOut: shift(a.hOut) } : {}),
+            })),
+          },
+        }
+      : {}),
+  }));
+}
+
 /** One entry in the shared right-click context menu. */
 interface ContextMenuItem {
   label?: string;
@@ -6887,6 +7932,12 @@ interface ContextMenuItem {
   disabled?: boolean;
   /** Renders a divider line instead of a button. */
   separator?: boolean;
+  /**
+   * Nested entries. A row that carries them opens them in a panel beside
+   * itself on hover (or on focus, for the keyboard) rather than acting on a
+   * click of its own.
+   */
+  items?: ContextMenuItem[];
 }
 
 /** A successfully read import, before it is applied to the book. */

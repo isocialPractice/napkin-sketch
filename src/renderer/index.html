@@ -112,7 +112,7 @@
           <button id="new-sketch" class="btn" type="button" title="New sketch">New</button>
           <button id="open" class="btn" type="button" title="Open sketch book">Open</button>
           <button id="import" class="btn" type="button" title="Import SVG, PDF, PNG, or JPEG (Ctrl+I)">Import</button>
-          <button id="export" class="btn" type="button" title="Export as PNG, JPEG, SVG, or PDF">Export</button>
+          <button id="export" class="btn" type="button" title="Export the page, the book, or just the selection as PNG, JPEG, SVG, or PDF">Export</button>
           <button id="save" class="btn btn-strong" type="button" title="Save (Ctrl+S)">Save</button>
           <button id="save-as" class="btn" type="button" title="Save as (Ctrl+Shift+S)">Save As</button>
           <button id="app-settings" class="btn btn-ghost" type="button" title="Verbose Settings" aria-label="Open verbose settings">
@@ -129,6 +129,9 @@
           <div class="pages-panel-head">
             <span>Pages</span>
             <div class="pages-panel-actions">
+              <button id="pages-menu" class="btn btn-ghost btn-hamburger" type="button" title="Page menu — new page from the selection, at the default size, or at a size you type" aria-label="Page menu" aria-haspopup="menu">
+                <span class="hamburger" aria-hidden="true"></span>
+              </button>
               <button id="new-page" class="btn btn-ghost" type="button" title="Add page">+ Page</button>
               <button id="delete-page" class="btn btn-ghost" type="button" title="Delete page">Delete</button>
             </div>
@@ -360,7 +363,7 @@
       <!-- Page Settings dialog: toggle a page between endless and sized -->
       <div id="page-settings-dialog" class="export-dialog dialog-corner is-hidden" role="dialog" aria-label="Page Settings">
         <div class="export-dialog-inner">
-          <p class="export-dialog-title">Page Settings</p>
+          <p id="page-settings-title" class="export-dialog-title">Page Settings</p>
           <label class="switch settings-row" title="Sized pages keep an exact width and height; endless pages fill the window">
             <input id="page-sized" type="checkbox" />
             <span class="switch-track" aria-hidden="true"></span>
@@ -452,8 +455,10 @@
         </div>
       </div>
 
-      <!-- Right-click context menu (layers and pages panels) -->
+      <!-- Right-click context menu (layers and pages panels), and the panel a
+           row with nested items opens beside itself -->
       <div id="context-menu" class="context-menu is-hidden" role="menu"></div>
+      <div id="context-submenu" class="context-menu is-hidden" role="menu"></div>
 
       <!-- Export page-selection dialog -->
       <div id="export-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Export options">

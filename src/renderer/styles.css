@@ -207,6 +207,20 @@ body {
   border-color: var(--primary-hover);
 }
 
+/* A button holding a menu open reads as pressed for as long as the menu is
+   out, so it is obvious which button the panel below belongs to - and that
+   pressing it again is what puts the menu away. Panel toggles keep their own
+   filled treatment above. */
+.btn.is-open:not(.btn-panel) {
+  background: var(--surface-2);
+  border-color: var(--ink-soft);
+}
+
+.btn-ghost.is-open {
+  background: var(--surface-2);
+  border-color: var(--ink-soft);
+}
+
 /* Vertical bar separating the panel toggles from the file actions. */
 .toolbar-sep {
   flex: 0 0 auto;
@@ -446,6 +460,44 @@ body {
 .pages-panel-actions {
   display: flex;
   gap: var(--s1);
+}
+
+/* Page menu trigger: three stacked bars, the pipes of "|||" laid on their
+   side. Drawn in CSS so the icon takes the panel's ink color in every theme. */
+.btn-hamburger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s1) var(--s2);
+}
+
+.hamburger,
+.hamburger::before,
+.hamburger::after {
+  display: block;
+  width: 13px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.hamburger {
+  position: relative;
+}
+
+.hamburger::before,
+.hamburger::after {
+  content: '';
+  position: absolute;
+  left: 0;
+}
+
+.hamburger::before {
+  top: -4px;
+}
+
+.hamburger::after {
+  top: 4px;
 }
 
 .thumbs {
@@ -1404,6 +1456,26 @@ body {
 .context-menu button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* A row that opens a panel of its own sits beside a chevron, and keeps the
+   hover tint while that panel is the one being pointed at. */
+.context-menu button.has-submenu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.context-menu button.has-submenu::after {
+  content: '›';
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.context-menu button.is-open:not(:disabled) {
+  background: var(--surface-2);
 }
 
 .context-menu .context-menu-sep {

@@ -72,6 +72,10 @@ export const IPC = {
   saveAnimationFrame: 'napkin:save-animation-frame',
   /** Renderer → main: delete the transient animation temp folder. */
   clearAnimationTemp: 'napkin:clear-animation-temp',
+  /** Renderer → main: put the copied selection on the system clipboard as SVG. */
+  writeClipboardSvg: 'napkin:write-clipboard-svg',
+  /** Renderer → main: read SVG markup sitting on the system clipboard. */
+  readClipboardSvg: 'napkin:read-clipboard-svg',
 } as const;
 
 /** Actions the native application menu can trigger in the renderer. */
@@ -87,6 +91,13 @@ export type MenuAction =
   | 'export-pdf'
   | 'undo'
   | 'redo'
+  | 'cut'
+  | 'copy'
+  | 'paste'
+  | 'paste-in-place'
+  | 'duplicate'
+  | 'delete-selection'
+  | 'select-all'
   | 'fit-view'
   | 'toggle-pages'
   | 'toggle-layers'
@@ -203,6 +214,16 @@ export interface NapkinBridge {
   setTitle(title: string): void;
   /** Subscribes to native-menu actions; returns an unsubscribe function. */
   onMenuAction(handler: (action: MenuAction) => void): () => void;
+  /**
+   * Puts `svgContent` on the system clipboard, so a selection copied here can
+   * be pasted into another vector editor.
+   */
+  writeClipboardSvg(svgContent: string): Promise<void>;
+  /**
+   * Reads SVG markup from the system clipboard, or null when it holds
+   * something else. Lets a graphic copied in another editor paste in here.
+   */
+  readClipboardSvg(): Promise<string | null>;
   /**
    * Writes `formText` and `sourceSvg` to the animation temp folder and runs
    * the configured AI helper command to draw one frame. Resolves as soon as

@@ -2,8 +2,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Surface } from '../src/renderer/surface.js';
-import { decodeIdName, isAutoId } from '../src/renderer/svg-import.js';
-import { createGroupLayer, createLayer, createSketch, type Sketch } from '../src/core/types.js';
+import { decodeIdName, isAutoId, parsePathD, parseVectorD } from '../src/renderer/svg-import.js';
+import {
+  createGroupLayer,
+  createLayer,
+  createSketch,
+  type Sketch,
+  type VectorAnchor,
+} from '../src/core/types.js';
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+/** The `d` of the first path in an exported document. */
+function pathDataOf(svg: string): string {
+  return /<path d="([^"]+)"/.exec(svg)?.[1] ?? '';
+}
 
 function layeredSketch(): Sketch {
   const sketch = createSketch('layered');
@@ -107,8 +120,39 @@ test('toSVG exports copic strokes as filled nib outlines with round-trip data', 
 
 test('toSVG writes coordinates without a redundant trailing .0', () => {
   const svg = Surface.toSVG(layeredSketch());
-  assert.match(svg, /d="M0,0 L10,10"/);
+  assert.match(svg, /d="M0 0 10 10"/);
   assert.match(svg, /<text x="20" y="30"/);
+});
+
+test('toSVG states the paint every mark shares once, on the root element', () => {
+  const svg = Surface.toSVG(layeredSketch());
+  // Inherited by every mark below, so no path repeats any of it.
+  assert.match(svg, /<svg [^>]*fill="none" stroke-linecap="round" stroke-linejoin="round"/);
+  assert.ok(!/<path[^>]*stroke-linecap/.test(svg), 'paths must not repeat the cap');
+  assert.ok(!/<path[^>]*fill="none"/.test(svg), 'paths must not repeat the empty fill');
+  // `opacity` is not inherited, and 1 is its default, so it goes unwritten too.
+  assert.ok(!/opacity="1"/.test(svg), 'a fully opaque mark says nothing about opacity');
+});
+
+test('toSVG hoists the width most marks share and names only the odd one out', () => {
+  const sketch = createSketch('widths');
+  const layer = sketch.layers[0].id;
+  const mark = (id: string, width: number) => ({
+    id,
+    tool: 'pen' as const,
+    color: '#123456',
+    width,
+    layer,
+    points: [
+      { x: 0, y: 0 },
+      { x: 10, y: 10 },
+    ],
+  });
+  sketch.strokes.push(mark('a', 3), mark('b', 3), mark('c', 8));
+  const svg = Surface.toSVG(sketch);
+  assert.match(svg, /<svg [^>]*stroke-width="3"/);
+  assert.equal(svg.match(/<path[^>]*stroke-width=/g)?.length, 1);
+  assert.match(svg, /<path[^>]*stroke-width="8"/);
 });
 
 test('toSVG prunes polyline samples that add nothing within tolerance', () => {
@@ -127,7 +171,9 @@ test('toSVG prunes polyline samples that add nothing within tolerance', () => {
     points,
   });
   const svg = Surface.toSVG(sketch);
-  assert.match(svg, /d="M0,0 L100,0 L100,50"/);
+  // Axis-aligned runs collapse onto `H`/`V`, which say the same in half the
+  // numbers.
+  assert.match(svg, /d="M0 0H100V50"/);
 });
 
 test('toSVG exports vector strokes as exact cubic Béziers, not their samples', () => {
@@ -149,8 +195,11 @@ test('toSVG exports vector strokes as exact cubic Béziers, not their samples', 
     },
   });
   const svg = Surface.toSVG(sketch);
-  assert.match(svg, /d="M10,10 C40,10 60,60 90,60 L120,90"/);
-  assert.ok(!svg.includes('L1,1'), 'sampled points must not be written');
+  // The same two cubic handles an absolute `C` would carry, written relative
+  // because that is the shorter spelling of them.
+  assert.match(svg, /d="M10 10c30 0 50 50 80 50l30 30"/);
+  assert.ok(!svg.includes('1 1 2 2'), 'sampled points must not be written');
+  assert.deepEqual(parseVectorD(pathDataOf(svg))?.anchors, sketch.strokes[0].vector?.anchors);
 });
 
 test('toSVG closes a closed vector stroke with its closing segment and Z', () => {
@@ -177,7 +226,10 @@ test('toSVG closes a closed vector stroke with its closing segment and Z', () =>
     },
   });
   const svg = Surface.toSVG(sketch);
-  assert.match(svg, /d="M0,0 L50,0 L25,40 L0,0 Z"/);
+  assert.match(svg, /d="M0 0H50L25 40 0 0Z"/);
+  const parsed = parseVectorD(pathDataOf(svg));
+  assert.equal(parsed?.closed, true);
+  assert.deepEqual(parsed?.anchors, sketch.strokes[0].vector?.anchors);
 });
 
 /** A sketch with a layer group, laid out in store order (children, then group row). */
@@ -465,8 +517,11 @@ test('toSVG writes coordinates and widths at two decimals, without trailing zero
     ],
   });
   const svg = Surface.toSVG(sketch);
-  assert.match(svg, /d="M10.26,3.5 L20,8.13"/);
-  assert.match(svg, /stroke-width="1"/);
+  assert.match(svg, /d="M10.26 3.5 20 8.13"/);
+  // The dust rounds to the 1 that SVG already defaults to, so the file names
+  // no width at all rather than carrying sixteen decimals of it.
+  assert.ok(!svg.includes('0.9999'), 'transform dust must not reach the file');
+  assert.ok(!/stroke-width/.test(svg), 'a width of 1 is the SVG default');
 });
 
 test('toSVG writes an imported fill-only shape as fill with no outline', () => {
@@ -490,7 +545,176 @@ test('toSVG writes an imported fill-only shape as fill with no outline', () => {
     },
   });
   const svg = Surface.toSVG(sketch);
-  assert.match(svg, /<path d="M0,0 L10,0 L10,10 L0,0 Z" stroke="none" fill="#e9af80"/);
+  assert.match(svg, /<path d="M0 0H10V10L0 0Z" stroke="none" fill="#e9af80"/);
+});
+
+/**
+ * The compacted path writer against the parser that has to read it back, over
+ * a deterministic spread of random path data: arcs, quadratics, `S` chains,
+ * axis-aligned runs, several subpaths, open and closed. The writer is correct
+ * when a second trip through changes neither the anchors nor a single byte of
+ * the path data.
+ */
+test('random path data survives import -> export -> import unchanged', () => {
+  let seed = 20260830;
+  const rnd = (): number => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  const r2 = (n: number): number => Math.round(n * 100) / 100;
+  const coord = (): number => {
+    const r = rnd();
+    if (r < 0.3) return Math.round(rnd() * 400 - 200);
+    if (r < 0.55) return Math.round(rnd() * 400 - 200) + 0.5;
+    if (r < 0.8) return r2(rnd() * 400 - 200);
+    // Values under 1 are where the leading-zero and separator rules bite.
+    return r2(rnd() * 2 - 1);
+  };
+  const key = (a: VectorAnchor): string =>
+    `${r2(a.p.x)},${r2(a.p.y)}|${a.hIn ? `${r2(a.hIn.x)},${r2(a.hIn.y)}` : '-'}` +
+    `|${a.hOut ? `${r2(a.hOut.x)},${r2(a.hOut.y)}` : '-'}|${a.move ? 'M' : ''}`;
+
+  const randomD = (): string => {
+    const parts: string[] = [`M${coord()},${coord()}`];
+    for (let sp = 0; sp < 1 + Math.floor(rnd() * 3); sp++) {
+      if (sp > 0) parts.push(`M${coord()},${coord()}`);
+      for (let i = 0; i < 1 + Math.floor(rnd() * 5); i++) {
+        const r = rnd();
+        if (r < 0.3) parts.push(`C${coord()},${coord()} ${coord()},${coord()} ${coord()},${coord()}`);
+        else if (r < 0.5) parts.push(`S${coord()},${coord()} ${coord()},${coord()}`);
+        else if (r < 0.65) parts.push(`L${coord()},${coord()}`);
+        else if (r < 0.75) parts.push(`H${coord()}`);
+        else if (r < 0.85) parts.push(`V${coord()}`);
+        else if (r < 0.93) parts.push(`Q${coord()},${coord()} ${coord()},${coord()}`);
+        else {
+          parts.push(
+            `A${Math.abs(coord()) + 1},${Math.abs(coord()) + 1} 0 ${rnd() < 0.5 ? 0 : 1} ` +
+              `${rnd() < 0.5 ? 0 : 1} ${coord()},${coord()}`,
+          );
+        }
+      }
+      if (rnd() < 0.5) parts.push('Z');
+    }
+    return parts.join(' ');
+  };
+
+  /** Folds parsed subpaths into one stroke, exactly as the importer does. */
+  const fold = (d: string): { anchors: VectorAnchor[]; closed: boolean } | null => {
+    const subs = parsePathD(d);
+    if (!subs || subs.length === 0) return null;
+    const anchors: VectorAnchor[] = [];
+    for (const sub of subs) {
+      const mapped = sub.anchors.map((a) => ({ ...a }));
+      if (anchors.length > 0) mapped[0].move = true;
+      anchors.push(...mapped);
+    }
+    return anchors.length < 2 ? null : { anchors, closed: subs.every((sp) => sp.closed) };
+  };
+
+  const write = (anchors: VectorAnchor[], closed: boolean): string => {
+    const sketch = createSketch('fuzz');
+    sketch.strokes.push({
+      id: 'f',
+      tool: 'pen',
+      color: '#000000',
+      width: 1,
+      layer: sketch.layers[0].id,
+      points: anchors.map((a) => ({ ...a.p })),
+      vector: { anchors, ...(closed ? { closed: true as const } : {}) },
+    });
+    return pathDataOf(Surface.toSVG(sketch));
+  };
+
+  let checked = 0;
+  for (let t = 0; t < 600; t++) {
+    const first = fold(randomD());
+    if (!first) continue;
+    checked++;
+    const d1 = write(first.anchors, first.closed);
+    const second = fold(d1);
+    assert.ok(second, `export did not parse back: ${d1}`);
+    assert.equal(second.closed, first.closed, `closed flag changed: ${d1}`);
+    assert.deepEqual(
+      second.anchors.map(key),
+      first.anchors.map(key),
+      `geometry changed on the round trip: ${d1}`,
+    );
+    // A second export must be byte-identical, or the spelling is not stable.
+    assert.equal(write(second.anchors, second.closed), d1);
+  }
+  assert.ok(checked > 400, `expected a real spread of paths, got ${checked}`);
+});
+
+/** What Export > Selection hands the exporter: the chosen marks, cropped. */
+test('a selection exports alone, on a document cut to its own dimensions', () => {
+  const sketch = createSketch('selection');
+  const layer = sketch.layers[0].id;
+  const mark = (id: string, x: number, y: number) => ({
+    id,
+    tool: 'pen' as const,
+    color: '#123456',
+    width: 4,
+    layer,
+    points: [
+      { x, y },
+      { x: x + 40, y: y + 30 },
+    ],
+  });
+  // Two marks are picked and one is left behind, well away from them.
+  sketch.strokes.push(mark('a', 100, 100), mark('b', 160, 150), mark('elsewhere', 900, 700));
+  const chosen = sketch.strokes.filter((s) => s.id !== 'elsewhere');
+  // The bounds grown by half the widest outline, which is what the renderer
+  // measures a Selection export by.
+  const crop = { minX: 98, minY: 98, maxX: 202, maxY: 182 };
+
+  const svg = Surface.toSVG({ ...sketch, strokes: chosen }, { crop, transparent: true });
+  // Sized to the selection, not to the 1280 x 800 page it was drawn on.
+  assert.match(svg, /width="104" height="84" viewBox="98 98 104 84"/);
+  // No paper rectangle, so the graphic drops into a composition as it is.
+  assert.ok(!svg.includes('<rect'), 'a cropped selection export carries no paper');
+  // The mark left out of the selection is left out of the file.
+  assert.equal(svg.match(/<path /g)?.length, 2);
+  assert.ok(!svg.includes('900'), 'the unselected mark must not be exported');
+  // Cropping offsets the viewBox rather than moving the marks, so every
+  // coordinate is the one a full-page export would have written.
+  assert.ok(svg.includes('M100 100'), 'coordinates stay in page space');
+});
+
+test('a curve survives the compacted spelling with its geometry unchanged', () => {
+  // A four-cubic circle, the shape most SVG artwork is actually made of: two
+  // smooth joins that `S` can infer, and handles at the KAPPA distance.
+  const k = (4 / 3) * (Math.SQRT2 - 1) * 50;
+  const sketch = createSketch('circle');
+  const anchors = [
+    { p: { x: 100, y: 50 }, hIn: { x: 100 - k, y: 50 }, hOut: { x: 100 + k, y: 50 } },
+    { p: { x: 150, y: 100 }, hIn: { x: 150, y: 100 - k }, hOut: { x: 150, y: 100 + k } },
+    { p: { x: 100, y: 150 }, hIn: { x: 100 + k, y: 150 }, hOut: { x: 100 - k, y: 150 } },
+    { p: { x: 50, y: 100 }, hIn: { x: 50, y: 100 + k }, hOut: { x: 50, y: 100 - k } },
+  ].map((a) => ({
+    p: a.p,
+    hIn: { x: round2(a.hIn.x), y: round2(a.hIn.y) },
+    hOut: { x: round2(a.hOut.x), y: round2(a.hOut.y) },
+  }));
+  sketch.strokes.push({
+    id: 'c1',
+    tool: 'pen',
+    color: '#123456',
+    width: 1,
+    layer: sketch.layers[0].id,
+    points: anchors.map((a) => ({ ...a.p })),
+    vector: { anchors, closed: true },
+  });
+
+  const d = pathDataOf(Surface.toSVG(sketch));
+  // Every anchor and every handle comes back at the coordinate it went in at.
+  assert.deepEqual(parseVectorD(d)?.anchors, anchors);
+  assert.equal(parseVectorD(d)?.closed, true);
+  // And it does so in fewer bytes than the absolute cubic chain it replaces.
+  const verbose = `M${anchors[0].p.x},${anchors[0].p.y} ` +
+    anchors
+      .map((from, i) => {
+        const to = anchors[(i + 1) % anchors.length];
+        return `C${from.hOut.x},${from.hOut.y} ${to.hIn.x},${to.hIn.y} ${to.p.x},${to.p.y}`;
+      })
+      .join(' ') + ' Z';
+  assert.ok(d.length < verbose.length * 0.75, `${d.length} bytes is not well under ${verbose.length}`);
 });
 
 test('toSVG writes a compound vector stroke as one path with a subpath per contour', () => {
@@ -520,5 +744,5 @@ test('toSVG writes a compound vector stroke as one path with a subpath per conto
     vector: { anchors: [...outer, ...inner], closed: true },
   });
   const svg = Surface.toSVG(sketch);
-  assert.match(svg, /d="M0,0 L10,0 L10,10 L0,10 L0,0 Z M3,3 L3,7 L7,7 L7,3 L3,3 Z"/);
+  assert.match(svg, /d="M0 0H10V10H0V0ZM3 3V7H7V3H3Z"/);
 });

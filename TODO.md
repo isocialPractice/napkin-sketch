@@ -169,7 +169,7 @@ agree, and one of them is read by the AI helper rather than by a person.
   nothing in the repo says when a batch should take a minor bump instead. See
   the matching chore below.
 - [ ] **The animation type table is written in three places**: the source list
-  in `ANIMATION_TYPES`, the table in the `svg-animations` skill, and the table
+  in `ANIMATION_TYPES`, the table in the `vector-animations` skill, and the table
   in the README. A type that changes status has to be edited in all three, and
   the skill's copy is what the AI helper reads, so a stale one misinforms the
   tool rather than the reader. `wireframe-cycles` already generates the
@@ -347,17 +347,17 @@ press a letter, type a value within the quick-feature timer, and it applies.
 
 ## Minor (backward-compatible features → next `x.++.z`)
 
-Backward-compatible features: eleven entries, of which the two largest - the
+Backward-compatible features: twelve entries, of which the two largest - the
 animation preset cycles and the `vector-graphics` skill follow-ons - carry
-sixteen sub-items between them. Most of the animation entries need a skeleton
-drawn into `character-wireframes.svg` before any code is written.
+fifteen sub-items between them. Most of the animation entries need a skeleton
+drawn into `character-wireframes.svg` before any code is written; the two object
+types that come apart are drawn in `object-animations.svg` instead.
 
-- [ ] **Animation preset cycles**: walk, idle, and knocked down are driven by
-  cycles measured from skeletons in `character-wireframes.svg`. The
+- [ ] **Animation preset cycles**: walk, run, idle, and knocked down are driven
+  by cycles measured from skeletons in `character-wireframes.svg`. The
   rest are offered but posed from a prompt template; each needs a skeleton
   drawn into the asset, after which `npm run wireframe-cycles` measures it and
   the type becomes ready with no further code.
-  - [ ] **Character: run**: run cycle with airborne frames and deeper limb swing.
   - [ ] **Character: damage**: hit reaction recoil and recovery.
   - [ ] **Character: taunt**: short expressive gesture loop.
   - [ ] **Character: talk**: mouth and head movement loop for dialogue.
@@ -371,8 +371,12 @@ drawn into `character-wireframes.svg` before any code is written.
     drawn in the asset but has no animation type mapped to it yet.
   - [ ] **Object: rotate**: spin an object around its center or an axis.
   - [ ] **Object: break**: crack and separate an object into pieces.
+    `Box_Breaking-Animation` in `object-animations.svg` draws it in three
+    frames, but nothing measures it yet - see the object piece cycles entry.
   - [ ] **Object: move**: translate an object along a path with easing.
   - [ ] **Object: explode**: burst an object outward with debris.
+    `Cloud_ImpactEffect-Animation` draws the dispersal in five frames, on the
+    same terms as break.
   - [ ] **Object frame validation**: object animations skip the character
     assembly check, so nothing yet validates that an object page holds a
     single group worth animating.
@@ -386,6 +390,17 @@ drawn into `character-wireframes.svg` before any code is written.
     and `T`, and drop control points that do not change the rendered shape.
   - [ ] **B-spline and NURBS reference**: the source material covers both, and
     they are what a true circle and local (rather than global) control need.
+- [ ] **Object piece cycles**: `object-animations.svg` now draws a box breaking
+  and an impact cloud dispersing, with the pieces named (`base`,
+  `stray-piece`, `potential_stray-pieces`, `obsoletes`), but the measurement
+  pipeline cannot read it. `wireframe-cycles` measures limb angles against a
+  spine and writes one `AnimationPoseStep` per step, and an object frame has
+  neither: each piece translates and turns on its own, and pieces appear and
+  leave. Measuring it needs a second cycle shape - per-piece offset and
+  rotation, keyed by piece - and a form that can carry more than one transform
+  for an object frame. Until then the two types stay template-posed with the
+  drawing as their reference. The cloud's later frame groups are also spelled
+  `Cloude_ImpactEffect_<n>`; worth fixing in the asset while it is open.
 - [ ] **Lasso + transform**: free-form lasso selection with scale/rotate handles
   (current Select is rectangular move/delete only).
 - [ ] **Shape tools**: explicit line/rectangle/ellipse/arrow tools that emit clean
@@ -412,10 +427,19 @@ what was left behind is filed under **Found Issues** and **Chores** above.
 
 ## Complete
 
-Twenty-eight shipped entries, roughly newest first, each noting the group it
-graduated from. The eight most recent are the 4.1.0-alpha batch: the clipboard,
-the Selection export, the pages menu, and the drag and layer-integrity work.
+Twenty-nine shipped entries, roughly newest first, each noting the group it
+graduated from. The newest is the plugin work; the eight after it are the
+4.1.0-alpha batch: the clipboard, the Selection export, the pages menu, and
+the drag and layer-integrity work.
 
+- [x] **Publish the `vectors` plugin**: the marketplace manifest is committed
+  at the repository root and its `source` points at `ai-helper/`, which is now
+  the plugin itself - manifest, `/vectors:animation-mode` command,
+  `animation-frame` subagent, both skills, and the contract. So it installs
+  with `/plugin marketplace add isocialPractice/napkin-sketch` and no clone,
+  and the skills still exist exactly once: the `plugins/` build output that
+  would have duplicated them is gone. A test fails on any repeated skill name.
+  - From: Minor
 - [x] **Shift-constrained dragging**: holding Shift pins a drag to the nearest
   axis or 45-degree diagonal, chosen from the pointer's travel since the drag
   began and re-chosen as it moves. Applies to moving a selection, the Alt-drag
@@ -477,7 +501,7 @@ the Selection export, the pages menu, and the drag and layer-integrity work.
   required character assemblies, then a wizard maps missing assemblies onto
   layers and collects the category and animation type (ready-made preset:
   character walk) - no frame count. Each run hands one pose to a configurable
-  AI helper command, which applies the `svg-animations` skill and advances it a
+  AI helper command, which applies the `vector-animations` skill and advances it a
   single step by setting one SVG transform per assembly (the app measures the
   joints and supplies the finished values, so a frame is a file edit, not a
   redrawn document); the drawn frame imports as a `<type>_<n>` group layer

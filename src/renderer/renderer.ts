@@ -541,6 +541,14 @@ class App {
    */
   private animationInstalled = false;
 
+  /**
+   * True when that install was the `vectors` plugin rather than files copied
+   * into a dot-folder. The form has to say which, because a plugin renames
+   * the skills it carries: they answer to `vectors:<skill>` there, and a
+   * form naming the bare skill would name something the tool cannot find.
+   */
+  private animationPlugin = false;
+
   /** Executable of the AI tool the run needs, learned from a failed run. */
   private animationToolBinary = '';
 
@@ -611,7 +619,9 @@ class App {
     }
 
     try {
-      this.animationInstalled = (await window.napkin.getAnimationMode()).installed;
+      const mode = await window.napkin.getAnimationMode();
+      this.animationInstalled = mode.installed;
+      this.animationPlugin = mode.plugin;
     } catch {
       // Outside Electron the feature has no install record, so it is absent.
     }
@@ -6238,6 +6248,7 @@ class App {
           transforms: step
             ? animationFrameTransforms(step, pose.pivots, pose.figureHeight, pose.figurePivot)
             : {},
+          delivery: this.animationPlugin ? 'plugin' : 'files',
         });
 
         const frame = await this.animationDrawFrame(

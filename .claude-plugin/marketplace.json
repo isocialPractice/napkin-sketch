@@ -1,0 +1,16 @@
+{
+  "name": "napkin-sketch",
+  "description": "Animation Mode and vector drawing for napkin-sketch, packaged for AI tools that load plugins.",
+  "owner": {
+    "name": "John Haugabook",
+    "url": "https://github.com/isocialPractice"
+  },
+  "plugins": [
+    {
+      "name": "vectors",
+      "source": "./ai-helper",
+      "category": "productivity",
+      "description": "Animation Mode for napkin-sketch, as a plugin: the /vectors:animation-mode command that draws one frame from the form the app writes, an animation-frame subagent that runs the same job in its own context, and the two skills behind them - vector-animations (assemblies, joint pivots, cycle tables, transform recipe) and vector-graphics (Bezier formulas, degree choice, SVG layer structure, and a dependency-free script that derives path data from control points)."
+    }
+  ]
+}

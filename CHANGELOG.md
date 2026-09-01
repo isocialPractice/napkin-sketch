@@ -4,6 +4,156 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1-alpha] - 2026-09-01
+
+### Added
+
+- **The run is a measured cycle.** `Run-Animation` was drawn into
+  `character-wireframes.svg` - ten skeletons, one per frame - so `run` moves
+  off the written template and onto measured angles like walk, idle, and
+  knocked down. `npm run wireframe-cycles` reads it, and the wizard offers it
+  without the **Work in Progress** mark.
+  - The measurement shows what a run is, rather than a walk with bigger
+    numbers: the front leg swings 40.9 degrees at its widest against a walk's
+    20.2 and travels around 80 degrees end to end against a walk's 50,
+    `shiftYPercent` lifts the figure on the passing steps where a walk's neck
+    holds one height, and the spine tips 14 degrees forward into the drive and
+    comes back the same 14 on the next step.
+  - All four columns still sum to zero across the ten steps, so the cycle
+    closes and loops. A test pins each of those three: the deeper swing, the
+    lift, and the lean returning - a run that tipped forward and stayed there
+    would walk the figure onto its face after two repeats.
+
+- **`object-animations.svg`**, the object counterpart of the skeleton rig, for
+  the two types that cannot be posed with a transform: `Box_Breaking-Animation`
+  (3 frames, a box cracking and shedding pieces) and
+  `Cloud_ImpactEffect-Animation` (5 frames, an impact cloud dispersing).
+  - Four group names carry the convention the skill now documents: `base` is
+    what is left of the whole, one `stray-piece` group is one separated piece,
+    `potential_stray-pieces` marks on the intact frame what will come away,
+    and `obsoletes` names what the previous frame had and this one does not.
+  - Two readings the drawing gives that a transform-minded one would not:
+    piece count is not monotonic (the cloud runs 3, 5, 4, 4 across frames 1 to
+    4 as puffs merge), and a separated piece is new geometry rather than a
+    moved copy, because its outline changes as it tumbles.
+  - The `break` and `explode` guidance in the app now names the drawing, so a
+    template-posed object frame is written against it.
+
+- **A serif typeface in `alphabet.svg`.** The asset now holds two typefaces
+  rather than one: `Sans-serif-typeface` and `serif-typeface`, 26 letter-pair
+  groups apiece. The pair is a worked example of the skill's own naming rules
+  - the serif set carries the editor's `-2` uniquifier throughout (`Aa-2` is
+  still `Aa`) and names its paths for the letters (`A`, `a`) where the
+  sans-serif set names them for the roles (`upper-case`, `lower-case`).
+
+
+- **`ai-helper/` is now the `vectors` plugin**, not a folder a plugin gets
+  built out of. The manifest, a command, a subagent, both skills, and the
+  helper contract are the folder's own contents, and one manifest at the
+  repository root is the marketplace that lists it:
+
+  ```text
+  .claude-plugin/marketplace.json   lists vectors, source ./ai-helper
+  ai-helper/
+    .claude-plugin/plugin.json      the manifest, versioned from package.json
+    commands/animation-mode.md      /vectors:animation-mode - draw one frame
+    agents/animation-frame.md       the same job as a subagent, in its own context
+    skills/vector-animations/       assemblies, pivots, cycles, transform recipe
+    skills/vector-graphics/         Bezier formulas, layer structure, path scripting
+    instructions/                   the contract a helper follows
+  ```
+
+  ```text
+  /plugin marketplace add .                              # from a clone
+  /plugin marketplace add isocialPractice/napkin-sketch  # without one
+  /plugin install vectors@napkin-sketch
+  ```
+
+  - **A plugin is more than the two skills.** `/vectors:animation-mode` runs a
+    frame from the form the app wrote, and `vectors:animation-frame` is a
+    subagent that does the same job in a context of its own, so a frame's SVG
+    never lands in the main conversation. Both defer to the skills rather than
+    restating them.
+  - **The tree is tracked source, and there is one of it.** The dot-folder
+    installs copy out of the same folder the plugin loads from, so a skill can
+    no longer be current in one delivery and stale in the other - which the
+    generated `plugins/` copy already was by the time it was replaced.
+  - **Installable without a clone**, which the built folder never was: the
+    marketplace manifest is committed, so `/plugin marketplace add` reaches it
+    straight from GitHub.
+  - Both manifests validate under `claude plugin validate --strict`.
+
+- **The app knows which delivery it is talking to.** A plugin renames what it
+  carries - inside one, a skill answers to `vectors:<skill>` - so a form that
+  named the bare skill would name something the tool cannot find. The install
+  record's `plugin` tool id now travels through `AnimationModeStatus` to the
+  renderer and into `buildAnimationForm` as a `delivery`, and a plugin form
+  names `vectors:vector-animations`, `vectors:vector-graphics`, and
+  `/vectors:animation-mode` in place of the `ai-helper/skills/...` paths that
+  only a copied install has. Omitting the delivery still writes the file-path
+  form every tool understands.
+
+- **A test guards against a skill existing twice.** It walks the tracked tree,
+  reads the `name:` out of every `SKILL.md`, and fails on a repeat; it also
+  checks the two manifests agree with each other and with `package.json`, and
+  that the command, the subagent, the skills, and the instructions are all
+  where the app says they are. Installed copies under an ignored dot-folder do
+  not count - a duplicate there is the install working.
+
+### Changed
+
+- **The walk table in the skill was re-read from the asset.** Four cells had
+  drifted from the drawing by a tenth of a degree (steps 3, 5, 6, and 7). The
+  generated cycle was always right; the hand-kept table beside it was not.
+
+- **The `plugin` install target no longer builds anything.** It used to
+  generate `plugins/vectors/`, a second copy of both skills that went stale
+  the moment either changed. `ai-helper/` is the plugin now, so the target
+  checks that tree over, syncs the manifest version to `package.json`, and
+  prints the `/plugin` commands that load it - readying a plugin was never
+  what made its skills reachable. `--to plugin` resolves to `ai-helper`, and
+  `plugins/` is deleted, dropped from `.gitignore`, and swept off disk by the
+  target if an older build left one behind.
+  - **Uninstalling a plugin install deletes nothing**, because what it
+    installed is tracked source the repository needs either way. It prints
+    `/plugin uninstall` and `/plugin marketplace remove` instead.
+  - **The two plugin manifests are exempted from the ignore rules.** A global
+    "ignore every dot-entry" rule would leave `.claude-plugin/` uncommitted,
+    and an unpublished manifest is a plugin nobody can add.
+
+- **Switching delivery removes the old install first.** `--install --to plugin`
+  over an existing `.claude` install used to leave that dot-folder's copy of
+  both skills in place, so a tool loading the plugin saw every skill twice.
+  The install now uninstalls a previous target that is not this one.
+
+- **The `vector-graphics` skill now covers SVG layer management.** A new
+  "Layer Management" section records the structural rules the import/export
+  work settled on, so the AI helper draws and edits with them instead of
+  rediscovering them: nested `<g>` groups are the layer tree (document order
+  is z-order, group opacity multiplies down, wrappers are never flattened);
+  one layer name is written three ways (`id` for Illustrator,
+  `inkscape:label` + `groupmode` for Inkscape, `data-name` verbatim) with the
+  `-N` uniquifier and `_xHH_` escapes undone on read and tag-plus-digits
+  auto-ids reading as unnamed; compound paths keep their contours together so
+  an outlined stroke stays a sliver instead of a blob; fill-only shapes stay
+  `stroke="none"`; and round trips preserve Bézier anchors rather than
+  samples, at precision matched to the artwork's units. The skill's
+  description and When-to-Use list now name these triggers, and the installed
+  `.claude/skills/` copy is synced.
+
+- **The `svg-animations` skill is now `vector-animations`.** The name pairs it
+  with its companion `vector-graphics` and describes what it works on rather
+  than the file format it happens to emit. The rename reaches the skill folder,
+  its `name:` frontmatter and heading, the helper contract
+  (`animation-mode.instructions.md`), `ANIMATION_SKILL_NAME` in
+  `src/core/animation.ts` (which is what every generated form names), the
+  wireframe-cycles script's asset paths, and the docs. Nothing about the
+  skill's content changed.
+  - **An earlier install is cleaned up on upgrade.** The installer now sweeps
+    a list of retired skill folder names out of the target before copying, so
+    a dot-folder that already holds `svg-animations` does not end up carrying
+    two copies of the same skill under two names. Uninstall sweeps them too.
+
 ## [4.1.0-alpha] - 2026-08-30
 
 ### Added

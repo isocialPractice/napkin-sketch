@@ -1,6 +1,6 @@
 ---
 name: vector-graphics
-description: 'Draw vector graphics from Bezier curve equations rather than by dragging control points. Use when creating, editing, simplifying, or reviewing SVG paths, icons, logos, letterforms, shape primitives, or the geometry behind an animation; when deciding between linear, quadratic, and cubic segments; when a path has more control points than its shape needs; when converting measured or traced points into path data; or when a curve must join another smoothly. Covers the Bernstein basis, De Casteljau subdivision, the convex hull property, continuity grades, SVG path commands (L, Q, T, C, S), and a dependency-free script that derives path data from control points.'
+description: 'Draw vector graphics from Bezier curve equations rather than by dragging control points. Use when creating, editing, simplifying, or reviewing SVG paths, icons, logos, letterforms, shape primitives, or the geometry behind an animation; when deciding between linear, quadratic, and cubic segments; when a path has more control points than its shape needs; when converting measured or traced points into path data; or when a curve must join another smoothly. Covers the Bernstein basis, De Casteljau subdivision, the convex hull property, continuity grades, SVG path commands (L, Q, T, C, S), and a dependency-free script that derives path data from control points. Also covers SVG layer management: nested <g> layer trees, layer naming across editors (id, inkscape:label, data-name, uniquifier suffixes), compound paths and their holes, fill-only shapes, and keeping structure and anchors intact through import/export round trips.'
 ---
 
 # Vector Graphics
@@ -30,6 +30,8 @@ changes.
 - Working out where a curve is, where it points, or how big it is, without
   rendering it
 - Reviewing geometry for cusps, redundant points, and degenerate handles
+- Managing SVG layer structure: naming groups, nesting layer trees, compound
+  paths, and carrying structure intact through import/export round trips
 
 ## Bezier Curves
 
@@ -317,6 +319,73 @@ Lowercase is the relative form of each. `T` and `S` only reflect after a
 command of their own family; anywhere else the inferred handle collapses onto
 the current point, which is the usual cause of a mysteriously flat segment.
 
+## Layer Management
+
+A vector graphic's integrity is as much structure as geometry. An SVG holds
+two descriptions of the same drawing: the curves, and the tree of groups that
+says what the curves *are* - which marks form the arm, which sit in front,
+which contour is a hole. Tooling that keeps the curves but flattens the tree
+hands back a file that renders correctly once and is unmaintainable after;
+keep both. The rules below are the conventions that let a file survive round
+trips between vector editors with its structure intact.
+
+### Nested Groups Are the Layer Tree
+
+`<g>` nesting is the layers panel. Document order is z-order (later paints on
+top), a group's `opacity` multiplies down through everything it holds, and a
+wrapper group is never disposable: flattening one away renames or reorders
+somebody's layers. An export should emit the tree it was given - a group per
+layer, groups nested exactly as the panel nests them - and an import should
+build the same tree back.
+
+### Naming Layers Across Editors
+
+One name, written three ways, survives every editor:
+
+- `id` - what Illustrator reads and writes for an object's name.
+- `inkscape:label` with `inkscape:groupmode="layer"` - what Inkscape's
+  layers panel reads.
+- `data-name` - a verbatim copy, free of the id rules below.
+
+XML ids carry two burdens a display name does not. They must be unique, so
+editors suffix repeats with `-2`, `-3`, … (`strokes-10` is the tenth layer
+named `strokes`), and they cannot hold every character, so illegal ones are
+escaped `_xHH_` (`front_x20_arm` reads `front arm`). Undo both when reading a
+name back out of an id. And not every id is a name: editors stamp auto-ids on
+unnamed elements (`path4521`, `g830`), so a tag name followed by digits names
+nothing - but only with the digits, since an author may genuinely call a
+layer `line` or `text`.
+
+### Compound Paths Hold Their Contours Together
+
+One `<path>` may hold several contours: `M … Z M … Z`. The winding rule is
+what makes an outer contour with an inner one read as a shape with a hole,
+and an outlined stroke is exactly that - a thin sliver of outer minus inner.
+Split the contours into separate elements and each fills solid: the sliver
+becomes a blob that blacks out everything beneath it. One element is one
+shape however many subpaths it carries; move, import, or export a compound
+shape's contours together or not at all.
+
+### Fill-Only Is a Statement, Not an Omission
+
+A `fill` with no `stroke` means the shape's edge *is* its geometry. Painting
+an outline in the fill color anyway grows the shape by half a stroke width
+all round, which at icon or sprite scale visibly fattens everything.
+Preserve `stroke="none"`, and let small-unit artwork keep sub-unit stroke
+widths - a hairline in a 43-unit viewBox is legitimately 0.25 wide.
+
+### Round Trips Preserve Anchors, Not Samples
+
+Import path data by parsing it into anchors, never by sampling along the
+length: a curve that arrives as four numbers should leave as four numbers,
+not as a polyline through hundreds of samples. Quadratics degree-elevate to
+the identical cubic, arcs become quarter-turn cubic pieces with handles
+4/3·tan(Δθ/4) along the tangents, and the shape elements (`rect`, `circle`,
+`ellipse`, `line`, `polyline`, `polygon`) build from their attributes. Match
+written precision to the artwork's units - two decimals in a small viewBox
+is the difference between intact and visibly quantized - and write colors as
+the source spelled them (`#rrggbb`, not a computed `rgb(r, g, b)`).
+
 ## Scripts
 
 `scripts/matlib-script.js` derives curves from their formulas: control points
@@ -355,8 +424,13 @@ under external references are pages used to build it.
 
 **`assets`**:
 
-- [alphabet.svg](assets/alphabet.svg): upper and lower case letterform paths,
-  grouped one letter pair per group
+- [alphabet.svg](assets/alphabet.svg): two typefaces of letterform paths, a
+  sans-serif and a serif, each a group of 26 letter-pair groups holding the
+  upper and lower case as one path apiece. The serif set carries the editor's
+  `-2` uniquifier throughout (`Aa-2` is still `Aa`) and names its paths for
+  the letters (`A`, `a`) where the sans-serif set names them for the roles
+  (`upper-case`, `lower-case`). The two `<text>` elements are section labels,
+  not letterforms
 - [objects.svg](assets/objects.svg): cylinder, cube (isometric and
   perspective), and sphere primitives
 - [shapes.svg](assets/shapes.svg): squares, circles, ellipses, triangles,

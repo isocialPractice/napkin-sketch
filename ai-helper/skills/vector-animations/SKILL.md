@@ -1,9 +1,9 @@
 ---
-name: svg-animations
+name: vector-animations
 description: 'Generate frame-by-frame SVG animation frames for the napkin-sketch Animation Mode. Use when asked to propose the next frame of a character or object animation (walk, ideal, run, attack, knockdown, rotate, break, move, explode), when processing an animation form from _temp/animation-form.txt, or when validating an SVG layer tree against the required character assemblies (front-arm-assembly, body, front-leg-assembly, back-leg-assembly, back-arm-assembly, Head). Covers Bezier curve mechanics, frame naming (<animationType>_<n>), and pose interpolation for hand-drawn style sketches.'
 ---
 
-# SVG Animations
+# Vector Animations
 
 Generate and validate frame-by-frame SVG animations for napkin-sketch's Animation Mode. The mode
 treats one group layer per frame; this skill produces the next frame's group from an existing
@@ -54,10 +54,11 @@ walk_0
 ```
 
 Alternative names separated by `|` are equivalent (a character may have gloves or bare hands,
-shoes or bare feet). Wireframe reference poses for walk, ideal stance, punch, and knockdown
-cycles are in `assets/character-wireframes.svg`; object primitives, basic shapes, and
-letterforms live in the companion `vector-graphics` skill's `assets/` folder, because they are
-drawing material rather than animation material.
+shoes or bare feet). Wireframe reference poses for walk, run, ideal stance, punch, and knockdown
+cycles are in `assets/character-wireframes.svg`, and `assets/object-animations.svg` draws the
+object side, where there are no assemblies and the separated pieces are the parts. Object
+primitives, basic shapes, and letterforms live in the companion `vector-graphics` skill's
+`assets/` folder, because they are drawing material rather than animation material.
 
 ## Frame Naming Rules
 
@@ -147,6 +148,7 @@ progress in the wizard.
 | Type | Skeleton in the asset | Frames | Loops |
 |------|-----------------------|--------|-------|
 | walk | `Walk-Animation` | 8 | yes |
+| run | `Run-Animation` | 10 | yes |
 | ideal (idle) | `Ideal_Stance-Animation` | 4 | yes |
 | knocked-down | `Knockdown-Animation` | 7 | no |
 
@@ -171,11 +173,11 @@ degrees; frame `n` uses row `((n - 1) mod 8) + 1`.
 |------|-----------|----------|-----------|----------|
 | 1 | -10.0 | +21.1 | +12.3 | -13.5 |
 | 2 | -24.1 | +40.7 | +15.8 | -9.0 |
-| 3 | +18.1 | -21.9 | -8.5 | +4.6 |
+| 3 | +18.1 | -21.9 | -8.5 | +4.5 |
 | 4 | +31.0 | -0.3 | -20.2 | +7.6 |
-| 5 | +18.3 | -21.0 | -8.7 | +31.3 |
-| 6 | +12.5 | -35.4 | -13.1 | +11.4 |
-| 7 | -16.8 | +10.4 | +9.1 | -13.4 |
+| 5 | +18.3 | -21.0 | -8.7 | +31.2 |
+| 6 | +12.4 | -35.4 | -13.1 | +11.4 |
+| 7 | -16.9 | +10.4 | +9.1 | -13.4 |
 | 8 | -28.9 | +6.4 | +13.3 | -18.9 |
 
 Every column sums to zero across the eight steps, so the cycle closes and loops. **The front arm
@@ -189,6 +191,76 @@ Two things the drawn skeleton says that a guess would not:
   life in them.
 - **There is no bob.** The spine stays vertical and the neck stays at one height across all eight
   frames, so this walk does not rise and fall. A bob invented on top of it fights the drawing.
+
+## The Run Cycle
+
+Ten steps, **measured from `Run-Animation`**, and the same mechanics as the walk with more of
+everything. Two columns the walk had no use for earn their place here: `figure` tips the whole
+figure about its base, and `shiftY` moves it as a percent of its height, negative being up.
+
+| Step | front-arm | back-arm | front-leg | back-leg | figure | shiftY |
+|------|-----------|----------|-----------|----------|--------|--------|
+| 1 | -26.1 | +43.1 | +12.3 | -13.5 | 0.0 | -1.1 |
+| 2 | -48.2 | +18.7 | +4.1 | -36.8 | +14.0 | +2.1 |
+| 3 | +20.0 | -17.4 | +24.4 | +35.0 | -14.0 | +1.2 |
+| 4 | +27.6 | -28.5 | -9.2 | +18.7 | 0.0 | +0.5 |
+| 5 | +31.8 | -33.1 | -40.9 | +28.0 | 0.0 | -1.3 |
+| 6 | +41.3 | -30.1 | -26.8 | +6.9 | +9.3 | -1.2 |
+| 7 | +13.3 | -18.9 | +24.9 | -4.8 | -9.3 | +0.9 |
+| 8 | -15.4 | +16.3 | +29.4 | -32.9 | 0.0 | -0.7 |
+| 9 | -31.1 | +31.3 | +7.8 | -26.4 | 0.0 | -0.2 |
+| 10 | -13.2 | +18.6 | -26.0 | +25.9 | 0.0 | -0.2 |
+
+Every column sums to zero, so the run closes and loops like the walk does. What the drawing says
+that a scaled-up walk would not:
+
+- **The legs swing twice as far.** The widest front-leg step is 40.9 degrees against the walk's
+  20.2, and each leg travels around 80 degrees end to end where a walk's covers about 50. A run
+  drawn with a walk's amplitude reads as a hurried walk, which is the usual failure.
+- **The figure leaves the ground.** `shiftY` lifts it on the passing steps and sets it back down,
+  where the walk's neck holds one height all the way round.
+- **The lean comes and goes.** The spine tips forward 14 degrees into the drive and comes back
+  the same 14 on the next step. A lean applied once and left there walks the figure onto its
+  face after two repeats, which is why the sum of the `figure` column matters more than any
+  single row in it.
+
+## Object Animations
+
+`assets/object-animations.svg` is the object counterpart of the skeleton, and it is drawn for the
+two types that cannot be posed with a transform: something coming apart, and something bursting.
+It holds two sequences, frame-numbered from `_0` the same way a character animation is. Read a
+frame by its trailing `_<n>` and nothing else: the cloud's later frames are spelled
+`Cloude_ImpactEffect_2` and on, and the index is what identifies a frame in any case.
+
+| Sequence | Frames | What it draws | Type it guides |
+|----------|--------|---------------|----------------|
+| `Box_Breaking-Animation` | 3 | a box cracking and shedding pieces | `break` |
+| `Cloud_ImpactEffect-Animation` | 5 | an impact cloud dispersing outward | `explode` |
+
+Four group names carry the whole convention, and following them is what makes a sequence
+readable frame to frame:
+
+- **`base`** - what is left of the whole. It keeps its identity across every frame, shrinking as
+  pieces leave it rather than being redrawn from nothing.
+- **`stray-piece`** (or `stray-cloud`) - one group per piece that has separated. The `-2`, `-3`
+  suffixes on them are the editor's uniquifier, not an index: they run on across the whole
+  document, so `stray-piece-4` is simply the fourth one drawn, not the fourth piece of its
+  frame. One piece is one group; pieces are never merged into a single "debris" layer, because
+  each one travels and turns on its own.
+- **`potential_stray-pieces`** - drawn on the intact frame, over the regions that will come away.
+  This is the fracture plan: the break is decided while the object is still whole, so the pieces
+  of frame 1 are the shapes frame 0 already promised.
+- **`obsoletes`** - geometry the previous frame had and this one does not. Naming it is how a
+  sequence says a piece has left the picture instead of quietly dropping it.
+
+Two things follow from the drawing that a transform-minded reading would miss:
+
+- **Piece count is not monotonic.** The impact cloud carries 3, 5, 4, then 4 strays across frames
+  1 to 4, as puffs merge and disperse. Pieces are not a count to increment; they are what the
+  drawing needs that frame.
+- **A separated piece is new geometry, not a moved copy.** Its outline changes as it tumbles.
+  Draw it with the `vector-graphics` skill, at the fewest control points that read, rather than
+  translating the shape it broke off.
 
 The full step lists for every measured type are in `assets/skeleton-cycles.json`. Types with no
 skeleton in the asset have no table: pose them with the same mechanics, one readable step per
@@ -255,9 +327,12 @@ owns the curve formulas and the path-data script.
 
 ## Assets
 
-- `assets/character-wireframes.svg`: the rig - stick-figure skeletons for walk, ideal stance,
-  ideal fighting stance, punch, and knockdown, one per frame, with the required assembly
+- `assets/character-wireframes.svg`: the rig - stick-figure skeletons for walk, run, ideal
+  stance, ideal fighting stance, punch, and knockdown, one per frame, with the required assembly
   structure. This is what the measured cycles are read from.
+- `assets/object-animations.svg`: the object rig - a box breaking (3 frames) and an impact cloud
+  dispersing (5 frames), drawn as `base` plus one group per separated piece. Objects have no
+  assemblies, so this is a naming and staging guide rather than a set of angles.
 - `assets/skeleton-cycles.json`: those readings, per type and per step, generated from the
   wireframes by `npm run wireframe-cycles`
 

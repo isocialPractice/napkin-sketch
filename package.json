@@ -1,6 +1,6 @@
 {
   "name": "napkin-sketch",
-  "version": "4.1.0-alpha",
+  "version": "4.1.1-alpha",
   "description": "Quick and easy computer sketching with a drawing GUI that simulates pen and paper/napkin sketching, featuring an auto-sharpen algorithm that turns stiff computer strokes into more hand-drawn forms.",
   "author": "John Haugabook",
   "keywords": [
@@ -36,6 +36,7 @@
     "dist",
     "assets",
     "ai-helper",
+    ".claude-plugin",
     "scripts/install-ai-helper.mjs",
     "scripts/animation-mode.mjs",
     "README.md",

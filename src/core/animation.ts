@@ -14,6 +14,7 @@
 
 import type { Layer, Sketch } from './types.js';
 import { MEASURED_CYCLES } from './animation-cycles.js';
+import { ANIMATION_PLUGIN, pluginRef } from './ai-tool.js';
 
 /**
  * The assemblies a character frame must contain before frames can be
@@ -92,7 +93,7 @@ export const ANIMATION_TYPES: readonly AnimationTypeSpec[] = [
     id: 'run',
     label: 'Run',
     category: 'character',
-    status: 'work-in-progress',
+    status: 'ready',
     loops: true,
     guidance:
       'A run is a walk with more of everything: swing the legs about the hips roughly twice as far as a walk, swing the arms in opposition about the shoulders just as hard, and lean the whole figure forward a few degrees. On the passing frames both feet are off the ground, so lift the figure rather than dropping it.',
@@ -176,7 +177,7 @@ export const ANIMATION_TYPES: readonly AnimationTypeSpec[] = [
     status: 'work-in-progress',
     loops: false,
     guidance:
-      'Cracking apart: the first frames draw fracture lines across the shape, and later frames separate it along them - each piece in its own group, drifting outward and rotating a few degrees. This type needs new geometry rather than a transform, so work the fracture paths with the vector-graphics skill.',
+      'Cracking apart: the first frames draw fracture lines across the shape, and later frames separate it along them - each piece in its own group, drifting outward and rotating a few degrees. This type needs new geometry rather than a transform, so work the fracture paths with the vector-graphics skill. The vector-animations skill draws the sequence in object-animations.svg: keep what is left as base, give every separated piece its own stray-piece group, and mark on the intact frame what will come away.',
   },
   {
     id: 'move',
@@ -194,7 +195,7 @@ export const ANIMATION_TYPES: readonly AnimationTypeSpec[] = [
     status: 'work-in-progress',
     loops: false,
     guidance:
-      'Bursting outward: split the shape into pieces, then drive each piece away from the center further and faster each frame, rotating as it goes. Like break, this needs new geometry, so work the piece outlines with the vector-graphics skill.',
+      'Bursting outward: split the shape into pieces, then drive each piece away from the center further and faster each frame, rotating as it goes. Like break, this needs new geometry, so work the piece outlines with the vector-graphics skill. The vector-animations skill draws the sequence in object-animations.svg, where a piece that has left the shape is its own group and the ones that have dispersed are dropped rather than kept in place.',
   },
 ];
 
@@ -310,7 +311,7 @@ export const ANIMATION_OUTPUT_DIR = 'animations';
  * tool that loads skills on demand picks it up; its canonical copy lives in
  * `ai-helper/skills/<name>/`.
  */
-export const ANIMATION_SKILL_NAME = 'svg-animations';
+export const ANIMATION_SKILL_NAME = 'vector-animations';
 
 /**
  * The companion skill the helper reaches for when a frame needs real curve
@@ -319,6 +320,23 @@ export const ANIMATION_SKILL_NAME = 'svg-animations';
  * cross-links resolve.
  */
 export const VECTOR_SKILL_NAME = 'vector-graphics';
+
+/**
+ * How the helper reached the AI tool, which decides what the form may call
+ * the skills.
+ *
+ * `files` is the copy an install put in the tool's dot-folder, reachable by
+ * path and by bare name. `plugin` is the `vectors` plugin, where the same
+ * skills answer to `vectors:<skill>` and come with a command and a subagent
+ * of their own. Naming a bare skill at a tool that only has the plugin names
+ * something it cannot find, which is the whole reason the form has to know.
+ */
+export type AnimationHelperDelivery = 'files' | 'plugin';
+
+/** What the form calls a skill, given how the helper was delivered. */
+export function animationSkillRef(skill: string, delivery: AnimationHelperDelivery): string {
+  return delivery === 'plugin' ? pluginRef(skill) : skill;
+}
 
 /**
  * Where AI helper runs are logged, relative to the helper's working
@@ -584,6 +602,41 @@ export interface AnimationFormData {
   assemblies: Partial<Record<RequiredAssembly, string>>;
   /** Ready-made `transform` value per assembly, when the type has a cycle. */
   transforms: Partial<Record<RequiredAssembly, string>>;
+  /**
+   * How the helper was installed. Defaults to `files`, the delivery every
+   * tool supports, so a caller that does not know still writes a form the
+   * helper can act on.
+   */
+  delivery?: AnimationHelperDelivery;
+}
+
+/**
+ * The closing block of the form: where the helper can read the contract and
+ * the skills in full.
+ *
+ * The two deliveries answer this differently and both answers matter. Copied
+ * files are found by path, so the block lists paths. The plugin is found by
+ * name - its files live in a cache directory the app has no business guessing
+ * at - so the block lists names, and mentions the repository paths only as
+ * the copy a clone also has.
+ */
+function animationFormReferences(delivery: AnimationHelperDelivery): string {
+  if (delivery === 'plugin') {
+    const plugin = ANIMATION_PLUGIN.name;
+    return `Full contract and references - the ${plugin} plugin is loaded, so ask for its parts by name (read before editing):
+- the ${pluginRef(ANIMATION_SKILL_NAME)} skill (assemblies, joint pivots, cycle tables, transform recipe)
+- the ${pluginRef(VECTOR_SKILL_NAME)} skill (curve work, for the frames that need new geometry)
+- /${plugin}:${ANIMATION_PLUGIN.command}, which is this same job as a command
+- the plugin's instructions/animation-mode.instructions.md (canonical instructions)
+A clone of napkin-sketch carries all of it under ${ANIMATION_PLUGIN.dir}/ as well.
+`;
+  }
+  return `Full contract and references, when present in the working directory (read before editing):
+- ai-helper/instructions/animation-mode.instructions.md (canonical instructions)
+- ai-helper/skills/${ANIMATION_SKILL_NAME}/SKILL.md (the ${ANIMATION_SKILL_NAME} skill)
+- ai-helper/skills/${VECTOR_SKILL_NAME}/SKILL.md (the ${VECTOR_SKILL_NAME} skill, for curve work)
+- Installed copies for your tool may exist under its dot-folder, e.g. .claude/skills/${ANIMATION_SKILL_NAME}/, .claude/skills/${VECTOR_SKILL_NAME}/, and .claude/instructions/.
+`;
 }
 
 /**
@@ -598,6 +651,11 @@ export interface AnimationFormData {
  */
 export function buildAnimationForm(data: AnimationFormData): string {
   const { job } = data;
+  // How the helper was delivered decides what the skills are called: bare
+  // names for copied files, plugin-namespaced ones for the plugin.
+  const delivery = data.delivery ?? 'files';
+  const animationSkill = animationSkillRef(ANIMATION_SKILL_NAME, delivery);
+  const vectorSkill = animationSkillRef(VECTOR_SKILL_NAME, delivery);
   const frameName = animationFrameName(job);
   const assemblyLines = REQUIRED_ASSEMBLIES.map((a) => {
     const name = data.assemblies[a] ?? a;
@@ -642,7 +700,7 @@ ${assemblyLines}`;
 
 Draw frame ${job.frameIndex} of a ${data.category} "${data.type}" animation by editing frame ${job.sourceIndex}, which is already saved at ${ANIMATION_SOURCE_FILE}.
 
-Apply the ${ANIMATION_SKILL_NAME} skill before editing: it carries the assembly list, the joint pivots, the cycle tables, and the transform recipe. Its companion ${VECTOR_SKILL_NAME} skill owns the curve side - reach for it when a frame needs new or edited path geometry rather than a rotation.
+Apply the ${animationSkill} skill before editing: it carries the assembly list, the joint pivots, the cycle tables, and the transform recipe. Its companion ${vectorSkill} skill owns the curve side - reach for it when a frame needs new or edited path geometry rather than a rotation.
 
 This is a file edit, not a redraw. Do not rewrite, re-emit, or re-draw the geometry - every path in that file stays exactly as it is. Rotating an assembly's group rotates every anchor and Bezier handle inside it together, which is the rigid joint rotation this frame needs.
 
@@ -665,12 +723,7 @@ ${poseStep}
 
 The transforms are given in the source document's own coordinate space, so they need no adjustment.
 
-Full contract and references, when present in the working directory (read before editing):
-- ai-helper/instructions/animation-mode.instructions.md (canonical instructions)
-- ai-helper/skills/${ANIMATION_SKILL_NAME}/SKILL.md (the ${ANIMATION_SKILL_NAME} skill)
-- ai-helper/skills/${VECTOR_SKILL_NAME}/SKILL.md (the ${VECTOR_SKILL_NAME} skill, for curve work)
-- Installed copies for your tool may exist under its dot-folder, e.g. .claude/skills/${ANIMATION_SKILL_NAME}/, .claude/skills/${VECTOR_SKILL_NAME}/, and .claude/instructions/.
-`;
+${animationFormReferences(delivery)}`;
 }
 
 /**

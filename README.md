@@ -819,12 +819,18 @@ app. Add the mode explicitly:
 npm run animation-mode -- --status                 # is it installed?
 npm run animation-mode -- --install                # defaults to Claude Code
 npm run animation-mode -- --install --to copilot   # or codex, gemini, cursor…
+npm run animation-mode -- --install --to plugin    # as a Claude Code plugin
 npm run animation-mode -- --uninstall              # remove it again
 ```
 
-Installing copies the `svg-animations` and `vector-graphics` skills plus the
+Installing copies the `vector-animations` and `vector-graphics` skills plus the
 helper instructions into that tool's dot-folder (`.claude/`, `.github/`, …)
-and writes `ai-helper/installed.json`. That record is the only thing the app
+and writes `ai-helper/installed.json`. (`--to plugin` copies nothing, because
+`ai-helper/` **is** the `vectors` plugin: that target checks the folder over
+and prints the two `/plugin` commands that load it, which are a step you have
+to run yourself - see the `plugin` target below.) Installing over an install
+that targeted somewhere else removes that one first, so switching delivery
+never leaves two copies of a skill loaded. That record is the only thing the app
 reads to decide whether the mode exists, so the feature is genuinely plugged
 in and out rather than merely hidden. **Restart the app** after either
 command.
@@ -846,7 +852,9 @@ and your AI tool, and the install record names only which tool was chosen.
 
 **Uninstalling keeps the rest of the app intact.** It removes the two skills
 and the instructions file it installed (anything else in that dot-folder is
-left alone) and deletes the install record. Sketching, layers, export,
+left alone) and deletes the install record. A plugin install deletes nothing -
+what it installed is tracked source the repository needs either way - and
+prints the `/plugin` commands that unload it instead. Sketching, layers, export,
 import, pages, and every other feature are unaffected, and the app stops
 needing an AI tool at all.
 
@@ -857,9 +865,9 @@ With the mode installed, the banner's **Generate…** button runs the wizard:
    time, and the note names the frame the first run will draw (`walk_1`, or
    `animationLayer-walk_1` for an unnamed source).
 
-   **Every type is selectable.** Three — walk, idle, knocked down — run off
+   **Every type is selectable.** Four - walk, run, idle, knocked down - run off
    cycles **measured from the drawn skeletons** in
-   `character-wireframes.svg`; the other eleven are marked **Work in Progress**
+   `character-wireframes.svg`; the other ten are marked **Work in Progress**
    and are posed by the AI helper from a **template** carried in the prompt — one sentence describing
    what a single step of that movement does, and whether the sequence loops.
    That is what makes them usable now, and why their frames need a closer
@@ -880,7 +888,7 @@ With the mode installed, the banner's **Generate…** button runs the wizard:
    map, so setup comes first and decides whether the assemblies are needed.
 3. **One frame at a time** — the source frame is written to
    `_temp/animation-source.svg` and a short form (under 3 KB) to
-   `_temp/animation-form.txt`. The helper applies the `svg-animations` skill
+   `_temp/animation-form.txt`. The helper applies the `vector-animations` skill
    and **edits that file rather than redrawing it**: it sets one `transform`
    per assembly and saves the result as `animations/<type>_<n>.svg` (the
    folder is created if missing). A source frame named `character-walk_1`
@@ -932,23 +940,67 @@ GitHub Copilot, Codex, or a plain LLM command-line tool. A tool that can only
 print falls back to printing the whole document, which the app recovers from
 stdout and saves itself. The AI-facing contract
 (`animation-mode.instructions.md`) and two supporting skills live canonically
-in the version-tracked `ai-helper/` folder: `svg-animations` (the assembly
+in the version-tracked `ai-helper/` folder: `vector-animations` (the assembly
 list, joint pivots, cycle tables, transform recipe, Bezier-curve and
-animation-essentials references, and wireframe pose assets) and
-`vector-graphics` (a general Bezier-curve skill - linear/quadratic/cubic
-references, shape, object, and letterform assets, and a dependency-free script
-that derives SVG path data from control points). Every generated form names
-the `svg-animations` skill and tells the helper where to find both; a frame
-turns existing geometry, so `vector-graphics` only comes into play when
-something has to be drawn from scratch. Because AI tool dot-folders are
-commonly gitignored, a fresh clone installs them with:
+animation-essentials references, the character wireframe rig, and an object rig
+drawing what a break and a burst do to the pieces) and
+`vector-graphics` (a general Bezier-curve and SVG-structure skill -
+linear/quadratic/cubic references, layer-management conventions for naming,
+nesting, and compound paths, shape, object, and letterform assets, and a
+dependency-free script that derives SVG path data from control points). That
+folder is also the plugin itself, so the same files reach a tool that loads
+plugins and a tool that reads a dot-folder, and neither copy can go stale.
+Every generated form names the `vector-animations` skill and tells the helper
+where to find both; a frame turns existing geometry, so `vector-graphics` only
+comes into play when something has to be drawn from scratch. Because AI tool
+dot-folders are commonly gitignored, a fresh clone installs them with:
 
 ```bash
 npm run ai-helper -- --to claude        # .claude (default when no --to)
 npm run ai-helper -- --to github        # .github (Copilot)
 npm run ai-helper -- --to cursor        # any other tool dot-folder
+npm run ai-helper -- --to plugin        # check the vectors plugin, print /plugin
+npm run ai-helper -- --list             # show every known target
 NAPKIN_AI_HELPER=claude,github npm install   # or install on clone via env
 ```
+
+**The `plugin` target is the odd one out**, because there is nothing for it to
+copy. `ai-helper/` **is** the `vectors` plugin: the manifest, the command, the
+subagent, both skills, and the contract are the folder's own contents, and the
+marketplace that lists it is one manifest at the repository root.
+
+```text
+.claude-plugin/marketplace.json   lists vectors, source ./ai-helper
+ai-helper/
+  .claude-plugin/plugin.json      the manifest, versioned from package.json
+  commands/animation-mode.md      /vectors:animation-mode - draw one frame
+  agents/animation-frame.md       the same job as a subagent, in its own context
+  skills/vector-animations/       assemblies, pivots, cycles, transform recipe
+  skills/vector-graphics/         Bezier formulas, layer structure, path scripting
+  instructions/                   the contract a helper follows
+```
+
+So the target checks that tree, syncs the manifest version to `package.json`,
+and prints what actually loads the plugin - which readying it never did:
+
+```text
+/plugin marketplace add .                              # from a clone
+/plugin marketplace add isocialPractice/napkin-sketch  # without one
+/plugin install vectors@napkin-sketch
+```
+
+**A plugin is more than the two skills.** Loaded, it namespaces what it
+carries: the skills answer to `vectors:vector-animations` and
+`vectors:vector-graphics`, `/vectors:animation-mode` runs a frame from the
+form the app wrote, and `vectors:animation-frame` is a subagent that does the
+same job in a context of its own so a frame's SVG never lands in the main
+conversation. The app knows the difference: an install recorded as `plugin`
+makes every generated form name the plugin's parts, because a bare skill name
+reaches nothing once the skill lives inside one.
+
+**Nothing here is generated**, which is the point. The two deliveries read the
+same files, so a skill cannot be current in one and stale in the other, and a
+test fails if any skill ever appears twice in the tree.
 
 **Debugging a run**: every helper invocation is logged to
 `logs/animation-helper.log` (the `animationLogFile` setting; the folder is

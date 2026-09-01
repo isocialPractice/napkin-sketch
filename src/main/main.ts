@@ -24,6 +24,7 @@ import {
   parseAnimationInstall,
   type AnimationInstall,
   type AnimationModeStatus,
+  isPluginInstall,
 } from '../core/animation-install.js';
 import { classifyHelperFailure, helperBinary, helperToolFor } from '../core/ai-tool.js';
 import { decodeLaunchOptions, LAUNCH_ENV_KEY, type LaunchOptions } from '../core/launch.js';
@@ -318,7 +319,11 @@ async function loadAnimationInstall(): Promise<AnimationInstall | null> {
 
 /** What the renderer needs to know about the feature at startup. */
 function animationModeStatus(): AnimationModeStatus {
-  return { installed: animationInstall !== null, tool: animationInstall?.tool ?? null };
+  return {
+    installed: animationInstall !== null,
+    tool: animationInstall?.tool ?? null,
+    plugin: isPluginInstall(animationInstall),
+  };
 }
 
 /**

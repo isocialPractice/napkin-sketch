@@ -34,7 +34,7 @@
             "front-arm-assembly": 18.1,
             "back-arm-assembly": -21.9,
             "front-leg-assembly": -8.5,
-            "back-leg-assembly": 4.6
+            "back-leg-assembly": 4.5
           }
         },
         {
@@ -54,14 +54,14 @@
             "front-arm-assembly": 18.3,
             "back-arm-assembly": -21,
             "front-leg-assembly": -8.7,
-            "back-leg-assembly": 31.3
+            "back-leg-assembly": 31.2
           }
         },
         {
           "shiftYPercent": 0,
           "figureRotate": 0,
           "rotate": {
-            "front-arm-assembly": 12.5,
+            "front-arm-assembly": 12.4,
             "back-arm-assembly": -35.4,
             "front-leg-assembly": -13.1,
             "back-leg-assembly": 11.4
@@ -71,7 +71,7 @@
           "shiftYPercent": 0,
           "figureRotate": 0,
           "rotate": {
-            "front-arm-assembly": -16.8,
+            "front-arm-assembly": -16.9,
             "back-arm-assembly": 10.4,
             "front-leg-assembly": 9.1,
             "back-leg-assembly": -13.4
@@ -85,6 +85,113 @@
             "back-arm-assembly": 6.4,
             "front-leg-assembly": 13.3,
             "back-leg-assembly": -18.9
+          }
+        }
+      ]
+    },
+    "run": {
+      "skeleton": "Run-Animation",
+      "frames": 10,
+      "loops": true,
+      "steps": [
+        {
+          "shiftYPercent": -1.1,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": -26.1,
+            "back-arm-assembly": 43.1,
+            "front-leg-assembly": 12.3,
+            "back-leg-assembly": -13.5
+          }
+        },
+        {
+          "shiftYPercent": 2.1,
+          "figureRotate": 14,
+          "rotate": {
+            "front-arm-assembly": -48.2,
+            "back-arm-assembly": 18.7,
+            "front-leg-assembly": 4.1,
+            "back-leg-assembly": -36.8
+          }
+        },
+        {
+          "shiftYPercent": 1.2,
+          "figureRotate": -14,
+          "rotate": {
+            "front-arm-assembly": 20,
+            "back-arm-assembly": -17.4,
+            "front-leg-assembly": 24.4,
+            "back-leg-assembly": 35
+          }
+        },
+        {
+          "shiftYPercent": 0.5,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": 27.6,
+            "back-arm-assembly": -28.5,
+            "front-leg-assembly": -9.2,
+            "back-leg-assembly": 18.7
+          }
+        },
+        {
+          "shiftYPercent": -1.3,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": 31.8,
+            "back-arm-assembly": -33.1,
+            "front-leg-assembly": -40.9,
+            "back-leg-assembly": 28
+          }
+        },
+        {
+          "shiftYPercent": -1.2,
+          "figureRotate": 9.3,
+          "rotate": {
+            "front-arm-assembly": 41.3,
+            "back-arm-assembly": -30.1,
+            "front-leg-assembly": -26.8,
+            "back-leg-assembly": 6.9
+          }
+        },
+        {
+          "shiftYPercent": 0.9,
+          "figureRotate": -9.3,
+          "rotate": {
+            "front-arm-assembly": 13.3,
+            "back-arm-assembly": -18.9,
+            "front-leg-assembly": 24.9,
+            "back-leg-assembly": -4.8
+          }
+        },
+        {
+          "shiftYPercent": -0.7,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": -15.4,
+            "back-arm-assembly": 16.3,
+            "front-leg-assembly": 29.4,
+            "back-leg-assembly": -32.9
+          }
+        },
+        {
+          "shiftYPercent": -0.2,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": -31.1,
+            "back-arm-assembly": 31.3,
+            "front-leg-assembly": 7.8,
+            "back-leg-assembly": -26.4
+          }
+        },
+        {
+          "shiftYPercent": -0.2,
+          "figureRotate": 0,
+          "rotate": {
+            "front-arm-assembly": -13.2,
+            "back-arm-assembly": 18.6,
+            "front-leg-assembly": -26,
+            "back-leg-assembly": 25.9
           }
         }
       ]
@@ -110,7 +217,7 @@
             "front-arm-assembly": -18.4,
             "back-arm-assembly": -14.9,
             "front-leg-assembly": -2.4,
-            "back-leg-assembly": -2.3
+            "back-leg-assembly": -2.4
           }
         },
         {
@@ -142,11 +249,11 @@
       "steps": [
         {
           "shiftYPercent": 0.3,
-          "figureRotate": -13.5,
+          "figureRotate": -13.6,
           "rotate": {
             "front-arm-assembly": 10.1,
-            "front-leg-assembly": 13.5,
-            "back-leg-assembly": 13.5
+            "front-leg-assembly": 13.6,
+            "back-leg-assembly": 13.6
           }
         },
         {

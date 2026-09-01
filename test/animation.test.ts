@@ -28,9 +28,11 @@ import {
   REQUIRED_ASSEMBLIES,
   VECTOR_SKILL_NAME,
 } from '../src/core/animation.js';
+import { ANIMATION_PLUGIN, pluginRef } from '../src/core/ai-tool.js';
 import {
   KNOCKED_DOWN_CYCLE,
   MEASURED_CYCLES,
+  RUN_CYCLE,
   WALK_CYCLE,
 } from '../src/core/animation-cycles.js';
 import { createGroupLayer, createLayer, createSketch, type Sketch } from '../src/core/types.js';
@@ -156,7 +158,7 @@ test('animationFrameName and animationFrameFile name the drawn frame', () => {
 test('ready-made presets match the feature contract', () => {
   assert.deepEqual(
     READY_MADE_PRESETS.map((p) => p.type).sort(),
-    ['ideal', 'knocked-down', 'walk'],
+    ['ideal', 'knocked-down', 'run', 'walk'],
   );
 });
 
@@ -186,14 +188,39 @@ test('the walk cycle swings the arms against the legs', () => {
   }
 });
 
+test('the run cycle swings harder than the walk and leaves the ground', () => {
+  // A run is the same mechanics as a walk with more of everything, so the
+  // measurement has to show more of it - otherwise the skeleton was drawn as
+  // a walk and the type gains nothing by being measured.
+  const swing = (cycle: readonly { rotate: Record<string, number | undefined> }[]) =>
+    Math.max(...cycle.map((s) => Math.abs(s.rotate['front-leg-assembly'] ?? 0)));
+  assert.ok(
+    swing(RUN_CYCLE) > swing(WALK_CYCLE),
+    `a run should swing the legs further than a walk: ${swing(RUN_CYCLE)} vs ${swing(WALK_CYCLE)}`,
+  );
+
+  // Both feet leave the ground on the passing frames, which reads as the
+  // figure rising - a walk's neck stays level all the way round.
+  assert.ok(
+    RUN_CYCLE.some((s) => s.shiftYPercent < 0),
+    'a run should lift the figure on at least one step',
+  );
+  // And the lean comes back: a cycle that tipped forward and stayed there
+  // would walk the figure onto its face over a few repeats.
+  const lean = RUN_CYCLE.reduce((sum, s) => sum + (s.figureRotate ?? 0), 0);
+  assert.ok(Math.abs(lean) < 1, `a looping run must end upright, got ${lean}`);
+});
+
 test('a cycle that does not loop has one step fewer than it has frames', () => {
   // Knockdown runs start to end: seven skeletons, six steps between them,
   // and no closing step that would snap the figure back upright.
   assert.equal(KNOCKED_DOWN_CYCLE.length, 6);
   assert.equal(animationTypeSpec('knocked-down')?.loops, false);
-  // Walk loops, so it closes: eight skeletons, eight steps.
+  // Walk loops, so it closes: eight skeletons, eight steps. Run too, at ten.
   assert.equal(WALK_CYCLE.length, 8);
   assert.equal(animationTypeSpec('walk')?.loops, true);
+  assert.equal(RUN_CYCLE.length, 10);
+  assert.equal(animationTypeSpec('run')?.loops, true);
 });
 
 test('the knockdown cycle tips the whole figure and lowers it', () => {
@@ -211,8 +238,8 @@ test('every measured cycle covers a type the app offers', () => {
     assert.ok(cycle.length > 0, `${type} has an empty cycle`);
   }
   // And a type with no skeleton stays work in progress.
-  assert.equal(animationTypeSpec('run')?.status, 'work-in-progress');
-  assert.equal(MEASURED_CYCLES['run'], undefined);
+  assert.equal(animationTypeSpec('taunt')?.status, 'work-in-progress');
+  assert.equal(MEASURED_CYCLES['taunt'], undefined);
 });
 
 test('animationPoseStep walks the cycle and wraps at its end', () => {
@@ -394,6 +421,30 @@ test('the form names both skills, so curve work has somewhere to go', () => {
   assert.ok(form.includes(`Apply the ${ANIMATION_SKILL_NAME} skill`));
   assert.ok(form.includes(`companion ${VECTOR_SKILL_NAME} skill`));
   assert.ok(form.includes(`ai-helper/skills/${VECTOR_SKILL_NAME}/SKILL.md`));
+});
+
+test('a plugin install makes the form name the plugin skills, not the bare ones', () => {
+  const data = {
+    category: 'character' as const,
+    type: 'walk',
+    job: animationFrameJob('character-walk_1', 'walk'),
+    sourceLayerName: 'character-walk_1',
+    assemblies: {},
+    transforms: { head: 'rotate(-2 100 20)' },
+  };
+  const files = buildAnimationForm({ ...data, delivery: 'files' });
+  const plugin = buildAnimationForm({ ...data, delivery: 'plugin' });
+
+  // A plugin renames what it carries, so the bare skill name reaches nothing.
+  assert.ok(plugin.includes(`Apply the ${pluginRef(ANIMATION_SKILL_NAME)} skill`));
+  assert.ok(plugin.includes(`companion ${pluginRef(VECTOR_SKILL_NAME)} skill`));
+  assert.ok(plugin.includes(`/${ANIMATION_PLUGIN.name}:${ANIMATION_PLUGIN.command}`));
+  // Its files sit in a cache the app cannot name, so the paths go away with them.
+  assert.ok(!plugin.includes(`ai-helper/skills/${VECTOR_SKILL_NAME}/SKILL.md`));
+
+  // Saying nothing has to keep writing the form every tool understands.
+  assert.equal(buildAnimationForm(data), files);
+  assert.ok(files.includes(`Apply the ${ANIMATION_SKILL_NAME} skill`));
 });
 test('extractSvgMarkup tolerates chatter and rejects incomplete output', () => {
   const markup = '<svg xmlns="http://www.w3.org/2000/svg"><g id="walk_1"/></svg>';

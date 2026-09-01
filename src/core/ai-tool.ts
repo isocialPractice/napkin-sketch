@@ -23,6 +23,13 @@ export interface AiTool {
   /** Dot-folder the skill and instructions install into for this tool. */
   target: string;
   /**
+   * True when the tool can load the helper as a plugin rather than as files
+   * copied into its dot-folder. Only Claude Code does today, which is why
+   * `target` stays required: the plugin is an alternative delivery, not a
+   * replacement for one.
+   */
+  plugin: boolean;
+  /**
    * Where the tool's own sign-in lives. Every one of these CLIs prompts for
    * sign-in when it is started interactively and has no credentials, so the
    * app starts the tool itself rather than guessing at a login subcommand
@@ -38,6 +45,7 @@ export const AI_TOOLS: readonly AiTool[] = [
     label: 'Claude Code',
     binary: 'claude',
     target: '.claude',
+    plugin: true,
     signInHint: 'Run `claude` in a terminal and follow its sign-in prompt.',
   },
   {
@@ -45,6 +53,7 @@ export const AI_TOOLS: readonly AiTool[] = [
     label: 'GitHub Copilot CLI',
     binary: 'copilot',
     target: '.github',
+    plugin: false,
     signInHint: 'Run `copilot` in a terminal and follow its sign-in prompt.',
   },
   {
@@ -52,6 +61,7 @@ export const AI_TOOLS: readonly AiTool[] = [
     label: 'Codex CLI',
     binary: 'codex',
     target: '.codex',
+    plugin: false,
     signInHint: 'Run `codex` in a terminal and follow its sign-in prompt.',
   },
   {
@@ -59,6 +69,7 @@ export const AI_TOOLS: readonly AiTool[] = [
     label: 'Gemini CLI',
     binary: 'gemini',
     target: '.gemini',
+    plugin: false,
     signInHint: 'Run `gemini` in a terminal and follow its sign-in prompt.',
   },
 ];
@@ -66,6 +77,37 @@ export const AI_TOOLS: readonly AiTool[] = [
 /** The tool with this id, if it is one napkin-sketch knows. */
 export function aiToolById(id: string): AiTool | null {
   return AI_TOOLS.find((t) => t.id === id.trim().toLowerCase()) ?? null;
+}
+
+/**
+ * The helper packaged as a plugin.
+ *
+ * `ai-helper/` is not only the folder the dot-folder installs copy from: it
+ * is the plugin itself, listed by the marketplace manifest at the repository
+ * root. A tool that loads plugins therefore gets the whole helper - the
+ * command, the subagent, both skills, and the contract - as one addressable
+ * unit, instead of two skill folders it has to be told the paths of.
+ *
+ * The app needs these names because a plugin renames what it carries: inside
+ * a plugin a skill answers to `<plugin>:<skill>`, so a form that named the
+ * bare skill would be naming something the tool cannot find.
+ */
+export const ANIMATION_PLUGIN = {
+  /** Plugin id, and the namespace its skills, command, and subagent answer to. */
+  name: 'vectors',
+  /** Marketplace that lists it, from `.claude-plugin/marketplace.json` at the repo root. */
+  marketplace: 'napkin-sketch',
+  /** The plugin root inside the repository. */
+  dir: 'ai-helper',
+  /** Slash command that draws one frame from the form the app writes. */
+  command: 'animation-mode',
+  /** Subagent that draws one frame in a context of its own. */
+  agent: 'animation-frame',
+} as const;
+
+/** One of the plugin's parts, named the way a tool addresses it: `vectors:...`. */
+export function pluginRef(part: string): string {
+  return `${ANIMATION_PLUGIN.name}:${part}`;
 }
 
 /**

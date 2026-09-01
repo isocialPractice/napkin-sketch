@@ -58,6 +58,13 @@ copilot -p "$(cat _temp/animation-form.txt)"
 codex exec "$(cat _temp/animation-form.txt)"
 ```
 
+A tool that loads plugins can be pointed at the command the `vectors` plugin ships instead of at
+the form, which reaches the same contract through the plugin rather than through the file:
+
+```bash
+claude -p --model sonnet --dangerously-skip-permissions "/vectors:animation-mode"
+```
+
 The `_temp/` directory is transient: the app clears it when the animation run completes. Never
 store anything there that must outlive the run, and do not rely on earlier files existing.
 
@@ -67,12 +74,13 @@ user's Cancel does the same immediately). The app also ends the run the moment t
 complete on disk, so **save the frame as your last action** - anything after the save is never
 read.
 
-## Apply the `svg-animations` Skill
+## Apply the `vector-animations` Skill
 
-Every form names the `svg-animations` skill. Load it before editing: it carries the assembly
+Every form names the `vector-animations` skill. Load it before editing: it carries the assembly
 list, the joint pivots, the cycle tables, and the transform recipe. The canonical copy is
-`ai-helper/skills/svg-animations/SKILL.md`; installed copies may sit under your tool's dot-folder
-(for example `.claude/skills/svg-animations/`).
+`ai-helper/skills/vector-animations/SKILL.md`; installed copies may sit under your tool's dot-folder
+(for example `.claude/skills/vector-animations/`). Installed as the `vectors` plugin the same
+skill answers to `vectors:vector-animations`, and the form names it that way.
 
 The `vector-graphics` skill is installed beside it and covers the curve side of the job: the
 Bezier formulas, choosing between linear, quadratic, and cubic segments, the SVG path commands,
@@ -96,7 +104,7 @@ Only `walk` has a measured cycle behind it. Every other type is offered as **wor
 the form says so and carries a **template** for that type - one sentence describing what a single
 step of that movement does, and whether the sequence loops - in place of exact angles. Work from
 that template with the same transform mechanics, and judge the amounts from the source pose. The
-`svg-animations` skill lists every type, its status, and whether it loops.
+`vector-animations` skill lists every type, its status, and whether it loops.
 
 Character types move the six assemblies about their joints. **Object types have no assemblies**:
 the subject is the frame's root group, so the transform goes there unless the movement needs the
@@ -191,7 +199,7 @@ script (`npm run ai-helper -- --to <claude|github|...>`) copies them into the do
 tool reads (for example `.claude/skills/` and `.claude/instructions/`, which the `claude` CLI
 discovers automatically when run from the project root).
 
-- Skill: `ai-helper/skills/svg-animations/SKILL.md`
+- Skill: `ai-helper/skills/vector-animations/SKILL.md`
   - References: `bezier-curves.md`, `animation-essentials.md` under the skill's `references/`
   - Assets: wireframe pose skeletons under the skill's `assets/`
 - Companion skill: `ai-helper/skills/vector-graphics/SKILL.md`

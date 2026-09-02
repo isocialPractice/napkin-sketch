@@ -145,8 +145,10 @@ function normalizeStroke(raw: unknown): Stroke | null {
     color: typeof r.color === 'string' ? r.color : '#1f2328',
     width: typeof r.width === 'number' && r.width > 0 ? r.width : 3,
     points,
+    // A zero is a real opacity, not a missing one: rejecting it turned an
+    // invisible mark back into a fully opaque one on the next load.
     opacity:
-      typeof r.opacity === 'number' && r.opacity > 0 && r.opacity <= 1 ? r.opacity : undefined,
+      typeof r.opacity === 'number' && r.opacity >= 0 && r.opacity <= 1 ? r.opacity : undefined,
     sharpened: r.sharpened === true,
     fill:
       typeof r.fill === 'string' && !isText && !isImage && tool !== 'eraser'

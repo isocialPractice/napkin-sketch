@@ -66,7 +66,9 @@ hand-drawn rather than vector-perfect.
   **Fill Color** (click anywhere within an element's dimensions to select and
   fill it with the selected color; with nothing under the click the current
   selection is filled), **Eyedropper** (`I`: pick a color from the canvas
-  and fill the selected shape), and **Join strokes** (`Ctrl+J`).
+  and fill the selected shape), **Rotate** (`Ctrl+R`: turn the selection about
+  a movable centre, by dragging on the canvas or by typing an angle), and
+  **Join strokes** (`Ctrl+J`).
 - **Fill Shape** — with the Select tool active and a shape selected, clicking
   a Quick Access Color fills the shape with it. Fills are honored by the
   canvas, thumbnails, and SVG/PDF export.
@@ -178,9 +180,9 @@ hand-drawn rather than vector-perfect.
   measures each joint and hands the helper finished SVG transforms, so a frame
   is a small file edit rather than a redrawn document. Each frame lands as a
   group layer continuing the `<type>_<n>` sequence and is offered for
-  **Redraw / Keep and draw next / Done**, so there is no frame count to pick
-  up front. See [Animation Mode](#animation-mode) for the
-  workflow and requirements.
+  **Redraw / Keep and draw next / Done**. A frame count sets the pacing rather
+  than a batch size: fewer frames move further each, more move less. See
+  [Animation Mode](#animation-mode) for the workflow and requirements.
 - **Native application menus** — *File* (New, Open, Import, Save, Save As,
   Export PNG / JPEG / SVG / PDF), *Edit* (Undo, Redo, **Cut / Copy / Paste /
   Paste in Place / Duplicate**, Delete, Select All, **Animation Mode**),
@@ -444,6 +446,14 @@ napkin-sketch ./notes.skbk
 | Paint Bucket             | `G`                                       |
 | Fill Color               | toolbar button                            |
 | Eyedropper               | `I` (hold `Ctrl` to select a shape)       |
+| Move by a distance       | `Enter`, or the Move button (x / y, any unit) |
+| Step a Move field        | Arrow keys; hold `Shift` for a coarse step |
+| Rotate                   | `Ctrl/Cmd + R`, or the Rotate button      |
+| Turn by hand             | Drag on the canvas while Rotate is open   |
+| Accept a `Ctrl+R` turn   | Release the drag (the palette closes)     |
+| Dock / undock a panel    | The button in the panel's title bar       |
+| Move the rotation centre | Drag the crosshair, the grid, or Centre x / y |
+| Snap a rotation to 15°   | Hold `Shift` while dragging, or the Snap toggle |
 | Join strokes             | `Ctrl/Cmd + J`                            |
 | Close shape              | Close Shape button, then Sharp or Smooth  |
 | Drag-copy selection      | Hold `Alt` and drag the selection         |
@@ -692,6 +702,50 @@ also where a whole layer's stroke width is changed.
   anchored at the selection's top-left corner, so the Position values above
   stay put, and line weight scales with the shape.
 
+**Docking the editing panels:** **Move**, **Rotate**, **Page Settings**, and
+**Sharpen Selection** are floating palettes - dragged by their title or by the
+narrow band at their border, resized from their corner, and kept on screen if
+the window shrinks. Each also carries a small button in its title bar that
+**docks** it: the panel leaves the drawing and becomes a column beside the
+layers and properties panels, so the canvas gives up the width rather than
+being covered. The same button **undocks** it, back to the exact position it
+was floating at. A docked panel that is closed stays docked, and the dock takes
+no space at all while it is empty.
+
+**Rotate (`Ctrl+R`, or the Rotate button beside Move):** turns the selection
+about a centre point, in a palette that opens in the top-right rather than
+centred - the canvas under the selection is where the rotation is dragged, so
+a centred panel would be sitting on the pixels the gesture needs.
+
+- **Drag on the canvas to turn it by hand.** Clockwise counts up in positive
+  degrees, counterclockwise down in negative ones, and the field shows what the
+  drag has measured. Swinging past half a turn keeps counting the same way
+  round, and a second lap counts as a second lap. Releasing commits the turn as
+  a single undo step and puts the field back to zero.
+- **How it was opened decides what the release means.** From `Ctrl+R` the
+  release *accepts*: the rotation is committed and the palette closes, so the
+  whole thing is press, swing, let go. A press that turned nothing leaves it
+  open, so a stray click cannot dismiss it. From the **Rotate** button or the
+  Edit menu the palette stays up for typed angles, presets, and further turns,
+  and is dismissed with **Rotate**, **Cancel**, or `Escape`.
+- **The centre of rotation moves three ways**: drag the crosshair on the canvas
+  (the pointer offers a grab where it can be picked up), pick one of the nine
+  handles of the selection's box from the preset grid, or type an exact
+  **Centre x / y** in `px`, `in`, `mm`, or `pt`. A centre that has been dragged
+  or typed lights no preset, which is how the panel says it is custom.
+- **Angle, direction, and snapping**: the angle field is signed, and the
+  **CW / CCW** pair re-signs whatever magnitude is in it rather than clearing
+  it - so `90` and a press of CCW gives `-90`. **Snap to 15°** rounds typed and
+  dragged angles alike; `Shift` does the same for one gesture. Arrow keys step
+  a degree, or 15 with `Shift`.
+- **Live preview** (off by default) shows the typed angle on the canvas before
+  it is committed, taking no history step, exactly as the Move dialog's does. A
+  canvas drag always previews, whatever the checkbox says.
+- Vector anchors and their tangent handles turn with the path, and a Copic
+  stroke's broad nib keeps its bearing relative to the mark. Text and images
+  have no orientation to turn, so they orbit the centre upright - an image by
+  its middle rather than by its top-left anchor.
+
 Gradients and dash styles are written into exported SVGs as real
 `<linearGradient>` / `<radialGradient>` paint servers and `stroke-dasharray`
 values, so other editors see them, and they round-trip back into napkin
@@ -860,10 +914,20 @@ needing an AI tool at all.
 
 With the mode installed, the banner's **Generate…** button runs the wizard:
 
-1. **Animation setup** — the category (**Character** or **Object**) and the
-   animation type. **There is no frame count**: frames are drawn one at a
-   time, and the note names the frame the first run will draw (`walk_1`, or
+1. **Animation setup** — the category (**Character** or **Object**), the
+   animation type, and how many **frames the sequence runs to**. The note
+   names the frame the first run will draw (`walk_1`, or
    `animationLayer-walk_1` for an unnamed source).
+
+   **The frame count is pacing, not a batch.** Frames are still drawn one at a
+   time and the sequence still runs for as long as you keep pressing Keep and
+   draw next; the count sets how far each frame moves. A cycle's whole
+   movement is spread across that many frames, so **fewer frames move further
+   each and more frames move less**. It opens at the number of skeletons the
+   cycle was drawn from — eight for a walk — and the note says which way a
+   change moves the pose. A type with no measured cycle passes the number to
+   the AI helper as context instead: this frame is worth about one Nth of the
+   movement.
 
    **Every type is selectable.** Four - walk, run, idle, knocked down - run off
    cycles **measured from the drawn skeletons** in
@@ -1007,7 +1071,10 @@ test fails if any skill ever appears twice in the tree.
 created on first write, an empty value disables the log, and clearing the
 `_temp/` folder never touches it) with the command, the frame it asked for,
 the exit code, duration, stderr, and the start of stdout — check it when a
-frame does not appear.
+frame does not appear. The path is **relative to the helper's working
+directory** and is held to that: an absolute path, a drive letter, or a `..`
+segment is refused and the default is used instead, so a log can never be
+written somewhere the setting did not name.
 
 ## How auto-sharpen works
 
@@ -1155,7 +1222,10 @@ npm test
 Suites cover the geometry utilities, the auto-sharpen classifier and transforms,
 `.skbk` serialization/normalization (including the version 1 → 2 layer
 migration), the layer-aware SVG exporter, the PDF writer and its import
-round-trip, the CLI argument parser, and the launch contract.
+round-trip, the CLI argument parser, the launch contract, the animation cycle
+and form helpers, the measurement units, the rotate transforms, and a
+regression suite pinning the defects earlier source reviews found — so a fix
+that was hard to see cannot quietly come undone.
 
 ## Project structure
 
@@ -1167,8 +1237,10 @@ src/
 │   └── preload.ts      # Secure window.napkin bridge
 ├── renderer/
 │   ├── index.html      # GUI markup (toolbar, pages/layers panels, settings panel)
+│   ├── settings.html   # Verbose Settings window markup
 │   ├── styles.css      # GUI styling (60-30-10, WCAG-AA)
 │   ├── renderer.ts     # UI wiring + pointer input
+│   ├── settings.ts     # Verbose Settings window logic
 │   ├── surface.ts      # High-DPI, layered canvas rendering + SVG export
 │   ├── svg-import.ts   # SVG → layered strokes importer (browser-only)
 │   └── store.ts        # App state, layer stack, undo/redo history
@@ -1181,11 +1253,17 @@ src/
 └── core/
     ├── types.ts        # Shared data model (sketches, layers, strokes)
     ├── nib.ts          # Copic broad-nib geometry (canvas, SVG, and PDF share it)
+    ├── units.ts        # Print-unit conversions for the properties panel
+    ├── settings.ts     # Application settings: defaults, limits, validation
     ├── serialize.ts    # Browser-safe .skbk (de)serialization + validation
     ├── sketchbook.ts   # .skbk file I/O (atomic writes)
     ├── pdf.ts          # Dependency-free vector PDF writer (browser-safe)
     ├── pdf-import.ts   # Best-effort PDF vector importer (Node-only)
     ├── paths.ts        # Dependency-free path helpers
+    ├── animation.ts    # Animation Mode data model, pose steps, helper form
+    ├── animation-cycles.ts   # Cycle tables measured from the wireframe asset
+    ├── animation-install.ts  # Animation Mode's optional-install record
+    ├── ai-tool.ts      # The AI tools the helper can drive, and why one refused
     ├── launch.ts       # CLI ↔ main launch contract
     └── ipc.ts          # IPC channel + bridge types
 ```

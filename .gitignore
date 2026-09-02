@@ -14,6 +14,7 @@ itworked.*
 layerNames.txt
 animations/
 ai-helper/installed.json
+reviews/
 
 # The plugin manifests are tracked source. A global "ignore every dot-entry"
 # rule would otherwise leave the marketplace and the plugin uncommittable,

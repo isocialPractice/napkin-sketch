@@ -205,8 +205,13 @@ async function run() {
     measured.push(steps);
     const constant = `${type.replace(/-/g, '_').toUpperCase()}_CYCLE`;
     blocks.push(
+      // Both counts, because they differ and the difference reads as a bug
+      // otherwise: a cycle that closes gets one step per skeleton, one that
+      // runs from a start to an end gets one fewer.
       `/**\n * ${type}: measured from \`${animation.id}\` in the wireframe asset,\n` +
-        ` * ${frames.length} frames (${frames.map((f) => f.index).join(', ')}).\n */\n` +
+        ` * ${frames.length} skeletons (${frames.map((f) => f.index).join(', ')})\n` +
+        ` * giving ${steps.length} step${steps.length === 1 ? '' : 's'}` +
+        `${loops ? ', the last closing back to the first' : ' (this animation does not loop)'}.\n */\n` +
         `export const ${constant}: readonly AnimationPoseStep[] = [\n${literal(steps)}\n];`,
     );
     if (print) {
@@ -233,7 +238,7 @@ async function run() {
  * because the whole figure tipped reads as no joint rotation; the tipping
  * itself is \`figureRotate\`.
  *
- * Covered: ${names.map((n) => `${n.type} (${n.frames})`).join(', ')}.
+ * Covered: ${names.map((n) => `${n.type} (${n.steps} steps)`).join(', ')}.
  */
 
 import type { AnimationPoseStep } from './animation.js';

@@ -42,6 +42,14 @@ const bridge: NapkinBridge = {
   saveImages: (format: ExportFormat, contents: string[], baseName: string): Promise<SaveImagesResult> =>
     ipcRenderer.invoke(IPC.saveImages, format, contents, baseName),
   setTitle: (title: string): void => ipcRenderer.send(IPC.setTitle, title),
+  setDirty: (dirty: boolean): void => ipcRenderer.send(IPC.setDirty, dirty),
+  onSaveBeforeClose: (handler: () => Promise<boolean>): (() => void) => {
+    const listener = (): void => {
+      void handler().then((saved) => ipcRenderer.send(IPC.saveBeforeClose, saved));
+    };
+    ipcRenderer.on(IPC.saveBeforeClose, listener);
+    return () => ipcRenderer.removeListener(IPC.saveBeforeClose, listener);
+  },
   onMenuAction: (handler: (action: MenuAction) => void): (() => void) => {
     const listener = (_event: unknown, action: MenuAction): void => handler(action);
     ipcRenderer.on(IPC.menuAction, listener);
@@ -81,11 +89,6 @@ const bridge: NapkinBridge = {
     const listener = (_event: unknown, settings: AppSettings): void => handler(settings);
     ipcRenderer.on(IPC.settingsChanged, listener);
     return () => ipcRenderer.removeListener(IPC.settingsChanged, listener);
-  },
-  onRearrangeMode: (handler: (enabled: boolean) => void): (() => void) => {
-    const listener = (_event: unknown, enabled: boolean): void => handler(enabled);
-    ipcRenderer.on(IPC.rearrangeMode, listener);
-    return () => ipcRenderer.removeListener(IPC.rearrangeMode, listener);
   },
 };
 

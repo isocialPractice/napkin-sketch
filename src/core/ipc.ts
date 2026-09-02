@@ -40,6 +40,10 @@ export const IPC = {
   readImportFile: 'napkin:read-import-file',
   /** Renderer → main: report the current document title for the window. */
   setTitle: 'napkin:set-title',
+  /** Renderer → main: the sketch has unsaved edits, or no longer has. */
+  setDirty: 'napkin:set-dirty',
+  /** Main → renderer: the window is closing; save before it does. */
+  saveBeforeClose: 'napkin:save-before-close',
   /** Main → renderer: a native menu item was activated. */
   menuAction: 'napkin:menu-action',
   /** Renderer → main: fetch the current application settings. */
@@ -54,10 +58,13 @@ export const IPC = {
   openSettings: 'napkin:open-settings',
   /** Main → renderer: settings changed; renderers should re-apply them. */
   settingsChanged: 'napkin:settings-changed',
-  /** Renderer → main → main-renderer: toggle toolbar rearrange mode. */
+  /**
+   * Renderer → main → main-renderer: toggle toolbar rearrange mode. The
+   * settings window sends it, and main relays it to the drawing window as the
+   * `toggle-rearrange` menu action - the same path the Edit menu's own row
+   * takes, so there is one way in rather than two.
+   */
   toggleRearrange: 'napkin:toggle-rearrange',
-  /** Main → renderer: enter/leave toolbar rearrange mode. */
-  rearrangeMode: 'napkin:rearrange-mode',
   /** Renderer → main: write the animation form and draw one frame with the AI helper. */
   runAnimationHelper: 'napkin:run-animation-helper',
   /** Renderer → main: kill the in-flight AI helper run (Cancel pressed). */
@@ -103,9 +110,9 @@ export type MenuAction =
   | 'toggle-layers'
   | 'toggle-properties'
   | 'toggle-settings'
-  | 'open-app-settings'
   | 'toggle-rearrange'
-  | 'toggle-animation';
+  | 'toggle-animation'
+  | 'rotate';
 
 /** Raster image export formats. */
 export type ImageFormat = 'png' | 'jpeg';
@@ -212,6 +219,16 @@ export interface NapkinBridge {
    */
   saveImages(format: ExportFormat, contents: string[], baseName: string): Promise<SaveImagesResult>;
   setTitle(title: string): void;
+  /**
+   * Reports whether the sketch has unsaved edits, so closing the window can
+   * ask about them instead of throwing them away.
+   */
+  setDirty(dirty: boolean): void;
+  /**
+   * Subscribes to the close-time save request; the handler saves and
+   * resolves, and the window closes once it does.
+   */
+  onSaveBeforeClose(handler: () => Promise<boolean>): () => void;
   /** Subscribes to native-menu actions; returns an unsubscribe function. */
   onMenuAction(handler: (action: MenuAction) => void): () => void;
   /**
@@ -277,8 +294,6 @@ export interface NapkinBridge {
   toggleRearrange(): void;
   /** Subscribes to settings-changed broadcasts; returns an unsubscribe function. */
   onSettingsChanged(handler: (settings: AppSettings) => void): () => void;
-  /** Subscribes to rearrange-mode broadcasts; returns an unsubscribe function. */
-  onRearrangeMode(handler: (enabled: boolean) => void): () => void;
 }
 
 declare global {

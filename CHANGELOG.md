@@ -4,6 +4,368 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.2-alpha] - 2026-09-01
+
+### Added
+
+- **Editing panels dock.** Move, Rotate, Page Settings, and Sharpen Selection
+  each carry a small button in their title bar that parks the panel in a dock
+  beside the layers and properties panels, and takes it back out again. A
+  docked panel is a column of the workspace rather than something over the
+  drawing, so the canvas gives up the width instead of being covered - which
+  matters most for exactly these panels, since the thing they edit is
+  underneath them.
+  - **Undocking puts the panel back where it floated**, at the position it was
+    dragged to, so trying the dock costs nothing.
+  - **The dock remembers across a close.** A docked panel that is closed stays
+    docked; reopening finds it where it was left rather than floating again.
+  - **The dock takes no space when it is empty** - no column, and not even the
+    pixel its border would cost - so a session that never docks anything is
+    laid out exactly as before.
+
+- **Rotate: turn a selection by hand or by the degree.** A **Rotate** button
+  beside Move, and `Ctrl+R`, open a palette that turns the selection about a
+  centre point. Positive degrees turn clockwise and negative counterclockwise,
+  which is the same sign the canvas drag counts in, so the number in the field
+  is always the number the gesture measured.
+  - **`Ctrl+R` is a gesture, not a panel.** Opened from the keyboard, letting
+    go of a canvas drag accepts the rotation and puts the palette away - press,
+    swing, release, done, with no button to find afterwards. A press that
+    turned nothing is not a gesture and leaves it up, so a stray click cannot
+    dismiss it. Opening from the **Rotate** button or the Edit menu is the
+    other intent - a panel wanted for typed angles, presets, and repeated
+    turns - and that one stays put until it is dismissed. The panel says which
+    of the two it is, since the difference only shows at the end of a drag.
+  - **Drag on the canvas to turn it.** With the palette open the canvas is a
+    rotation handle: press anywhere and swing. The pointer's bearing from the
+    centre is sampled each frame and the shortest way round added to a running
+    total, so the gesture crosses the seam at half a turn without flipping
+    sign, and a second lap counts as a second lap rather than undoing the
+    first. A dashed lever runs from the centre to the pointer while it goes.
+    Releasing bakes the turn as **one undo step** - not one per pointer event -
+    and the field returns to zero.
+  - **The centre of rotation moves.** Drag the crosshair on the canvas to put
+    the pivot anywhere, type an exact **Centre x / y** in any of the usual
+    units, or pick one of the **nine handles of the selection's box** from the
+    preset grid. The pointer turns into a grab where the marker can be picked
+    up, so the one thing that says the pivot is movable is on the pivot. A
+    centre that has been dragged or typed matches no preset, and the grid
+    shows none lit, which is itself the reading that the centre is custom.
+  - **A live preview**, off by default, shows the typed angle on the canvas
+    before it is committed - the real rotation made and unmade, none of it
+    taking a history step, exactly as the Move dialog's preview works. A drag
+    always previews whatever the checkbox says: a gesture that turned nothing
+    until it was released would be no gesture at all. Moving the centre while
+    a preview is showing takes it off and re-makes it about the new point,
+    since a rotation cannot be adjusted from one pivot to another.
+  - **Common rotate controls**: a signed angle field, a **CW / CCW** pair that
+    re-signs whatever magnitude is typed (and lights to show which way the
+    current angle turns), the nine-handle centre grid, and a **Snap to 15°**
+    toggle. `Shift` snaps for one gesture without the toggle; arrow keys step
+    the angle by a degree, or by 15 with `Shift`.
+  - **Bezier paths turn as paths.** Anchors and both tangent handles rotate
+    with the geometry, so a turned Vector Path stays editable and bows exactly
+    as it did. A **Copic stroke's broad nib turns with the mark**, keeping its
+    bearing relative to the stroke instead of staying pinned to the page.
+    Text and images have no orientation in the model, so they orbit the centre
+    without tipping; an image orbits by its middle rather than by the top-left
+    corner its anchor records, which is what keeps it where the eye expects.
+  - **The palette opens out of the way**, in the top-right rather than centred,
+    because the canvas under the selection is where the rotation is dragged and
+    a centred panel would be sitting on exactly those pixels. It is otherwise
+    the Move palette's twin: dragged by its title or border, resized from its
+    corner, and left where it was put. A closed palette is out of the way
+    outright - `visibility: hidden` rather than only transparent, so the panel
+    neither takes presses meant for the canvas underneath nor keeps its fields
+    in the tab order.
+
+- **Move by an exact distance.** A **Move** button beside Join, and `Enter`
+  with something selected, open a dialog that shifts the selection by typed
+  `x` and `y` distances in any of the usual units. The Properties panel already
+  sets an absolute position, so this one is relative - which is what "nudge it
+  ten to the right" wants. Positive `x` goes right, positive `y` goes down.
+  - **Arrow keys step a field by its own unit**, and `Shift` takes the coarse
+    step: 1 and 10 for px and pt, an eighth of an inch and a whole inch for
+    in and mm alike, so changing a field's unit does not change how far one
+    press actually moves the drawing. The browser's spinner only knows a fixed
+    `step` attribute, which cannot grow with a modifier, so both arrows are
+    handled directly.
+  - **`Enter` moves again from where the selection now is.** The dialog stays
+    open and the distance stays typed, so `Enter` can be pressed repeatedly to
+    step the same amount again - each press measured from the current
+    position rather than accumulating against the one it started at. The
+    **Move** button applies once and closes.
+  - **Changing a field's unit converts what is in it**, so the distance stays
+    the same and only the way it is written changes: an inch becomes 25.4 mm
+    rather than 1 mm, and a live preview does not jump.
+  - **The dialog is a floating palette**, dragged by its title or by the
+    padded border ring around its contents, and resized from its corner, so it
+    can be put somewhere that is not covering the selection it is moving. The
+    border shows a crosshair move cursor (`src/assets/move-popup.svg`, sized to
+    32 px with its hotspot at the centre) wherever the press would drag rather
+    than land on a control, and the resize grip keeps its own corner. The panel
+    keeps its place between openings and is pulled back on screen if the window
+    has since shrunk. It also stops dimming and blurring the page behind it,
+    which is what makes the live preview worth watching while the distance is
+    typed.
+  - **A live preview toggle** shows the move on the canvas while the distance
+    is still being typed. The preview is the real move made and unmade, none
+    of it taking a history step; committing puts it back first and then moves
+    once for real, so the whole thing stays a single undo, and Cancel or
+    `Escape` leaves nothing behind.
+- **A frame count that paces a sequence instead of batching it.** Animation
+  Mode's setup gains a **Frames in the sequence** field, and it does not change
+  how many frames are drawn - they are still drawn one at a time, and the
+  sequence still runs for as long as Keep and draw next is pressed. It sets how
+  far one frame moves: a cycle's whole movement is spread across that many
+  frames, so **fewer frames move further each and more frames move less**.
+  - **Measured cycles are resampled, not repeated.** A cycle is a list of
+    per-step deltas measured from a fixed number of drawn skeletons, and
+    deltas cannot be stretched on their own. They are turned into running
+    totals, sampled at the boundaries of the requested frame, and differenced
+    again - so the pose part-way between two skeletons is interpolated rather
+    than invented, and the totals come out unchanged. A walk paced to 2, 4, 8,
+    16, 24, or 60 frames closes exactly; a knockdown paced to 3, 6, 12, or 20
+    lands at the same angle it was drawn landing at.
+  - **The default is the length the cycle was drawn at**, so each type opens
+    at one drawn frame per drawn skeleton and any other number reads as a
+    deliberate choice. The note under the field says which way a change moves
+    the pose.
+  - **Types with no measured cycle get the count as context.** Their prompt
+    template now carries the sequence length and says this frame is worth
+    about one Nth of the movement, which is the only pacing an AI-posed type
+    could otherwise take a guess at.
+  - Step values are rounded to two decimals rather than one, matching the
+    transform writer, so resampling a short cycle into many small steps no
+    longer accumulates rounding into visible drift.
+- **Animation Mode announces a finished sequence.** Once as many frames have
+  been kept as the setup asked for, an **Animation Graphics Completed** prompt
+  says how many were generated and offers **Generate New Animation** - which
+  runs the wizard again from the top, so the next sequence picks its own type
+  and length - or **Done**. The frame before it reads "Keep and finish" rather
+  than "Keep and draw next", so the last one is not a surprise.
+- **The wizard's dialogs are movable and resizable too**, by the same border
+  drag and corner grip as the Move dialog, so a step can be pushed aside to
+  see the frame it is talking about.
+
+### Changed
+
+- **The editing popups share one implementation.** Dragging by the title,
+  dragging by the border band, the corner resize grip, and staying on screen
+  when the window shrinks were a set of private methods that only the Move
+  dialog used; Rotate then wanted all of it. They now live in
+  `src/renderer/popup.ts` as a small manager, and each popup declares which
+  capabilities it wants - moveable, resizable, dockable - rather than
+  inheriting whatever the routine happened to do. The wizard's steps stay
+  moveable and resizable but are deliberately not dockable. The module reads
+  the same `is-hidden` class the app already toggles to open and close a
+  dialog, so no opener or closer had to change to gain any of this.
+- **Reload is gone, and `Ctrl/Cmd + R` rotates in its place.** Reload discarded
+  the sketch without a word, from a shortcut that sits next to half the editing
+  keys. The View menu's Reload row is removed and both key presses are taken
+  before Chromium sees them - including while a text field has focus, which is
+  where a stray `Ctrl+R` during a layer rename would otherwise still have gone
+  to the browser and taken the drawing with it. `Ctrl+R` then has a job rather
+  than only a refusal: it opens Rotate for the selection, the way `Enter` opens
+  Move. `F5` keeps the explanation, since nothing else has ever wanted it.
+- **Closing with unsaved changes asks first.** The window close is held for the
+  standard three-option prompt - **Save**, **Don't Save**, **Cancel** - and only
+  goes through on an answer that allows it. Save runs the app's own save, so a
+  sketch with no file still gets its dialog, and cancelling that leaves the
+  window open rather than losing the work the prompt was protecting.
+- **Drawing a busy page is no longer slower the busier it gets.** Every mark
+  commits to a layer of its own, so a page's layer stack is as long as its
+  drawing, and the three places that walk that stack - the canvas, the SVG
+  export, and the PDF export - each resolved a layer's marks by rescanning the
+  whole page. Walking the stack that way cost the cube of the page's size, and
+  the canvas paid it on every frame of every drag, pan, and zoom. Each mark's
+  layer is now resolved once per page instead of once per layer per mark, and
+  the SVG export reads paint order from a table rather than searching the
+  stroke list for each mark. A two-hundred-element page went from roughly eight
+  million layer comparisons per frame to a single pass. Nothing about the
+  output moved: the same layer resolution, the same paint order, byte-identical
+  exports.
+  - **Selecting, clicking, and rubber-banding got the same treatment.** Working
+    out whether a mark can be picked up meant resolving its layer and every
+    group above it, and the hit test asked that of every mark on the page - on
+    every pointer move, to decide which cursor to show. Picking a click out of
+    a crowded page did it three times over. The whole layer stack now resolves
+    in one pass and the pickable marks in one more, both built fresh for each
+    gesture step so nothing can go stale, and the three passes of a
+    within-bounds pick share the one answer. Endpoint snapping, Select All,
+    Sharpen All, the layers panel, and the page thumbnails all resolve once now
+    too.
+  - **The panels no longer rebuild faster than the canvas repaints.** Dragging
+    a selection changes the document once per pointer event, and every one of
+    those changes rebuilt every row of the layers panel and every field of the
+    properties panel, in full, immediately - several times between one frame
+    and the next, with all but the last thrown away. Those rebuilds now
+    coalesce into one per frame, like the canvas redraw beside them. Nothing
+    reads back what a rebuild writes except starting a layer rename, which asks
+    for its row and so flushes the pending rebuild first.
+- **A placed image is no longer held onto forever.** Decoded images were cached
+  by their data URL and nothing ever dropped one, so every picture ever painted
+  stayed in memory for the life of the window - across page turns, across
+  opening a different sketch book, and past deleting the mark that put it
+  there. The cache is now emptied whenever the whole document is replaced, and
+  by the throwaway surface that Export All builds for each page, which was
+  quietly keeping one alive per page of the export.
+- **Two IPC paths that nothing could reach are gone.** A channel for entering
+  rearrange mode had a sender, a subscriber, a bridge method, and a handler,
+  and the main process never sent it - rearrange mode has always travelled the
+  same route the Edit menu's own row takes. An `open-app-settings` action was
+  handled in the renderer and dispatched from nowhere. Neither cost anything at
+  runtime and both cost the next person to read the code, who would have found
+  a handler that cannot run.
+- **The roadmap gained a section for an instruction-driven graphics API.**
+  Everything the app knows about drawing - the sharpen engine, the Bezier
+  model, the layer tree, the SVG writer - is already browser-safe and already
+  exported, and none of it can be reached without a pointer. `TODO.md` now
+  carries **API Implementation**: thirty-four entries planning a headless path
+  from a small instruction language through an evaluator that emits the same
+  `Stroke` and `Layer` shapes the GUI commits, and out to SVG or PDF, listed
+  in the order the pipeline runs rather than by size. It is scoped as a minor
+  because every entry in it is additive - no existing export, signature, or
+  file format moves - and it is a plan rather than an implementation, which
+  is why this release stays at 4.1.2-alpha.
+- **And a section for the tool that writes those instructions.** Recording a
+  drawing session, replaying it through the app's own API, generating the
+  Animation Mode helper script from the layers a user assembled, and
+  organizing a selection into named, nested groups by rule are four
+  capabilities and one mechanism: a script the app writes and then either
+  hands to a tool or runs itself. `TODO.md` now carries **Automation and
+  Scripting Tool**, thirty-three entries, filed as `++.y.z` because recording
+  every document change means routing every document change through one
+  observable path - a new contract for a store that mutates through roughly
+  fifty methods called from the whole of the renderer. The undo stack is not
+  that path, and the section refuses the shortcut up front: it holds page
+  snapshots, not the actions between them. A plan rather than an
+  implementation, so this release stays at 4.1.2-alpha as well.
+- **And a section for Animation Mode itself, led by a typed prompt.** The
+  wizard offers a fixed list of movements, so a user who wants something not
+  on the list has no way to ask. `TODO.md` now carries **Animation Mode**,
+  forty entries under five features, of which **User Prompt** is sixteen: a
+  textarea in the setup dialog whose text reaches the AI helper. Two findings
+  shape it. The form already tolerates a type it does not recognize -
+  `animationTypeSpec` returns null and `buildAnimationForm` falls through to a
+  generic branch - so the feature is largely about making that branch good
+  rather than adding one. And the form's first principle - that a frame is a
+  file edit and not a redraw - is precisely what a free-text prompt invites
+  somebody to break, and that is the failure which made earlier runs run out
+  of time. The other four features are the gaps a few runs make obvious: a
+  prompt worth keeping, a frame worth fixing rather than redrawing, a step
+  worth trying twice, and a sequence worth managing as a sequence. Additive
+  against the mode as it stands, so `x.++.z` - and a plan again, so the
+  release is still 4.1.2-alpha.
+
+### Fixed
+
+- **`Enter` no longer opened the Move dialog on top of another one.** The
+  shortcut only checked that something was selected, so pressing Enter to
+  confirm an Animation Mode step - the obvious thing to press - put the Move
+  dialog over the wizard. That one gap is what made Move look present but
+  broken inside Animation Mode, made the wizard's first prompts look buggy,
+  and left the move cursor showing afterwards. Enter now stands down while any
+  other dialog is open and while Animation Mode is on, the Move button says so
+  rather than opening, entering Animation Mode closes the dialog and takes any
+  live preview back off the canvas, and closing it clears a half-finished drag
+  so no cursor is left behind.
+- **The move cursor took the whole border ring.** It now follows the same
+  three-pixel band the drag does, so what shows the cursor is exactly what can
+  be grabbed, and the resize corner keeps its own.
+
+- **A group or multi-element selection is no longer easy to lose.** Pressing
+  inside a selection of several elements now moves it, even where the press
+  lands in a gap between the marks. It used to demand an exact hit on ink:
+  pressing the space between two strokes of the very thing being dragged
+  cleared the selection and started a rubber band instead.
+  - **The press no longer drops the selection either.** A press on empty
+    canvas with several elements selected keeps them until the gesture says
+    what it is: the selection goes once the pointer moves (a real rubber
+    band) or when it is released without moving (a click). A mis-aimed grab
+    that never became either leaves the selection intact.
+  - **The grab area around a selection is wider**, twelve screen pixels rather
+    than four. A press aimed at a group of scattered marks often lands just
+    outside the box enclosing them, and starting the move a few pixels off is
+    a far better outcome than losing the whole selection.
+
+- **Export All wrote its pages with no name.** Clearing the extension in the
+  save dialog and typing a plain name left the files called `_1.png`, `_2.png`,
+  and so on: the stem was taken by slicing the extension off the end, and
+  slicing nothing off the end of a string leaves nothing at all. The whole name
+  is now kept when there is no extension to drop. Windows' own dialog appends
+  one, which is why this only ever showed on the dialogs that do not.
+
+- **A fully transparent mark came back solid.** Opacity zero was rejected on
+  load as though it were missing, and a missing opacity means the tool's
+  default - which for a pen is fully opaque. Anything set to zero with Quick
+  Opacity, or imported from an element the source file had at `opacity="0"`,
+  turned into ink the next time the book was opened. Zero is now read as the
+  opacity it is; anything outside zero to one still falls back to the default.
+
+- **A save that could not land left its scratch file behind.** Saving writes a
+  temporary file and renames it over the document, so an interrupted save can
+  never corrupt the original - but when the rename itself failed, which is what
+  happens on Windows if anything else holds the file open, the temporary was
+  left sitting in the folder, and every retry added another. The failure is
+  still reported and the original still untouched; the scratch file now goes
+  with it.
+
+- **Page thumbnails drew lines across the holes in a shape.** A ring, a letter
+  with a counter, or any imported shape with an inner contour showed a line
+  ruled from the end of the outer contour to the start of the inner one in the
+  pages panel, and a shape with its outline switched off was drawn with one
+  anyway. The thumbnail painter is a simplified copy of the canvas painter and
+  had drifted from it on both counts; it now lifts the pen between contours and
+  leaves a fill-only shape without an outline, the way the canvas and both
+  exports always did.
+
+- **`napkin-sketch --new` failed to start from some terminals.** Editor and
+  agent terminals often export `ELECTRON_RUN_AS_NODE`, and the CLI passed its
+  whole environment to the window it launched. With that variable set the GUI
+  runs as plain Node, where `require('electron')` answers with nothing and
+  startup dies naming an Electron internal rather than the cause. The variable
+  is now dropped from the child's environment, since the window is never meant
+  to run that way.
+
+- **One bad id in an imported file could abort the whole import.** A layer's
+  eraser mask is found by the id in its `mask="url(#...)"` attribute, and that
+  id went into a lookup unescaped - so a quote or a bracket in it produced an
+  invalid query that threw, and the file failed to import at all rather than
+  losing one mask. The id is escaped now. Every other unreadable thing in an
+  SVG already degraded gracefully; this one is the last that did not.
+
+- **Imported artwork could paint in the wrong order.** napkin's own exports
+  record each mark's paint order in a `data-i` attribute, and geometry from
+  another editor carries none - which was supposed to fall back to the order
+  the elements appear in the document. It never did: a missing attribute reads
+  as the number zero, which is a valid order, so every foreign element was
+  filed at the very bottom of the stack and the fallback beside it could not be
+  reached. Only a document mixing both kinds of mark on one layer showed it,
+  where the foreign artwork sank underneath geometry it had been drawn on top
+  of.
+
+- **The AI helper's log setting could point outside the folder it names.** The
+  path is documented as relative to the helper's working directory, and it was
+  taken as typed - so an absolute path replaced that directory outright, `..`
+  climbed out of it, and the app created whatever folders it found itself
+  needing. It is checked now: an empty value still switches the log off, a
+  relative path is kept, and anything that would escape falls back to the
+  default rather than being silently rewritten, so a path meant to go somewhere
+  else fails where it can be seen. A settings file moves between machines, so a
+  path that is absolute on any platform is refused on all of them.
+
+- **The animation wizard's frame count said skeletons and meant steps.** A
+  sequence opens at its animation's natural length, and the note explaining
+  that number described it as the count of drawn poses the cycle was measured
+  from. It is the count of steps between them, which for an animation that
+  loops is the same number and for one that does not is one fewer - so the
+  generated table showed "7 frames" above a six-entry list and read like a
+  defect. The number was always right (a run draws the frames *after* the one
+  already on the page, so six drawn frames plus the source is the seven poses
+  that were measured); the wording is now right too, and the generated tables
+  give both counts.
+
 ## [4.1.1-alpha] - 2026-09-01
 
 ### Added

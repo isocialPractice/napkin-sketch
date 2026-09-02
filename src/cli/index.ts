@@ -133,9 +133,19 @@ function launchGui(options: LaunchOptions): void {
   const electron = resolveElectronBinary();
   const mainEntry = resolve(HERE, '..', 'main', 'main.js');
 
+  // Some editor and agent terminals export ELECTRON_RUN_AS_NODE. Inherited, it
+  // makes the child run main.js as plain Node, where `require('electron')`
+  // answers with nothing and startup dies on `setAppUserModelId`. The GUI is
+  // never meant to run that way, so the variable is dropped rather than passed.
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    [LAUNCH_ENV_KEY]: encodeLaunchOptions(options),
+  };
+  delete env.ELECTRON_RUN_AS_NODE;
+
   const child = spawn(electron, [mainEntry], {
     stdio: 'inherit',
-    env: { ...process.env, [LAUNCH_ENV_KEY]: encodeLaunchOptions(options) },
+    env,
     windowsHide: false,
   });
 

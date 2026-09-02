@@ -102,6 +102,13 @@ async function copyStatic() {
   if (existsSync(resolve(root, 'assets/icon.svg'))) {
     await cp(resolve(root, 'assets/icon.svg'), resolve(root, 'dist/assets/icon.svg'));
   }
+  // Renderer artwork lives beside the source it belongs to. The stylesheet
+  // reaches it as ../assets from dist/renderer, so the whole folder is copied
+  // rather than named file by file - a new cursor or glyph then needs no
+  // build change to ship.
+  if (existsSync(resolve(root, 'src/assets'))) {
+    await cp(resolve(root, 'src/assets'), resolve(root, 'dist/assets'), { recursive: true });
+  }
 }
 
 async function run() {

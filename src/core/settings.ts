@@ -317,8 +317,7 @@ export function normalizeSettings(input: unknown): AppSettings {
       raw.copicWidthMultiplier, lim.copicWidthMultiplier.min, lim.copicWidthMultiplier.max, base.copicWidthMultiplier,
     ),
     animationHelperCommand: normalizeAnimationCommand(raw.animationHelperCommand, base),
-    animationLogFile:
-      typeof raw.animationLogFile === 'string' ? raw.animationLogFile.trim() : base.animationLogFile,
+    animationLogFile: normalizeRelativePath(raw.animationLogFile, base.animationLogFile),
   };
 
   result.quickColors = normalizeQuickColors(raw.quickColors, result.quickColorCount);
@@ -346,6 +345,30 @@ function normalizeAnimationCommand(value: unknown, base: AppSettings): string {
   const trimmed = value.trim();
   if (LEGACY_ANIMATION_HELPER_COMMANDS.includes(trimmed)) return base.animationHelperCommand;
   return trimmed;
+}
+
+/**
+ * Coerces a path setting that is documented as relative to the helper's
+ * working directory into one that actually is.
+ *
+ * An empty string is a real answer - it switches the log off - and is kept.
+ * Anything that would escape the working directory is not: an absolute path
+ * replaces that directory outright and a `..` segment climbs out of it, and
+ * either would have the app quietly create folders somewhere the setting never
+ * claimed to reach. Those fall back to the default rather than being silently
+ * rewritten, so a path meant to go elsewhere fails visibly in the settings
+ * window instead of half working.
+ *
+ * A settings file travels between platforms, so a path that is absolute on any
+ * of them is rejected on all of them: a leading separator of either kind - one
+ * covers a POSIX root and a UNC prefix both - or a drive letter.
+ */
+export function normalizeRelativePath(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback;
+  const trimmed = value.trim();
+  if (trimmed === '') return '';
+  if (/^[\\/]/.test(trimmed) || /^[A-Za-z]:/.test(trimmed)) return fallback;
+  return trimmed.split(/[\\/]+/).includes('..') ? fallback : trimmed;
 }
 
 /** Coerces an arbitrary value into a valid quick-feature modifier key. */

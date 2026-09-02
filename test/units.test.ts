@@ -9,6 +9,7 @@ import {
   fromPx,
   isLengthUnit,
   isScaleUnit,
+  nudgeStep,
   toPx,
   unitPrecision,
   unitStep,
@@ -66,4 +67,29 @@ test('unit guards accept the offered units and reject anything else', () => {
   assert.ok(!isLengthUnit('em'));
   assert.ok(!isScaleUnit('em'));
   assert.ok(!isLengthUnit(undefined));
+});
+
+test('nudgeStep steps px and pt by round numbers', () => {
+  assert.equal(nudgeStep('px', false), 1);
+  assert.equal(nudgeStep('px', true), 10);
+  assert.equal(nudgeStep('pt', false), 1);
+  assert.equal(nudgeStep('pt', true), 10);
+});
+
+test('nudgeStep moves inches and millimetres the same physical distance', () => {
+  // An eighth of an inch fine, a whole inch coarse - so changing a field's
+  // unit does not change how far one arrow press moves the drawing.
+  assert.equal(nudgeStep('in', false), 0.125);
+  assert.equal(nudgeStep('in', true), 1);
+  assert.equal(toPx(nudgeStep('mm', false), 'mm').toFixed(4), toPx(0.125, 'in').toFixed(4));
+  assert.equal(toPx(nudgeStep('mm', true), 'mm').toFixed(4), toPx(1, 'in').toFixed(4));
+});
+
+test('the Shift step is always the larger one', () => {
+  for (const unit of LENGTH_UNITS) {
+    assert.ok(
+      nudgeStep(unit, true) > nudgeStep(unit, false),
+      `${unit}: Shift must move further than a plain arrow`,
+    );
+  }
 });

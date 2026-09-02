@@ -27,7 +27,7 @@ import {
   type Tool,
 } from '../core/types.js';
 import { DEFAULT_SHARPEN_OPTIONS, type SharpenOptions } from '../sharpen/sharpen.js';
-import { catmullRom, cubicBezierPoints } from '../sharpen/geometry.js';
+import { catmullRom, cubicBezierPoints, rotateAbout, rotationTrig } from '../sharpen/geometry.js';
 
 /** Snapshot of the current tool configuration. */
 export interface ToolState {
@@ -1406,6 +1406,74 @@ export class Store {
         // Line weight follows the shape so a scaled-down element does not
         // keep a disproportionately heavy outline.
         stroke.width = Math.max(0.5, stroke.width * Math.sqrt(Math.abs(sx * sy)));
+      }
+    }
+    this.touch();
+  }
+
+  /**
+   * Turns specific strokes about (cx, cy) by `degrees`, clockwise for a
+   * positive angle and counterclockwise for a negative one.
+   *
+   * Sampled points and Bezier anchors (with both tangent handles) all turn,
+   * so a rotated vector path stays editable and bows exactly as it did. A
+   * Copic stroke's broad nib turns with it: the nib angle is measured in the
+   * same clockwise degrees, so the chisel keeps its bearing relative to the
+   * mark rather than staying pinned to the page.
+   *
+   * Text and images have no orientation in the model - a text item is drawn
+   * along the page's own axis and an image into an upright box - so those two
+   * orbit the centre without tipping. An image orbits by its middle rather
+   * than by the top-left corner its anchor records, which is what keeps a
+   * turned image where the eye expects it.
+   */
+  rotateStrokes(
+    ids: Iterable<string>,
+    degrees: number,
+    cx: number,
+    cy: number,
+    history = true,
+  ): void {
+    if (!Number.isFinite(degrees) || !Number.isFinite(cx) || !Number.isFinite(cy)) return;
+    if (degrees % 360 === 0) return;
+    const targets = new Set(ids);
+    const strokes = this.sketch.strokes.filter((s) => targets.has(s.id));
+    if (strokes.length === 0) return;
+    if (history) this.pushHistory();
+    const trig = rotationTrig(degrees);
+    const turn = (p: { x: number; y: number }): void => {
+      const moved = rotateAbout(p, cx, cy, trig);
+      p.x = moved.x;
+      p.y = moved.y;
+    };
+    for (const stroke of strokes) {
+      if (isImageStroke(stroke)) {
+        // The anchor is the top-left corner; the middle is what orbits.
+        const anchor = stroke.points[0];
+        if (!anchor) continue;
+        const halfW = (stroke.imageWidth ?? 100) / 2;
+        const halfH = (stroke.imageHeight ?? 100) / 2;
+        const middle = rotateAbout(
+          { x: anchor.x + halfW, y: anchor.y + halfH },
+          cx,
+          cy,
+          trig,
+        );
+        anchor.x = middle.x - halfW;
+        anchor.y = middle.y - halfH;
+        continue;
+      }
+      for (const p of stroke.points) turn(p);
+      if (stroke.vector) {
+        for (const anchor of stroke.vector.anchors) {
+          turn(anchor.p);
+          if (anchor.hIn) turn(anchor.hIn);
+          if (anchor.hOut) turn(anchor.hOut);
+        }
+      }
+      if (stroke.tool === 'copic') {
+        const nib = (stroke.nibAngle ?? DEFAULT_NIB_ANGLE) + degrees;
+        stroke.nibAngle = ((nib % 360) + 360) % 360;
       }
     }
     this.touch();

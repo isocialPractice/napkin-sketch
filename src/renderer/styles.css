@@ -872,6 +872,244 @@ body {
   border: 1px solid var(--border);
 }
 
+.move-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+/* The preview toggle reads as one row against the left edge - box first,
+   label beside it - rather than stacked like the distance fields above. */
+.move-preview-field {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--s2);
+}
+
+.move-preview-field input {
+  flex: none;
+  width: auto;
+  margin: 0;
+}
+
+.move-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- Rotate dialog ------------------------------------------------------- */
+
+/* The degree sign sits where the Move dialog's unit picker does, so the two
+   panels line up: angle fields have only one unit, so it is a label rather
+   than a choice. */
+.rotate-degrees {
+  flex: none;
+  width: 3ch;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Direction and centre-preset rows stack their label above their control the
+   way the number fields do, but hold buttons rather than an input. */
+.rotate-dir-field,
+.rotate-anchor-field {
+  gap: var(--s2);
+}
+
+.rotate-dir {
+  display: flex;
+  gap: var(--s2);
+}
+
+.rotate-dir-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s1);
+}
+
+/* The direction pair is a readout as much as a control: whichever way the
+   typed angle already turns is the one lit, so the sign of a number never has
+   to be worked out from the minus sign alone. */
+.rotate-dir-btn.is-active {
+  border-color: var(--focus);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.rotate-dir-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* Nine handles of the selection's box, laid out as the box itself - the
+   common way a rotate or transform panel offers a centre, and readable at a
+   glance because the grid is the shape it is choosing a point on. */
+.rotate-anchor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s1);
+  width: 84px;
+  padding: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.rotate-anchor {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background var(--motion), border-color var(--motion);
+}
+
+.rotate-anchor:hover {
+  border-color: var(--focus);
+}
+
+.rotate-anchor.is-active {
+  border-color: var(--focus);
+  background: var(--focus);
+}
+
+/* A centre dragged on the canvas or typed into the fields matches no preset,
+   so none is lit - which is itself the reading that the centre is custom. */
+.rotate-anchor:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* The Rotate dialog is a floating palette for the same reason the Move one
+   is, and more so: the canvas underneath is where the rotation is actually
+   dragged, so the panel must never swallow a pointer that was aimed past it. */
+#rotate-dialog {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+/* A palette needs a width of its own. The floating panel is shrink-to-fit, so
+   without one the explanatory note below the fields sets the width - it lays
+   out as a single line and the panel grows to the viewport cap, ending up
+   spread across the canvas the rotation has to be dragged on. `resize: both`
+   still writes an inline width when the corner is pulled, so this is the
+   starting size rather than a limit. */
+#rotate-dialog .export-dialog-inner {
+  width: 340px;
+}
+
+/* ---- Popups: the shared editing panels ----------------------------------- */
+
+/* Resizing is a capability a popup asks for rather than something every
+   floating panel gets, so the grip is on the class the manager sets. */
+.export-dialog-inner.popup-resizable {
+  resize: both;
+}
+
+/* The dock toggle sits at the right of the title bar. The title is centred
+   text, so the button is taken out of the flow rather than laid beside it -
+   otherwise the title would shift by the width of a button that is not part
+   of the name. */
+.export-dialog-title {
+  position: relative;
+}
+
+.popup-dock-btn {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--motion), background var(--motion), border-color var(--motion);
+}
+
+.popup-dock-btn:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.popup-dock-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* The dock: one more column in the workspace row, built like the layers and
+   properties panels so a docked popup reads as a panel rather than as
+   something stuck to the edge. Collapsed to zero width when nothing is in it,
+   which is what makes the stage take the space back on undock. */
+.popup-dock {
+  position: relative;
+  width: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: var(--surface);
+  /* No border while collapsed. The panels beside it are always part of the
+     layout, so the pixel their border costs at zero width is paid either way;
+     the dock is created on first use and would otherwise take a pixel from
+     the canvas for the whole session on the strength of one docking. */
+  border-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  transition: width var(--motion);
+}
+
+.popup-dock.is-open {
+  width: var(--dock-width, 320px);
+  padding: var(--s3);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+/* A docked panel gives up everything that made it a floating one: it is no
+   longer placed at a point, no longer resizable by its own corner (the column
+   sets the width), and no longer casts a shadow over a canvas it is now beside
+   rather than on top of. */
+.export-dialog-inner.popup-docked {
+  position: static;
+  left: auto;
+  top: auto;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  min-width: 0;
+  resize: none;
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+
+.export-dialog-inner.popup-docked.is-hidden {
+  display: none;
+}
+
+/* The overlay a docked panel left behind still carries the backdrop for the
+   popups that have one. Neutralise it: a dimmed, blurred screen behind a
+   docked panel would be a modal with nothing in it. */
+.export-dialog.popup-docked-away {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
 /* ---- Toast --------------------------------------------------------------- */
 
 .toast {
@@ -957,11 +1195,23 @@ body {
   justify-content: center;
   background: rgba(31, 35, 40, 0.35);
   backdrop-filter: blur(2px);
-  transition: opacity var(--motion);
+  transition: opacity var(--motion), visibility var(--motion);
 }
 
+/* A closed dialog has to be gone, not merely invisible.
+   The overlay is fixed to the whole viewport, so its panel sits in the middle
+   of the canvas whether or not anyone can see it; `pointer-events: none` here
+   alone does not settle that, because the floating palettes turn pointer
+   events back on for their inner panel and a descendant rule wins. An
+   invisible panel then swallowed presses aimed at the canvas underneath and
+   put the focus in one of its own number fields, which took every keyboard
+   shortcut with it - the field owns its keys, so nothing else fired.
+   `visibility: hidden` cannot be undone by a descendant that way, and it also
+   takes the closed dialog's controls out of the tab order. It is on the
+   transition so the fade out still plays before the panel goes. */
 .export-dialog.is-hidden {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 
@@ -1000,6 +1250,52 @@ body {
 
 .export-dialog.dialog-corner .export-dialog-inner {
   min-width: 220px;
+}
+
+/* The Move dialog is a floating palette rather than a modal sheet: it drags by
+   its title and resizes from its corner, so it can be put somewhere that is
+   not covering the thing being moved. The overlay keeps its job as the
+   positioning context but stops dimming and stops swallowing pointer events,
+   which is what lets the canvas underneath stay visible and usable while a
+   live preview is showing. */
+#move-dialog {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+.dialog-floating .export-dialog-inner {
+  pointer-events: auto;
+  overflow: auto;
+  min-width: 280px;
+  min-height: 220px;
+  max-width: calc(100vw - 2 * var(--s4));
+  max-height: calc(100vh - 2 * var(--s4));
+}
+
+/* Once dragged the panel is placed outright, so the overlay stops centring it. */
+.dialog-floating.is-placed {
+  display: block;
+}
+
+.dialog-floating.is-placed .export-dialog-inner {
+  position: absolute;
+}
+
+/* A floating dialog is dragged by its border or its title, so the move cursor
+   belongs to those and nothing else: the band is only a few pixels wide, and
+   the class is set by the same test the drag uses, so what looks grabbable is
+   exactly what is. The keyword after the image is the fallback for anything
+   that will not load an SVG cursor. */
+.dialog-floating .export-dialog-inner.on-border,
+.dialog-floating .export-dialog-title,
+.dialog-floating .export-dialog-inner.is-grabbing,
+.dialog-floating .export-dialog-title.is-grabbing {
+  cursor: url('../assets/move-popup.svg') 16 16, move;
+}
+
+.dialog-floating .export-dialog-title {
+  user-select: none;
 }
 
 /* Vector Path corner-radius field in the toolbar. */

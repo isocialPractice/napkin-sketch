@@ -12,14 +12,15 @@
  * because the whole figure tipped reads as no joint rotation; the tipping
  * itself is `figureRotate`.
  *
- * Covered: walk (8), run (10), ideal (4), knocked-down (7).
+ * Covered: walk (8 steps), run (10 steps), ideal (4 steps), knocked-down (6 steps).
  */
 
 import type { AnimationPoseStep } from './animation.js';
 
 /**
  * walk: measured from `Walk-Animation` in the wireframe asset,
- * 8 frames (0, 1, 2, 3, 4, 5, 6, 7).
+ * 8 skeletons (0, 1, 2, 3, 4, 5, 6, 7)
+ * giving 8 steps, the last closing back to the first.
  */
 export const WALK_CYCLE: readonly AnimationPoseStep[] = [
   { shiftYPercent: 0, rotate: { 'front-arm-assembly': -10, 'back-arm-assembly': 21.1, 'front-leg-assembly': 12.3, 'back-leg-assembly': -13.5 } },
@@ -34,7 +35,8 @@ export const WALK_CYCLE: readonly AnimationPoseStep[] = [
 
 /**
  * run: measured from `Run-Animation` in the wireframe asset,
- * 10 frames (0, 1, 2, 3, 4, 5, 6, 7, 8, 9).
+ * 10 skeletons (0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+ * giving 10 steps, the last closing back to the first.
  */
 export const RUN_CYCLE: readonly AnimationPoseStep[] = [
   { shiftYPercent: -1.1, rotate: { 'front-arm-assembly': -26.1, 'back-arm-assembly': 43.1, 'front-leg-assembly': 12.3, 'back-leg-assembly': -13.5 } },
@@ -51,7 +53,8 @@ export const RUN_CYCLE: readonly AnimationPoseStep[] = [
 
 /**
  * ideal: measured from `Ideal_Stance-Animation` in the wireframe asset,
- * 4 frames (0, 1, 3, 4).
+ * 4 skeletons (0, 1, 3, 4)
+ * giving 4 steps, the last closing back to the first.
  */
 export const IDEAL_CYCLE: readonly AnimationPoseStep[] = [
   { shiftYPercent: 0, rotate: { 'front-arm-assembly': 13.2, 'back-arm-assembly': 11.8, 'front-leg-assembly': 2.4 } },
@@ -62,7 +65,8 @@ export const IDEAL_CYCLE: readonly AnimationPoseStep[] = [
 
 /**
  * knocked-down: measured from `Knockdown-Animation` in the wireframe asset,
- * 7 frames (0, 1, 2, 3, 4, 5, 6).
+ * 7 skeletons (0, 1, 2, 3, 4, 5, 6)
+ * giving 6 steps (this animation does not loop).
  */
 export const KNOCKED_DOWN_CYCLE: readonly AnimationPoseStep[] = [
   { shiftYPercent: 0.3, figureRotate: -13.6, rotate: { 'front-arm-assembly': 10.1, 'front-leg-assembly': 13.6, 'back-leg-assembly': 13.6 } },

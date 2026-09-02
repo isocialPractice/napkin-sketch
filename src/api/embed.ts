@@ -172,6 +172,9 @@ export class NapkinSketch {
   /** Loads a sketch book JSON string, replacing the current drawing. */
   loadJSON(text: string): void {
     const book: SketchBook = parseSketchBook(text, this.sketch.name);
+    // Images decoded for the drawing being replaced are of no use to the new
+    // one, and nothing else would ever drop them.
+    this.surface.clearImages();
     this.sketch = book.sketches[0] ?? createSketch();
     this.undoStack.length = 0;
     this.redoStack.length = 0;
@@ -199,6 +202,7 @@ export class NapkinSketch {
 
   /** Detaches all listeners and removes the canvas from the host. */
   destroy(): void {
+    this.surface.clearImages();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
     this.canvas.removeEventListener('pointermove', this.onPointerMove);

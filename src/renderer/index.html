@@ -59,6 +59,12 @@
           <button id="tool-eyedrop" class="tool" type="button" title="Eyedropper (I) — pick a color; fills the selected shape" aria-label="Eyedropper">
             <span class="icon" aria-hidden="true">💧</span><span class="label">Pick</span>
           </button>
+          <button id="move-selection" class="btn" type="button" title="Move the selection by an exact distance (Enter)">
+            Move
+          </button>
+          <button id="rotate-selection" class="btn" type="button" title="Rotate the selection around a movable centre (Ctrl+R) - drag on the canvas to turn it">
+            Rotate
+          </button>
           <button id="join-strokes" class="btn" type="button" title="Join selected strokes (Ctrl+J)">
             Join
           </button>
@@ -414,6 +420,11 @@
             <span>Animation</span>
             <select id="anim-type"></select>
           </label>
+          <label class="settings-field">
+            <span>Frames in the sequence</span>
+            <input id="anim-frames" type="number" min="2" max="60" step="1" value="8" />
+          </label>
+          <p class="anim-dialog-note">Not how many are drawn now - frames are still drawn one at a time. This is the pacing: the cycle's movement is spread across this many frames, so fewer frames move further each and more frames move less.</p>
           <p id="anim-next-frame" class="anim-dialog-note">First frame drawn: <code>walk_1</code></p>
           <div class="export-dialog-actions">
             <button id="anim-step2-cancel" class="btn btn-ghost" type="button">Cancel</button>
@@ -439,6 +450,18 @@
         </div>
       </div>
 
+      <!-- Shown once the sequence has as many frames as the setup asked for -->
+      <div id="anim-done-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Animation graphics completed">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Animation Graphics Completed</p>
+          <p id="anim-done-msg" class="anim-dialog-msg" role="status" aria-live="polite"></p>
+          <div class="export-dialog-actions">
+            <button id="anim-done-new" class="btn" type="button" title="Set up and generate another animation">Generate New Animation</button>
+            <button id="anim-done-close" class="btn btn-primary" type="button">Done</button>
+          </div>
+        </div>
+      </div>
+
       <!-- AI tool sign-in walkthrough: shown when the helper cannot start or
            is not signed in. napkin-sketch never handles the credential; it
            only starts the tool so the tool can run its own sign-in. -->
@@ -451,6 +474,104 @@
           <div class="export-dialog-actions">
             <button id="anim-signin-cancel" class="btn btn-ghost" type="button">Cancel</button>
             <button id="anim-signin-open" class="btn btn-primary" type="button">Open sign-in</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Move dialog: shifts the selection by an exact distance -->
+      <div id="move-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Move selection">
+        <div class="export-dialog-inner">
+          <p id="move-title" class="export-dialog-title">Move</p>
+          <p id="move-msg" class="anim-dialog-msg">Move the selection by a set distance.</p>
+          <label class="settings-field">
+            <span>Horizontal (x)</span>
+            <span class="move-field">
+              <input id="move-x" type="number" step="1" value="0" />
+              <select id="move-x-unit" class="prop-unit" aria-label="Horizontal distance unit"></select>
+            </span>
+          </label>
+          <label class="settings-field">
+            <span>Vertical (y)</span>
+            <span class="move-field">
+              <input id="move-y" type="number" step="1" value="0" />
+              <select id="move-y-unit" class="prop-unit" aria-label="Vertical distance unit"></select>
+            </span>
+          </label>
+          <label class="settings-field move-preview-field">
+            <input id="move-preview" type="checkbox" />
+            <span>Live preview</span>
+          </label>
+          <p class="anim-dialog-note">Positive x moves right, positive y moves down. Arrow keys step the field; hold <code>Shift</code> for a bigger step. <code>Enter</code> moves again from where the selection now is, so it can be pressed repeatedly; <code>Escape</code> closes.</p>
+          <div class="export-dialog-actions">
+            <button id="move-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="move-apply" class="btn btn-primary" type="button">Move</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rotate dialog: turns the selection about a centre that can be moved -->
+      <div id="rotate-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Rotate selection">
+        <div class="export-dialog-inner">
+          <p id="rotate-title" class="export-dialog-title">Rotate</p>
+          <p id="rotate-msg" class="anim-dialog-msg">Rotate the selection around a centre point.</p>
+          <label class="settings-field">
+            <span>Angle</span>
+            <span class="move-field">
+              <input id="rotate-angle" type="number" step="1" value="0" aria-label="Rotation angle in degrees" />
+              <span class="rotate-degrees" aria-hidden="true">&deg;</span>
+            </span>
+          </label>
+          <div class="settings-field rotate-dir-field">
+            <span>Direction</span>
+            <div class="rotate-dir" role="group" aria-label="Rotation direction">
+              <button id="rotate-ccw" class="btn btn-ghost rotate-dir-btn" type="button" title="Counterclockwise — a negative angle">
+                <span class="rotate-dir-icon" aria-hidden="true">&#8634;</span> CCW
+              </button>
+              <button id="rotate-cw" class="btn btn-ghost rotate-dir-btn" type="button" title="Clockwise — a positive angle">
+                <span class="rotate-dir-icon" aria-hidden="true">&#8635;</span> CW
+              </button>
+            </div>
+          </div>
+          <div class="settings-field rotate-anchor-field">
+            <span>Centre of rotation</span>
+            <div id="rotate-anchor-grid" class="rotate-anchor-grid" role="group" aria-label="Centre of rotation preset">
+              <button class="rotate-anchor" type="button" data-anchor="tl" title="Top left" aria-label="Top left"></button>
+              <button class="rotate-anchor" type="button" data-anchor="tc" title="Top centre" aria-label="Top centre"></button>
+              <button class="rotate-anchor" type="button" data-anchor="tr" title="Top right" aria-label="Top right"></button>
+              <button class="rotate-anchor" type="button" data-anchor="ml" title="Middle left" aria-label="Middle left"></button>
+              <button class="rotate-anchor" type="button" data-anchor="mc" title="Middle" aria-label="Middle"></button>
+              <button class="rotate-anchor" type="button" data-anchor="mr" title="Middle right" aria-label="Middle right"></button>
+              <button class="rotate-anchor" type="button" data-anchor="bl" title="Bottom left" aria-label="Bottom left"></button>
+              <button class="rotate-anchor" type="button" data-anchor="bc" title="Bottom centre" aria-label="Bottom centre"></button>
+              <button class="rotate-anchor" type="button" data-anchor="br" title="Bottom right" aria-label="Bottom right"></button>
+            </div>
+          </div>
+          <label class="settings-field">
+            <span>Centre x</span>
+            <span class="move-field">
+              <input id="rotate-cx" type="number" step="1" value="0" />
+              <select id="rotate-cx-unit" class="prop-unit" aria-label="Centre x unit"></select>
+            </span>
+          </label>
+          <label class="settings-field">
+            <span>Centre y</span>
+            <span class="move-field">
+              <input id="rotate-cy" type="number" step="1" value="0" />
+              <select id="rotate-cy-unit" class="prop-unit" aria-label="Centre y unit"></select>
+            </span>
+          </label>
+          <label class="settings-field move-preview-field">
+            <input id="rotate-snap" type="checkbox" />
+            <span>Snap to 15&deg;</span>
+          </label>
+          <label class="settings-field move-preview-field">
+            <input id="rotate-preview" type="checkbox" />
+            <span>Live preview</span>
+          </label>
+          <p class="anim-dialog-note">Positive degrees turn clockwise, negative counterclockwise. <strong>Drag on the canvas</strong> to turn the selection by hand, or <strong>drag the crosshair</strong> to move the centre. Arrow keys step the angle; hold <code>Shift</code> for 15&deg;, and for a snapped drag. <code>Enter</code> rotates again from where the selection now is; <code>Escape</code> closes.</p>
+          <div class="export-dialog-actions">
+            <button id="rotate-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="rotate-apply" class="btn btn-primary" type="button">Rotate</button>
           </div>
         </div>
       </div>

@@ -517,22 +517,126 @@ export interface AnimationPoseStep {
 }
 
 /**
+ * How long a sequence is meant to run, in frames. This is not a batch size -
+ * frames are still drawn one at a time - it is the pacing: a cycle's total
+ * movement is divided across this many frames, so a short sequence moves
+ * further per frame and a long one moves less.
+ */
+export const MIN_SEQUENCE_FRAMES = 2;
+export const MAX_SEQUENCE_FRAMES = 60;
+
+/**
+ * The natural length of a type's sequence: one drawn frame per step of the
+ * measured cycle, so each frame carries exactly the movement one drawn pose
+ * carries and the sequence needs no interpolation.
+ *
+ * That is the cycle's *step* count, which is not always its skeleton count.
+ * A run starts from a frame that already exists and draws the ones after it,
+ * and the generator emits one step per skeleton for a cycle that closes and
+ * one fewer for a cycle that does not - so both kinds land on the same
+ * answer. Walk has 8 skeletons and 8 steps: 8 drawn frames, the ninth pose
+ * being the first again. Knocked-down has 7 skeletons and 6 steps: 6 drawn
+ * frames, which with the source makes the 7 poses that were measured.
+ *
+ * Types with no cycle fall back to eight, a readable length for a loop.
+ */
+export function defaultSequenceFrames(animationType: string): number {
+  const cycle = MEASURED_CYCLES[animationType.trim().toLowerCase()];
+  return cycle && cycle.length > 0 ? cycle.length : 8;
+}
+
+/** Holds a frame count inside the range a sequence can actually be paced to. */
+export function clampSequenceFrames(frames: number): number {
+  if (!Number.isFinite(frames)) return MIN_SEQUENCE_FRAMES;
+  return Math.min(MAX_SEQUENCE_FRAMES, Math.max(MIN_SEQUENCE_FRAMES, Math.round(frames)));
+}
+
+/** Running totals of a cycle's movement, one entry per keyframe boundary. */
+interface CycleTracks {
+  shift: number[];
+  figure: number[];
+  rotate: Map<RequiredAssembly, number[]>;
+}
+
+/**
+ * Turns a cycle's per-step deltas into cumulative poses. Deltas cannot be
+ * stretched or squeezed on their own - the pose at a point part-way between
+ * two keyframes is what has to be interpolated - so every resample works on
+ * these running totals and differences them again afterwards.
+ */
+function cycleTracks(cycle: readonly AnimationPoseStep[]): CycleTracks {
+  const assemblies = new Set<RequiredAssembly>();
+  for (const step of cycle) {
+    for (const key of Object.keys(step.rotate) as RequiredAssembly[]) assemblies.add(key);
+  }
+  const tracks: CycleTracks = { shift: [0], figure: [0], rotate: new Map() };
+  for (const assembly of assemblies) tracks.rotate.set(assembly, [0]);
+  for (const step of cycle) {
+    tracks.shift.push(tracks.shift[tracks.shift.length - 1] + step.shiftYPercent);
+    tracks.figure.push(tracks.figure[tracks.figure.length - 1] + (step.figureRotate ?? 0));
+    for (const [assembly, track] of tracks.rotate) {
+      track.push(track[track.length - 1] + (step.rotate[assembly] ?? 0));
+    }
+  }
+  return tracks;
+}
+
+/** The cumulative value part-way along a track, linearly between keyframes. */
+function sampleTrack(track: number[], at: number): number {
+  const last = track.length - 1;
+  if (at <= 0) return track[0];
+  if (at >= last) return track[last];
+  const index = Math.floor(at);
+  const fraction = at - index;
+  return track[index] + fraction * (track[index + 1] - track[index]);
+}
+
+// Two decimals, matching what the transform writer emits, so resampling a
+// cycle into many small steps does not accumulate rounding into visible drift.
+const roundStep = (value: number): number => Math.round(value * 100) / 100;
+
+/**
  * The step that carries the source frame to the frame being drawn, measured
- * from the wireframe skeleton for that animation. Types with no skeleton in
- * the asset return null, and the helper poses the frame from the type's
- * template instead.
+ * from the wireframe skeleton for that animation.
+ *
+ * `frames` paces the sequence. A cycle is measured from a fixed number of
+ * drawn skeletons, but the sequence built from it can run to any length: the
+ * cycle's whole movement is spread over `frames` frames, so asking for fewer
+ * than the cycle has moves further per frame and asking for more moves less.
+ * The totals are unchanged either way, which is what keeps a loop closing.
+ *
+ * Types with no skeleton in the asset return null, and the helper poses the
+ * frame from the type's template instead.
  */
 export function animationPoseStep(
   animationType: string,
   frameIndex: number,
+  frames?: number,
 ): AnimationPoseStep | null {
   const cycle = MEASURED_CYCLES[animationType.trim().toLowerCase()];
   if (!cycle || cycle.length === 0 || frameIndex < 1) return null;
-  const step = cycle[(frameIndex - 1) % cycle.length];
-  // A skeleton that repeats a pose measures as a step that moves nothing.
-  // Handing that over as finished transforms tells the helper to change
-  // nothing, and the frame it saves is a copy of its source, so fall back to
-  // the type's template and let the helper move the pose instead.
+
+  const paced = clampSequenceFrames(frames ?? cycle.length);
+  const index = (frameIndex - 1) % paced;
+  const tracks = cycleTracks(cycle);
+  // The frame spans this slice of the cycle, in keyframe units.
+  const from = (index * cycle.length) / paced;
+  const to = ((index + 1) * cycle.length) / paced;
+
+  const rotate: Partial<Record<RequiredAssembly, number>> = {};
+  for (const [assembly, track] of tracks.rotate) {
+    const delta = roundStep(sampleTrack(track, to) - sampleTrack(track, from));
+    if (delta !== 0) rotate[assembly] = delta;
+  }
+  const step: AnimationPoseStep = {
+    shiftYPercent: roundStep(sampleTrack(tracks.shift, to) - sampleTrack(tracks.shift, from)),
+    figureRotate: roundStep(sampleTrack(tracks.figure, to) - sampleTrack(tracks.figure, from)),
+    rotate,
+  };
+  // A skeleton that repeats a pose measures as a step that moves nothing, and
+  // so does a slice of one. Handing that over as finished transforms tells the
+  // helper to change nothing, and the frame it saves is a copy of its source,
+  // so fall back to the type's template and let the helper move the pose.
   return stepMoves(step) ? step : null;
 }
 
@@ -603,6 +707,12 @@ export interface AnimationFormData {
   /** Ready-made `transform` value per assembly, when the type has a cycle. */
   transforms: Partial<Record<RequiredAssembly, string>>;
   /**
+   * How many frames the finished sequence is meant to run to. Not a batch
+   * size - frames are still drawn one at a time - but the pacing: it tells
+   * the helper how much of the movement belongs to this one frame.
+   */
+  frames?: number;
+  /**
    * How the helper was installed. Defaults to `files`, the delivery every
    * tool supports, so a caller that does not know still writes a form the
    * helper can act on.
@@ -670,10 +780,19 @@ export function buildAnimationForm(data: AnimationFormData): string {
       ? 'This animation loops, so the sequence must come back to its first pose.'
       : 'This animation does not loop: it runs from a start to an end, so read the source pose to see how far through that run you are.'
     : '';
+  // The sequence length is pacing, not a quantity: it tells the helper how
+  // much of the whole movement belongs to this one frame, so a short sequence
+  // moves further per frame and a long one moves less.
+  const paced = data.frames
+    ? `   The finished sequence runs ${data.frames} frames, so this frame carries about
+   one ${data.frames}th of the whole movement - move that far and no further.`
+    : '';
   const template = spec
     ? `   One step of a "${data.type}": ${spec.guidance}
-   ${closing}`
-    : `   Advance the pose one readable step of a "${data.type}".`;
+   ${closing}${paced ? `
+${paced}` : ''}`
+    : `   Advance the pose one readable step of a "${data.type}".${paced ? `
+${paced}` : ''}`;
   const poseStep =
     Object.keys(data.transforms).length > 0
       ? `2. Set exactly these transforms on the assembly groups, copied character for

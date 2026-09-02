@@ -18,12 +18,12 @@ import {
   DEFAULT_NIB_ANGLE,
   dashPatternFor,
   defaultOpacityFor,
-  effectiveLayer,
+  effectiveLayers,
   isImageStroke,
   isTextStroke,
   layerOf,
   normalizedStops,
-  strokesOnLayer,
+  strokesByLayer,
   type Gradient,
   type Layer,
   type Point,
@@ -84,6 +84,18 @@ export interface Overlay {
   selectBox?: { x1: number; y1: number; x2: number; y2: number };
   /** Dashed straight-line preview (Space + drag) in sketch coordinates. */
   straightLine?: { a: Point; b: Point; color: string; width: number };
+  /**
+   * The Rotate tool's pivot marker while its dialog is open: the centre the
+   * selection turns about, plus the ray out to the pointer while a rotate
+   * drag is in hand. Both are in sketch coordinates.
+   */
+  rotate?: {
+    center: Point;
+    /** Where the pointer is during a drag, so the marker can show the lever. */
+    ray?: Point;
+    /** True while the centre itself is being dragged to a new place. */
+    moving?: boolean;
+  };
   /** Ring marking the endpoint the pointer will snap to (Shift held while drawing). */
   snapTarget?: Point;
   /**
@@ -143,6 +155,24 @@ export class Surface {
 
   /** Called when a lazily-decoded image finishes loading (schedule a re-render). */
   onImageLoad: (() => void) | null = null;
+
+  /**
+   * Drops every decoded image the surface is holding.
+   *
+   * The cache is keyed by the image's full data URL and nothing ages out of
+   * it, so without this it grows for the life of the window - across page
+   * turns, across documents, and past the deletion of the mark that put an
+   * image there. Each entry also pins its data URL string and, through the
+   * load handler, the surface itself.
+   *
+   * Call it when the whole document is replaced, and when a surface built for
+   * one render is finished with. Anything still on the page decodes again the
+   * next time it is painted, which is what the lazy path already does.
+   */
+  clearImages(): void {
+    for (const img of this.imageCache.values()) img.onload = null;
+    this.imageCache.clear();
+  }
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -306,11 +336,16 @@ export class Surface {
     ink.setTransform(1, 0, 0, 1, 0, 0);
     ink.clearRect(0, 0, this.ink.width, this.ink.height);
     const liveLayerId = live ? layerOf(sketch, live).id : null;
+    // One pass over the page, not one per layer: every mark commits to a
+    // layer of its own, so rescanning the stroke list for each row made a
+    // frame cost the square of the page's size.
+    const byLayer = strokesByLayer(sketch);
+    const effectiveOf = effectiveLayers(sketch);
     for (const layer of sketch.layers) {
       if (layer.group) continue; // groups paint nothing; they scale their children
-      const effective = effectiveLayer(sketch, layer);
-      if (!effective.visible) continue;
-      const strokes = strokesOnLayer(sketch, layer.id);
+      const effective = effectiveOf.get(layer.id);
+      if (!effective || !effective.visible) continue;
+      const strokes = byLayer.get(layer.id) ?? [];
       const liveHere = live && live.points.length > 0 && liveLayerId === layer.id ? live : null;
       if (strokes.length === 0 && !liveHere) continue;
 
@@ -361,6 +396,10 @@ export class Surface {
 
     if (overlay?.snapTarget) {
       this.paintSnapTarget(ctx, overlay.snapTarget);
+    }
+
+    if (overlay?.rotate) {
+      this.paintRotateCenter(ctx, overlay.rotate);
     }
 
     if (overlay?.anchors) {
@@ -478,6 +517,62 @@ export class Surface {
     ctx.lineWidth = 1.5 / this.zoom;
     ctx.beginPath();
     ctx.arc(pt.x, pt.y, 6 / this.zoom, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * Draws the Rotate tool's pivot: a crosshair inside a ring, at a constant
+   * on-screen size whatever the zoom, so it stays a target that can be
+   * grabbed and dragged rather than something that shrinks with the page.
+   *
+   * The shape is the one the Move palette's own cursor uses - four arms
+   * around a hollow centre - because it means the same thing here: a point
+   * that can be picked up and put somewhere else. While a rotate drag is in
+   * hand a dashed lever runs out to the pointer, which is what shows how far
+   * round the gesture has carried and which way it went.
+   */
+  private paintRotateCenter(
+    ctx: CanvasRenderingContext2D,
+    rotate: { center: Point; ray?: Point; moving?: boolean },
+  ): void {
+    const { center, ray, moving } = rotate;
+    const px = 1 / this.zoom;
+    ctx.save();
+
+    if (ray) {
+      ctx.strokeStyle = 'rgba(47, 111, 235, 0.75)';
+      ctx.lineWidth = 1.25 * px;
+      ctx.setLineDash([5 * px, 4 * px]);
+      ctx.beginPath();
+      ctx.moveTo(center.x, center.y);
+      ctx.lineTo(ray.x, ray.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    const arm = 13 * px;
+    const gap = 5.5 * px;
+    ctx.strokeStyle = moving ? '#2f6feb' : '#20557b';
+    ctx.lineWidth = 1.8 * px;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const [dx, dy] of [
+      [0, -1],
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+    ]) {
+      ctx.moveTo(center.x + dx * gap, center.y + dy * gap);
+      ctx.lineTo(center.x + dx * arm, center.y + dy * arm);
+    }
+    ctx.stroke();
+
+    // A filled disc under the ring keeps the pivot readable over dark ink.
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, gap - 0.5 * px, 0, Math.PI * 2);
+    ctx.fillStyle = moving ? 'rgba(47, 111, 235, 0.25)' : 'rgba(255, 255, 255, 0.9)';
+    ctx.fill();
     ctx.stroke();
     ctx.restore();
   }
@@ -798,7 +893,12 @@ export class Surface {
     const surf = new Surface(canvas);
     surf.resize(sketch.width, sketch.height);
     surf.render(sketch, null, undefined, options);
-    return surf.toDataURL(format, format === 'image/jpeg' ? sketch.background : undefined);
+    const url = surf.toDataURL(format, format === 'image/jpeg' ? sketch.background : undefined);
+    // The surface is thrown away here, but a pending image load would keep it
+    // (and every bitmap it decoded) alive until it settled. Exporting a book
+    // builds one of these per page.
+    surf.clearImages();
+    return url;
   }
 
   /**
@@ -835,6 +935,13 @@ export class Surface {
     const defs: string[] = [];
     const usedIds = new Set<string>();
     const layerIndex = new Map(sketch.layers.map((layer, i) => [layer.id, i]));
+    // Paint order and the per-layer stroke lists are both read once here
+    // rather than searched for per mark: `indexOf` inside the mark loop made
+    // an export cost the square of the page's size, and so did resolving
+    // each layer's strokes by rescanning the page.
+    const paintOrder = new Map(sketch.strokes.map((stroke, i) => [stroke.id, i]));
+    const orderOf = (stroke: Stroke): number => paintOrder.get(stroke.id) ?? 0;
+    const byLayer = strokesByLayer(sketch);
     const defaults = paintDefaults(sketch);
 
     // A rect covering the whole document window, wherever the viewBox sits.
@@ -887,7 +994,7 @@ export class Surface {
         return `<g ${attrs.join(' ')}>\n${inner.join('\n')}\n</g>`;
       }
 
-      const strokes = strokesOnLayer(sketch, layer.id);
+      const strokes = byLayer.get(layer.id) ?? [];
       if (strokes.length === 0) return null;
 
       const erasers = strokes.filter((s) => s.tool === 'eraser');
@@ -896,7 +1003,7 @@ export class Surface {
         defs.push(
           `<mask id="${maskId}">` +
             coverRect('#fff') +
-            erasers.map((s) => svgPath(s, sketch.strokes.indexOf(s), defaults, '#000')).join('') +
+            erasers.map((s) => svgPath(s, orderOf(s), defaults, '#000')).join('') +
             `</mask>`,
         );
         attrs.push(`mask="url(#${maskId})"`);
@@ -905,7 +1012,7 @@ export class Surface {
       const marks = strokes
         .filter((s) => s.tool !== 'eraser')
         .map((s) => {
-          const order = sketch.strokes.indexOf(s);
+          const order = orderOf(s);
           if (isTextStroke(s)) return svgText(s, order);
           if (isImageStroke(s)) return svgImage(s, order);
           if (s.tool === 'copic') return svgCopic(s, order);

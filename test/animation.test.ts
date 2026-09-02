@@ -9,6 +9,11 @@ import {
   animationFrameTransforms,
   animationPoseStep,
   animationTypeSpec,
+  clampSequenceFrames,
+  defaultSequenceFrames,
+  MAX_SEQUENCE_FRAMES,
+  MIN_SEQUENCE_FRAMES,
+  type AnimationPoseStep,
   expandBounds,
   assemblyPivot,
   buildAnimationForm,
@@ -242,11 +247,18 @@ test('every measured cycle covers a type the app offers', () => {
   assert.equal(MEASURED_CYCLES['taunt'], undefined);
 });
 
+/** The rotations a step applies, for comparing a resampled step by value. */
+function turns(step: AnimationPoseStep | null): Partial<Record<string, number>> {
+  return step ? { ...step.rotate } : {};
+}
+
 test('animationPoseStep walks the cycle and wraps at its end', () => {
-  assert.equal(animationPoseStep('walk', 1), WALK_CYCLE[0]);
-  assert.equal(animationPoseStep('walk', 8), WALK_CYCLE[7]);
-  assert.equal(animationPoseStep('walk', 9), WALK_CYCLE[0]);
-  assert.equal(animationPoseStep('WALK', 2), WALK_CYCLE[1]);
+  // At its natural pacing a resampled step reproduces the measured one, so
+  // the default path is the cycle exactly as it was drawn.
+  assert.deepEqual(turns(animationPoseStep('walk', 1)), WALK_CYCLE[0].rotate);
+  assert.deepEqual(turns(animationPoseStep('walk', 8)), WALK_CYCLE[7].rotate);
+  assert.deepEqual(turns(animationPoseStep('walk', 9)), WALK_CYCLE[0].rotate);
+  assert.deepEqual(turns(animationPoseStep('WALK', 2)), WALK_CYCLE[1].rotate);
   assert.equal(animationPoseStep('explode', 1), null);
   assert.equal(animationPoseStep('walk', 0), null);
 });
@@ -467,8 +479,8 @@ test('a step that moves nothing never reaches the form as a transform', () => {
         (step.figureRotate ?? 0) !== 0 ||
         Object.values(step.rotate).some((d) => (d ?? 0) !== 0);
       assert.ok(moves, `${type} step ${i + 1} moves nothing and would duplicate its source`);
-      // And what the app hands over for that frame is that same live step.
-      assert.equal(animationPoseStep(type, i + 1), step);
+      // And what the app hands over for that frame carries the same movement.
+      assert.deepEqual(turns(animationPoseStep(type, i + 1)), step.rotate);
     }
   }
 });
@@ -529,4 +541,87 @@ test('isDuplicateFrame does not fire on a document with no geometry', () => {
   // and the caller has other checks for that.
   assert.equal(isDuplicateFrame('<svg></svg>', '<svg></svg>'), false);
   assert.equal(isDuplicateFrame('<svg></svg>', '<svg><path d="M0,0 L1,1"/></svg>'), false);
+});
+
+test('the frame count paces a cycle without changing where it ends up', () => {
+  // Fewer frames than the cycle was drawn at means each moves further; more
+  // means each moves less. What must not change is the total, or a loop stops
+  // closing and a knockdown stops landing.
+  const swing = (frames: number): number => {
+    let total = 0;
+    for (let i = 1; i <= frames; i++) {
+      total += animationPoseStep('walk', i, frames)?.rotate['front-leg-assembly'] ?? 0;
+    }
+    return Math.round(total * 100) / 100;
+  };
+  for (const frames of [2, 4, 8, 16, 24, 60]) {
+    assert.equal(swing(frames), 0, `a walk paced to ${frames} frames must still close`);
+  }
+
+  const step = (frames: number): number =>
+    animationPoseStep('walk', 1, frames)!.rotate['front-leg-assembly'] ?? 0;
+  const natural = defaultSequenceFrames('walk');
+  assert.ok(step(natural / 2) > step(natural), 'half the frames must move further per frame');
+  assert.ok(step(natural * 2) < step(natural), 'twice the frames must move less per frame');
+  // Halving the pacing roughly doubles the step.
+  assert.ok(Math.abs(step(natural / 2) / step(natural) - 2) < 0.35);
+});
+
+test('a paced cycle still completes a run that does not loop', () => {
+  const tip = (frames: number): number => {
+    let total = 0;
+    for (let i = 1; i <= frames; i++) {
+      total += animationPoseStep('knocked-down', i, frames)?.figureRotate ?? 0;
+    }
+    return Math.round(total * 100) / 100;
+  };
+  const measured = Math.round(
+    KNOCKED_DOWN_CYCLE.reduce((sum, s) => sum + (s.figureRotate ?? 0), 0) * 100,
+  ) / 100;
+  assert.ok(Math.abs(measured) > 45, 'the knockdown tips the figure over');
+  for (const frames of [3, 6, 12, 20]) {
+    assert.equal(tip(frames), measured, `paced to ${frames} frames it must still land flat`);
+  }
+});
+
+test('the default pacing is the length the cycle was drawn at', () => {
+  assert.equal(defaultSequenceFrames('walk'), WALK_CYCLE.length);
+  assert.equal(defaultSequenceFrames('knocked-down'), KNOCKED_DOWN_CYCLE.length);
+  // A type with no cycle still needs a sensible sequence length to pace by.
+  assert.equal(defaultSequenceFrames('explode'), 8);
+  assert.equal(defaultSequenceFrames('WALK'), WALK_CYCLE.length);
+});
+
+test('clampSequenceFrames keeps the pacing inside a usable range', () => {
+  assert.equal(clampSequenceFrames(8), 8);
+  assert.equal(clampSequenceFrames(0), MIN_SEQUENCE_FRAMES);
+  assert.equal(clampSequenceFrames(-5), MIN_SEQUENCE_FRAMES);
+  assert.equal(clampSequenceFrames(1000), MAX_SEQUENCE_FRAMES);
+  assert.equal(clampSequenceFrames(7.6), 8);
+  assert.equal(clampSequenceFrames(Number.NaN), MIN_SEQUENCE_FRAMES);
+});
+
+test('the form tells the helper how much of the movement one frame carries', () => {
+  const form = buildAnimationForm({
+    category: 'character',
+    type: 'taunt',
+    job: animationFrameJob(null, 'taunt'),
+    sourceLayerName: null,
+    assemblies: {},
+    transforms: {},
+    frames: 12,
+  });
+  assert.ok(form.includes('runs 12 frames'));
+  assert.ok(form.includes('one 12th of the whole movement'));
+
+  // Without a count the prompt says nothing about pacing rather than guessing.
+  const noCount = buildAnimationForm({
+    category: 'character',
+    type: 'taunt',
+    job: animationFrameJob(null, 'taunt'),
+    sourceLayerName: null,
+    assemblies: {},
+    transforms: {},
+  });
+  assert.ok(!noCount.includes('of the whole movement'));
 });

@@ -528,3 +528,84 @@ export function constrainDrag<T extends Vec2>(origin: Vec2, pt: T): T {
   const along = dx * axis.x + dy * axis.y;
   return { ...pt, x: origin.x + along * axis.x, y: origin.y + along * axis.y };
 }
+
+/**
+ * Sine and cosine of a rotation, computed once and reused across every point
+ * of a shape. A whole selection turns by one angle, so the two trig calls
+ * belong outside the loop that applies them.
+ *
+ * Angles are in degrees and positive means clockwise on screen. The canvas y
+ * axis grows downward, so a positive angle in the usual mathematical sense
+ * already reads as clockwise here - no sign flip is needed anywhere, and the
+ * same number that a drag measures is the one a field shows.
+ */
+export function rotationTrig(degrees: number): { cos: number; sin: number } {
+  const radians = (degrees * Math.PI) / 180;
+  return { cos: Math.cos(radians), sin: Math.sin(radians) };
+}
+
+/**
+ * `p` turned about (cx, cy) by a rotation already reduced to its sine and
+ * cosine by {@link rotationTrig}. Returns a bare position; callers that are
+ * moving a richer point (a pressure sample, a Bezier handle) copy the two
+ * numbers across rather than replacing the object.
+ */
+export function rotateAbout(
+  p: Vec2,
+  cx: number,
+  cy: number,
+  trig: { cos: number; sin: number },
+): Vec2 {
+  const dx = p.x - cx;
+  const dy = p.y - cy;
+  return {
+    x: cx + dx * trig.cos - dy * trig.sin,
+    y: cy + dx * trig.sin + dy * trig.cos,
+  };
+}
+
+/**
+ * An angle reduced to a single turn, keeping its sign: 450 becomes 90 and
+ * -540 becomes -180, while 90 and -90 are left alone.
+ *
+ * A drag that goes round more than once has still only turned the shape as
+ * far as the remainder, so this is what a field shows. The sign is kept
+ * rather than folded to a positive angle because it is the direction the
+ * drag went, and clockwise (positive) and counterclockwise (negative) are
+ * the two things the reading has to tell apart.
+ */
+export function normalizeRotation(degrees: number): number {
+  if (!Number.isFinite(degrees)) return 0;
+  const turn = degrees % 360;
+  // -0 reads as "0" everywhere else in the app; keep it that way here.
+  return Object.is(turn, -0) ? 0 : turn;
+}
+
+/**
+ * `degrees` rounded to the nearest multiple of `step`, which is what a
+ * constrained rotate drag lands on. A step of zero or less means no snapping,
+ * so the caller can pass the setting straight through.
+ */
+export function snapRotation(degrees: number, step: number): number {
+  if (!Number.isFinite(degrees) || !Number.isFinite(step) || step <= 0) return degrees;
+  return Math.round(degrees / step) * step;
+}
+
+/**
+ * The signed shortest way round from `from` to `to`, both in degrees.
+ *
+ * A drag samples the pointer's bearing frame by frame and adds up these
+ * steps, which is what lets it cross the seam at half a turn and keep going:
+ * the bearing jumps from 179 to -179, the step reads as +2, and the running
+ * total climbs past 180 instead of falling off it. It is also what makes a
+ * second lap count as a second lap.
+ *
+ * Exactly half a turn is the one step that is the same distance either way
+ * round, and the tie goes counterclockwise. Nothing rests on that: a drag
+ * samples the pointer every frame, so two readings half a turn apart would
+ * mean the pointer had teleported across the pivot.
+ */
+export function rotationStep(from: number, to: number): number {
+  const raw = to - from;
+  return raw - 360 * Math.round(raw / 360);
+}

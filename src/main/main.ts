@@ -178,6 +178,10 @@ function buildMenu(): void {
           click: () => dispatch('paste-in-place'),
         },
         { label: 'Duplicate', accelerator: 'CmdOrCtrl+D', registerAccelerator: false, click: () => dispatch('duplicate') },
+        // Rotate shows its shortcut but does not claim it, for the reason the
+        // clipboard items above do not: the page has to keep Ctrl+R away from
+        // Chromium's own reload, which it can only do by seeing the keypress.
+        { label: 'Rotate…', accelerator: 'CmdOrCtrl+R', registerAccelerator: false, click: () => dispatch('rotate') },
         { type: 'separator' },
         { label: 'Delete', accelerator: 'Delete', registerAccelerator: false, click: () => dispatch('delete-selection') },
         { label: 'Select All', accelerator: 'CmdOrCtrl+A', registerAccelerator: false, click: () => dispatch('select-all') },
@@ -207,7 +211,6 @@ function buildMenu(): void {
         { label: 'Toggle Properties Panel', accelerator: 'CmdOrCtrl+P', click: () => dispatch('toggle-properties') },
         { label: 'Quick Settings', accelerator: 'CmdOrCtrl+,', click: () => dispatch('toggle-settings') },
         { type: 'separator' },
-        { role: 'reload' },
         { role: 'toggleDevTools' },
         { type: 'separator' },
         // Replaces the stock "Actual Size" zoom reset: Ctrl+0 now fits every
@@ -254,8 +257,61 @@ function createWindow(): void {
     if (!openFullScreen) mainWindow?.maximize();
     mainWindow?.show();
   });
+
+  // Closing with unsaved edits used to throw them away without a word. The
+  // close is held, the usual three-option prompt is put up, and the window
+  // only goes when the answer says it may.
+  mainWindow.on('close', (event) => {
+    if (!sketchDirty || closingConfirmed || !mainWindow) return;
+    event.preventDefault();
+    const win = mainWindow;
+    void (async () => {
+      const { response } = await dialog.showMessageBox(win, {
+        type: 'warning',
+        buttons: ['Save', "Don't Save", 'Cancel'],
+        defaultId: 0,
+        cancelId: 2,
+        title: 'Unsaved changes',
+        message: 'Do you want to save the changes you made to this sketch?',
+        detail: "Your changes will be lost if you don't save them.",
+      });
+      if (response === 2) return;
+      if (response === 0 && !(await saveFromRenderer(win))) return;
+      closingConfirmed = true;
+      win.close();
+    })();
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
+    sketchDirty = false;
+    closingConfirmed = false;
+  });
+}
+
+/** True while the renderer reports unsaved edits. */
+let sketchDirty = false;
+
+/** Set once the close prompt has been answered, so the retry goes through. */
+let closingConfirmed = false;
+
+/**
+ * Asks the renderer to save, and resolves with whether it did. A save that
+ * the user cancels out of (the file dialog's own Cancel) answers false, which
+ * leaves the window open - closing anyway would lose exactly what the prompt
+ * was protecting.
+ */
+function saveFromRenderer(win: BrowserWindow): Promise<boolean> {
+  return new Promise((resolve) => {
+    const done = (_event: unknown, saved: boolean): void => {
+      clearTimeout(timer);
+      ipcMain.removeListener(IPC.saveBeforeClose, done);
+      resolve(saved);
+    };
+    // A renderer that never answers must not wedge the window shut.
+    const timer = setTimeout(() => done(null, false), 30_000);
+    ipcMain.on(IPC.saveBeforeClose, done);
+    win.webContents.send(IPC.saveBeforeClose);
   });
 }
 
@@ -913,7 +969,11 @@ function registerIpc(): void {
         const dir = dirname(picked.filePath);
         const base = basename(picked.filePath);
         const fileExt = extname(base);
-        const stem = base.slice(0, -fileExt.length).replace(/_\d+$/, '') || base.slice(0, -fileExt.length);
+        // `slice(0, -0)` is the empty string, so a name the user typed without
+        // an extension used to leave no stem at all and every page came out as
+        // `_1.png`. Take the whole name when there is no extension to drop.
+        const named = fileExt ? base.slice(0, -fileExt.length) : base;
+        const stem = named.replace(/_\d+$/, '') || named || 'sketch';
         const filePaths: string[] = [];
         for (let i = 0; i < contents.length; i++) {
           const outPath = join(dir, `${stem}_${i + 1}.${ext}`);
@@ -930,6 +990,10 @@ function registerIpc(): void {
       }
     },
   );
+
+  ipcMain.on(IPC.setDirty, (_event, dirty: boolean) => {
+    sketchDirty = dirty === true;
+  });
 
   ipcMain.on(IPC.setTitle, (_event, title: string) => {
     if (typeof title === 'string') mainWindow?.setTitle(title);

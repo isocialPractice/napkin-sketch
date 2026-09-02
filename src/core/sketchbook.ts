@@ -6,7 +6,7 @@
  * this module only adds Node file-system concerns (atomic writes, existence).
  */
 
-import { readFile, writeFile, rename } from 'node:fs/promises';
+import { readFile, rm, writeFile, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { SketchBook } from './types.js';
@@ -41,7 +41,15 @@ export async function writeSketchBook(filePath: string, book: SketchBook): Promi
   const full = resolve(withSketchBookExtension(filePath));
   const tmp = `${full}.${process.pid}.tmp`;
   await writeFile(tmp, serializeSketchBook(book), 'utf8');
-  await rename(tmp, full);
+  try {
+    await rename(tmp, full);
+  } catch (err) {
+    // A rename that cannot land (the target locked, a different volume) must
+    // not leave its scratch file beside the document the user can see. The
+    // original is still intact either way; the caller hears about the failure.
+    await rm(tmp, { force: true }).catch(() => undefined);
+    throw err;
+  }
   return full;
 }
 

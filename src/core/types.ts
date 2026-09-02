@@ -387,6 +387,70 @@ export function effectiveLayer(
   return { visible, opacity, locked };
 }
 
+/** A layer's visibility, opacity, and lock once its ancestors are folded in. */
+export interface EffectiveLayerState {
+  visible: boolean;
+  opacity: number;
+  locked: boolean;
+}
+
+/**
+ * Every layer's effective state, resolved in one pass over the stack.
+ *
+ * {@link effectiveLayer} answers for one layer and walks its ancestors with a
+ * linear search per level, so resolving the whole stack costs the square of
+ * its height - and a page that gives every element its own layer (which is how
+ * the editor commits marks) makes that the square of the drawing's size.
+ * Anything that needs more than one layer's state - painting a frame, writing
+ * an export, deciding what a click may pick - resolves the stack once here.
+ *
+ * Each layer is walked up only as far as the first ancestor already resolved,
+ * then folded back down, so every layer is visited once in total however deep
+ * the nesting goes. The answers match {@link effectiveLayer} exactly for any
+ * well-formed stack.
+ *
+ * Cycle-safe, like its single-layer counterpart: a parent chain that loops
+ * stops at the repeat rather than spinning. Cycles are not reachable through
+ * the editor - `sanitizeLayerParents` breaks them on load and the reorder
+ * paths refuse to create them - so this is a guard, not a code path, and
+ * which link a loop is cut at is not meaningful either here or there.
+ */
+export function effectiveLayers(sketch: Sketch): Map<string, EffectiveLayerState> {
+  const byId = new Map(sketch.layers.map((l) => [l.id, l]));
+  const resolved = new Map<string, EffectiveLayerState>();
+
+  for (const layer of sketch.layers) {
+    if (resolved.has(layer.id)) continue;
+    // Up to the first ancestor whose answer is known (or the top, or a
+    // repeat), recording the chain on the way.
+    const chain: Layer[] = [];
+    const seen = new Set<string>();
+    let state: EffectiveLayerState = { visible: true, opacity: 1, locked: false };
+    let cursor: Layer | undefined = layer;
+    while (cursor && !seen.has(cursor.id)) {
+      const known = resolved.get(cursor.id);
+      if (known) {
+        state = known;
+        break;
+      }
+      seen.add(cursor.id);
+      chain.push(cursor);
+      cursor = cursor.parent ? byId.get(cursor.parent) : undefined;
+    }
+    // Back down, outermost first, folding each layer into its parent's answer.
+    for (let i = chain.length - 1; i >= 0; i--) {
+      const l = chain[i];
+      state = {
+        visible: l.visible && state.visible,
+        opacity: l.opacity * state.opacity,
+        locked: l.locked || state.locked,
+      };
+      resolved.set(l.id, state);
+    }
+  }
+  return resolved;
+}
+
 /** Ids of a group's descendants (children, grandchildren, …), cycle-safe. */
 export function descendantLayerIds(sketch: Sketch, groupId: string): Set<string> {
   const ids = new Set<string>();
@@ -418,7 +482,41 @@ export function layerOf(sketch: Sketch, stroke: Stroke): Layer {
 
 /** Returns the strokes belonging to one layer, in paint order. */
 export function strokesOnLayer(sketch: Sketch, layerId: string): Stroke[] {
-  return sketch.strokes.filter((s) => layerOf(sketch, s).id === layerId);
+  return strokesByLayer(sketch).get(layerId) ?? [];
+}
+
+/**
+ * Every stroke grouped by the layer it paints on, in paint order, resolved in
+ * one pass.
+ *
+ * {@link strokesOnLayer} answers for one layer and rescans the whole page to
+ * do it, so a caller walking the stack pays for the page once per layer -
+ * and a page that gives every element its own layer (which is how the editor
+ * commits marks) makes that quadratic in the number of marks. Anything that
+ * needs more than one layer's strokes - rendering a frame, writing an export -
+ * builds this map once instead.
+ *
+ * Layers with no strokes are absent, so callers read a missing entry as the
+ * empty list.
+ */
+export function strokesByLayer(sketch: Sketch): Map<string, Stroke[]> {
+  const drawable = new Map<string, Layer>();
+  let fallback: Layer | undefined;
+  for (const layer of sketch.layers) {
+    if (layer.group) continue;
+    drawable.set(layer.id, layer);
+    fallback ??= layer;
+  }
+  fallback ??= sketch.layers[0];
+  const byLayer = new Map<string, Stroke[]>();
+  for (const stroke of sketch.strokes) {
+    const layer = (stroke.layer ? drawable.get(stroke.layer) : undefined) ?? fallback;
+    if (!layer) continue;
+    const bucket = byLayer.get(layer.id);
+    if (bucket) bucket.push(stroke);
+    else byLayer.set(layer.id, [stroke]);
+  }
+  return byLayer;
 }
 
 /** Generates a short, collision-resistant id. */

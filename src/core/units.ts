@@ -75,3 +75,18 @@ export function formatLength(px: number, unit: LengthUnit): string {
 export function unitStep(unit: LengthUnit): number {
   return 1 / 10 ** unitPrecision(unit);
 }
+
+/**
+ * How far a length field moves for one arrow press, in that field's own unit.
+ *
+ * `coarse` is the Shift step. Pixels and points step by round numbers, which
+ * is what reads well in a field measured in them. Inches and millimetres step
+ * by the same physical distances as each other - an eighth of an inch fine, a
+ * whole inch coarse - so switching a field's unit does not change how far an
+ * arrow press actually moves the drawing.
+ */
+export function nudgeStep(unit: LengthUnit, coarse: boolean): number {
+  if (unit === 'px' || unit === 'pt') return coarse ? 10 : 1;
+  if (unit === 'in') return coarse ? 1 : 0.125;
+  return coarse ? 25.4 : 3.175;
+}

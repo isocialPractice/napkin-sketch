@@ -455,13 +455,25 @@ function collectMaskErasers(
 ): void {
   const ref = /url\(#([^)]+)\)/.exec(group.getAttribute('mask') ?? '');
   if (!ref) return;
-  const mask = root.querySelector(`mask[id="${ref[1]}"]`);
+  // The id comes out of the document, so it goes into the selector escaped:
+  // a quote or a bracket in it would otherwise throw a SyntaxError and take
+  // the whole import down with it.
+  const mask = root.querySelector(`mask[id=${cssString(ref[1])}]`);
   if (!mask) return;
   for (const child of Array.from(mask.children)) {
     // The full-canvas white rect is the mask's "show everything" base.
     if (child.tagName.toLowerCase() === 'rect' && !child.hasAttribute('data-tool')) continue;
     elementToStrokes(child as SVGElement, root, out, nextOrder, 'eraser');
   }
+}
+
+/**
+ * Quotes an id for use as a CSS attribute-selector value. A double-quoted
+ * selector string only has to escape the quote itself and the backslash that
+ * escapes it, which is exactly what a document-supplied id might carry.
+ */
+function cssString(value: string): string {
+  return `"${value.replace(/["\\]/g, '\\$&')}"`;
 }
 
 /** Converts one SVG element into zero or more ordered strokes. */
@@ -473,8 +485,13 @@ function elementToStrokes(
   forceTool?: Tool,
 ): void {
   const tag = el.tagName.toLowerCase();
-  const orderAttr = Number(el.getAttribute('data-i'));
-  const order = Number.isFinite(orderAttr) ? orderAttr : nextOrder() + 1_000_000;
+  // Only a mark that actually carries `data-i` keeps its recorded paint
+  // order. `Number(null)` is 0, so reading the attribute without checking for
+  // it first filed every element of a foreign document under order 0 and left
+  // the document-order fallback below unreachable.
+  const orderAttr = el.getAttribute('data-i');
+  const recorded = orderAttr !== null && orderAttr.trim() !== '' ? Number(orderAttr) : NaN;
+  const order = Number.isFinite(recorded) ? recorded : nextOrder() + 1_000_000;
 
   if (tag === 'text') {
     const stroke = textToStroke(el as SVGTextElement, root);

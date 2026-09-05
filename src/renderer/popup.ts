@@ -90,12 +90,34 @@ interface PopupEntry {
   panel: HTMLElement;
   caps: Required<PopupCapabilities>;
   docked: boolean;
-  /** Where the panel floated before it was docked, so undocking puts it back. */
-  floatingAt: { left: string; top: string; placed: boolean } | null;
+  /**
+   * How the panel floated before it was docked, so undocking puts it back.
+   *
+   * The size belongs here as much as the position does: a panel pulled bigger
+   * by its grip carries an inline width and height, the dock column has to
+   * clear them to set its own, and a panel returned to the remembered point at
+   * the default size is not the panel that was docked.
+   */
+  floatingAt: {
+    left: string;
+    top: string;
+    width: string;
+    height: string;
+    placed: boolean;
+  } | null;
+  /** True while the popup is open, so a class change can tell an open from a restyle. */
+  open: boolean;
 }
 
 export class PopupManager {
   private readonly entries = new Map<string, PopupEntry>();
+
+  /**
+   * Whether the one window-resize listener is in place. Nine dialogs register,
+   * and nine listeners all doing the same sweep is nine times the work for
+   * exactly the same answer.
+   */
+  private resizeBound = false;
 
   /**
    * The dock column. Created on first use rather than required in the markup,
@@ -126,7 +148,14 @@ export class PopupManager {
       resize: caps.resize ?? true,
       dockable: caps.dockable ?? false,
     };
-    const entry: PopupEntry = { overlay, panel, caps: resolved, docked: false, floatingAt: null };
+    const entry: PopupEntry = {
+      overlay,
+      panel,
+      caps: resolved,
+      docked: false,
+      floatingAt: null,
+      open: !overlay.classList.contains('is-hidden'),
+    };
     this.entries.set(dialogId, entry);
 
     if (resolved.moveable) {
@@ -136,20 +165,49 @@ export class PopupManager {
     if (resolved.resize) panel.classList.add('popup-resizable');
     if (resolved.dockable) this.attachDockButton(dialogId, entry);
 
-    // A window that shrinks must not strand a placed panel off screen.
-    window.addEventListener('resize', () => {
-      if (!overlay.classList.contains('is-hidden')) this.clamp(dialogId);
-    });
-
-    // Opening and closing stays where it always was - a class on the overlay -
-    // so watching that class is what keeps a docked panel in step without any
-    // call site having to know it might be docked.
-    if (resolved.dockable) {
-      new MutationObserver(() => this.syncDock()).observe(overlay, {
-        attributes: true,
-        attributeFilter: ['class'],
+    // A window that shrinks must not strand a placed panel off screen. One
+    // listener sweeps every popup; see {@link resizeBound}.
+    if (!this.resizeBound) {
+      this.resizeBound = true;
+      window.addEventListener('resize', () => {
+        for (const [id, other] of this.entries) {
+          if (!other.overlay.classList.contains('is-hidden')) this.clamp(id);
+        }
       });
     }
+
+    // Opening and closing stays where it always was - a class on the overlay -
+    // so watching that class is what keeps the manager in step without any call
+    // site having to know the panel might be docked, off screen, or buried.
+    // Every popup is watched, not only the dockable ones: a panel dragged to
+    // the edge and reopened after the window shrank has to be pulled back, and
+    // that was true of the palettes long before any of them could dock.
+    new MutationObserver(() => this.syncOpenState(dialogId)).observe(overlay, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+  }
+
+  /**
+   * Reacts to a popup being opened or closed.
+   *
+   * Only the edge matters. A class change on the overlay is also how the
+   * placed, grabbing and docked-away states are written, and re-clamping or
+   * re-raising on every one of those would fight the drag that is writing them.
+   */
+  private syncOpenState(dialogId: string): void {
+    const entry = this.entries.get(dialogId);
+    if (!entry) return;
+    const open = !entry.overlay.classList.contains('is-hidden');
+    // A panel left near an edge must not reopen off screen because the window
+    // shrank while it was closed. Move and Rotate each asked for this at their
+    // own call site; watching the class gives it to every popup, which is what
+    // Page Settings and Sharpen were missing.
+    if (open !== entry.open) {
+      entry.open = open;
+      if (open) this.clamp(dialogId);
+    }
+    if (entry.caps.dockable) this.syncDock();
   }
 
   /** True once the panel has been dragged, and is therefore placed rather than centred. */
@@ -172,6 +230,32 @@ export class PopupManager {
     if (!entry || entry.docked) return;
     entry.overlay.classList.add('is-placed');
     this.place(entry.panel, left, top);
+  }
+
+  /**
+   * Parks a palette in the top-right corner the first time it opens.
+   *
+   * The dialogs of this app are centred, and a palette that edits the canvas
+   * is the one kind that cannot be: the drawing under the selection is exactly
+   * what is being looked at while the palette is used, and a panel in the
+   * middle of the screen is sitting on those pixels. Rotate worked this out
+   * first, for the gesture it is dragged with; Move needs it for the same
+   * reason, because its preview redraws the selection it is covering.
+   *
+   * Only the first opening is placed. A palette dragged somewhere on purpose
+   * stays there, and a docked one is already out of the way with the dock
+   * deciding where it sits.
+   *
+   * @param top How far down to park it, clear of the toolbar above the stage.
+   * @param margin Gap kept from the right edge of the window.
+   */
+  parkTopRight(dialogId: string, top = 72, margin = 24): void {
+    const entry = this.entries.get(dialogId);
+    if (!entry || entry.docked) return;
+    if (entry.overlay.classList.contains('is-placed')) return;
+    // The panel has to be showing to be measured, which it is: a popup is
+    // parked as it opens, after the class that hides it has come off.
+    this.park(dialogId, window.innerWidth - entry.panel.offsetWidth - margin, top);
   }
 
   /** Pulls a placed panel back on screen, after a resize or before opening. */
@@ -361,6 +445,10 @@ export class PopupManager {
     entry.floatingAt = {
       left: entry.panel.style.left,
       top: entry.panel.style.top,
+      // Read before the dock clears them: these are whatever the resize grip
+      // wrote, and an empty string simply means the panel was never resized.
+      width: entry.panel.style.width,
+      height: entry.panel.style.height,
       placed: entry.overlay.classList.contains('is-placed'),
     };
     // The panel leaves an empty overlay behind. That overlay still carries the
@@ -380,7 +468,7 @@ export class PopupManager {
     entry.docked = true;
   }
 
-  /** Takes the panel back out of the dock, to exactly where it floated. */
+  /** Takes the panel back out of the dock, to the size and the place it floated at. */
   private undock(entry: PopupEntry): void {
     entry.overlay.appendChild(entry.panel);
     entry.overlay.classList.remove('popup-docked-away');
@@ -388,7 +476,16 @@ export class PopupManager {
     entry.docked = false;
     const at = entry.floatingAt;
     entry.floatingAt = null;
-    if (!at || !at.placed) {
+    if (!at) {
+      entry.overlay.classList.remove('is-placed');
+      return;
+    }
+    // The size comes back whether or not the panel had been dragged anywhere: a
+    // resized palette that was never moved is still a resized palette, and
+    // returning it at the default size loses a size someone chose.
+    entry.panel.style.width = at.width;
+    entry.panel.style.height = at.height;
+    if (!at.placed) {
       entry.overlay.classList.remove('is-placed');
       return;
     }

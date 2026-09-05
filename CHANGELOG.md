@@ -8,6 +8,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Show Selection Borders.** A switch in the **Move** palette, beside its
+  live preview, draws or drops the dashed blue outline around the selected
+  elements. The selection is unchanged either way - it still moves, copies,
+  rotates and exports the same, and the layers panel still shows what is in
+  it; only the outline on the canvas goes. What it is for is judging a drawing
+  with something selected, which is the one time the border sits exactly where
+  the eye wants nothing: a few pixels off the marks being looked at. The Move
+  palette is where it lives because that is where a selection is being worked
+  on; **Quick Settings** (`Ctrl+,`) and the Verbose Settings window's **Sketch
+  Support** section carry the same switch, and all three move together. On by
+  default, and persisted like every other setting.
+
 - **Editing panels dock.** Move, Rotate, Page Settings, and Sharpen Selection
   each carry a small button in their title bar that parks the panel in a dock
   beside the layers and properties panels, and takes it back out again. A
@@ -90,11 +102,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     press actually moves the drawing. The browser's spinner only knows a fixed
     `step` attribute, which cannot grow with a modifier, so both arrows are
     handled directly.
-  - **`Enter` moves again from where the selection now is.** The dialog stays
-    open and the distance stays typed, so `Enter` can be pressed repeatedly to
-    step the same amount again - each press measured from the current
-    position rather than accumulating against the one it started at. The
-    **Move** button applies once and closes.
+  - **`Enter` commits the move and closes**, the same as the **Move** button:
+    a typed field says it is finished with Enter, and the palette has one job.
+    `Escape` closes without moving.
   - **Changing a field's unit converts what is in it**, so the distance stays
     the same and only the way it is written changes: an inch becomes 25.4 mm
     rather than 1 mm, and a live preview does not jump.
@@ -149,6 +159,56 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   see the frame it is talking about.
 
 ### Changed
+
+- **The `vector-animations` skill covers animation physics.** A short
+  **Animation Physics** section in the skill and a full
+  `references/animation-physics.md` beside it, because a cycle table says what
+  angle a joint takes but nothing about how far apart two frames sit - which is
+  the only dial a posed frame has, and the one that decides whether a sequence
+  reads as real. It matters most for the types with no measured skeleton: jump,
+  fall down, knocked down, break, explode, move, and anything arriving as a
+  study.
+  - **Gravity by the odd-number rule** is the usable part: from rest,
+    successive frames cover 1, 3, 5, 7, 9 units, so a five-frame drop sits at
+    1, 4, 9, 16, 25 units down rather than five even steps. With arcs even
+    across and accelerating down, frames bunch at the apex, and that bunching
+    is the hang time.
+  - **Bounce height falls as `e^2` per contact** and each arc needs fewer
+    frames than the last; **weight is frame count rather than distance**, so a
+    heavy thing spends several frames starting and stopping where a light one
+    spends one and overshoots.
+  - The reference also covers what a real solver would do instead - mass-spring
+    systems, the finite difference approximation, explicit against
+    semi-implicit against implicit Euler, and the cost in control that comes
+    with them - so a request for simulation gets an accurate answer rather than
+    a guess. Every figure in it was checked against its own arithmetic.
+
+- **The AI skills' asset lists match what is actually there, and say how far
+  each sheet can be trusted.** Both skills now group their assets by how
+  organized they are, because a helper that treats a study like a rig will read
+  names off it that were never meant to hold.
+  - **`vector-animations`** documents `character-wireframes.svg` and the
+    generated `skeleton-cycles.json` as rigs to measure;
+    `breaking-objects.svg` as partly organized - its frame numbering is
+    reliable, but frame `_0` of both sequences carries `potential_*` and
+    `obsoletes` groups that are working scraps rather than parts of the
+    drawing; and `bouncing-object.svg` and
+    `character-study-throwing-and-walking.svg` as studies to read rather than
+    derive from.
+  - **`vector-graphics`** replaces the removed `objects.svg` with
+    `isometric-objects.svg` and `perspective-objects.svg` - one wheel, sphere
+    and cube drawn twice with matching group names, so a drawing can be moved
+    between projections a face at a time - and adds
+    `male-character-elements.svg` and `female-character-elements.svg` as very
+    loose studies, with `alphabet.svg` and `shapes.svg` unchanged.
+  - **Both skills say when a study is the right answer**: a request the rigs do
+    not cover - a pose the wireframes do not hold, an object that travels
+    rather than comes apart, or anything reaching the API or the app's AI
+    helper without a preset behind it.
+  - Three references to `assets/object-animations.svg`, a file that does not
+    exist, are corrected to `breaking-objects.svg`, and the cross-skill links
+    from `vector-animations` no longer point at the removed `objects.svg`.
+    Every asset path in both skills now resolves.
 
 - **The editing popups share one implementation.** Dragging by the title,
   dragging by the border band, the corner resize grip, and staying on screen
@@ -259,6 +319,114 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   release is still 4.1.2-alpha.
 
 ### Fixed
+
+- **The space bar toggles a focused checkbox again.** Tabbing to **Live
+  preview** or **Show Selection Borders** and pressing space did nothing: the
+  space bar arms straight-line drawing, and that shortcut called
+  `preventDefault` on its way past, cancelling the toggle the browser was about
+  to perform. A checkbox is passed over by the "a focused text field owns its
+  keys" guard on purpose - it consumes no letters, so the tool shortcuts keep
+  working while one has the focus - but space is not a letter, and a checkbox
+  has no other key. A focused checkbox or radio now keeps the space bar;
+  everything else, the canvas included, still gives it to straight-line mode.
+  Buttons are deliberately left out: they answer to Enter as well, so they lose
+  nothing, and taking space from them would make a toolbar button that still
+  held the focus from being clicked fire again instead of arming a drag.
+
+- **A palette that opens on a field now actually opens on it.** The Move
+  palette meant to open with its **Horizontal (x)** field focused and its value
+  selected, so a distance can be typed the moment it appears; it was landing
+  the focus nowhere, leaving the toolbar button still focused and typed digits
+  going to the canvas as tool shortcuts. The dialog fades in from
+  `visibility: hidden`, and an element that is not visible cannot take focus -
+  the fade put `visibility` on a 160ms transition, so for the whole of it the
+  panel still computed as hidden and the focus call was a no-op. Opening is now
+  instant for `visibility` while the opacity still fades, and only opening:
+  closing keeps the transition, so a dismissed panel still fades out rather
+  than vanishing. Rotate's angle field and Page Settings' width field were
+  focused the same way and were failing the same way; all three work now.
+
+- **Move moved the selection twice when the live preview was on.** The preview
+  is a real move, made and unmade, and the **Move** button committed the typed
+  distance and then put the preview straight back on top of it - so a request
+  for 100px landed the selection 200px along, with only the first half in the
+  history step. Confirmed by driving the app: preview off gave 100px, preview
+  on gave 200px. The button now commits the move the preview was already
+  showing and closes the palette, which is the one step it was always meant to
+  be. `Enter` does the same, for the same reason: it carried the doubled move
+  too, and re-showing a preview over a committed move is what produced it.
+  - **A close can no longer strand a preview on the canvas.** `closeMoveDialog`
+    took a flag saying whether to take the preview back off, and the one call
+    that passed "no" is what left the second move behind. An uncommitted move
+    must never outlive the palette that was previewing it, so the flag is gone
+    and every close reverts - which costs nothing after a commit, since the
+    commit has already cleared it.
+
+- **Selecting an element with the Select tool nudged it a few pixels.** The
+  press committed to a move drag immediately, so the first pointer movement
+  after it carried the element along one pixel for one pixel - and a click
+  made by a hand always carries some. Driving the app confirmed the ratio
+  exactly: a click travelling 3px left the element 3px from where it started.
+  A press now only *arms* the drag, and the move begins once the pointer has
+  travelled 4 screen pixels. Below that the gesture is a click and the drawing
+  is left exactly as it was found; past it the element still follows the
+  pointer the full distance, so nothing is lost to the slack.
+  - **A click that only selects no longer costs an undo press.** The history
+    step was pushed on the press for the same reason, so clicking an element
+    to select it left a step that undid nothing. It is pushed when the drag
+    commits instead. (This was the second of the two Select-tool defects
+    recorded in `TODO.md`; both had the one cause.)
+  - **An Alt-click that never moves no longer leaves a hidden duplicate.** The
+    Alt-drag copy was made on the press too, so an Alt-click that went nowhere
+    stacked a copy exactly on top of the original, where nothing showed it.
+    The copy is made when the drag commits, and `Alt` is read at that moment
+    rather than remembered from the press.
+
+- **Grabbing the Page Settings or Sharpen title threw the panel off screen.**
+  A placed panel was positioned `absolute`, which measures from whatever box
+  its overlay happens to be. The two palettes whose overlay fills the viewport
+  never showed it, but the corner variants are anchored bottom-right and are
+  only as wide as the panel: writing the panel's viewport position into
+  `style.left` moved it that far again from the overlay's own corner. Pressing
+  the Page Settings title moved the panel 1471px right and 813px down, out of
+  the window and beyond recall. A placed panel is `fixed` now, so its
+  coordinates are the viewport's - which is what every number the popup
+  manager drags, parks and clamps in already assumed.
+
+- **The Move palette opened over the drawing it was about to move, three
+  quarters of the screen wide.** It had no width of its own, so it opened at
+  whatever its contents wanted - 1129px of a 1494px window for two number
+  fields and a note - centred, on top of the marks its live preview was about
+  to show moving. It now starts at 340px, the width Rotate already uses, and
+  parks itself clear in the top-right corner on its first opening the way
+  Rotate does. A palette dragged somewhere on purpose still stays there.
+
+- **Undocking a resized panel brought back its position but not its size.**
+  The dock has to clear the inline width and height the resize grip wrote so
+  the column can set its own; only the position was noted down first, so a
+  panel pulled bigger, docked, and taken back out returned at the default
+  size. Both are remembered now, which is what the dock button promised: a
+  round trip that costs nothing.
+
+- **Page Settings and Sharpen are pulled back on screen when they open.** Move
+  and Rotate each asked for that at their own call site; the other two never
+  did, so a panel left near an edge could reopen off screen after the window
+  had shrunk. The popup manager watches the class that opens a dialog and
+  clamps every one of them - and it watches with one window-resize listener
+  for all nine popups rather than one listener each.
+
+- **The AI tool sign-in button could not open a terminal on Windows.** Pressing
+  **Open sign-in** raised "Windows cannot find 'sign-in\'" instead of starting
+  the tool. The window title was passed as one entry of an argv array, and Node
+  escapes an entry that already carries quotes, so `start` received
+  `""\"napkin-sketch sign-in\"" cmd /k claude` - it read `"\"napkin-sketch` as
+  the title and tried to run the rest of the title as a command. The launch is
+  now a single command string handed to `cmd /d /s /c`, whose `/s` strips the
+  outer quotes and leaves the rest exactly as written. Only the wrapper shell
+  is hidden; the terminal `start` opens is a process of its own and stays up.
+- **Sign-in on a tool that is not installed says so** rather than opening a
+  terminal that closes again: the executable is checked before the launch, the
+  same way a generation run checks it.
 
 - **`Enter` no longer opened the Move dialog on top of another one.** The
   shortcut only checked that something was selected, so pressing Enter to

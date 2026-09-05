@@ -62,6 +62,21 @@ export interface AppSettings {
   /** Direct Select: anchor/handle grab radius around the pointer (1-20px). */
   directSelectSensitivityPx: number;
   /**
+   * Draw the dashed blue border around each selected element. On by default.
+   *
+   * Switched off, the selection is still live and still moves, copies and
+   * exports the same way; only its outline goes. What that is for is judging
+   * the drawing itself while something is selected - the border sits a few
+   * pixels off the marks it surrounds, which is exactly where the eye needs
+   * nothing when the question is how the drawing looks. The layers panel
+   * keeps showing what is selected while the canvas does not.
+   *
+   * It reads as *show* rather than *hide* because the switch that matters
+   * lives in the Move palette, beside **Live preview**: a row of things that
+   * are on when they are ticked.
+   */
+  showSelectionBorders: boolean;
+  /**
    * Join stroke: when true, a stroke whose end snaps onto another stroke's
    * endpoint (endpoint snap) is merged with that stroke into one stroke.
    */
@@ -188,6 +203,7 @@ export function defaultSettings(): AppSettings {
     endpointSnap: true,
     endpointSnapPx: 10,
     directSelectSensitivityPx: 3,
+    showSelectionBorders: true,
     joinStrokeOnSnap: false,
     eyedropSensitivityPx: 10,
     liveSharpen: false,
@@ -269,6 +285,10 @@ export function normalizeSettings(input: unknown): AppSettings {
         base.directSelectSensitivityPx,
       ),
     ),
+    showSelectionBorders:
+      typeof raw.showSelectionBorders === 'boolean'
+        ? raw.showSelectionBorders
+        : base.showSelectionBorders,
     joinStrokeOnSnap:
       typeof raw.joinStrokeOnSnap === 'boolean' ? raw.joinStrokeOnSnap : base.joinStrokeOnSnap,
     eyedropSensitivityPx: Math.round(

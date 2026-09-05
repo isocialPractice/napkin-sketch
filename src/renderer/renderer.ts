@@ -177,6 +177,23 @@ const THUMB_CHROME_PX = 28;
 /** How long the mandala symmetry guide takes to fade in or out. */
 const SYMMETRY_FADE_MS = 220;
 
+/**
+ * How far a press on a selected element must travel before it counts as a
+ * drag rather than as a click, in screen pixels.
+ *
+ * Without one, the first pointermove after the press moved the selection by
+ * whatever distance it carried, one pixel for one pixel - and a click made by
+ * a hand always carries some. Selecting an element left it a few pixels from
+ * where it had been, which is a hard thing to even notice, let alone undo on
+ * purpose. Screen pixels rather than sketch units, because the jitter being
+ * absorbed is the hand's and does not get smaller when the page is zoomed out.
+ *
+ * Four is the smallest value that swallowed a deliberate click in testing
+ * while still letting a one-pixel nudge be dragged; it sits alongside the
+ * three-pixel default the Direct Select grab radius already uses.
+ */
+const SELECT_DRAG_THRESHOLD_PX = 4;
+
 /** True when the OS asks for reduced motion; animations are skipped outright. */
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
@@ -343,6 +360,18 @@ class App {
 
   /** True once a move drag has actually shifted the selection. */
   private dragMoved = false;
+
+  /**
+   * Where the press that armed a move landed, in client pixels, and whether
+   * the move has since been committed to.
+   *
+   * A press on a selected element arms a drag but does not start one: nothing
+   * is moved and no history step is pushed until the pointer has travelled
+   * {@link SELECT_DRAG_THRESHOLD_PX} from here. Until then the gesture is
+   * still a click, and a click must leave the drawing exactly as it found it.
+   */
+  private dragFrom: { x: number; y: number } | null = null;
+  private dragCommitted = false;
 
   /**
    * Set when a press over empty canvas left a multi-element selection in
@@ -777,6 +806,7 @@ class App {
       const fading = this.stepSymmetryFade(now);
       this.surface.render(this.store.sketch, this.live, {
         selectedIds: this.store.selectedIds,
+        showSelectionBorders: this.settings.showSelectionBorders,
         symmetry: this.symmetryGuideAxes,
         symmetryAlpha: this.symmetryFade,
         liveTextBox: this.textDragLive ?? undefined,
@@ -1521,6 +1551,7 @@ class App {
     // actually put, so letting Shift go hands the selection back to the
     // pointer rather than leaving it offset by the constraint.
     if (tool === 'select' && this.dragging) {
+      if (!this.dragCommitted && !this.commitSelectDrag(e)) return;
       const raw = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
       const pt = e.shiftKey && this.dragOrigin ? constrainDrag(this.dragOrigin, raw) : raw;
       if (this.dragLast) {
@@ -1789,6 +1820,8 @@ class App {
       this.dragging = false;
       this.dragLast = null;
       this.dragOrigin = null;
+      this.dragFrom = null;
+      this.dragCommitted = false;
       // A Shift-press on a selected element that never went anywhere was a
       // click, so it means what a Shift-click has always meant.
       if (this.shiftToggleId && !this.dragMoved) {
@@ -3175,6 +3208,8 @@ class App {
     this.setSnapTarget(null);
     this.dragging = false;
     this.dragLast = null;
+    this.dragFrom = null;
+    this.dragCommitted = false;
     this.rubberBandStart = null;
     this.rubberBandBox = null;
     this.textDragStart = null;
@@ -3239,6 +3274,45 @@ class App {
 
   // ---- Select tool ---------------------------------------------------------
 
+  /**
+   * Turns an armed press into a real move drag, once the pointer has travelled
+   * {@link SELECT_DRAG_THRESHOLD_PX} from where it went down.
+   *
+   * Everything that changes the drawing waits for this moment rather than
+   * happening on the press: the history step, and the Alt-drag copy. Both used
+   * to fire the instant an element was hit, which meant a plain click cost an
+   * undo press, and an Alt-click that never went anywhere silently left a
+   * duplicate stacked exactly on top of the original.
+   *
+   * Alt is read from the move rather than remembered from the press, so the
+   * modifier decides what the drag is at the moment the drag begins - which is
+   * also when the doubled-arrow pointer appears to say so.
+   *
+   * @returns True once the drag is live; false while the press is still a click.
+   */
+  private commitSelectDrag(e: PointerEvent): boolean {
+    const from = this.dragFrom;
+    if (!from) return false;
+    if (Math.hypot(e.clientX - from.x, e.clientY - from.y) < SELECT_DRAG_THRESHOLD_PX) {
+      return false;
+    }
+    this.dragCommitted = true;
+    this.store.pushHistory();
+    // Alt-drag copies the selection: the layers panel gains " - Copy" rows,
+    // the clones become the selection, and this drag moves them while the
+    // originals stay put. The history step above covers the copy and the move
+    // together, so one undo removes both.
+    if (e.altKey) {
+      const copied = this.duplicateForDrag();
+      if (copied > 0) {
+        this.copyDragging = true;
+        this.updateCursor();
+        this.toast(`Dragging a copy of ${copied} element${copied === 1 ? '' : 's'}.`);
+      }
+    }
+    return true;
+  }
+
   private beginSelect(e: PointerEvent, pt: Point): void {
     // Outline hits win; failing that, a click on a shape's painted fill (its
     // interior) selects the shape, so filled elements act solid. A click on
@@ -3267,22 +3341,15 @@ class App {
       } else if (hit && !this.store.selectedIds.has(hit.id)) {
         this.store.setSelection([hit.id]);
       }
+      // The drag is armed here and committed to in {@link commitSelectDrag},
+      // once the pointer has travelled far enough to mean it. Nothing is moved,
+      // nothing is copied and no history step is pushed on the press itself:
+      // this may still turn out to be a click that only selects.
       this.dragging = true;
       this.dragLast = pt;
       this.dragOrigin = pt;
-      this.store.pushHistory();
-      // Alt-drag copies the selection: the layers panel gains " - Copy"
-      // rows, the clones become the selection, and this drag moves them
-      // while the originals stay put. The history step above covers the
-      // copy and the move together, so one undo removes both.
-      if (e.altKey) {
-        const copied = this.duplicateForDrag();
-        if (copied > 0) {
-          this.copyDragging = true;
-          this.updateCursor();
-          this.toast(`Dragging a copy of ${copied} element${copied === 1 ? '' : 's'}.`);
-        }
-      }
+      this.dragFrom = { x: e.clientX, y: e.clientY };
+      this.dragCommitted = false;
       this.canvas.setPointerCapture(e.pointerId);
       this.activePointerId = e.pointerId;
     } else {
@@ -3904,6 +3971,9 @@ class App {
     });
     this.rebuildSwatches();
     this.applyMenuPlacement();
+    // The selection border is a painted thing, so a change made in the Verbose
+    // Settings window has to reach the canvas and not only the checkboxes.
+    this.scheduleRender();
     this.applyToolOrder();
     this.applyTheme();
     this.restartAutoSave();
@@ -3993,6 +4063,29 @@ class App {
       .map((n) => n.dataset.color ?? '')
       .filter(Boolean);
     void this.saveSettings({ quickColors: colors });
+  }
+
+  /**
+   * Throws the selection-border switch, from whichever copy of it was clicked.
+   *
+   * The canvas is repainted before the save round-trips, so the border goes on
+   * the same frame the switch is thrown rather than a tick later, and the
+   * other copies of the switch are moved with it - a value with three switches
+   * is only one value if they never disagree.
+   */
+  private setShowSelectionBorders(showSelectionBorders: boolean): void {
+    this.settings = { ...this.settings, showSelectionBorders };
+    this.syncSelectionBorderSwitches();
+    this.scheduleRender();
+    void this.saveSettings({ showSelectionBorders });
+  }
+
+  /** Puts every copy of the selection-border switch at the stored value. */
+  private syncSelectionBorderSwitches(): void {
+    for (const id of ['show-selection-borders', 'qs-show-selection-borders']) {
+      const box = document.getElementById(id);
+      if (box instanceof HTMLInputElement) box.checked = this.settings.showSelectionBorders;
+    }
   }
 
   /** Sends a settings patch to the main process (no-op outside Electron). */
@@ -4288,6 +4381,14 @@ class App {
       this.store.setTool({ liveSharpen });
       void this.saveSettings({ liveSharpen });
     });
+    // The same setting has a switch in the Move palette, where it is reached
+    // while a selection is being worked on, and one in each settings view. They
+    // are one value, so throwing any of them moves all three.
+    for (const id of ['show-selection-borders', 'qs-show-selection-borders']) {
+      el<HTMLInputElement>(id).addEventListener('change', (e) => {
+        this.setShowSelectionBorders((e.target as HTMLInputElement).checked);
+      });
+    }
     el<HTMLInputElement>('set-wobble').addEventListener('input', (e) => {
       const wobble = Number((e.target as HTMLInputElement).value);
       this.store.setSharpen({ wobble });
@@ -6262,7 +6363,7 @@ class App {
       // Anything the Move dialog was showing belongs to the sketch, not to a
       // frame: a preview left applied would be baked into the pose the helper
       // is handed, and the dialog itself would sit on top of the wizard.
-      if (this.moveDialogOpen) this.closeMoveDialog(true);
+      if (this.moveDialogOpen) this.closeMoveDialog();
       this.store.setTool({ tool: 'select' });
       this.toggleLayers(true);
       this.refreshAnimationStatus();
@@ -7212,10 +7313,11 @@ class App {
     this.fillUnitSelect('move-x-unit', LENGTH_UNITS, this.propUnits.x);
     this.fillUnitSelect('move-y-unit', LENGTH_UNITS, this.propUnits.y);
     el('move-selection').addEventListener('click', () => this.openMoveDialog());
-    el('move-cancel').addEventListener('click', () => this.closeMoveDialog(true));
+    el('move-cancel').addEventListener('click', () => this.closeMoveDialog());
+    // Committing is the end of the move, from the button or from Enter alike:
+    // the distance the preview was showing is made real and the palette goes.
     el('move-apply').addEventListener('click', () => {
-      this.applyMove();
-      this.closeMoveDialog(false);
+      if (this.applyMove()) this.closeMoveDialog();
     });
     el<HTMLInputElement>('move-preview').addEventListener('change', () => this.syncMovePreview());
     el<HTMLSelectElement>('move-x-unit').addEventListener('change', () =>
@@ -7271,9 +7373,9 @@ class App {
    * coarse one. The browser's native spinner only knows the `step` attribute,
    * which cannot change with a modifier, so both arrows are handled here.
    *
-   * Enter applies the move and leaves the dialog open: the selection has
-   * moved, the fields still hold the same distance, and pressing Enter again
-   * moves it that far again from where it now is.
+   * Enter commits the move and closes the palette, which is what the button
+   * does - the palette has one job and Enter is how a typed field says it is
+   * finished. Escape closes without moving.
    */
   private onMoveFieldKey(ev: KeyboardEvent, input: HTMLInputElement): void {
     if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
@@ -7288,14 +7390,24 @@ class App {
       this.syncMovePreview();
       return;
     }
+    // Both of these close the palette, and both must stop here.
+    //
+    // The window's own handler treats Enter as "open Move for the selection"
+    // and skips itself while a text field has the focus - but closing the
+    // palette takes the focus off this field, so by the time the event got
+    // there the guard no longer applied and the palette it had just closed
+    // was opened straight back up. The field has finished with the key, so
+    // the key stops at the field.
     if (ev.key === 'Enter') {
       ev.preventDefault();
-      this.applyMove();
+      ev.stopPropagation();
+      if (this.applyMove()) this.closeMoveDialog();
       return;
     }
     if (ev.key === 'Escape') {
       ev.preventDefault();
-      this.closeMoveDialog(true);
+      ev.stopPropagation();
+      this.closeMoveDialog();
     }
   }
 
@@ -7394,6 +7506,10 @@ class App {
     this.moveUnits = { x: this.propUnits.x, y: this.propUnits.y };
     this.syncMoveSteps();
     el('move-dialog').classList.remove('is-hidden');
+    // Clear of the drawing on its first opening, the way Rotate already is: the
+    // preview switch redraws the selection live, and the palette was opening
+    // centred - on top of the very marks it was about to show moving.
+    this.popups.parkTopRight('move-dialog');
     // A panel left near an edge last time must not open off screen if the
     // window has shrunk since.
     this.clampMoveDialog();
@@ -7401,10 +7517,20 @@ class App {
     x.select();
   }
 
-  /** Closes the dialog, dropping any live preview when the move was abandoned. */
-  private closeMoveDialog(revert: boolean): void {
-    if (revert) this.revertMovePreview();
-    else this.movePreview = null;
+  /**
+   * Closes the dialog, taking any live preview off the canvas with it.
+   *
+   * The preview is a move that has not been committed - it carries no history
+   * step of its own - so it can never be allowed to outlive the dialog. This
+   * used to take a flag saying whether to revert, and the one call that passed
+   * "no" dropped the preview where it stood: clicking **Move** with the live
+   * preview on left the selection moved twice, once for real and once by the
+   * preview nobody took back. There is no case that wants that, so there is no
+   * longer a way to ask for it - a committed move has already cleared the
+   * preview by the time this runs, and reverting nothing is free.
+   */
+  private closeMoveDialog(): void {
+    this.revertMovePreview();
     // A drag that was still in hand when the dialog went - entering Animation
     // Mode, say - would otherwise leave the grab cursor stuck on the page.
     this.popups.releaseGrabs('move-dialog');
@@ -7461,27 +7587,33 @@ class App {
   }
 
   /**
-   * Applies the typed distance from wherever the selection is now.
+   * Commits the typed distance, from the **Move** button or from Enter.
    *
-   * The dialog stays open, so Enter can be pressed again to move the same
-   * distance again - each press measured from the selection's current
-   * position rather than accumulating against the one it started at.
+   * The move committed is the one the preview was already showing, and the
+   * palette is finished either way. It used to put the preview back after
+   * committing, so that Enter could be pressed again to step the same distance
+   * a second time; what that actually produced was a selection one step beyond
+   * where the palette said it would be, because the preview it re-showed was
+   * never taken back off. A palette that says "move 100" moves 100.
+   *
+   * @returns True when the dialog's work is done and it may close; false when
+   *   something typed needs fixing first.
    */
-  private applyMove(): void {
+  private applyMove(): boolean {
     const targets = this.propertyTargets();
     if (targets.length === 0) {
-      this.closeMoveDialog(true);
-      return;
+      this.closeMoveDialog();
+      return true;
     }
     const delta = this.moveDelta();
     if (!delta) {
       this.toast('Type a number for each distance.');
-      return;
+      return false;
     }
     // The preview is undone first so the committed move is one history step
     // covering the whole distance, not a second one stacked on a shown move.
     this.revertMovePreview();
-    if (delta.dx === 0 && delta.dy === 0) return;
+    if (delta.dx === 0 && delta.dy === 0) return true;
     this.store.moveStrokes(targets, delta.dx, delta.dy);
     const xUnit = el<HTMLSelectElement>('move-x-unit').value;
     const yUnit = el<HTMLSelectElement>('move-y-unit').value;
@@ -7489,9 +7621,9 @@ class App {
       `Moved ${targets.length} element${targets.length === 1 ? '' : 's'} by ` +
         `${el<HTMLInputElement>('move-x').value} ${xUnit}, ${el<HTMLInputElement>('move-y').value} ${yUnit}.`,
     );
-    // Put the preview back so the canvas keeps showing what the next Enter
-    // would do, now measured from where the selection has landed.
-    this.syncMovePreview();
+    // No preview is put back: the distance has been made real, and the
+    // palette is about to close over it.
+    return true;
   }
 
 
@@ -7673,21 +7805,12 @@ class App {
   }
 
   /**
-   * Puts the panel in the top-right corner the first time it opens.
-   *
-   * Every other dialog in the app is centred, and this is the one that cannot
-   * be: the canvas under the selection is where a rotation is actually
-   * dragged, and a panel sitting in the middle of the screen is sitting on
-   * exactly the pixels the gesture needs. Only the first opening is placed -
-   * a palette that has been dragged somewhere deliberately stays there.
+   * Puts the Rotate panel in the top-right corner the first time it opens.
+   * The rule and the arithmetic are the manager's; see
+   * {@link PopupManager.parkTopRight} for why a palette is not centred.
    */
   private parkRotateDialog(): void {
-    // Docked, it is already out of the way, and the dock decides where it sits.
-    if (this.popups.isPlaced('rotate-dialog') || this.popups.isDocked('rotate-dialog')) return;
-    const panel = el('rotate-dialog').querySelector<HTMLElement>('.export-dialog-inner');
-    if (!panel) return;
-    const margin = 24;
-    this.popups.park('rotate-dialog', window.innerWidth - panel.offsetWidth - margin, 72);
+    this.popups.parkTopRight('rotate-dialog');
   }
 
   /** Pulls the Rotate panel back on screen, after a resize or before opening. */
@@ -8667,7 +8790,7 @@ class App {
       }
       if (e.key === 'Escape' && this.moveDialogOpen) {
         e.preventDefault();
-        this.closeMoveDialog(true);
+        this.closeMoveDialog();
         return;
       }
       if (e.key === 'Escape' && this.vectorAnchors.length > 0) {
@@ -8752,6 +8875,11 @@ class App {
       // Space (held) arms straight-line mode for the next single-pointer
       // drag; with Ctrl also held it arms the quick curve instead.
       if (e.key === ' ' || e.code === 'Space') {
+        // Unless a checkbox has the focus, in which case the space bar is
+        // already spoken for - see {@link togglesOnSpace}. Arming a drawing
+        // mode is worth nothing while a dialog's field has the focus, and the
+        // toggle is worth everything.
+        if (togglesOnSpace(document.activeElement)) return;
         e.preventDefault();
         if (!this.spaceDown) {
           this.spaceDown = true;
@@ -9049,6 +9177,7 @@ class App {
     el('width-value').textContent = `${width}px`;
 
     el<HTMLInputElement>('live-sharpen').checked = liveSharpen;
+    this.syncSelectionBorderSwitches();
     el<HTMLInputElement>('set-wobble').value = String(sharpen.wobble);
     el<HTMLInputElement>('set-simplify').value = String(sharpen.simplifyEpsilon);
     el<HTMLInputElement>('set-circle').value = String(sharpen.circleTolerance);
@@ -9111,6 +9240,25 @@ class App {
  * or any input that is not one of the widget types (slider, checkbox, radio,
  * color well, button) that consume no letters of their own.
  */
+/**
+ * True for a control whose own keyboard interaction *is* the space bar.
+ *
+ * {@link isTextEntry} lets a checkbox through on purpose - it consumes no
+ * letters, so the tool shortcuts keep working while one has the focus - but
+ * space is not a letter and a checkbox is the one control that has no other
+ * key. Tabbing to **Live preview** and pressing space did nothing, because the
+ * straight-line shortcut called `preventDefault` on the way past and cancelled
+ * the toggle the browser was about to do.
+ *
+ * Buttons are deliberately not here. They answer to Enter as well, so they lose
+ * nothing by giving space up, and taking it from them would mean a toolbar
+ * button still holding the focus from the click that selected it would fire
+ * again instead of arming the straight-line drag.
+ */
+function togglesOnSpace(node: Element | null): boolean {
+  return node instanceof HTMLInputElement && (node.type === 'checkbox' || node.type === 'radio');
+}
+
 function isTextEntry(node: Element | null): boolean {
   if (node instanceof HTMLTextAreaElement || node instanceof HTMLSelectElement) return true;
   if (!(node instanceof HTMLInputElement)) return false;

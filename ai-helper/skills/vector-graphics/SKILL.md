@@ -424,6 +424,8 @@ under external references are pages used to build it.
 
 **`assets`**:
 
+Organized sheets - named parts, safe to lift from and to name after:
+
 - [alphabet.svg](assets/alphabet.svg): two typefaces of letterform paths, a
   sans-serif and a serif, each a group of 26 letter-pair groups holding the
   upper and lower case as one path apiece. The serif set carries the editor's
@@ -431,10 +433,36 @@ under external references are pages used to build it.
   the letters (`A`, `a`) where the sans-serif set names them for the roles
   (`upper-case`, `lower-case`). The two `<text>` elements are section labels,
   not letterforms
-- [objects.svg](assets/objects.svg): cylinder, cube (isometric and
-  perspective), and sphere primitives
 - [shapes.svg](assets/shapes.svg): squares, circles, ellipses, triangles,
-  polygons, stars, lines at set angles, arcs, and spirals
+  polygons, stars, lines at set angles, an arc, and a spiral. The shapes are
+  bare elements carrying their own ids; only the lines and curves are grouped
+- [isometric-objects.svg](assets/isometric-objects.svg) and
+  [perspective-objects.svg](assets/perspective-objects.svg): a wheel, a
+  sphere, and a cube, drawn once in each projection with matching group names
+  (`cube-isometric` against `cube-perspective`, and `back` / `right` /
+  `top-left` / `bottom-right` / `top-inside` faces inside each). They are two
+  views of one set rather than two sets, so a drawing can be moved between
+  projections a face at a time
+
+Studies - loose reference sheets, not a naming contract:
+
+- [male-character-elements.svg](assets/male-character-elements.svg): sheets of
+  `legs`, `arms`, `hair-styles`, `clothing`, `movements`, and a `standing`
+  figure in `front` and `back`
+- [female-character-elements.svg](assets/female-character-elements.svg): the
+  same idea with `woman-front` and `woman-back` figures, plus `arms`, `hands`,
+  `legs`, `shoes`, `clothes`, `head`, and `facial-expressions`
+
+Both character sheets are very loosely organized: the groups are named as the
+artist drew them, they nest inconsistently, and a part may appear more than
+once at different angles. Read them for proportion and for what a part looks
+like from a given side. Do not measure them, do not expect a stable id, and do
+not derive geometry from them automatically - lift a shape, redraw it to the
+curve rules above, and name the result yourself.
+
+They earn their place on the requests the organized sheets do not answer: a
+character part the animation rig does not draw, a pose asked for in words, or
+anything reaching the app's AI helper or the API without a preset behind it.
 
 ### External References
 

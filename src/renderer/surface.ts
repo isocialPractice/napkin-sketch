@@ -71,6 +71,15 @@ export interface RenderOptions {
 export interface Overlay {
   /** Ids of currently selected strokes (drawn with a highlight outline). */
   selectedIds?: Set<string>;
+  /**
+   * Draw the outline around the selected strokes. Only an explicit `false`
+   * leaves it off, so a caller that says nothing still gets the border.
+   *
+   * The selection is unchanged either way - this is only about what is drawn,
+   * so that a drawing can be judged with something selected and no dashed box
+   * around it.
+   */
+  showSelectionBorders?: boolean;
   /** When > 1, draws faint mirror axes for symmetry drawing. */
   symmetry?: number;
   /**
@@ -376,7 +385,7 @@ export class Surface {
     ctx.scale(this.dpr, this.dpr);
     this.applyWorld(ctx);
 
-    if (overlay?.selectedIds && overlay.selectedIds.size > 0) {
+    if (overlay?.selectedIds && overlay.selectedIds.size > 0 && overlay.showSelectionBorders !== false) {
       for (const stroke of sketch.strokes) {
         if (overlay.selectedIds.has(stroke.id)) this.paintSelection(ctx, stroke);
       }

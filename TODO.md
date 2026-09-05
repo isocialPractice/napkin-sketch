@@ -37,17 +37,20 @@ back without losing where it started.
 
 ## Found Issues
 
-Defects noticed while working and not yet scheduled. Twelve sit here: six from
-4.1.0-alpha, four from the Animation Mode work, and two the 4.1.2-alpha source
-review turned up. The first was found only by driving the running app - an ARIA
+Defects noticed while working and not yet scheduled. Thirteen sit here: six
+from 4.1.0-alpha, four from the Animation Mode work, two the 4.1.2-alpha source
+review turned up, and one the popup pass found. Three of those were
+found only by driving the running app rather than by reading it - an ARIA
 attribute reads correctly in the source and is wrong only once something reads
-it back - and the four in the middle came out of generating frames, where the
-failures show up in the artifacts rather than in the code.
+it back, a click that moves what it selects reads as an ordinary drag handler,
+and a panel positioned against the wrong box reads the same either way - and
+the four in the middle came out of generating frames, where the failures show
+up in the artifacts rather than in the code.
 
-Nine are open. The three the 4.1.2-alpha source review resolved are stamped
-rather than deleted, so the record of what was found stays with the record of
-what fixed it; the whole of that review, including the reasoning behind the
-calls it made, is in `reviews/source-code-09-01-2026.log`.
+Eight are open. The five that have been resolved are stamped rather than
+deleted, so the record of what was found stays with the record of what fixed
+it; the 4.1.2-alpha source review, including the reasoning behind the calls it
+made, is in `reviews/source-code-09-01-2026.log`.
 
 - [ ] **`aria-selected` marks only the active layer row**: the layers panel is a
   `role="listbox"` with multi-select, but `renderLayers` sets
@@ -55,11 +58,18 @@ calls it made, is in `reviews/source-code-09-01-2026.log`.
   `is-selected` class instead. A screen reader is told one row is selected when
   several are. (Found by a test probe reading the attribute and seeing one row
   where the panel showed two.)
-- [ ] **A select-tool click leaves a no-op undo step**: `onPointerDown` calls
-  `store.pushHistory()` as soon as a stroke is hit, before any movement, so
-  clicking an element to select it costs an undo press later. The push should
-  wait until the drag actually moves something - `dragMoved` already tracks
-  exactly that.
+- [x] **RESOLVED (4.1.2-alpha)** - **A select-tool click leaves a no-op undo
+  step**: `onPointerDown` called `store.pushHistory()` as soon as a stroke was
+  hit, before any movement, so clicking an element to select it cost an undo
+  press later. Driving the app showed the same premature commitment doing
+  something worse than that: with no threshold at all, the first pointermove
+  after the press moved the element one pixel for one pixel, so a click that
+  carried 3px of hand travel left the element 3px from where it had been.
+  Selecting something moved it. A press now arms the drag and
+  `commitSelectDrag` starts it once the pointer has gone 4 screen pixels,
+  which is where the history step, the Alt-drag copy and the first move all
+  wait. Below the threshold the gesture is a click and the drawing is left
+  exactly as found.
 - [x] **RESOLVED (4.1.2-alpha source review)** - **The CLI inherits
   `ELECTRON_RUN_AS_NODE`**: `launchGui` spawns Electron with
   `env: { ...process.env, ... }`, so a shell that has the variable set (some
@@ -69,6 +79,15 @@ calls it made, is in `reviews/source-code-09-01-2026.log`.
   nothing. The key is now deleted from the child's environment; the GUI is
   never meant to run as Node, so there is no case where inheriting it is
   wanted.
+- [x] **RESOLVED (4.1.2-alpha)** - **A placed popup was positioned against
+  its overlay, not the viewport**: `.dialog-floating.is-placed
+  .export-dialog-inner` was `position: absolute`, so the coordinates the popup
+  manager drags, parks and clamps in were only true for the palettes whose
+  overlay fills the window. The corner variants are anchored bottom-right and
+  are only as wide as the panel, so pressing the Page Settings title threw it
+  1471px right and 813px down, out of the window. Placed panels are `fixed`
+  now. (Found by driving the app; the source reads correctly either way, which
+  is why it survived a review.)
 - [ ] **Clipboard shortcuts on macOS**: the Edit menu's clipboard items use
   `registerAccelerator: false` so the keypress reaches the page, but that flag
   is Windows/Linux only. On macOS the accelerator registers, so `Cmd+C` inside
@@ -810,9 +829,10 @@ bridge and the tests and documentation that make the rest of it usable.
   API its bytes; the language should have no verb that opens one.
 - [ ] **A shape library read from the skill assets**: `shapes.svg` already
   draws squares, circles, ellipses, triangles, polygons, stars, lines at set
-  angles, arcs, and spirals, and `objects.svg` a cylinder, a cube in two
-  projections, and a sphere. Those are the primitives a script wants by name,
-  and reading their anchors at build time beats re-deriving each one in code.
+  angles, an arc, and a spiral, and `isometric-objects.svg` /
+  `perspective-objects.svg` a wheel, a sphere, and a cube in one projection
+  each. Those are the primitives a script wants by name, and reading their
+  anchors at build time beats re-deriving each one in code.
 - [ ] **Arcs and rounded corners derive rather than get eyeballed**:
   quarter-turn cubic pieces with handles `4/3 tan(dtheta/4)` along the
   tangents, which is the rule `arcToCubics` in `svg-import.ts` already

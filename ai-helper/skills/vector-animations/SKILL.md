@@ -1,6 +1,6 @@
 ---
 name: vector-animations
-description: 'Generate frame-by-frame SVG animation frames for the napkin-sketch Animation Mode. Use when asked to propose the next frame of a character or object animation (walk, ideal, run, attack, knockdown, rotate, break, move, explode), when processing an animation form from _temp/animation-form.txt, or when validating an SVG layer tree against the required character assemblies (front-arm-assembly, body, front-leg-assembly, back-leg-assembly, back-arm-assembly, Head). Covers Bezier curve mechanics, frame naming (<animationType>_<n>), and pose interpolation for hand-drawn style sketches.'
+description: 'Generate frame-by-frame SVG animation frames for the napkin-sketch Animation Mode. Use when asked to propose the next frame of a character or object animation (walk, ideal, run, attack, knockdown, rotate, break, move, explode), when processing an animation form from _temp/animation-form.txt, or when validating an SVG layer tree against the required character assemblies (front-arm-assembly, body, front-leg-assembly, back-leg-assembly, back-arm-assembly, Head). Covers Bezier curve mechanics, frame naming (<animationType>_<n>), pose interpolation for hand-drawn style sketches, and the physics of frame spacing - weight, timing, gravity, arcs, and bounce.'
 ---
 
 # Vector Animations
@@ -55,7 +55,7 @@ walk_0
 
 Alternative names separated by `|` are equivalent (a character may have gloves or bare hands,
 shoes or bare feet). Wireframe reference poses for walk, run, ideal stance, punch, and knockdown
-cycles are in `assets/character-wireframes.svg`, and `assets/object-animations.svg` draws the
+cycles are in `assets/character-wireframes.svg`, and `assets/breaking-objects.svg` draws the
 object side, where there are no assemblies and the separated pieces are the parts. Object
 primitives, basic shapes, and letterforms live in the companion `vector-graphics` skill's
 `assets/` folder, because they are drawing material rather than animation material.
@@ -226,7 +226,7 @@ that a scaled-up walk would not:
 
 ## Object Animations
 
-`assets/object-animations.svg` is the object counterpart of the skeleton, and it is drawn for the
+`assets/breaking-objects.svg` is the object counterpart of the skeleton, and it is drawn for the
 two types that cannot be posed with a transform: something coming apart, and something bursting.
 It holds two sequences, frame-numbered from `_0` the same way a character animation is. Read a
 frame by its trailing `_<n>` and nothing else: the cloud's later frames are spelled
@@ -265,6 +265,25 @@ Two things follow from the drawing that a transform-minded reading would miss:
 The full step lists for every measured type are in `assets/skeleton-cycles.json`. Types with no
 skeleton in the asset have no table: pose them with the same mechanics, one readable step per
 frame, and draw the skeleton first if you want them to hold together.
+
+## Animation Physics
+
+A cycle says what angle a joint takes. Physics says **how far apart two frames sit**, which is the
+only dial a posed frame has and the one that decides whether a sequence reads as real. It matters
+most for the types with no measured skeleton - jump, fall down, knocked down, break, explode,
+move, and anything arriving as a study.
+
+- **Even spacing is constant speed.** Growing gaps accelerate, shrinking gaps slow down.
+- **Gravity spaces by the odd numbers.** From rest, successive frames cover 1, 3, 5, 7, 9 units,
+  so a five-frame drop sits at 1, 4, 9, 16, 25 units down - never five even steps.
+- **Arcs are even across and accelerating down**, which is what makes the path a parabola. Frames
+  bunch at the apex, and that bunching is the hang time.
+- **A bounce keeps `e^2` of its height** each time, and each arc needs fewer frames than the last.
+- **Weight is frame count, not distance**: heavy things take several frames to start and stop,
+  light things one, and overshoot where heavy things do not.
+
+Full treatment, including what a real solver would do instead and why this skill does not:
+`references/animation-physics.md`.
 
 ## Drawing the Next Frame
 
@@ -324,26 +343,67 @@ owns the curve formulas and the path-data script.
 
 - `references/bezier-curves.md`: curve math, handles, easing, frame-to-frame transforms
 - `references/animation-essentials.md`: animation engines, properties, frame sequencing
+- `references/animation-physics.md`: spacing as velocity, gravity by the odd-number rule, arcs
+  and apex bunching, restitution, weight as frame count, and what physics simulation would mean
 
 ## Assets
 
-- `assets/character-wireframes.svg`: the rig - stick-figure skeletons for walk, run, ideal
-  stance, ideal fighting stance, punch, and knockdown, one per frame, with the required assembly
-  structure. This is what the measured cycles are read from.
-- `assets/object-animations.svg`: the object rig - a box breaking (3 frames) and an impact cloud
-  dispersing (5 frames), drawn as `base` plus one group per separated piece. Objects have no
-  assemblies, so this is a naming and staging guide rather than a set of angles.
+Each asset says how far it can be trusted. A **rig** is named and structured, so it can be
+measured and its names relied on. A **study** is a drawing to read, not a contract: its groups
+are named however the artist happened to name them, and nothing should be derived from them
+automatically.
+
+**Rigs** - measure these, rely on the names:
+
+- `assets/character-wireframes.svg`: the character rig - stick-figure skeletons for walk, run,
+  ideal stance, ideal fighting stance, punch, and knockdown, one per frame, with the required
+  assembly structure. This is what the measured cycles are read from.
 - `assets/skeleton-cycles.json`: those readings, per type and per step, generated from the
-  wireframes by `npm run wireframe-cycles`
+  wireframes by `npm run wireframe-cycles`.
+
+**Partly organized** - frame structure is reliable, the contents are working drawings:
+
+- `assets/breaking-objects.svg`: the object rig - a box breaking (3 frames) and an impact cloud
+  dispersing (5 frames), drawn as `base` plus one group per separated piece. Objects have no
+  assemblies, so this is a naming and staging guide rather than a set of angles. Frame `_0` of
+  both sequences also carries `potential_*` and `obsoletes` groups: pieces the artist was still
+  deciding about. They are working scraps, not part of the frame - read the numbered frames and
+  the `base`/`stray-*` groups, and leave those two alone.
+
+**Studies** - read them for how a movement looks, do not derive from them:
+
+- `assets/character-study-throwing-and-walking.svg`: a walk study with its `guides` (contact
+  points and direction arrows) and numbered pose groups, beside a throwing character. Loose and
+  generalised: it shows timing and weight rather than an assembly structure.
+- `assets/bouncing-object.svg`: a bounce study - the arc as `object-path` with the object drawn
+  along it. Loose and generalised, and the only reference here for an object that travels rather
+  than comes apart.
+
+### When a Study Is the Right Answer
+
+The rigs cover the animations Animation Mode names. A study is what to reach for when the request
+does not fit one: a pose the wireframes do not hold, an object that bounces or is thrown rather
+than breaking, a movement asked for in words that no cycle table describes. In those cases read
+the study for how the movement carries - where the weight goes, what leads, what trails - and
+build the frame from that, rather than forcing the request onto a rig that was drawn for
+something else.
+
+Studies are also the fallback when a request arrives through the API or the app's AI helper
+without going through the wizard at all, where there may be no animation type to look up.
 
 ## Companion Skill
 
 Drawing material that is not specific to animation lives in the `vector-graphics` skill, which
 sits beside this one and is installed alongside it:
 
-- `../vector-graphics/assets/objects.svg`: cylinder, cube (isometric and perspective), and
-  sphere primitives
-- `../vector-graphics/assets/shapes.svg`: basic shapes, lines, and curves for object animations
+- `../vector-graphics/assets/isometric-objects.svg` and `perspective-objects.svg`: a wheel, a
+  sphere, and a cube drawn the same way twice, once in each projection - so an object animation
+  can keep one projection across its frames
+- `../vector-graphics/assets/shapes.svg`: squares, circles, ellipses, triangles, polygons, stars,
+  lines at set angles, an arc, and a spiral
 - `../vector-graphics/assets/alphabet.svg`: letterform paths for text-based animations
+- `../vector-graphics/assets/male-character-elements.svg` and `female-character-elements.svg`:
+  loose sheets of limbs, hands, heads, hair, and clothing. Studies rather than rigs, and the
+  place to look when a character needs a part the wireframes do not draw
 - `../vector-graphics/SKILL.md`: the curve formulas, degree choice, and path-data script to use
   when a frame needs new geometry drawn rather than an existing pose turned

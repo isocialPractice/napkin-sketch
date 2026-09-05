@@ -75,12 +75,20 @@ hand-drawn rather than vector-perfect.
 - **Layer groups** — `Ctrl+G` groups the active layer (nesting allowed);
   group visibility, lock, and opacity apply to every layer inside, and
   `Ctrl+Shift+G` ungroups.
+- **Show Selection Borders** — a switch in the **Move** palette, beside its
+  live preview, draws or drops the dashed blue outline around the selected
+  elements. They stay selected and still move, copy and export the same way,
+  and the layers panel still shows what is selected; only the outline on the
+  canvas goes, so a drawing can be judged with something selected. On by
+  default, and the same switch appears in both settings views.
 - **Two synced settings views** — **Quick Settings** in-app (`Ctrl+,`: live
-  sharpen, wobble, smoothing, circle snap, taper, symmetry, text size) and
+  sharpen, show selection borders, wobble, smoothing, circle snap, taper,
+  symmetry, text size) and
   the **Verbose Settings** window (`Ctrl+Alt+,`, Edit menu, or the gear icon)
   which holds those same Quick Settings plus zoom/pan sensitivity, inverted
   zoom, the quick-feature timer, endpoint snap and Join stroke, the
-  eyedropper's select pixel sensitivity, the Copic quick nib-rotate options
+  eyedropper's select pixel sensitivity, **Show selection borders**, the
+  Direct Select grab radius, the Copic quick nib-rotate options
   (on/off, hold time, hold/rotate keys, rotation speed), Quick Access Color
   count and values, toolbar placement (top / side / both) with drag-and-drop
   **rearrange mode** (covers every tool in both toolbar groups — tools can

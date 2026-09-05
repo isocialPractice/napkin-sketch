@@ -396,11 +396,26 @@ function openAiToolSignIn(binary: string): { ok: boolean; error?: string } {
   if (!/^[\w.-]+$/.test(binary)) {
     return { ok: false, error: `Refusing to start "${binary}".` };
   }
+  // Opening a terminal on a tool that is not there just moves the failure
+  // into a window that closes again, so it is answered here instead.
+  if (!helperBinaryExists(binary)) {
+    return { ok: false, error: `${binary} was not found on your PATH.` };
+  }
   try {
     if (process.platform === 'win32') {
-      spawn('cmd', ['/c', 'start', '"napkin-sketch sign-in"', 'cmd', '/k', binary], {
+      // One string rather than an argv array, because Node escapes an entry
+      // that already carries quotes: the window title arrived as
+      // `"\"napkin-sketch sign-in\""`, so `start` read the half after the
+      // space as a command and Windows reported it could not find
+      // `sign-in\`. A single string goes to `cmd /d /s /c`, whose /s strips
+      // the outer quotes and leaves the rest exactly as written here.
+      spawn(`start "napkin-sketch sign-in" cmd /k ${binary}`, {
+        shell: true,
         detached: true,
         stdio: 'ignore',
+        // Hides the wrapper shell only. The terminal `start` opens is a
+        // process of its own and stays visible, which is the whole point.
+        windowsHide: true,
       }).unref();
     } else if (process.platform === 'darwin') {
       spawn('osascript', ['-e', `tell application "Terminal" to do script "${binary}"`], {

@@ -1004,6 +1004,15 @@ body {
   width: 340px;
 }
 
+/* The Move palette gets the same starting width, and for a plainer reason: it
+   had none, so it opened at whatever width its contents wanted - 1129px of a
+   1494px window, three quarters of the screen for two number fields and a
+   note, laid over the drawing about to be moved. As with Rotate this is a
+   starting size and not a limit; the grip still writes an inline width. */
+#move-dialog .export-dialog-inner {
+  width: 340px;
+}
+
 /* ---- Popups: the shared editing panels ----------------------------------- */
 
 /* Resizing is a capability a popup asks for rather than something every
@@ -1215,6 +1224,23 @@ body {
   pointer-events: none;
 }
 
+/* Opening is instant for `visibility`, even though closing is not.
+
+   The rule above puts `visibility` on the transition so the fade out plays
+   before the panel goes, and that half is still wanted. The other half was
+   not: on the way *in*, the panel spent the whole 160ms still computing as
+   `hidden`, and an element that is not visible cannot take focus - so a dialog
+   that focuses a field as it opens focused nothing at all. The Move palette
+   opened with the caret nowhere and digits going to the canvas.
+
+   Only the destination state's transition applies, so overriding it here
+   affects opening alone: showing snaps `visibility` to `visible` at once while
+   the opacity still fades in, and hiding keeps the base rule, staying visible
+   for the length of the fade. */
+.export-dialog:not(.is-hidden) {
+  transition: opacity var(--motion), visibility 0s;
+}
+
 .export-dialog-inner {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1278,8 +1304,23 @@ body {
   display: block;
 }
 
+/* Fixed rather than absolute, so a placed panel is positioned against the
+   viewport - the coordinates the manager drags, parks and clamps in.
+
+   Absolute made the panel a child of whatever box its overlay happened to be.
+   For the palettes whose overlay is `inset: 0` the two are the same rectangle
+   and it never showed. For the corner variants it is not: their overlay is
+   anchored to the bottom-right and is only as big as the panel, so a drag that
+   wrote the panel's viewport left into `style.left` moved it that far again
+   from the overlay's own corner. Grabbing the Page Settings or Sharpen title
+   threw the panel most of a screen down and to the right, off the window.
+
+   Fixed is safe for the modal steps too: their overlay carries a backdrop
+   filter, which would make it the containing block for a fixed child, but that
+   overlay is itself `position: fixed; inset: 0` - the viewport rectangle
+   either way. */
 .dialog-floating.is-placed .export-dialog-inner {
-  position: absolute;
+  position: fixed;
 }
 
 /* A floating dialog is dragged by its border or its title, so the move cursor

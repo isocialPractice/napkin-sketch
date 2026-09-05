@@ -292,6 +292,12 @@
             <span class="switch-text">Live sharpen</span>
           </label>
 
+          <label class="switch settings-row" title="Draw the dashed outline around selected elements. The same switch as the one in the Move palette.">
+            <input id="qs-show-selection-borders" type="checkbox" checked />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">Show selection borders</span>
+          </label>
+
           <label class="settings-field">
             <span>Wobble</span>
             <input id="set-wobble" type="range" min="0" max="4" step="0.1" value="1.1" />
@@ -501,7 +507,11 @@
             <input id="move-preview" type="checkbox" />
             <span>Live preview</span>
           </label>
-          <p class="anim-dialog-note">Positive x moves right, positive y moves down. Arrow keys step the field; hold <code>Shift</code> for a bigger step. <code>Enter</code> moves again from where the selection now is, so it can be pressed repeatedly; <code>Escape</code> closes.</p>
+          <label class="settings-field move-preview-field" title="Draw the dashed outline around selected elements. Off, the selection still moves and exports the same way - only the outline goes, so the drawing can be judged while something is selected.">
+            <input id="show-selection-borders" type="checkbox" checked />
+            <span>Show Selection Borders</span>
+          </label>
+          <p class="anim-dialog-note">Positive x moves right, positive y moves down. Arrow keys step the field; hold <code>Shift</code> for a bigger step. <code>Enter</code> moves and closes, the same as the button; <code>Escape</code> closes without moving.</p>
           <div class="export-dialog-actions">
             <button id="move-cancel" class="btn btn-ghost" type="button">Cancel</button>
             <button id="move-apply" class="btn btn-primary" type="button">Move</button>

@@ -16,6 +16,11 @@ animations/
 ai-helper/installed.json
 reviews/
 
+# Local helper scripts for the machine they were written on - Illustrator
+# .jsx/.js run by hand, one-off utilities, anything tied to a personal setup.
+# They are not part of the build and are not meant to ship with the repo.
+userScripts/
+
 # The plugin manifests are tracked source. A global "ignore every dot-entry"
 # rule would otherwise leave the marketplace and the plugin uncommittable,
 # and an unpublished manifest is a plugin nobody can add.

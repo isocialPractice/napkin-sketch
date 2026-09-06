@@ -4,6 +4,47 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.3-alpha] - 2026-09-05
+
+### Added
+
+- **The form measures every layer, so a part can be identified without a name.**
+  Animation Mode now sends the AI helper an inventory of the source frame's
+  layers, each as a fraction of the figure's own box, together with its paint
+  order. A drawing whose layers are called `g830` and `path4521` measures the
+  same as one named by hand: the group across the top of the figure is the
+  head, two similar boxes either side of the middle are a pair of limbs, and a
+  small box at the far end of a limb is its hand or foot.
+  - Fractions rather than pixels, because what identifies a part is its share
+    of the figure rather than its size on a page.
+  - Paint order comes with it, which is what says which of a mirrored pair is
+    the near one - and what has to change when the pose puts the other one in
+    front.
+
+### Changed
+
+- **The animation skill works like an image generator rather than a transform
+  applier.** The job is the next picture in a sequence; the layer tree is how
+  that picture is stored, and a frame that satisfies every naming rule while
+  looking wrong has failed. Three things follow from that, all new to
+  `vector-animations`:
+  - **Pose from where the subject is now**, not from how an asset demonstrated
+    the movement once. Which foot carries the weight and how far through the
+    stride this is are read from the current frame; the cycle tables and the
+    studies inform that reading rather than replacing it.
+  - **Identify parts from geometry when the names do not help** - a table of
+    what a head, hair, torso, arms, legs, hands and clothing look like in the
+    measured inventory, plus the three rules that do most of the work: a
+    mirrored pair is a pair of limbs, a box inside another part belongs to it,
+    and a box spanning several parts is clothing. The reading is stated in a
+    sentence before drawing, because a wrong one is easier to catch there than
+    in a frame.
+  - **Decide depth from the pose just drawn**, not the pose started from. After
+    the new angles are worked out, each overlapping pair is asked which is
+    nearer now, and the layers are reordered where the answer changed - limbs
+    crossing the midline, a turning figure whose far arm goes behind the torso,
+    a head turning past a shoulder, an object crossing on an arc.
+
 ## [4.1.2-alpha] - 2026-09-01
 
 ### Added
@@ -17,8 +58,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the eye wants nothing: a few pixels off the marks being looked at. The Move
   palette is where it lives because that is where a selection is being worked
   on; **Quick Settings** (`Ctrl+,`) and the Verbose Settings window's **Sketch
-  Support** section carry the same switch, and all three move together. On by
-  default, and persisted like every other setting.
+  Support** section carry the same switch, and all three move together, as
+  does `Ctrl/Cmd + H` - which is the one that matters while drawing, because
+  the border is in the way exactly when a selection is being looked at and
+  reaching a switch otherwise means opening a palette over the drawing being
+  judged. On by default, and persisted like every other setting.
 
 - **Editing panels dock.** Move, Rotate, Page Settings, and Sharpen Selection
   each carry a small button in their title bar that parks the panel in a dock
@@ -159,6 +203,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   see the frame it is talking about.
 
 ### Changed
+
+- **The animation skills read the drawing before they trust the names.** A new
+  **Read the Drawing Before the Names** section opens `vector-animations` with
+  the order the work actually goes in: see what the SVG draws and which way the
+  figure faces, read the layer names as evidence about that picture rather than
+  as instruction, map every layer to a part, and only then pose the frame. All
+  of it is taken from a real hand-drawn document rather than invented.
+  - **Names will not match the rig.** `head-assembly` for the head, uniquifiers
+    landing after a frame index so the name stops parsing (`BadGirl_walk_2-2`
+    is frame 2, not frame 22), and a first frame carrying no number at all
+    (`BadGirl`). Match on meaning; where a name is ambiguous the geometry
+    decides.
+  - **Layers the rig does not name still have to move.** Clothing follows the
+    part it hangs on, and a part can be a *sibling* rather than a child -
+    `front-glove` sits beside `front-arm-assembly`, so rotating the arm alone
+    leaves the glove hanging in the air. A figure that comes apart at the wrist
+    is always this.
+  - **Paint order is part of the pose.** Document order is the only depth a
+    flat drawing has, and it is a per-frame decision: when the legs cross, the
+    two swap. Keeping one order for the whole sequence is what makes a walk
+    read as a figure sliding rather than striding, and it is the foreshortening
+    cue a still frame has.
+  - `vector-graphics` gains the general half of that as **Document Order Is
+    Depth**, plus a note that a copy marker can land on a name that already
+    ends in a meaningful number.
+  - The assets are framed as coursework: the rigs are the exercises, the
+    studies are the sketchbooks, and their careless layer naming is itself part
+    of what they teach.
 
 - **The `vector-animations` skill covers animation physics.** A short
   **Animation Physics** section in the skill and a full
@@ -319,6 +391,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   release is still 4.1.2-alpha.
 
 ### Fixed
+
+- **The head was never found in a hand-named document.** `matchesAssembly` took
+  `head` literally, so a drawing that groups the head the way it groups the
+  limbs - `head-assembly`, which is what an artist actually writes - resolved
+  no head at all: it got no pivot, no transform, and stayed put while the rest
+  of the figure moved. The `-assembly` suffix is now accepted on the two names
+  that lack one, `head` and `body`. The four that already carry it still match
+  exactly, so `front-arm-assembly` can never be read as a bare `front-arm`.
 
 - **The space bar toggles a focused checkbox again.** Tabbing to **Live
   preview** or **Show Selection Borders** and pressing space did nothing: the

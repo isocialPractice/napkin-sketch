@@ -226,9 +226,21 @@ export function normalizeLayerName(name: string): string {
   return name.trim().toLowerCase().replace(/[-_]\d+$/, '');
 }
 
-/** True when a layer name identifies the given required assembly. */
+/**
+ * True when a layer name identifies the given required assembly.
+ *
+ * An artist naming layers by hand groups the head and the body the same way
+ * the limbs are grouped, so a real document says `head-assembly` where this
+ * list says `head`. Accepting that suffix on the two names that lack one is
+ * the difference between finding the head and posing a figure whose head
+ * stays where it was. The four names that already end in `-assembly` still
+ * match exactly, so `front-arm-assembly` can never be read as `front-arm`.
+ */
 export function matchesAssembly(name: string, assembly: RequiredAssembly): boolean {
-  return normalizeLayerName(name) === assembly;
+  const normalized = normalizeLayerName(name);
+  if (normalized === assembly) return true;
+  if (assembly.endsWith('-assembly')) return false;
+  return normalized === `${assembly}-assembly` || normalized === `${assembly}_assembly`;
 }
 
 /**
@@ -440,6 +452,68 @@ export const ASSEMBLY_JOINT: Readonly<Record<RequiredAssembly, 'top' | 'bottom' 
 };
 
 /** The joint pivot for an assembly; null when the assembly does not turn. */
+/** One layer of the source frame, measured, for the helper to identify. */
+export interface AnimationLayerBox {
+  /** The layer's own name, which may say nothing useful about the part. */
+  name: string;
+  /**
+   * Paint order within the frame. 0 is drawn first and therefore sits
+   * furthest back; the highest number is nearest the viewer.
+   */
+  order: number;
+  /** Left edge, as a fraction of the frame's own box (0 is its left edge). */
+  x1: number;
+  /** Top edge, as a fraction of the frame's own box (0 is its top edge). */
+  y1: number;
+  /** Right edge, as a fraction of the frame's box (1 is its right edge). */
+  x2: number;
+  /** Bottom edge, as a fraction of the frame's box (1 is its bottom edge). */
+  y2: number;
+}
+
+/**
+ * Measures every layer of the source frame against the frame's own bounding
+ * box, so a part can be identified by where it sits and how big it is rather
+ * than by what it is called.
+ *
+ * A drawing that came out of an illustration tool may name its layers
+ * anything or nothing at all - `g830`, `path4521`, or a name for a part this
+ * animation has never heard of. Relative geometry survives all of that: the
+ * group occupying the top fifth of the figure is the head whatever its id
+ * says, and two similar boxes mirrored about the middle are a pair of limbs.
+ *
+ * Fractions rather than pixels, because what identifies a part is its share
+ * of the figure, not its size on a page.
+ */
+export function animationLayerBoxes(
+  layers: ReadonlyArray<{ name: string; bounds: AnimationBounds }>,
+  figure: AnimationBounds,
+): AnimationLayerBox[] {
+  const width = figure.maxX - figure.minX;
+  const height = figure.maxY - figure.minY;
+  if (!(width > 0) || !(height > 0)) return [];
+  const round = (v: number): number => Math.round(v * 100) / 100;
+  return layers.map((layer, order) => ({
+    name: layer.name,
+    order,
+    x1: round((layer.bounds.minX - figure.minX) / width),
+    y1: round((layer.bounds.minY - figure.minY) / height),
+    x2: round((layer.bounds.maxX - figure.minX) / width),
+    y2: round((layer.bounds.maxY - figure.minY) / height),
+  }));
+}
+
+/** The measured layers as fixed-width rows for the form. */
+function layerBoxTable(boxes: readonly AnimationLayerBox[]): string {
+  const width = Math.max(4, ...boxes.map((b) => b.name.length));
+  const rows = boxes.map(
+    (b) =>
+      `   ${b.name.padEnd(width)}  x ${b.x1.toFixed(2)}-${b.x2.toFixed(2)}` +
+      `  y ${b.y1.toFixed(2)}-${b.y2.toFixed(2)}  painted ${b.order}`,
+  );
+  return rows.join('\n');
+}
+
 export function assemblyPivot(
   assembly: RequiredAssembly,
   bounds: AnimationBounds,
@@ -707,6 +781,12 @@ export interface AnimationFormData {
   /** Ready-made `transform` value per assembly, when the type has a cycle. */
   transforms: Partial<Record<RequiredAssembly, string>>;
   /**
+   * Every layer of the source frame, measured against the frame's box. Lets
+   * the helper identify a part from where it sits when the layer names are
+   * unhelpful, absent, or simply not the ones this animation expects.
+   */
+  layers?: readonly AnimationLayerBox[];
+  /**
    * How many frames the finished sequence is meant to run to. Not a batch
    * size - frames are still drawn one at a time - but the pacing: it tells
    * the helper how much of the movement belongs to this one frame.
@@ -774,6 +854,23 @@ export function buildAnimationForm(data: AnimationFormData): string {
       ? `   - ${name} (${a}): transform="${transform}"`
       : `   - ${name} (${a}): leave as it is`;
   }).join('\n');
+  // Measured layers, so a part can be identified by where it sits when its
+  // name says nothing. Left out entirely when there is nothing to measure,
+  // rather than printing an empty table.
+  const boxes = data.layers ?? [];
+  const inventory =
+    boxes.length > 0
+      ? `
+
+   Every layer in the frame, measured against the figure's own box - 0 is its
+   left or top edge and 1 its right or bottom. Use this to work out what each
+   layer is when its name does not say: the group across the top is the head,
+   two similar boxes mirrored about the middle are a pair of limbs, and a small
+   box at the far end of a limb is its hand or foot. "painted" is document
+   order: 0 is drawn first and sits furthest back.
+
+${layerBoxTable(boxes)}`
+      : '';
   const spec = animationTypeSpec(data.type);
   const closing = spec
     ? spec.loops
@@ -825,7 +922,7 @@ This is a file edit, not a redraw. Do not rewrite, re-emit, or re-draw the geome
 
 Steps:
 1. Open ${ANIMATION_SOURCE_FILE} and work on it in place. Each assembly is a
-   <g> found by its data-name attribute (its id carries the same name).
+   <g> found by its data-name attribute (its id carries the same name).${inventory}
 ${poseStep}
 3. Name the frame: the document's root group must carry id="${frameName}" and
    data-name="${frameName}" (and inkscape:label if that attribute is present).

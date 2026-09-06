@@ -7,6 +7,7 @@ import {
   animationFrameName,
   animationFrameOffsetX,
   animationFrameTransforms,
+  animationLayerBoxes,
   animationPoseStep,
   animationTypeSpec,
   clampSequenceFrames,
@@ -624,4 +625,108 @@ test('the form tells the helper how much of the movement one frame carries', () 
     transforms: {},
   });
   assert.ok(!noCount.includes('of the whole movement'));
+});
+
+test('matchesAssembly accepts the -assembly suffix an artist adds to head and body', () => {
+  // A hand-named document groups the head the same way it groups the limbs,
+  // so `head-assembly` is what a real file says where the list says `head`.
+  // Missing it means the head is never found and never posed.
+  assert.ok(matchesAssembly('head-assembly', 'head'));
+  assert.ok(matchesAssembly('Head-Assembly', 'head'));
+  assert.ok(matchesAssembly('head_assembly', 'head'));
+  assert.ok(matchesAssembly('body-assembly', 'body'));
+  assert.ok(matchesAssembly('head-assembly-2', 'head'), 'a uniquifier on top still matches');
+});
+
+test('matchesAssembly never reads a limb name as a shorter one', () => {
+  // The four names that already end in -assembly match exactly, so nothing
+  // can turn `front-arm-assembly` into a match for a bare `front-arm`.
+  assert.ok(!matchesAssembly('front-arm', 'front-arm-assembly'));
+  assert.ok(!matchesAssembly('front-arm-assembly-assembly', 'front-arm-assembly'));
+  assert.ok(!matchesAssembly('skirt-assembly', 'body'));
+  assert.ok(!matchesAssembly('head', 'body'));
+  for (const assembly of REQUIRED_ASSEMBLIES) {
+    assert.ok(matchesAssembly(assembly, assembly), `${assembly} still matches itself`);
+  }
+});
+
+test('a hand-named document resolves every assembly', () => {
+  // The layer names from .support/current.svg, which is what a drawing
+  // exported from an illustration tool actually looks like.
+  const drawn = [
+    'body', 'back-leg-assembly', 'front-leg-assembly', 'skirt-assembly',
+    'back-arm-assembly', 'shirt', 'head-assembly', 'front-arm-assembly',
+    'jacket-left', 'front-glove', 'jacket-right',
+  ];
+  for (const assembly of REQUIRED_ASSEMBLIES) {
+    assert.ok(
+      drawn.some((name) => matchesAssembly(name, assembly)),
+      `${assembly} has no layer in a hand-named document`,
+    );
+  }
+  // And the clothing stays unmatched: it belongs to no assembly by name.
+  const clothing = ['skirt-assembly', 'shirt', 'jacket-left', 'jacket-right', 'front-glove'];
+  for (const name of clothing) {
+    assert.ok(
+      !REQUIRED_ASSEMBLIES.some((a) => matchesAssembly(name, a)),
+      `${name} should not be taken for an assembly`,
+    );
+  }
+});
+
+test('animationLayerBoxes measures layers as fractions of the figure', () => {
+  const figure = { minX: 0, minY: 0, maxX: 100, maxY: 200 };
+  const boxes = animationLayerBoxes(
+    [
+      { name: 'head', bounds: { minX: 40, minY: 0, maxX: 60, maxY: 40 } },
+      { name: 'body', bounds: { minX: 30, minY: 40, maxX: 70, maxY: 120 } },
+    ],
+    figure,
+  );
+  assert.deepEqual(boxes[0], { name: 'head', order: 0, x1: 0.4, y1: 0, x2: 0.6, y2: 0.2 });
+  assert.deepEqual(boxes[1], { name: 'body', order: 1, x1: 0.3, y1: 0.2, x2: 0.7, y2: 0.6 });
+});
+
+test('animationLayerBoxes records paint order, so depth is readable', () => {
+  const figure = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
+  const one = { minX: 0, minY: 0, maxX: 5, maxY: 5 };
+  const boxes = animationLayerBoxes(
+    [
+      { name: 'back', bounds: one },
+      { name: 'middle', bounds: one },
+      { name: 'front', bounds: one },
+    ],
+    figure,
+  );
+  // 0 is drawn first and sits furthest back; the last is nearest the viewer.
+  assert.deepEqual(boxes.map((b) => b.order), [0, 1, 2]);
+  assert.equal(boxes[boxes.length - 1].name, 'front');
+});
+
+test('a part is identifiable from its box even when its name is not', () => {
+  // The names an illustration tool leaves behind say nothing at all, so the
+  // geometry has to carry the identification on its own.
+  const figure = { minX: 0, minY: 0, maxX: 100, maxY: 260 };
+  const boxes = animationLayerBoxes(
+    [
+      { name: 'g830', bounds: { minX: 36, minY: 0, maxX: 68, maxY: 50 } },
+      { name: 'path4521', bounds: { minX: 30, minY: 100, maxX: 46, maxY: 255 } },
+      { name: 'g904', bounds: { minX: 52, minY: 100, maxX: 68, maxY: 258 } },
+    ],
+    figure,
+  );
+  const topMost = [...boxes].sort((a, b) => a.y1 - b.y1)[0];
+  assert.equal(topMost.name, 'g830', 'the group across the top is the head');
+  assert.ok(topMost.y2 < 0.25, 'and it occupies only the top of the figure');
+
+  // The other two are a mirrored pair: same height band, similar width.
+  const [left, right] = boxes.filter((b) => b.name !== 'g830');
+  assert.ok(Math.abs(left.y1 - right.y1) < 0.05 && Math.abs(left.y2 - right.y2) < 0.05);
+  assert.ok(Math.abs((left.x2 - left.x1) - (right.x2 - right.x1)) < 0.05);
+});
+
+test('animationLayerBoxes gives up on a figure with no extent', () => {
+  const flat = { minX: 5, minY: 5, maxX: 5, maxY: 5 };
+  assert.deepEqual(animationLayerBoxes([{ name: 'a', bounds: flat }], flat), []);
+  assert.deepEqual(animationLayerBoxes([], { minX: 0, minY: 0, maxX: 10, maxY: 10 }), []);
 });

@@ -1,6 +1,6 @@
 ---
 name: vector-animations
-description: 'Generate frame-by-frame SVG animation frames for the napkin-sketch Animation Mode. Use when asked to propose the next frame of a character or object animation (walk, ideal, run, attack, knockdown, rotate, break, move, explode), when processing an animation form from _temp/animation-form.txt, or when validating an SVG layer tree against the required character assemblies (front-arm-assembly, body, front-leg-assembly, back-leg-assembly, back-arm-assembly, Head). Covers Bezier curve mechanics, frame naming (<animationType>_<n>), pose interpolation for hand-drawn style sketches, and the physics of frame spacing - weight, timing, gravity, arcs, and bounce.'
+description: 'Generate frame-by-frame SVG animation frames for the napkin-sketch Animation Mode. Use when asked to propose the next frame of a character or object animation (walk, ideal, run, attack, knockdown, rotate, break, move, explode), when processing an animation form from _temp/animation-form.txt, or when validating an SVG layer tree against the required character assemblies (front-arm-assembly, body, front-leg-assembly, back-leg-assembly, back-arm-assembly, Head). Covers reading an SVG as a picture before trusting its layer names, identifying an arm, a head or the hair from measured geometry when layers are named badly or not at all, posing from the subject's current position, reordering layers so the new pose reads at the right depth, Bezier curve mechanics, frame naming (<animationType>_<n>), and the physics of frame spacing - weight, timing, gravity, arcs, and bounce.'
 ---
 
 # Vector Animations
@@ -18,10 +18,118 @@ A frame is produced by transforming the existing groups, not by redrawing them.
 - Asked to validate that an SVG's layers contain the required character assemblies
 - Asked how frames, layers, or animation groups must be named
 
+## Read the Drawing Before the Names
+
+**Work like an image generator, not like a transform applier.** The job is to produce the next
+picture in a sequence. The layer tree is how that picture is stored, not what the job is about,
+and a frame that satisfies every naming rule while looking wrong has failed.
+
+A real document is not the rig. Before touching a frame, look at what the SVG **draws** - open it,
+see the picture, and work out what the figure is and which way it faces. The layer names are a
+hint about that picture, not a description of it, and on a hand-drawn document they will not be
+the names below - they may not be names at all.
+
+The pose that comes next follows from **where the subject is now**, not from how some asset
+demonstrated the movement once. Read the current position first: which foot carries the weight,
+how far through the stride this is, which way the body leans. The cycle tables and the studies
+inform that reading; they do not replace it.
+
+Work in this order, and let each step correct the one before it:
+
+1. **See the image.** What is drawn, from what angle, and what is the subject doing in this frame?
+   A side-view walk, a three-quarter turn, and a figure seen from behind all need different
+   answers, and only the picture says which one this is.
+2. **Read the layer names against the image.** Names are evidence, not instruction. A group called
+   `front-arm-assembly` should hold the arm nearer the viewer; check that it does before trusting
+   it.
+3. **Map every layer to a part**, including the ones the rig does not name, and including the
+   ones with no useful name at all - the form's measured inventory is there for exactly that.
+4. **Pose the frame** from where the subject is now, moving each part with whatever it belongs to.
+5. **Re-check depth against the new pose.** A part that moved may now be in front of, or behind,
+   something it was not. Reorder the layers where it did.
+6. **Look at the result as a picture.** If it does not read as the next frame of that movement,
+   the naming being correct does not save it.
+
+### Names Will Not Match the Rig
+
+The six assemblies are what this skill calls the parts. An artist naming layers by hand calls them
+something close but not equal, and an editor adds its own uniquifiers on top - sometimes in the
+middle of a name rather than at the end. All of these come from one real document:
+
+| Drawn as | Means | Why it is not obvious |
+|----------|-------|-----------------------|
+| `head-assembly` | `head` | the artist grouped the head like a limb |
+| `body-3`, `shirt-2` | `body`, `shirt` | editor uniquifier at the end |
+| `BadGirl_walk_2-2` | frame `2`, second copy | uniquifier lands *after* the frame index, so the name no longer parses as `<base>_<n>` |
+| `BadGirl` | a frame with no index at all | the first frame was never numbered |
+
+Match on **meaning**, not on string equality. If a name is ambiguous, the drawing decides: the
+group whose geometry is a head is the head, whatever it is called.
+
+### When the Layers Are Not Named At All
+
+A drawing that came out of an illustration tool may name nothing: `g830`, `path4521`, ids the
+editor invented because the artist never typed a name. There is still enough to work from,
+because **where a part sits identifies it**.
+
+The form carries a measured inventory of every layer, as fractions of the figure's own box - 0 is
+its left or top edge, 1 its right or bottom - together with the paint order. Read parts off it:
+
+| Part | What it looks like in the measurements |
+|------|----------------------------------------|
+| head | a box across the top, roughly `y 0.00-0.20`, centred on the figure's middle |
+| hair | overlaps the head's box, usually wider than it, painted just before or after it |
+| torso | the widest box in the middle band, `y 0.15-0.60`, and most other parts touch it |
+| arms | a mirrored pair starting at the top of the torso, narrow and tall |
+| legs | a mirrored pair from the bottom of the torso to the foot of the figure |
+| hand, foot | a small box at the far end of a limb's box, often a separate layer |
+| clothing | a box that spans several parts at once, or covers the torso and hips together |
+
+Three rules do most of the work:
+
+- **A mirrored pair is a pair of limbs.** Two boxes of similar size and height band, sitting
+  either side of the figure's middle, are the two arms or the two legs. Which is which is decided
+  by paint order: the one painted later is nearer the viewer, so it is the front one.
+- **Containment means belonging.** A box that sits inside another part's box, and moves with it
+  between frames, belongs to that part - a glove to its arm, a shoe to its leg, a face to a head.
+- **A box that spans parts is clothing.** It moves with what it hangs on rather than being posed
+  on its own.
+
+Say what you concluded before drawing: "the top group is the head, the pair at
+`y 0.58-1.00` are the legs, the later-painted one is the front leg". A wrong reading is easier to
+spot in a sentence than in a frame.
+
+### Paint Order Is Part of the Pose
+
+The order assemblies are drawn in is depth. It is not fixed for the sequence - it is a decision
+per frame, and it is how a flat drawing shows one limb passing in front of another.
+
+In a walk, the legs cross near the middle of the stride. Up to that point the near leg is painted
+last; after it, the far leg is. A sequence that keeps one order throughout has legs that swap
+depth without ever passing each other, and the walk reads flat - a figure sliding rather than
+striding.
+
+**Decide the order from the pose you just drew, not from the pose you started with.** After
+working out the new angles, ask of each pair of parts that overlap: which one is nearer now? If
+the answer changed, move the layer in the document as well as rotating it. The cases that come up
+most:
+
+- **Limbs crossing the body's midline.** A leg swinging through, an arm swinging across the
+  chest - the moment it passes the centre line, it changes side and therefore changes depth.
+- **A turning figure.** As a body rotates toward or away, the far arm goes behind the torso and
+  the near arm comes in front of it. Both may need moving in the same frame.
+- **A head turning past a shoulder.** Far enough round, the shoulder passes behind the head.
+- **Anything thrown or swung.** An object crossing the figure passes in front on one side of the
+  arc and behind on the other.
+
+This is the foreshortening cue a still frame has: a drawing cannot convincingly shorten a limb,
+but it can say which limb is nearer, and that reads as depth.
+
 ## Required Character Layers
 
 A character frame must contain these six assemblies (names matched case-insensitively, ignoring
-numeric suffixes an editor may append):
+numeric suffixes an editor may append, and accepting the `-assembly` suffix an artist adds to
+`head` and `body` - `head-assembly` is the head):
 
 ```text
 front-arm-assembly
@@ -71,6 +179,11 @@ primitives, basic shapes, and letterforms live in the companion `vector-graphics
 - Otherwise name it `animationLayer-<animationType>_<n>` (for example `animationLayer-walk_1`).
 - The file stem, the root group's `id`, and its `data-name` are all the same string. Everything
   nested inside keeps the names it already has.
+- **A source frame's own name may not parse.** An editor uniquifier can land after the index
+  (`BadGirl_walk_2-2`), and the first frame of a hand-drawn set is often unnumbered
+  (`BadGirl`). Neither reads as `<base>_<n>`. Take the base from the part of the name before the
+  index, ignore a trailing `-<n>` copy marker, and treat an unnumbered source as frame `0` -
+  then number what you draw from there.
 
 ## Frames Are Transforms
 
@@ -348,10 +461,15 @@ owns the curve formulas and the path-data script.
 
 ## Assets
 
+Treat these the way an animation course treats its coursework: the rigs are the exercises you are
+marked against, and the studies are the sketchbooks you learn the movement from. Read them before
+drawing, not instead of drawing.
+
 Each asset says how far it can be trusted. A **rig** is named and structured, so it can be
 measured and its names relied on. A **study** is a drawing to read, not a contract: its groups
 are named however the artist happened to name them, and nothing should be derived from them
-automatically.
+automatically - which is also the lesson they teach, because a real document names its layers the
+same careless way.
 
 **Rigs** - measure these, rely on the names:
 

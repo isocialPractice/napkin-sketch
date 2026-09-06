@@ -356,6 +356,32 @@ unnamed elements (`path4521`, `g830`), so a tag name followed by digits names
 nothing - but only with the digits, since an author may genuinely call a
 layer `line` or `text`.
 
+
+A uniquifier can also land where a name already ends in a meaningful number.
+`walk_2` copied becomes `walk_2-2`, which is still frame 2 - not frame 22, and
+not a name that parses as `<base>_<n>` any more. Strip the copy marker before
+reading the index, and expect the first of a set to carry no number at all.
+
+### Document Order Is Depth
+
+SVG has no z-index: later elements paint over earlier ones, and that is the
+only depth a flat drawing has. Order is therefore part of the picture, not a
+detail of the file - reordering two siblings changes which one is in front,
+and nothing else in the markup records that.
+
+Two consequences worth holding on to:
+
+- **Order carries meaning that names do not.** A group called `front-leg` is
+  only in front while it is painted after `back-leg`. If the two are swapped,
+  the names lie and the picture is right - trust the picture.
+- **A drawing showing motion may need its order changed, not just its
+  geometry.** When one part passes another - legs crossing, an arm swinging
+  across a body, a head turning past a shoulder - the pair has to be reordered
+  at the frame where they cross. Rotating them alone leaves them at the wrong
+  depth, which reads as flat.
+
+Keep sibling order stable everywhere it is not saying something. Gratuitous
+reordering makes a diff unreadable and can silently change what is visible.
 ### Compound Paths Hold Their Contours Together
 
 One `<path>` may hold several contours: `M … Z M … Z`. The winding rule is

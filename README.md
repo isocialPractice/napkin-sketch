@@ -75,9 +75,9 @@ hand-drawn rather than vector-perfect.
 - **Layer groups** — `Ctrl+G` groups the active layer (nesting allowed);
   group visibility, lock, and opacity apply to every layer inside, and
   `Ctrl+Shift+G` ungroups.
-- **Show Selection Borders** — a switch in the **Move** palette, beside its
-  live preview, draws or drops the dashed blue outline around the selected
-  elements. They stay selected and still move, copy and export the same way,
+- **Show Selection Borders** (`Ctrl/Cmd + H`) — a switch in the **Move**
+  palette, beside its live preview, draws or drops the dashed blue outline
+  around the selected elements. They stay selected and still move, copy and export the same way,
   and the layers panel still shows what is selected; only the outline on the
   canvas goes, so a drawing can be judged with something selected. On by
   default, and the same switch appears in both settings views.
@@ -430,6 +430,7 @@ napkin-sketch ./notes.skbk
 | Direct Select            | `A`                                       |
 | Text                     | `T`                                       |
 | Sharpen all              | `H`                                       |
+| Show selection borders   | `Ctrl/Cmd + H`                            |
 | Quick width              | `W` then a number                         |
 | Quick opacity            | `Q` then a number                         |
 | Quick zoom               | `Z` then a digit (`9` = 90%, `0` = 100%)  |

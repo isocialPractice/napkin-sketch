@@ -52,6 +52,7 @@ import {
   animationFrameName,
   animationFrameOffsetX,
   animationFrameTransforms,
+  animationLayerBoxes,
   animationPoseStep,
   clampSequenceFrames,
   defaultSequenceFrames,
@@ -69,6 +70,7 @@ import {
   REQUIRED_ASSEMBLIES,
   type AnimationBounds,
   type AnimationCategory,
+  type AnimationLayerBox,
   type AnimationFrameJob,
   type AnimationPoint,
   type RequiredAssembly,
@@ -4080,6 +4082,23 @@ class App {
     void this.saveSettings({ showSelectionBorders });
   }
 
+  /**
+   * Ctrl+H: draws or drops the selection border, the switch the Move palette
+   * carries.
+   *
+   * It is worth a key of its own because of when it is wanted: the border is
+   * in the way exactly while a selection is being looked at, and reaching the
+   * switch otherwise means opening a palette over the drawing being judged.
+   *
+   * The toast says which way it went. With nothing selected there is no border
+   * either way, so the canvas alone cannot answer what the key just did.
+   */
+  private toggleSelectionBorders(): void {
+    const next = !this.settings.showSelectionBorders;
+    this.setShowSelectionBorders(next);
+    this.toast(next ? 'Selection borders on.' : 'Selection borders off.');
+  }
+
   /** Puts every copy of the selection-border switch at the stored value. */
   private syncSelectionBorderSwitches(): void {
     for (const id of ['show-selection-borders', 'qs-show-selection-borders']) {
@@ -6676,6 +6695,7 @@ class App {
           transforms: step
             ? animationFrameTransforms(step, pose.pivots, pose.figureHeight, pose.figurePivot)
             : {},
+          layers: this.animationLayerInventory(sourceIds),
           frames: setup.frames,
           delivery: this.animationPlugin ? 'plugin' : 'files',
         });
@@ -7086,6 +7106,37 @@ class App {
   /** Bounds to size an exported animation frame by. */
   private animationCropBounds(layerIds: string[]): AnimationBounds | null {
     return this.cropBoundsOfStrokes(this.strokesInLayerSubtree(layerIds));
+  }
+
+  /**
+   * A frame as a standalone SVG document: the given layers (with their
+   * descendants and enclosing groups) exported alone, sized to the ink and
+  /**
+   * Measures every layer the source frame is built from, so the helper can
+   * tell an arm from a head by where it sits rather than by what it is
+   * called. A drawing whose layers are named `g830` or named for parts this
+   * animation has never heard of still measures the same.
+   *
+   * The parts are the frame group's own children when it has them, and the
+   * source layers themselves otherwise. Empty layers are left out: a box
+   * cannot be measured for a layer holding nothing.
+   */
+  private animationLayerInventory(rootIds: string[]): AnimationLayerBox[] {
+    const sketch = this.store.sketch;
+    const single = rootIds.length === 1 ? rootIds[0] : null;
+    const children = single
+      ? sketch.layers.filter((l) => l.parent === single)
+      : sketch.layers.filter((l) => rootIds.includes(l.id));
+    const parts = children.length > 0 ? children : [];
+
+    const measured: Array<{ name: string; bounds: AnimationBounds }> = [];
+    for (const layer of parts) {
+      const bounds = this.animationLayerBounds([layer.id]);
+      if (bounds) measured.push({ name: layer.name, bounds });
+    }
+    const figure = this.animationLayerBounds(rootIds);
+    if (!figure || measured.length === 0) return [];
+    return animationLayerBoxes(measured, figure);
   }
 
   /**
@@ -8966,6 +9017,9 @@ class App {
       } else if (mod && key === 'p') {
         e.preventDefault();
         this.toggleProperties();
+      } else if (mod && key === 'h') {
+        e.preventDefault();
+        this.toggleSelectionBorders();
       } else if (mod && key === 'n' && e.shiftKey && this.animationInstalled) {
         e.preventDefault();
         this.toggleAnimationMode();

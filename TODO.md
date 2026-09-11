@@ -924,30 +924,6 @@ bridge and the tests and documentation that make the rest of it usable.
   the place a language goes wants deciding before it is written rather than
   after.
 
-### Simple Graphic Design Elements
-
-- [ ] API that can create a graphic design composition using simple elements
-  like, but not limited to:
-  - Rectangles
-  - Circles
-  - Ellipses
-  - Triangles
-  - Polygons
-  - Clipping Masks
-  - Text
-    - Choose different font families
-    - Implement common customizable font styling
-    - Implement common customizable paragraph styling
-  - Insert media files like JPEG, PNG, GIF, SVG, etc.
-    - Clipping methods to define clipping shape, and/or id
-    - Method using properties to set position
-  - Uses current GUI canvas: false by default
-  - Default units: pixels(*px*)
-  - Specify size: true
-  - If size left out: default to `width: 360px, height: 360px`
-  - Separate documentation: true
-    - `API.md`
-
 ### New Skill to Auto Generate Design Language
 
 - [ ] Add a new skill that will:
@@ -1179,12 +1155,55 @@ what was left behind is filed under **Found Issues** and **Chores** above.
 
 ## Complete
 
-Thirty shipped entries, roughly newest first, each noting the group it
-graduated from. The newest is the Rotate tool, which lands with Move in the
-4.1.2-alpha batch; then the plugin work, and the eight after that are the
-4.1.0-alpha batch: the clipboard, the Selection export, the pages menu, and
-the drag and layer-integrity work.
+Thirty-one shipped entries, roughly newest first, each noting the group it
+graduated from. The newest is the graphic-design API, which is unreleased; then
+the Rotate tool, which lands with Move in the 4.1.2-alpha batch; then the
+plugin work, and the eight after that are the 4.1.0-alpha batch: the clipboard,
+the Selection export, the pages menu, and the drag and layer-integrity work.
 
+- [x] **Simple graphic design elements**: a composition API in
+  `src/core/graphic-design/`. `createComposition()` opens a page - 360 by 360
+  pixels unless a size is named, in pixels unless the page asks for inches,
+  millimetres or points - and a method per element appends rectangles (rounded
+  or not), circles, ellipses, triangles (three points, or a box and a
+  direction), polygons, polylines, lines, SVG-syntax paths, text, placed media
+  and groups. Text carries character styling (family, size, weight, style,
+  letter and word spacing, decoration, case) and paragraph styling (alignment
+  including justification, line height, wrap width, paragraph spacing, indent,
+  and what `y` measures). Media placements take a data URL, a box that sets
+  their position, a `fit`, and a clipping mask given either as a shared id from
+  `defineClip` or as a shape written inline. Headless by default: the GUI's own
+  canvas is drawn into only through `paintComposition`, which the renderer
+  hands its context to. Documented separately in `API.md`, as asked, and the
+  two sample graphics are rebuilt from one document in
+  `test/graphic-design-api/cheatsheet.ts`.
+  - **Both formats are one document**, which is the part worth keeping: the
+    page, the elements, their order, geometry, colour, transforms, masks and
+    text layout are shared by construction, so the difference between the SVG
+    and the PNG is the media export format and nothing else.
+  - **The raster answer this section asked for.** **Raster output has no
+    obvious answer** above filed three options and called an SVG-and-PDF-only
+    API the right default. A fourth turned out to be available: write the
+    rasterizer. Scanline coverage at four sub-rows a pixel, stroke outlining,
+    clipping as multiplied coverage, bilinear image sampling, a PNG encoder
+    that picks a row filter per row, and a DEFLATE codec underneath it - all of
+    it browser-safe, none of it a dependency, and deterministic to the byte.
+    The caller-supplied rasterizer from that entry survives as the
+    `decodeImage` hook for the image formats this one does not open.
+  - **Text is measured once and drawn twice.** The SVG writes live `<text>` in
+    the family the element named; the rasterizer draws a built-in single-stroke
+    alphabet, since a PNG needs a font engine and Node has none. Both measure
+    with the same table, so line breaks, alignment and block extent match to
+    the unit and only the glyph shapes differ. Named as a limit in `API.md`
+    rather than left to be discovered.
+  - **Tests**: `test/graphic-design-api.test.ts` renders the reference
+    composition and its variations - other palettes, moved elements, both at
+    once - to both formats, probes the pixels against the colours the document
+    declares and the markup against the same, and checks that a second render
+    is byte-identical. The files it draws are temporary, land in `.tmp/`, and
+    are deleted on the way out unless `npm test -- --keep-graphics` says to
+    keep them.
+  - From: API Implementation
 - [x] **Rotate tool**: `Ctrl+R`, or the Rotate button beside Move, opens a
   palette that turns the selection about a centre point - dragged by hand on
   the canvas (clockwise positive, counterclockwise negative) or typed as an

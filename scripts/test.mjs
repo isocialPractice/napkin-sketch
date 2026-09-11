@@ -46,7 +46,16 @@ async function run() {
   const outFiles = entries.map((e) =>
     resolve(outDir, e.replace(/\.ts$/, '.js').split(/[\\/]/).pop()),
   );
-  const child = spawn(process.execPath, ['--test', ...outFiles], { stdio: 'inherit' });
+
+  // `node --test` takes file paths and nothing else, so suite flags travel as
+  // environment variables. `--keep-graphics` stops the graphic-design suite
+  // deleting the SVGs and PNGs it draws, which is the only way to look at them.
+  const env = { ...process.env };
+  if (process.argv.slice(2).includes('--keep-graphics')) {
+    env.NAPKIN_KEEP_TEST_GRAPHICS = '1';
+  }
+
+  const child = spawn(process.execPath, ['--test', ...outFiles], { stdio: 'inherit', env });
   child.on('close', (code) => process.exit(code ?? 0));
 }
 

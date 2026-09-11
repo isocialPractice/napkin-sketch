@@ -60,6 +60,35 @@ export {
 // Vector export (browser-safe; PDF import lives in Node-only `pdf-import`)
 export { sketchesToPdf } from '../core/pdf.js';
 
+// Graphic-design API (browser-safe; Node file helpers live in
+// `core/graphic-design/files`, the canvas painter in `.../canvas`)
+export {
+  Composition,
+  ElementList,
+  createComposition,
+  renderComposition,
+  renderPng,
+  compositionToSvg,
+  rasterizeComposition,
+  decodePng,
+  encodePng,
+  layoutText,
+  measureText,
+  DEFAULT_COMPOSITION_SIZE,
+  DEFAULT_FONT_SIZE,
+  DEFAULT_TEXT_FONT,
+  type CompositionDocument,
+  type CompositionFormat,
+  type Element as DesignElement,
+  type PageOptions,
+  type ParagraphStyle,
+  type RasterOptions,
+  type RasterResult,
+  type RenderOptions,
+  type SvgOptions,
+  type TextStyle,
+} from '../core/graphic-design/index.js';
+
 // Vector import (browser-only: relies on DOM SVG geometry APIs)
 export { importSvg } from '../renderer/svg-import.js';
 export type { ImportedLayer, ImportedSvg, SvgImportOptions } from '../renderer/svg-import.js';

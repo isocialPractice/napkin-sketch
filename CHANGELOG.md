@@ -4,6 +4,66 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Graphic-design API.** A composition is a page and a list of simple
+  elements - rectangles, circles, ellipses, triangles, polygons, polylines,
+  lines, paths, styled text, placed media, groups and clipping masks - and it
+  renders to **SVG** or **PNG**. `createComposition()` opens a 360 by 360 pixel
+  page; a size can be named instead, and coordinates are read in pixels unless
+  the page asks for inches, millimetres or points. It is headless: the app's
+  own canvas is drawn into only when it is explicitly handed over, so a script
+  that renders a graphic has nothing to do with whatever sketch is open. The
+  reference, every element's properties, and worked examples are in the new
+  [API.md](API.md).
+  - **Both formats come off one document**, which is what makes them the same
+    graphic. The page size, the elements, their order, their geometry, their
+    colors, their transforms, their masks and the text layout are shared by
+    construction rather than kept in step by hand; the difference between the
+    two files is the media export format and nothing else.
+  - **PNG with no dependency and no canvas.** Node has neither a rasterizer nor
+    a font, and the repository has no runtime dependencies, so the raster path
+    is written here: scanline coverage with four sub-rows a pixel and exact
+    horizontal spans, stroke outlining, clipping masks as multiplied coverage,
+    bilinear image sampling, a PNG encoder that picks a row filter per row, and
+    the DEFLATE codec underneath both directions of it. A composition rendered
+    twice produces identical bytes.
+  - **Text is laid out once and read by both renderers.** The SVG writes live
+    `<text>` in whatever font family the element named; the rasterizer draws a
+    built-in single-stroke alphabet, because a PNG needs a font engine and
+    there is none to ask. Both *measure* with the same table, so the line
+    breaks, the alignment and the block's extent match to the unit in the two
+    files and only the glyph shapes differ. Character styling covers family,
+    size, weight, style, letter and word spacing, decoration and case;
+    paragraph styling covers alignment including justification, line height,
+    wrap width, paragraph spacing, first-line indent and what `y` measures.
+  - **Media placements carry their own clipping.** A `clip` is either a mask
+    defined once with `defineClip` and shared, or a shape written inline on the
+    element, which the renderer promotes to a `<clipPath>` of its own. The SVG
+    embeds JPEG, PNG, GIF and SVG verbatim; the rasterizer decodes PNG itself
+    and takes a `decodeImage` hook for the rest, skipping a placement it cannot
+    read and reporting it in `warnings` rather than failing the other forty
+    elements.
+  - **A canvas back end for the GUI**, `paintComposition`, draws a composition
+    into a 2D context with the host's real fonts and the shared layout, and
+    leaves the context exactly as it found it.
+  - **Node file helpers** stay in their own module, the way the PDF importer
+    does, so importing the API never drags `node:fs` into a web build.
+    `imageDataUrl` reads an asset into a data URL and `writeComposition` writes
+    the SVG and the PNG of one document in one call - a caller cannot export
+    the vector of one revision beside the raster of another.
+
+### Changed
+
+- **`npm test` takes `--keep-graphics`.** The graphic-design suite draws a
+  reference composition and several variations of it, writes both formats of
+  each to `.tmp/`, and deletes them when it finishes, so a run leaves the
+  working tree as it found it. The one thing a graphics test cannot assert is
+  whether the picture looks right, and the flag is how to look: the files stay
+  and the suite prints where.
+
 ## [4.1.2-alpha] - 2026-09-01
 
 ### Added

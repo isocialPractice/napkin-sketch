@@ -165,6 +165,7 @@ Quote file names that contain spaces.
 | `npm run build:types`                          | Emit `.d.ts` declarations for the embeddable API            |
 | `npm run typecheck`                            | Type-check without emitting                                 |
 | `npm test`                                     | Run the unit test suites                                    |
+| `npm test -- --keep-graphics`                  | Keep the graphics the graphic-design suite draws            |
 | `npm start`                                    | Build, then launch a new sketch                             |
 | `npm run clean`                                | Remove `dist/`                                              |
 | `npm run icon`                                 | Generate the app icon from `assets/icon.svg`                |
@@ -197,6 +198,38 @@ editor.toPDF();
 
 Pure-engine entry points, no editor required: `sharpenStrokes`,
 `parseSketchBook`, `sketchesToPdf`, and `importSvg` (browser only).
+
+## Graphic design API
+
+```ts
+import { createComposition } from 'napkin-sketch';
+
+const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
+design.rect({ x: 24, y: 24, width: 312, height: 96, rx: 12, fill: '#326478' });
+design.text({ x: 180, y: 78, text: 'Acme Corp', align: 'center', fill: '#ffffff' });
+design.defineClip('badge', { type: 'circle', cx: 180, cy: 220, r: 64 });
+design.image({ src: logo, x: 116, y: 156, width: 128, height: 128, fit: 'cover', clip: 'badge' });
+
+design.toSVG();  // string
+design.toPNG();  // PNG bytes, no canvas and no image dependency
+```
+
+| Element   | Method                                                    |
+| :-------- | :-------------------------------------------------------- |
+| Rectangle | `rect({ x, y, width, height, rx })`                       |
+| Circle    | `circle({ cx, cy, r })`                                   |
+| Ellipse   | `ellipse({ cx, cy, rx, ry })`                             |
+| Triangle  | `triangle({ x, y, width, height, variant })` or `points`  |
+| Polygon   | `polygon({ points })` / `polyline({ points })`            |
+| Line      | `line({ x1, y1, x2, y2 })`                                |
+| Path      | `path({ d })` - `M L H V C S Q T Z`, no arcs              |
+| Text      | `text({ x, y, text, ...font and paragraph styling })`     |
+| Media     | `image({ src, x, y, width, height, fit, clip })`          |
+| Group     | `group(props, (g) => { ... })`                            |
+| Mask      | `defineClip(id, shape)`, or `clip:` inline on an element  |
+
+Page defaults: 360 by 360, `px`, transparent, headless. Full reference in
+[API.md](API.md).
 
 ## Defaults worth knowing
 

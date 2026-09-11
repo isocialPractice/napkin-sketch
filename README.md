@@ -13,7 +13,8 @@ hand-drawn rather than vector-perfect.
 
 **New here?** [QUICKSTART.md](QUICKSTART.md) gets you from a fresh clone to a
 sharpened sketch in five minutes, and [CHEATSHEET.md](CHEATSHEET.md) puts every
-shortcut, CLI flag, and npm script on one page.
+shortcut, CLI flag, and npm script on one page. Drawing from a script rather
+than by hand? [API.md](API.md) is the graphic-design API reference.
 
 ## Features
 
@@ -273,6 +274,11 @@ shortcut, CLI flag, and npm script on one page.
 - **Undo / redo**, clear, custom ink colors, and keyboard shortcuts.
 - **Embeddable API** — drop the same editor into a website, WordPress block, or
   VS Code webview (see [Embedding](#embedding-the-editor)).
+- **Graphic-design API** — build a composition from rectangles, circles,
+  ellipses, triangles, polygons, clipping masks, styled text and placed media,
+  then render it to SVG or PNG from a plain Node script, with no browser and no
+  image dependency. Both formats come off one document, so they are the same
+  graphic (see [API.md](API.md)).
 - **Installable desktop app** with a Start-menu/desktop shortcut and app icon
   (via electron-builder).
 - Calm, accessible UI (WCAG-AA contrast, reduced-motion support — the
@@ -1208,6 +1214,37 @@ import { sharpenStrokes, parseSketchBook, sketchesToPdf, importSvg } from 'napki
 const { width, height, layers } = importSvg(svgText, { unnamedElements: 'split' });
 ```
 
+## Drawing with the graphic-design API
+
+Compositions are the other way to make a graphic here: instead of a pointer, a
+script. Build a page out of simple elements - rectangles, circles, ellipses,
+triangles, polygons, lines, paths, text, placed media and clipping masks - then
+render it to **SVG** or **PNG**.
+
+```ts
+import { createComposition } from 'napkin-sketch';
+
+const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
+
+design.rect({ x: 24, y: 24, width: 312, height: 96, rx: 12, fill: '#326478' });
+design.text({ x: 180, y: 78, text: 'Acme Corp', align: 'center', fontSize: 28, fill: '#ffffff' });
+design.defineClip('badge', { type: 'circle', cx: 180, cy: 220, r: 64 });
+design.image({ src: logo, x: 116, y: 156, width: 128, height: 128, fit: 'cover', clip: 'badge' });
+
+const svg = design.toSVG();  // a string
+const png = design.toPNG();  // PNG file bytes, rasterized in pure TypeScript
+```
+
+Headless by default and dependency-free in both directions: no browser, no
+canvas, no Electron window, and no native image library. Pages default to 360
+by 360 pixels, coordinates are pixels unless the page names another unit, and
+the app's own canvas is drawn into only when it is explicitly handed over.
+
+Both renderers read one document, so the SVG and the PNG of a composition are
+the same graphic and differ only in the media export format. The full
+reference, every element's properties, and worked examples are in
+[API.md](API.md).
+
 ## Packaging a desktop installer
 
 napkin-sketch builds native installers with **electron-builder** (configured in
@@ -1235,9 +1272,19 @@ Suites cover the geometry utilities, the auto-sharpen classifier and transforms,
 `.skbk` serialization/normalization (including the version 1 → 2 layer
 migration), the layer-aware SVG exporter, the PDF writer and its import
 round-trip, the CLI argument parser, the launch contract, the animation cycle
-and form helpers, the measurement units, the rotate transforms, and a
-regression suite pinning the defects earlier source reviews found — so a fix
-that was hard to see cannot quietly come undone.
+and form helpers, the measurement units, the rotate transforms, the
+graphic-design API, and a regression suite pinning the defects earlier source
+reviews found — so a fix that was hard to see cannot quietly come undone.
+
+The graphic-design suite draws real files: it renders a reference composition
+and several variations of it to both formats, writes them to `.tmp/`, and
+deletes them on the way out, so a run leaves the working tree as it found it.
+The one thing a graphics test cannot assert is whether the picture looks right,
+so there is a flag for looking:
+
+```bash
+npm test -- --keep-graphics   # keep the generated SVGs and PNGs, and print where
+```
 
 ## Project structure
 
@@ -1271,6 +1318,18 @@ src/
     ├── sketchbook.ts   # .skbk file I/O (atomic writes)
     ├── pdf.ts          # Dependency-free vector PDF writer (browser-safe)
     ├── pdf-import.ts   # Best-effort PDF vector importer (Node-only)
+    ├── graphic-design/ # Graphic-design API: elements in, SVG or PNG out
+    │   ├── types.ts    #   Composition data model (page, elements, masks)
+    │   ├── compose.ts  #   Authoring surface: createComposition and friends
+    │   ├── svg.ts      #   SVG back end (browser-safe, DOM-free)
+    │   ├── raster.ts   #   Software rasterizer (scanline coverage, clipping)
+    │   ├── png.ts      #   PNG encoder and decoder
+    │   ├── deflate.ts  #   DEFLATE/zlib codec the PNG pair runs on
+    │   ├── font.ts     #   Built-in stroke font + the layout both back ends share
+    │   ├── geometry.ts #   Transforms, flattening, path data, dashing, stroking
+    │   ├── color.ts    #   CSS color parsing for the rasterizer
+    │   ├── canvas.ts   #   Canvas 2D painter (the GUI-canvas target)
+    │   └── files.ts    #   Node-only file helpers (data URLs, paired export)
     ├── paths.ts        # Dependency-free path helpers
     ├── animation.ts    # Animation Mode data model, pose steps, helper form
     ├── animation-cycles.ts   # Cycle tables measured from the wireframe asset

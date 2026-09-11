@@ -5,9 +5,10 @@
  * it: no Edit-menu entry, no shortcut, no banner, and no AI tool required.
  * It is added by `npm run animation-mode -- --install --to <tool>`, which
  * copies the helper's skills and instructions into that tool's dot-folder -
- * or, with `--to plugin`, readies the `vectors` plugin that `ai-helper/`
- * already is - and writes the record below; `--uninstall` removes what it
- * installed and leaves every other feature of the app untouched.
+ * or, with `--to plugin`, readies the `vectors` plugin that
+ * `ai-helper/vectors/` already is - and writes the record below; `--uninstall`
+ * removes what it installed and leaves every other feature of the app
+ * untouched.
  *
  * The record is the app's only source of truth for whether the mode is
  * present, which is what keeps the feature pluggable: one file decides, and
@@ -17,8 +18,38 @@
  * was chosen, nothing about the account behind it.
  */
 
-/** Where the install record lives, relative to the helper's working directory. */
+/**
+ * Where the install record lives, relative to the helper's working directory.
+ *
+ * The container's file, not the plugin's, and deliberately so: `.gitignore`
+ * excludes this exact path, and a record moved one folder deeper would be
+ * un-ignored and start committing a local install state.
+ */
 export const ANIMATION_INSTALL_FILE = 'ai-helper/installed.json';
+
+/**
+ * The plugin target a record written before the helpers were split.
+ *
+ * `ai-helper/` was the `vectors` plugin then, so `--to plugin` recorded that
+ * path. It is a container now, and a record still naming it has to be read as
+ * naming the plugin that moved out of it, or an uninstall would sweep the
+ * container root instead of the plugin.
+ */
+const LEGACY_PLUGIN_TARGET = 'ai-helper';
+
+/** The plugin target that legacy value now means. */
+const PLUGIN_TARGET = 'ai-helper/vectors';
+
+/**
+ * Migrates an install target read off disk.
+ *
+ * Only the one legacy value moves; every other target - a dot-folder, or a
+ * path already written in the current form - is returned as it was found.
+ */
+export function normalizeInstallTarget(target: string): string {
+  const trimmed = target.trim().replace(/[\\/]+$/, '');
+  return trimmed === LEGACY_PLUGIN_TARGET ? PLUGIN_TARGET : trimmed;
+}
 
 /**
  * Tool id `--install --to plugin` records. It names a delivery rather than a
@@ -34,7 +65,10 @@ export interface AnimationInstall {
   version: 1;
   /** Id of the AI tool the install targeted (`claude`, `copilot`, …). */
   tool: string;
-  /** Where the install landed: a dot-folder (`.claude`), or `ai-helper` for the plugin. */
+  /**
+   * Where the install landed: a dot-folder (`.claude`), or the plugin's own
+   * folder (`ai-helper/vectors`) when it was delivered as the plugin.
+   */
   target: string;
   /** When the install ran, as an ISO date string. */
   installedAt: string;
@@ -45,6 +79,9 @@ export interface AnimationInstall {
  * absent file, malformed JSON, a future format, or a record with no tool.
  * A null answer always means "Animation Mode is not installed", so a damaged
  * record degrades to the mode being absent rather than to a broken app.
+ *
+ * A record written before the helpers were split is migrated as it is read,
+ * so an existing install keeps working across the move without being rewritten.
  */
 export function parseAnimationInstall(text: string): AnimationInstall | null {
   let raw: unknown;
@@ -61,7 +98,7 @@ export function parseAnimationInstall(text: string): AnimationInstall | null {
   return {
     version: 1,
     tool: record.tool.trim(),
-    target: record.target.trim(),
+    target: normalizeInstallTarget(record.target),
     installedAt: typeof record.installedAt === 'string' ? record.installedAt : '',
   };
 }

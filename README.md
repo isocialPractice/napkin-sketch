@@ -14,7 +14,9 @@ hand-drawn rather than vector-perfect.
 **New here?** [QUICKSTART.md](QUICKSTART.md) gets you from a fresh clone to a
 sharpened sketch in five minutes, and [CHEATSHEET.md](CHEATSHEET.md) puts every
 shortcut, CLI flag, and npm script on one page. Drawing from a script rather
-than by hand? [API.md](API.md) is the graphic-design API reference.
+than by hand? [API-QUICKSTART.md](API-QUICKSTART.md) gets you from a clone to a
+generated graphic, and [API.md](API.md) is the full graphic-design API
+reference.
 
 ## Features
 
@@ -898,7 +900,7 @@ npm run animation-mode -- --uninstall              # remove it again
 Installing copies the `vector-animations` and `vector-graphics` skills plus the
 helper instructions into that tool's dot-folder (`.claude/`, `.github/`, …)
 and writes `ai-helper/installed.json`. (`--to plugin` copies nothing, because
-`ai-helper/` **is** the `vectors` plugin: that target checks the folder over
+`ai-helper/vectors/` **is** the `vectors` plugin: that target checks the folder over
 and prints the two `/plugin` commands that load it, which are a step you have
 to run yourself - see the `plugin` target below.) Installing over an install
 that targeted somewhere else removes that one first, so switching delivery
@@ -1022,7 +1024,7 @@ GitHub Copilot, Codex, or a plain LLM command-line tool. A tool that can only
 print falls back to printing the whole document, which the app recovers from
 stdout and saves itself. The AI-facing contract
 (`animation-mode.instructions.md`) and two supporting skills live canonically
-in the version-tracked `ai-helper/` folder: `vector-animations` (the assembly
+in the version-tracked `ai-helper/vectors/` folder: `vector-animations` (the assembly
 list, joint pivots, cycle tables, transform recipe, Bezier-curve and
 animation-essentials references, the character wireframe rig, and an object rig
 drawing what a break and a burst do to the pieces) and
@@ -1032,6 +1034,8 @@ nesting, and compound paths, shape, object, and letterform assets, and a
 dependency-free script that derives SVG path data from control points). That
 folder is also the plugin itself, so the same files reach a tool that loads
 plugins and a tool that reads a dot-folder, and neither copy can go stale.
+`ai-helper/` above it is a container, holding one folder per helper -
+`vectors/` and the [graphic-designer](#the-graphic-designer-helper) beside it.
 Every generated form names the `vector-animations` skill and tells the helper
 where to find both; a frame turns existing geometry, so `vector-graphics` only
 comes into play when something has to be drawn from scratch. Because AI tool
@@ -1041,25 +1045,29 @@ dot-folders are commonly gitignored, a fresh clone installs them with:
 npm run ai-helper -- --to claude        # .claude (default when no --to)
 npm run ai-helper -- --to github        # .github (Copilot)
 npm run ai-helper -- --to cursor        # any other tool dot-folder
-npm run ai-helper -- --to plugin        # check the vectors plugin, print /plugin
-npm run ai-helper -- --list             # show every known target
+npm run ai-helper -- --to plugin        # check the plugins, print /plugin
+npm run ai-helper -- --helper vectors   # narrow to one helper (default: all)
+npm run ai-helper -- --list             # show every known target and helper
 NAPKIN_AI_HELPER=claude,github npm install   # or install on clone via env
 ```
 
 **The `plugin` target is the odd one out**, because there is nothing for it to
-copy. `ai-helper/` **is** the `vectors` plugin: the manifest, the command, the
-subagent, both skills, and the contract are the folder's own contents, and the
-marketplace that lists it is one manifest at the repository root.
+copy. `ai-helper/vectors/` **is** the `vectors` plugin: the manifest, the
+command, the subagent, both skills, and the contract are the folder's own
+contents, and the marketplace that lists it is one manifest at the repository
+root.
 
 ```text
-.claude-plugin/marketplace.json   lists vectors, source ./ai-helper
+.claude-plugin/marketplace.json   lists vectors, source ./ai-helper/vectors
 ai-helper/
-  .claude-plugin/plugin.json      the manifest, versioned from package.json
-  commands/animation-mode.md      /vectors:animation-mode - draw one frame
-  agents/animation-frame.md       the same job as a subagent, in its own context
-  skills/vector-animations/       assemblies, pivots, cycles, transform recipe
-  skills/vector-graphics/         Bezier formulas, layer structure, path scripting
-  instructions/                   the contract a helper follows
+  vectors/
+    .claude-plugin/plugin.json    the manifest, versioned from package.json
+    commands/animation-mode.md    /vectors:animation-mode - draw one frame
+    agents/animation-frame.md     the same job as a subagent, in its own context
+    skills/vector-animations/     assemblies, pivots, cycles, transform recipe
+    skills/vector-graphics/       Bezier formulas, layer structure, path scripting
+    instructions/                 the contract a helper follows
+  graphic-designer/               the second helper, below
 ```
 
 So the target checks that tree, syncs the manifest version to `package.json`,
@@ -1093,6 +1101,51 @@ frame does not appear. The path is **relative to the helper's working
 directory** and is held to that: an absolute path, a drive letter, or a `..`
 segment is refused and the default is used instead, so a log can never be
 written somewhere the setting did not name.
+
+### The graphic-designer helper
+
+The second plugin in `ai-helper/`, and the one that drives the
+[graphic-design API](#drawing-with-the-graphic-design-api). It answers a
+different question from Animation Mode: not "draw the next frame", but "what
+design language is this graphic in, and how do I make more like it".
+
+```text
+/graphic-designer:design-language path/to/asset.svg
+```
+
+That reads the asset, writes a `DESIGN_LANGUAGE.md` describing what it found,
+and generates a lightweight skill named after the asset - in the same tool
+folder the helper was installed to - carrying that language plus a script that
+composes new work in it through the API. The point is that a repeated graphics
+job stops being a brief somebody re-explains each time.
+
+**It measures before it judges.** `skills/design-language/scripts/analyze-media.mjs`
+is a dependency-free CLI that reports what a file actually says:
+
+```bash
+node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs asset.svg --colors 12
+node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs asset.svg --markdown
+```
+
+| Format | Palette | Type | Strokes, radii, structure |
+| --- | --- | --- | --- |
+| SVG | yes, weighted by how often each class is referenced | yes | yes |
+| PNG | yes, decoded and quantized from the pixels | no | no |
+| JPEG, GIF, WebP | no decoder | no | no |
+
+**The honesty is the feature.** An empty palette means "not measured", never
+"no colors", and the report names what it could not read. A design language
+whose values were guessed is worse than none, because the next asset gets drawn
+to it. Decoding a PNG uses the graphic-design API, so a clone needs
+`npm run build` first; the report says so rather than returning nothing.
+
+The two skills are `design-language` (what to measure, the
+`DESIGN_LANGUAGE.md` naming rules, and how to generate the per-asset skill) and
+`graphic-design-api` (composing through the API with the visual judgment to
+make the result good - hierarchy, 60-30-10, type scales, WCAG contrast on a
+static page). Unlike `vectors`, nothing in the app runs this helper: there is
+no install record and no feature switch, because there is no button that
+spawns it.
 
 ## How auto-sharpen works
 
@@ -1243,7 +1296,9 @@ the app's own canvas is drawn into only when it is explicitly handed over.
 Both renderers read one document, so the SVG and the PNG of a composition are
 the same graphic and differ only in the media export format. The full
 reference, every element's properties, and worked examples are in
-[API.md](API.md).
+[API.md](API.md). The AI helper that drives it is
+[graphic-designer](#the-graphic-designer-helper), which reads an existing
+graphic into a design language and generates scripts that compose more like it.
 
 ## Packaging a desktop installer
 

@@ -8,6 +8,45 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`API-QUICKSTART.md`.** The path from a fresh clone to a graphic drawn from
+  a script, to a plugged-in helper, to a design language captured off an asset
+  you already have - with the two ways to install the helper and what actually
+  differs between them, and a troubleshooting table that starts with `Unknown
+  command`. `API.md` stays the reference; this is the route through it.
+
+- **A second AI helper: `graphic-designer`.** It answers a different question
+  from Animation Mode - not "draw the next frame" but "what design language is
+  this graphic in, and how do I make more like it". Its
+  `/graphic-designer:design-language` command reads a media file, writes a
+  `DESIGN_LANGUAGE.md` describing what it found, and generates a lightweight
+  skill named after the asset, carrying that language and a script that
+  composes new work in it through the graphic-design API. The point is that a
+  repeated graphics job - a series of social posts, a run of thumbnails - stops
+  being a brief somebody re-explains each time and becomes a script with a name.
+  - **It measures before it judges.** `analyze-media.mjs` is a dependency-free
+    CLI (and an importable `analyzeMedia`) that reports what a file actually
+    says: an SVG yields colors weighted by how often each class is referenced,
+    plus font families, sizes, stroke widths, corner radii and an element
+    census; a PNG is decoded and quantized into a palette and yields colors
+    only; JPEG, GIF and WebP have no decoder here, exactly as the rasterizer
+    has none.
+  - **An empty palette means "not measured", never "no colors".** Every report
+    carries a `notes` list naming what the format could not say, and the
+    contract forbids writing down a value the file did not give. A design
+    language whose numbers were guessed is worse than none, because the next
+    asset gets drawn to it.
+  - **Two skills.** `design-language` carries the procedure, the
+    `DESIGN_LANGUAGE.md` naming rules (`DESIGN_LANGUAGE-<stem>.md` when one
+    already exists) and the generated-skill collision rule (`<stem>_0`, never an
+    overwrite). `graphic-design-api` is the general design skill pointed at this
+    API: the element vocabulary, the grid arithmetic, the 60-30-10 ratio, type
+    scales, WCAG contrast on a static page, and the limits the API is honest
+    about.
+  - **The check that matters** is run on the output: analyze the generated
+    asset and compare its palette against the source's. Agreement on paper, ink
+    and accent is the only mechanical evidence that the captured language is the
+    one the asset was drawn in.
+
 - **Graphic-design API.** A composition is a page and a list of simple
   elements - rectangles, circles, ellipses, triangles, polygons, polylines,
   lines, paths, styled text, placed media, groups and clipping masks - and it
@@ -57,12 +96,72 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **`/graphic-designer:design-language` takes an optional output directory.**
+  The command captured a design language and left where to put it unstated,
+  which meant the most obvious way to ask - "write `DESIGN_LANGUAGE.md` to
+  `docs/design/`" - was answered by guesswork. It is now the second argument,
+  and a destination named in plain words means the same thing. The
+  already-exists check that picks `DESIGN_LANGUAGE-<stem>.md` is per directory,
+  so one asset documented in two places gets the plain name in both.
+
+- **`ai-helper/` is a container now, not a plugin.** It held the `vectors`
+  plugin at its root, and two plugins cannot share one root, so the existing
+  helper moved to its own exclusive folder at `ai-helper/vectors/` and the new
+  one sits beside it. The marketplace lists both, `npm run ai-helper -- --list`
+  names both, and a `HELPERS` registry in the installer replaced the five
+  hard-coded constants that used to spell out one plugin's payload.
+  - **An existing install keeps working.** A record written when `--to plugin`
+    meant `ai-helper` is migrated as it is read, so the app, the status output
+    and the uninstall sweep all resolve it to `ai-helper/vectors`. Without that
+    the sweep would have been pointed at the container root.
+  - **`npm run ai-helper` now installs every helper** rather than the one that
+    used to be the only one. `--helper <name>` narrows it. Animation Mode's own
+    script always names `vectors` explicitly, so
+    `npm run animation-mode -- --install` and `--uninstall` reach exactly what
+    they always did.
+  - The install record stays at `ai-helper/installed.json`. `.gitignore`
+    excludes that exact path, so a record one folder deeper would have been
+    un-ignored and started committing a local install state.
+
 - **`npm test` takes `--keep-graphics`.** The graphic-design suite draws a
   reference composition and several variations of it, writes both formats of
   each to `.tmp/`, and deletes them when it finishes, so a run leaves the
   working tree as it found it. The one thing a graphics test cannot assert is
   whether the picture looks right, and the flag is how to look: the files stay
   and the suite prints where.
+
+### Fixed
+
+- **The helper's slash command reaches a dot-folder install.** Installing to
+  `.claude` or `.github` copied the skills and the contract and dropped the
+  `commands/` and `agents/` folders on the floor, so
+  `/graphic-designer:design-language` existed only for someone who had loaded
+  the plugin - while the skill, the README and the contract all described it as
+  the way to start the job. A command reachable under one delivery and missing
+  under the other is a command whose documentation is wrong half the time.
+  - Commands now land in `<target>/commands/<helper>/`, so the copy answers to
+    the same `/<helper>:<command>` spelling the plugin gives it.
+  - `${CLAUDE_PLUGIN_ROOT}` is resolved on copy to the helper's
+    repository-relative folder. That variable is defined only for a loaded
+    plugin, so a copied command that kept it pointed every path in its own
+    instructions at nothing.
+  - Uninstalling removes what installing added, commands and subagents
+    included.
+
+- **`import('napkin-sketch')` works from Node.** `dist/api/index.js` is an ESM
+  bundle, but the package is `"type": "commonjs"`, so Node read a bare `.js`
+  there as CommonJS and refused to load it - which meant the documented
+  `import { createComposition } from 'napkin-sketch'` failed for anyone outside
+  a bundler. The build now writes a one-key `dist/api/package.json` scoping that
+  folder to ESM. Found by the graphic-designer helper's PNG decoding, which is
+  the first thing in the repository to import the API as a plain Node script.
+
+- **The graphic-design fixture symlinks resolve.**
+  `test/graphic-design-api/skill/` carries two links to the same graphic in two
+  formats; both were written relative to the repository root rather than to
+  their own directory, and the PNG named a file that does not exist. Git had
+  them as proper mode-120000 symlinks all along, so only the targets needed
+  fixing, with forward slashes so a Linux or macOS clone resolves them too.
 
 ## [4.1.2-alpha] - 2026-09-01
 

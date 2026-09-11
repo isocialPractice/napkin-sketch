@@ -14,6 +14,17 @@ The two renderers read one document. That is the whole design: the SVG and the
 PNG of a composition are the same graphic, and the only difference between them
 is the media export format.
 
+**Working with an AI tool?** The `graphic-designer` helper in
+[`ai-helper/graphic-designer/`](ai-helper/graphic-designer/) drives this API:
+its `design-language` skill reads an existing graphic into a written
+`DESIGN_LANGUAGE.md` and generates a per-asset skill whose scripts compose new
+work through the calls below, and its `graphic-design-api` skill carries the
+visual judgment to make the result good. Install it with
+`npm run ai-helper -- --helper graphic-designer`.
+
+**In a hurry?** [API-QUICKSTART.md](API-QUICKSTART.md) is the path from a fresh
+clone to a generated graphic, and to the AI helper that draws more of them.
+
 **Contents**
 
 - [Getting started](#getting-started)

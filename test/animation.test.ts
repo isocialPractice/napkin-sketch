@@ -432,7 +432,7 @@ test('the form names both skills, so curve work has somewhere to go', () => {
   });
   assert.ok(form.includes(`Apply the ${ANIMATION_SKILL_NAME} skill`));
   assert.ok(form.includes(`companion ${VECTOR_SKILL_NAME} skill`));
-  assert.ok(form.includes(`ai-helper/skills/${VECTOR_SKILL_NAME}/SKILL.md`));
+  assert.ok(form.includes(`${ANIMATION_PLUGIN.dir}/skills/${VECTOR_SKILL_NAME}/SKILL.md`));
 });
 
 test('a plugin install makes the form name the plugin skills, not the bare ones', () => {
@@ -452,7 +452,7 @@ test('a plugin install makes the form name the plugin skills, not the bare ones'
   assert.ok(plugin.includes(`companion ${pluginRef(VECTOR_SKILL_NAME)} skill`));
   assert.ok(plugin.includes(`/${ANIMATION_PLUGIN.name}:${ANIMATION_PLUGIN.command}`));
   // Its files sit in a cache the app cannot name, so the paths go away with them.
-  assert.ok(!plugin.includes(`ai-helper/skills/${VECTOR_SKILL_NAME}/SKILL.md`));
+  assert.ok(!plugin.includes(`${ANIMATION_PLUGIN.dir}/skills/${VECTOR_SKILL_NAME}/SKILL.md`));
 
   // Saying nothing has to keep writing the form every tool understands.
   assert.equal(buildAnimationForm(data), files);

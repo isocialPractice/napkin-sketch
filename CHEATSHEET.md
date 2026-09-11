@@ -171,6 +171,11 @@ Quote file names that contain spaces.
 | `npm run icon`                                 | Generate the app icon from `assets/icon.svg`                |
 | `npm run import-tree -- <file.svg>`            | Print the layer tree an SVG would import as                 |
 | `npm run todo`                                 | Archive checked `TODO.md` items into its Complete section   |
+| `npm run ai-helper -- --list`                  | Show AI tool targets and the helpers that install to them   |
+| `npm run ai-helper`                            | Install every helper's skills to `.claude`                  |
+| `npm run ai-helper -- --to github`             | Install them to `.github` (Copilot) instead                 |
+| `npm run ai-helper -- --helper <name>`         | Narrow to one helper (`vectors`, `graphic-designer`)        |
+| `npm run ai-helper -- --to plugin`             | Check the plugins and print the `/plugin` commands          |
 | `npm run wireframe-cycles`                     | Rebuild the animation cycle tables from the wireframe asset |
 | `npm run dist`                                 | Build an installer for the current OS                       |
 | `npm run dist:win` / `dist:mac` / `dist:linux` | NSIS / DMG / AppImage                                       |
@@ -230,6 +235,31 @@ design.toPNG();  // PNG bytes, no canvas and no image dependency
 
 Page defaults: 360 by 360, `px`, transparent, headless. Full reference in
 [API.md](API.md).
+
+## AI helpers
+
+Two plugins in `ai-helper/`, one folder each, both listed by the marketplace at
+the repository root.
+
+| Helper             | Command                             | What it does                               |
+| :----------------- | :---------------------------------- | :----------------------------------------- |
+| `vectors`          | `/vectors:animation-mode`           | Draws the next Animation Mode frame        |
+| `graphic-designer` | `/graphic-designer:design-language` | Reads an asset into a `DESIGN_LANGUAGE.md` |
+
+```text
+/plugin marketplace add .                              # from a clone
+/plugin marketplace add isocialPractice/napkin-sketch  # without one
+/plugin install vectors@napkin-sketch
+/plugin install graphic-designer@napkin-sketch
+```
+
+```bash
+# What design language is this asset in?
+node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs asset.svg --markdown
+```
+
+An SVG yields colors, type, strokes and structure; a PNG yields colors only;
+JPEG and GIF have no decoder and say so rather than returning an empty result.
 
 ## Defaults worth knowing
 

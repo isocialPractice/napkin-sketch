@@ -11,6 +11,10 @@ hand-drawn rather than vector-perfect.
 
 ![napkin-sketch — toolbar, pages panel, sharpen settings, and a sample sketch](assets/screenshot.svg)
 
+**New here?** [QUICKSTART.md](QUICKSTART.md) gets you from a fresh clone to a
+sharpened sketch in five minutes, and [CHEATSHEET.md](CHEATSHEET.md) puts every
+shortcut, CLI flag, and npm script on one page.
+
 ## Features
 
 - **Pen, marker, Copic marker, eraser, select, direct select, and text**

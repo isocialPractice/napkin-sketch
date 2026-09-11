@@ -924,6 +924,47 @@ bridge and the tests and documentation that make the rest of it usable.
   the place a language goes wants deciding before it is written rather than
   after.
 
+### Simple Graphic Design Elements
+
+- [ ] API that can create a graphic design composition using simple elements
+  like, but not limited to:
+  - Rectangles
+  - Circles
+  - Ellipses
+  - Triangles
+  - Polygons
+  - Clipping Masks
+  - Text
+    - Choose different font families
+    - Implement common customizable font styling
+    - Implement common customizable paragraph styling
+  - Insert media files like JPEG, PNG, GIF, SVG, etc.
+    - Clipping methods to define clipping shape, and/or id
+    - Method using properties to set position
+  - Uses current GUI canvas: false by default
+  - Default units: pixels(*px*)
+  - Specify size: true
+  - If size left out: default to `width: 360px, height: 360px`
+  - Separate documentation: true
+    - `API.md`
+
+### New Skill to Auto Generate Design Language
+
+- [ ] Add a new skill that will:
+  - Analyze media file like JPG, PNG, SVG, GIF, etc. then from the data write
+    a `DESIGN_LANGUAGE.md` file
+    - If exist `DESIGN_LANGUAGE.md`, then:
+      - Write to `DESIGN_LANGUAGE-<source-media-file>.md` e.g.
+        - `DESIGN_LANGUAGE.md` does exist, and media file is like `name.svg`,
+          then write to `DESIGN_LANGUAGE-name.md`
+  - The skill will then create a light-weight skill for that file in the
+    specified A.I. folder e.g. `.claude/`, `.github/` corresponding skills
+    folder, but name the skill as `<source-media-file>`, then script files
+    that utilize this API are created so new assets can be created using that
+    skill
+    - If skill folder exist `<source-media-file>`, then create as
+      `<source-media-file_0>`
+
 ## Automation and Scripting Tool (generated scripts → next `++.y.z`)
 
 The app writing its own scripts. Four capabilities that look separate and are

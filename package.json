@@ -40,6 +40,10 @@
     "scripts/install-ai-helper.mjs",
     "scripts/animation-mode.mjs",
     "README.md",
+    "API.md",
+    "API-QUICKSTART.md",
+    "QUICKSTART.md",
+    "CHEATSHEET.md",
     "CHANGELOG.md",
     "TODO.md"
   ],

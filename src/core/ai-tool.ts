@@ -80,13 +80,25 @@ export function aiToolById(id: string): AiTool | null {
 }
 
 /**
- * The helper packaged as a plugin.
+ * The folder the helper plugins live in.
  *
- * `ai-helper/` is not only the folder the dot-folder installs copy from: it
- * is the plugin itself, listed by the marketplace manifest at the repository
- * root. A tool that loads plugins therefore gets the whole helper - the
- * command, the subagent, both skills, and the contract - as one addressable
- * unit, instead of two skill folders it has to be told the paths of.
+ * A container, not a plugin: each helper owns a dedicated folder beneath it,
+ * and nothing but those folders and a README belongs here. It was the plugin
+ * root itself until a second helper arrived, which is why so many places still
+ * have to agree on what the path is - see `ANIMATION_PLUGIN.dir` below and the
+ * matching registry in `scripts/install-ai-helper.mjs`.
+ */
+export const AI_HELPER_ROOT = 'ai-helper';
+
+/**
+ * The Animation Mode helper, packaged as a plugin.
+ *
+ * `ai-helper/vectors/` is not only the folder the dot-folder installs copy
+ * from: it is the plugin itself, listed by the marketplace manifest at the
+ * repository root. A tool that loads plugins therefore gets the whole helper -
+ * the command, the subagent, both skills, and the contract - as one
+ * addressable unit, instead of two skill folders it has to be told the paths
+ * of.
  *
  * The app needs these names because a plugin renames what it carries: inside
  * a plugin a skill answers to `<plugin>:<skill>`, so a form that named the
@@ -98,16 +110,85 @@ export const ANIMATION_PLUGIN = {
   /** Marketplace that lists it, from `.claude-plugin/marketplace.json` at the repo root. */
   marketplace: 'napkin-sketch',
   /** The plugin root inside the repository. */
-  dir: 'ai-helper',
+  dir: `${AI_HELPER_ROOT}/vectors`,
   /** Slash command that draws one frame from the form the app writes. */
   command: 'animation-mode',
   /** Subagent that draws one frame in a context of its own. */
   agent: 'animation-frame',
 } as const;
 
+/**
+ * The graphic-design helper, packaged as a plugin.
+ *
+ * The second helper, and the reason the first one moved. It reads a media file
+ * into a written design language and then generates the per-asset skill and
+ * scripts that draw new work in that language through the graphic-design API.
+ * The app itself does not run it - unlike Animation Mode there is no button
+ * that spawns it - so these names exist for the installer, the marketplace and
+ * the tests rather than for a generated form.
+ */
+export const GRAPHIC_DESIGNER_PLUGIN = {
+  /** Plugin id, and the namespace its skills and command answer to. */
+  name: 'graphic-designer',
+  /** Marketplace that lists it, the same one that lists `vectors`. */
+  marketplace: 'napkin-sketch',
+  /** The plugin root inside the repository. */
+  dir: `${AI_HELPER_ROOT}/graphic-designer`,
+  /** Slash command that turns one media file into a design language. */
+  command: 'design-language',
+} as const;
+
 /** One of the plugin's parts, named the way a tool addresses it: `vectors:...`. */
 export function pluginRef(part: string): string {
   return `${ANIMATION_PLUGIN.name}:${part}`;
+}
+
+/** What one helper plugin is made of. */
+export interface AiHelper {
+  /** Plugin id, and the namespace its parts answer to. */
+  name: string;
+  /** The plugin root inside the repository. */
+  dir: string;
+  /** Skill folder names, each of which declares the same name in its `SKILL.md`. */
+  skills: readonly string[];
+  /** Slash-command files, relative to `commands/`. */
+  commands: readonly string[];
+  /** Subagent files, relative to `agents/`. */
+  agents: readonly string[];
+  /** Contract files, relative to `instructions/`. */
+  instructions: readonly string[];
+}
+
+/**
+ * Every helper, and what each one carries.
+ *
+ * The same list exists as `HELPERS` in `scripts/install-ai-helper.mjs`, which
+ * cannot import this file - one is TypeScript bundled into the app, the other
+ * is JavaScript npm runs directly. A test holds the two together rather than
+ * letting them drift, which they have done before.
+ */
+export const AI_HELPERS: readonly AiHelper[] = [
+  {
+    name: ANIMATION_PLUGIN.name,
+    dir: ANIMATION_PLUGIN.dir,
+    skills: ['vector-animations', 'vector-graphics'],
+    commands: [`${ANIMATION_PLUGIN.command}.md`],
+    agents: [`${ANIMATION_PLUGIN.agent}.md`],
+    instructions: ['animation-mode.instructions.md'],
+  },
+  {
+    name: GRAPHIC_DESIGNER_PLUGIN.name,
+    dir: GRAPHIC_DESIGNER_PLUGIN.dir,
+    skills: ['design-language', 'graphic-design-api'],
+    commands: [`${GRAPHIC_DESIGNER_PLUGIN.command}.md`],
+    agents: [],
+    instructions: ['design-language.instructions.md'],
+  },
+];
+
+/** Every skill name any helper carries. Skill names are global to an AI tool. */
+export function allHelperSkills(): string[] {
+  return AI_HELPERS.flatMap((h) => [...h.skills]);
 }
 
 /**

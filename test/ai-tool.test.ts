@@ -11,8 +11,10 @@ import {
 import {
   parseAnimationInstall,
   serializeAnimationInstall,
+  normalizeInstallTarget,
   ANIMATION_INSTALL_FILE,
 } from '../src/core/animation-install.js';
+import { ANIMATION_PLUGIN } from '../src/core/ai-tool.js';
 
 test('helperBinary reads the executable out of a helper command', () => {
   assert.equal(helperBinary('claude -p --model sonnet < _temp/animation-form.txt'), 'claude');
@@ -103,5 +105,32 @@ test('a damaged install record reads as "not installed"', () => {
 });
 
 test('the install record lives where the install script writes it', () => {
+  // The container's file, not the plugin's. `.gitignore` excludes this exact
+  // path, so a record one folder deeper would start committing a local install.
   assert.equal(ANIMATION_INSTALL_FILE, 'ai-helper/installed.json');
+});
+
+test('a plugin target recorded before the helpers were split still resolves', () => {
+  // `ai-helper/` was the vectors plugin then and is a container now, so a
+  // stored `ai-helper` has to be read as naming the plugin that moved out of
+  // it - otherwise an uninstall would be pointed at the container root.
+  assert.equal(normalizeInstallTarget('ai-helper'), ANIMATION_PLUGIN.dir);
+  assert.equal(normalizeInstallTarget('ai-helper/'), ANIMATION_PLUGIN.dir);
+  assert.equal(normalizeInstallTarget('  ai-helper  '), ANIMATION_PLUGIN.dir);
+
+  // Everything else is left exactly as it was found.
+  assert.equal(normalizeInstallTarget(ANIMATION_PLUGIN.dir), ANIMATION_PLUGIN.dir);
+  assert.equal(normalizeInstallTarget('.claude'), '.claude');
+  assert.equal(normalizeInstallTarget('.github'), '.github');
+  assert.equal(normalizeInstallTarget('ai-helper/graphic-designer'), 'ai-helper/graphic-designer');
+});
+
+test('reading an old record migrates its target', () => {
+  const legacy = '{"version":1,"tool":"plugin","target":"ai-helper","installedAt":"2026-01-01T00:00:00.000Z"}';
+  assert.deepEqual(parseAnimationInstall(legacy), {
+    version: 1,
+    tool: 'plugin',
+    target: ANIMATION_PLUGIN.dir,
+    installedAt: '2026-01-01T00:00:00.000Z',
+  });
 });

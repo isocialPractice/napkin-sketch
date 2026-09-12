@@ -3,7 +3,7 @@
 // renderer (browser/IIFE), then copies static renderer assets to dist/.
 
 import { build, context } from 'esbuild';
-import { cp, mkdir, rm } from 'node:fs/promises';
+import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -109,6 +109,14 @@ async function copyStatic() {
   if (existsSync(resolve(root, 'src/assets'))) {
     await cp(resolve(root, 'src/assets'), resolve(root, 'dist/assets'), { recursive: true });
   }
+
+  // `dist/api/index.js` is ESM, but the package is `"type": "commonjs"`, so
+  // Node reads a bare `.js` there as CommonJS and refuses to import it. A
+  // one-key package.json beside the bundle scopes that folder to ESM, which is
+  // what makes `import('napkin-sketch')` work from a plain Node script - the
+  // graphic-designer helper's media analysis is one such script.
+  await mkdir(resolve(root, 'dist/api'), { recursive: true });
+  await writeFile(resolve(root, 'dist/api/package.json'), `${JSON.stringify({ type: 'module' }, null, 2)}\n`, 'utf-8');
 }
 
 async function run() {

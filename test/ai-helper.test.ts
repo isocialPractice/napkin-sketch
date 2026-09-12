@@ -1,19 +1,29 @@
 /**
- * The `ai-helper/` plugin: one copy of every skill in the tree, and a plugin
- * an AI tool can actually load.
+ * The `ai-helper/` plugins: one copy of every skill in the tree, and plugins an
+ * AI tool can actually load.
  *
  * Both halves are worth a test. The helper used to be built into a second
- * folder, which meant every skill existed twice and the copy went stale; the
- * folder is now the plugin itself, and nothing should quietly reintroduce a
- * duplicate. And a plugin is only loadable when its manifests agree with each
- * other and the files they promise are there, none of which the compiler can
- * check.
+ * folder, which meant every skill existed twice and the copy went stale; each
+ * helper's folder is now the plugin itself, and nothing should quietly
+ * reintroduce a duplicate. And a plugin is only loadable when its manifests
+ * agree with each other and the files they promise are there, none of which the
+ * compiler can check.
+ *
+ * `ai-helper/` became a container when the second helper arrived, which is why
+ * these tests read a registry rather than two constants: adding a third helper
+ * should be an entry in one list, not an edit spread across this file.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { ANIMATION_PLUGIN } from '../src/core/ai-tool.js';
+import {
+  AI_HELPERS,
+  AI_HELPER_ROOT,
+  allHelperSkills,
+  ANIMATION_PLUGIN,
+  GRAPHIC_DESIGNER_PLUGIN,
+} from '../src/core/ai-tool.js';
 import { ANIMATION_SKILL_NAME, VECTOR_SKILL_NAME } from '../src/core/animation.js';
 
 /**
@@ -36,10 +46,26 @@ function repoRoot(): string {
 }
 
 const ROOT = repoRoot();
-const PLUGIN = join(ROOT, ANIMATION_PLUGIN.dir);
 
-/** Build outputs and working folders, none of which is tracked. */
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'dist-test', 'release', 'logs', 'animations']);
+/**
+ * Build outputs and working folders, plus one tracked folder that is skipped
+ * on purpose.
+ *
+ * `generated-skill/` holds a frozen copy of a skill the graphic-designer
+ * helper *generated*, kept so `test/generated-skill.test.ts` has something
+ * tracked to render. It declares a `name:` like any other skill, but no
+ * install carries it and no AI tool loads it - it is test data. The uniqueness
+ * rule below is about skills a tool can load, so a fixture belongs outside it.
+ */
+const SKIP_DIRS = new Set([
+  'node_modules',
+  'dist',
+  'dist-test',
+  'release',
+  'logs',
+  'animations',
+  'generated-skill',
+]);
 
 /**
  * Every file in the tracked tree. Dot-entries are skipped along with the build
@@ -73,7 +99,18 @@ test('every skill exists once in the tracked tree', () => {
   for (const [name, files] of skills) {
     assert.equal(files.length, 1, `${name} appears ${files.length} times:\n  ${files.join('\n  ')}`);
   }
-  assert.deepEqual([...skills.keys()].sort(), [ANIMATION_SKILL_NAME, VECTOR_SKILL_NAME].sort());
+  // An exact set, not a superset: a skill in the tracked tree that no helper
+  // declares is one no install would carry, which is a mistake either way.
+  assert.deepEqual([...skills.keys()].sort(), allHelperSkills().sort());
+});
+
+test('the skill names the app reaches for are the ones the registry lists', () => {
+  // `animation.ts` names two skills in every generated form. They have to be
+  // the two the vectors helper actually ships, or the form asks for something
+  // the tool cannot find.
+  const vectors = AI_HELPERS.find((h) => h.name === ANIMATION_PLUGIN.name);
+  assert.ok(vectors, 'the vectors helper is not registered');
+  assert.deepEqual([...vectors.skills].sort(), [ANIMATION_SKILL_NAME, VECTOR_SKILL_NAME].sort());
 });
 
 test('the retired plugin build folder is gone', () => {
@@ -82,46 +119,94 @@ test('the retired plugin build folder is gone', () => {
   assert.equal(existsSync(join(ROOT, 'plugins')), false);
 });
 
-test('the marketplace at the repository root lists the plugin', () => {
+test('the marketplace at the repository root lists every helper', () => {
   const market = JSON.parse(readFileSync(join(ROOT, '.claude-plugin', 'marketplace.json'), 'utf-8'));
   assert.equal(market.name, ANIMATION_PLUGIN.marketplace);
   assert.ok(market.owner?.name, 'a marketplace needs an owner');
 
-  const entry = market.plugins.find((p: { name: string }) => p.name === ANIMATION_PLUGIN.name);
-  assert.ok(entry, `${ANIMATION_PLUGIN.name} is not listed`);
-  // The source points at the folder rather than at a copy of it, which is what
-  // keeps one skill from becoming two.
-  assert.equal(entry.source, `./${ANIMATION_PLUGIN.dir}`);
-});
-
-test('the plugin manifest names the plugin and tracks the package version', () => {
-  const manifest = JSON.parse(readFileSync(join(PLUGIN, '.claude-plugin', 'plugin.json'), 'utf-8'));
-  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
-  assert.equal(manifest.name, ANIMATION_PLUGIN.name);
-  assert.equal(manifest.version, pkg.version, 'run `npm run ai-helper -- --to plugin` to sync it');
-});
-
-test('the plugin carries the parts the app names', () => {
-  // The app tells the helper to reach for these by name, so a missing one is a
-  // form that asks for something the tool cannot find.
-  for (const skill of [ANIMATION_SKILL_NAME, VECTOR_SKILL_NAME]) {
-    const file = join(PLUGIN, 'skills', skill, 'SKILL.md');
-    assert.ok(existsSync(file), `${skill} is missing`);
-    assert.equal(skillName(file), skill, `${skill} declares a different name:`);
+  for (const helper of AI_HELPERS) {
+    const entry = market.plugins.find((p: { name: string }) => p.name === helper.name);
+    assert.ok(entry, `${helper.name} is not listed`);
+    // The source points at the folder rather than at a copy of it, which is
+    // what keeps one skill from becoming two.
+    assert.equal(entry.source, `./${helper.dir}`);
   }
-
-  const command = join(PLUGIN, 'commands', `${ANIMATION_PLUGIN.command}.md`);
-  assert.ok(existsSync(command), 'the animation-mode command is missing');
-
-  const agent = join(PLUGIN, 'agents', `${ANIMATION_PLUGIN.agent}.md`);
-  assert.ok(existsSync(agent), 'the animation-frame subagent is missing');
-  assert.match(readFileSync(agent, 'utf-8'), new RegExp(`^name:\\s*${ANIMATION_PLUGIN.agent}$`, 'm'));
-
-  assert.ok(existsSync(join(PLUGIN, 'instructions', 'animation-mode.instructions.md')));
 });
 
-test('the plugin root is the install source, not a copy of it', () => {
-  // `--to claude` copies out of the same folder the plugin loads from. If they
+test('every plugin manifest names its plugin and tracks the package version', () => {
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
+  for (const helper of AI_HELPERS) {
+    const path = join(ROOT, helper.dir, '.claude-plugin', 'plugin.json');
+    assert.ok(existsSync(path), `${helper.name} has no manifest`);
+    const manifest = JSON.parse(readFileSync(path, 'utf-8'));
+    assert.equal(manifest.name, helper.name);
+    assert.equal(
+      manifest.version,
+      pkg.version,
+      `${helper.name}: run \`npm run ai-helper -- --to plugin\` to sync it`
+    );
+  }
+});
+
+test('every plugin carries the parts its registry entry promises', () => {
+  for (const helper of AI_HELPERS) {
+    const base = join(ROOT, helper.dir);
+
+    for (const skill of helper.skills) {
+      const file = join(base, 'skills', skill, 'SKILL.md');
+      assert.ok(existsSync(file), `${helper.name}: ${skill} is missing`);
+      assert.equal(skillName(file), skill, `${skill} declares a different name:`);
+    }
+    for (const command of helper.commands) {
+      assert.ok(existsSync(join(base, 'commands', command)), `${helper.name}: ${command} is missing`);
+    }
+    for (const agent of helper.agents) {
+      const path = join(base, 'agents', agent);
+      assert.ok(existsSync(path), `${helper.name}: ${agent} is missing`);
+      // A subagent answers to its declared name, not to its filename.
+      const declared = agent.replace(/\.md$/, '');
+      assert.match(readFileSync(path, 'utf-8'), new RegExp(`^name:\\s*${declared}$`, 'm'));
+    }
+    for (const file of helper.instructions) {
+      assert.ok(existsSync(join(base, 'instructions', file)), `${helper.name}: ${file} is missing`);
+    }
+  }
+});
+
+test('each plugin root is its own install source, not a copy of one', () => {
+  // `--to claude` copies out of the same folders the plugins load from. If they
   // ever diverge, one of the two deliveries is shipping stale skills.
-  assert.equal(resolve(PLUGIN), resolve(ROOT, 'ai-helper'));
+  assert.equal(resolve(ROOT, ANIMATION_PLUGIN.dir), resolve(ROOT, AI_HELPER_ROOT, 'vectors'));
+  assert.equal(
+    resolve(ROOT, GRAPHIC_DESIGNER_PLUGIN.dir),
+    resolve(ROOT, AI_HELPER_ROOT, 'graphic-designer')
+  );
+
+  // And the container holds nothing but those folders and its own README, so
+  // "each helper has an exclusive path" stays true rather than being a claim.
+  const stray = readdirSync(join(ROOT, AI_HELPER_ROOT), { withFileTypes: true })
+    .filter((e) => !e.name.startsWith('.'))
+    .filter((e) => (e.isDirectory() ? !AI_HELPERS.some((h) => h.dir.endsWith(`/${e.name}`)) : e.name !== 'README.md'))
+    .map((e) => e.name);
+  assert.deepEqual(stray, [], `${AI_HELPER_ROOT}/ holds something that is not a helper`);
+});
+
+test('the installer registry and the app registry agree', () => {
+  // The script cannot import the TypeScript, so the two lists are held together
+  // here instead. A helper added to one and not the other installs nothing, or
+  // installs something the app cannot name.
+  const script = readFileSync(join(ROOT, 'scripts', 'install-ai-helper.mjs'), 'utf-8');
+  for (const helper of AI_HELPERS) {
+    assert.ok(
+      new RegExp(`['"]?${helper.name}['"]?\\s*:\\s*\\{`).test(script),
+      `install-ai-helper.mjs does not register ${helper.name}`
+    );
+    assert.ok(script.includes(`\`\${AI_HELPER_ROOT}/${helper.name}\``), `${helper.name}: dir does not match`);
+    for (const skill of helper.skills) {
+      assert.ok(script.includes(`'${skill}'`), `install-ai-helper.mjs does not install ${skill}`);
+    }
+    for (const file of [...helper.commands, ...helper.agents, ...helper.instructions]) {
+      assert.ok(script.includes(`'${file}'`), `install-ai-helper.mjs does not list ${file}`);
+    }
+  }
 });

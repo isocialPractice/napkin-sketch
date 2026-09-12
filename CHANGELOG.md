@@ -4,10 +4,121 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.1.3-alpha] - 2026-09-05
+## [Unreleased]
 
 ### Added
 
+- **A test suite for generated skills.** `test/generated-skill.test.ts` renders
+  eight variations of a graphic through a frozen copy of a skill the
+  graphic-designer helper generated, and measures each one. No model runs: the
+  helper's job ends when the skill is generated, and everything after that is
+  deterministic code, so the suite costs one Node subprocess and about two
+  seconds.
+  - **Four tiers.** Structural (the page decodes at the declared size, two
+    renders are byte-identical, the page is neither blank nor solid), language
+    conformance (the three roles are present and inside their share bands, no
+    colour is painted that the language does not declare, every type size is on
+    the scale and every stroke on the declared weights), legibility and
+    containment (WCAG contrast, nothing off-page, no code row under the footer,
+    no two runs overlapping, raster strokes at least a device pixel). Those
+    three fail. The fourth reports drift from the source asset and never fails,
+    because a cheatsheet is legitimately denser than the card it was drawn from
+    and a test that failed on that is one people learn to ignore.
+  - **Each format is read on its own terms.** The vector's text runs are parsed
+    and measured in the family the SVG names; the raster's pixels are decoded
+    and quantized. Two of the defects this suite was written for are visible in
+    exactly one of the two formats, so a check against a single output would
+    have passed both.
+  - **A negative control.** One variation renders at 1x and is asserted to
+    *fail* the legibility standard, which is how that standard is shown to have
+    teeth rather than to pass everything put in front of it.
+  - **The share bands are evidence-backed**, drawn around eight measured
+    variations and widened well past them. The defect that prompted them
+    measured 83 / 11 / 2.5 against bands of 50-80 / 12-35 / 1-10, and fails two
+    of the three.
+- **`API-QUICKSTART.md`.** The path from a fresh clone to a graphic drawn from
+  a script, to a plugged-in helper, to a design language captured off an asset
+  you already have - with the two ways to install the helper and what actually
+  differs between them, and a troubleshooting table that starts with `Unknown
+  command`. `API.md` stays the reference; this is the route through it.
+- **A second AI helper: `graphic-designer`.** It answers a different question
+  from Animation Mode - not "draw the next frame" but "what design language is
+  this graphic in, and how do I make more like it". Its
+  `/graphic-designer:design-language` command reads a media file, writes a
+  `DESIGN_LANGUAGE.md` describing what it found, and generates a lightweight
+  skill named after the asset, carrying that language and a script that
+  composes new work in it through the graphic-design API. The point is that a
+  repeated graphics job - a series of social posts, a run of thumbnails - stops
+  being a brief somebody re-explains each time and becomes a script with a name.
+  - **It measures before it judges.** `analyze-media.mjs` is a dependency-free
+    CLI (and an importable `analyzeMedia`) that reports what a file actually
+    says: an SVG yields colors weighted by how often each class is referenced,
+    plus font families, sizes, stroke widths, corner radii and an element
+    census; a PNG is decoded and quantized into a palette and yields colors
+    only; JPEG, GIF and WebP have no decoder here, exactly as the rasterizer
+    has none.
+  - **An empty palette means "not measured", never "no colors".** Every report
+    carries a `notes` list naming what the format could not say, and the
+    contract forbids writing down a value the file did not give. A design
+    language whose numbers were guessed is worse than none, because the next
+    asset gets drawn to it.
+  - **Two skills.** `design-language` carries the procedure, the
+    `DESIGN_LANGUAGE.md` naming rules (`DESIGN_LANGUAGE-<stem>.md` when one
+    already exists) and the generated-skill collision rule (`<stem>_0`, never an
+    overwrite). `graphic-design-api` is the general design skill pointed at this
+    API: the element vocabulary, the grid arithmetic, the 60-30-10 ratio, type
+    scales, WCAG contrast on a static page, and the limits the API is honest
+    about.
+  - **The check that matters** is run on the output: analyze the generated
+    asset and compare its palette against the source's. Agreement on paper, ink
+    and accent is the only mechanical evidence that the captured language is the
+    one the asset was drawn in.
+- **Graphic-design API.** A composition is a page and a list of simple
+  elements - rectangles, circles, ellipses, triangles, polygons, polylines,
+  lines, paths, styled text, placed media, groups and clipping masks - and it
+  renders to **SVG** or **PNG**. `createComposition()` opens a 360 by 360 pixel
+  page; a size can be named instead, and coordinates are read in pixels unless
+  the page asks for inches, millimetres or points. It is headless: the app's
+  own canvas is drawn into only when it is explicitly handed over, so a script
+  that renders a graphic has nothing to do with whatever sketch is open. The
+  reference, every element's properties, and worked examples are in the new
+  [API.md](API.md).
+  - **Both formats come off one document**, which is what makes them the same
+    graphic. The page size, the elements, their order, their geometry, their
+    colors, their transforms, their masks and the text layout are shared by
+    construction rather than kept in step by hand; the difference between the
+    two files is the media export format and nothing else.
+  - **PNG with no dependency and no canvas.** Node has neither a rasterizer nor
+    a font, and the repository has no runtime dependencies, so the raster path
+    is written here: scanline coverage with four sub-rows a pixel and exact
+    horizontal spans, stroke outlining, clipping masks as multiplied coverage,
+    bilinear image sampling, a PNG encoder that picks a row filter per row, and
+    the DEFLATE codec underneath both directions of it. A composition rendered
+    twice produces identical bytes.
+  - **Text is laid out once and read by both renderers.** The SVG writes live
+    `<text>` in whatever font family the element named; the rasterizer draws a
+    built-in single-stroke alphabet, because a PNG needs a font engine and
+    there is none to ask. Both *measure* with the same table, so the line
+    breaks, the alignment and the block's extent match to the unit in the two
+    files and only the glyph shapes differ. Character styling covers family,
+    size, weight, style, letter and word spacing, decoration and case;
+    paragraph styling covers alignment including justification, line height,
+    wrap width, paragraph spacing, first-line indent and what `y` measures.
+  - **Media placements carry their own clipping.** A `clip` is either a mask
+    defined once with `defineClip` and shared, or a shape written inline on the
+    element, which the renderer promotes to a `<clipPath>` of its own. The SVG
+    embeds JPEG, PNG, GIF and SVG verbatim; the rasterizer decodes PNG itself
+    and takes a `decodeImage` hook for the rest, skipping a placement it cannot
+    read and reporting it in `warnings` rather than failing the other forty
+    elements.
+  - **A canvas back end for the GUI**, `paintComposition`, draws a composition
+    into a 2D context with the host's real fonts and the shared layout, and
+    leaves the context exactly as it found it.
+  - **Node file helpers** stay in their own module, the way the PDF importer
+    does, so importing the API never drags `node:fs` into a web build.
+    `imageDataUrl` reads an asset into a data URL and `writeComposition` writes
+    the SVG and the PNG of one document in one call - a caller cannot export
+    the vector of one revision beside the raster of another.
 - **The form measures every layer, so a part can be identified without a name.**
   Animation Mode now sends the AI helper an inventory of the source frame's
   layers, each as a fraction of the figure's own box, together with its paint
@@ -23,6 +134,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **`/graphic-designer:design-language` takes an optional output directory.**
+  The command captured a design language and left where to put it unstated,
+  which meant the most obvious way to ask - "write `DESIGN_LANGUAGE.md` to
+  `docs/design/`" - was answered by guesswork. It is now the second argument,
+  and a destination named in plain words means the same thing. The
+  already-exists check that picks `DESIGN_LANGUAGE-<stem>.md` is per directory,
+  so one asset documented in two places gets the plain name in both.
+- **`ai-helper/` is a container now, not a plugin.** It held the `vectors`
+  plugin at its root, and two plugins cannot share one root, so the existing
+  helper moved to its own exclusive folder at `ai-helper/vectors/` and the new
+  one sits beside it. The marketplace lists both, `npm run ai-helper -- --list`
+  names both, and a `HELPERS` registry in the installer replaced the five
+  hard-coded constants that used to spell out one plugin's payload.
+  - **An existing install keeps working.** A record written when `--to plugin`
+    meant `ai-helper` is migrated as it is read, so the app, the status output
+    and the uninstall sweep all resolve it to `ai-helper/vectors`. Without that
+    the sweep would have been pointed at the container root.
+  - **`npm run ai-helper` now installs every helper** rather than the one that
+    used to be the only one. `--helper <name>` narrows it. Animation Mode's own
+    script always names `vectors` explicitly, so
+    `npm run animation-mode -- --install` and `--uninstall` reach exactly what
+    they always did.
+  - The install record stays at `ai-helper/installed.json`. `.gitignore`
+    excludes that exact path, so a record one folder deeper would have been
+    un-ignored and started committing a local install state.
+- **`npm test` takes `--keep-graphics`.** The graphic-design suite draws a
+  reference composition and several variations of it, writes both formats of
+  each to `.tmp/`, and deletes them when it finishes, so a run leaves the
+  working tree as it found it. The one thing a graphics test cannot assert is
+  whether the picture looks right, and the flag is how to look: the files stay
+  and the suite prints where.
 - **The animation skill works like an image generator rather than a transform
   applier.** The job is the next picture in a sequence; the layer tree is how
   that picture is stored, and a frame that satisfies every naming rule while
@@ -45,6 +187,54 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     crossing the midline, a turning figure whose far arm goes behind the torso,
     a head turning past a shoulder, an object crossing on an arc.
 
+### Fixed
+
+- **Code tokens no longer overlap in a generated SVG.** They were advanced by
+  `measureText`, which reports the API's built-in alphabet - the font the
+  *rasterizer* draws - while the SVG named Courier New, which is wider by up to
+  10 units on a 6-unit line. Every token landed short of where the real font
+  would end it and the next one printed over the last. Invisible in the PNG,
+  which is drawn in the very font that was measured, so only a reader opening
+  the SVG would ever have seen it. Named as a limit in `API.md` and in the
+  `graphic-design-api` skill, because it will bite anyone laying out runs
+  side by side in a family they named.
+- **Small text in a generated PNG is legible.** A 6-unit glyph is drawn with a
+  0.45-unit stroke, under one device pixel at `scale: 1`, so a code panel
+  anti-aliased into grey texture. Generated scripts now raster at 3x by
+  default; the composition is unchanged, only the sampling.
+- **An overlong title degrades instead of running off the page.** It steps down
+  the type scale first - only sizes the design language declares - and is
+  truncated with an ellipsis when even the smaller step does not fit. Found by
+  the new suite on its first run, which is the argument for the suite.
+- **The helper's slash command reaches a dot-folder install.** Installing to
+  `.claude` or `.github` copied the skills and the contract and dropped the
+  `commands/` and `agents/` folders on the floor, so
+  `/graphic-designer:design-language` existed only for someone who had loaded
+  the plugin - while the skill, the README and the contract all described it as
+  the way to start the job. A command reachable under one delivery and missing
+  under the other is a command whose documentation is wrong half the time.
+  - Commands now land in `<target>/commands/<helper>/`, so the copy answers to
+    the same `/<helper>:<command>` spelling the plugin gives it.
+  - `${CLAUDE_PLUGIN_ROOT}` is resolved on copy to the helper's
+    repository-relative folder. That variable is defined only for a loaded
+    plugin, so a copied command that kept it pointed every path in its own
+    instructions at nothing.
+  - Uninstalling removes what installing added, commands and subagents
+    included.
+- **`import('napkin-sketch')` works from Node.** `dist/api/index.js` is an ESM
+  bundle, but the package is `"type": "commonjs"`, so Node read a bare `.js`
+  there as CommonJS and refused to load it - which meant the documented
+  `import { createComposition } from 'napkin-sketch'` failed for anyone outside
+  a bundler. The build now writes a one-key `dist/api/package.json` scoping that
+  folder to ESM. Found by the graphic-designer helper's PNG decoding, which is
+  the first thing in the repository to import the API as a plain Node script.
+- **The graphic-design fixture symlinks resolve.**
+  `test/graphic-design-api/skill/` carries two links to the same graphic in two
+  formats; both were written relative to the repository root rather than to
+  their own directory, and the PNG named a file that does not exist. Git had
+  them as proper mode-120000 symlinks all along, so only the targets needed
+  fixing, with forward slashes so a Linux or macOS clone resolves them too.
+
 ## [4.1.2-alpha] - 2026-09-01
 
 ### Added
@@ -63,7 +253,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the border is in the way exactly when a selection is being looked at and
   reaching a switch otherwise means opening a palette over the drawing being
   judged. On by default, and persisted like every other setting.
-
 - **Editing panels dock.** Move, Rotate, Page Settings, and Sharpen Selection
   each carry a small button in their title bar that parks the panel in a dock
   beside the layers and properties panels, and takes it back out again. A
@@ -78,7 +267,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - **The dock takes no space when it is empty** - no column, and not even the
     pixel its border would cost - so a session that never docks anything is
     laid out exactly as before.
-
 - **Rotate: turn a selection by hand or by the degree.** A **Rotate** button
   beside Move, and `Ctrl+R`, open a palette that turns the selection about a
   centre point. Positive degrees turn clockwise and negative counterclockwise,
@@ -134,7 +322,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     outright - `visibility: hidden` rather than only transparent, so the panel
     neither takes presses meant for the canvas underneath nor keeps its fields
     in the tab order.
-
 - **Move by an exact distance.** A **Move** button beside Join, and `Enter`
   with something selected, open a dialog that shifts the selection by typed
   `x` and `y` distances in any of the usual units. The Properties panel already
@@ -231,7 +418,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - The assets are framed as coursework: the rigs are the exercises, the
     studies are the sketchbooks, and their careless layer naming is itself part
     of what they teach.
-
 - **The `vector-animations` skill covers animation physics.** A short
   **Animation Physics** section in the skill and a full
   `references/animation-physics.md` beside it, because a cycle table says what
@@ -254,7 +440,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     semi-implicit against implicit Euler, and the cost in control that comes
     with them - so a request for simulation gets an accurate answer rather than
     a guess. Every figure in it was checked against its own arithmetic.
-
 - **The AI skills' asset lists match what is actually there, and say how far
   each sheet can be trusted.** Both skills now group their assets by how
   organized they are, because a helper that treats a study like a rig will read
@@ -281,7 +466,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     exist, are corrected to `breaking-objects.svg`, and the cross-skill links
     from `vector-animations` no longer point at the removed `objects.svg`.
     Every asset path in both skills now resolves.
-
 - **The editing popups share one implementation.** Dragging by the title,
   dragging by the border band, the corner resize grip, and staying on screen
   when the window shrinks were a set of private methods that only the Move
@@ -399,7 +583,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   of the figure moved. The `-assembly` suffix is now accepted on the two names
   that lack one, `head` and `body`. The four that already carry it still match
   exactly, so `front-arm-assembly` can never be read as a bare `front-arm`.
-
 - **The space bar toggles a focused checkbox again.** Tabbing to **Live
   preview** or **Show Selection Borders** and pressing space did nothing: the
   space bar arms straight-line drawing, and that shortcut called
@@ -412,7 +595,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Buttons are deliberately left out: they answer to Enter as well, so they lose
   nothing, and taking space from them would make a toolbar button that still
   held the focus from being clicked fire again instead of arming a drag.
-
 - **A palette that opens on a field now actually opens on it.** The Move
   palette meant to open with its **Horizontal (x)** field focused and its value
   selected, so a distance can be typed the moment it appears; it was landing
@@ -425,7 +607,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   closing keeps the transition, so a dismissed panel still fades out rather
   than vanishing. Rotate's angle field and Page Settings' width field were
   focused the same way and were failing the same way; all three work now.
-
 - **Move moved the selection twice when the live preview was on.** The preview
   is a real move, made and unmade, and the **Move** button committed the typed
   distance and then put the preview straight back on top of it - so a request
@@ -441,7 +622,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     must never outlive the palette that was previewing it, so the flag is gone
     and every close reverts - which costs nothing after a commit, since the
     commit has already cleared it.
-
 - **Selecting an element with the Select tool nudged it a few pixels.** The
   press committed to a move drag immediately, so the first pointer movement
   after it carried the element along one pixel for one pixel - and a click
@@ -461,7 +641,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     stacked a copy exactly on top of the original, where nothing showed it.
     The copy is made when the drag commits, and `Alt` is read at that moment
     rather than remembered from the press.
-
 - **Grabbing the Page Settings or Sharpen title threw the panel off screen.**
   A placed panel was positioned `absolute`, which measures from whatever box
   its overlay happens to be. The two palettes whose overlay fills the viewport
@@ -472,7 +651,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the window and beyond recall. A placed panel is `fixed` now, so its
   coordinates are the viewport's - which is what every number the popup
   manager drags, parks and clamps in already assumed.
-
 - **The Move palette opened over the drawing it was about to move, three
   quarters of the screen wide.** It had no width of its own, so it opened at
   whatever its contents wanted - 1129px of a 1494px window for two number
@@ -480,21 +658,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to show moving. It now starts at 340px, the width Rotate already uses, and
   parks itself clear in the top-right corner on its first opening the way
   Rotate does. A palette dragged somewhere on purpose still stays there.
-
 - **Undocking a resized panel brought back its position but not its size.**
   The dock has to clear the inline width and height the resize grip wrote so
   the column can set its own; only the position was noted down first, so a
   panel pulled bigger, docked, and taken back out returned at the default
   size. Both are remembered now, which is what the dock button promised: a
   round trip that costs nothing.
-
 - **Page Settings and Sharpen are pulled back on screen when they open.** Move
   and Rotate each asked for that at their own call site; the other two never
   did, so a panel left near an edge could reopen off screen after the window
   had shrunk. The popup manager watches the class that opens a dialog and
   clamps every one of them - and it watches with one window-resize listener
   for all nine popups rather than one listener each.
-
 - **The AI tool sign-in button could not open a terminal on Windows.** Pressing
   **Open sign-in** raised "Windows cannot find 'sign-in\'" instead of starting
   the tool. The window title was passed as one entry of an argv array, and Node
@@ -507,7 +682,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Sign-in on a tool that is not installed says so** rather than opening a
   terminal that closes again: the executable is checked before the launch, the
   same way a generation run checks it.
-
 - **`Enter` no longer opened the Move dialog on top of another one.** The
   shortcut only checked that something was selected, so pressing Enter to
   confirm an Animation Mode step - the obvious thing to press - put the Move
@@ -521,7 +695,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **The move cursor took the whole border ring.** It now follows the same
   three-pixel band the drag does, so what shows the cursor is exactly what can
   be grabbed, and the resize corner keeps its own.
-
 - **A group or multi-element selection is no longer easy to lose.** Pressing
   inside a selection of several elements now moves it, even where the press
   lands in a gap between the marks. It used to demand an exact hit on ink:
@@ -536,21 +709,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     than four. A press aimed at a group of scattered marks often lands just
     outside the box enclosing them, and starting the move a few pixels off is
     a far better outcome than losing the whole selection.
-
 - **Export All wrote its pages with no name.** Clearing the extension in the
   save dialog and typing a plain name left the files called `_1.png`, `_2.png`,
   and so on: the stem was taken by slicing the extension off the end, and
   slicing nothing off the end of a string leaves nothing at all. The whole name
   is now kept when there is no extension to drop. Windows' own dialog appends
   one, which is why this only ever showed on the dialogs that do not.
-
 - **A fully transparent mark came back solid.** Opacity zero was rejected on
   load as though it were missing, and a missing opacity means the tool's
   default - which for a pen is fully opaque. Anything set to zero with Quick
   Opacity, or imported from an element the source file had at `opacity="0"`,
   turned into ink the next time the book was opened. Zero is now read as the
   opacity it is; anything outside zero to one still falls back to the default.
-
 - **A save that could not land left its scratch file behind.** Saving writes a
   temporary file and renames it over the document, so an interrupted save can
   never corrupt the original - but when the rename itself failed, which is what
@@ -558,7 +728,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   left sitting in the folder, and every retry added another. The failure is
   still reported and the original still untouched; the scratch file now goes
   with it.
-
 - **Page thumbnails drew lines across the holes in a shape.** A ring, a letter
   with a counter, or any imported shape with an inner contour showed a line
   ruled from the end of the outer contour to the start of the inner one in the
@@ -567,7 +736,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   had drifted from it on both counts; it now lifts the pen between contours and
   leaves a fill-only shape without an outline, the way the canvas and both
   exports always did.
-
 - **`napkin-sketch --new` failed to start from some terminals.** Editor and
   agent terminals often export `ELECTRON_RUN_AS_NODE`, and the CLI passed its
   whole environment to the window it launched. With that variable set the GUI
@@ -575,14 +743,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   startup dies naming an Electron internal rather than the cause. The variable
   is now dropped from the child's environment, since the window is never meant
   to run that way.
-
 - **One bad id in an imported file could abort the whole import.** A layer's
   eraser mask is found by the id in its `mask="url(#...)"` attribute, and that
   id went into a lookup unescaped - so a quote or a bracket in it produced an
   invalid query that threw, and the file failed to import at all rather than
   losing one mask. The id is escaped now. Every other unreadable thing in an
   SVG already degraded gracefully; this one is the last that did not.
-
 - **Imported artwork could paint in the wrong order.** napkin's own exports
   record each mark's paint order in a `data-i` attribute, and geometry from
   another editor carries none - which was supposed to fall back to the order
@@ -592,7 +758,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   reached. Only a document mixing both kinds of mark on one layer showed it,
   where the foreign artwork sank underneath geometry it had been drawn on top
   of.
-
 - **The AI helper's log setting could point outside the folder it names.** The
   path is documented as relative to the helper's working directory, and it was
   taken as typed - so an absolute path replaced that directory outright, `..`
@@ -602,7 +767,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   default rather than being silently rewritten, so a path meant to go somewhere
   else fails where it can be seen. A settings file moves between machines, so a
   path that is absolute on any platform is refused on all of them.
-
 - **The animation wizard's frame count said skeletons and meant steps.** A
   sequence opens at its animation's natural length, and the note explaining
   that number described it as the count of drawn poses the cycle was measured
@@ -633,7 +797,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     closes and loops. A test pins each of those three: the deeper swing, the
     lift, and the lean returning - a run that tipped forward and stayed there
     would walk the figure onto its face after two repeats.
-
 - **`object-animations.svg`**, the object counterpart of the skeleton rig, for
   the two types that cannot be posed with a transform: `Box_Breaking-Animation`
   (3 frames, a box cracking and shedding pieces) and
@@ -648,15 +811,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     moved copy, because its outline changes as it tumbles.
   - The `break` and `explode` guidance in the app now names the drawing, so a
     template-posed object frame is written against it.
-
 - **A serif typeface in `alphabet.svg`.** The asset now holds two typefaces
   rather than one: `Sans-serif-typeface` and `serif-typeface`, 26 letter-pair
   groups apiece. The pair is a worked example of the skill's own naming rules
   - the serif set carries the editor's `-2` uniquifier throughout (`Aa-2` is
   still `Aa`) and names its paths for the letters (`A`, `a`) where the
   sans-serif set names them for the roles (`upper-case`, `lower-case`).
-
-
 - **`ai-helper/` is now the `vectors` plugin**, not a folder a plugin gets
   built out of. The manifest, a command, a subagent, both skills, and the
   helper contract are the folder's own contents, and one manifest at the
@@ -692,7 +852,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     marketplace manifest is committed, so `/plugin marketplace add` reaches it
     straight from GitHub.
   - Both manifests validate under `claude plugin validate --strict`.
-
 - **The app knows which delivery it is talking to.** A plugin renames what it
   carries - inside one, a skill answers to `vectors:<skill>` - so a form that
   named the bare skill would name something the tool cannot find. The install
@@ -702,7 +861,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `/vectors:animation-mode` in place of the `ai-helper/skills/...` paths that
   only a copied install has. Omitting the delivery still writes the file-path
   form every tool understands.
-
 - **A test guards against a skill existing twice.** It walks the tracked tree,
   reads the `name:` out of every `SKILL.md`, and fails on a repeat; it also
   checks the two manifests agree with each other and with `package.json`, and
@@ -715,7 +873,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **The walk table in the skill was re-read from the asset.** Four cells had
   drifted from the drawing by a tenth of a degree (steps 3, 5, 6, and 7). The
   generated cycle was always right; the hand-kept table beside it was not.
-
 - **The `plugin` install target no longer builds anything.** It used to
   generate `plugins/vectors/`, a second copy of both skills that went stale
   the moment either changed. `ai-helper/` is the plugin now, so the target
@@ -730,12 +887,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - **The two plugin manifests are exempted from the ignore rules.** A global
     "ignore every dot-entry" rule would leave `.claude-plugin/` uncommitted,
     and an unpublished manifest is a plugin nobody can add.
-
 - **Switching delivery removes the old install first.** `--install --to plugin`
   over an existing `.claude` install used to leave that dot-folder's copy of
   both skills in place, so a tool loading the plugin saw every skill twice.
   The install now uninstalls a previous target that is not this one.
-
 - **The `vector-graphics` skill now covers SVG layer management.** A new
   "Layer Management" section records the structural rules the import/export
   work settled on, so the AI helper draws and edits with them instead of
@@ -750,7 +905,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   samples, at precision matched to the artwork's units. The skill's
   description and When-to-Use list now name these triggers, and the installed
   `.claude/skills/` copy is synced.
-
 - **The `svg-animations` skill is now `vector-animations`.** The name pairs it
   with its companion `vector-graphics` and describes what it works on rather
   than the file format it happens to emit. The rename reaches the skill folder,
@@ -816,7 +970,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     ignores shortcuts while a text field has focus. Claiming them in the menu
     would have taken `Ctrl+C` away from the layer-rename box and the property
     fields.
-
 - **The Pages panel has a menu, and there are now three ways to start a page.**
   A hamburger button beside `+ Page` opens them:
   - **From Selection** measures whatever is selected, gives the new page those
@@ -834,7 +987,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     that does not exist yet. The dialog's title reads *New Page* and its
     button reads *Add Page*; the page is only added when that button is
     pressed, so closing the dialog leaves no empty page behind.
-
 - **Export can export just the selection, cut to its own dimensions.** The
   Export dropdown gained a **Selection** row that opens the same four formats
   (PNG, JPEG, SVG, PDF) in a panel beside it, and exports only the selected
@@ -851,12 +1003,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     is the same gesture either way round.
   - The SVG route offsets the viewBox rather than moving the marks, so every
     coordinate is the one a full-page export would have written.
-
 - **Menus can hold nested entries.** The shared context menu grew submenus: a
   row carrying nested items shows a chevron and opens them in a panel beside
   itself on hover, on focus, or on a click, flipping to the row's left when a
   panel on the right would overrun the window.
-
 - **Shift pins a drag to an axis or a 45-degree diagonal.** Held during a
   drag, it constrains the movement to the nearest of the eight compass
   directions.
@@ -879,7 +1029,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     picking up the 6e-17 of vertical that `Math.cos(Math.PI / 2)` returns.
   - `constrainDrag` lives in `sharpen/geometry.ts` with the other pure
     geometry, and is covered by unit tests.
-
 - **A Shift-press on an already-selected element no longer drops it before it
   can be dragged.** Shift-click has always toggled selection membership, which
   meant a Shift-press on a selected element removed it and returned without
@@ -888,7 +1037,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   do the opposite of what it looks like. The removal now waits for the
   release: a Shift-press that never moves is still a Shift-click, and one that
   moves is a constrained drag.
-
 - **An Alt-drag copy says so in the pointer.** Holding Alt over a selection
   with the Select tool - and for as long as the copy is being dragged - swaps
   the arrow for two: the usual one at the hotspot, a second stepped out beside
@@ -898,7 +1046,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   tool now (it used to be read only by the Vector Path tool) and is re-read
   from each pointer event, so the pointer stays right even when the keypress
   landed in another window.
-
 - **A button that drops a menu now toggles it.** Pressing Export, the pages
   panel's hamburger, or Close Shape a second time puts its menu away, and a
   third press brings it back. The button reads as pressed for as long as its
@@ -924,7 +1071,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     to be refused outright ("Group rows cannot be restacked"), and the panel's
     move buttons greyed out whenever a group row was active. They now grey out
     only where the selection genuinely has nowhere to go.
-
 - **The Alt-drag copy lost a graphic's groups when the selection came from the
   canvas.** Selecting a whole imported graphic with `Ctrl+A` or a rubber band
   and Alt-dragging produced a flat pile of `" - copy"` leaves scattered inside
@@ -939,7 +1085,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     uses, so its copies land as a sibling of the original with only the root
     suffixed. The suffix is `" - Copy"` everywhere now; Alt-drag used to spell
     it `" - copy"`.
-
 - **Paste refused onto a group, calling it "locked or hidden".** Selecting an
   imported graphic by clicking its group row - the obvious way to grab the
   whole thing - made a group the active layer, and paste, duplicate, and
@@ -950,7 +1095,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - The check the drawing tools use is now shared rather than half-copied,
     so all four paths behave alike and the message says which of locked or
     hidden actually applies instead of naming both.
-
 - **A nested menu panel could not be reached with the pointer.** Hovering
   Export > Selection opened the panel, but it vanished before the pointer got
   to it, which made the whole row unusable.
@@ -993,14 +1137,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     round trip lands between **0.27x and 1.05x** of the source, against
     **1.14x to 1.49x** before, and all 77 paths across those files parse back
     to byte-identical anchors and handles.
-
 - **The importer reads the compacted spellings.** `parsePolylineD` and
   `parseVectorD` are built on the full path parser now instead of their own
   narrow regexes, so relative commands, `H`/`V` runs, reflected `S` handles,
   and elided command letters all read back the way absolute `M`/`L`/`C` did.
   Without this a napkin export would have re-imported through the sampling
   fallback and stopped round-tripping losslessly.
-
 - **`Surface.render` can leave the paper off.** A new `transparent` option
   skips the background, the paper texture, and the sized-page outline, which
   is what lets a cropped raster export of a selection land on transparency.
@@ -1026,7 +1168,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     by the transforms, so comparing geometry alone would call them the same.
   - The helper contract now says outright not to copy the source to the output
     path and edit it there.
-
 - **Animation cycles are measured from the wireframe skeleton, not invented.**
   `character-wireframes.svg` is a rig: one stick-figure skeleton per frame,
   carrying the same assembly group names a drawn character does, with each
@@ -1062,7 +1203,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - **The readings ship as an asset too**: `skeleton-cycles.json` beside the
     wireframes names which skeleton drives which type and lists every step, so
     an AI helper posing a type by hand can follow the same guide.
-
 - **Every animation type is selectable**: all fourteen - ten character types
   and four object types - with everything except `walk` marked **(Work in
   Progress)** rather than held back as a disabled option.
@@ -1084,7 +1224,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   names it beside `svg-animations` and points at its installed copy, so a
   frame that needs real curve work rather than a joint rotation - the fracture
   lines of a `break`, the piece outlines of an `explode` - has somewhere to go.
-
 - **Animation Mode installs and uninstalls separately.** It is the only
   feature that needs software the app does not ship - an agentic AI
   command-line tool, with its own installation, account, and usually cost - so
@@ -1121,7 +1260,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - The helper command's executable is resolved the same way whatever its
     shape (`claude`, `"C:\bin\claude.exe"`, `/usr/local/bin/codex`), so the
     right tool is named in dialogs and started for sign-in.
-
 - **Animation Mode** (`Ctrl + Shift + N` or **Edit > Animation Mode**): a new
   app mode that turns a page's layer tree into frame-by-frame animation
   material with the help of an AI tool. Entering the mode switches to the
@@ -1334,7 +1472,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   selected, `Delete` now removes the highlighted layer rows - the keyboard
   twin of the panel's Delete button, and the only way empty layers and
   groups could be deleted without the mouse.
-
 - **Properties panel** (`Ctrl + P`, the View menu, or the toolbar's
   Properties button): a third right-hand dock that edits the selected
   element rather than the tool that drew it. Because selecting a layer row
@@ -1366,7 +1503,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   buttons now say why a move did not happen - a group row carries no paint
   order of its own, and the ends of the stack have nowhere to go - instead
   of failing silently.
-
 - **`F2` renames the active layer.** Renaming used to be reachable only by
   double-clicking a layer's name label or by picking Rename from the layers
   panel's right-click menu, with nothing on the keyboard. `F2` - the rename
@@ -1560,7 +1696,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   previously only clicks near the outline registered. Unfilled outlines
   stay click-through in the middle, so rubber-band selection over empty
   canvas is unaffected.
-
 - **CLI import** (`-i, --import <file>`): launches the GUI with an SVG, PDF,
   PNG, or JPEG imported into the opening sketch, exactly as the
   File > Import menu item would place it — SVGs keep their layers, PDFs add

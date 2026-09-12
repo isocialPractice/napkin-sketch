@@ -924,6 +924,88 @@ bridge and the tests and documentation that make the rest of it usable.
   the place a language goes wants deciding before it is written rather than
   after.
 
+### New Skill to Auto Generate Design Language
+
+#### New `ai-helper/graphic-designer/`
+
+Ultimate goal here is to make a `DESIGN_LANGUAGE.md` file per conditions from
+`Add a new skill 'design-language' that will`, in order to support automated
+task where graphics are needed i.e. social media posting.
+
+The plan below replaced the two items it was generated from, and has since been
+carried out - it is kept as the record of what the work turned out to be, not
+as a queue. Six phases, in dependency order: the fixtures had to resolve before
+anything could be tested against them, and the existing helper had to move
+before a second one could exist beside it.
+
+Two things the plan learned only by checking, both of which changed it:
+`!.claude-plugin/` in `.gitignore` is depth-agnostic, so the moved manifests
+were never at risk - the exact-path `ai-helper/installed.json` rule was; and
+`dist/api/index.js` could not be imported from Node at all, which the PNG
+analysis was the first thing in the repository to notice.
+
+- [x] **Phase 0 - Fix the fixture symlinks.**
+  `test/graphic-design-api/skill/` carries the two graphics the helper is
+  tested with. Git already stores both as mode `120000` and `core.symlinks` is
+  true, so the mechanism is right and nothing needs converting to a shortcut or
+  to a committed copy. Both targets are wrong: written relative to the
+  repository root rather than to the link's own directory (which is what
+  `mklink` does when it is run from somewhere else), and the `.png` names
+  `created-svg_graphic-api.png`, which does not exist.
+  - Correct targets are `../created-svg_graphic-api.svg` and
+    `../created-png_graphic-api.png`.
+  - Write them through `git hash-object` and `git update-index --cacheinfo
+    120000,...`, not through `mklink`: git stores the target verbatim, so a
+    backslash path would resolve on Windows and nowhere else.
+- [x] **Phase 1 - Move the existing helper to an exclusive path.** `git mv`
+  everything at the `ai-helper/` root into `ai-helper/vectors/`, and write a
+  container README above it. Then update every independent spelling of the old
+  path: the marketplace `source`, `ANIMATION_PLUGIN.dir`, the wireframe script's
+  asset paths, the form text in `animation.ts`, and the comments in
+  `animation-cycles.ts`.
+  - `package.json`'s `files` already lists `ai-helper`, which covers both
+    plugins as a parent - no change.
+  - `.gitignore` needs no change either: `!.claude-plugin/` has no leading
+    slash, so it re-includes a manifest at any depth against the global `.*`
+    rule. What is depth-sensitive is `ai-helper/installed.json`, an exact path,
+    which is why the record stays where it is.
+  - A record written when `--to plugin` meant `ai-helper` must be migrated on
+    read, or an uninstall sweeps the container root.
+- [x] **Phase 2 - Give the installer a helper registry.**
+  `scripts/install-ai-helper.mjs` spells one plugin's payload out in five
+  constants. Replace them with a `HELPERS` map and derive `installTo`,
+  `uninstallFrom`, `pluginFiles`, `syncPluginVersion` and `targetDir` from it.
+  - `--helper <name>`, repeatable; every helper by default.
+  - `animation-mode.mjs` names `vectors` explicitly, so Animation Mode's
+    install and uninstall reach exactly what they always did.
+- [x] **Phase 3 - Build `ai-helper/graphic-designer/`.** A manifest, a README,
+  `/graphic-designer:design-language`, a contract, and two skills.
+  - `design-language`: analyze a media file, write `DESIGN_LANGUAGE.md` - or
+    `DESIGN_LANGUAGE-<stem>.md` when one exists - then generate a lightweight
+    skill named `<stem>` in the installed target's skills folder, colliding to
+    `<stem>_0`, with scripts that compose new assets through the graphic-design
+    API.
+  - `scripts/analyze-media.mjs`: dependency-free, importable. An SVG yields
+    colors weighted by class usage, plus type, strokes, radii and an element
+    census; a PNG is decoded through the API and quantized; JPEG and GIF have
+    no decoder and say so. An empty palette means "not measured", never "no
+    colors".
+  - `graphic-design-api`: the port of the existing graphic-designer skill,
+    renamed so it does not collide with the untracked `.github/` copy, and
+    rewritten around composition calls rather than CSS.
+- [x] **Phase 4 - Tests.** The skill-uniqueness test asserts an exact set, so
+  it has to read the registry rather than two constants. Add a suite for the
+  new helper: the symlinks resolve and are committed as portable symlinks, an
+  SVG and a PNG of the same graphic yield the same paper and ink and an
+  overlapping palette, and an undecodable format reports why.
+  - Add a test that the `.mjs` registry and the `.ts` constants agree. The
+    script cannot import the TypeScript, so nothing else holds them together.
+- [x] **Phase 5 - Documentation.** README (the tree, the paths, a section for
+  the second helper, and the line claiming `ai-helper/` is the plugin, which
+  stops being true), CHEATSHEET (the `npm run ai-helper` rows, absent
+  entirely), API.md (a pointer to the helper that drives it), and the
+  changelog.
+
 ## Automation and Scripting Tool (generated scripts → next `++.y.z`)
 
 The app writing its own scripts. Four capabilities that look separate and are
@@ -1138,12 +1220,55 @@ what was left behind is filed under **Found Issues** and **Chores** above.
 
 ## Complete
 
-Thirty shipped entries, roughly newest first, each noting the group it
-graduated from. The newest is the Rotate tool, which lands with Move in the
-4.1.2-alpha batch; then the plugin work, and the eight after that are the
-4.1.0-alpha batch: the clipboard, the Selection export, the pages menu, and
-the drag and layer-integrity work.
+Thirty-one shipped entries, roughly newest first, each noting the group it
+graduated from. The newest is the graphic-design API, which is unreleased; then
+the Rotate tool, which lands with Move in the 4.1.2-alpha batch; then the
+plugin work, and the eight after that are the 4.1.0-alpha batch: the clipboard,
+the Selection export, the pages menu, and the drag and layer-integrity work.
 
+- [x] **Simple graphic design elements**: a composition API in
+  `src/core/graphic-design/`. `createComposition()` opens a page - 360 by 360
+  pixels unless a size is named, in pixels unless the page asks for inches,
+  millimetres or points - and a method per element appends rectangles (rounded
+  or not), circles, ellipses, triangles (three points, or a box and a
+  direction), polygons, polylines, lines, SVG-syntax paths, text, placed media
+  and groups. Text carries character styling (family, size, weight, style,
+  letter and word spacing, decoration, case) and paragraph styling (alignment
+  including justification, line height, wrap width, paragraph spacing, indent,
+  and what `y` measures). Media placements take a data URL, a box that sets
+  their position, a `fit`, and a clipping mask given either as a shared id from
+  `defineClip` or as a shape written inline. Headless by default: the GUI's own
+  canvas is drawn into only through `paintComposition`, which the renderer
+  hands its context to. Documented separately in `API.md`, as asked, and the
+  two sample graphics are rebuilt from one document in
+  `test/graphic-design-api/cheatsheet.ts`.
+  - **Both formats are one document**, which is the part worth keeping: the
+    page, the elements, their order, geometry, colour, transforms, masks and
+    text layout are shared by construction, so the difference between the SVG
+    and the PNG is the media export format and nothing else.
+  - **The raster answer this section asked for.** **Raster output has no
+    obvious answer** above filed three options and called an SVG-and-PDF-only
+    API the right default. A fourth turned out to be available: write the
+    rasterizer. Scanline coverage at four sub-rows a pixel, stroke outlining,
+    clipping as multiplied coverage, bilinear image sampling, a PNG encoder
+    that picks a row filter per row, and a DEFLATE codec underneath it - all of
+    it browser-safe, none of it a dependency, and deterministic to the byte.
+    The caller-supplied rasterizer from that entry survives as the
+    `decodeImage` hook for the image formats this one does not open.
+  - **Text is measured once and drawn twice.** The SVG writes live `<text>` in
+    the family the element named; the rasterizer draws a built-in single-stroke
+    alphabet, since a PNG needs a font engine and Node has none. Both measure
+    with the same table, so line breaks, alignment and block extent match to
+    the unit and only the glyph shapes differ. Named as a limit in `API.md`
+    rather than left to be discovered.
+  - **Tests**: `test/graphic-design-api.test.ts` renders the reference
+    composition and its variations - other palettes, moved elements, both at
+    once - to both formats, probes the pixels against the colours the document
+    declares and the markup against the same, and checks that a second render
+    is byte-identical. The files it draws are temporary, land in `.tmp/`, and
+    are deleted on the way out unless `npm test -- --keep-graphics` says to
+    keep them.
+  - From: API Implementation
 - [x] **Rotate tool**: `Ctrl+R`, or the Rotate button beside Move, opens a
   palette that turns the selection about a centre point - dragged by hand on
   the canvas (clockwise positive, counterclockwise negative) or typed as an

@@ -321,7 +321,7 @@ export const ANIMATION_OUTPUT_DIR = 'animations';
 /**
  * The skill the helper applies when drawing a frame. Named in the form so a
  * tool that loads skills on demand picks it up; its canonical copy lives in
- * `ai-helper/skills/<name>/`.
+ * `ai-helper/vectors/skills/<name>/`.
  */
 export const ANIMATION_SKILL_NAME = 'vector-animations';
 
@@ -821,10 +821,11 @@ function animationFormReferences(delivery: AnimationHelperDelivery): string {
 A clone of napkin-sketch carries all of it under ${ANIMATION_PLUGIN.dir}/ as well.
 `;
   }
+  const dir = ANIMATION_PLUGIN.dir;
   return `Full contract and references, when present in the working directory (read before editing):
-- ai-helper/instructions/animation-mode.instructions.md (canonical instructions)
-- ai-helper/skills/${ANIMATION_SKILL_NAME}/SKILL.md (the ${ANIMATION_SKILL_NAME} skill)
-- ai-helper/skills/${VECTOR_SKILL_NAME}/SKILL.md (the ${VECTOR_SKILL_NAME} skill, for curve work)
+- ${dir}/instructions/animation-mode.instructions.md (canonical instructions)
+- ${dir}/skills/${ANIMATION_SKILL_NAME}/SKILL.md (the ${ANIMATION_SKILL_NAME} skill)
+- ${dir}/skills/${VECTOR_SKILL_NAME}/SKILL.md (the ${VECTOR_SKILL_NAME} skill, for curve work)
 - Installed copies for your tool may exist under its dot-folder, e.g. .claude/skills/${ANIMATION_SKILL_NAME}/, .claude/skills/${VECTOR_SKILL_NAME}/, and .claude/instructions/.
 `;
 }

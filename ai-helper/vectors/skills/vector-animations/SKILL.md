@@ -1,6 +1,6 @@
 ---
 name: vector-animations
-description: 'Generate frame-by-frame SVG animation frames for the napkin-sketch Animation Mode. Use when asked to propose the next frame of a character or object animation (walk, ideal, run, attack, knockdown, rotate, break, move, explode), when processing an animation form from _temp/animation-form.txt, or when validating an SVG layer tree against the required character assemblies (front-arm-assembly, body, front-leg-assembly, back-leg-assembly, back-arm-assembly, Head). Covers reading an SVG as a picture before trusting its layer names, identifying an arm, a head or the hair from measured geometry when layers are named badly or not at all, posing from the subject's current position, reordering layers so the new pose reads at the right depth, Bezier curve mechanics, frame naming (<animationType>_<n>), and the physics of frame spacing - weight, timing, gravity, arcs, and bounce.'
+description: 'Generate frame-by-frame SVG animation frames for the napkin-sketch Animation Mode. Use when asked to propose the next frame of a character or object animation (walk, ideal, run, attack, knockdown, rotate, break, move, explode), when processing an animation form from _temp/animation-form.txt, or when validating an SVG layer tree against the required character assemblies (front-arm-assembly, body, front-leg-assembly, back-leg-assembly, back-arm-assembly, Head). Covers reading an SVG as a picture before trusting its layer names, identifying an arm, a head or the hair from measured geometry when layers are named badly or not at all, posing from the subject's current position, how far each part of a figure travels between drawn frames, reordering layers so the new pose reads at the right depth, Bezier curve mechanics, frame naming (<animationType>_<n>), and the physics of frame spacing - weight, timing, gravity, arcs, and bounce.'
 ---
 
 # Vector Animations
@@ -65,6 +65,26 @@ middle of a name rather than at the end. All of these come from one real documen
 
 Match on **meaning**, not on string equality. If a name is ambiguous, the drawing decides: the
 group whose geometry is a head is the head, whatever it is called.
+
+The illustrated assets are a larger sample of the same problem - six characters' worth of layer
+names, none of them written for this skill:
+
+| Drawn as | In | What it is |
+|----------|-----|------------|
+| `upperarm` and `forearm` as siblings | BadGirl | a front arm with no `front-arm-assembly` around it |
+| `dress` | SassyGirl | the torso; she has no `body` layer at all |
+| `upper-body` | CrimeGuy | head, torso and both arms, in one layer |
+| `left-vest`, `right-vest` | JammingJabber | clothing, not body parts |
+| `jacket-keft` | SassyGirl | `jacket-left`, mistyped and left that way |
+| `back-shoe` and `back-leg` as siblings | JammingJabber | a leg and its foot, not nested in an assembly |
+| `head-63`, `hair-32` | BadGirl | uniquifiers in the sixties; the number means nothing |
+| no child groups at all | `JumpingJunkie_defeat` | a whole frame of loose paths, nothing grouped |
+
+The last two rows are the ones to be ready for. **The same character can be built differently in
+different frames**: CrimeGuy is `back-leg-assembly`, `front-leg-assembly`, `upper-body` in one
+frame, and `back-arm`, `back-leg-assembly`, `front-leg-assembly`, `body`, `Head`, `front-arm` in
+another. Work the parts out from the frame in front of you every time. A map built from the
+previous frame may not fit this one.
 
 ### When the Layers Are Not Named At All
 
@@ -337,6 +357,67 @@ that a scaled-up walk would not:
   face after two repeats, which is why the sum of the `figure` column matters more than any
   single row in it.
 
+## How Far a Part Moves
+
+The cycle tables give **angles**: how far a joint turns. They say nothing about how far anything
+travels on the page, and a frame can satisfy every angle in them and still read as a mannequin
+with flapping limbs.
+
+`assets/illustrated-frames.json` is the other half, measured by `npm run illustrated-frames` from
+the two illustrated assets: 70 drawn steps across six characters. Every figure is measured
+against its own height, so the numbers carry from a tall character to a short one, and the whole
+figure's rise and fall - the `bob` - is taken out before each part is measured.
+
+| Type | bob | leg | arm | clothing |
+|------|-----|-----|-----|----------|
+| walk | 0.6 (0-1.9) | 8.9 (3.2-26.2) | 4.8 (1.2-9.4) | 3.5 (0.4-5.1) |
+| run | 8.0 (0.5-14.5) | 17.5 (7.7-26.2) | 9.3 (2.9-13.4) | 3.0 (0.5-7.4) |
+| ideal | 0.3 (0-0.4) | 2.4 (0.7-2.9) | 2.3 (1.5-2.5) | - |
+| attack | 1.3 (0-13.2) | 11.3 (0.1-46.4) | 7.9 (0-31.3) | 1.2 (0.1-5.8) |
+| damage | 1.0 (0.1-2.6) | 4.8 (2.1-15.6) | 9.0 (5.3-18.2) | 6.0 (3.9-13.2) |
+| knocked-down | 9.4 (0.1-48.9) | 13.4 (3-43.8) | 16.1 (8.9-23.3) | 5.8 (2.3-14.9) |
+| get-up | 2.1 (0-35.6) | 20.9 (10.9-34) | 24.0 (11.6-29.8) | 6.2 (0.3-22) |
+
+Percent of the figure's height, per frame: the typical value first, the whole observed range in
+brackets. **Aim at the typical.** A movement drawn in three frames covers the same ground in
+fewer steps than one drawn in eight, so the high end of a range is usually one of those rather
+than anything worth copying.
+
+Two readings worth keeping:
+
+- **A walk's legs travel about 9% of the figure's height per frame; its arms travel about 5%.**
+  Arms swinging as far as the legs is a run, or a mistake.
+- **The run's bob is more than ten times the walk's.** Vertical travel is most of what separates
+  the two; the leg angles alone do not.
+
+One caution about the walk's bob. The wireframe rig holds its neck at one height all the way
+round, and "The Walk Cycle" says so. The finished drawings of a walk do rise and fall, but barely
+- 0.6% of a figure's height, against the run's 8%. Both are true, and neither licenses inventing
+a bounce: if the form hands you a `shiftYPercent`, use that number and not this one.
+
+### Nothing Stays Frozen
+
+Across those 70 steps, 520 layers were compared from one frame to the next. **91-100% of them
+were redrawn.** Up to 6% were carried somewhere else unchanged. In the walks, not one layer was
+left frozen - the same shape at the same place - in a single step.
+
+A frame that sets a transform on the six assemblies and leaves everything else alone does the
+opposite of that. The assemblies move; the other two thirds of the figure is a verbatim copy, at
+identical coordinates, frame after frame. The torso, head, hair and clothing hang motionless
+while the limbs swing around them, and the figure reads as a cardboard cut-out with hinged arms.
+
+The rule that catches it, to apply to your own frame before you save:
+
+> No layer may keep the same shape at the same place in every frame of a sequence.
+
+Holding a part still for *one* step is ordinary - a drawn walk does it constantly. Holding the
+*same* part still for *every* step means it was copied, not posed.
+
+`npm run illustrated-frames -- --check <file.svg>` measures any SVG this way and names the layers
+that never moved. `npm run frame-preview -- <file.svg> --against <previous.svg>` does the same for
+one step and renders the frame to a PNG beside it, so the numbers arrive with the picture they are
+about.
+
 ## Object Animations
 
 `assets/breaking-objects.svg` is the object counterpart of the skeleton, and it is drawn for the
@@ -405,8 +486,20 @@ Full treatment, including what a real solver would do instead and why this skill
    a table, read the step from the cycle above (or judge it) and build the values from the
    assembly bounds.
 3. **Set one transform per assembly group**, found by `data-name`. Replace, do not stack.
-4. **Rename the root group** to the frame name on `id`, `data-name`, and `inkscape:label`.
-5. **Save last** to the `animations/<name>.svg` path the form names, once, and reply with one
+4. **Carry the rest of the figure with it.** The assemblies are the parts that *turn*; they are
+   not the whole figure. The torso, head and hair ride the bob, and clothing follows whatever it
+   hangs on - a skirt over a leg that swung through it, a sleeve on an arm that lifted. A frame
+   in which only the assemblies changed is the failure "Nothing Stays Frozen" describes.
+5. **Look at the frame before you save it.** `npm run frame-preview -- <file.svg> --against
+   <the frame before it>` renders it to a PNG beside the file and prints how far each part
+   travelled against what drawn frames do. Open the image. A layer tree cannot show a limb
+   detached from its socket, a leg through a skirt, or a stride that reads as a stumble, and
+   those are the failures that survive every other check. The printed lines catch the rest: a
+   leg that travelled 20% of the figure's height in a walk is too far, and a torso that
+   travelled 0% was never posed, whatever the angles say. Fix and render again - twice at most,
+   because a run that goes quiet for five minutes is killed.
+6. **Rename the root group** to the frame name on `id`, `data-name`, and `inkscape:label`.
+7. **Save last** to the `animations/<name>.svg` path the form names, once, and reply with one
    short line. The app collects the file the moment it appears, so nothing after the save counts.
 
 For playback and property guidance (visibility switching, timing, easing, reduced motion), see
@@ -487,6 +580,30 @@ same careless way.
   both sequences also carries `potential_*` and `obsoletes` groups: pieces the artist was still
   deciding about. They are working scraps, not part of the frame - read the numbered frames and
   the `base`/`stray-*` groups, and leave those two alone.
+
+**Finished frames** - the frame naming is reliable; the layer naming is the lesson:
+
+- `assets/illustrated-multiple-character-actions.svg`: five characters - BadGirl, SassyGirl,
+  JammingJabber, CrimeGuy and JumpingJunkie - each with a drawn set of frames for walking,
+  attacking, taking damage, going down, and for one of them getting back up. Named
+  `<Character>_<action>_<n>`, the convention Animation Mode itself uses, with each character's
+  base pose carrying the bare name.
+- `assets/illustrated-single-character-actions.svg`: one character in six action strips - an
+  eight-frame walk, a nine-frame run, a four-frame fighting stance, a walk-to-run transition, a
+  jump kick and a punch-kick combo.
+- `assets/illustrated-frames.json`: both of those measured, per sequence and per step, generated
+  by `npm run illustrated-frames`. The travel budgets come from here.
+
+These are the answer key: the frame after the frame, as a person drew it. Read them for how far a
+real frame moves and how much of the figure it touches. Do not copy a pose out of them - the
+character in front of you is not one of these five, and their layer names are a warning, not a
+standard.
+
+**Do not open the two SVGs while drawing a frame.** They are 1.5 MB and 2.5 MB - a person opens
+them in an editor to look at, and a run that reads one has spent its whole budget before it poses
+anything. Everything a frame needs from them is already in `illustrated-frames.json`, which is
+54 KB, and in the tables on this page. The same goes for `character-wireframes.svg`: the readings
+are in `skeleton-cycles.json`.
 
 **Studies** - read them for how a movement looks, do not derive from them:
 

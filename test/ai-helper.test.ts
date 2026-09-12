@@ -16,7 +16,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import {
   AI_HELPERS,
   AI_HELPER_ROOT,
@@ -25,6 +25,7 @@ import {
   GRAPHIC_DESIGNER_PLUGIN,
 } from '../src/core/ai-tool.js';
 import { ANIMATION_SKILL_NAME, VECTOR_SKILL_NAME } from '../src/core/animation.js';
+import { ANIMATION_INSTALL_FILE } from '../src/core/animation-install.js';
 
 /**
  * The repository root, found by walking up from the working directory until a
@@ -148,6 +149,33 @@ test('every plugin manifest names its plugin and tracks the package version', ()
   }
 });
 
+/**
+ * The frame subagent has to be able to finish inside the app's stall limit.
+ *
+ * A frame is 50-80 KB of path data. The agent reaches its output path by
+ * copying the file it just edited, which costs nothing; handing the document
+ * to a `Write` call instead puts all of it through a tool call, and the run is
+ * killed at five minutes having produced nothing. The agent shipped that way
+ * from the start and it only shows up when the helper happens to delegate, so
+ * the tool list is asserted rather than trusted.
+ */
+function assertFrameAgentCanFinish(base: string, agents: readonly string[]): void {
+  for (const agent of agents) {
+    const text = readFileSync(join(base, 'agents', agent), 'utf-8');
+    const tools = /^tools:\s*(.+)$/m.exec(text);
+    if (!tools) continue; // An agent that declares none inherits them all.
+    const granted = tools[1].split(',').map((t) => t.trim());
+    assert.ok(
+      !granted.includes('Write'),
+      `${agent}: a Write tool lets the frame be re-emitted instead of copied`,
+    );
+    assert.ok(
+      granted.some((t) => t === 'Bash' || t === 'PowerShell'),
+      `${agent}: without a shell there is no cheap way to reach the output path`,
+    );
+  }
+}
+
 test('every plugin carries the parts its registry entry promises', () => {
   for (const helper of AI_HELPERS) {
     const base = join(ROOT, helper.dir);
@@ -167,6 +195,7 @@ test('every plugin carries the parts its registry entry promises', () => {
       const declared = agent.replace(/\.md$/, '');
       assert.match(readFileSync(path, 'utf-8'), new RegExp(`^name:\\s*${declared}$`, 'm'));
     }
+    assertFrameAgentCanFinish(base, helper.agents);
     for (const file of helper.instructions) {
       assert.ok(existsSync(join(base, 'instructions', file)), `${helper.name}: ${file} is missing`);
     }
@@ -182,11 +211,17 @@ test('each plugin root is its own install source, not a copy of one', () => {
     resolve(ROOT, AI_HELPER_ROOT, 'graphic-designer')
   );
 
-  // And the container holds nothing but those folders and its own README, so
-  // "each helper has an exclusive path" stays true rather than being a claim.
+  // And the container holds nothing but those folders, its own README, and the
+  // install record the installer drops beside them, so "each helper has an
+  // exclusive path" stays true rather than being a claim. The record is
+  // untracked and appears on any machine that has run the install, which is
+  // every machine that has run `npm install`.
+  const allowedFiles = new Set(['README.md', basename(ANIMATION_INSTALL_FILE)]);
   const stray = readdirSync(join(ROOT, AI_HELPER_ROOT), { withFileTypes: true })
     .filter((e) => !e.name.startsWith('.'))
-    .filter((e) => (e.isDirectory() ? !AI_HELPERS.some((h) => h.dir.endsWith(`/${e.name}`)) : e.name !== 'README.md'))
+    .filter((e) =>
+      e.isDirectory() ? !AI_HELPERS.some((h) => h.dir.endsWith(`/${e.name}`)) : !allowedFiles.has(e.name)
+    )
     .map((e) => e.name);
   assert.deepEqual(stray, [], `${AI_HELPER_ROOT}/ holds something that is not a helper`);
 });

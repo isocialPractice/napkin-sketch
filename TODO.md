@@ -153,7 +153,8 @@ Code that works but should not stay as it is: duplication left behind by
 features that outgrew their first implementation, two export attributes paid
 for on every mark, three seams the Animation Mode work left showing, and two
 left behind by the 4.1.2-alpha source review - one sub-decision that wants
-measuring before it is made, one tidy-up that belongs with the split.
+measuring before it is made, one tidy-up that belongs with the split - and one
+check the app could run for itself instead of asking the helper to.
 `renderer.ts` is 9,578 lines, which is the single biggest reason changes in the
 GUI are hard to review. One seam has now been lifted - the editing popups -
 which is the shape the rest should follow.
@@ -221,6 +222,16 @@ which is the shape the rest should follow.
   pluggable, but every line of it is still compiled into the bundle. That is
   the right trade for a runtime toggle and the wrong one if "uninstalled"
   should mean the code is not shipped; worth deciding which was meant.
+- [ ] **The movement budgets are checked by the helper, not by the app**:
+  4.2.0-alpha gave the frame subagent `npm run frame-preview`, so it renders what
+  it drew, looks at it, and sees the travel figures before saving. That closes
+  the loop only as far as the helper follows its instructions - nothing in the
+  app enforces it, and a run that skips the step still saves whatever it made.
+  The app already holds the saved frame and the frames before it, so it could
+  measure the sequence itself after each frame lands and re-request when a part
+  is over budget or has been frozen in every frame. The measuring is in
+  `scripts/illustrated-frames.mjs` and the rendering in `scripts/frame-preview.mjs`,
+  both written to be imported.
 
 ## Documentation Update Ideas
 

@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.2.0-alpha] - 2026-09-12
 
 ### Added
 
@@ -131,6 +131,55 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Paint order comes with it, which is what says which of a mirrored pair is
     the near one - and what has to change when the pose puts the other one in
     front.
+- **`npm run frame-preview` renders a frame so whatever drew it can look at it.**
+  Animation Mode's helper worked blind: it set transforms, saved, and never saw
+  the picture. A frame could satisfy every instruction in the skill and still
+  have an arm off its shoulder - which is exactly what the last run produced,
+  in all three frames, while every named rule was followed.
+  - It rasterizes with the code already in the repository: `parsePathData`, the
+    matrix stack and the anti-aliased scanline fill behind the graphic-design
+    API, encoded by the dependency-free PNG writer that API already ships.
+    Nothing is installed to get it.
+  - Group transforms are resolved into the path data before drawing, so a frame
+    posed with `transform` attributes renders as it will look once imported. A
+    rotation is affine, so carrying the control points carries the curve exactly.
+  - `--against <previous.svg>` prints how far each part travelled between the two
+    frames beside what drawn frames do, marking each `ok`, `OVER` or `UNDER`, and
+    names any layer that did not move at all. Picture and numbers from one call.
+  - Stylesheets are read as well as attributes: an illustrator's export paints
+    through `class="cls-30"`, and without that the reference frames rendered as
+    a blank page.
+- **Two illustrated assets, and the movement budgets measured out of them.**
+  `illustrated-multiple-character-actions.svg` holds five characters - BadGirl,
+  SassyGirl, JammingJabber, CrimeGuy, JumpingJunkie - each with drawn frames for
+  walking, attacking, taking damage, going down and getting back up;
+  `illustrated-single-character-actions.svg` holds one character in six action
+  strips, including an eight-frame walk and a nine-frame run. Unlike the
+  wireframe rig these are finished drawings, so they answer the question the rig
+  cannot: not how far a joint turns, but how far each part of a figure actually
+  travels between one frame and the next.
+- **`npm run illustrated-frames`** measures them - 25 sequences, 70 steps - and
+  writes `assets/illustrated-frames.json`: per animation type, how far the legs,
+  arms, head and clothing move per frame as a percent of the figure's own height,
+  and how much of the figure is redrawn rather than repositioned.
+- **`npm run illustrated-frames -- --check <file.svg>`** measures any SVG the
+  same way and prints it beside the drawn studies, so "the legs swing too far"
+  can be settled rather than argued. It names any layer that never moves in any
+  frame of the sequence.
+- **`test/illustrated-frames.test.ts`**: the path tracing, the part naming, and a
+  check that the budget table in the skill still matches the generated asset, so
+  the numbers quoted to the AI helper cannot quietly go stale.
+- **The form measures every layer, so a part can be identified without a name.**
+  Animation Mode sends the AI helper an inventory of the source frame's layers,
+  each as a fraction of the figure's own box, together with its paint order. A
+  drawing whose layers are called `g830` and `path4521` measures the same as one
+  named by hand: the group across the top of the figure is the head, two similar
+  boxes either side of the middle are a pair of limbs, and a small box at the far
+  end of a limb is its hand or foot.
+  - Fractions rather than pixels, because what identifies a part is its share of
+    the figure rather than its size on a page.
+  - Paint order comes with it, which is what says which of a mirrored pair is the
+    near one - and what has to change when the pose puts the other one in front.
 
 ### Changed
 
@@ -186,6 +235,61 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     nearer now, and the layers are reordered where the answer changed - limbs
     crossing the midline, a turning figure whose far arm goes behind the torso,
     a head turning past a shoulder, an object crossing on an arc.
+- **The frame subagent looks at its own work before saving.** A new step between
+  posing and saving renders the frame, opens the PNG, and checks the travel - for
+  a limb detached from its socket, a leg through a skirt, a stride that reads as
+  a stumble, and for parts that swung further than a drawn frame ever does. Two
+  passes at most, because the app kills a run that goes quiet for five minutes
+  and a decent frame saved beats a perfect one that never arrives.
+- **The skill's drawing procedure says to look, not only to measure.** Step 5 was
+  "measure the frame before you save it"; it is now "look at the frame before you
+  save it", with the measuring alongside.
+- **The animation skill now says how far a part moves, not only how far a joint
+  turns.** A new "How Far a Part Moves" section carries the measured budgets -
+  a walk's legs travel about 9% of the figure's height per frame and its arms
+  about 5%; a run's bob is more than ten times a walk's - with the typical value
+  to aim at and the observed range behind it.
+- **"Nothing Stays Frozen"**, the rule the budgets exist to enforce. Across the
+  70 drawn steps, 91-100% of layers are redrawn between frames and not one layer
+  in a drawn walk is left frozen in place. A generated frame that sets a
+  transform on the six assemblies and leaves the rest alone does the opposite:
+  two thirds of the figure sits at identical coordinates frame after frame while
+  the limbs swing around it, which reads as a cardboard cut-out with hinged arms.
+  The rule is that no layer may keep the same shape at the same place in every
+  frame of a sequence.
+- **The drawing procedure covers the whole figure.** "Drawing the Next Frame"
+  previously ended at "set one transform per assembly group", which is the
+  instruction that produced the frozen torso. It now carries the rest of the
+  figure with the assemblies, and measures the frame against the budgets before
+  saving.
+- **The animation skill says not to open the two illustrated SVGs during a run.**
+  They are 1.5 MB and 2.5 MB - a run that reads one spends its whole budget
+  before it poses anything. Everything a frame needs from them is in the 54 KB
+  `illustrated-frames.json` and the tables in the skill, and the same is true of
+  the wireframe rig and `skeleton-cycles.json`.
+- **The layer-naming section cites six characters' worth of real names.**
+  `dress` for a torso, `upper-body` for everything above the hips, `left-vest`
+  for clothing, `upperarm` and `forearm` as siblings with no assembly around
+  them, `jacket-keft` for a mistyped `jacket-left`, and a defeat frame with no
+  child groups at all. CrimeGuy is built differently in different frames of his
+  own walk, which is why the parts have to be worked out from the frame in hand
+  rather than from a map built off the previous one.
+- **The animation skill works like an image generator rather than a transform
+  applier.** The job is the next picture in a sequence; the layer tree is how
+  that picture is stored, and a frame that satisfies every naming rule while
+  looking wrong has failed. Three things follow, all new to `vector-animations`:
+  - **Pose from where the subject is now**, not from how an asset demonstrated
+    the movement once. Which foot carries the weight and how far through the
+    stride this is are read from the current frame; the cycle tables and the
+    studies inform that reading rather than replacing it.
+  - **Identify parts from geometry when the names do not help** - a table of what
+    a head, hair, torso, arms, legs, hands and clothing look like in the measured
+    inventory, plus the three rules that do most of the work: a mirrored pair is
+    a pair of limbs, a box inside another part belongs to it, and a box spanning
+    several parts is clothing.
+  - **Decide depth from the pose just drawn**, not the pose started from. After
+    the new angles are worked out, each overlapping pair is asked which is nearer
+    now, and the layers are reordered where the answer changed.
 
 ### Fixed
 
@@ -234,6 +338,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   their own directory, and the PNG named a file that does not exist. Git had
   them as proper mode-120000 symlinks all along, so only the targets needed
   fixing, with forward slashes so a Linux or macOS clone resolves them too.
+- **Measuring a posed frame read it as unchanged.** The movement figures come from
+  path data, and a frame carrying its pose in `transform` attributes has the same
+  path data as the frame it came from - so a freshly posed frame measured as
+  though nothing had moved, which is the one answer that check must never give.
+  Transforms are now resolved before measuring, the way the app resolves them on
+  import.
+- **The frame subagent could not finish, so a delegated frame stalled the run.**
+  `animation-frame` was given `Read, Edit, Write, Glob, Grep` and no shell. It
+  poses the source frame with a few small edits, which is cheap - but the posed
+  file then has to reach `animations/<name>.svg`, and with no way to copy it the
+  only route left was handing all 50-80 KB of the document to a `Write` call.
+  That is the one move the agent's own instructions warn costs tens of thousands
+  of tokens, and the app kills a helper that has produced no frame and no output
+  for five minutes. The agent has shipped this way since it was introduced, and
+  it only bites when the helper happens to delegate rather than doing the job
+  inline, which is why a two-frame walk could produce the first frame in 53
+  seconds and then stall on the second.
+  - `Write` is now gone from the agent's tools and `Bash`/`PowerShell` are in.
+    Removing `Write` is the fix rather than an extra: with no way to emit the
+    document there is no expensive path left to take.
+  - The agent now says to copy the posed file to its destination with one shell
+    command, and why - pose first, copy second, because the app takes the file
+    the moment it appears.
+  - A test asserts both halves. The failure is invisible from outside the app -
+    the helper just stops - so the tool list is checked rather than trusted.
+- **The `graphic-designer` plugin manifest tracked the wrong version.** A
+  version bump synced `vectors` and left the second plugin behind on the release
+  before it, failing the manifest test.
+- **The helper-root test failed on any machine that had run the installer.**
+  `ai-helper/installed.json` is the install record, gitignored and written by
+  `npm install`'s postinstall, but the test that keeps the helper container
+  tidy allowed only a README beside the helper folders.
 
 ## [4.1.2-alpha] - 2026-09-01
 

@@ -2,7 +2,7 @@
   "name": "graphic-designer",
   "displayName": "napkin-sketch graphic designer",
   "description": "Graphic design for napkin-sketch, as a plugin: the /graphic-designer:design-language command that reads one media file into a written DESIGN_LANGUAGE.md and generates a per-asset skill that can draw more work in the same language, and the two skills behind it - design-language (what to measure in an asset, how to write it down, and how to generate the skill and its scripts) and graphic-design-api (composing rectangles, circles, ellipses, triangles, polygons, clipping masks, styled text and placed media into an SVG or a PNG through the napkin-sketch graphic-design API).",
-  "version": "4.1.2-alpha",
+  "version": "4.2.0-alpha",
   "author": {
     "name": "John Haugabook"
   },

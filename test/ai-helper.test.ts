@@ -47,8 +47,25 @@ function repoRoot(): string {
 
 const ROOT = repoRoot();
 
-/** Build outputs and working folders, none of which is tracked. */
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'dist-test', 'release', 'logs', 'animations']);
+/**
+ * Build outputs and working folders, plus one tracked folder that is skipped
+ * on purpose.
+ *
+ * `generated-skill/` holds a frozen copy of a skill the graphic-designer
+ * helper *generated*, kept so `test/generated-skill.test.ts` has something
+ * tracked to render. It declares a `name:` like any other skill, but no
+ * install carries it and no AI tool loads it - it is test data. The uniqueness
+ * rule below is about skills a tool can load, so a fixture belongs outside it.
+ */
+const SKIP_DIRS = new Set([
+  'node_modules',
+  'dist',
+  'dist-test',
+  'release',
+  'logs',
+  'animations',
+  'generated-skill',
+]);
 
 /**
  * Every file in the tracked tree. Dot-entries are skipped along with the build

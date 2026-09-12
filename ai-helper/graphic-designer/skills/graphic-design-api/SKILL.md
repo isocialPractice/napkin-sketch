@@ -119,6 +119,16 @@ What follows from that:
   length rule into a constraint the layout enforces.
 - **Do not fine-tune the raster's glyph positions.** They come from the
   built-in alphabet, and tuning against it makes the SVG worse.
+- **`measureText` measures the built-in font, not the family you named.** This
+  is the one that bites. It is the right metric for a text block, where both
+  renderers lay out from the same table. It is the **wrong** metric for placing
+  runs side by side in a named family - advancing a pen by it puts every run
+  short of where that family will actually end, and the next run prints over
+  the last. Position against the named font's own metric instead. For a
+  monospace family that metric is one number: Courier and Courier New advance
+  exactly `0.6 em` per character, so a run is `text.length * fontSize * 0.6`.
+  The gap is not small - at 6 units, `    <link` measures 22.4 with the
+  built-in font and 32.4 in Courier New.
 - **Sizes come from the scale.** A measured size like 16.49 is an artifact of
   somebody's export scale factor; round it to the scale you meant.
 - **`baseline` says what `y` means.** `alphabetic` by default, but `top` is
@@ -173,6 +183,8 @@ Named plainly, because designing around a limit beats discovering it:
 
 | Issue | Solution |
 | --- | --- |
+| Text runs overlap in the SVG but not the PNG | They were advanced by `measureText`; use the named font's own metric (`0.6 em` per character for monospace) |
+| Small text in the PNG is grey mush | The built-in alphabet's stroke is under a device pixel at that size; raster at `scale: 2` or `3` |
 | Text overflows the page | Set `maxWidth`, and check `align` against what `x` means under it |
 | Placed image is distorted | `fit: 'fill'` stretches; use `cover` or `contain` |
 | Image missing from the PNG but present in the SVG | Not a PNG data URL; pass a `decodeImage`, or convert the asset |

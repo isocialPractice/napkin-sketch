@@ -160,6 +160,89 @@ Two things follow that are worth knowing before you read a report:
 An empty palette always means "not measured", never "no colours" - and the
 report's `notes` say which.
 
+## 4. Use the skill you were handed
+
+The helper generated a skill named after your asset. It is not documentation -
+it is a tool with a script in it. Here is the whole loop, using the asset this
+repository ships.
+
+**See what you got.** `.claude/skills/<stem>/` holds three things:
+
+```text
+.claude/skills/<stem>/
+├── SKILL.md              when to reach for it, and the language in brief
+├── DESIGN_LANGUAGE.md    every measurement, and every reading
+└── scripts/
+    └── make-<stem>.mjs   draws new work in that language
+```
+
+Read `DESIGN_LANGUAGE.md` first, and specifically the parts that say which
+values were **measured** and which were **read**. The readings are the ones you
+may disagree with, and disagreeing with them is the point - in the shipped
+example the analyzer's guess about which colour was the ground was wrong, and
+the file says so and corrects it.
+
+**Draw the default.**
+
+```bash
+node .claude/skills/<stem>/scripts/make-<stem>.mjs --out ./out
+```
+
+Look at `out/card.png`. It is deliberately plain. The point is not that it is
+interesting; the point is that it is in the language.
+
+**Change the content, not the language.**
+
+```bash
+node .claude/skills/<stem>/scripts/make-<stem>.mjs \
+  --title "Acme Corp" --heading "Quarterly Summary" --out ./out
+```
+
+The constants at the top of the script *are* the language - palette, type
+scale, page, spacing. Everything below them is layout. Changing a colour means
+editing one constant, and if you find yourself editing a colour further down,
+the script has drifted.
+
+**Draw something structurally different.** A design language is not a template,
+and the way to prove that to yourself is to make it carry something the source
+never carried:
+
+```bash
+node .claude/skills/<stem>/scripts/make-<stem>.mjs --cheatsheet --out ./out
+```
+
+The worked example is
+`test/graphic-design-api/generated-graphics/cheatsheet.png`: an HTML reference
+in the language of a card that had no code in it at all.
+
+**Check yourself.** This is the habit worth keeping:
+
+```bash
+node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs out/card.png --colors 6
+```
+
+Compare the shares against the source's. Agreement on ground, paper and accent
+means you are still in the language. A right palette with a wrong *ratio* is
+the most common way a generated graphic goes subtly wrong, and the shares say
+so immediately where the eye does not.
+
+### Two things about the raster
+
+Both come from the same root - one set of coordinates, two renderers with
+different font metrics - and both are worth knowing before you are surprised by
+them:
+
+- **Small text needs `--scale`.** The built-in alphabet the rasterizer draws is
+  made of strokes, and below about 10 units that stroke is thinner than a
+  device pixel at 1x, so it anti-aliases into grey. The shipped script rasters
+  at 3x by default for exactly this reason. The composition does not change;
+  only the sampling does.
+- **Do not position runs with `measureText` when you have named a font.** It
+  measures the built-in alphabet, not the family the SVG names. For text laid
+  out token by token - a code panel, a legend, a table row - advance by the
+  named font's own metric instead. Monospace makes that easy: Courier and
+  Courier New are exactly `0.6 em` per character.
+
 ## A worked example
 
 `test/graphic-design-api/design-language/DESIGN_LANGUAGE.md` is a real run of
@@ -180,6 +263,12 @@ keeping.
 | The command runs but writes the file somewhere unexpected | No destination was given | Pass one, or name it in words |
 | A second run overwrote nothing and made `DESIGN_LANGUAGE-<stem>.md` | Working as intended | That directory already had one |
 | Generated graphic does not look like the source | The script drifted from the language | Analyze the output, compare the shares, fix the script - not the design language file |
+| The graphic is mostly background | A paper element is missing | The shares say so at once; compare them against the source's |
+| The last line of a listing is missing | It rendered under the footer | Look at the PNG, not the SVG - the vector will not show you |
+| Text runs overlap in the SVG but look fine in the PNG | Runs were advanced by `measureText` | Advance by the named font's metric: `0.6 em` per character for monospace |
+| Small text in the PNG is grey mush | The stroke is under a device pixel | Raster at `--scale 2` or `3` |
+| Colours are right, the graphic still looks wrong | The palette is right and the ratio is not | Check the shares against the 60-30-10 the language declares |
+| Editing a colour changed nothing | It was edited in the composition, not in the constants | The constants at the top of the script are the language |
 
 ## Where to go next
 

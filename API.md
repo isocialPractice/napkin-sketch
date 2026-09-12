@@ -459,6 +459,19 @@ should render the SVG through a browser instead.
   the API draws is generated as Beziers, so nothing in the model needs arcs,
   and a path that carries one raises rather than quietly losing a corner.
 - **Raster text uses the built-in alphabet.** As above.
+- **`measureText` measures that built-in alphabet, not the family you named.**
+  Layout of a *block* is safe either way, because both renderers read the same
+  table. Laying out *runs side by side* in a named family is not: the built-in
+  font is narrower than most real faces, so a pen advanced by `measureText`
+  falls short and the next run overprints the last in the SVG while looking
+  fine in the PNG. Position such runs with the named font's own metric. A
+  monospace family makes that easy - Courier and Courier New are exactly
+  `0.6 em` per character - and a proportional family needs its real metrics or
+  a single `text` element with `letterSpacing` instead of hand-placed runs.
+- **Small raster text needs `scale`.** The built-in alphabet is drawn as
+  strokes, and below about 10 units the stroke is thinner than a device pixel
+  at `scale: 1`, so it anti-aliases to grey. Raster at 2x or 3x when the design
+  carries caption-sized type; the composition is unchanged, only the sampling.
 - **JPEG, GIF and SVG placements need a decoder to rasterize.** They embed in
   the SVG with no help at all.
 - **Gradients, filters and patterns.** Not modelled. Solid paint, opacity and

@@ -8,6 +8,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **A test suite for generated skills.** `test/generated-skill.test.ts` renders
+  eight variations of a graphic through a frozen copy of a skill the
+  graphic-designer helper generated, and measures each one. No model runs: the
+  helper's job ends when the skill is generated, and everything after that is
+  deterministic code, so the suite costs one Node subprocess and about two
+  seconds.
+  - **Four tiers.** Structural (the page decodes at the declared size, two
+    renders are byte-identical, the page is neither blank nor solid), language
+    conformance (the three roles are present and inside their share bands, no
+    colour is painted that the language does not declare, every type size is on
+    the scale and every stroke on the declared weights), legibility and
+    containment (WCAG contrast, nothing off-page, no code row under the footer,
+    no two runs overlapping, raster strokes at least a device pixel). Those
+    three fail. The fourth reports drift from the source asset and never fails,
+    because a cheatsheet is legitimately denser than the card it was drawn from
+    and a test that failed on that is one people learn to ignore.
+  - **Each format is read on its own terms.** The vector's text runs are parsed
+    and measured in the family the SVG names; the raster's pixels are decoded
+    and quantized. Two of the defects this suite was written for are visible in
+    exactly one of the two formats, so a check against a single output would
+    have passed both.
+  - **A negative control.** One variation renders at 1x and is asserted to
+    *fail* the legibility standard, which is how that standard is shown to have
+    teeth rather than to pass everything put in front of it.
+  - **The share bands are evidence-backed**, drawn around eight measured
+    variations and widened well past them. The defect that prompted them
+    measured 83 / 11 / 2.5 against bands of 50-80 / 12-35 / 1-10, and fails two
+    of the three.
+
 - **`API-QUICKSTART.md`.** The path from a fresh clone to a graphic drawn from
   a script, to a plugged-in helper, to a design language captured off an asset
   you already have - with the two ways to install the helper and what actually
@@ -131,6 +160,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and the suite prints where.
 
 ### Fixed
+
+- **Code tokens no longer overlap in a generated SVG.** They were advanced by
+  `measureText`, which reports the API's built-in alphabet - the font the
+  *rasterizer* draws - while the SVG named Courier New, which is wider by up to
+  10 units on a 6-unit line. Every token landed short of where the real font
+  would end it and the next one printed over the last. Invisible in the PNG,
+  which is drawn in the very font that was measured, so only a reader opening
+  the SVG would ever have seen it. Named as a limit in `API.md` and in the
+  `graphic-design-api` skill, because it will bite anyone laying out runs
+  side by side in a family they named.
+
+- **Small text in a generated PNG is legible.** A 6-unit glyph is drawn with a
+  0.45-unit stroke, under one device pixel at `scale: 1`, so a code panel
+  anti-aliased into grey texture. Generated scripts now raster at 3x by
+  default; the composition is unchanged, only the sampling.
+
+- **An overlong title degrades instead of running off the page.** It steps down
+  the type scale first - only sizes the design language declares - and is
+  truncated with an ellipsis when even the smaller step does not fit. Found by
+  the new suite on its first run, which is the argument for the suite.
 
 - **The helper's slash command reaches a dot-folder install.** Installing to
   `.claude` or `.github` copied the skills and the contract and dropped the

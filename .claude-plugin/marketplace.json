@@ -1,0 +1,22 @@
+{
+  "name": "napkin-sketch",
+  "description": "Animation Mode, vector drawing, and graphic design for napkin-sketch, packaged for AI tools that load plugins.",
+  "owner": {
+    "name": "John Haugabook",
+    "url": "https://github.com/isocialPractice"
+  },
+  "plugins": [
+    {
+      "name": "vectors",
+      "source": "./ai-helper/vectors",
+      "category": "productivity",
+      "description": "Animation Mode for napkin-sketch, as a plugin: the /vectors:animation-mode command that draws one frame from the form the app writes, an animation-frame subagent that runs the same job in its own context, and the two skills behind them - vector-animations (assemblies, joint pivots, cycle tables, transform recipe) and vector-graphics (Bezier formulas, degree choice, SVG layer structure, and a dependency-free script that derives path data from control points)."
+    },
+    {
+      "name": "graphic-designer",
+      "source": "./ai-helper/graphic-designer",
+      "category": "productivity",
+      "description": "Graphic design for napkin-sketch, as a plugin: the /graphic-designer:design-language command that reads one media file into a written DESIGN_LANGUAGE.md and generates a per-asset skill that can draw more work in the same language, and the two skills behind it - design-language (what to measure in an asset, how to write it down, and how to generate the skill and its scripts) and graphic-design-api (composing rectangles, circles, ellipses, triangles, polygons, clipping masks, styled text and placed media into an SVG or a PNG through the napkin-sketch graphic-design API)."
+    }
+  ]
+}

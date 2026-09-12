@@ -8,6 +8,12 @@
  * stale file can never put the app into an invalid state.
  */
 
+import {
+  DEFAULT_ANIMATION_HELPER_COMMAND,
+  DEFAULT_ANIMATION_LOG_FILE,
+  LEGACY_ANIMATION_HELPER_COMMANDS,
+} from './animation.js';
+
 /** Where the application menu (toolbar) is rendered. */
 export type MenuPlacement = 'top' | 'side' | 'both';
 
@@ -55,6 +61,21 @@ export interface AppSettings {
   endpointSnapPx: number;
   /** Direct Select: anchor/handle grab radius around the pointer (1-20px). */
   directSelectSensitivityPx: number;
+  /**
+   * Draw the dashed blue border around each selected element. On by default.
+   *
+   * Switched off, the selection is still live and still moves, copies and
+   * exports the same way; only its outline goes. What that is for is judging
+   * the drawing itself while something is selected - the border sits a few
+   * pixels off the marks it surrounds, which is exactly where the eye needs
+   * nothing when the question is how the drawing looks. The layers panel
+   * keeps showing what is selected while the canvas does not.
+   *
+   * It reads as *show* rather than *hide* because the switch that matters
+   * lives in the Move palette, beside **Live preview**: a row of things that
+   * are on when they are ticked.
+   */
+  showSelectionBorders: boolean;
   /**
    * Join stroke: when true, a stroke whose end snaps onto another stroke's
    * endpoint (endpoint snap) is merged with that stroke into one stroke.
@@ -108,6 +129,18 @@ export interface AppSettings {
    * app-wide maximum stroke width.
    */
   copicWidthMultiplier: number;
+  /**
+   * Animation Mode: shell command that runs the AI helper. The command runs
+   * with the temp folder's parent as its working directory and must read the
+   * form from `_temp/animation-form.txt`, then write the frame SVG to the
+   * `animations/` path the form names (or print it to stdout).
+   */
+  animationHelperCommand: string;
+  /**
+   * Animation Mode: where AI helper runs are logged, relative to the
+   * helper's working directory. An empty string disables the log.
+   */
+  animationLogFile: string;
 }
 
 /** Canonical default quick-access colors (the project ink palette). */
@@ -170,6 +203,7 @@ export function defaultSettings(): AppSettings {
     endpointSnap: true,
     endpointSnapPx: 10,
     directSelectSensitivityPx: 3,
+    showSelectionBorders: true,
     joinStrokeOnSnap: false,
     eyedropSensitivityPx: 10,
     liveSharpen: false,
@@ -193,6 +227,8 @@ export function defaultSettings(): AppSettings {
     copicRotateCcwKey: 'shift',
     copicRotateSpeedDeg: 90,
     copicWidthMultiplier: 2,
+    animationHelperCommand: DEFAULT_ANIMATION_HELPER_COMMAND,
+    animationLogFile: DEFAULT_ANIMATION_LOG_FILE,
   };
 }
 
@@ -249,6 +285,10 @@ export function normalizeSettings(input: unknown): AppSettings {
         base.directSelectSensitivityPx,
       ),
     ),
+    showSelectionBorders:
+      typeof raw.showSelectionBorders === 'boolean'
+        ? raw.showSelectionBorders
+        : base.showSelectionBorders,
     joinStrokeOnSnap:
       typeof raw.joinStrokeOnSnap === 'boolean' ? raw.joinStrokeOnSnap : base.joinStrokeOnSnap,
     eyedropSensitivityPx: Math.round(
@@ -296,6 +336,8 @@ export function normalizeSettings(input: unknown): AppSettings {
     copicWidthMultiplier: clampNumber(
       raw.copicWidthMultiplier, lim.copicWidthMultiplier.min, lim.copicWidthMultiplier.max, base.copicWidthMultiplier,
     ),
+    animationHelperCommand: normalizeAnimationCommand(raw.animationHelperCommand, base),
+    animationLogFile: normalizeRelativePath(raw.animationLogFile, base.animationLogFile),
   };
 
   result.quickColors = normalizeQuickColors(raw.quickColors, result.quickColorCount);
@@ -311,6 +353,42 @@ export function normalizeSettings(input: unknown): AppSettings {
     used.add(result[field]);
   }
   return result;
+}
+
+/**
+ * Coerces the AI helper command, upgrading a persisted copy of an outdated
+ * default so command fixes reach existing installs; a hand-customized
+ * command is kept verbatim.
+ */
+function normalizeAnimationCommand(value: unknown, base: AppSettings): string {
+  if (typeof value !== 'string' || value.trim().length === 0) return base.animationHelperCommand;
+  const trimmed = value.trim();
+  if (LEGACY_ANIMATION_HELPER_COMMANDS.includes(trimmed)) return base.animationHelperCommand;
+  return trimmed;
+}
+
+/**
+ * Coerces a path setting that is documented as relative to the helper's
+ * working directory into one that actually is.
+ *
+ * An empty string is a real answer - it switches the log off - and is kept.
+ * Anything that would escape the working directory is not: an absolute path
+ * replaces that directory outright and a `..` segment climbs out of it, and
+ * either would have the app quietly create folders somewhere the setting never
+ * claimed to reach. Those fall back to the default rather than being silently
+ * rewritten, so a path meant to go elsewhere fails visibly in the settings
+ * window instead of half working.
+ *
+ * A settings file travels between platforms, so a path that is absolute on any
+ * of them is rejected on all of them: a leading separator of either kind - one
+ * covers a POSIX root and a UNC prefix both - or a drive letter.
+ */
+export function normalizeRelativePath(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback;
+  const trimmed = value.trim();
+  if (trimmed === '') return '';
+  if (/^[\\/]/.test(trimmed) || /^[A-Za-z]:/.test(trimmed)) return fallback;
+  return trimmed.split(/[\\/]+/).includes('..') ? fallback : trimmed;
 }
 
 /** Coerces an arbitrary value into a valid quick-feature modifier key. */

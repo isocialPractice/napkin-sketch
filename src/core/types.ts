@@ -16,17 +16,24 @@ export interface Point {
   pressure?: number;
   /** Timestamp (ms, relative to stroke start) used for velocity-aware sharpening. */
   t?: number;
+  /**
+   * Starts a new subpath. A compound shape (an outline with a hole, a ring,
+   * an island) is one stroke whose points run through several closed
+   * contours; the painter lifts the pen before a `move` point and the fill
+   * rule punches the inner contours out of the outer one.
+   */
+  move?: true;
 }
 
 /**
  * Tool used to lay down a stroke or interact with the canvas.
  *
- * The Sketch Support tools (`rect`, `ellipse`, `curve`, `bucket`, `fill`,
- * `eyedrop`) and the Direct Select tool (`point`) are UI-only: they never
- * persist on a stroke. Shape tools commit their outlines as `pen` strokes,
- * the bucket commits a filled `pen` shape, Fill Color recolors existing
- * strokes, Direct Select edits anchor points, and the eyedropper commits
- * nothing.
+ * The Sketch Support tools (`rect`, `ellipse`, `curve`, `vector`, `bucket`,
+ * `fill`, `eyedrop`) and the Direct Select tool (`point`) are UI-only: they
+ * never persist on a stroke. Shape tools and the Vector Path commit their
+ * outlines as `pen` strokes, the bucket commits a filled `pen` shape, Fill
+ * Color recolors existing strokes, Direct Select edits anchor points, and
+ * the eyedropper commits nothing.
  */
 export type Tool =
   | 'pen'
@@ -40,6 +47,7 @@ export type Tool =
   | 'rect'
   | 'ellipse'
   | 'curve'
+  | 'vector'
   | 'bucket'
   | 'fill'
   | 'eyedrop';
@@ -70,6 +78,58 @@ export interface Layer {
 }
 
 /**
+ * A Vector Path anchor point with optional Bézier direction handles, stored
+ * as absolute positions. The segment leaving an anchor is a cubic Bézier
+ * B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3 where P0/P3 are the two
+ * anchors, P1 is this anchor's `hOut`, and P2 is the next anchor's `hIn`; a
+ * missing handle collapses onto its anchor, so two plain corners join with a
+ * straight segment.
+ */
+export interface VectorAnchor {
+  /** Anchor position (a path endpoint). */
+  p: { x: number; y: number };
+  /** Incoming direction handle (control point of the arriving segment). */
+  hIn?: { x: number; y: number };
+  /** Outgoing direction handle (control point of the leaving segment). */
+  hOut?: { x: number; y: number };
+  /**
+   * Starts a new subpath (see {@link Point.move}). A closed compound path
+   * closes every subpath; the segment back to each subpath's own first
+   * anchor is implied, never stored.
+   */
+  move?: true;
+}
+
+/** One color stop along a gradient fill. */
+export interface GradientStop {
+  /** Position along the gradient axis, 0 (start) to 1 (end). */
+  offset: number;
+  /** CSS color string. */
+  color: string;
+}
+
+/**
+ * A gradient painted inside a closed stroke outline, in place of a flat fill.
+ * A linear gradient runs across the shape's bounding box at `angle` degrees
+ * (0 = left to right, increasing clockwise); a radial gradient runs from the
+ * box's centre out to the corner.
+ */
+export interface Gradient {
+  /** Gradient geometry. */
+  type: 'linear' | 'radial';
+  /** Linear only: direction in degrees. Absent = 0 (left to right). */
+  angle?: number;
+  /** Two or more stops, ordered by offset. */
+  stops: GradientStop[];
+}
+
+/** Dash pattern painted along a stroke's outline. */
+export type StrokeStyle = 'solid' | 'dashed' | 'dotted';
+
+/** Every stroke style, in the order the properties panel lists them. */
+export const STROKE_STYLES: StrokeStyle[] = ['solid', 'dashed', 'dotted'];
+
+/**
  * A continuous drawing stroke, a text item when `tool === 'text'`, or a
  * placed raster image when `tool === 'image'`.
  */
@@ -97,6 +157,23 @@ export interface Stroke {
    */
   fill?: string;
   /**
+   * Gradient fill painted inside the closed outline. Takes precedence over
+   * `fill`, which is kept so removing the gradient restores the flat color.
+   */
+  gradient?: Gradient;
+  /**
+   * Dash pattern for the outline. Absent = `'solid'`. A dashed or dotted
+   * stroke paints at a uniform width: the per-segment pressure taper would
+   * restart the dash rhythm at every sample.
+   */
+  strokeStyle?: StrokeStyle;
+  /**
+   * True when the outline is switched off, leaving a fill-only shape.
+   * `color` and `width` are kept so the outline can be restored. Shapes
+   * only: a text item's ink is its `color`, with no separate outline.
+   */
+  noStroke?: boolean;
+  /**
    * Broad-nib rotation in degrees for Copic marker strokes (0 = horizontal,
    * increasing clockwise on screen). Only present when `tool === 'copic'`.
    */
@@ -117,6 +194,13 @@ export interface Stroke {
    * the sketch's first (bottom) layer.
    */
   layer?: string;
+  /**
+   * Editable vector structure for strokes whose `points` were sampled from
+   * Bézier anchors (Vector Path, Curve, and quick-curve commits). The Vector
+   * Path tool edits these anchors and resamples `points` from them; strokes
+   * without this field are plain freehand polylines.
+   */
+  vector?: { anchors: VectorAnchor[]; closed?: boolean };
   /** Image data URL (only present when `tool === 'image'`). */
   image?: string;
   /** Rendered image width in pixels (image items). `points[0]` is the top-left anchor. */
@@ -135,6 +219,12 @@ export interface Sketch {
   width: number;
   /** Surface height in pixels. */
   height: number;
+  /**
+   * How the page is sized. 'endless' (the default when absent) tracks the
+   * window, so the drawing surface always fills the stage; 'sized' pins
+   * width/height to the exact values chosen in Page Settings.
+   */
+  sizeMode?: 'endless' | 'sized';
   /** Background CSS color. */
   background: string;
   /** Layer stack, bottom first. Always holds at least one layer. */
@@ -194,6 +284,44 @@ export function defaultOpacityFor(tool: Tool): number {
   if (tool === 'marker') return 0.38;
   if (tool === 'copic') return 0.5;
   return 1;
+}
+
+/**
+ * Dash pattern (in canvas units) for a stroke style at a given width, ready
+ * for `setLineDash` or an SVG `stroke-dasharray`. Dashes scale with the
+ * stroke so a thick line does not read as a solid one. Dotted uses a
+ * zero-length dash, which a round line cap renders as a circle.
+ */
+export function dashPatternFor(style: StrokeStyle | undefined, width: number): number[] {
+  const unit = Math.max(1, width);
+  if (style === 'dashed') return [unit * 3, unit * 2];
+  if (style === 'dotted') return [0, unit * 2];
+  return [];
+}
+
+/** True when a stroke paints an outline (a `noStroke` shape paints only its fill). */
+export function hasOutline(stroke: Stroke): boolean {
+  return stroke.noStroke !== true;
+}
+
+/**
+ * Normalizes a gradient for painting: stops sorted by offset, clamped to
+ * 0-1. Returns null when there is nothing paintable (fewer than two stops).
+ */
+export function normalizedStops(gradient: Gradient): GradientStop[] | null {
+  const stops = gradient.stops
+    .filter((s) => typeof s.color === 'string' && Number.isFinite(s.offset))
+    .map((s) => ({ offset: Math.min(1, Math.max(0, s.offset)), color: s.color }))
+    .sort((a, b) => a.offset - b.offset);
+  return stops.length >= 2 ? stops : null;
+}
+
+/** Creates the two-stop linear gradient the properties panel starts from. */
+export function createGradient(color = '#1f2328'): Gradient {
+  return { type: 'linear', angle: 0, stops: [
+    { offset: 0, color },
+    { offset: 1, color: '#ffffff' },
+  ] };
 }
 
 /**
@@ -259,6 +387,70 @@ export function effectiveLayer(
   return { visible, opacity, locked };
 }
 
+/** A layer's visibility, opacity, and lock once its ancestors are folded in. */
+export interface EffectiveLayerState {
+  visible: boolean;
+  opacity: number;
+  locked: boolean;
+}
+
+/**
+ * Every layer's effective state, resolved in one pass over the stack.
+ *
+ * {@link effectiveLayer} answers for one layer and walks its ancestors with a
+ * linear search per level, so resolving the whole stack costs the square of
+ * its height - and a page that gives every element its own layer (which is how
+ * the editor commits marks) makes that the square of the drawing's size.
+ * Anything that needs more than one layer's state - painting a frame, writing
+ * an export, deciding what a click may pick - resolves the stack once here.
+ *
+ * Each layer is walked up only as far as the first ancestor already resolved,
+ * then folded back down, so every layer is visited once in total however deep
+ * the nesting goes. The answers match {@link effectiveLayer} exactly for any
+ * well-formed stack.
+ *
+ * Cycle-safe, like its single-layer counterpart: a parent chain that loops
+ * stops at the repeat rather than spinning. Cycles are not reachable through
+ * the editor - `sanitizeLayerParents` breaks them on load and the reorder
+ * paths refuse to create them - so this is a guard, not a code path, and
+ * which link a loop is cut at is not meaningful either here or there.
+ */
+export function effectiveLayers(sketch: Sketch): Map<string, EffectiveLayerState> {
+  const byId = new Map(sketch.layers.map((l) => [l.id, l]));
+  const resolved = new Map<string, EffectiveLayerState>();
+
+  for (const layer of sketch.layers) {
+    if (resolved.has(layer.id)) continue;
+    // Up to the first ancestor whose answer is known (or the top, or a
+    // repeat), recording the chain on the way.
+    const chain: Layer[] = [];
+    const seen = new Set<string>();
+    let state: EffectiveLayerState = { visible: true, opacity: 1, locked: false };
+    let cursor: Layer | undefined = layer;
+    while (cursor && !seen.has(cursor.id)) {
+      const known = resolved.get(cursor.id);
+      if (known) {
+        state = known;
+        break;
+      }
+      seen.add(cursor.id);
+      chain.push(cursor);
+      cursor = cursor.parent ? byId.get(cursor.parent) : undefined;
+    }
+    // Back down, outermost first, folding each layer into its parent's answer.
+    for (let i = chain.length - 1; i >= 0; i--) {
+      const l = chain[i];
+      state = {
+        visible: l.visible && state.visible,
+        opacity: l.opacity * state.opacity,
+        locked: l.locked || state.locked,
+      };
+      resolved.set(l.id, state);
+    }
+  }
+  return resolved;
+}
+
 /** Ids of a group's descendants (children, grandchildren, …), cycle-safe. */
 export function descendantLayerIds(sketch: Sketch, groupId: string): Set<string> {
   const ids = new Set<string>();
@@ -290,7 +482,41 @@ export function layerOf(sketch: Sketch, stroke: Stroke): Layer {
 
 /** Returns the strokes belonging to one layer, in paint order. */
 export function strokesOnLayer(sketch: Sketch, layerId: string): Stroke[] {
-  return sketch.strokes.filter((s) => layerOf(sketch, s).id === layerId);
+  return strokesByLayer(sketch).get(layerId) ?? [];
+}
+
+/**
+ * Every stroke grouped by the layer it paints on, in paint order, resolved in
+ * one pass.
+ *
+ * {@link strokesOnLayer} answers for one layer and rescans the whole page to
+ * do it, so a caller walking the stack pays for the page once per layer -
+ * and a page that gives every element its own layer (which is how the editor
+ * commits marks) makes that quadratic in the number of marks. Anything that
+ * needs more than one layer's strokes - rendering a frame, writing an export -
+ * builds this map once instead.
+ *
+ * Layers with no strokes are absent, so callers read a missing entry as the
+ * empty list.
+ */
+export function strokesByLayer(sketch: Sketch): Map<string, Stroke[]> {
+  const drawable = new Map<string, Layer>();
+  let fallback: Layer | undefined;
+  for (const layer of sketch.layers) {
+    if (layer.group) continue;
+    drawable.set(layer.id, layer);
+    fallback ??= layer;
+  }
+  fallback ??= sketch.layers[0];
+  const byLayer = new Map<string, Stroke[]>();
+  for (const stroke of sketch.strokes) {
+    const layer = (stroke.layer ? drawable.get(stroke.layer) : undefined) ?? fallback;
+    if (!layer) continue;
+    const bucket = byLayer.get(layer.id);
+    if (bucket) bucket.push(stroke);
+    else byLayer.set(layer.id, [stroke]);
+  }
+  return byLayer;
 }
 
 /** Generates a short, collision-resistant id. */

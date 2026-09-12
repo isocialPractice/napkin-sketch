@@ -114,3 +114,13 @@ test('toolOrder includes the copic tool', () => {
   const s = normalizeSettings({ toolOrder: ['tool-pen', 'tool-marker'] });
   assert.ok(s.toolOrder.includes('tool-copic'));
 });
+
+test('the selection border is on unless a saved setting turns it off', () => {
+  // On by default: the outline is how a selection has always shown itself,
+  // and an upgrade must not silently take that away.
+  assert.equal(defaultSettings().showSelectionBorders, true);
+  assert.equal(normalizeSettings({ showSelectionBorders: false }).showSelectionBorders, false);
+  // Anything that is not a boolean is not an answer, so the default stands.
+  assert.equal(normalizeSettings({ showSelectionBorders: 'no' }).showSelectionBorders, true);
+  assert.equal(normalizeSettings({}).showSelectionBorders, true);
+});

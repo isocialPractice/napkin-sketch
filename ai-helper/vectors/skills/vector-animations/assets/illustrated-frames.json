@@ -1,0 +1,2420 @@
+{
+  "generatedFrom": [
+    "illustrated-single-character-actions.svg",
+    "illustrated-multiple-character-actions.svg"
+  ],
+  "note": "Measured from finished illustrated frames: how far each part of a figure moves between one drawn frame and the next, as a percent of the figure height. The wireframe cycles give joint angles; these give travel. `bob` is the whole figure rising or falling, and every other number is measured after the bob is removed. Run `npm run illustrated-frames -- --check <file.svg>` to measure a generated animation the same way.",
+  "stillThresholdPercent": 0.05,
+  "budgets": {
+    "attack": {
+      "steps": 16,
+      "bob": {
+        "low": 0,
+        "typical": 1.3,
+        "high": 13.2
+      },
+      "leg": {
+        "low": 0.1,
+        "typical": 11.3,
+        "high": 46.4
+      },
+      "arm": {
+        "low": 0,
+        "typical": 7.9,
+        "high": 31.3
+      },
+      "head": {
+        "low": 0.1,
+        "typical": 1.6,
+        "high": 15.1
+      },
+      "clothing": {
+        "low": 0.1,
+        "typical": 1.2,
+        "high": 5.8
+      },
+      "torso": {
+        "low": 0,
+        "typical": 1.3,
+        "high": 10.1
+      },
+      "reshape": {
+        "leg": {
+          "low": 10.9,
+          "typical": 66.6,
+          "high": 66.6
+        },
+        "arm": {
+          "low": 0,
+          "typical": 0.9,
+          "high": 14.6
+        },
+        "head": null,
+        "clothing": {
+          "low": 0,
+          "typical": 3,
+          "high": 24
+        },
+        "torso": {
+          "low": 0,
+          "typical": 5.4,
+          "high": 5.4
+        }
+      },
+      "layersCompared": 126,
+      "layersRedrawn": 114,
+      "layersMovedRigidly": 7,
+      "layersHeldStill": 5,
+      "layersFrozen": 5
+    },
+    "damage": {
+      "steps": 10,
+      "bob": {
+        "low": 0.1,
+        "typical": 1,
+        "high": 2.6
+      },
+      "leg": {
+        "low": 2.1,
+        "typical": 4.8,
+        "high": 15.6
+      },
+      "arm": {
+        "low": 5.3,
+        "typical": 9,
+        "high": 18.2
+      },
+      "head": {
+        "low": 1.7,
+        "typical": 9,
+        "high": 19.1
+      },
+      "clothing": {
+        "low": 3.9,
+        "typical": 6,
+        "high": 13.2
+      },
+      "torso": {
+        "low": 0,
+        "typical": 1.4,
+        "high": 2.3
+      },
+      "reshape": {
+        "leg": null,
+        "arm": {
+          "low": 4.9,
+          "typical": 4.9,
+          "high": 4.9
+        },
+        "head": null,
+        "clothing": {
+          "low": 0,
+          "typical": 5.3,
+          "high": 12.6
+        },
+        "torso": {
+          "low": 6.3,
+          "typical": 13.5,
+          "high": 13.5
+        }
+      },
+      "layersCompared": 73,
+      "layersRedrawn": 72,
+      "layersMovedRigidly": 1,
+      "layersHeldStill": 0,
+      "layersFrozen": 0
+    },
+    "get-up": {
+      "steps": 5,
+      "bob": {
+        "low": 0,
+        "typical": 2.1,
+        "high": 35.6
+      },
+      "leg": {
+        "low": 10.9,
+        "typical": 20.9,
+        "high": 34
+      },
+      "arm": {
+        "low": 11.6,
+        "typical": 24,
+        "high": 29.8
+      },
+      "head": {
+        "low": 2.5,
+        "typical": 8.7,
+        "high": 19
+      },
+      "clothing": {
+        "low": 0.3,
+        "typical": 6.2,
+        "high": 22
+      },
+      "torso": null,
+      "reshape": {
+        "leg": null,
+        "arm": null,
+        "head": null,
+        "clothing": {
+          "low": 7.8,
+          "typical": 43.9,
+          "high": 43.9
+        },
+        "torso": null
+      },
+      "layersCompared": 37,
+      "layersRedrawn": 37,
+      "layersMovedRigidly": 0,
+      "layersHeldStill": 0,
+      "layersFrozen": 0
+    },
+    "ideal": {
+      "steps": 3,
+      "bob": {
+        "low": 0,
+        "typical": 0.3,
+        "high": 0.4
+      },
+      "leg": {
+        "low": 0.7,
+        "typical": 2.4,
+        "high": 2.9
+      },
+      "arm": {
+        "low": 1.5,
+        "typical": 2.3,
+        "high": 2.5
+      },
+      "head": {
+        "low": 0.1,
+        "typical": 0.2,
+        "high": 0.2
+      },
+      "clothing": null,
+      "torso": {
+        "low": 0.1,
+        "typical": 1,
+        "high": 1.1
+      },
+      "reshape": {
+        "leg": {
+          "low": 2.2,
+          "typical": 2.2,
+          "high": 2.2
+        },
+        "arm": {
+          "low": 6.3,
+          "typical": 6.6,
+          "high": 6.6
+        },
+        "head": null,
+        "clothing": null,
+        "torso": null
+      },
+      "layersCompared": 18,
+      "layersRedrawn": 18,
+      "layersMovedRigidly": 0,
+      "layersHeldStill": 0,
+      "layersFrozen": 0
+    },
+    "knocked-down": {
+      "steps": 7,
+      "bob": {
+        "low": 0.1,
+        "typical": 9.4,
+        "high": 48.9
+      },
+      "leg": {
+        "low": 3,
+        "typical": 13.4,
+        "high": 43.8
+      },
+      "arm": {
+        "low": 8.9,
+        "typical": 16.1,
+        "high": 23.3
+      },
+      "head": {
+        "low": 2.2,
+        "typical": 4.2,
+        "high": 11.9
+      },
+      "clothing": {
+        "low": 2.3,
+        "typical": 5.8,
+        "high": 14.9
+      },
+      "torso": {
+        "low": 0.4,
+        "typical": 0.4,
+        "high": 0.4
+      },
+      "reshape": {
+        "leg": null,
+        "arm": {
+          "low": 0,
+          "typical": 13.4,
+          "high": 18.2
+        },
+        "head": null,
+        "clothing": {
+          "low": 0,
+          "typical": 5.4,
+          "high": 5.4
+        },
+        "torso": {
+          "low": 3.6,
+          "typical": 3.6,
+          "high": 3.6
+        }
+      },
+      "layersCompared": 61,
+      "layersRedrawn": 58,
+      "layersMovedRigidly": 3,
+      "layersHeldStill": 0,
+      "layersFrozen": 3
+    },
+    "run": {
+      "steps": 8,
+      "bob": {
+        "low": 0.5,
+        "typical": 8,
+        "high": 14.5
+      },
+      "leg": {
+        "low": 7.7,
+        "typical": 17.5,
+        "high": 26.2
+      },
+      "arm": {
+        "low": 2.9,
+        "typical": 9.3,
+        "high": 13.4
+      },
+      "head": {
+        "low": 0.8,
+        "typical": 2.2,
+        "high": 4.7
+      },
+      "clothing": {
+        "low": 0.5,
+        "typical": 3,
+        "high": 7.4
+      },
+      "torso": null,
+      "reshape": {
+        "leg": {
+          "low": 49.1,
+          "typical": 49.1,
+          "high": 49.1
+        },
+        "arm": {
+          "low": 10.4,
+          "typical": 18.8,
+          "high": 18.8
+        },
+        "head": {
+          "low": 2.4,
+          "typical": 3.6,
+          "high": 5.1
+        },
+        "clothing": null,
+        "torso": null
+      },
+      "layersCompared": 56,
+      "layersRedrawn": 56,
+      "layersMovedRigidly": 0,
+      "layersHeldStill": 0,
+      "layersFrozen": 0
+    },
+    "walk": {
+      "steps": 19,
+      "bob": {
+        "low": 0,
+        "typical": 0.6,
+        "high": 1.9
+      },
+      "leg": {
+        "low": 3.2,
+        "typical": 8.9,
+        "high": 26.2
+      },
+      "arm": {
+        "low": 1.2,
+        "typical": 4.8,
+        "high": 9.4
+      },
+      "head": {
+        "low": 0,
+        "typical": 1.2,
+        "high": 4.2
+      },
+      "clothing": {
+        "low": 0.4,
+        "typical": 3.5,
+        "high": 5.1
+      },
+      "torso": {
+        "low": 0,
+        "typical": 1.1,
+        "high": 3.8
+      },
+      "reshape": {
+        "leg": {
+          "low": 5,
+          "typical": 19.3,
+          "high": 55.2
+        },
+        "arm": {
+          "low": 0,
+          "typical": 5.5,
+          "high": 27.5
+        },
+        "head": {
+          "low": 8,
+          "typical": 8,
+          "high": 8
+        },
+        "clothing": {
+          "low": 0,
+          "typical": 0.5,
+          "high": 2.8
+        },
+        "torso": {
+          "low": 0,
+          "typical": 0,
+          "high": 6.3
+        }
+      },
+      "layersCompared": 137,
+      "layersRedrawn": 125,
+      "layersMovedRigidly": 6,
+      "layersHeldStill": 6,
+      "layersFrozen": 0
+    },
+    "walk-run-transition": {
+      "steps": 2,
+      "bob": {
+        "low": 0.7,
+        "typical": 2.6,
+        "high": 2.6
+      },
+      "leg": {
+        "low": 13.6,
+        "typical": 15,
+        "high": 15
+      },
+      "arm": {
+        "low": 4,
+        "typical": 6.3,
+        "high": 6.3
+      },
+      "head": {
+        "low": 5.5,
+        "typical": 7.8,
+        "high": 7.8
+      },
+      "clothing": null,
+      "torso": {
+        "low": 0.3,
+        "typical": 0.4,
+        "high": 0.4
+      },
+      "reshape": {
+        "leg": {
+          "low": 54.4,
+          "typical": 54.4,
+          "high": 54.4
+        },
+        "arm": {
+          "low": 1.9,
+          "typical": 1.9,
+          "high": 1.9
+        },
+        "head": null,
+        "clothing": null,
+        "torso": {
+          "low": 23.4,
+          "typical": 23.4,
+          "high": 23.4
+        }
+      },
+      "layersCompared": 12,
+      "layersRedrawn": 12,
+      "layersMovedRigidly": 0,
+      "layersHeldStill": 0,
+      "layersFrozen": 0
+    }
+  },
+  "sequences": [
+    {
+      "source": "illustrated-single-character-actions.svg",
+      "sequence": "illustrated-male-actions/jump-kick",
+      "type": "attack",
+      "frames": [
+        "Player_Jump",
+        "Player_JumpKick"
+      ],
+      "layersAsDrawn": [
+        "back-arm-assembly",
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "body",
+        "head",
+        "front-arm-assembly"
+      ],
+      "steps": [
+        {
+          "from": "Player_Jump",
+          "to": "Player_JumpKick",
+          "bob": 13.2,
+          "parts": {
+            "arm": 12.2,
+            "leg": 44.9,
+            "torso": 2.4,
+            "head": 9.9
+          },
+          "reshape": {},
+          "layersRedrawn": 5,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 5
+        }
+      ]
+    },
+    {
+      "source": "illustrated-single-character-actions.svg",
+      "sequence": "illustrated-male-actions/punch-kick-combo",
+      "type": "attack",
+      "frames": [
+        "Player_Punch",
+        "Player_UpperCut",
+        "Player_RunningKick",
+        "Player_Kick_1",
+        "Player_Punch_2",
+        "Player_Kick_2"
+      ],
+      "layersAsDrawn": [
+        "head",
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "back-arm-assembly",
+        "body",
+        "front-arm-assembly",
+        "back-shoe",
+        "back-leg",
+        "front-shoe",
+        "front-leg",
+        "back-arm",
+        "back-glove",
+        "front-arm",
+        "front-glove"
+      ],
+      "steps": [
+        {
+          "from": "Player_Punch",
+          "to": "Player_UpperCut",
+          "bob": -2.8,
+          "parts": {
+            "head": 7.1,
+            "torso": 0.9
+          },
+          "reshape": {},
+          "layersRedrawn": 2,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 2
+        },
+        {
+          "from": "Player_UpperCut",
+          "to": "Player_RunningKick",
+          "bob": -4.2,
+          "parts": {
+            "leg": 43.1,
+            "arm": 31.3,
+            "torso": 10.1,
+            "head": 2.5
+          },
+          "reshape": {},
+          "layersRedrawn": 10,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 10
+        },
+        {
+          "from": "Player_RunningKick",
+          "to": "Player_Kick_1",
+          "bob": 5.4,
+          "parts": {
+            "arm": 7.9,
+            "torso": 1.3,
+            "head": 15.1
+          },
+          "reshape": {},
+          "layersRedrawn": 4,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 4
+        },
+        {
+          "from": "Player_Kick_1",
+          "to": "Player_Punch_2",
+          "bob": 1.4,
+          "parts": {
+            "leg": 46.4,
+            "torso": 2,
+            "arm": 16.3,
+            "head": 14.7
+          },
+          "reshape": {
+            "leg": 66.6
+          },
+          "layersRedrawn": 5,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 5
+        },
+        {
+          "from": "Player_Punch_2",
+          "to": "Player_Kick_2",
+          "bob": -6.3,
+          "parts": {
+            "torso": 1.3,
+            "head": 1.4
+          },
+          "reshape": {},
+          "layersRedrawn": 2,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 2
+        }
+      ]
+    },
+    {
+      "source": "illustrated-single-character-actions.svg",
+      "sequence": "illustrated-male-actions/running",
+      "type": "run",
+      "frames": [
+        "run_0",
+        "run_1",
+        "run_2",
+        "run_3",
+        "run_4",
+        "run_5",
+        "run_6",
+        "run_7",
+        "run_8"
+      ],
+      "layersAsDrawn": [
+        "back-arm-assembly",
+        "front-arm-assembly",
+        "head-assembly",
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "shirt-assembly",
+        "hair"
+      ],
+      "steps": [
+        {
+          "from": "run_0",
+          "to": "run_1",
+          "bob": -7.4,
+          "parts": {
+            "arm": 9.7,
+            "head": 0.8,
+            "leg": 26.2,
+            "clothing": 0.5
+          },
+          "reshape": {
+            "head": 3.9
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "run_1",
+          "to": "run_2",
+          "bob": -10.2,
+          "parts": {
+            "arm": 9.3,
+            "head": 2.2,
+            "leg": 24.3,
+            "clothing": 6.2
+          },
+          "reshape": {
+            "arm": 10.4,
+            "head": 2.5
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "run_2",
+          "to": "run_3",
+          "bob": -4.6,
+          "parts": {
+            "arm": 11.7,
+            "head": 4.7,
+            "leg": 18.2,
+            "clothing": 5.5
+          },
+          "reshape": {
+            "head": 5.1
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "run_3",
+          "to": "run_4",
+          "bob": 11.4,
+          "parts": {
+            "arm": 5.3,
+            "head": 1.8,
+            "leg": 13.4,
+            "clothing": 3
+          },
+          "reshape": {
+            "head": 2.6
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "run_4",
+          "to": "run_5",
+          "bob": -0.6,
+          "parts": {
+            "arm": 5.7,
+            "head": 2.5,
+            "leg": 7.7,
+            "clothing": 3
+          },
+          "reshape": {
+            "head": 3.7
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "run_5",
+          "to": "run_6",
+          "bob": -8,
+          "parts": {
+            "arm": 2.9,
+            "head": 1.5,
+            "leg": 17.5,
+            "clothing": 2.4
+          },
+          "reshape": {
+            "arm": 18.8,
+            "leg": 49.1,
+            "head": 2.4
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "run_6",
+          "to": "run_7",
+          "bob": -0.5,
+          "parts": {
+            "arm": 6.8,
+            "head": 1.3,
+            "leg": 15.2,
+            "clothing": 1.4
+          },
+          "reshape": {},
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "run_7",
+          "to": "run_8",
+          "bob": 14.5,
+          "parts": {
+            "arm": 13.4,
+            "head": 4,
+            "leg": 16.6,
+            "clothing": 7.4
+          },
+          "reshape": {
+            "head": 3.6
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        }
+      ]
+    },
+    {
+      "source": "illustrated-single-character-actions.svg",
+      "sequence": "illustrated-male-actions/walk-run-transition",
+      "type": "walk-run-transition",
+      "frames": [
+        "transition_0",
+        "transition_1",
+        "transition_2"
+      ],
+      "layersAsDrawn": [
+        "head",
+        "back-arm-assembly",
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "body",
+        "front-arm-assembly"
+      ],
+      "steps": [
+        {
+          "from": "transition_0",
+          "to": "transition_1",
+          "bob": 0.7,
+          "parts": {
+            "head": 7.8,
+            "arm": 4,
+            "leg": 15,
+            "torso": 0.3
+          },
+          "reshape": {
+            "torso": 23.4
+          },
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "transition_1",
+          "to": "transition_2",
+          "bob": 2.6,
+          "parts": {
+            "head": 5.5,
+            "arm": 6.3,
+            "leg": 13.6,
+            "torso": 0.4
+          },
+          "reshape": {
+            "arm": 1.9,
+            "leg": 54.4
+          },
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        }
+      ]
+    },
+    {
+      "source": "illustrated-single-character-actions.svg",
+      "sequence": "illustrated-male-actions/fighting-stance",
+      "type": "ideal",
+      "frames": [
+        "Player_Ideal_1",
+        "Player_Ideal_2",
+        "Player_Ideal_3",
+        "Player_Ideal_4"
+      ],
+      "layersAsDrawn": [
+        "back-arm-assembly",
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "body",
+        "front-arm-assembly",
+        "head"
+      ],
+      "steps": [
+        {
+          "from": "Player_Ideal_1",
+          "to": "Player_Ideal_2",
+          "bob": -0.3,
+          "parts": {
+            "arm": 2.5,
+            "leg": 0.7,
+            "torso": 0.1,
+            "head": 0.1
+          },
+          "reshape": {},
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "Player_Ideal_2",
+          "to": "Player_Ideal_3",
+          "bob": 0,
+          "parts": {
+            "arm": 2.3,
+            "leg": 2.9,
+            "torso": 1.1,
+            "head": 0.2
+          },
+          "reshape": {
+            "arm": 6.6
+          },
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "Player_Ideal_3",
+          "to": "Player_Ideal_4",
+          "bob": -0.4,
+          "parts": {
+            "arm": 1.5,
+            "leg": 2.4,
+            "torso": 1,
+            "head": 0.2
+          },
+          "reshape": {
+            "arm": 6.3,
+            "leg": 2.2
+          },
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        }
+      ]
+    },
+    {
+      "source": "illustrated-single-character-actions.svg",
+      "sequence": "illustrated-male-actions/walking",
+      "type": "walk",
+      "frames": [
+        "walk_0",
+        "walk_1",
+        "walk_2",
+        "walk_3",
+        "walk_4",
+        "walk_5",
+        "walk_6",
+        "walk_7"
+      ],
+      "layersAsDrawn": [
+        "head",
+        "back-arm-assembly",
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "body",
+        "front-arm-assembly"
+      ],
+      "steps": [
+        {
+          "from": "walk_0",
+          "to": "walk_1",
+          "bob": 0,
+          "parts": {
+            "head": 2.1,
+            "arm": 9.4,
+            "leg": 10.9,
+            "torso": 2.8
+          },
+          "reshape": {
+            "torso": 0
+          },
+          "layersRedrawn": 5,
+          "layersMovedRigidly": [
+            "body"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "walk_1",
+          "to": "walk_2",
+          "bob": -0.1,
+          "parts": {
+            "head": 0.1,
+            "arm": 8.5,
+            "leg": 3.5,
+            "torso": 0.5
+          },
+          "reshape": {
+            "arm": 10.7,
+            "leg": 6.8,
+            "torso": 0
+          },
+          "layersRedrawn": 5,
+          "layersMovedRigidly": [
+            "body"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "walk_2",
+          "to": "walk_3",
+          "bob": 1.2,
+          "parts": {
+            "head": 0.1,
+            "arm": 6.7,
+            "leg": 3.2,
+            "torso": 1.1
+          },
+          "reshape": {
+            "arm": 9.9,
+            "leg": 5
+          },
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "walk_3",
+          "to": "walk_4",
+          "bob": 0,
+          "parts": {
+            "head": 0.2,
+            "arm": 5.9,
+            "leg": 8.5,
+            "torso": 1.1
+          },
+          "reshape": {},
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "walk_4",
+          "to": "walk_5",
+          "bob": 0.1,
+          "parts": {
+            "head": 1.1,
+            "arm": 6.8,
+            "leg": 8.4,
+            "torso": 0.6
+          },
+          "reshape": {
+            "torso": 6.3,
+            "arm": 27.5
+          },
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "walk_5",
+          "to": "walk_6",
+          "bob": -0.5,
+          "parts": {
+            "head": 1.2,
+            "arm": 6,
+            "leg": 8.4,
+            "torso": 2.7
+          },
+          "reshape": {
+            "leg": 50.4,
+            "torso": 0
+          },
+          "layersRedrawn": 5,
+          "layersMovedRigidly": [
+            "body"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "walk_6",
+          "to": "walk_7",
+          "bob": -0.5,
+          "parts": {
+            "head": 0,
+            "arm": 4.8,
+            "leg": 5.6,
+            "torso": 0.7
+          },
+          "reshape": {},
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_V/SassyGirl_defeat",
+      "type": "knocked-down",
+      "frames": [
+        "SassyGirl_defeat_0",
+        "SassyGirl_defeat_0-2"
+      ],
+      "layersAsDrawn": [
+        "back-arm-assembly",
+        "front-leg-assembly",
+        "back-leg-assembly",
+        "jacket-right-sleeve",
+        "dress",
+        "head-assembly",
+        "jacket-right-top",
+        "front-arm-assembly"
+      ],
+      "steps": [
+        {
+          "from": "SassyGirl_defeat_0",
+          "to": "SassyGirl_defeat_0-2",
+          "bob": 2.5,
+          "parts": {
+            "arm": 16.1,
+            "leg": 12.6,
+            "clothing": 2.9,
+            "head": 2.5
+          },
+          "reshape": {
+            "clothing": 0,
+            "arm": 0
+          },
+          "layersRedrawn": 5,
+          "layersMovedRigidly": [
+            "jacket-right-sleeve",
+            "jacket-right-top",
+            "front-arm-assembly"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [
+            "jacket-right-sleeve",
+            "jacket-right-top",
+            "front-arm-assembly"
+          ],
+          "layersCompared": 8
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_V/SassyGirl_getUp",
+      "type": "get-up",
+      "frames": [
+        "SassyGirl_getUp_0",
+        "SassyGirl_getUp_1",
+        "SassyGirl_getUp_2",
+        "SassyGirl_getUp_3",
+        "SassyGirl_getUp_4",
+        "SassyGirl_getUp_5"
+      ],
+      "layersAsDrawn": [
+        "back-arm-assembly",
+        "front-leg-assembly",
+        "back-leg-assembly",
+        "dress",
+        "head-assembly",
+        "jacket-right-top",
+        "front-arm-assembly",
+        "jacket-right-sleeve",
+        "jacket-keft"
+      ],
+      "steps": [
+        {
+          "from": "SassyGirl_getUp_0",
+          "to": "SassyGirl_getUp_1",
+          "bob": -32.4,
+          "parts": {
+            "arm": 29.8,
+            "leg": 34,
+            "clothing": 22,
+            "head": 19
+          },
+          "reshape": {
+            "clothing": 43.9
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "SassyGirl_getUp_1",
+          "to": "SassyGirl_getUp_2",
+          "bob": 0,
+          "parts": {
+            "arm": 28.7,
+            "leg": 10.9,
+            "clothing": 0.3,
+            "head": 8.7
+          },
+          "reshape": {},
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "SassyGirl_getUp_2",
+          "to": "SassyGirl_getUp_3",
+          "bob": -2.1,
+          "parts": {
+            "arm": 19.1,
+            "leg": 20.9,
+            "clothing": 3.3,
+            "head": 3.3
+          },
+          "reshape": {
+            "clothing": 7.8
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "SassyGirl_getUp_3",
+          "to": "SassyGirl_getUp_4",
+          "bob": -35.6,
+          "parts": {
+            "arm": 24,
+            "leg": 22.7,
+            "clothing": 6.2,
+            "head": 2.5
+          },
+          "reshape": {},
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 7
+        },
+        {
+          "from": "SassyGirl_getUp_4",
+          "to": "SassyGirl_getUp_5",
+          "bob": 0.5,
+          "parts": {
+            "leg": 15.3,
+            "clothing": 11.9,
+            "arm": 11.6,
+            "head": 11.2
+          },
+          "reshape": {},
+          "layersRedrawn": 9,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 9
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_V/SassyGirl_preDefeat",
+      "type": "knocked-down",
+      "frames": [
+        "SassyGirl_preDefeat_0",
+        "SassyGirl_preDefeat_1",
+        "SassyGirl_preDefeat_2",
+        "SassyGirl_preDefeat_3",
+        "SassyGirl_preDefeat_4",
+        "SassyGirl_preDefeat_5"
+      ],
+      "layersAsDrawn": [
+        "front-leg-assembly",
+        "back-leg-assembly",
+        "dress",
+        "back-arm-assembly",
+        "jacket-right-sleeve",
+        "head-assembly",
+        "jacket-right-top",
+        "front-arm-assembly"
+      ],
+      "steps": [
+        {
+          "from": "SassyGirl_preDefeat_0",
+          "to": "SassyGirl_preDefeat_1",
+          "bob": 2.9,
+          "parts": {
+            "leg": 11.7,
+            "clothing": 10.6,
+            "arm": 11.3,
+            "head": 11.9
+          },
+          "reshape": {
+            "arm": 18.2
+          },
+          "layersRedrawn": 8,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        },
+        {
+          "from": "SassyGirl_preDefeat_1",
+          "to": "SassyGirl_preDefeat_2",
+          "bob": -0.1,
+          "parts": {
+            "leg": 3,
+            "clothing": 2.3,
+            "arm": 9.9,
+            "head": 5.8
+          },
+          "reshape": {},
+          "layersRedrawn": 8,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        },
+        {
+          "from": "SassyGirl_preDefeat_2",
+          "to": "SassyGirl_preDefeat_3",
+          "bob": 9.4,
+          "parts": {
+            "leg": 13.4,
+            "clothing": 5.8,
+            "arm": 8.9,
+            "head": 4.2
+          },
+          "reshape": {},
+          "layersRedrawn": 8,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        },
+        {
+          "from": "SassyGirl_preDefeat_3",
+          "to": "SassyGirl_preDefeat_4",
+          "bob": 37.2,
+          "parts": {
+            "leg": 43.8,
+            "clothing": 14.9,
+            "arm": 23.3,
+            "head": 2.8
+          },
+          "reshape": {},
+          "layersRedrawn": 8,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        },
+        {
+          "from": "SassyGirl_preDefeat_4",
+          "to": "SassyGirl_preDefeat_5",
+          "bob": 14.3,
+          "parts": {
+            "leg": 16.8,
+            "clothing": 6.6,
+            "arm": 19.7,
+            "head": 2.2
+          },
+          "reshape": {
+            "arm": 9.5
+          },
+          "layersRedrawn": 8,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_V/SassyGirl_damage",
+      "type": "damage",
+      "frames": [
+        "SassyGirl_damage_0",
+        "SassyGirl_damage_1",
+        "SassyGirl_damage_2"
+      ],
+      "layersAsDrawn": [
+        "front-leg-assembly",
+        "back-leg-assembly",
+        "dress",
+        "back-arm-assembly",
+        "jacket-right-sleeve",
+        "head-assembly",
+        "jacket-right-top",
+        "front-arm-assembly"
+      ],
+      "steps": [
+        {
+          "from": "SassyGirl_damage_0",
+          "to": "SassyGirl_damage_1",
+          "bob": 0.4,
+          "parts": {
+            "leg": 2.3,
+            "clothing": 6,
+            "arm": 5.3,
+            "head": 8
+          },
+          "reshape": {
+            "clothing": 0
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [
+            "jacket-right-sleeve"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        },
+        {
+          "from": "SassyGirl_damage_1",
+          "to": "SassyGirl_damage_2",
+          "bob": -1.3,
+          "parts": {
+            "leg": 3.7,
+            "clothing": 5.4,
+            "arm": 7.5,
+            "head": 9
+          },
+          "reshape": {},
+          "layersRedrawn": 8,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_V/SassyGirl_attack_powerAttack",
+      "type": "attack",
+      "frames": [
+        "SassyGirl_attack_powerAttack_0",
+        "SassyGirl_attack_powerAttack_0-2",
+        "SassyGirl_attack_powerAttack_1"
+      ],
+      "layersAsDrawn": [
+        "front-leg-assembly",
+        "back-leg-assembly",
+        "back-arm-assembly",
+        "weapon-attack-tazer",
+        "back-hand",
+        "dress",
+        "head-assembly",
+        "jacket-right-top",
+        "front-arm",
+        "jacket-keft"
+      ],
+      "steps": [
+        {
+          "from": "SassyGirl_attack_powerAttack_0",
+          "to": "SassyGirl_attack_powerAttack_0-2",
+          "bob": 0,
+          "parts": {
+            "leg": 0.1,
+            "arm": 0.3,
+            "other": 18.6,
+            "clothing": 0.1,
+            "head": 0.1
+          },
+          "reshape": {
+            "clothing": 0.6
+          },
+          "layersRedrawn": 9,
+          "layersMovedRigidly": [
+            "dress"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 10
+        },
+        {
+          "from": "SassyGirl_attack_powerAttack_0-2",
+          "to": "SassyGirl_attack_powerAttack_1",
+          "bob": 1.3,
+          "parts": {
+            "leg": 0.1,
+            "arm": 0.7,
+            "other": 7.1,
+            "clothing": 0.1,
+            "head": 0.1
+          },
+          "reshape": {
+            "arm": 0.9,
+            "clothing": 24
+          },
+          "layersRedrawn": 9,
+          "layersMovedRigidly": [
+            "front-arm"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 10
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_V/SassyGirl_attack",
+      "type": "attack",
+      "frames": [
+        "SassyGirl_attack_1",
+        "SassyGirl_attack_2",
+        "SassyGirl_attack_3",
+        "SassyGirl_attack_4"
+      ],
+      "layersAsDrawn": [
+        "front-leg-assembly",
+        "back-leg-assembly",
+        "dress",
+        "back-arm-assembly",
+        "jacket-right-sleeve",
+        "head-assembly",
+        "jacket-right-top",
+        "front-arm",
+        "jacket-keft",
+        "weapon-attack-tazer",
+        "back-hand"
+      ],
+      "steps": [
+        {
+          "from": "SassyGirl_attack_1",
+          "to": "SassyGirl_attack_2",
+          "bob": 1.3,
+          "parts": {
+            "leg": 1.6,
+            "clothing": 3.3,
+            "arm": 17.4,
+            "head": 1.6
+          },
+          "reshape": {
+            "clothing": 0
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [
+            "jacket-right-top"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        },
+        {
+          "from": "SassyGirl_attack_2",
+          "to": "SassyGirl_attack_3",
+          "bob": -0.2,
+          "parts": {
+            "leg": 0.3,
+            "arm": 9.5,
+            "other": 10.7,
+            "clothing": 0.3,
+            "head": 0.3
+          },
+          "reshape": {
+            "arm": 14.6,
+            "clothing": 3
+          },
+          "layersRedrawn": 10,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 10
+        },
+        {
+          "from": "SassyGirl_attack_3",
+          "to": "SassyGirl_attack_4",
+          "bob": 0.6,
+          "parts": {
+            "leg": 1.4,
+            "arm": 1.3,
+            "other": 2.4,
+            "clothing": 1.7,
+            "head": 0.8
+          },
+          "reshape": {
+            "leg": 10.9,
+            "arm": 0.7,
+            "clothing": 3
+          },
+          "layersRedrawn": 9,
+          "layersMovedRigidly": [
+            "front-arm"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 10
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_V/SassyGirl_preAttack",
+      "type": "attack",
+      "frames": [
+        "SassyGirl_preAttack_1",
+        "SassyGirl_preAttack_2"
+      ],
+      "layersAsDrawn": [
+        "front-leg-assembly",
+        "back-leg-assembly",
+        "dress",
+        "back-arm-assembly",
+        "jacket-right-sleeve",
+        "head-assembly",
+        "jacket-right-top",
+        "front-arm",
+        "jacket-keft"
+      ],
+      "steps": [
+        {
+          "from": "SassyGirl_preAttack_1",
+          "to": "SassyGirl_preAttack_2",
+          "bob": -0.2,
+          "parts": {
+            "leg": 1,
+            "clothing": 1,
+            "arm": 3.3,
+            "head": 1
+          },
+          "reshape": {
+            "arm": 0,
+            "clothing": 0
+          },
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [
+            "back-arm-assembly",
+            "jacket-right-sleeve",
+            "jacket-right-top"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 9
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_V/SassyGirl_walk",
+      "type": "walk",
+      "frames": [
+        "SassyGirl",
+        "SassyGirl_walk_1",
+        "SassyGirl_walk_2",
+        "SassyGirl_walk_3",
+        "SassyGirl_walk_4"
+      ],
+      "layersAsDrawn": [
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "dress",
+        "back-arm-assembly",
+        "jacket-right-sleeve",
+        "head-assembly",
+        "jacket-right-top",
+        "front-arm-assembly",
+        "jacket-keft"
+      ],
+      "steps": [
+        {
+          "from": "SassyGirl",
+          "to": "SassyGirl_walk_1",
+          "bob": 0.8,
+          "parts": {
+            "leg": 9.7,
+            "clothing": 5.1,
+            "arm": 8.6,
+            "head": 4.2
+          },
+          "reshape": {
+            "arm": 1.5,
+            "head": 8,
+            "clothing": 0
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [
+            "jacket-right-top"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        },
+        {
+          "from": "SassyGirl_walk_1",
+          "to": "SassyGirl_walk_2",
+          "bob": -1.4,
+          "parts": {
+            "leg": 8.9,
+            "clothing": 4.1,
+            "arm": 4.7,
+            "head": 3
+          },
+          "reshape": {
+            "arm": 1.4,
+            "clothing": 0.5
+          },
+          "layersRedrawn": 8,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        },
+        {
+          "from": "SassyGirl_walk_2",
+          "to": "SassyGirl_walk_3",
+          "bob": 0.7,
+          "parts": {
+            "leg": 4.8,
+            "clothing": 2,
+            "arm": 1.2,
+            "head": 1.2
+          },
+          "reshape": {
+            "arm": 1.5,
+            "clothing": 0.5
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [
+            "front-arm-assembly"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        },
+        {
+          "from": "SassyGirl_walk_3",
+          "to": "SassyGirl_walk_4",
+          "bob": 1.9,
+          "parts": {
+            "leg": 3.5,
+            "clothing": 3.5,
+            "arm": 4.4,
+            "head": 3.5
+          },
+          "reshape": {
+            "arm": 1.9,
+            "clothing": 0
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [
+            "jacket-right-top"
+          ],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_IV/BadGirl_preDefeat",
+      "type": "knocked-down",
+      "frames": [
+        "BadGirl_preDefeat_0",
+        "BadGirl_preDefeat_1"
+      ],
+      "layersAsDrawn": [
+        "body",
+        "front-leg-assembly",
+        "back-leg-assembly",
+        "skirt-assembly",
+        "back-arm-assembly",
+        "shirt",
+        "head",
+        "hair",
+        "upperarm",
+        "forearm",
+        "jacket-left",
+        "front-glove",
+        "jacket-right"
+      ],
+      "steps": [
+        {
+          "from": "BadGirl_preDefeat_0",
+          "to": "BadGirl_preDefeat_1",
+          "bob": 48.9,
+          "parts": {
+            "torso": 0.4,
+            "leg": 31.4,
+            "clothing": 4.1,
+            "arm": 16.2,
+            "head": 5.2
+          },
+          "reshape": {
+            "torso": 3.6,
+            "clothing": 5.4,
+            "arm": 13.4
+          },
+          "layersRedrawn": 13,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 13
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_IV/BadGirl_damage",
+      "type": "damage",
+      "frames": [
+        "BadGirl_damage_0",
+        "BadGirl_damage_1",
+        "BadGirl_damage_2"
+      ],
+      "layersAsDrawn": [
+        "body",
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "skirt-assembly",
+        "back-arm-assembly",
+        "shirt",
+        "head-assembly",
+        "front-arm-assembly",
+        "jacket-left",
+        "front-glove",
+        "jacket-right",
+        "head",
+        "upperarm",
+        "hair",
+        "forearm"
+      ],
+      "steps": [
+        {
+          "from": "BadGirl_damage_0",
+          "to": "BadGirl_damage_1",
+          "bob": 0.6,
+          "parts": {
+            "torso": 0,
+            "leg": 2.1,
+            "clothing": 3.9,
+            "arm": 13.8
+          },
+          "reshape": {
+            "torso": 6.3,
+            "clothing": 5.3
+          },
+          "layersRedrawn": 9,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 9
+        },
+        {
+          "from": "BadGirl_damage_1",
+          "to": "BadGirl_damage_2",
+          "bob": -1,
+          "parts": {
+            "torso": 2.3,
+            "leg": 13.8,
+            "clothing": 13.2,
+            "arm": 18.2,
+            "head": 17.8
+          },
+          "reshape": {
+            "torso": 13.5,
+            "clothing": 12.6,
+            "arm": 4.9
+          },
+          "layersRedrawn": 13,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 13
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_IV/BadGirl_attack",
+      "type": "attack",
+      "frames": [
+        "BadGirl_attack_0",
+        "BadGirl_attack_1",
+        "BadGirl_attack_2"
+      ],
+      "layersAsDrawn": [
+        "body",
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "skirt-assembly",
+        "back-arm-assembly",
+        "shirt",
+        "head-assembly",
+        "front-arm-assembly",
+        "jacket-left",
+        "front-glove",
+        "jacket-right"
+      ],
+      "steps": [
+        {
+          "from": "BadGirl_attack_0",
+          "to": "BadGirl_attack_1",
+          "bob": 0,
+          "parts": {
+            "torso": 0,
+            "leg": 11.3,
+            "clothing": 1.5,
+            "arm": 0,
+            "head": 0.1
+          },
+          "reshape": {
+            "torso": 0,
+            "clothing": 2.2,
+            "arm": 0
+          },
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [
+            "body",
+            "shirt",
+            "front-arm-assembly",
+            "jacket-left",
+            "front-glove"
+          ],
+          "layersFrozen": [
+            "body",
+            "shirt",
+            "front-arm-assembly",
+            "jacket-left",
+            "front-glove"
+          ],
+          "layersCompared": 11
+        },
+        {
+          "from": "BadGirl_attack_1",
+          "to": "BadGirl_attack_2",
+          "bob": 0.1,
+          "parts": {
+            "torso": 0,
+            "leg": 26,
+            "clothing": 5.8,
+            "arm": 4.7,
+            "head": 5.7
+          },
+          "reshape": {
+            "torso": 5.4,
+            "clothing": 10,
+            "arm": 3.2
+          },
+          "layersRedrawn": 11,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 11
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_IV/BadGirl_walk",
+      "type": "walk",
+      "frames": [
+        "BadGirl",
+        "BadGirl_walk_1",
+        "BadGirl_walk_2"
+      ],
+      "layersAsDrawn": [
+        "body",
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "skirt-assembly",
+        "back-arm-assembly",
+        "shirt",
+        "head-assembly",
+        "front-arm-assembly",
+        "jacket-left",
+        "front-glove",
+        "jacket-right"
+      ],
+      "steps": [
+        {
+          "from": "BadGirl",
+          "to": "BadGirl_walk_1",
+          "bob": 0.6,
+          "parts": {
+            "torso": 0,
+            "leg": 8.9,
+            "clothing": 0.4,
+            "arm": 2.5,
+            "head": 0
+          },
+          "reshape": {
+            "torso": 0,
+            "leg": 19.3,
+            "clothing": 2.8,
+            "arm": 5.5
+          },
+          "layersRedrawn": 9,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [
+            "body",
+            "jacket-right"
+          ],
+          "layersFrozen": [],
+          "layersCompared": 11
+        },
+        {
+          "from": "BadGirl_walk_1",
+          "to": "BadGirl_walk_2",
+          "bob": -1.3,
+          "parts": {
+            "torso": 0,
+            "leg": 8.9,
+            "clothing": 0.6,
+            "arm": 1.6,
+            "head": 0
+          },
+          "reshape": {
+            "torso": 0,
+            "arm": 0,
+            "clothing": 0
+          },
+          "layersRedrawn": 7,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [
+            "body",
+            "front-arm-assembly",
+            "jacket-left",
+            "jacket-right"
+          ],
+          "layersFrozen": [],
+          "layersCompared": 11
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_III/JammingJabber_damage",
+      "type": "damage",
+      "frames": [
+        "JammingJabber_damage_0",
+        "JammingJabber_damage_1",
+        "JammingJabber_damage_2"
+      ],
+      "layersAsDrawn": [
+        "back-shoe",
+        "back-leg",
+        "front-shoe",
+        "front-leg",
+        "back-arm",
+        "head",
+        "body",
+        "front-arm",
+        "front-glove",
+        "shirt",
+        "right-vest",
+        "left-vest"
+      ],
+      "steps": [
+        {
+          "from": "JammingJabber_damage_0",
+          "to": "JammingJabber_damage_1",
+          "bob": 1,
+          "parts": {
+            "leg": 15.6,
+            "arm": 12.1,
+            "head": 5.8,
+            "torso": 2.3
+          },
+          "reshape": {},
+          "layersRedrawn": 9,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 9
+        },
+        {
+          "from": "JammingJabber_damage_1",
+          "to": "JammingJabber_damage_2",
+          "bob": 2.6,
+          "parts": {
+            "arm": 14.8,
+            "leg": 8.8,
+            "head": 19.1
+          },
+          "reshape": {},
+          "layersRedrawn": 8,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_III/JammingJabber_attack",
+      "type": "attack",
+      "frames": [
+        "JammingJabber_attack_1",
+        "JammingJabber_attack_2",
+        "JammingJabber_attack_3"
+      ],
+      "layersAsDrawn": [
+        "back-shoe",
+        "back-leg",
+        "front-shoe",
+        "front-leg",
+        "back-arm",
+        "head",
+        "body",
+        "front-arm",
+        "front-glove",
+        "shirt",
+        "right-vest",
+        "left-vest"
+      ],
+      "steps": [
+        {
+          "from": "JammingJabber_attack_1",
+          "to": "JammingJabber_attack_2",
+          "bob": -0.1,
+          "parts": {
+            "leg": 17.3,
+            "arm": 21.1,
+            "head": 3.5
+          },
+          "reshape": {},
+          "layersRedrawn": 8,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 8
+        },
+        {
+          "from": "JammingJabber_attack_2",
+          "to": "JammingJabber_attack_3",
+          "bob": 0,
+          "parts": {
+            "leg": 12.2,
+            "arm": 6.5,
+            "clothing": 1.2,
+            "head": 1.4
+          },
+          "reshape": {},
+          "layersRedrawn": 11,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 11
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_III/JammingJabber_walk",
+      "type": "walk",
+      "frames": [
+        "JammingJabber",
+        "JammingJabber_walk_1",
+        "JammingJabber_walk_2"
+      ],
+      "layersAsDrawn": [
+        "back-shoe",
+        "back-leg",
+        "front-shoe",
+        "front-leg",
+        "back-glove",
+        "back-arm",
+        "head",
+        "body",
+        "front-arm",
+        "front-glove"
+      ],
+      "steps": [
+        {
+          "from": "JammingJabber",
+          "to": "JammingJabber_walk_1",
+          "bob": -0.1,
+          "parts": {
+            "leg": 12.4,
+            "arm": 2.9,
+            "head": 0.2,
+            "torso": 1.4
+          },
+          "reshape": {},
+          "layersRedrawn": 10,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 10
+        },
+        {
+          "from": "JammingJabber_walk_1",
+          "to": "JammingJabber_walk_2",
+          "bob": -1.7,
+          "parts": {
+            "leg": 26.2,
+            "arm": 1.7,
+            "head": 2,
+            "torso": 0.5
+          },
+          "reshape": {
+            "leg": 12.5,
+            "arm": 7.4
+          },
+          "layersRedrawn": 9,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 9
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_II/CrimeGuy_damage",
+      "type": "damage",
+      "frames": [
+        "CrimeGuy_damage_0",
+        "CrimeGuy_damage_1",
+        "CrimeGuy_damage_2"
+      ],
+      "layersAsDrawn": [
+        "back-leg",
+        "front-leg",
+        "back-arm",
+        "body",
+        "head",
+        "front-arm",
+        "back-leg-assembly",
+        "front-leg-assembly",
+        "upper-body"
+      ],
+      "steps": [
+        {
+          "from": "CrimeGuy_damage_0",
+          "to": "CrimeGuy_damage_1",
+          "bob": 0.1,
+          "parts": {
+            "arm": 8.2,
+            "torso": 1.3,
+            "head": 1.7
+          },
+          "reshape": {},
+          "layersRedrawn": 4,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 4
+        },
+        {
+          "from": "CrimeGuy_damage_1",
+          "to": "CrimeGuy_damage_2",
+          "bob": 2,
+          "parts": {
+            "leg": 2.7
+          },
+          "reshape": {},
+          "layersRedrawn": 2,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 2
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_II/CrimeGuy_walk",
+      "type": "walk",
+      "frames": [
+        "CrimeGuy_walk_1-2",
+        "CrimeGuy",
+        "CrimeGuy_walk_1"
+      ],
+      "layersAsDrawn": [
+        "back-leg",
+        "front-leg",
+        "back-arm",
+        "body",
+        "head",
+        "front-arm",
+        "back-shoe",
+        "front-shoe"
+      ],
+      "steps": [
+        {
+          "from": "CrimeGuy_walk_1-2",
+          "to": "CrimeGuy",
+          "bob": -0.2,
+          "parts": {
+            "leg": 12.5,
+            "arm": 6.1,
+            "torso": 1.3,
+            "head": 1.3
+          },
+          "reshape": {},
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "CrimeGuy",
+          "to": "CrimeGuy_walk_1",
+          "bob": 0.2,
+          "parts": {
+            "leg": 14.2,
+            "arm": 5.4,
+            "torso": 3.8,
+            "head": 3.2
+          },
+          "reshape": {},
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_I/JumpingJunkie_damage",
+      "type": "damage",
+      "frames": [
+        "JumpingJunkie_damage_0",
+        "JumpingJunkie_damage_1",
+        "JumpingJunkie_damage_2"
+      ],
+      "layersAsDrawn": [
+        "back-arm",
+        "front-arm",
+        "back-leg",
+        "front-leg",
+        "head",
+        "body"
+      ],
+      "steps": [
+        {
+          "from": "JumpingJunkie_damage_0",
+          "to": "JumpingJunkie_damage_1",
+          "bob": 1.1,
+          "parts": {
+            "arm": 5.3,
+            "leg": 4.8,
+            "head": 5.7,
+            "torso": 0.4
+          },
+          "reshape": {},
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "JumpingJunkie_damage_1",
+          "to": "JumpingJunkie_damage_2",
+          "bob": -0.4,
+          "parts": {
+            "arm": 9,
+            "leg": 15.3,
+            "head": 15.4,
+            "torso": 1.4
+          },
+          "reshape": {},
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        }
+      ]
+    },
+    {
+      "source": "illustrated-multiple-character-actions.svg",
+      "sequence": "Character_I/JumpingJunkie_walk",
+      "type": "walk",
+      "frames": [
+        "JumpingJunkie",
+        "JumpingJunkie_walk_1",
+        "JumpingJunkie_walk_2"
+      ],
+      "layersAsDrawn": [
+        "back-arm",
+        "front-arm",
+        "back-leg",
+        "front-leg",
+        "head",
+        "body",
+        "shirt",
+        "right-vest",
+        "arm",
+        "left-vest",
+        "strokes",
+        "front-hand"
+      ],
+      "steps": [
+        {
+          "from": "JumpingJunkie",
+          "to": "JumpingJunkie_walk_1",
+          "bob": 1.2,
+          "parts": {
+            "arm": 2.2,
+            "leg": 9.7,
+            "head": 0.1,
+            "torso": 1.4
+          },
+          "reshape": {},
+          "layersRedrawn": 6,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 6
+        },
+        {
+          "from": "JumpingJunkie_walk_1",
+          "to": "JumpingJunkie_walk_2",
+          "bob": -0.9,
+          "parts": {
+            "arm": 3.7,
+            "leg": 9,
+            "head": 1.6
+          },
+          "reshape": {
+            "leg": 55.2
+          },
+          "layersRedrawn": 4,
+          "layersMovedRigidly": [],
+          "layersHeldStill": [],
+          "layersFrozen": [],
+          "layersCompared": 4
+        }
+      ]
+    }
+  ]
+}

@@ -47,6 +47,9 @@
           <button id="tool-curve" class="tool has-flyout" type="button" title="Curve (V) — drag a chord (ends snap to stroke endpoints), then bend and click. Click and hold for curve options" aria-label="Curve">
             <span class="icon" aria-hidden="true">⌒</span><span class="label">Curve</span>
           </button>
+          <button id="tool-vector" class="tool" type="button" title="Vector Path (B) — click for corner points, drag for smooth curves; click the first point to close, Enter or double-click to finish, Esc cancels" aria-label="Vector Path">
+            <span class="icon" aria-hidden="true">✒</span><span class="label">Vector Path</span>
+          </button>
           <button id="tool-bucket" class="tool" type="button" title="Paint Bucket (G) — fill an enclosed shape" aria-label="Paint Bucket">
             <span class="icon" aria-hidden="true">🪣</span><span class="label">Paint Bucket</span>
           </button>
@@ -56,9 +59,22 @@
           <button id="tool-eyedrop" class="tool" type="button" title="Eyedropper (I) — pick a color; fills the selected shape" aria-label="Eyedropper">
             <span class="icon" aria-hidden="true">💧</span><span class="label">Pick</span>
           </button>
+          <button id="move-selection" class="btn" type="button" title="Move the selection by an exact distance (Enter)">
+            Move
+          </button>
+          <button id="rotate-selection" class="btn" type="button" title="Rotate the selection around a movable centre (Ctrl+R) - drag on the canvas to turn it">
+            Rotate
+          </button>
           <button id="join-strokes" class="btn" type="button" title="Join selected strokes (Ctrl+J)">
             Join
           </button>
+          <button id="close-shape" class="btn" type="button" title="Close Shape - join the selected stroke's two end points (press for Sharp or Smooth)">
+            Close Shape
+          </button>
+          <label id="vector-options" class="vector-options is-hidden" for="vector-radius" title="Corner radius — rounds the selected Vector Path anchor">
+            <span class="slider-text">Radius</span>
+            <input id="vector-radius" type="number" min="0" max="999" step="1" value="12" aria-label="Corner radius" />
+          </label>
         </section>
 
         <section class="group" aria-label="Ink color">
@@ -80,6 +96,9 @@
           <button id="sharpen-all" class="btn btn-accent" type="button" title="Sharpen every stroke (H)">
             Sharpen all
           </button>
+          <button id="sharpen-selection" class="btn" type="button" title="Sharpen Selection — smooth and simplify the selected strokes with a live preview">
+            Sharpen Selection
+          </button>
           <button id="settings-toggle" class="btn" type="button" title="Quick Settings (Ctrl+,)">
             Quick Settings
           </button>
@@ -92,12 +111,15 @@
         </section>
 
         <section class="group group-right" aria-label="File">
-          <button id="pages-toggle" class="btn" type="button" title="Toggle pages panel (Ctrl+B)">Pages</button>
-          <button id="layers-toggle" class="btn" type="button" title="Toggle layers panel (Ctrl+L)">Layers</button>
+          <button id="pages-toggle" class="btn btn-panel" type="button" title="Toggle pages panel (Ctrl+B)">Pages</button>
+          <button id="layers-toggle" class="btn btn-panel" type="button" title="Toggle layers panel (Ctrl+L)">Layers</button>
+          <button id="properties-toggle" class="btn btn-panel" type="button" title="Toggle properties panel (Ctrl+P)">Properties</button>
+          <span class="toolbar-sep" role="separator" aria-orientation="vertical"></span>
           <button id="new-sketch" class="btn" type="button" title="New sketch">New</button>
           <button id="open" class="btn" type="button" title="Open sketch book">Open</button>
           <button id="import" class="btn" type="button" title="Import SVG, PDF, PNG, or JPEG (Ctrl+I)">Import</button>
-          <button id="save" class="btn btn-primary" type="button" title="Save (Ctrl+S)">Save</button>
+          <button id="export" class="btn" type="button" title="Export the page, the book, or just the selection as PNG, JPEG, SVG, or PDF">Export</button>
+          <button id="save" class="btn btn-strong" type="button" title="Save (Ctrl+S)">Save</button>
           <button id="save-as" class="btn" type="button" title="Save as (Ctrl+Shift+S)">Save As</button>
           <button id="app-settings" class="btn btn-ghost" type="button" title="Verbose Settings" aria-label="Open verbose settings">
             <span class="icon" aria-hidden="true">⚙</span>
@@ -109,9 +131,13 @@
         <aside id="side-rail" class="side-rail" aria-label="Side toolbar"></aside>
 
         <aside id="pages-panel" class="pages-panel" aria-label="Pages">
+          <div id="pages-resize" class="panel-resize panel-resize-right" title="Drag to resize the pages panel" aria-hidden="true"></div>
           <div class="pages-panel-head">
             <span>Pages</span>
             <div class="pages-panel-actions">
+              <button id="pages-menu" class="btn btn-ghost btn-hamburger" type="button" title="Page menu — new page from the selection, at the default size, or at a size you type" aria-label="Page menu" aria-haspopup="menu">
+                <span class="hamburger" aria-hidden="true"></span>
+              </button>
               <button id="new-page" class="btn btn-ghost" type="button" title="Add page">+ Page</button>
               <button id="delete-page" class="btn btn-ghost" type="button" title="Delete page">Delete</button>
             </div>
@@ -120,12 +146,20 @@
         </aside>
 
         <main id="stage" class="stage">
+          <!-- Animation Mode banner: mode indicator + required-layer status -->
+          <div id="animation-banner" class="animation-banner is-hidden" role="status" aria-live="polite">
+            <span class="animation-banner-title">Animation Mode</span>
+            <span id="animation-status" class="animation-status"></span>
+            <button id="animation-generate" class="btn btn-primary" type="button" title="Generate animation frames with the configured AI helper">Generate…</button>
+            <button id="animation-exit" class="btn btn-ghost" type="button" title="Exit Animation Mode (Ctrl+Shift+N)">Exit</button>
+          </div>
           <div id="canvas-wrap" class="canvas-wrap">
             <canvas id="canvas" aria-label="Drawing surface"></canvas>
           </div>
         </main>
 
         <aside id="layers-panel" class="layers-panel" aria-label="Layers">
+          <div id="layers-resize" class="panel-resize" title="Drag to resize the layers panel" aria-hidden="true"></div>
           <div class="pages-panel-head">
             <span>Layers</span>
             <div class="pages-panel-actions">
@@ -148,6 +182,104 @@
           </div>
         </aside>
 
+        <aside id="properties-panel" class="properties-panel" aria-label="Properties">
+          <div id="properties-resize" class="panel-resize" title="Drag to resize the properties panel" aria-hidden="true"></div>
+          <div class="pages-panel-head">
+            <span>Properties</span>
+            <div class="pages-panel-actions">
+              <button id="properties-close" class="btn btn-ghost" type="button" title="Hide properties panel" aria-label="Hide properties panel">✕</button>
+            </div>
+          </div>
+
+          <div class="properties-body">
+            <p id="prop-summary" class="prop-summary">Nothing selected</p>
+
+            <div id="prop-fields" class="prop-fields">
+              <section class="prop-section" aria-labelledby="prop-position-title">
+                <h3 id="prop-position-title" class="prop-title">Position</h3>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-x"><span>X</span></label>
+                  <input id="prop-x" class="prop-num" type="number" step="0.1" aria-label="X position" />
+                  <select id="prop-x-unit" class="prop-unit" aria-label="X position unit"></select>
+                </div>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-y"><span>Y</span></label>
+                  <input id="prop-y" class="prop-num" type="number" step="0.1" aria-label="Y position" />
+                  <select id="prop-y-unit" class="prop-unit" aria-label="Y position unit"></select>
+                </div>
+              </section>
+
+              <section class="prop-section" aria-labelledby="prop-appearance-title">
+                <h3 id="prop-appearance-title" class="prop-title">Appearance</h3>
+
+                <p class="prop-subtitle">Fill</p>
+                <div class="prop-row">
+                  <input id="prop-fill" class="prop-color" type="color" value="#1f2328" aria-label="Fill color" />
+                  <button id="prop-fill-remove" class="btn btn-ghost" type="button" title="Remove the fill">No fill</button>
+                  <button id="prop-fill-gradient" class="btn btn-ghost" type="button" title="Fill with a gradient">Gradient</button>
+                </div>
+
+                <div id="gradient-editor" class="gradient-editor is-hidden">
+                  <div id="gradient-bar" class="gradient-bar" role="group" aria-label="Gradient stops" title="Drag a handle to move a stop; double-click the bar to add one"></div>
+                  <div class="prop-row">
+                    <input id="gradient-stop-color" class="prop-color" type="color" value="#1f2328" aria-label="Selected stop color" />
+                    <input id="gradient-stop-offset" class="prop-num" type="number" min="0" max="100" step="1" value="0" aria-label="Selected stop position, percent" />
+                    <span class="prop-unit-static">%</span>
+                    <button id="gradient-add-stop" class="btn btn-ghost" type="button" title="Add a stop">+</button>
+                    <button id="gradient-remove-stop" class="btn btn-ghost" type="button" title="Remove the selected stop">−</button>
+                  </div>
+                  <div class="prop-row">
+                    <select id="gradient-type" class="prop-unit prop-unit-wide" aria-label="Gradient type">
+                      <option value="linear">Linear</option>
+                      <option value="radial">Radial</option>
+                    </select>
+                    <button id="gradient-remove" class="btn btn-ghost" type="button" title="Remove the gradient">Remove</button>
+                  </div>
+                  <div id="gradient-angle-row" class="prop-row">
+                    <label class="prop-field" for="gradient-angle"><span>Angle</span></label>
+                    <input id="gradient-angle" type="range" min="0" max="359" step="1" value="0" />
+                    <span id="gradient-angle-value" class="prop-value">0°</span>
+                  </div>
+                </div>
+
+                <p class="prop-subtitle">Stroke</p>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-stroke-width"><span>Width</span></label>
+                  <input id="prop-stroke-width" class="prop-num" type="number" min="0.5" max="400" step="0.5" aria-label="Stroke width in pixels" />
+                  <span class="prop-unit-static">px</span>
+                </div>
+                <div class="prop-row">
+                  <select id="prop-stroke-style" class="prop-unit prop-unit-wide" aria-label="Stroke style">
+                    <option value="solid">Solid</option>
+                    <option value="dashed">Dashed</option>
+                    <option value="dotted">Dotted</option>
+                  </select>
+                  <button id="prop-stroke-remove" class="btn btn-ghost" type="button" title="Remove the outline">No stroke</button>
+                </div>
+              </section>
+
+              <section class="prop-section" aria-labelledby="prop-scale-title">
+                <h3 id="prop-scale-title" class="prop-title">Scale</h3>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-scale-x"><span>X</span></label>
+                  <input id="prop-scale-x" class="prop-num" type="number" min="0" step="1" aria-label="Horizontal scale" />
+                  <select id="prop-scale-x-unit" class="prop-unit" aria-label="Horizontal scale unit"></select>
+                </div>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-scale-y"><span>Y</span></label>
+                  <input id="prop-scale-y" class="prop-num" type="number" min="0" step="1" aria-label="Vertical scale" />
+                  <select id="prop-scale-y-unit" class="prop-unit" aria-label="Vertical scale unit"></select>
+                </div>
+                <label class="switch prop-switch" title="Scale both axes together">
+                  <input id="prop-scale-uniform" type="checkbox" checked />
+                  <span class="switch-track" aria-hidden="true"></span>
+                  <span class="switch-text">Uniform scaling</span>
+                </label>
+              </section>
+            </div>
+          </div>
+        </aside>
+
         <aside id="settings-panel" class="settings-panel is-hidden" aria-label="Quick settings">
           <div class="settings-head">
             <span>Quick Settings</span>
@@ -158,6 +290,12 @@
             <input id="live-sharpen" type="checkbox" />
             <span class="switch-track" aria-hidden="true"></span>
             <span class="switch-text">Live sharpen</span>
+          </label>
+
+          <label class="switch settings-row" title="Draw the dashed outline around selected elements (Ctrl+H). The same switch as the one in the Move palette.">
+            <input id="qs-show-selection-borders" type="checkbox" checked />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">Show selection borders</span>
           </label>
 
           <label class="settings-field">
@@ -213,6 +351,245 @@
         </span>
         <span id="nib-indicator-value" class="nib-indicator-value">45°</span>
       </div>
+
+      <!-- Sharpen Selection dialog: sits in a corner so the live preview on
+           the canvas stays visible while the sliders move -->
+      <div id="sharpen-dialog" class="export-dialog dialog-corner is-hidden" role="dialog" aria-label="Sharpen Selection">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Sharpen Selection</p>
+          <label class="settings-field">
+            <span>Smooth</span>
+            <input id="sharpen-smooth" type="range" min="0" max="10" step="1" value="4" />
+          </label>
+          <label class="settings-field">
+            <span>Simplify</span>
+            <input id="sharpen-simplify" type="range" min="0" max="10" step="0.5" value="2" />
+          </label>
+          <div class="export-dialog-actions">
+            <button id="sharpen-apply-btn" class="btn btn-primary" type="button">Apply</button>
+            <button id="sharpen-cancel-btn" class="btn btn-ghost" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page Settings dialog: toggle a page between endless and sized -->
+      <div id="page-settings-dialog" class="export-dialog dialog-corner is-hidden" role="dialog" aria-label="Page Settings">
+        <div class="export-dialog-inner">
+          <p id="page-settings-title" class="export-dialog-title">Page Settings</p>
+          <label class="switch settings-row" title="Sized pages keep an exact width and height; endless pages fill the window">
+            <input id="page-sized" type="checkbox" />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">Sized page</span>
+          </label>
+          <label class="settings-field page-dim">
+            <span>Width</span>
+            <input id="page-width" type="number" min="64" max="8192" step="1" value="1280" disabled />
+          </label>
+          <label class="settings-field page-dim">
+            <span>Height</span>
+            <input id="page-height" type="number" min="64" max="8192" step="1" value="800" disabled />
+          </label>
+          <div class="export-dialog-actions">
+            <button id="page-settings-apply" class="btn btn-primary" type="button">Apply</button>
+            <button id="page-settings-close" class="btn btn-ghost" type="button">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animation wizard step 1: map layers onto a missing required assembly -->
+      <div id="anim-step1-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Missing required layers">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Missing required layers</p>
+          <p id="anim-step1-msg" class="anim-dialog-msg">Select layers that consist of the head</p>
+          <div id="anim-step1-list" class="anim-layer-list" role="group" aria-label="Layers to assign"></div>
+          <div class="export-dialog-actions">
+            <button id="anim-step1-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="anim-step1-back" class="btn" type="button">Back</button>
+            <button id="anim-step1-next" class="btn btn-primary" type="button">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animation wizard step 2: category and animation type -->
+      <div id="anim-step2-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Animation setup">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Animation setup</p>
+          <p class="anim-dialog-msg">Frames are drawn one at a time as layers named <code>&lt;type&gt;_0</code>, <code>&lt;type&gt;_1</code>, and on; keep drawing for as long as the cycle needs.</p>
+          <label class="settings-field">
+            <span>Category</span>
+            <!-- Both lists are built from ANIMATION_TYPES at runtime, so the
+                 options offered and the prompt templates behind them can
+                 never drift apart. -->
+            <select id="anim-category"></select>
+          </label>
+          <label class="settings-field">
+            <span>Animation</span>
+            <select id="anim-type"></select>
+          </label>
+          <label class="settings-field">
+            <span>Frames in the sequence</span>
+            <input id="anim-frames" type="number" min="2" max="60" step="1" value="8" />
+          </label>
+          <p class="anim-dialog-note">Not how many are drawn now - frames are still drawn one at a time. This is the pacing: the cycle's movement is spread across this many frames, so fewer frames move further each and more frames move less.</p>
+          <p id="anim-next-frame" class="anim-dialog-note">First frame drawn: <code>walk_1</code></p>
+          <div class="export-dialog-actions">
+            <button id="anim-step2-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="anim-step2-next" class="btn btn-primary" type="button">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Animation wizard step 3: one frame at a time, then keep/redraw/finish -->
+      <div id="anim-step3-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Drawing a frame">
+        <div class="export-dialog-inner">
+          <p id="anim-step3-title" class="export-dialog-title">Drawing frame</p>
+          <div id="anim-progress" class="anim-progress is-busy" role="progressbar" aria-label="The AI helper is drawing a frame">
+            <div id="anim-progress-fill" class="anim-progress-fill"></div>
+          </div>
+          <p id="anim-step3-status" class="anim-dialog-msg" role="status" aria-live="polite">Starting…</p>
+          <div class="export-dialog-actions">
+            <button id="anim-step3-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="anim-step3-redraw" class="btn btn-ghost is-hidden" type="button" title="Discard this frame and draw it again">Redraw</button>
+            <button id="anim-step3-done" class="btn is-hidden" type="button" title="Keep this frame and end the sequence">Done</button>
+            <button id="anim-step3-next" class="btn btn-primary is-hidden" type="button" title="Keep this frame and draw the next one from it">Keep and draw next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shown once the sequence has as many frames as the setup asked for -->
+      <div id="anim-done-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Animation graphics completed">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Animation Graphics Completed</p>
+          <p id="anim-done-msg" class="anim-dialog-msg" role="status" aria-live="polite"></p>
+          <div class="export-dialog-actions">
+            <button id="anim-done-new" class="btn" type="button" title="Set up and generate another animation">Generate New Animation</button>
+            <button id="anim-done-close" class="btn btn-primary" type="button">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI tool sign-in walkthrough: shown when the helper cannot start or
+           is not signed in. napkin-sketch never handles the credential; it
+           only starts the tool so the tool can run its own sign-in. -->
+      <div id="anim-signin-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="AI tool sign-in">
+        <div class="export-dialog-inner">
+          <p id="anim-signin-title" class="export-dialog-title">Sign in to your AI tool</p>
+          <p id="anim-signin-msg" class="anim-dialog-msg" role="status" aria-live="polite"></p>
+          <ol id="anim-signin-steps" class="anim-signin-steps"></ol>
+          <p class="anim-dialog-note">napkin-sketch never sees or stores your credentials - the tool signs you in itself.</p>
+          <div class="export-dialog-actions">
+            <button id="anim-signin-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="anim-signin-open" class="btn btn-primary" type="button">Open sign-in</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Move dialog: shifts the selection by an exact distance -->
+      <div id="move-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Move selection">
+        <div class="export-dialog-inner">
+          <p id="move-title" class="export-dialog-title">Move</p>
+          <p id="move-msg" class="anim-dialog-msg">Move the selection by a set distance.</p>
+          <label class="settings-field">
+            <span>Horizontal (x)</span>
+            <span class="move-field">
+              <input id="move-x" type="number" step="1" value="0" />
+              <select id="move-x-unit" class="prop-unit" aria-label="Horizontal distance unit"></select>
+            </span>
+          </label>
+          <label class="settings-field">
+            <span>Vertical (y)</span>
+            <span class="move-field">
+              <input id="move-y" type="number" step="1" value="0" />
+              <select id="move-y-unit" class="prop-unit" aria-label="Vertical distance unit"></select>
+            </span>
+          </label>
+          <label class="settings-field move-preview-field">
+            <input id="move-preview" type="checkbox" />
+            <span>Live preview</span>
+          </label>
+          <label class="settings-field move-preview-field" title="Draw the dashed outline around selected elements (Ctrl+H). Off, the selection still moves and exports the same way - only the outline goes, so the drawing can be judged while something is selected.">
+            <input id="show-selection-borders" type="checkbox" checked />
+            <span>Show Selection Borders</span>
+          </label>
+          <p class="anim-dialog-note">Positive x moves right, positive y moves down. Arrow keys step the field; hold <code>Shift</code> for a bigger step. <code>Enter</code> moves and closes, the same as the button; <code>Escape</code> closes without moving.</p>
+          <div class="export-dialog-actions">
+            <button id="move-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="move-apply" class="btn btn-primary" type="button">Move</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rotate dialog: turns the selection about a centre that can be moved -->
+      <div id="rotate-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Rotate selection">
+        <div class="export-dialog-inner">
+          <p id="rotate-title" class="export-dialog-title">Rotate</p>
+          <p id="rotate-msg" class="anim-dialog-msg">Rotate the selection around a centre point.</p>
+          <label class="settings-field">
+            <span>Angle</span>
+            <span class="move-field">
+              <input id="rotate-angle" type="number" step="1" value="0" aria-label="Rotation angle in degrees" />
+              <span class="rotate-degrees" aria-hidden="true">&deg;</span>
+            </span>
+          </label>
+          <div class="settings-field rotate-dir-field">
+            <span>Direction</span>
+            <div class="rotate-dir" role="group" aria-label="Rotation direction">
+              <button id="rotate-ccw" class="btn btn-ghost rotate-dir-btn" type="button" title="Counterclockwise — a negative angle">
+                <span class="rotate-dir-icon" aria-hidden="true">&#8634;</span> CCW
+              </button>
+              <button id="rotate-cw" class="btn btn-ghost rotate-dir-btn" type="button" title="Clockwise — a positive angle">
+                <span class="rotate-dir-icon" aria-hidden="true">&#8635;</span> CW
+              </button>
+            </div>
+          </div>
+          <div class="settings-field rotate-anchor-field">
+            <span>Centre of rotation</span>
+            <div id="rotate-anchor-grid" class="rotate-anchor-grid" role="group" aria-label="Centre of rotation preset">
+              <button class="rotate-anchor" type="button" data-anchor="tl" title="Top left" aria-label="Top left"></button>
+              <button class="rotate-anchor" type="button" data-anchor="tc" title="Top centre" aria-label="Top centre"></button>
+              <button class="rotate-anchor" type="button" data-anchor="tr" title="Top right" aria-label="Top right"></button>
+              <button class="rotate-anchor" type="button" data-anchor="ml" title="Middle left" aria-label="Middle left"></button>
+              <button class="rotate-anchor" type="button" data-anchor="mc" title="Middle" aria-label="Middle"></button>
+              <button class="rotate-anchor" type="button" data-anchor="mr" title="Middle right" aria-label="Middle right"></button>
+              <button class="rotate-anchor" type="button" data-anchor="bl" title="Bottom left" aria-label="Bottom left"></button>
+              <button class="rotate-anchor" type="button" data-anchor="bc" title="Bottom centre" aria-label="Bottom centre"></button>
+              <button class="rotate-anchor" type="button" data-anchor="br" title="Bottom right" aria-label="Bottom right"></button>
+            </div>
+          </div>
+          <label class="settings-field">
+            <span>Centre x</span>
+            <span class="move-field">
+              <input id="rotate-cx" type="number" step="1" value="0" />
+              <select id="rotate-cx-unit" class="prop-unit" aria-label="Centre x unit"></select>
+            </span>
+          </label>
+          <label class="settings-field">
+            <span>Centre y</span>
+            <span class="move-field">
+              <input id="rotate-cy" type="number" step="1" value="0" />
+              <select id="rotate-cy-unit" class="prop-unit" aria-label="Centre y unit"></select>
+            </span>
+          </label>
+          <label class="settings-field move-preview-field">
+            <input id="rotate-snap" type="checkbox" />
+            <span>Snap to 15&deg;</span>
+          </label>
+          <label class="settings-field move-preview-field">
+            <input id="rotate-preview" type="checkbox" />
+            <span>Live preview</span>
+          </label>
+          <p class="anim-dialog-note">Positive degrees turn clockwise, negative counterclockwise. <strong>Drag on the canvas</strong> to turn the selection by hand, or <strong>drag the crosshair</strong> to move the centre. Arrow keys step the angle; hold <code>Shift</code> for 15&deg;, and for a snapped drag. <code>Enter</code> rotates again from where the selection now is; <code>Escape</code> closes.</p>
+          <div class="export-dialog-actions">
+            <button id="rotate-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="rotate-apply" class="btn btn-primary" type="button">Rotate</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right-click context menu (layers and pages panels), and the panel a
+           row with nested items opens beside itself -->
+      <div id="context-menu" class="context-menu is-hidden" role="menu"></div>
+      <div id="context-submenu" class="context-menu is-hidden" role="menu"></div>
 
       <!-- Export page-selection dialog -->
       <div id="export-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Export options">

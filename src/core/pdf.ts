@@ -20,10 +20,10 @@
 
 import {
   defaultOpacityFor,
-  effectiveLayer,
+  effectiveLayers,
   isImageStroke,
   isTextStroke,
-  strokesOnLayer,
+  strokesByLayer,
   type Sketch,
   type Stroke,
 } from './types.js';
@@ -199,6 +199,10 @@ export function sketchesToPdf(sketches: Sketch[]): string {
   for (const sketch of sketches) {
     const H = sketch.height;
     const ops: string[] = [];
+    // Both resolved once for the page rather than per layer (see
+    // strokesByLayer and effectiveLayers).
+    const byLayer = strokesByLayer(sketch);
+    const effectiveOf = effectiveLayers(sketch);
 
     // Opaque paper background, matching the JPEG export behaviour.
     const [br, bg, bb] = parseCssColor(sketch.background);
@@ -206,9 +210,9 @@ export function sketchesToPdf(sketches: Sketch[]): string {
 
     for (const layer of sketch.layers) {
       if (layer.group) continue; // groups paint nothing themselves
-      const effective = effectiveLayer(sketch, layer);
-      if (!effective.visible) continue;
-      for (const stroke of strokesOnLayer(sketch, layer.id)) {
+      const effective = effectiveOf.get(layer.id);
+      if (!effective || !effective.visible) continue;
+      for (const stroke of byLayer.get(layer.id) ?? []) {
         const alpha = strokeAlpha(stroke, effective.opacity);
         const gs = alpha < 1 ? `/${gstateFor(alpha)} gs` : '';
 
@@ -262,8 +266,11 @@ export function sketchesToPdf(sketches: Sketch[]): string {
         // Filled shape interior, painted before its outline.
         if (stroke.fill && stroke.tool !== 'eraser' && pts.length > 2) {
           const [fr, fg, fb] = parseCssColor(stroke.fill);
+          // Each `move` point opens a new subpath so compound shapes keep
+          // their holes (`h` closes only the current subpath; `f` closes
+          // the rest implicitly).
           const fillPath =
-            pts.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 ? 'm' : 'l'}`).join(' ') +
+            pts.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 || p.move ? 'm' : 'l'}`).join(' ') +
             ' h f';
           ops.push('q', ...(gs ? [gs] : []), `${col(fr)} ${col(fg)} ${col(fb)} rg`, fillPath, 'Q');
         }
@@ -289,7 +296,7 @@ export function sketchesToPdf(sketches: Sketch[]): string {
             ? // Zero-length round-capped segment renders as a dot.
               `${num(pts[0].x)} ${num(H - pts[0].y)} m ${num(pts[0].x)} ${num(H - pts[0].y)} l S`
             : pts
-                .map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 ? 'm' : 'l'}`)
+                .map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 || p.move ? 'm' : 'l'}`)
                 .join(' ') + ' S';
         ops.push(
           'q',

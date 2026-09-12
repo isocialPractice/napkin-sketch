@@ -24,6 +24,13 @@ export interface LaunchOptions {
   sketchName?: string;
   /** Open the GUI window in full-screen mode (-f, --full-screen). */
   fullScreen?: boolean;
+  /** Absolute paths of files to import once the sketch is open (-i, -m). */
+  importFiles?: string[];
+  /**
+   * Lay the imported files out in a grid across the page (-m,
+   * --multiple-imports); false imports like the File > Import menu item.
+   */
+  importGrid?: boolean;
 }
 
 /** Environment variable used to hand launch options to the main process. */
@@ -40,11 +47,16 @@ export function decodeLaunchOptions(raw: string | undefined): LaunchOptions {
   try {
     const parsed = JSON.parse(raw) as Partial<LaunchOptions>;
     const mode: LaunchMode = parsed.mode === 'book' || parsed.mode === 'sharpen' ? parsed.mode : 'new';
+    const importFiles = Array.isArray(parsed.importFiles)
+      ? parsed.importFiles.filter((f): f is string => typeof f === 'string' && f.length > 0)
+      : [];
     return {
       mode,
       filePath: typeof parsed.filePath === 'string' ? parsed.filePath : undefined,
       sketchName: typeof parsed.sketchName === 'string' ? parsed.sketchName : 'unnamed',
       fullScreen: parsed.fullScreen === true,
+      importFiles: importFiles.length > 0 ? importFiles : undefined,
+      importGrid: parsed.importGrid === true,
     };
   } catch {
     return { mode: 'new', sketchName: 'unnamed' };

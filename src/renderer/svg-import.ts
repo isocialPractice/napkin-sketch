@@ -3,7 +3,8 @@
  *
  * Converts an SVG document into layered napkin-sketch strokes:
  * - `<g>` elements become layers (name from `data-name`, `inkscape:label`, or
- *   `id`; group `opacity` becomes layer opacity), so napkin-sketch exports and
+ *   `id`, falling back to the `<Group>` placeholder when unnamed; group
+ *   `opacity` becomes layer opacity), so napkin-sketch exports and
  *   Inkscape/Illustrator layer conventions both round-trip. Nested `<g>`
  *   elements become nested layer groups.
  * - Named geometry becomes its own layer. Illustrator (and any editor that
@@ -11,17 +12,22 @@
  *   `<path id="outline">` beside its sibling groups; those keep their name and
  *   their z-order position instead of being flattened onto the parent layer.
  * - Unnamed geometry stays on its group's layer. A run of unnamed siblings
- *   next to named ones collects into one `<Path>` layer that holds its
- *   document position; pass `unnamedElements: 'split'` to give every unnamed
- *   element a layer of its own.
+ *   next to named ones collects into one tag-named layer (`path`, `line`, …)
+ *   that holds its document position; pass `unnamedElements: 'split'` to give
+ *   every unnamed element a layer of its own.
  * - napkin-sketch exports restore exactly: `data-tool`/`data-i` attributes
  *   recover each mark's tool and paint order, and eraser strokes are read
  *   back out of the layer's `<mask>`.
- * - Generic geometry (`path`, `line`, `polyline`, `polygon`, `rect`,
- *   `circle`, `ellipse`) is sampled along its length with transforms applied,
- *   so beziers and shapes become editable freehand strokes. Fill-only shapes
- *   import filled. `<text>` becomes text items and `<image>` becomes placed
- *   image items.
+ * - Generic geometry keeps its Bézier structure. Path data (every command,
+ *   absolute or relative: `M L H V C S Q T A Z`) is parsed into cubic anchors
+ *   - quadratics are degree-elevated exactly, arcs become the standard cubic
+ *   approximation - and `rect`, `circle`, `ellipse`, `line`, `polyline`, and
+ *   `polygon` are built from their attributes, so a curve that arrives as
+ *   four numbers leaves as four numbers instead of hundreds of samples. Each
+ *   subpath becomes one editable vector stroke, with its transform applied
+ *   to the anchors. Fill-only shapes import as fill-only (no outline). Path
+ *   data the parser cannot read is sampled along its length as a fallback.
+ *   `<text>` becomes text items and `<image>` becomes placed image items.
  */
 
 import {
@@ -29,7 +35,10 @@ import {
   createId,
   type Stroke,
   type Tool,
+  type VectorAnchor,
 } from '../core/types.js';
+import { normalizeGradient } from '../core/serialize.js';
+import { cubicBezierPoints } from '../sharpen/geometry.js';
 
 /** One layer recovered from an imported SVG; nested groups become children. */
 export interface ImportedLayer {
@@ -55,10 +64,16 @@ export interface SvgImportOptions {
    * How geometry that carries no name is imported.
    * - `'merge'` (default): consecutive unnamed siblings share one layer, and a
    *   group holding nothing but unnamed geometry stays a single layer.
-   * - `'split'`: every unnamed element becomes its own `<Path>` layer, mirroring
-   *   an Illustrator layers panel exactly (verbose on stroke-heavy artwork).
+   * - `'split'`: every unnamed element becomes its own tag-named layer,
+   *   mirroring the source markup exactly (verbose on stroke-heavy artwork).
    */
   unnamedElements?: 'merge' | 'split';
+  /**
+   * Name for top-level runs of unnamed geometry (a document with no names at
+   * all arrives as a single layer under this name). Callers pass the source
+   * file's stem; defaults to `'Imported'`.
+   */
+  unnamedRootName?: string;
 }
 
 const GEOMETRY_TAGS = new Set(['path', 'line', 'polyline', 'polygon', 'rect', 'circle', 'ellipse']);
@@ -92,21 +107,23 @@ const AUTO_ID_STEMS = new Set([
   'marker',
 ]);
 
-/** Illustrator-style placeholder names for geometry that has no name. */
-const UNNAMED_LABELS: Record<string, string> = {
-  path: '<Path>',
-  polyline: '<Path>',
-  polygon: '<Path>',
-  line: '<Line>',
-  rect: '<Rectangle>',
-  circle: '<Ellipse>',
-  ellipse: '<Ellipse>',
-  text: '<Text>',
-  image: '<Image>',
-};
+// Geometry with no id (or only an editor-generated one) is labeled with its
+// tag name, so an unnamed <line> imports as a "line" layer and an unnamed
+// <rect> as "rect" - the reader sees exactly what the source markup held.
 
-/** Longest sampled polyline per imported path. */
-const MAX_SAMPLES = 300;
+/** Longest sampled polyline per imported path (length-sampling fallback). */
+const MAX_SAMPLES = 1200;
+
+/**
+ * Thinnest outline an import produces. Artwork authored in small user units
+ * (an icon in a 24-unit viewBox, a sprite in a 43-unit one) legitimately
+ * carries widths well under a pixel; clamping them up would fatten every
+ * line relative to the shapes it outlines.
+ */
+const MIN_IMPORT_WIDTH = 0.1;
+
+/** Coordinates and handles closer than this read as the same point. */
+const COINCIDENT = 1e-6;
 
 /** A stroke plus its recovered paint order (from `data-i`, else document order). */
 interface OrderedStroke {
@@ -139,32 +156,14 @@ export function importSvg(svgText: string, options: SvgImportOptions = {}): Impo
     const { width, height } = svgSize(root);
     const result: ImportedSvg = { width, height, layers: [] };
 
-    // Many editors export the whole document wrapped in a single top-level
-    // <g> (often named after the file). Descend through such solitary
-    // wrappers so the layer groups inside import as individual layers
-    // instead of one flattened layer; wrapper opacity carries down.
-    let scope: Element = root;
-    let wrapperOpacity = 1;
-    for (;;) {
-      const meaningful = contentChildren(scope);
-      const only = meaningful.length === 1 ? meaningful[0] : null;
-      if (
-        only &&
-        only.tagName.toLowerCase() === 'g' &&
-        !only.hasAttribute('mask') &&
-        Array.from(only.children).some((c) => c.tagName.toLowerCase() === 'g')
-      ) {
-        wrapperOpacity *= clamp01(Number(only.getAttribute('opacity') ?? 1));
-        scope = only;
-        continue;
-      }
-      break;
-    }
-
+    // Every top-level group imports as a layer group: a named one (e.g.
+    // <g id="circles">) under its name, an anonymous one as "<Group>" - no
+    // wrapper is ever flattened away, so the imported stack always mirrors
+    // the document. Top-level loose geometry collects under the file's name.
     // Group direct children into layer buckets, preserving z-order.
     let docOrder = 0;
     const nextOrder = () => docOrder++;
-    const top = contentChildren(scope).filter((child, index) => {
+    const top = contentChildren(root).filter((child, index) => {
       // Skip a leading full-canvas background rect (napkin exports and many
       // other tools emit one).
       if (
@@ -179,8 +178,16 @@ export function importSvg(svgText: string, options: SvgImportOptions = {}): Impo
       return true;
     });
 
-    result.layers = childLayers(top, root, nextOrder, splitUnnamed, 'Imported');
-    for (const layer of result.layers) layer.opacity *= wrapperOpacity;
+    const rootName = options.unnamedRootName ?? 'Imported';
+    result.layers = childLayers(top, root, nextOrder, splitUnnamed, rootName);
+
+    // A document with no <g> elements still gets a single top row: its loose
+    // tag-named layers collect inside one group named after the file, so the
+    // panel shows "file > path, line, rect, ..." instead of a flat pile.
+    const hasGroups = top.some((el) => el.tagName.toLowerCase() === 'g');
+    if (!hasGroups && !(result.layers.length === 1 && result.layers[0].name === rootName)) {
+      result.layers = [{ name: rootName, opacity: 1, strokes: [], children: result.layers }];
+    }
 
     result.layers = pruneEmptyLayers(result.layers);
     if (result.layers.length === 0) {
@@ -267,13 +274,14 @@ export function decodeIdName(id: string): string {
   return decoded.slice(0, -suffix[0].length) || decoded;
 }
 
-/** Placeholder name for geometry the source document left unnamed. */
+/** Placeholder name for geometry the source document left unnamed: its tag. */
 function unnamedLabel(el: Element): string {
-  return UNNAMED_LABELS[el.tagName.toLowerCase()] ?? '<Path>';
+  return el.tagName.toLowerCase();
 }
 
-function layerName(group: Element, index: number): string {
-  return elementName(group) ?? `Layer ${index}`;
+/** A group's author-given name, or the "<Group>" placeholder when unnamed. */
+function layerName(group: Element): string {
+  return elementName(group) ?? '<Group>';
 }
 
 function svgSize(root: SVGSVGElement): { width: number; height: number } {
@@ -331,9 +339,19 @@ function groupToLayer(
 ): ImportedLayer {
   const opacity = clamp01(Number(group.getAttribute('opacity') ?? 1));
   const kids = contentChildren(group);
+  // A group stays a single leaf layer only when it holds nothing but
+  // napkin's own exported marks (data-tool) - those merge back as the
+  // layer's strokes so exports round-trip. Any generic child (named, a
+  // nested group, or unnamed geometry from another editor) makes the group
+  // a group row whose children each get their own layer.
   const structured =
     splitUnnamed ||
-    kids.some((child) => child.tagName.toLowerCase() === 'g' || elementName(child) !== null);
+    kids.some(
+      (child) =>
+        child.tagName.toLowerCase() === 'g' ||
+        elementName(child) !== null ||
+        !child.hasAttribute('data-tool'),
+    );
 
   if (!structured) {
     const items: OrderedStroke[] = [];
@@ -371,7 +389,6 @@ function childLayers(
   unnamedName?: string,
 ): ImportedLayer[] {
   const layers: ImportedLayer[] = [];
-  let groupIndex = 0;
   let unnamedIndex = 0;
   let run: OrderedStroke[] = [];
   let runName = '';
@@ -386,15 +403,8 @@ function childLayers(
   for (const child of elements) {
     if (child.tagName.toLowerCase() === 'g') {
       flushRun();
-      groupIndex += 1;
       layers.push(
-        groupToLayer(
-          child as SVGGElement,
-          root,
-          nextOrder,
-          layerName(child, groupIndex),
-          splitUnnamed,
-        ),
+        groupToLayer(child as SVGGElement, root, nextOrder, layerName(child), splitUnnamed),
       );
       continue;
     }
@@ -405,6 +415,18 @@ function childLayers(
       const marks: OrderedStroke[] = [];
       elementToStrokes(child as SVGElement, root, marks, nextOrder);
       layers.push({ name: named, opacity: 1, strokes: sortByOrder(marks) });
+      continue;
+    }
+
+    // Generic unnamed geometry (anything that is not one of napkin's own
+    // data-tool marks) gets a layer of its own, named after its tag - "if no
+    // id, use the tag name". Only data-tool marks fall through to the run
+    // below and merge back onto their layer.
+    if (!child.hasAttribute('data-tool')) {
+      flushRun();
+      const marks: OrderedStroke[] = [];
+      elementToStrokes(child as SVGElement, root, marks, nextOrder);
+      layers.push({ name: unnamedLabel(child), opacity: 1, strokes: sortByOrder(marks) });
       continue;
     }
 
@@ -433,13 +455,25 @@ function collectMaskErasers(
 ): void {
   const ref = /url\(#([^)]+)\)/.exec(group.getAttribute('mask') ?? '');
   if (!ref) return;
-  const mask = root.querySelector(`mask[id="${ref[1]}"]`);
+  // The id comes out of the document, so it goes into the selector escaped:
+  // a quote or a bracket in it would otherwise throw a SyntaxError and take
+  // the whole import down with it.
+  const mask = root.querySelector(`mask[id=${cssString(ref[1])}]`);
   if (!mask) return;
   for (const child of Array.from(mask.children)) {
     // The full-canvas white rect is the mask's "show everything" base.
     if (child.tagName.toLowerCase() === 'rect' && !child.hasAttribute('data-tool')) continue;
     elementToStrokes(child as SVGElement, root, out, nextOrder, 'eraser');
   }
+}
+
+/**
+ * Quotes an id for use as a CSS attribute-selector value. A double-quoted
+ * selector string only has to escape the quote itself and the backslash that
+ * escapes it, which is exactly what a document-supplied id might carry.
+ */
+function cssString(value: string): string {
+  return `"${value.replace(/["\\]/g, '\\$&')}"`;
 }
 
 /** Converts one SVG element into zero or more ordered strokes. */
@@ -451,8 +485,13 @@ function elementToStrokes(
   forceTool?: Tool,
 ): void {
   const tag = el.tagName.toLowerCase();
-  const orderAttr = Number(el.getAttribute('data-i'));
-  const order = Number.isFinite(orderAttr) ? orderAttr : nextOrder() + 1_000_000;
+  // Only a mark that actually carries `data-i` keeps its recorded paint
+  // order. `Number(null)` is 0, so reading the attribute without checking for
+  // it first filed every element of a foreign document under order 0 and left
+  // the document-order fallback below unreachable.
+  const orderAttr = el.getAttribute('data-i');
+  const recorded = orderAttr !== null && orderAttr.trim() !== '' ? Number(orderAttr) : NaN;
+  const order = Number.isFinite(recorded) ? recorded : nextOrder() + 1_000_000;
 
   if (tag === 'text') {
     const stroke = textToStroke(el as SVGTextElement, root);
@@ -478,10 +517,29 @@ function elementToStrokes(
   const hasStroke = style.stroke !== 'none' && style.stroke !== '';
   const hasFill = style.fill !== 'none' && style.fill !== '';
   if (!hasStroke && !hasFill) return;
-  const color = tool === 'eraser' ? '#000000' : hasStroke ? style.stroke : style.fill;
-  const width = hasStroke
-    ? Math.max(0.5, (parseFloat(style.strokeWidth) || 1) * matrixScale(matrix))
-    : 1;
+  // A napkin shape whose outline was switched off exports as stroke="none"
+  // with the kept color and width in data attributes. Read those back rather
+  // than deriving a color from the fill, which may be a gradient paint server
+  // (`url(#…)`) and not a color at all.
+  const keptColor = el.getAttribute('data-color');
+  const keptWidth = Number(el.getAttribute('data-width'));
+  const outlineOff = el.getAttribute('data-nostroke') === '1';
+  const color = normalizeColor(
+    tool === 'eraser'
+      ? '#000000'
+      : outlineOff && keptColor
+        ? keptColor
+        : hasStroke
+          ? style.stroke
+          : style.fill,
+  );
+  const width = importWidth(
+    outlineOff && Number.isFinite(keptWidth) && keptWidth > 0
+      ? keptWidth * matrixScale(matrix)
+      : hasStroke
+        ? (parseFloat(style.strokeWidth) || 1) * matrixScale(matrix)
+        : 1,
+  );
   const opacity = clamp01(
     Number(style.opacity || 1) * Number(hasStroke ? style.strokeOpacity || 1 : style.fillOpacity || 1),
   );
@@ -526,12 +584,68 @@ function elementToStrokes(
       const stroke = makeStroke(tool, color, width, points.map((p) => applyMatrix(matrix, p.x, p.y)), opacity);
       const dataFill = el.getAttribute('data-fill');
       if (dataFill) stroke.fill = dataFill;
+      applyNapkinPaint(el, stroke);
       out.push({ order, stroke });
       return;
     }
   }
 
-  // Generic geometry: sample evenly along the element's length.
+  // Everything else keeps its Bézier structure: path data parses into cubic
+  // anchors and the shape elements are built from their attributes. Each
+  // subpath becomes its own vector stroke whose points are sampled from the
+  // (transformed) anchors, so the export writes the curve back as the same
+  // few control points the source held rather than a polyline through its
+  // samples. A fill-only source shape stays fill-only: painting an outline
+  // in the fill color would grow the shape by half a stroke width.
+  const subpaths =
+    tag === 'path' ? parsePathD(el.getAttribute('d') ?? '') : shapeSubpaths(el, tag);
+  if (subpaths) {
+    const fill =
+      hasFill && tool !== 'eraser' && !style.fill.startsWith('url(')
+        ? normalizeColor(style.fill)
+        : null;
+    // One element is one stroke, however many subpaths it holds: a compound
+    // path (an outlined stroke with its inner contour, a ring, a letter with
+    // a counter) fills as outer-minus-inner only while its contours stay
+    // together. Each later subpath starts at a `move` anchor.
+    const anchors: VectorAnchor[] = [];
+    const points: Vec2WithMove[] = [];
+    for (const sub of subpaths) {
+      const mapped: VectorAnchor[] = sub.anchors.map((a) => ({
+        p: applyMatrix(matrix, a.p.x, a.p.y),
+        ...(a.hIn ? { hIn: applyMatrix(matrix, a.hIn.x, a.hIn.y) } : {}),
+        ...(a.hOut ? { hOut: applyMatrix(matrix, a.hOut.x, a.hOut.y) } : {}),
+      }));
+      const sampled = sampleAnchors(mapped, sub.closed);
+      if (sampled.length < 2) continue;
+      if (anchors.length > 0) {
+        mapped[0].move = true;
+        sampled[0].move = true;
+      }
+      anchors.push(...mapped);
+      points.push(...sampled);
+    }
+    if (points.length < 2) return;
+    // A compound path closes as a whole when its contours all close, which
+    // is what an outlined shape is; a subpath left open in a mostly closed
+    // compound (rare) still fills correctly and only loses its explicit Z.
+    const closed = subpaths.every((sub) => sub.closed);
+    const stroke = makeStroke(tool, color, width, points, opacity);
+    for (let k = 0; k < points.length; k++) if (points[k].move) stroke.points[k].move = true;
+    if (fill && points.length > 2) {
+      stroke.fill = fill;
+      if (!hasStroke) stroke.noStroke = true;
+    }
+    applyNapkinPaint(el, stroke);
+    stroke.vector = { anchors, ...(closed ? { closed: true } : {}) };
+    out.push({ order, stroke });
+    return;
+  }
+
+  // Fallback for path data the parser could not read: sample evenly along
+  // the element's length. One sample per unit of path length keeps curves
+  // smooth at import size instead of the visibly faceted outlines a coarser
+  // step produces.
   let length = 0;
   try {
     length = el.getTotalLength();
@@ -539,7 +653,7 @@ function elementToStrokes(
     return;
   }
   if (!Number.isFinite(length) || length <= 0) return;
-  const samples = Math.min(MAX_SAMPLES, Math.max(2, Math.ceil(length / 2)));
+  const samples = Math.min(MAX_SAMPLES, Math.max(2, Math.ceil(length)));
   const points: { x: number; y: number }[] = [];
   for (let i = 0; i <= samples; i++) {
     const p = el.getPointAtLength((length * i) / samples);
@@ -547,8 +661,545 @@ function elementToStrokes(
   }
   const stroke = makeStroke(tool, color, width, points, opacity);
   // Filled source shapes stay filled (previously they imported as outlines).
-  if (hasFill && tool !== 'eraser' && points.length > 2) stroke.fill = style.fill;
+  // A `url(#…)` paint server is not a color: the gradient it points at is
+  // restored from `data-gradient` below for napkin's own exports, and a
+  // foreign one is dropped rather than stored as a broken fill string.
+  if (hasFill && tool !== 'eraser' && points.length > 2 && !style.fill.startsWith('url(')) {
+    stroke.fill = normalizeColor(style.fill);
+    if (!hasStroke) stroke.noStroke = true;
+  }
+  applyNapkinPaint(el, stroke);
   out.push({ order, stroke });
+}
+
+/**
+ * Rounds an imported outline width to a thousandth and floors it at
+ * {@link MIN_IMPORT_WIDTH}. Transform matrices come back from the DOM with
+ * floating-point dust (`0.9999999999999999` for an untransformed element),
+ * which would otherwise be written into every exported `stroke-width`.
+ */
+function importWidth(width: number): number {
+  const rounded = Math.round(width * 1000) / 1000;
+  return Number.isFinite(rounded) ? Math.max(MIN_IMPORT_WIDTH, rounded) : 1;
+}
+
+/**
+ * Writes a computed `rgb(r, g, b)` color as `#rrggbb`. Computed styles hand
+ * every color back in the functional form; the source file almost always
+ * held hex, and hex is what the export should write back. Anything else
+ * (`rgba(…)` with alpha, named colors, `currentColor`) passes through.
+ */
+export function normalizeColor(color: string): string {
+  const m = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/.exec(color.trim());
+  if (!m) return color;
+  const hex = (n: string) => Math.min(255, Number(n)).toString(16).padStart(2, '0');
+  return `#${hex(m[1])}${hex(m[2])}${hex(m[3])}`;
+}
+
+/** One subpath of parsed geometry: its Bézier anchors and whether it closes. */
+export interface ParsedSubpath {
+  anchors: VectorAnchor[];
+  closed: boolean;
+}
+
+type Vec2 = { x: number; y: number };
+
+/** A sampled point that may open a new subpath of a compound shape. */
+type Vec2WithMove = Vec2 & { move?: true };
+
+function samePoint(a: Vec2, b: Vec2): boolean {
+  return Math.abs(a.x - b.x) < COINCIDENT && Math.abs(a.y - b.y) < COINCIDENT;
+}
+
+/** Four-cubic ellipse approximation handle length, 4/3·(√2 − 1) of the radius. */
+const KAPPA = (4 / 3) * (Math.SQRT2 - 1);
+
+/**
+ * Accumulates segments into subpaths the way the Vector Path tool stores
+ * them: a control point sitting on its anchor reads as a collapsed (absent)
+ * handle, and a closed subpath's duplicate final anchor folds onto the first
+ * so the closing segment carries the handles instead of a zero-length one.
+ */
+class SubpathBuilder {
+  readonly subpaths: ParsedSubpath[] = [];
+  private current: ParsedSubpath | null = null;
+
+  moveTo(p: Vec2): void {
+    this.flush();
+    this.current = { anchors: [{ p }], closed: false };
+  }
+
+  lineTo(p: Vec2): void {
+    this.current?.anchors.push({ p });
+  }
+
+  cubicTo(c1: Vec2, c2: Vec2, p: Vec2): void {
+    const anchors = this.current?.anchors;
+    if (!anchors) return;
+    const from = anchors[anchors.length - 1];
+    if (!samePoint(c1, from.p)) from.hOut = c1;
+    const to: VectorAnchor = { p };
+    if (!samePoint(c2, p)) to.hIn = c2;
+    anchors.push(to);
+  }
+
+  /**
+   * A quadratic is written as the cubic that draws the identical curve
+   * (degree elevation): the two cubic handles sit two thirds of the way from
+   * each endpoint toward the single quadratic control point.
+   */
+  quadTo(c: Vec2, p: Vec2): void {
+    const anchors = this.current?.anchors;
+    if (!anchors) return;
+    const from = anchors[anchors.length - 1].p;
+    this.cubicTo(
+      { x: from.x + (2 / 3) * (c.x - from.x), y: from.y + (2 / 3) * (c.y - from.y) },
+      { x: p.x + (2 / 3) * (c.x - p.x), y: p.y + (2 / 3) * (c.y - p.y) },
+      p,
+    );
+  }
+
+  close(): void {
+    const sub = this.current;
+    if (!sub) return;
+    sub.closed = true;
+    const { anchors } = sub;
+    if (anchors.length >= 3 && samePoint(anchors[anchors.length - 1].p, anchors[0].p)) {
+      const last = anchors.pop()!;
+      if (last.hIn) anchors[0].hIn = last.hIn;
+    }
+    this.flush();
+  }
+
+  /** Ends the current subpath, keeping it when it has at least one segment. */
+  flush(): void {
+    if (this.current && this.current.anchors.length >= 2) this.subpaths.push(this.current);
+    this.current = null;
+  }
+}
+
+/**
+ * Parses SVG path data - every command, absolute or relative, with implicit
+ * command repetition - into subpaths of cubic Bézier anchors. `H`/`V` become
+ * lines, `S`/`T` reflect the previous handle (or collapse onto the current
+ * point after any other command, per the specification), quadratics are
+ * degree-elevated exactly, and arcs become the standard cubic approximation
+ * in pieces of at most a quarter turn. Returns null for data the parser
+ * cannot read (a malformed number, a missing leading `M`), in which case the
+ * caller samples the element instead. Exported for tests.
+ */
+export function parsePathD(d: string): ParsedSubpath[] | null {
+  // Anything that is not a command, a number (exponents included), or a
+  // separator is not path data.
+  if (/[^MmLlHhVvCcSsQqTtAaZz0-9eE+\-.,\s]/.test(d)) return null;
+  const tokens = d.match(/[MmLlHhVvCcSsQqTtAaZz]|[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g);
+  if (!tokens || (tokens[0] !== 'M' && tokens[0] !== 'm')) return null;
+  const builder = new SubpathBuilder();
+  let i = 0;
+  let cmd = '';
+  let cur: Vec2 = { x: 0, y: 0 };
+  let start: Vec2 = { x: 0, y: 0 };
+  let open = false;
+  let lastCubicCtrl: Vec2 | null = null;
+  let lastQuadCtrl: Vec2 | null = null;
+
+  const num = (): number | null => {
+    const t = tokens[i];
+    if (t === undefined || /[A-Za-z]/.test(t)) return null;
+    i++;
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  };
+  const point = (relative: boolean): Vec2 | null => {
+    const x = num();
+    const y = num();
+    if (x === null || y === null) return null;
+    return relative ? { x: cur.x + x, y: cur.y + y } : { x, y };
+  };
+  const flag = (): boolean | null => {
+    const t = tokens[i];
+    if (t !== '0' && t !== '1') return null;
+    i++;
+    return t === '1';
+  };
+  // A drawing command after `Z` continues from the closed subpath's start.
+  const ensureOpen = (): void => {
+    if (open) return;
+    builder.moveTo(start);
+    open = true;
+  };
+  const reflect = (ctrl: Vec2 | null): Vec2 =>
+    ctrl ? { x: 2 * cur.x - ctrl.x, y: 2 * cur.y - ctrl.y } : cur;
+
+  while (i < tokens.length) {
+    if (/[A-Za-z]/.test(tokens[i])) {
+      cmd = tokens[i++];
+      if (cmd === 'Z' || cmd === 'z') {
+        if (open) builder.close();
+        open = false;
+        cur = start;
+        lastCubicCtrl = null;
+        lastQuadCtrl = null;
+        continue;
+      }
+    }
+    const relative = cmd === cmd.toLowerCase();
+    let cubicCtrl: Vec2 | null = null;
+    let quadCtrl: Vec2 | null = null;
+    switch (cmd.toUpperCase()) {
+      case 'M': {
+        const p = point(relative);
+        if (!p) return null;
+        builder.moveTo(p);
+        open = true;
+        cur = p;
+        start = p;
+        // Further pairs after a moveto are implicit linetos.
+        cmd = relative ? 'l' : 'L';
+        break;
+      }
+      case 'L': {
+        const p = point(relative);
+        if (!p) return null;
+        ensureOpen();
+        builder.lineTo(p);
+        cur = p;
+        break;
+      }
+      case 'H': {
+        const x = num();
+        if (x === null) return null;
+        const p = { x: relative ? cur.x + x : x, y: cur.y };
+        ensureOpen();
+        builder.lineTo(p);
+        cur = p;
+        break;
+      }
+      case 'V': {
+        const y = num();
+        if (y === null) return null;
+        const p = { x: cur.x, y: relative ? cur.y + y : y };
+        ensureOpen();
+        builder.lineTo(p);
+        cur = p;
+        break;
+      }
+      case 'C': {
+        const c1 = point(relative);
+        const c2 = point(relative);
+        const p = point(relative);
+        if (!c1 || !c2 || !p) return null;
+        ensureOpen();
+        builder.cubicTo(c1, c2, p);
+        cubicCtrl = c2;
+        cur = p;
+        break;
+      }
+      case 'S': {
+        const c1 = reflect(lastCubicCtrl);
+        const c2 = point(relative);
+        const p = point(relative);
+        if (!c2 || !p) return null;
+        ensureOpen();
+        builder.cubicTo(c1, c2, p);
+        cubicCtrl = c2;
+        cur = p;
+        break;
+      }
+      case 'Q': {
+        const c = point(relative);
+        const p = point(relative);
+        if (!c || !p) return null;
+        ensureOpen();
+        builder.quadTo(c, p);
+        quadCtrl = c;
+        cur = p;
+        break;
+      }
+      case 'T': {
+        const c = reflect(lastQuadCtrl);
+        const p = point(relative);
+        if (!p) return null;
+        ensureOpen();
+        builder.quadTo(c, p);
+        quadCtrl = c;
+        cur = p;
+        break;
+      }
+      case 'A': {
+        const rx = num();
+        const ry = num();
+        const rotation = num();
+        const large = flag();
+        const sweep = flag();
+        const p = point(relative);
+        if (rx === null || ry === null || rotation === null || large === null || sweep === null || !p) {
+          return null;
+        }
+        ensureOpen();
+        for (const [c1, c2, end] of arcToCubics(cur, rx, ry, rotation, large, sweep, p)) {
+          builder.cubicTo(c1, c2, end);
+        }
+        cur = p;
+        break;
+      }
+      default:
+        return null;
+    }
+    lastCubicCtrl = cubicCtrl;
+    lastQuadCtrl = quadCtrl;
+  }
+  builder.flush();
+  return builder.subpaths;
+}
+
+/**
+ * Converts an SVG elliptical arc (endpoint parameterisation) into cubic
+ * segments of at most a quarter turn each, per the SVG implementation notes:
+ * recover the centre, then approximate each piece with handles of length
+ * 4/3·tan(Δθ/4) along the ellipse's tangents - the same rule that gives
+ * KAPPA for a quarter circle. Returns `[c1, c2, end]` triples.
+ */
+function arcToCubics(
+  from: Vec2,
+  rxIn: number,
+  ryIn: number,
+  rotationDeg: number,
+  large: boolean,
+  sweep: boolean,
+  to: Vec2,
+): [Vec2, Vec2, Vec2][] {
+  if (samePoint(from, to)) return [];
+  let rx = Math.abs(rxIn);
+  let ry = Math.abs(ryIn);
+  // A zero radius draws a straight line to the endpoint.
+  if (rx < COINCIDENT || ry < COINCIDENT) return [[from, to, to]];
+
+  const phi = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(phi);
+  const sin = Math.sin(phi);
+  const dx = (from.x - to.x) / 2;
+  const dy = (from.y - to.y) / 2;
+  const x1 = cos * dx + sin * dy;
+  const y1 = -sin * dx + cos * dy;
+  // Radii too small to span the chord scale up until they just do.
+  const lambda = (x1 * x1) / (rx * rx) + (y1 * y1) / (ry * ry);
+  if (lambda > 1) {
+    const s = Math.sqrt(lambda);
+    rx *= s;
+    ry *= s;
+  }
+  const rx2 = rx * rx;
+  const ry2 = ry * ry;
+  const numerator = Math.max(0, rx2 * ry2 - rx2 * y1 * y1 - ry2 * x1 * x1);
+  const denominator = rx2 * y1 * y1 + ry2 * x1 * x1;
+  let coef = denominator === 0 ? 0 : Math.sqrt(numerator / denominator);
+  if (large === sweep) coef = -coef;
+  const cxp = (coef * (rx * y1)) / ry;
+  const cyp = (coef * -(ry * x1)) / rx;
+  const cx = cos * cxp - sin * cyp + (from.x + to.x) / 2;
+  const cy = sin * cxp + cos * cyp + (from.y + to.y) / 2;
+
+  const angleBetween = (ux: number, uy: number, vx: number, vy: number): number => {
+    const dot = ux * vx + uy * vy;
+    const len = Math.hypot(ux, uy) * Math.hypot(vx, vy);
+    const a = Math.acos(Math.max(-1, Math.min(1, dot / len)));
+    return ux * vy - uy * vx < 0 ? -a : a;
+  };
+  const theta1 = angleBetween(1, 0, (x1 - cxp) / rx, (y1 - cyp) / ry);
+  let delta = angleBetween((x1 - cxp) / rx, (y1 - cyp) / ry, (-x1 - cxp) / rx, (-y1 - cyp) / ry);
+  if (!sweep && delta > 0) delta -= 2 * Math.PI;
+  else if (sweep && delta < 0) delta += 2 * Math.PI;
+
+  const pieces = Math.max(1, Math.ceil(Math.abs(delta) / (Math.PI / 2) - 1e-9));
+  const step = delta / pieces;
+  const alpha = (4 / 3) * Math.tan(step / 4);
+  const pointAt = (t: number): Vec2 => ({
+    x: cx + rx * Math.cos(t) * cos - ry * Math.sin(t) * sin,
+    y: cy + rx * Math.cos(t) * sin + ry * Math.sin(t) * cos,
+  });
+  const tangentAt = (t: number): Vec2 => ({
+    x: -rx * Math.sin(t) * cos - ry * Math.cos(t) * sin,
+    y: -rx * Math.sin(t) * sin + ry * Math.cos(t) * cos,
+  });
+
+  const out: [Vec2, Vec2, Vec2][] = [];
+  let t = theta1;
+  let a = from;
+  for (let k = 0; k < pieces; k++) {
+    const t2 = t + step;
+    // The final piece lands exactly on the given endpoint.
+    const end = k === pieces - 1 ? to : pointAt(t2);
+    const d1 = tangentAt(t);
+    const d2 = tangentAt(t2);
+    out.push([
+      { x: a.x + alpha * d1.x, y: a.y + alpha * d1.y },
+      { x: end.x - alpha * d2.x, y: end.y - alpha * d2.y },
+      end,
+    ]);
+    a = end;
+    t = t2;
+  }
+  return out;
+}
+
+/**
+ * Builds the Bézier anchors of a basic shape element from its attributes.
+ * A circle or ellipse is the four-cubic approximation (anchors on the axes,
+ * handles KAPPA of the radius along the tangents); a rect is its four corners,
+ * with rounded corners as quarter arcs; line, polyline, and polygon are their
+ * points. Returns null for anything else.
+ */
+function shapeSubpaths(el: Element, tag: string): ParsedSubpath[] | null {
+  const attr = (name: string, fallback = 0): number => {
+    const n = parseFloat(el.getAttribute(name) ?? '');
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const builder = new SubpathBuilder();
+
+  switch (tag) {
+    case 'circle':
+    case 'ellipse': {
+      const cx = attr('cx');
+      const cy = attr('cy');
+      const rx = tag === 'circle' ? attr('r') : attr('rx');
+      const ry = tag === 'circle' ? rx : attr('ry');
+      if (rx <= 0 || ry <= 0) return [];
+      const anchors: VectorAnchor[] = [];
+      for (let k = 0; k < 4; k++) {
+        const theta = (k * Math.PI) / 2;
+        const p = { x: cx + rx * Math.cos(theta), y: cy + ry * Math.sin(theta) };
+        const tangent = { x: -rx * Math.sin(theta), y: ry * Math.cos(theta) };
+        anchors.push({
+          p,
+          hIn: { x: p.x - KAPPA * tangent.x, y: p.y - KAPPA * tangent.y },
+          hOut: { x: p.x + KAPPA * tangent.x, y: p.y + KAPPA * tangent.y },
+        });
+      }
+      return [{ anchors, closed: true }];
+    }
+    case 'rect': {
+      const x = attr('x');
+      const y = attr('y');
+      const w = attr('width');
+      const h = attr('height');
+      if (w <= 0 || h <= 0) return [];
+      let rx = attr('rx', -1);
+      let ry = attr('ry', -1);
+      // A missing radius copies the other; both missing means square corners.
+      if (rx < 0 && ry < 0) rx = ry = 0;
+      else if (rx < 0) rx = ry;
+      else if (ry < 0) ry = rx;
+      rx = Math.min(rx, w / 2);
+      ry = Math.min(ry, h / 2);
+      if (rx <= 0 || ry <= 0) {
+        builder.moveTo({ x, y });
+        builder.lineTo({ x: x + w, y });
+        builder.lineTo({ x: x + w, y: y + h });
+        builder.lineTo({ x, y: y + h });
+        builder.close();
+        return builder.subpaths;
+      }
+      const corner = (from: Vec2, to: Vec2): void => {
+        for (const [c1, c2, end] of arcToCubics(from, rx, ry, 0, false, true, to)) {
+          builder.cubicTo(c1, c2, end);
+        }
+      };
+      builder.moveTo({ x: x + rx, y });
+      builder.lineTo({ x: x + w - rx, y });
+      corner({ x: x + w - rx, y }, { x: x + w, y: y + ry });
+      builder.lineTo({ x: x + w, y: y + h - ry });
+      corner({ x: x + w, y: y + h - ry }, { x: x + w - rx, y: y + h });
+      builder.lineTo({ x: x + rx, y: y + h });
+      corner({ x: x + rx, y: y + h }, { x, y: y + h - ry });
+      builder.lineTo({ x, y: y + ry });
+      corner({ x, y: y + ry }, { x: x + rx, y });
+      builder.close();
+      return builder.subpaths;
+    }
+    case 'line': {
+      builder.moveTo({ x: attr('x1'), y: attr('y1') });
+      builder.lineTo({ x: attr('x2'), y: attr('y2') });
+      builder.flush();
+      return builder.subpaths;
+    }
+    case 'polyline':
+    case 'polygon': {
+      const nums = (el.getAttribute('points') ?? '').match(/[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g);
+      if (!nums || nums.length < 4) return [];
+      builder.moveTo({ x: Number(nums[0]), y: Number(nums[1]) });
+      for (let k = 2; k + 1 < nums.length; k += 2) {
+        builder.lineTo({ x: Number(nums[k]), y: Number(nums[k + 1]) });
+      }
+      if (tag === 'polygon') builder.close();
+      else builder.flush();
+      return builder.subpaths;
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Samples the segments between anchors into stroke points, the way the
+ * Vector Path tool does: straight segments contribute only their endpoint,
+ * curved ones a run of samples scaled to the segment's size (four at the
+ * least, so small curves still round on screen, and never more than the
+ * editor's own segment resolution).
+ */
+function sampleAnchors(anchors: VectorAnchor[], closed: boolean): Vec2WithMove[] {
+  if (anchors.length === 0) return [];
+  const out: Vec2WithMove[] = [{ x: anchors[0].p.x, y: anchors[0].p.y }];
+  const segment = (from: VectorAnchor, to: VectorAnchor): void => {
+    if (!from.hOut && !to.hIn) {
+      out.push({ x: to.p.x, y: to.p.y });
+      return;
+    }
+    const c1 = from.hOut ?? from.p;
+    const c2 = to.hIn ?? to.p;
+    const hull =
+      Math.hypot(c1.x - from.p.x, c1.y - from.p.y) +
+      Math.hypot(c2.x - c1.x, c2.y - c1.y) +
+      Math.hypot(to.p.x - c2.x, to.p.y - c2.y);
+    const samples = Math.min(24, Math.max(4, Math.ceil(hull)));
+    const a = { x: from.p.x, y: from.p.y, pressure: 0.5 };
+    const b = { x: to.p.x, y: to.p.y, pressure: 0.5 };
+    for (const p of cubicBezierPoints(a, c1, c2, b, samples).slice(1)) out.push({ x: p.x, y: p.y });
+  };
+  for (let k = 1; k < anchors.length; k++) segment(anchors[k - 1], anchors[k]);
+  if (closed && anchors.length >= 2) segment(anchors[anchors.length - 1], anchors[0]);
+  return out;
+}
+
+/**
+ * Restores the properties-panel paint a napkin export carries in its data
+ * attributes: an editable gradient fill (`data-gradient`), a dash style
+ * (`data-dash`), and a switched-off outline (`data-nostroke`). Foreign SVGs
+ * carry none of these and pass through untouched.
+ */
+function applyNapkinPaint(el: Element, stroke: Stroke): void {
+  const raw = el.getAttribute('data-gradient');
+  if (raw) {
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = null; // Malformed attribute: keep whatever flat fill was read.
+    }
+    const gradient = normalizeGradient(parsed);
+    if (gradient) {
+      stroke.gradient = gradient;
+      // The flat fill beneath the gradient is kept when the export carried
+      // one; without it the computed `url(#…)` paint is not a color and must
+      // not be stored as one.
+      const kept = el.getAttribute('data-fill');
+      if (kept) stroke.fill = kept;
+      else delete stroke.fill;
+    }
+  }
+  const dash = el.getAttribute('data-dash');
+  if (dash === 'dashed' || dash === 'dotted') stroke.strokeStyle = dash;
+  if (el.getAttribute('data-nostroke') === '1') stroke.noStroke = true;
 }
 
 /** Parses a `data-pts` attribute of space-separated "x,y" pairs. */
@@ -563,17 +1214,40 @@ function parseDataPoints(attr: string | null): { x: number; y: number }[] | null
   return points.length > 0 ? points : null;
 }
 
-/** Parses a path `d` made only of absolute M/L pairs (napkin export format). */
+/**
+ * Parses a path made only of straight segments - the polyline napkin writes
+ * for a stroke that carries no Bézier structure - back into its points.
+ *
+ * Reads every spelling the exporter picks between: relative or absolute,
+ * `H`/`V` runs, and command letters left off a repeat. Returns null for
+ * anything that curves or closes, which the caller reads as Bézier geometry
+ * instead.
+ */
 function parsePolylineD(d: string): { x: number; y: number }[] | null {
-  if (!d || /[^MLml\s,\-.\d]/.test(d)) return null;
-  if (/[ml]/.test(d)) return null; // relative commands: fall back to sampling
-  const points: { x: number; y: number }[] = [];
-  const matches = d.match(/-?\d*\.?\d+/g);
-  if (!matches || matches.length < 2 || matches.length % 2 !== 0) return null;
-  for (let i = 0; i < matches.length; i += 2) {
-    points.push({ x: Number(matches[i]), y: Number(matches[i + 1]) });
-  }
-  return points;
+  if (!d || /[CcSsQqTtAaZz]/.test(d)) return null;
+  const subpaths = parsePathD(d);
+  if (!subpaths || subpaths.length !== 1) return null;
+  const [sub] = subpaths;
+  if (sub.closed || sub.anchors.some((a) => a.hIn || a.hOut)) return null;
+  return sub.anchors.map((a) => ({ x: a.p.x, y: a.p.y }));
+}
+
+/**
+ * Parses a napkin-exported vector path - a single subpath of `M`, `L`/`H`/`V`,
+ * `C`/`S` segments and an optional trailing `Z`, in either the absolute or the
+ * relative spelling - back into Bézier anchors. A control point sitting on its
+ * anchor reads as a collapsed (absent) handle, and a closed path's duplicate
+ * final anchor folds onto the first. Returns null on anything else (a
+ * quadratic, an arc, several subpaths), in which case the caller falls back to
+ * sampling. Exported for tests.
+ */
+export function parseVectorD(d: string): ParsedSubpath | null {
+  if (!d || !/[CcSsZz]/.test(d)) return null; // open pure polylines parse elsewhere
+  if (/[QqTtAa]/.test(d)) return null;
+  const subpaths = parsePathD(d);
+  // Exactly one subpath: a `Z` followed by more drawing, or a second `M`,
+  // is not the format napkin writes.
+  return subpaths && subpaths.length === 1 ? subpaths[0] : null;
 }
 
 function makeStroke(
@@ -619,7 +1293,7 @@ function textToStroke(el: SVGTextElement, root: SVGSVGElement): Stroke | null {
   return {
     id: createId('tx'),
     tool: 'text',
-    color: style.fill !== 'none' && style.fill ? style.fill : '#1f2328',
+    color: style.fill !== 'none' && style.fill ? normalizeColor(style.fill) : '#1f2328',
     width: 1,
     points: [{ x: anchor.x, y: anchor.y, pressure: 0.5 }],
     text,

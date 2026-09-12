@@ -10,13 +10,15 @@
  *   -v, --version       Show version.
  *   -b, --book <file>   Open a .skbk sketch book.
  *   -n, --new [name]    New sketch named "unnamed" or [name].
- *   -f, --full-screen   Open the GUI window in full-screen mode.
+ *   -f, --full-screen   Open the GUI window full screen (default: maximized).
+ *   -i, --import <f>    Import a file into the opening sketch.
+ *   -m, --multiple-imports <f,f,…>  Import several files in a grid.
  *       --sharpen <f>   Auto-sharpen a saved sketch, then open it.
  */
 
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { extname, resolve, join } from 'node:path';
 import {
   encodeLaunchOptions,
   LAUNCH_ENV_KEY,
@@ -62,7 +64,15 @@ Options:
   -v, --version         Show the installed version and exit.
   -b, --book <file>     Open a saved sketch book (.skbk) to view or edit.
   -n, --new [name]      Start a new sketch named "unnamed" or [name].
-  -f, --full-screen     Open the GUI window in full-screen mode.
+  -f, --full-screen     Open the GUI window full screen, which hides the window
+                        controls. Without it the window opens maximized, so the
+                        minimize, restore-down, and close buttons stay in view.
+  -i, --import <file>   Import an SVG, PDF, PNG, or JPEG into the opening sketch.
+  -m, --multiple-imports <file,file,…>
+                        Import several files at once, laid out in a grid: files
+                        fill a row left to right and wrap to a new row when the
+                        next one would overrun the page width. Comma-separated;
+                        quote names that contain spaces.
       --sharpen <file>  Auto-sharpen every stroke in a saved .skbk, then open it.
 
 Targets:
@@ -74,8 +84,38 @@ Examples:
   napkin-sketch --new ideas           New sketch named "ideas".
   napkin-sketch --book ./notes.skbk   Open an existing sketch book.
   napkin-sketch --sharpen ./notes     Sharpen ./notes.skbk and open it.
-  napkin-sketch --new -f              New sketch opened full screen.
+  napkin-sketch --new -f              New sketch opened full screen (no controls).
+  napkin-sketch --import logo.svg     New sketch with logo.svg imported.
+  napkin-sketch -m a.svg,b.png,"two words.svg"
+                                      New sketch with three files in a grid.
 `;
+
+/** File extensions the import pipeline understands. */
+const IMPORTABLE_EXTENSIONS = new Set(['.svg', '.pdf', '.png', '.jpg', '.jpeg']);
+
+/**
+ * Resolves import paths to absolute paths, exiting with a clear error when a
+ * file is missing or of an unsupported type.
+ */
+function resolveImportFiles(files: string[]): string[] {
+  const resolved: string[] = [];
+  for (const file of files) {
+    const path = resolve(file);
+    if (!existsSync(path)) {
+      console.error(`napkin-sketch: import file not found: ${path}`);
+      process.exit(1);
+    }
+    const ext = extname(path).toLowerCase();
+    if (!IMPORTABLE_EXTENSIONS.has(ext)) {
+      console.error(
+        `napkin-sketch: cannot import "${file}" — supported types are SVG, PDF, PNG, and JPEG.`,
+      );
+      process.exit(1);
+    }
+    resolved.push(path);
+  }
+  return resolved;
+}
 
 /** Resolves the Electron executable path from the installed `electron` package. */
 function resolveElectronBinary(): string {
@@ -93,9 +133,19 @@ function launchGui(options: LaunchOptions): void {
   const electron = resolveElectronBinary();
   const mainEntry = resolve(HERE, '..', 'main', 'main.js');
 
+  // Some editor and agent terminals export ELECTRON_RUN_AS_NODE. Inherited, it
+  // makes the child run main.js as plain Node, where `require('electron')`
+  // answers with nothing and startup dies on `setAppUserModelId`. The GUI is
+  // never meant to run that way, so the variable is dropped rather than passed.
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    [LAUNCH_ENV_KEY]: encodeLaunchOptions(options),
+  };
+  delete env.ELECTRON_RUN_AS_NODE;
+
   const child = spawn(electron, [mainEntry], {
     stdio: 'inherit',
-    env: { ...process.env, [LAUNCH_ENV_KEY]: encodeLaunchOptions(options) },
+    env,
     windowsHide: false,
   });
 
@@ -156,6 +206,21 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  if (args.importRequested && !args.importFile) {
+    console.error('napkin-sketch: --import requires a file path.');
+    process.exit(1);
+  }
+  if (args.multipleImportsRequested && args.multipleImports.length === 0) {
+    console.error('napkin-sketch: --multiple-imports requires a comma-separated list of files.');
+    process.exit(1);
+  }
+
+  // Validate import lists up front so a typo fails fast instead of after the
+  // GUI window has opened.
+  const single = args.importFile ? resolveImportFiles([args.importFile]) : [];
+  const multiple = args.multipleImports.length > 0 ? resolveImportFiles(args.multipleImports) : [];
+  const importFiles = multiple.length > 0 ? multiple : single;
+
   if (mode === 'sharpen' && args.target) {
     // Sharpen on disk first so the GUI opens the already-improved drawing.
     await runSharpen(args.target);
@@ -165,6 +230,11 @@ async function main(): Promise<void> {
     mode === 'new'
       ? { mode: 'new', sketchName: args.target ?? 'unnamed', fullScreen: args.fullScreen }
       : { mode: 'book', filePath: resolve(withSketchBookExtension(args.target!)), fullScreen: args.fullScreen };
+
+  if (importFiles.length > 0) {
+    options.importFiles = importFiles;
+    options.importGrid = multiple.length > 0;
+  }
 
   launchGui(options);
 }

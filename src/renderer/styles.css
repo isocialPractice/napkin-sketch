@@ -187,6 +187,49 @@ body {
   background: var(--surface-2);
 }
 
+/* Save keeps the shared button background ("Panel inactive") but stays the
+   standout file action through weight and a strong border. */
+.btn-strong {
+  font-weight: 600;
+  border-color: var(--ink);
+}
+
+/* Panel toggles: the filled "Panel in View" treatment (the former Save CTA
+   style) marks a panel that is currently open; closed panels sit flat. */
+.btn-panel.is-open {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-ink);
+}
+
+.btn-panel.is-open:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+/* A button holding a menu open reads as pressed for as long as the menu is
+   out, so it is obvious which button the panel below belongs to - and that
+   pressing it again is what puts the menu away. Panel toggles keep their own
+   filled treatment above. */
+.btn.is-open:not(.btn-panel) {
+  background: var(--surface-2);
+  border-color: var(--ink-soft);
+}
+
+.btn-ghost.is-open {
+  background: var(--surface-2);
+  border-color: var(--ink-soft);
+}
+
+/* Vertical bar separating the panel toggles from the file actions. */
+.toolbar-sep {
+  flex: 0 0 auto;
+  width: 8px;
+  align-self: stretch;
+  background: var(--primary);
+  border-radius: var(--r-sm);
+}
+
 /* Tool toggle buttons */
 .tool {
   display: inline-flex;
@@ -383,6 +426,7 @@ body {
 /* ---- Pages panel --------------------------------------------------------- */
 
 .pages-panel {
+  position: relative;
   width: 0;
   flex: 0 0 auto;
   overflow: hidden;
@@ -394,7 +438,11 @@ body {
 }
 
 .app.pages-open .pages-panel {
-  width: 200px;
+  width: var(--pages-width, 200px);
+}
+
+.pages-panel.is-resizing {
+  transition: none;
 }
 
 .pages-panel-head {
@@ -412,6 +460,44 @@ body {
 .pages-panel-actions {
   display: flex;
   gap: var(--s1);
+}
+
+/* Page menu trigger: three stacked bars, the pipes of "|||" laid on their
+   side. Drawn in CSS so the icon takes the panel's ink color in every theme. */
+.btn-hamburger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s1) var(--s2);
+}
+
+.hamburger,
+.hamburger::before,
+.hamburger::after {
+  display: block;
+  width: 13px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.hamburger {
+  position: relative;
+}
+
+.hamburger::before,
+.hamburger::after {
+  content: '';
+  position: absolute;
+  left: 0;
+}
+
+.hamburger::before {
+  top: -4px;
+}
+
+.hamburger::after {
+  top: 4px;
 }
 
 .thumbs {
@@ -640,6 +726,399 @@ body {
   color: var(--ink);
 }
 
+/* ---- Animation Mode banner ------------------------------------------------ */
+
+.animation-banner {
+  position: absolute;
+  top: var(--s3);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  max-width: calc(100% - 2 * var(--s5));
+  padding: var(--s2) var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.animation-banner-title {
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.animation-status {
+  color: var(--ink-soft);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Missing required layers: the reserved warm accent marks the blocker. */
+.animation-status.is-missing {
+  color: var(--accent);
+}
+
+/* Hidden states: the stylesheet has no global .is-hidden rule - each
+   component pairs its display rule with one of these, matching the
+   .export-dialog.is-hidden / .nib-indicator.is-hidden convention. */
+.animation-banner.is-hidden,
+.export-dialog .btn.is-hidden {
+  display: none;
+}
+
+/* ---- Animation wizard dialogs --------------------------------------------- */
+
+.anim-dialog-msg {
+  margin: 0 0 var(--s3);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.anim-dialog-note {
+  margin: var(--s1) 0 var(--s3);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.anim-layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  max-height: 240px;
+  overflow-y: auto;
+  margin-bottom: var(--s3);
+  padding: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+}
+
+.anim-layer-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* Frame-generation activity bar: one frame per run leaves nothing to
+   count, so the bar reports that the helper is working, not how far. */
+.anim-progress {
+  width: 320px;
+  max-width: 100%;
+  height: 10px;
+  margin-bottom: var(--s2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  overflow: hidden;
+}
+
+.anim-progress.is-hidden {
+  display: none;
+}
+
+.anim-progress-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--primary);
+  border-radius: var(--r-full);
+}
+
+.anim-progress.is-busy .anim-progress-fill {
+  width: 35%;
+  animation: anim-progress-sweep 1.6s ease-in-out infinite;
+}
+
+@keyframes anim-progress-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(286%); /* 100 / 35 of the track, so the bar clears it */
+  }
+}
+
+/* Reduced motion: a still, filled track says "working" without the sweep. */
+@media (prefers-reduced-motion: reduce) {
+  .anim-progress.is-busy .anim-progress-fill {
+    width: 100%;
+    animation: none;
+    background: var(--border-strong);
+  }
+}
+
+.anim-signin-steps {
+  margin: 0 0 var(--s3);
+  padding-left: var(--s5);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.anim-signin-steps code {
+  padding: 1px 4px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.move-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+/* The preview toggle reads as one row against the left edge - box first,
+   label beside it - rather than stacked like the distance fields above. */
+.move-preview-field {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--s2);
+}
+
+.move-preview-field input {
+  flex: none;
+  width: auto;
+  margin: 0;
+}
+
+.move-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- Rotate dialog ------------------------------------------------------- */
+
+/* The degree sign sits where the Move dialog's unit picker does, so the two
+   panels line up: angle fields have only one unit, so it is a label rather
+   than a choice. */
+.rotate-degrees {
+  flex: none;
+  width: 3ch;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Direction and centre-preset rows stack their label above their control the
+   way the number fields do, but hold buttons rather than an input. */
+.rotate-dir-field,
+.rotate-anchor-field {
+  gap: var(--s2);
+}
+
+.rotate-dir {
+  display: flex;
+  gap: var(--s2);
+}
+
+.rotate-dir-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s1);
+}
+
+/* The direction pair is a readout as much as a control: whichever way the
+   typed angle already turns is the one lit, so the sign of a number never has
+   to be worked out from the minus sign alone. */
+.rotate-dir-btn.is-active {
+  border-color: var(--focus);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.rotate-dir-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* Nine handles of the selection's box, laid out as the box itself - the
+   common way a rotate or transform panel offers a centre, and readable at a
+   glance because the grid is the shape it is choosing a point on. */
+.rotate-anchor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s1);
+  width: 84px;
+  padding: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.rotate-anchor {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background var(--motion), border-color var(--motion);
+}
+
+.rotate-anchor:hover {
+  border-color: var(--focus);
+}
+
+.rotate-anchor.is-active {
+  border-color: var(--focus);
+  background: var(--focus);
+}
+
+/* A centre dragged on the canvas or typed into the fields matches no preset,
+   so none is lit - which is itself the reading that the centre is custom. */
+.rotate-anchor:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* The Rotate dialog is a floating palette for the same reason the Move one
+   is, and more so: the canvas underneath is where the rotation is actually
+   dragged, so the panel must never swallow a pointer that was aimed past it. */
+#rotate-dialog {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+/* A palette needs a width of its own. The floating panel is shrink-to-fit, so
+   without one the explanatory note below the fields sets the width - it lays
+   out as a single line and the panel grows to the viewport cap, ending up
+   spread across the canvas the rotation has to be dragged on. `resize: both`
+   still writes an inline width when the corner is pulled, so this is the
+   starting size rather than a limit. */
+#rotate-dialog .export-dialog-inner {
+  width: 340px;
+}
+
+/* The Move palette gets the same starting width, and for a plainer reason: it
+   had none, so it opened at whatever width its contents wanted - 1129px of a
+   1494px window, three quarters of the screen for two number fields and a
+   note, laid over the drawing about to be moved. As with Rotate this is a
+   starting size and not a limit; the grip still writes an inline width. */
+#move-dialog .export-dialog-inner {
+  width: 340px;
+}
+
+/* ---- Popups: the shared editing panels ----------------------------------- */
+
+/* Resizing is a capability a popup asks for rather than something every
+   floating panel gets, so the grip is on the class the manager sets. */
+.export-dialog-inner.popup-resizable {
+  resize: both;
+}
+
+/* The dock toggle sits at the right of the title bar. The title is centred
+   text, so the button is taken out of the flow rather than laid beside it -
+   otherwise the title would shift by the width of a button that is not part
+   of the name. */
+.export-dialog-title {
+  position: relative;
+}
+
+.popup-dock-btn {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--motion), background var(--motion), border-color var(--motion);
+}
+
+.popup-dock-btn:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.popup-dock-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* The dock: one more column in the workspace row, built like the layers and
+   properties panels so a docked popup reads as a panel rather than as
+   something stuck to the edge. Collapsed to zero width when nothing is in it,
+   which is what makes the stage take the space back on undock. */
+.popup-dock {
+  position: relative;
+  width: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: var(--surface);
+  /* No border while collapsed. The panels beside it are always part of the
+     layout, so the pixel their border costs at zero width is paid either way;
+     the dock is created on first use and would otherwise take a pixel from
+     the canvas for the whole session on the strength of one docking. */
+  border-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  transition: width var(--motion);
+}
+
+.popup-dock.is-open {
+  width: var(--dock-width, 320px);
+  padding: var(--s3);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+/* A docked panel gives up everything that made it a floating one: it is no
+   longer placed at a point, no longer resizable by its own corner (the column
+   sets the width), and no longer casts a shadow over a canvas it is now beside
+   rather than on top of. */
+.export-dialog-inner.popup-docked {
+  position: static;
+  left: auto;
+  top: auto;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  min-width: 0;
+  resize: none;
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+
+.export-dialog-inner.popup-docked.is-hidden {
+  display: none;
+}
+
+/* The overlay a docked panel left behind still carries the backdrop for the
+   popups that have one. Neutralise it: a dimmed, blurred screen behind a
+   docked panel would be a modal with nothing in it. */
+.export-dialog.popup-docked-away {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
 /* ---- Toast --------------------------------------------------------------- */
 
 .toast {
@@ -725,12 +1204,41 @@ body {
   justify-content: center;
   background: rgba(31, 35, 40, 0.35);
   backdrop-filter: blur(2px);
-  transition: opacity var(--motion);
+  transition: opacity var(--motion), visibility var(--motion);
 }
 
+/* A closed dialog has to be gone, not merely invisible.
+   The overlay is fixed to the whole viewport, so its panel sits in the middle
+   of the canvas whether or not anyone can see it; `pointer-events: none` here
+   alone does not settle that, because the floating palettes turn pointer
+   events back on for their inner panel and a descendant rule wins. An
+   invisible panel then swallowed presses aimed at the canvas underneath and
+   put the focus in one of its own number fields, which took every keyboard
+   shortcut with it - the field owns its keys, so nothing else fired.
+   `visibility: hidden` cannot be undone by a descendant that way, and it also
+   takes the closed dialog's controls out of the tab order. It is on the
+   transition so the fade out still plays before the panel goes. */
 .export-dialog.is-hidden {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
+}
+
+/* Opening is instant for `visibility`, even though closing is not.
+
+   The rule above puts `visibility` on the transition so the fade out plays
+   before the panel goes, and that half is still wanted. The other half was
+   not: on the way *in*, the panel spent the whole 160ms still computing as
+   `hidden`, and an element that is not visible cannot take focus - so a dialog
+   that focuses a field as it opens focused nothing at all. The Move palette
+   opened with the caret nowhere and digits going to the canvas.
+
+   Only the destination state's transition applies, so overriding it here
+   affects opening alone: showing snaps `visibility` to `visible` at once while
+   the opacity still fades in, and hiding keeps the base rule, staying visible
+   for the length of the fade. */
+.export-dialog:not(.is-hidden) {
+  transition: opacity var(--motion), visibility 0s;
 }
 
 .export-dialog-inner {
@@ -758,6 +1266,102 @@ body {
   gap: var(--s2);
 }
 
+/* Corner variant: no backdrop, anchored bottom-right, so a live preview on
+   the canvas stays visible while the dialog is open. */
+.export-dialog.dialog-corner {
+  inset: auto var(--s5) var(--s5) auto;
+  background: none;
+  backdrop-filter: none;
+}
+
+.export-dialog.dialog-corner .export-dialog-inner {
+  min-width: 220px;
+}
+
+/* The Move dialog is a floating palette rather than a modal sheet: it drags by
+   its title and resizes from its corner, so it can be put somewhere that is
+   not covering the thing being moved. The overlay keeps its job as the
+   positioning context but stops dimming and stops swallowing pointer events,
+   which is what lets the canvas underneath stay visible and usable while a
+   live preview is showing. */
+#move-dialog {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+.dialog-floating .export-dialog-inner {
+  pointer-events: auto;
+  overflow: auto;
+  min-width: 280px;
+  min-height: 220px;
+  max-width: calc(100vw - 2 * var(--s4));
+  max-height: calc(100vh - 2 * var(--s4));
+}
+
+/* Once dragged the panel is placed outright, so the overlay stops centring it. */
+.dialog-floating.is-placed {
+  display: block;
+}
+
+/* Fixed rather than absolute, so a placed panel is positioned against the
+   viewport - the coordinates the manager drags, parks and clamps in.
+
+   Absolute made the panel a child of whatever box its overlay happened to be.
+   For the palettes whose overlay is `inset: 0` the two are the same rectangle
+   and it never showed. For the corner variants it is not: their overlay is
+   anchored to the bottom-right and is only as big as the panel, so a drag that
+   wrote the panel's viewport left into `style.left` moved it that far again
+   from the overlay's own corner. Grabbing the Page Settings or Sharpen title
+   threw the panel most of a screen down and to the right, off the window.
+
+   Fixed is safe for the modal steps too: their overlay carries a backdrop
+   filter, which would make it the containing block for a fixed child, but that
+   overlay is itself `position: fixed; inset: 0` - the viewport rectangle
+   either way. */
+.dialog-floating.is-placed .export-dialog-inner {
+  position: fixed;
+}
+
+/* A floating dialog is dragged by its border or its title, so the move cursor
+   belongs to those and nothing else: the band is only a few pixels wide, and
+   the class is set by the same test the drag uses, so what looks grabbable is
+   exactly what is. The keyword after the image is the fallback for anything
+   that will not load an SVG cursor. */
+.dialog-floating .export-dialog-inner.on-border,
+.dialog-floating .export-dialog-title,
+.dialog-floating .export-dialog-inner.is-grabbing,
+.dialog-floating .export-dialog-title.is-grabbing {
+  cursor: url('../assets/move-popup.svg') 16 16, move;
+}
+
+.dialog-floating .export-dialog-title {
+  user-select: none;
+}
+
+/* Vector Path corner-radius field in the toolbar. */
+.vector-options {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.vector-options input[type="number"] {
+  width: 56px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.vector-options.is-hidden {
+  display: none;
+}
+
 /* ---- Focus & accessibility ---------------------------------------------- */
 
 :focus-visible {
@@ -766,9 +1370,23 @@ body {
   border-radius: var(--r-sm);
 }
 
+/* Reduced motion: transitions and keyframe animations (the page turn) both
+   collapse to a single frame, so state still changes but nothing moves. */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  .canvas-wrap.turn-next,
+  .canvas-wrap.turn-prev {
+    animation: none !important;
   }
 }
 
@@ -918,6 +1536,7 @@ body {
    primary color reserved for the active-layer highlight. */
 
 .layers-panel {
+  position: relative;
   width: 0;
   flex: 0 0 auto;
   overflow: hidden;
@@ -929,7 +1548,36 @@ body {
 }
 
 .app.layers-open .layers-panel {
-  width: 224px;
+  width: var(--layers-width, 224px);
+}
+
+/* Grab strip on a panel's inner edge for resizing by drag. Sits on the left
+   edge by default (layers panel); .panel-resize-right flips it for panels
+   docked on the left (pages panel). */
+.panel-resize {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 2;
+}
+
+.panel-resize-right {
+  left: auto;
+  right: 0;
+}
+
+.panel-resize:hover,
+.panel-resize.is-dragging {
+  background: var(--primary);
+  opacity: 0.35;
+}
+
+/* The width transition fights a live drag; suspend it while resizing. */
+.layers-panel.is-resizing {
+  transition: none;
 }
 
 .layers-list {
@@ -996,13 +1644,14 @@ body {
   color: var(--ink-soft);
 }
 
-/* Disclosure caret on group rows (blank spacer keeps plain rows aligned). */
+/* Disclosure caret on group rows (blank spacer keeps plain rows aligned).
+   Glyph is drawn at 200% of its former 11px size for an easier touch target. */
 .layer-caret {
   flex: 0 0 auto;
-  width: 16px;
+  width: 24px;
   height: 24px;
   padding: 0;
-  font-size: 11px;
+  font-size: 22px;
   line-height: 24px;
   text-align: center;
   color: var(--ink-soft);
@@ -1102,6 +1751,307 @@ body {
   min-width: 38px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---- Context menu ---------------------------------------------------------
+   Shared right-click menu for the pages and layers panels; surfaces and
+   radii match the rest of the GUI chrome. */
+
+.context-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 180px;
+  padding: var(--s1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+}
+
+.context-menu.is-hidden {
+  display: none;
+}
+
+.context-menu button {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: var(--s2) var(--s3);
+  cursor: pointer;
+}
+
+.context-menu button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.context-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* A row that opens a panel of its own sits beside a chevron, and keeps the
+   hover tint while that panel is the one being pointed at. */
+.context-menu button.has-submenu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.context-menu button.has-submenu::after {
+  content: '›';
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.context-menu button.is-open:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.context-menu .context-menu-sep {
+  height: 1px;
+  margin: var(--s1) var(--s2);
+  background: var(--border);
+}
+
+/* Page Settings: dimension fields grey out while the page is endless. */
+.page-dim input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---- Properties panel ---------------------------------------------------- */
+/* Right-most dock, a sibling of the layers panel: element-level editing for
+   whatever is selected on the canvas (or highlighted in the layers panel).
+   Same surfaces as the other panels so the three docks read as one system. */
+
+.properties-panel {
+  position: relative;
+  width: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width var(--motion);
+}
+
+.app.properties-open .properties-panel {
+  width: var(--properties-width, 252px);
+}
+
+.properties-panel.is-resizing {
+  transition: none;
+}
+
+.properties-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+/* Selection read-out: what the fields below are about to edit. */
+.prop-summary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* The fields grey out together while nothing is selected. */
+.prop-fields.is-empty {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.prop-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.prop-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.prop-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.prop-subtitle {
+  margin: var(--s1) 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.prop-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.prop-field {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.prop-num {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--s1) var(--s2);
+}
+
+.prop-num:focus-visible,
+.prop-unit:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.prop-num:disabled,
+.prop-unit:disabled,
+.prop-color:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.prop-unit {
+  flex: 0 0 auto;
+  width: 58px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--s1);
+}
+
+.prop-unit-wide {
+  width: auto;
+  flex: 1;
+}
+
+/* Fixed-unit fields (stroke width, stop offset) label their unit in text. */
+.prop-unit-static {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.prop-value {
+  flex: 0 0 auto;
+  min-width: 34px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+.prop-color {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.prop-switch {
+  margin-top: var(--s1);
+}
+
+.prop-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- Gradient editor ----------------------------------------------------- */
+/* The familiar ramp-and-handles control: the bar previews the gradient, each
+   stop is a draggable handle on it, and the fields below edit the selected
+   handle. Double-clicking the bar adds a stop where it was clicked. */
+
+.gradient-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.gradient-bar {
+  position: relative;
+  height: 26px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  cursor: copy;
+  /* Checkerboard behind the ramp so translucent stops read as translucent. */
+  background-image:
+    linear-gradient(45deg, var(--border) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--border) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--border) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--border) 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+}
+
+/* The ramp itself, painted over the checkerboard. */
+.gradient-bar-ramp {
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--r-sm) - 1px);
+}
+
+.gradient-stop-handle {
+  position: absolute;
+  top: 100%;
+  width: 12px;
+  height: 12px;
+  margin: 1px 0 0 -6px;
+  padding: 0;
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  border-radius: var(--r-full);
+  cursor: ew-resize;
+  transform: none;
+}
+
+.gradient-stop-handle.is-active {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 2px rgba(47, 111, 235, 0.25);
+}
+
+.gradient-editor.is-radial #gradient-angle-row {
+  display: none;
 }
 
 /* ==== LOCAL WEATHER START ====

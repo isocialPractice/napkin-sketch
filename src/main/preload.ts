@@ -4,8 +4,11 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
+import type { AnimationFrameJob } from '../core/animation.js';
 import {
   IPC,
+  type AnimationHelperResult,
+  type AnimationStatusUpdate,
   type ExportFormat,
   type ImageFormat,
   type ImportFileResult,
@@ -15,6 +18,7 @@ import {
   type SaveImagesResult,
   type SaveResult,
 } from '../core/ipc.js';
+import type { AnimationModeStatus } from '../core/animation-install.js';
 import type { LaunchOptions } from '../core/launch.js';
 import type { AppSettings } from '../core/settings.js';
 import type { SketchBook } from '../core/types.js';
@@ -33,14 +37,46 @@ const bridge: NapkinBridge = {
   savePdf: (pdfContent: string, suggestedName: string): Promise<SaveResult> =>
     ipcRenderer.invoke(IPC.savePdf, pdfContent, suggestedName),
   importFile: (): Promise<ImportFileResult> => ipcRenderer.invoke(IPC.importFile),
+  readImportFile: (filePath: string): Promise<ImportFileResult> =>
+    ipcRenderer.invoke(IPC.readImportFile, filePath),
   saveImages: (format: ExportFormat, contents: string[], baseName: string): Promise<SaveImagesResult> =>
     ipcRenderer.invoke(IPC.saveImages, format, contents, baseName),
   setTitle: (title: string): void => ipcRenderer.send(IPC.setTitle, title),
+  setDirty: (dirty: boolean): void => ipcRenderer.send(IPC.setDirty, dirty),
+  onSaveBeforeClose: (handler: () => Promise<boolean>): (() => void) => {
+    const listener = (): void => {
+      void handler().then((saved) => ipcRenderer.send(IPC.saveBeforeClose, saved));
+    };
+    ipcRenderer.on(IPC.saveBeforeClose, listener);
+    return () => ipcRenderer.removeListener(IPC.saveBeforeClose, listener);
+  },
   onMenuAction: (handler: (action: MenuAction) => void): (() => void) => {
     const listener = (_event: unknown, action: MenuAction): void => handler(action);
     ipcRenderer.on(IPC.menuAction, listener);
     return () => ipcRenderer.removeListener(IPC.menuAction, listener);
   },
+  writeClipboardSvg: (svgContent: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.writeClipboardSvg, svgContent),
+  readClipboardSvg: (): Promise<string | null> => ipcRenderer.invoke(IPC.readClipboardSvg),
+  runAnimationHelper: (
+    formText: string,
+    job: AnimationFrameJob,
+    sourceSvg: string,
+  ): Promise<AnimationHelperResult> =>
+    ipcRenderer.invoke(IPC.runAnimationHelper, formText, job, sourceSvg),
+  cancelAnimationHelper: (): void => ipcRenderer.send(IPC.cancelAnimationHelper),
+  onAnimationStatus: (handler: (update: AnimationStatusUpdate) => void): (() => void) => {
+    const listener = (_event: unknown, update: AnimationStatusUpdate): void => handler(update);
+    ipcRenderer.on(IPC.animationStatus, listener);
+    return () => ipcRenderer.removeListener(IPC.animationStatus, listener);
+  },
+  getAnimationMode: (): Promise<AnimationModeStatus> =>
+    ipcRenderer.invoke(IPC.getAnimationMode),
+  openAiToolSignIn: (binary: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.openAiToolSignIn, binary),
+  saveAnimationFrame: (name: string, svg: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.saveAnimationFrame, name, svg),
+  clearAnimationTemp: (): Promise<void> => ipcRenderer.invoke(IPC.clearAnimationTemp),
 
   getSettings: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.getSettings),
   updateSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>
@@ -53,11 +89,6 @@ const bridge: NapkinBridge = {
     const listener = (_event: unknown, settings: AppSettings): void => handler(settings);
     ipcRenderer.on(IPC.settingsChanged, listener);
     return () => ipcRenderer.removeListener(IPC.settingsChanged, listener);
-  },
-  onRearrangeMode: (handler: (enabled: boolean) => void): (() => void) => {
-    const listener = (_event: unknown, enabled: boolean): void => handler(enabled);
-    ipcRenderer.on(IPC.rearrangeMode, listener);
-    return () => ipcRenderer.removeListener(IPC.rearrangeMode, listener);
   },
 };
 

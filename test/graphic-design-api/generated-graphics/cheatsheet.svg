@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="Cheatsheet" width="360" height="360" viewBox="0 0 360 360">
+  <title>HTML Document Structure Starting Point</title>
+  <rect width="360" height="360" fill="#000133" data-name="background"/>
+  <text font-family="&apos;Alternate Gothic No1 D&apos;, &apos;Oswald&apos;, sans-serif" font-size="20.5" letter-spacing="1.2" xml:space="preserve" fill="#ffffff"><tspan x="16" y="32">HTML</tspan></text>
+  <rect x="290" y="16" width="54" height="20" fill="#4cae50"/>
+  <text font-family="&apos;Futura PT&apos;, Futura, &apos;Century Gothic&apos;, sans-serif" font-size="6" letter-spacing="0.4" xml:space="preserve" fill="#000133"><tspan x="295.2" y="30">CHEATSHEET</tspan></text>
+  <line x1="16" y1="44" x2="344" y2="44" stroke="#4cae50" stroke-width="2"/>
+  <rect x="16" y="52" width="328" height="40" fill="#ffffff"/>
+  <text font-family="&apos;Futura PT&apos;, Futura, &apos;Century Gothic&apos;, sans-serif" font-size="7.5" font-weight="bold" xml:space="preserve" fill="#414042"><tspan x="104.75" y="70">HTML Document Structure Starting Point</tspan></text>
+  <text font-family="&apos;Futura PT&apos;, Futura, &apos;Century Gothic&apos;, sans-serif" font-size="6" xml:space="preserve" fill="#414042"><tspan x="115" y="84">Head, Body, and the Tags Worth Memorizing</tspan></text>
+  <rect x="16" y="102" width="8" height="198" fill="#4cae50"/>
+  <rect x="34" y="102" width="310" height="198" fill="#000133" stroke="#4cae50" stroke-width="1"/>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#b4bec8"><tspan x="44" y="116">&lt;!DOCTYPE html&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="127.867">&lt;html</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#fdc83a"><tspan x="62" y="127.867"> lang</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#f8f5ae"><tspan x="80" y="127.867">=&quot;en&quot;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="98" y="127.867">&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="139.733">  &lt;head&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="151.6">    &lt;meta</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#fdc83a"><tspan x="76.4" y="151.6"> charset</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#f8f5ae"><tspan x="105.2" y="151.6">=&quot;utf-8&quot;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="134" y="151.6">&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="163.467">    &lt;title&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#ffffff"><tspan x="83.6" y="163.467">Page title</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="119.6" y="163.467">&lt;/title&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="175.333">    &lt;link</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#fdc83a"><tspan x="76.4" y="175.333"> rel</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#f8f5ae"><tspan x="90.8" y="175.333">=&quot;stylesheet&quot;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#fdc83a"><tspan x="137.6" y="175.333"> href</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#f8f5ae"><tspan x="155.6" y="175.333">=&quot;a.css&quot;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="184.4" y="175.333">&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="187.2">  &lt;/head&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="199.067">  &lt;body&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="210.933">    &lt;h1</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#fdc83a"><tspan x="69.2" y="210.933"> id</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#f8f5ae"><tspan x="80" y="210.933">=&quot;top&quot;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="101.6" y="210.933">&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#ffffff"><tspan x="105.2" y="210.933">Heading</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="130.4" y="210.933">&lt;/h1&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="222.8">    &lt;p</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#fdc83a"><tspan x="65.6" y="222.8"> class</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#f8f5ae"><tspan x="87.2" y="222.8">=&quot;lead&quot;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="112.4" y="222.8">&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#ffffff"><tspan x="116" y="222.8">Paragraph.</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="152" y="222.8">&lt;/p&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="234.667">    &lt;a</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#fdc83a"><tspan x="65.6" y="234.667"> href</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#f8f5ae"><tspan x="83.6" y="234.667">=&quot;/docs&quot;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="112.4" y="234.667">&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#ffffff"><tspan x="116" y="234.667">Link</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="130.4" y="234.667">&lt;/a&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="246.533">    &lt;img</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#fdc83a"><tspan x="72.8" y="246.533"> src</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#f8f5ae"><tspan x="87.2" y="246.533">=&quot;logo.png&quot;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#fdc83a"><tspan x="126.8" y="246.533"> alt</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#f8f5ae"><tspan x="141.2" y="246.533">=&quot;Logo&quot;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="166.4" y="246.533">&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="258.4">    &lt;ul&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="72.8" y="258.4">&lt;li&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#ffffff"><tspan x="87.2" y="258.4">Item</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="101.6" y="258.4">&lt;/li&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="119.6" y="258.4">&lt;/ul&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="270.267">  &lt;/body&gt;</tspan></text>
+  <text font-family="&apos;Courier New&apos;, Courier, monospace" font-size="6" xml:space="preserve" fill="#8ce632"><tspan x="44" y="282.133">&lt;/html&gt;</tspan></text>
+  <rect x="0" y="312" width="360" height="48" fill="#ffffff"/>
+  <rect x="0" y="307.5" width="360" height="4.5" fill="#4cae50"/>
+  <text font-family="&apos;Futura PT&apos;, Futura, &apos;Century Gothic&apos;, sans-serif" font-size="7.5" letter-spacing="0.6" xml:space="preserve" fill="#414042"><tspan x="16" y="340">JANE.DOE@EXAMPLE.COM</tspan></text>
+</svg>

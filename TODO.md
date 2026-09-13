@@ -400,6 +400,93 @@ configured - and these are the edges it does not reach.
   structure. Deriving the layout from the measured element census, rather than
   from a template picked by hand, is the open half of this.
 
+## The animation note (4.2.1-alpha)
+
+Animation Mode now asks what the sequence is for, hands the answer to the
+helper with every frame, and ranks it above the type dropdown. What it does not
+yet do:
+
+- [ ] **Nothing measures whether the note changed the frame - and now it is
+  allowed to change more.** A note may shift a measured angle: by the smallest
+  amount that reads, about the same joint, named in the reply. All three of
+  those are sentences in a prompt with nothing behind them. A note asking for a
+  limp and a frame that walks evenly remain indistinguishable to every grader
+  here, which is the same gap the frame grading has one level up. Comparing the
+  emitted transform against the one the cycle handed over would at least
+  measure the size of the departure, which is the part most likely to go wrong.
+- [ ] **The template is outranked, never removed.** The form still prints the
+  type's guidance in full beside a note that overrides it, so a note describing
+  something the type is not leaves the helper holding two descriptions and a
+  rule about which wins. Knowing when to drop the template rather than rank it
+  is the other half, and it is the same question as the **Custom** entry under
+  the free-text prompt below.
+- [ ] **One note per sequence, not per beat.** An attack is wind-up, strike and
+  recover, and a note that describes the strike is handed unchanged to the
+  wind-up. A per-frame note, or a note the helper is told to read against the
+  beat it is drawing, would fit the non-looping types better.
+- [ ] **The note does not survive a reopened sketch.** It lives in the wizard's
+  setup for the run and is gone when the dialog closes, so continuing a
+  sequence tomorrow starts from no direction at all. It belongs with the
+  sketch, beside the animation type.
+- [ ] **600 characters is a guess.** It is enough for a paragraph and short
+  enough not to crowd the form, and nothing has measured where the real
+  trade-off sits.
+
+## Frame grading (4.2.1-alpha)
+
+The grade-and-revise loop closes: a frame is rendered, measured, graded, and the
+verdict says revise, save or pass. What it still cannot see:
+
+- [ ] **Nothing enforces the loop.** The verdict is printed and the agent is
+  asked to act on it - the same shape that just failed, one level up. A wrapper
+  that renders, grades and refuses to copy a `revise` frame into `animations/`
+  would make the budget structural rather than advisory. `--strict` is the half
+  of that which exists.
+- [ ] **The grader cannot see a limb through a skirt.** Travel, frozen layers and
+  redrawn geometry are all it measures; overlap, joint separation and a hand on
+  the wrong side of the body are left to the eye reading the PNG. Detecting a
+  limb outline crossing a garment outline is a real geometry problem and worth
+  scoping before it is promised.
+- [ ] **Bands are per animation type, not per rig.** `--type walk` picks the
+  band, and a character with much longer legs than the illustrated set will read
+  as OVER on a stride that is correct for it. Normalising by the figure's own
+  limb length rather than by its height would fix it.
+- [ ] **A frame is graded only against the one before it.** Drift accumulates:
+  four frames can each pass their step and still leave the figure walking
+  uphill. Grading the last frame against the first would catch it for a loop,
+  and there is no obvious answer for a non-looping action.
+- [ ] **`save` has no record.** The verdict tells the agent to report what is
+  still wrong, and nothing writes that down beside the frame. A sidecar note per
+  saved-with-defects frame would let a later pass find them without re-grading.
+
+## Asset previews (4.2.1-alpha)
+
+Every reference asset now ships as a `.svg` and a `.png`, and Animation Mode
+looks at the picture before it poses. What that left open:
+
+- [ ] **The previews are hand-exported, and nothing keeps them in step.** The
+  pairing test catches a *missing* preview; it cannot catch a stale one, because
+  a PNG has no record of which revision of the SVG it was made from. A hash of
+  the source stored beside the preview would turn "these have drifted" from
+  something nobody notices into a failing test. Worth doing before the next time
+  a sheet is re-exported.
+- [ ] **They could be regenerated in-repo now, and are not.** The graphic-design
+  API renders all twelve faithfully since the shape-transform fix - the rig's
+  rotated hands and feet come through - so `npm run skill-previews` is a real
+  option rather than a downgrade. What stops it being obviously right is that
+  the shipped previews were exported from the editor and would be replaced by
+  renders that differ in anti-aliasing and in anything the API does not model.
+  Worth doing only alongside the staleness check above, so the two arrive as one
+  mechanism rather than as a reformat.
+- [ ] **The agent looks at one preview per frame.** For a character action that
+  is right; for a frame that mixes a rig pose with an object coming apart, the
+  table picks one and the other goes unseen. Two `Read`s is not expensive, but
+  the step reads as "pick one" and should say when to take both.
+- [ ] **Nothing measures whether looking helped.** The claim is that a frame
+  drawn against a reference reads better than one drawn against the numbers
+  alone. That is believable and unmeasured, and the honest version is a handful
+  of frames generated both ways and compared by eye.
+
 ## Chores
 
 Housekeeping with no user-visible result: dead code left by a replacement,
@@ -644,10 +731,12 @@ the form is also built on a principle a free-text prompt can quietly break.
 - [ ] **Where it goes**: `anim-step2-dialog` already holds category, type, and
   frame count. The textarea belongs there, revealed by a **Custom** entry in
   the `anim-type` dropdown, so the wizard grows a field rather than a step.
-- [ ] **Replace the preset guidance or add to it**: "walk, but limping" wants
-  `spec.guidance` kept and the note appended; "a cat stretching" wants the
-  preset out of the way entirely. Both are useful and they are different
-  features, so the answer is one control choosing between them rather than two
+- [ ] **Replace the preset guidance or add to it**: half of this is answered.
+  "walk, but limping" keeps `spec.guidance` and lets the note outrank it where
+  they disagree, which is what the note does today. "A cat stretching" still
+  wants the preset out of the way entirely, and ranking a template the helper
+  can still read is not the same as removing it. That half is the **Custom**
+  entry above, and it is one control choosing between the two rather than two
   textareas.
 - [ ] **The loop question has no answer without asking**: `spec.loops` is what
   decides whether the form says the sequence must return to its first pose,

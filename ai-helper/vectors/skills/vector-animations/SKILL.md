@@ -552,11 +552,117 @@ owns the curve formulas and the path-data script.
 - `references/animation-physics.md`: spacing as velocity, gravity by the odd-number rule, arcs
   and apex bunching, restitution, weight as frame count, and what physics simulation would mean
 
+## Grade the Frame, Then Decide
+
+A frame is not finished when it is drawn. It is finished when it has been graded and the grade
+says so, and the grading is one call:
+
+```bash
+npm run frame-preview -- <posed.svg> --against <the frame before it> --grade
+```
+
+It renders the frame, measures the step against the bands drawn frames actually fall in, and ends
+with one of three verdicts:
+
+| Verdict | Meaning | Next |
+| --- | --- | --- |
+| `pass` | Every part moved, and moved as far as a drawn frame does | Save it |
+| `revise` | Something is off, and a pass is left | Fix finding 1, render, grade again |
+| `save` | Something is off and the passes are spent | Save it and report what is wrong |
+
+**Two passes, and the budget is a flag rather than a suggestion.** The app kills a run that goes
+quiet for five minutes, so a run that keeps polishing is a run that saves nothing. `save` is not a
+failure state - it is the honest end of a frame that is good enough, with its remaining defects
+written down instead of hidden.
+
+**Findings are ordered, and only the first one is worth a pass.** The others are usually its
+symptoms. The clearest case is the one this check was built for:
+
+### The defect that costs a whole run
+
+A frame is **posed, never redrawn**. The pose lives entirely in `transform` attributes and the path
+data is not touched - not one `d`, not one number.
+
+The failure is re-emitting the geometry instead: rewriting every path with new numbers and setting
+no transform at all. It is worth knowing precisely because nothing about the result announces it.
+The figure is complete, every layer is present, the file opens, and the limbs have quietly drifted
+off their joints, so it reads as a bad drawing rather than as a broken process - and it survives a
+look. The grader catches it by reading rather than measuring: a posed frame shares its path data
+with the frame it came from, and a redrawn one shares none of it.
+
+When it fires, everything else in the report is noise measured against geometry that was never
+posed. Fix that, and the travel numbers and frozen layers settle on their own.
+
+### The note the form may carry
+
+Animation Mode lets the user describe what the sequence is for, and passes that through as an
+`<animation-note>` block in the form. It is the one input here that was not measured, and it is
+read **with** this skill rather than instead of it.
+
+Everything on this page answers *how far*: the cycle tables, the pivots, the travel bands. A note
+answers *why*, and the two settle different questions. Which arm leads, where the weight sits,
+whether the figure is tired or in a hurry, what the last frame should leave the viewer with -
+none of that is in a band, and all of it changes the pose.
+
+Where it sits in the order settles the rest:
+
+- **It outranks the animation type.** The type is one word from a dropdown; the note is the user's
+  sentences about the same movement. Where they disagree the note decides and the template yields.
+- **It may move a measured angle, never a joint.** "That arm barely swings" is an instruction
+  about a transform, not a mood. Change the angle by the smallest amount that reads, keep the
+  pivot it turns about, and say which ones you changed.
+- **It never licenses a redraw.** Path data stays exactly as it is whatever the note asks for. A
+  note asking for geometry the rig has no shape for is a `vector-graphics` job, not a reason to
+  drop the transforms.
+- **It applies to the sequence, not the step.** The same note is handed to every frame, so frame
+  six is drawn under the direction that shaped frame one.
+
+### When the subject is not in the assets
+
+The bands come from drawn frames of the cycles the rigs cover. A movement no rig describes, an
+object that has to come apart, geometry that does not exist yet - none of those have a band, and
+grading them against one that was drawn for something else is worse than not grading them. Reach
+for the `vector-graphics` skill, draw what is missing with the fewest control points that read
+correctly, and judge the result against the study sheets by eye.
+
 ## Assets
 
 Treat these the way an animation course treats its coursework: the rigs are the exercises you are
 marked against, and the studies are the sketchbooks you learn the movement from. Read them before
 drawing, not instead of drawing.
+
+### Look at the Preview, Read the Source
+
+Every asset here ships twice: `<name>.svg` and `<name>.png`, the same drawing as
+markup and as a picture. They are not redundant, because they answer different
+questions, and reaching for the wrong one is how a run either wastes its budget
+or draws a pose it never actually saw.
+
+| Question | File | Why |
+| --- | --- | --- |
+| What does this movement look like? | `.png` | One image. An SVG of the same drawing is markup you have to simulate in your head |
+| Where exactly is this anchor? | `.svg` | Coordinates only exist in the source |
+| What is this layer called? | `.svg` | Names only exist in the source |
+| Is my frame in the right shape? | `.png` | Compare pictures with pictures |
+
+**Look first.** A pose is a visual fact. The travel tables on this page and the
+measured JSON say how *far* a part moves, and no number says what the result is
+supposed to look like - which is exactly the half that goes wrong: a frame whose
+angles are all within budget and which still reads as a stumble rather than a
+stride. The preview is the answer key for that half, and looking at it costs one
+`Read`.
+
+**Then read the source, and only the part you need.** Names, anchors and path
+data are in the SVG and nowhere else. `Grep` for the group you want rather than
+opening the file.
+
+**Never read the two illustrated SVGs at all.** They are 1.5 MB and 2.5 MB, and
+a run that opens one has spent its whole budget before it poses anything. Their
+previews are 396 KB and 601 KB *as pictures*, which is one `Read` each, and
+every number they hold is already measured into `assets/illustrated-frames.json`
+at 54 KB. Picture plus numbers is the whole of what those two files have to
+give. The same split applies to `character-wireframes.svg`, whose readings are
+in `assets/skeleton-cycles.json`.
 
 Each asset says how far it can be trusted. A **rig** is named and structured, so it can be
 measured and its names relied on. A **study** is a drawing to read, not a contract: its groups
@@ -566,7 +672,8 @@ same careless way.
 
 **Rigs** - measure these, rely on the names:
 
-- `assets/character-wireframes.svg`: the character rig - stick-figure skeletons for walk, run,
+- `assets/character-wireframes.svg` (look: `character-wireframes.png`): the character rig -
+  stick-figure skeletons for walk, run,
   ideal stance, ideal fighting stance, punch, and knockdown, one per frame, with the required
   assembly structure. This is what the measured cycles are read from.
 - `assets/skeleton-cycles.json`: those readings, per type and per step, generated from the
@@ -574,7 +681,8 @@ same careless way.
 
 **Partly organized** - frame structure is reliable, the contents are working drawings:
 
-- `assets/breaking-objects.svg`: the object rig - a box breaking (3 frames) and an impact cloud
+- `assets/breaking-objects.svg` (look: `breaking-objects.png`): the object rig - a box breaking
+  (3 frames) and an impact cloud
   dispersing (5 frames), drawn as `base` plus one group per separated piece. Objects have no
   assemblies, so this is a naming and staging guide rather than a set of angles. Frame `_0` of
   both sequences also carries `potential_*` and `obsoletes` groups: pieces the artist was still
@@ -583,12 +691,14 @@ same careless way.
 
 **Finished frames** - the frame naming is reliable; the layer naming is the lesson:
 
-- `assets/illustrated-multiple-character-actions.svg`: five characters - BadGirl, SassyGirl,
+- `assets/illustrated-multiple-character-actions.png` (the SVG is 2.5 MB; look at the picture):
+  five characters - BadGirl, SassyGirl,
   JammingJabber, CrimeGuy and JumpingJunkie - each with a drawn set of frames for walking,
   attacking, taking damage, going down, and for one of them getting back up. Named
   `<Character>_<action>_<n>`, the convention Animation Mode itself uses, with each character's
   base pose carrying the bare name.
-- `assets/illustrated-single-character-actions.svg`: one character in six action strips - an
+- `assets/illustrated-single-character-actions.png` (the SVG is 1.5 MB; look at the picture):
+  one character in six action strips - an
   eight-frame walk, a nine-frame run, a four-frame fighting stance, a walk-to-run transition, a
   jump kick and a punch-kick combo.
 - `assets/illustrated-frames.json`: both of those measured, per sequence and per step, generated
@@ -599,18 +709,20 @@ real frame moves and how much of the figure it touches. Do not copy a pose out o
 character in front of you is not one of these five, and their layer names are a warning, not a
 standard.
 
-**Do not open the two SVGs while drawing a frame.** They are 1.5 MB and 2.5 MB - a person opens
-them in an editor to look at, and a run that reads one has spent its whole budget before it poses
-anything. Everything a frame needs from them is already in `illustrated-frames.json`, which is
-54 KB, and in the tables on this page. The same goes for `character-wireframes.svg`: the readings
-are in `skeleton-cycles.json`.
+**Look at `illustrated-single-character-actions.png` and
+`illustrated-multiple-character-actions.png`; never read the SVGs behind them.** That is the rule
+at the top of this section, and these two are what it was written for. The picture shows the pose,
+`illustrated-frames.json` holds every number measured out of it, and the 1.5 MB and 2.5 MB sources
+have nothing left to add that is worth the budget.
 
 **Studies** - read them for how a movement looks, do not derive from them:
 
-- `assets/character-study-throwing-and-walking.svg`: a walk study with its `guides` (contact
+- `assets/character-study-throwing-and-walking.svg` (look:
+  `character-study-throwing-and-walking.png`): a walk study with its `guides` (contact
   points and direction arrows) and numbered pose groups, beside a throwing character. Loose and
   generalised: it shows timing and weight rather than an assembly structure.
-- `assets/bouncing-object.svg`: a bounce study - the arc as `object-path` with the object drawn
+- `assets/bouncing-object.svg` (look: `bouncing-object.png`): a bounce study - the arc as
+  `object-path` with the object drawn
   along it. Loose and generalised, and the only reference here for an object that travels rather
   than comes apart.
 
@@ -631,14 +743,19 @@ without going through the wizard at all, where there may be no animation type to
 Drawing material that is not specific to animation lives in the `vector-graphics` skill, which
 sits beside this one and is installed alongside it:
 
+Every one of these ships as a `.svg` and a `.png` too, and the rule is the one above: look at
+the picture to find the part, read the source to lift it.
+
 - `../vector-graphics/assets/isometric-objects.svg` and `perspective-objects.svg`: a wheel, a
   sphere, and a cube drawn the same way twice, once in each projection - so an object animation
   can keep one projection across its frames
 - `../vector-graphics/assets/shapes.svg`: squares, circles, ellipses, triangles, polygons, stars,
-  lines at set angles, an arc, and a spiral
+  lines at set angles, an arc, and a spiral. Small enough that reading the source outright is
+  cheaper than looking, and the source is the half with the coordinates in it
 - `../vector-graphics/assets/alphabet.svg`: letterform paths for text-based animations
 - `../vector-graphics/assets/male-character-elements.svg` and `female-character-elements.svg`:
   loose sheets of limbs, hands, heads, hair, and clothing. Studies rather than rigs, and the
-  place to look when a character needs a part the wireframes do not draw
+  place to look when a character needs a part the wireframes do not draw. Look at the previews
+  first - these sheets hold a part at several angles, and which one you want is a visual choice
 - `../vector-graphics/SKILL.md`: the curve formulas, degree choice, and path-data script to use
   when a frame needs new geometry drawn rather than an existing pose turned

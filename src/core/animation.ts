@@ -767,6 +767,62 @@ export function animationFrameTransforms(
 }
 
 /** Everything the form collects for one frame's generation run. */
+/**
+ * How much of the user's own description of the animation is carried over.
+ *
+ * A cap rather than no cap, because this text is pasted into a prompt that
+ * already has a budget and a job to do. Long enough for a paragraph of real
+ * direction - "she is carrying something heavy in her right hand, so that arm
+ * barely swings" - and short enough that it cannot crowd out the steps, the
+ * layer inventory and the transforms it is meant to be read alongside.
+ */
+export const ANIMATION_PROMPT_LIMIT = 600;
+
+/** The tag the note is wrapped in, so the helper can tell direction from contract. */
+export const ANIMATION_PROMPT_TAG = 'animation-note';
+
+/** Whether a character does anything in a prompt but break the block holding it. */
+function isPrintable(ch: string): boolean {
+  const code = ch.codePointAt(0) ?? 0;
+  return ch === '\n' || ch === '\t' || (code >= 0x20 && code !== 0x7f);
+}
+
+/**
+ * The user's note about the animation, cleaned for a prompt.
+ *
+ * Three things happen here, and each is for a different reason:
+ *
+ * - **Control characters go.** They arrive with a paste out of a word
+ *   processor and do nothing in a prompt but break the block that holds them.
+ * - **Blank runs collapse.** The note is rendered inside a tagged block, and a
+ *   run of empty lines in the middle of it spends the budget it is capped by.
+ * - **The closing tag is neutralised.** A note containing it would close the
+ *   block early, and everything after would read with the authority of the
+ *   form rather than as a note inside it. That one is a correctness fix rather
+ *   than tidiness: it is the difference between the user describing an
+ *   animation and the user rewriting the job.
+ *
+ * Returns null for a note with nothing in it, so a caller can leave the whole
+ * section out rather than print an empty heading.
+ */
+export function normalizeAnimationPrompt(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const closing = new RegExp('</\\s*' + ANIMATION_PROMPT_TAG + '\\s*>', 'gi');
+  const cleaned = [...text.replace(/\r\n?/g, '\n')]
+    .map((ch) => (isPrintable(ch) ? ch : ' '))
+    .join('')
+    .replace(closing, '[end ' + ANIMATION_PROMPT_TAG + ']')
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+$/, ''))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n' + '\n')
+    .trim();
+  if (!cleaned) return null;
+  return cleaned.length > ANIMATION_PROMPT_LIMIT
+    ? cleaned.slice(0, ANIMATION_PROMPT_LIMIT).trimEnd() + '...'
+    : cleaned;
+}
+
 export interface AnimationFormData {
   /** What is being animated. */
   category: AnimationCategory;
@@ -798,6 +854,83 @@ export interface AnimationFormData {
    * helper can act on.
    */
   delivery?: AnimationHelperDelivery;
+  /**
+   * What the user said this animation is for, in their own words.
+   *
+   * The one thing in the form no measurement can supply, and the one input
+   * that outranks `type`: the dropdown is a word chosen from a list, this is
+   * the movement the user meant by choosing it. Everything else here describes
+   * the figure and the step.
+   */
+  prompt?: string | null;
+}
+
+/**
+ * The block that carries the user's direction into the form.
+ *
+ * **The note outranks the type.** The wizard's Animation dropdown is one word
+ * chosen from a list of fourteen; the note is the user's own sentences about
+ * the same movement. Both answer "what is this sequence", and the note answers
+ * it at far higher resolution, so where the two disagree the note decides and
+ * the type's template yields. Asking the question and then ranking the answer
+ * below a dropdown would have been a waste of the asking.
+ *
+ * Two things it deliberately does not outrank, and neither of them is about
+ * what the frame shows:
+ *
+ * - **The measured amounts keep their joints.** A cycle's transforms are read
+ *   off this figure's own geometry, so a note may shift emphasis inside them -
+ *   which side leads, what barely moves - by changing an angle, never by
+ *   moving the pivot it turns about.
+ * - **No note licenses a redraw.** The path data stays as it is and the
+ *   movement lives in transform attributes, whatever the note asks for. This
+ *   is the rule a failing run always breaks, and keeping it out of the note's
+ *   reach is exactly what makes widening the rest of this safe.
+ *
+ * What the note is *for* is the other half. The helper already knows the type,
+ * the pivots and how far each part may travel; what it has never had is why
+ * this sequence exists - what the character is doing, what it is carrying,
+ * where it is going. That is the context a person has and a cycle table does
+ * not.
+ */
+function animationPromptBlock(
+  prompt: string,
+  animationSkill: string,
+  vectorSkill: string,
+  type: string,
+  measured: boolean,
+): string {
+  const tag = ANIMATION_PROMPT_TAG;
+  // What the note may not move. The redraw rule is always here; the measured
+  // amounts only when there are any, so a work-in-progress type never gets
+  // told to respect transforms its form does not carry.
+  const limits: string[] = [];
+  if (measured) {
+    limits.push(
+      '- The transforms below were measured off this figure rather than guessed. Let the note shift emphasis inside them - one arm barely swinging, the weight carried on one side, a lean the cycle does not have - by changing an angle, never the joint it turns about, and name what you changed in your reply.',
+    );
+  }
+  limits.push(
+    '- No note licenses a redraw. The path data stays exactly as it is and the movement lives in transform attributes, whatever the note asks for.',
+  );
+  const heading =
+    limits.length > 1
+      ? 'Two things the note does not outrank, and neither is about what the frame shows:'
+      : 'One thing the note does not outrank, and it is about how a frame is made rather than what it shows:';
+  return [
+    `What this animation is for, in the user's own words. It outranks the type: "${type}" is one word picked from a list, and the note below is what the user meant by picking it, so where the two disagree the note decides what the movement is and the template yields to it. Read it with the ${animationSkill} skill rather than instead of it - the skill still says how a frame is made.`,
+    '',
+    `<${tag}>`,
+    prompt,
+    `</${tag}>`,
+    '',
+    heading,
+    '',
+    ...limits,
+    '',
+    `If the note describes a movement a "${type}" cannot be, say so in your reply rather than half-doing both. If it asks for geometry the rig does not have, that is when the ${vectorSkill} skill earns its place.`,
+    '',
+  ].join('\n');
 }
 
 /**
@@ -872,6 +1005,14 @@ export function buildAnimationForm(data: AnimationFormData): string {
 
 ${layerBoxTable(boxes)}`
       : '';
+  // The user's own direction, placed before the steps so it is read as the
+  // reason for them rather than as a footnote to them. Left out entirely when
+  // there is nothing to say, so a form never carries an empty heading.
+  const note = normalizeAnimationPrompt(data.prompt);
+  const measured = Object.keys(data.transforms).length > 0;
+  const direction = note
+    ? animationPromptBlock(note, animationSkill, vectorSkill, data.type, measured)
+    : '';
   const spec = animationTypeSpec(data.type);
   const closing = spec
     ? spec.loops
@@ -885,19 +1026,39 @@ ${layerBoxTable(boxes)}`
     ? `   The finished sequence runs ${data.frames} frames, so this frame carries about
    one ${data.frames}th of the whole movement - move that far and no further.`
     : '';
+  // Said here as well as in the note block, because this is the line the
+  // helper is reading when it decides how far to take the template.
+  const templateNote = note
+    ? `
+   Where this template and the note above disagree, the note decides.`
+    : '';
   const template = spec
-    ? `   One step of a "${data.type}": ${spec.guidance}
+    ? `   One step of a "${data.type}": ${spec.guidance}${templateNote}
    ${closing}${paced ? `
 ${paced}` : ''}`
-    : `   Advance the pose one readable step of a "${data.type}".${paced ? `
+    : `   Advance the pose one readable step of a "${data.type}".${templateNote}${paced ? `
 ${paced}` : ''}`;
-  const poseStep =
-    Object.keys(data.transforms).length > 0
-      ? `2. Set exactly these transforms on the assembly groups, copied character for
+  // With a note in the form the measured angles stop being a dictation and
+  // become the amounts to start from: the note may shift emphasis between
+  // assemblies, about the same joints, and has to say that it did.
+  const measuredStep = note
+    ? `2. Set these transforms on the assembly groups. They already carry this
+   frame's joint angles and the figure's bob, measured from the source
+   geometry, so they are the amounts to use unless the note above asks for a
+   different emphasis. Replace a transform an assembly already has rather than
+   adding to it; nothing else in the document changes.
+${assemblyLines}
+   Where the note asks for something these amounts do not give, change the
+   angle rather than the joint it turns about, by the smallest amount that
+   reads, and name what you changed in your reply. Every assembly the note does
+   not speak to keeps its transform exactly as given.`
+    : `2. Set exactly these transforms on the assembly groups, copied character for
    character. They already carry this frame's joint angles and the figure's
    bob, measured from the source geometry. Replace a transform an assembly
    already has rather than adding to it; nothing else in the document changes.
-${assemblyLines}`
+${assemblyLines}`;
+  const poseStep = measured
+      ? measuredStep
       : data.category === 'object'
         ? `2. Pose the frame yourself - this type has no measured cycle yet, so work
    from the template below and judge the amounts from the source.
@@ -919,7 +1080,7 @@ Draw frame ${job.frameIndex} of a ${data.category} "${data.type}" animation by e
 
 Apply the ${animationSkill} skill before editing: it carries the assembly list, the joint pivots, the cycle tables, and the transform recipe. Its companion ${vectorSkill} skill owns the curve side - reach for it when a frame needs new or edited path geometry rather than a rotation.
 
-This is a file edit, not a redraw. Do not rewrite, re-emit, or re-draw the geometry - every path in that file stays exactly as it is. Rotating an assembly's group rotates every anchor and Bezier handle inside it together, which is the rigid joint rotation this frame needs.
+${direction}This is a file edit, not a redraw. Do not rewrite, re-emit, or re-draw the geometry - every path in that file stays exactly as it is. Rotating an assembly's group rotates every anchor and Bezier handle inside it together, which is the rigid joint rotation this frame needs.
 
 Steps:
 1. Open ${ANIMATION_SOURCE_FILE} and work on it in place. Each assembly is a

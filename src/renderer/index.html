@@ -431,6 +431,16 @@
             <input id="anim-frames" type="number" min="2" max="60" step="1" value="8" />
           </label>
           <p class="anim-dialog-note">Not how many are drawn now - frames are still drawn one at a time. This is the pacing: the cycle's movement is spread across this many frames, so fewer frames move further each and more frames move less.</p>
+          <label class="settings-field">
+            <span>What is this animation for? (optional)</span>
+            <!-- The one thing the form cannot measure. Everything else handed
+                 to the helper describes the figure and the step; this says why
+                 the sequence exists, which is what settles a choice the travel
+                 numbers rate equally. -->
+            <textarea id="anim-prompt" rows="3" maxlength="600"
+              placeholder="She is carrying something heavy in her right hand, so that arm barely swings and she leans away from it."></textarea>
+          </label>
+          <p class="anim-dialog-note">Outranks the Animation choice above - that is one word from a list, this is what you meant by choosing it, so where the two disagree the helper follows this. What it does not change is how a frame is made: the measured joints and the no-redraw rule stand whatever it says. Leave it empty and the frame is posed from the cycle alone.</p>
           <p id="anim-next-frame" class="anim-dialog-note">First frame drawn: <code>walk_1</code></p>
           <div class="export-dialog-actions">
             <button id="anim-step2-cancel" class="btn btn-ghost" type="button">Cancel</button>

@@ -450,6 +450,13 @@ under external references are pages used to build it.
 
 **`assets`**:
 
+Every sheet ships twice, as `<name>.svg` and `<name>.png` - the same drawing as
+markup and as a picture. Look at the picture to find a part; read the source to
+lift it. Finding a hand at the right angle on a sheet of forty is a visual
+search, and doing it by scanning path data is the slow way to the same answer;
+the coordinates and the layer names, on the other hand, exist only in the SVG.
+The two projection sheets and `shapes.svg` are small enough to read outright.
+
 Organized sheets - named parts, safe to lift from and to name after:
 
 - [alphabet.svg](assets/alphabet.svg): two typefaces of letterform paths, a

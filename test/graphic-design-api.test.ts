@@ -25,6 +25,7 @@ import { dirname, join } from 'node:path';
 import {
   createComposition,
   decodePng,
+  encodePng,
   layoutText,
   measureText,
   rasterizeComposition,
@@ -556,4 +557,26 @@ test('the generated graphics are temporary files', () => {
     assert.ok(existsSync(join(OUTPUT, `${name}.png`)), `${name}.png was written`);
   }
   assert.ok(OUTPUT.includes('.tmp'), 'and it sits under the ignored .tmp folder');
+});
+
+test('encodePng refuses a size it cannot encode, rather than encoding nothing', () => {
+  const pixels = new Uint8ClampedArray(4 * 4 * 4);
+
+  // The mistake this guards is handing it a `RasterResult` instead of that
+  // object's three fields. `width` then arrives undefined, the stride is NaN,
+  // and the "buffer too small" comparison below is false because every
+  // comparison against NaN is - so the old path encoded a 65-byte image of
+  // nothing and said so nowhere.
+  const raster = { width: 4, height: 4, data: pixels } as unknown as number;
+  assert.throws(() => encodePng(pixels, raster, 4), /positive integer width and height/);
+  assert.throws(() => encodePng(pixels, 4, Number.NaN), /positive integer width and height/);
+  assert.throws(() => encodePng(pixels, 0, 4), /positive integer width and height/);
+  assert.throws(() => encodePng(pixels, 4.5, 4), /positive integer width and height/);
+
+  // And the real buffer check still fires for a size that is merely wrong.
+  assert.throws(() => encodePng(pixels, 8, 8), /smaller than the image it describes/);
+
+  const png = encodePng(pixels, 4, 4);
+  assert.deepEqual([...png.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
+  assert.equal(decodePng(png).width, 4);
 });

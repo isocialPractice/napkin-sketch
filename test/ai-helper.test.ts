@@ -15,8 +15,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { basename, dirname, extname, join, resolve } from 'node:path';
 import {
   AI_HELPERS,
   AI_HELPER_ROOT,
@@ -199,6 +199,88 @@ test('every plugin carries the parts its registry entry promises', () => {
     for (const file of helper.instructions) {
       assert.ok(existsSync(join(base, 'instructions', file)), `${helper.name}: ${file} is missing`);
     }
+  }
+});
+
+test('every reference asset ships as a source and as a picture', () => {
+  // The two answer different questions. An SVG says where the anchors are and
+  // what the layers are called; a PNG says what the movement looks like, which
+  // is the half a model cannot get by reading markup and the half that decides
+  // whether a generated frame reads correctly.
+  //
+  // The pairing is a contract rather than a convenience, because the failure is
+  // silent: an asset with no preview is one a tool quietly stops looking at,
+  // and nothing about the resulting frame says why it got worse.
+  const missing: string[] = [];
+  const orphaned: string[] = [];
+
+  for (const helper of AI_HELPERS) {
+    for (const skill of helper.skills) {
+      const dir = join(ROOT, helper.dir, 'skills', skill, 'assets');
+      if (!existsSync(dir)) continue;
+
+      const files = readdirSync(dir);
+      const stems = (extension: string) =>
+        new Set(
+          files.filter((f) => f.toLowerCase().endsWith(extension)).map((f) => basename(f, extname(f)))
+        );
+      const sources = stems('.svg');
+      const previews = stems('.png');
+
+      const where = `${helper.name}/${skill}`;
+      for (const stem of sources) {
+        if (!previews.has(stem)) missing.push(`${where}: ${stem}.svg has no ${stem}.png`);
+      }
+      for (const stem of previews) {
+        if (!sources.has(stem)) orphaned.push(`${where}: ${stem}.png has no ${stem}.svg`);
+      }
+    }
+  }
+
+  assert.deepEqual(missing, [], 'an asset shipped without a preview nobody can look at');
+  assert.deepEqual(orphaned, [], 'a preview outlived the drawing it was made from');
+});
+
+test('the previews are real images, and the big ones are cheaper than their sources', () => {
+  const decoded: string[] = [];
+
+  for (const helper of AI_HELPERS) {
+    for (const skill of helper.skills) {
+      const dir = join(ROOT, helper.dir, 'skills', skill, 'assets');
+      if (!existsSync(dir)) continue;
+
+      for (const file of readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.png'))) {
+        const bytes = readFileSync(join(dir, file));
+
+        // A PNG signature, a plausible size, and dimensions read out of the
+        // IHDR. Enough to catch the two ways this goes wrong in practice: a
+        // truncated export, and a placeholder somebody meant to replace.
+        assert.deepEqual(
+          [...bytes.subarray(0, 8)],
+          [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+          `${file} is not a PNG`
+        );
+        const width = bytes.readUInt32BE(16);
+        const height = bytes.readUInt32BE(20);
+        assert.ok(width >= 200 && height >= 200, `${file} is ${width}x${height}, too small to read`);
+        decoded.push(file);
+      }
+    }
+  }
+
+  assert.ok(decoded.length >= 12, `expected the shipped previews, found ${decoded.length}`);
+
+  // The claim the skills make about the two illustrated sheets: look at the
+  // picture, never open the source. It only holds while the picture is the
+  // cheaper of the two, so it is measured rather than asserted in prose.
+  const animations = join(ROOT, ANIMATION_PLUGIN.dir, 'skills', ANIMATION_SKILL_NAME, 'assets');
+  for (const stem of ['illustrated-single-character-actions', 'illustrated-multiple-character-actions']) {
+    const svg = statSync(join(animations, `${stem}.svg`)).size;
+    const png = statSync(join(animations, `${stem}.png`)).size;
+    assert.ok(
+      png < svg / 2,
+      `${stem}: the preview is ${png} bytes against a ${svg}-byte source, so "look, do not read" stops paying`
+    );
   }
 });
 

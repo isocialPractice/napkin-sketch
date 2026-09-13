@@ -166,6 +166,49 @@ test('an inlined logo is drawn by both renderers, not just the vector one', () =
   assert.equal(green(linked.data), 0, 'the linked one paints nothing');
 });
 
+test('a transform on the shape itself survives, not just one on its group', () => {
+  // An editor writes `translate(...) rotate(...)` straight onto a rotated rect
+  // as often as it wraps one in a `<g>`. Reading only the group's transform
+  // drops the angle silently: the shape lands in the right place facing the
+  // wrong way, which reads as a drawing that was always like that.
+  const inlined = inlineSvg(
+    '<svg viewBox="0 0 100 100"><rect id="r" x="0" y="0" width="20" height="10" fill="#000" transform="translate(50 50) rotate(45)"/></svg>'
+  );
+
+  const wrapper = inlined?.elements[0];
+  assert.equal(wrapper?.type, 'group', 'a transformed shape should come back wrapped');
+  if (wrapper?.type !== 'group') return;
+  assert.equal(Math.round(wrapper.rotate ?? 0), 45);
+  assert.deepEqual(wrapper.translate, { x: 50, y: 50 });
+  assert.equal(wrapper.children[0].type, 'rect');
+
+  // And it composes under an ancestor's rather than replacing it.
+  const nested = inlineSvg(
+    '<svg viewBox="0 0 100 100"><g transform="translate(10 0)"><rect x="0" y="0" width="4" height="4" transform="translate(5 5)"/></g></svg>'
+  );
+  const inner = nested?.elements[0];
+  assert.equal(inner?.type, 'group');
+  if (inner?.type !== 'group') return;
+  assert.deepEqual(inner.translate, { x: 15, y: 5 }, 'the two translations should add');
+});
+
+test('the shipped rig inlines with its rotated hands and feet intact', () => {
+  // The regression this pins is the one above, found on a real asset: every
+  // hand and foot in the wireframe rig is a rect with its own rotation, and
+  // without them the rig renders as a figure with square blocks for extremities.
+  const rig = readFileSync(
+    join(ROOT, 'ai-helper', 'vectors', 'skills', 'vector-animations', 'assets', 'character-wireframes.svg'),
+    'utf-8'
+  );
+  const inlined = inlineSvg(rig);
+  assert.ok(inlined, 'the rig should parse');
+
+  const rotated = inlined.elements.filter(
+    (el) => el.type === 'group' && Math.abs(el.rotate ?? 0) > 1
+  );
+  assert.ok(rotated.length > 50, `expected the rig's rotated parts, found ${rotated.length}`);
+});
+
 test('a box is fitted without distorting what goes in it', () => {
   const source = { x: 0, y: 0, width: 100, height: 50 };
   const target = { x: 10, y: 10, width: 100, height: 100 };

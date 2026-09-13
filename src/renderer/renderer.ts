@@ -62,6 +62,7 @@ import {
   ANIMATION_TYPES,
   assemblyPivot,
   buildAnimationForm,
+  normalizeAnimationPrompt,
   expandBounds,
   findAssemblyLayers,
   matchesAssembly,
@@ -6557,12 +6558,14 @@ class App {
     category: AnimationCategory;
     type: string;
     frames: number;
+    prompt: string | null;
   } | null> {
     return new Promise((resolve) => {
       const dlg = el('anim-step2-dialog');
       const category = el<HTMLSelectElement>('anim-category');
       const type = el<HTMLSelectElement>('anim-type');
       const frames = el<HTMLInputElement>('anim-frames');
+      const prompt = el<HTMLTextAreaElement>('anim-prompt');
 
       const categories: AnimationCategory[] = ['character', 'object'];
       category.innerHTML = '';
@@ -6624,7 +6627,12 @@ class App {
       updateNote();
 
       const done = (
-        value: { category: AnimationCategory; type: string; frames: number } | null,
+        value: {
+          category: AnimationCategory;
+          type: string;
+          frames: number;
+          prompt: string | null;
+        } | null,
       ): void => {
         dlg.classList.add('is-hidden');
         resolve(value);
@@ -6634,6 +6642,9 @@ class App {
           category: category.value as AnimationCategory,
           type: type.value,
           frames: clampSequenceFrames(Number(frames.value)),
+          // Cleaned where it is read rather than where it is used, so the one
+          // place that knows it came from a person is the one that tidies it.
+          prompt: normalizeAnimationPrompt(prompt.value),
         });
       el('anim-step2-cancel').onclick = () => done(null);
       dlg.classList.remove('is-hidden');
@@ -6654,6 +6665,7 @@ class App {
     category: AnimationCategory;
     type: string;
     frames: number;
+    prompt: string | null;
   }): Promise<boolean> {
     const dlg = el('anim-step3-dialog');
     const assemblyNames: Partial<Record<RequiredAssembly, string>> = {};
@@ -6697,6 +6709,10 @@ class App {
             : {},
           layers: this.animationLayerInventory(sourceIds),
           frames: setup.frames,
+          // The same note goes on every frame of the sequence: it describes the
+          // animation, not this one step of it, and a helper drawing frame six
+          // needs the reason as much as the one that drew frame one.
+          prompt: setup.prompt,
           delivery: this.animationPlugin ? 'plugin' : 'files',
         });
 

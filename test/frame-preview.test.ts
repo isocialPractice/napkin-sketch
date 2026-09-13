@@ -11,8 +11,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  findings,
+  grade,
   parseTransform,
   paintOf,
+  poseCheck,
   styleClasses,
   transformPathData,
 } from '../scripts/frame-preview.mjs';
@@ -106,4 +109,100 @@ test('paintOf reads "none" as no paint at all, not as a colour', () => {
   const classes = styleClasses('<style>.n{fill:none;}</style>');
   assert.equal(paintOf('<path class="n" d="M0,0"/>', classes).fill, null);
   assert.equal(paintOf('<path stroke="none" d="M0,0"/>', classes).stroke, null);
+});
+
+/** A frame posed the way the job asks for it: transforms on, path data untouched. */
+const SOURCE = `<g id="figure">
+  <g id="back-leg-assembly"><path d="M10 20 L30 40"/></g>
+  <g id="front-leg-assembly"><path d="M12 22 C14 24 16 26 18 28"/></g>
+  <g id="head-assembly"><path d="M5 5 L7 7"/></g>
+</g>`;
+
+const POSED = SOURCE.replace('id="back-leg-assembly"', 'id="back-leg-assembly" transform="rotate(7 20 30)"');
+
+/** The same frame with its geometry re-emitted: new numbers, no transform. */
+const REDRAWN = `<g id="figure">
+  <g id="back-leg-assembly"><path d="M10.42 19.61 L29.88 40.37"/></g>
+  <g id="front-leg-assembly"><path d="M12.31 21.74 C14.2 24.11 16.07 26.4 18.33 27.92"/></g>
+  <g id="head-assembly"><path d="M5.11 4.92 L7.04 7.13"/></g>
+</g>`;
+
+/** A step with every part inside its band, and the bands to judge it by. */
+const BAND = {
+  bob: { low: 0, high: 1.9, typical: 0.6 },
+  leg: { low: 3.2, high: 26.2, typical: 8.9 },
+  arm: { low: 1.2, high: 9.4, typical: 4.8 },
+  clothing: { low: 0.4, high: 5.1, typical: 3.5 },
+};
+const GOOD_STEP = { bob: 0.5, parts: { leg: 8, arm: 4, clothing: 3 }, layersFrozen: [] };
+
+test('poseCheck tells a posed frame from a redrawn one', () => {
+  // The whole point: these two are indistinguishable by measuring the drawing,
+  // and trivially distinguishable by reading it. A posed frame keeps its path
+  // data byte for byte and puts the movement in a transform.
+  const posed = poseCheck(POSED, SOURCE);
+  assert.equal(posed.redrawn, false);
+  assert.equal(posed.transforms, 1);
+  assert.equal(posed.kept, 1, 'posing must not touch a single `d`');
+
+  const redrawn = poseCheck(REDRAWN, SOURCE);
+  assert.equal(redrawn.redrawn, true, 'rewritten geometry with no transform is a redraw');
+  assert.equal(redrawn.transforms, 0);
+  assert.equal(redrawn.shared, 0);
+});
+
+test('a frame that simply did not move is not accused of being redrawn', () => {
+  // No transform and no change either. That is a frozen frame, which the
+  // frozen-layer finding reports in its own words - calling it a redraw would
+  // send the next pass after the wrong defect.
+  const still = poseCheck(SOURCE, SOURCE);
+  assert.equal(still.redrawn, false);
+  assert.equal(still.kept, 1);
+});
+
+test('a redrawn frame is the only finding, because the rest are its symptoms', () => {
+  // Travel measured against geometry that was never posed is noise. Reporting
+  // it beside the real defect would split the one pass left across a cause and
+  // its own smoke.
+  const wild = { bob: 0, parts: { leg: 30, arm: 12, clothing: 0 }, layersFrozen: ['shirt', 'body'] };
+  const list = findings(wild, BAND, poseCheck(REDRAWN, SOURCE));
+
+  assert.equal(list.length, 1, `expected the redraw alone, got ${list.map((f) => f.severity).join(', ')}`);
+  assert.equal(list[0].severity, 'redrawn');
+  assert.match(list[0].text, /0 of 3 paths match/);
+});
+
+test('travel outside a drawn frame’s band is reported with the number to aim at', () => {
+  const over = { bob: 0, parts: { leg: 8, arm: 12, clothing: 3 }, layersFrozen: [] };
+  const [finding] = findings(over, BAND, poseCheck(POSED, SOURCE));
+  assert.equal(finding.severity, 'over');
+  assert.match(finding.text, /arm travelled 12\.0%/);
+  assert.match(finding.text, /4\.8%/, 'a finding has to say what to aim for, not only what is wrong');
+
+  const under = { bob: 0, parts: { leg: 8, arm: 0.2, clothing: 3 }, layersFrozen: [] };
+  assert.equal(findings(under, BAND, poseCheck(POSED, SOURCE))[0].severity, 'under');
+});
+
+test('a figure whose torso never moved is a finding, not a footnote', () => {
+  // This is the pose that reads as a stretch rather than a stride: legs swinging
+  // through their whole band while everything above the waist is held still.
+  const frozen = { bob: 0, parts: { leg: 8, arm: 4, clothing: 3 }, layersFrozen: ['body', 'shirt'] };
+  const list = findings(frozen, BAND, poseCheck(POSED, SOURCE));
+  assert.equal(list.length, 1);
+  assert.equal(list[0].severity, 'frozen');
+  assert.match(list[0].text, /body, shirt/);
+});
+
+test('the stop flag turns revise into save once the passes are spent', () => {
+  const bad = { bob: 0, parts: { leg: 8, arm: 12, clothing: 3 }, layersFrozen: [] };
+  const pose = poseCheck(POSED, SOURCE);
+
+  // A run that keeps revising is a run the app kills with nothing saved.
+  assert.equal(grade(bad, BAND, pose, { pass: 1, passes: 2 }).verdict, 'revise');
+  assert.equal(grade(bad, BAND, pose, { pass: 2, passes: 2 }).verdict, 'save');
+
+  // And a clean frame passes on any pass, with nothing left to say about it.
+  const good = grade(GOOD_STEP, BAND, pose, { pass: 2, passes: 2 });
+  assert.equal(good.verdict, 'pass');
+  assert.deepEqual(good.findings, []);
 });

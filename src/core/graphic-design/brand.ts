@@ -22,7 +22,7 @@
  */
 
 import { DEFAULT_FONT_SIZE } from './types.js';
-import { contourBounds, flattenShape, transformContours } from './geometry.js';
+import { contourBounds, elementMatrix, flattenShape, transformContours } from './geometry.js';
 import type { Matrix } from './geometry.js';
 import type { ElementList } from './compose.js';
 import type { Element, ImageFit, Point } from './types.js';
@@ -581,7 +581,15 @@ export function inlineSvg(text: string): InlinedVector | null {
     }
 
     if (!element) continue;
-    const matrix = stack[stack.length - 1];
+
+    // A shape carries its own `transform` as often as a group does - an editor
+    // writes `translate(...) rotate(...)` straight onto a rotated rect rather
+    // than wrapping it in a `<g>` - so the element's own transform composes
+    // under its ancestors' rather than being the group branch's business alone.
+    // Dropping it is silent and geometric: the shape lands in the right place
+    // at the wrong angle, which reads as a drawing that was always like that.
+    const inherited = stack[stack.length - 1];
+    const matrix = attrs.transform ? compose(inherited, parseTransform(attrs.transform)) : inherited;
     if (isIdentity(matrix)) {
       elements.push(element);
     } else {
@@ -923,7 +931,17 @@ function contains(outer: BrandBox, inner: BrandBox): boolean {
 
 /** The bounds of one parsed element under a transform, or null. */
 function elementBounds(element: Element, matrix: Matrix): BrandBox | null {
-  if (element.type === 'group') return null;
+  // A group arrives here whenever `inlineSvg` wrapped a shape to carry its own
+  // transform, so measuring has to follow it in rather than give up - giving up
+  // is how a named layer of rotated parts measures as nothing at all.
+  if (element.type === 'group') {
+    const local = elementMatrix(element, { x: 0, y: 0 });
+    let box: BrandBox | null = null;
+    for (const child of element.children) {
+      box = union(box, elementBounds(child, compose(matrix, local)));
+    }
+    return box;
+  }
   if (element.type === 'image') {
     const corners = [
       { x: element.x, y: element.y },
@@ -1019,6 +1037,12 @@ export function detectBrandSlots(svgText: string): BrandDetection {
 
     const attrs = parseAttributes(match[2]);
     const parent = stack[stack.length - 1];
+
+    // A container's own transform composes onto what it inherited, and applies
+    // to everything inside it. A *shape's* own transform is a different matter:
+    // `inlineSvg` already returns such a shape wrapped in a group carrying it,
+    // so composing it here as well would apply it twice - which lands the box
+    // off the page and looks like a measurement bug rather than a double count.
     const matrix = attrs.transform ? compose(parent.matrix, parseTransform(attrs.transform)) : parent.matrix;
 
     let slot: Frame['slot'] = null;
@@ -1039,7 +1063,7 @@ export function detectBrandSlots(svgText: string): BrandDetection {
       // mean" rather than a second that can drift from it.
       const single = inlineSvg(`<svg viewBox="0 0 1 1">${match[0]}${selfClosing ? '' : `</${tag}>`}</svg>`);
       const element = single?.elements[0];
-      frame.box = element ? elementBounds(element, matrix) : null;
+      frame.box = element ? elementBounds(element, parent.matrix) : null;
       close(frame);
       continue;
     }

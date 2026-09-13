@@ -119,7 +119,114 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     template: the source asset carried no code at all, and the language carries
     a cheatsheet without being stretched.
 
+- **Every reference asset ships as a picture as well as a source**, and Animation
+  Mode was taught to use it. `<name>.png` now sits beside `<name>.svg` in both
+  `vectors` skills - twelve sheets in all - and the two answer different
+  questions: the picture says what a movement looks like, the source says where
+  the anchors are and what the layers are called.
+  - **The frame agent looks before it poses.** A new first step picks the
+    preview for what is being drawn - the wireframe rig for a cycle, the
+    illustrated sheets for a character action, the object rigs for a break or a
+    bounce - and reads it. The travel tables already said how *far* a part
+    moves; nothing said what the result was supposed to look like, which is
+    exactly the half that went wrong. A frame with every angle inside budget can
+    still read as a stumble rather than a stride, and now there is something to
+    check it against. The existing "look at what you drew" pass compares against
+    that same reference rather than against an idea of it.
+  - **The two illustrated sheets stop being unreadable.** They are 1.5 MB and
+    2.5 MB, and the skill's standing instruction was simply not to open them - a
+    reference nobody can look at. Their previews are 396 KB and 601 KB as
+    pictures, one `Read` each, and every number in them was already measured
+    into `illustrated-frames.json`. Picture plus numbers is now the whole of
+    what those files have to give, and the instruction is "look at this" rather
+    than "do not touch that".
+  - **The split is written down rather than implied.** Both skills carry a table
+    of which question goes to which file, and the rule that a small sheet like
+    `shapes.svg` is cheaper to read outright than to look at - the source is the
+    half with the coordinates in it.
+- **`test/ai-helper.test.ts` fails if an asset arrives without its preview**, or
+  a preview outlives its drawing. The failure it guards is silent: an asset with
+  no picture is one a tool quietly stops looking at, and nothing about the
+  resulting frame says why it got worse. A second standard checks each PNG is a
+  real image with usable dimensions, and measures the claim the skills make about
+  the two illustrated sheets - "look, do not read" only holds while the picture
+  is the cheaper of the two, so that is asserted rather than assumed.
+
+- **Animation Mode grades a frame and acts on the grade.** `npm run frame-preview -- <frame>
+  --against <previous> --grade` now ends with a verdict - `pass`, `revise` or `save` - an ordered
+  list of what to fix, and a `VERDICT:` line a caller can branch on (`--strict` puts it in the
+  exit code too). The measuring was already there; what was missing was a decision, so the report
+  was printed and the run walked away from it.
+  - **The stop flag is a flag.** `--passes` (two by default) turns `revise` into `save` once the
+    budget is spent. A run that keeps polishing is a run the app kills at five minutes with
+    nothing on disk, so the last pass saves what it has and reports the defects it knows about
+    rather than hiding them.
+  - **Findings are ordered, and only the first is worth a pass.** The rest are usually its
+    symptoms, and splitting one remaining pass across a cause and its own smoke fixes neither.
+- **A redrawn frame is now caught, by reading the file rather than measuring the drawing.** A
+  frame is posed - the movement lives in `transform` attributes and the path data is untouched.
+  Re-emitting the geometry instead produces a figure that is complete, layered, opens fine, and
+  has its limbs drifted off their joints; it reads as a bad drawing rather than as a broken
+  process, which is exactly why it survives a look and reaches the strip. The signature is exact
+  and needs no tolerance: a posed frame shares its path data with the frame it came from, a
+  redrawn one shares none of it and carries no transform.
+
+- **Animation Mode asks what the animation is for, and passes the answer to the
+  helper.** A new optional field in the wizard's setup step - "What is this
+  animation for?" - is carried into the form as an `<animation-note>` block and
+  handed to the AI helper with every frame of the sequence.
+  - **It is the one input in the form that was not measured.** Everything else
+    describes the figure and the step: the assemblies, the layer inventory, the
+    pivots, a finished transform per assembly, how far each part may travel.
+    None of it says why the sequence exists - what the character is doing, what
+    it is carrying, where it is going - and that is exactly what settles a
+    choice the travel numbers rate equally.
+  - **It outranks the animation type.** Both answer the same question - what is
+    this sequence - and the dropdown answers it with one word out of fourteen
+    while the note answers it in the user's own sentences. Where the two
+    disagree the note decides and the type's template yields to it, and the
+    form says which way round that goes twice: once beside the note, once
+    beside the template it outranks. Asking the question and then ranking the
+    answer below a dropdown would have wasted the asking - the field's own
+    placeholder, "carrying something heavy in her right hand, so that arm
+    barely swings", was an instruction the first precedence rule forbade acting
+    on.
+  - **Two things it does not outrank, and neither is about what the frame
+    shows.** The measured transforms keep their joints: with a note in the form
+    they stop being a dictation and become the amounts to start from, so a note
+    about weight moves an angle - by the smallest amount that reads, about the
+    same pivot, and named in the reply. And no note licenses a redraw: the path
+    data stays exactly as it is and the movement lives in `transform`
+    attributes whatever the note says. That second rule is the one every
+    failing run has broken, and keeping it out of the note's reach is precisely
+    what makes widening the rest of this safe. A note reading "just redraw her
+    however looks right" is the case, and it has a test.
+  - **Read with the skills, never instead of them.** The note says what the
+    movement is; the skills still say how a frame is made. A helper that cannot
+    honour part of a note says so in its reply rather than dropping the
+    measured pose, and a note describing a movement the chosen type cannot be
+    is reported rather than half-drawn.
+  - **It describes the sequence, not the step**, so the same note reaches frame
+    six as reached frame one.
+  - **The block is tagged rather than quoted, and the closing tag is
+    neutralised** before the note is written. That one is a correctness fix
+    rather than tidiness: a note carrying `</animation-note>` would close the
+    block early and everything after it would read with the authority of the
+    form rather than as a note inside it - the difference between describing an
+    animation and rewriting the job. Control characters are stripped, blank runs
+    collapse, and the whole note is capped at 600 characters so it cannot crowd
+    out the steps it is meant to be read beside.
+  - `normalizeAnimationPrompt` does the cleaning where the text is read rather
+    than where it is used, so the one place that knows it came from a person is
+    the one that tidies it.
 ### Changed
+
+- **The `vector-graphics` character and projection sheets were re-exported.**
+  `isometric-objects.svg` and `perspective-objects.svg` gained white
+  `background` rectangles so their previews are opaque rather than transparent;
+  `male-character-elements.svg` gained named head and beard parts (`bald-head`,
+  `goatee`, `neck-bald-head`); `female-character-elements.svg` is the same
+  drawing, smaller.
 
 - **`npm run test:graphic-design-api` installs what it tests.** It generates
   into the AI tool's real skills folder rather than into `.tmp/`, refreshes the
@@ -162,6 +269,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and the existing standards in `test/generated-skill.test.ts` still hold.
 
 ### Fixed
+
+- **A three-frame `walk` came back as a stretch, and every check passed it.** The run that
+  prompted this re-emitted all 121 paths in each of its three frames and set no transform
+  anywhere, so the legs swung through wild arcs while the torso, skirt, shirt, head and both
+  jackets sat frozen. The grader had already printed `arm OVER` and `clothing UNDER` on two of the
+  three frames, and `7 layer(s) did not move at all` on two more - and nothing was required to act
+  on any of it. The measurements were right, the loop around them did not exist.
+- **`inlineSvg` dropped a `transform` written on the shape itself**, keeping only
+  the ones on ancestor `<g>` elements. An editor writes
+  `translate(...) rotate(...)` straight onto a rotated rect as often as it wraps
+  one in a group, so the shape landed in the right place at the wrong angle -
+  silently, and looking like a drawing that was always that way. Found by
+  rendering the `vector-animations` wireframe rig, where every hand and foot is a
+  rotated square and came out axis-aligned.
+  - Measuring had to learn the same lesson twice: `detectBrandSlots` gave up on
+    a shape that arrived wrapped in its own transform, so a named layer of
+    rotated parts measured as nothing at all, and then - once it followed the
+    wrapper in - counted the shape's transform a second time on top of the one
+    it had already composed, which put the box off the page. Bounds now recurse
+    through the wrapper, and a container's transform is the only one composed by
+    the walker.
+- **`encodePng` encoded a blank image instead of refusing a size it could not
+  use.** Passing it a whole `RasterResult` rather than that object's three
+  fields - an easy mistake, since it carries exactly `data`, `width` and
+  `height` - left `width` undefined, made the stride `NaN`, and sailed past the
+  "buffer too small" guard, because every comparison against `NaN` is false. The
+  result was a 65-byte PNG of nothing and no error anywhere. It now checks the
+  size before the buffer.
 
 - **The brand asset symlinks resolved nowhere.**
   `test/graphic-design-api/test-assets/logo.svg` and `footer.png` stored targets

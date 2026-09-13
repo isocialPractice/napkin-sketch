@@ -192,6 +192,34 @@ the app recovers the markup from stdout and saves it to the output path itself. 
 path - it costs the whole document in output tokens - so use it only when writing a file is
 genuinely unavailable.
 
+## The User's Note
+
+A form may carry an `<animation-note>` block: what the person setting up the sequence said the
+animation is for, in their own words. It is optional, it is capped, and it is the only thing in
+the form that was not measured.
+
+**It outranks the animation type.** Both answer the same question - what is this sequence - and
+the dropdown answers it with one word out of fourteen while the note answers it in the user's own
+sentences. Where the two disagree the note decides and the type's template yields; asking the
+question and then ranking the answer below a dropdown would have wasted the asking.
+
+**Two things it does not outrank, and neither is about what the frame shows.** The measured
+transforms keep their joints: a note may shift emphasis inside them - which side leads, what
+barely moves - by changing an angle rather than by moving the pivot, and the helper names what it
+changed in its reply. And no note licenses a redraw: the path data stays exactly as it is and the
+movement lives in `transform` attributes whatever the note says. That second rule is the one a
+failing run always breaks, and keeping it out of the note's reach is precisely what makes
+widening the rest of this safe.
+
+What it is for is the half the numbers leave open. A cycle table fixes how far an arm swings and
+says nothing about which arm leads, where the weight sits, or whether the figure is tired. That
+is the context a person has and a measurement does not, and it is the same for every frame of
+the sequence rather than for the step in front of you.
+
+The block is tagged rather than quoted so direction can be told from contract, and a note that
+contains the closing tag has it neutralised before it is written - otherwise everything after it
+would read with the authority of the form.
+
 ## Supporting Resources
 
 The canonical, version-tracked copies live in the repository's `ai-helper/` folder; the install
@@ -201,8 +229,20 @@ discovers automatically when run from the project root).
 
 - Skill: `ai-helper/skills/vector-animations/SKILL.md`
   - References: `bezier-curves.md`, `animation-essentials.md` under the skill's `references/`
-  - Assets: wireframe pose skeletons under the skill's `assets/`
+  - Assets: wireframe pose skeletons and illustrated answer-key frames under the skill's
+    `assets/`, plus the measured `skeleton-cycles.json` and `illustrated-frames.json`
 - Companion skill: `ai-helper/skills/vector-graphics/SKILL.md`
   - References: `linear-bezier-curve.md`, `quadratic-bezier-curve.md`, `cubic-bezier-curve.md`
   - Scripts: `matlib-script.js` and `template.md` for deriving path data from control points
   - Assets: shape, object, and letterform primitives under the skill's `assets/`
+
+**Every asset ships twice.** `<name>.svg` is the source and `<name>.png` is the same drawing as a
+picture, and the two answer different questions: the picture says what a movement looks like, the
+source says where the anchors are and what the layers are called. A tool drawing a frame should
+look at the picture before it poses anything, and should never open
+`illustrated-single-character-actions.svg` or `illustrated-multiple-character-actions.svg` at all
+- they are 1.5 MB and 2.5 MB, their previews are one `Read` each, and every number in them is
+already measured into `illustrated-frames.json`.
+
+The pair is a contract rather than a convenience: `test/ai-helper.test.ts` fails if an asset
+arrives without its preview, because a reference nobody can look at is one nobody will use.

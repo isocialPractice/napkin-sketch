@@ -77,6 +77,17 @@ function paeth(a: number, b: number, c: number): number {
  * @param data RGBA bytes, `width * height * 4` of them.
  */
 export function encodePng(data: Uint8ClampedArray | Uint8Array, width: number, height: number): Uint8Array {
+  // The size has to be checked before the buffer is, because the buffer check
+  // is a comparison and a comparison against NaN is false. Handing this the
+  // whole `RasterResult` instead of its three parts - an easy mistake, since
+  // that object carries exactly these fields - would otherwise sail past the
+  // guard below and encode a 65-byte image of nothing, which is a far worse
+  // way to find out than an exception.
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
+    throw new Error(
+      `graphic-design: encodePng needs a positive integer width and height, got ${width}x${height}`,
+    );
+  }
   const stride = width * 4;
   if (data.length < stride * height) {
     throw new Error('graphic-design: pixel buffer is smaller than the image it describes');

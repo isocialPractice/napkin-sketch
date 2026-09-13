@@ -423,6 +423,159 @@ function verdict(step, band) {
 }
 
 /**
+ * Path data as it is written in the file, in document order.
+ *
+ * Compared as strings on purpose. A frame that was *posed* carries its pose in
+ * `transform` attributes and leaves the `d` of every path exactly as it found
+ * it, so the strings match byte for byte. A frame that was *redrawn* has new
+ * numbers everywhere, and no tolerance is needed to see the difference.
+ */
+function pathData(text) {
+  return (text.match(/\sd\s*=\s*"([^"]*)"/g) ?? []).map((s) => s.slice(s.indexOf('"') + 1, -1));
+}
+
+/**
+ * Was this frame posed, or was it drawn again from scratch?
+ *
+ * This is the failure that costs a whole run, and it is invisible to every
+ * other check here: the figure is complete, every layer is present, the file
+ * opens - and the geometry has been re-emitted rather than moved, so limbs
+ * drift off their joints and proportions wander between frames. It reads as a
+ * bad drawing rather than as a broken process, which is why it survives a
+ * review by eye.
+ *
+ * The signature is exact. Posing sets `transform` on an assembly and touches no
+ * path data; redrawing rewrites the path data and sets no transform. A frame
+ * with neither a single transform nor a single shared path is the second thing,
+ * with no room for doubt.
+ */
+export function poseCheck(posedText, fromText) {
+  const posed = pathData(posedText);
+  const from = new Set(pathData(fromText));
+  const shared = posed.filter((d) => from.has(d)).length;
+  const transforms = (posedText.match(/\stransform\s*=\s*"/g) ?? []).length;
+  const kept = posed.length === 0 ? 1 : shared / posed.length;
+  return {
+    transforms,
+    shared,
+    total: posed.length,
+    kept,
+    // Both halves have to hold. A frame posed by transform keeps its paths; one
+    // that kept its paths and also carries no transform simply did not move,
+    // which the frozen-layer check reports in its own words.
+    redrawn: transforms === 0 && kept < 0.5,
+  };
+}
+
+/**
+ * The findings, in the order they are worth fixing.
+ *
+ * Ordered rather than listed because a run has a budget: the first entry is the
+ * one to spend the next pass on, and a defect further down is often a symptom
+ * of the one above it. A redrawn frame, for instance, produces wild travel
+ * numbers and frozen layers at the same time, and fixing those two directly
+ * would be treating the smoke.
+ */
+export function findings(step, band, pose) {
+  const out = [];
+
+  if (pose.redrawn) {
+    out.push({
+      severity: 'redrawn',
+      text:
+        `the geometry was re-emitted, not posed: ${pose.shared} of ${pose.total} paths match the ` +
+        `frame it came from, and no group carries a transform.\n` +
+        `      Pose the source instead - one \`transform\` per assembly group, path data untouched. ` +
+        `Everything below is a symptom of this and will settle once it is fixed.`,
+    });
+    // The travel numbers are measured against geometry that was never posed, so
+    // reporting them as pose defects would send the next pass after a ghost.
+    return out;
+  }
+
+  for (const [part, value] of [
+    ['bob', Math.abs(step.bob)],
+    ...['leg', 'arm', 'head', 'clothing']
+      .filter((p) => step.parts[p] !== undefined)
+      .map((p) => [p, step.parts[p]]),
+  ]) {
+    const span = band?.[part];
+    if (!span) continue;
+    if (value > span.high) {
+      out.push({
+        severity: 'over',
+        text:
+          `${part} travelled ${value.toFixed(1)}%, past the ${span.high}% a drawn frame reaches. ` +
+          `Scale that rotation back toward ${span.typical}%.`,
+      });
+    } else if (value < span.low) {
+      out.push({
+        severity: 'under',
+        text:
+          `${part} travelled ${value.toFixed(1)}%, short of the ${span.low}% a drawn frame moves. ` +
+          `A part that barely moves reads as pinned; aim for ${span.typical}%.`,
+      });
+    }
+  }
+
+  if (step.layersFrozen.length) {
+    out.push({
+      severity: 'frozen',
+      text:
+        `${step.layersFrozen.length} layer(s) never moved: ${step.layersFrozen.join(', ')}.\n` +
+        `      A walk carries the whole figure. A torso held still while the legs swing is the ` +
+        `pose that reads as a stretch rather than a stride.`,
+    });
+  }
+
+  return out;
+}
+
+/**
+ * The grade, and whether there is budget left to act on it.
+ *
+ * `passes` is the stop flag, and it is a flag rather than a suggestion: a run
+ * that keeps revising is a run the app kills at five minutes with nothing
+ * saved, and a decent frame on disk beats a perfect one that never arrives. On
+ * the last pass the verdict says `save` rather than `revise` - the findings are
+ * still printed, because what is wrong with the frame belongs in the reply.
+ */
+export function grade(step, band, pose, { pass = 1, passes = 2 } = {}) {
+  const list = findings(step, band, pose);
+  const clean = list.length === 0;
+  const last = pass >= passes;
+  return {
+    findings: list,
+    verdict: clean ? 'pass' : last ? 'save' : 'revise',
+    pass,
+    passes,
+  };
+}
+
+/** The grade as the lines a caller reads. */
+function gradeReport(result) {
+  const lines = [];
+  const { verdict, pass, passes, findings: list } = result;
+  lines.push('');
+  lines.push(`   GRADE  ${verdict}  (pass ${pass} of ${passes})`);
+  if (list.length === 0) {
+    lines.push('   Every part moved, and moved as far as a drawn frame does. Save it.');
+  } else {
+    list.forEach((f, i) => lines.push(`   ${i + 1}. ${f.text}`));
+    if (verdict === 'save') {
+      lines.push(
+        '   No passes left. Save the better of what you have and say in your reply what is',
+        '   still wrong with it - an unreported defect is worse than a reported one.',
+      );
+    } else {
+      lines.push('   Fix finding 1, render again, and grade again.');
+    }
+  }
+  lines.push(`VERDICT: ${verdict}`);
+  return lines.join('\n');
+}
+
+/**
  * A frame's layers with every group transform already resolved into the path
  * data, as markup the measuring code can read.
  *
@@ -445,8 +598,10 @@ function bakedFrameMarkup(inner, classes) {
 }
 
 async function compare(fromFile, toFile, type) {
+  const texts = {};
   const read = async (f) => {
     const text = await readFile(resolve(f), 'utf-8');
+    texts[f] = text;
     const top = childGroups(text);
     // A saved frame is one root group wrapping the assemblies, and it is the
     // assemblies that have to be measured - so the frame's own inside is the
@@ -459,7 +614,11 @@ async function compare(fromFile, toFile, type) {
   if (!a || !b) return null;
   const step = measureStep(a, b);
   const all = await budgets();
-  return { step, band: all?.[type] ?? null };
+  // The pose check reads the files as text rather than as measurements: what it
+  // is looking for is whether the path data survived, and a measurement of the
+  // drawing cannot tell you that.
+  const pose = poseCheck(texts[toFile], texts[fromFile]);
+  return { step, band: all?.[type] ?? null, pose };
 }
 
 // --------------------------------------------------------------------- cli
@@ -474,6 +633,10 @@ function parseArgs(argv) {
     else if (a === '--frame') opts.frame = argv[++i];
     else if (a === '--against') opts.against = argv[++i];
     else if (a === '--type') opts.type = argv[++i];
+    else if (a === '--grade') opts.grade = true;
+    else if (a === '--strict') { opts.grade = true; opts.strict = true; }
+    else if (a === '--pass') opts.pass = Number(argv[++i]);
+    else if (a === '--passes') opts.passes = Number(argv[++i]);
     else rest.push(a);
   }
   opts.file = rest[0];
@@ -486,6 +649,7 @@ async function run() {
     console.error('frame-preview: name an SVG to render.');
     console.error('  npm run frame-preview -- <file.svg> [--out p.png] [--scale 4]');
     console.error('                          [--frame <id>] [--against <previous.svg>]');
+    console.error('                          [--grade] [--strict] [--pass 1] [--passes 2]');
     process.exitCode = 1;
     return;
   }
@@ -516,6 +680,19 @@ async function run() {
         `\n   ${frozen.length} layer(s) did not move at all: ${frozen.join(', ')}.` +
           '\n   A part left at the same place in every frame was copied, not posed.',
       );
+    }
+
+    if (opts.grade) {
+      const graded = grade(result.step, result.band, result.pose, {
+        pass: Number.isFinite(opts.pass) ? opts.pass : 1,
+        passes: Number.isFinite(opts.passes) ? opts.passes : 2,
+      });
+      console.log(gradeReport(graded));
+      // `--strict` is for a caller that branches on the exit code. On its own,
+      // `--grade` stays quiet in that channel: a non-zero exit from a preview
+      // reads as "the tool broke" to whatever is watching, and the tool did
+      // not - the frame did.
+      if (opts.strict && graded.verdict !== 'pass') process.exitCode = 2;
     }
   }
 }

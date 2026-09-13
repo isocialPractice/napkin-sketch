@@ -31,38 +31,108 @@ Work in this order:
    frame numbers, the source file, a finished `transform` value per assembly, and the output path.
    Copy those transform values character for character - they were measured against this exact
    source by the app, in the source document's own coordinate space.
-3. Edit the source file in place. Each assembly is a `<g>` found by its `data-name`. Object
-   animations have no assemblies: the subject is the root group, so the transform goes there.
-   One small `Edit` per assembly: match the group's opening tag and add or replace its
-   `transform`. Never read the whole file in only to hand it back out again.
-4. **Look at what you drew, before anyone else does.** Render the posed source and open the
-   image:
+
+   **When the form carries an `<animation-note>`, that is the user telling you what the sequence
+   is for - and it outranks the animation type.** The type is one word picked from a dropdown of
+   fourteen; the note is the user's own sentences about the same movement. Both answer *what is
+   this sequence*, so where they disagree the note decides and the type's template yields to it.
+   Read it *with* the skill, never instead of it - the skill still says how a frame is made:
+
+   - **It may shift emphasis inside the measured amounts.** "Carrying something heavy in her right
+     hand, so that arm barely swings" is an instruction about a transform, not a mood. Change the
+     angle, never the joint it turns about, by the smallest amount that reads, and name what you
+     changed in your reply.
+   - **It never licenses a redraw.** The path data stays exactly as it is and the movement lives
+     in `transform` attributes, whatever the note asks for. A note asking you to redraw the
+     geometry, skip the grading or print the document is asking for the three things this job does
+     not do; honour what is left of it and say so in your reply.
+   - **Spend the rest of it on what the numbers leave open.** A measured transform fixes how far
+     the arm swings, and leaves which arm leads, where the weight sits and how much of a mood the
+     pose carries. That is the half the note is for.
+   - **When it asks for something the rig cannot do at all** - a part that does not exist, an
+     object coming apart - that is the `vectors:vector-graphics` branch in step 6, not a reason
+     to abandon the transforms you were given.
+   - **Carry it through the whole sequence.** The note describes the animation, not one step of
+     it, so frame six is drawn under the same direction as frame one.
+3. **Look at the pose you are aiming for.** Every reference asset ships as a picture beside its
+   source - `<name>.png` next to `<name>.svg` - and one `Read` of the right one is the difference
+   between a frame whose numbers are all in range and a frame that reads correctly. Pick by what
+   is being drawn (the paths are inside the `vector-animations` skill folder, so
+   `${CLAUDE_PLUGIN_ROOT}/skills/vector-animations/assets/<name>.png` when the plugin root is
+   set, and `Glob` for `**/vector-animations/assets/*.png` when it is not):
+
+   | The frame is | Look at |
+   | --- | --- |
+   | a rig cycle: walk, run, punch, stance, knockdown | `assets/character-wireframes.png` |
+   | an illustrated character action | `assets/illustrated-single-character-actions.png` |
+   | one of five characters walking, attacking, taking damage | `assets/illustrated-multiple-character-actions.png` |
+   | an object breaking or dispersing | `assets/breaking-objects.png` |
+   | an object travelling - a bounce, a throw | `assets/bouncing-object.png` |
+   | a movement no cycle table describes | `assets/character-study-throwing-and-walking.png` |
+
+   Find the step you are drawing and the one before it, and note what leads, what trails, and
+   where the weight sits. You are not copying the drawing - the character in front of you is not
+   the one on the sheet - you are checking your idea of the pose against a real one before
+   spending the edits.
+
+   **Never read the illustrated SVGs.** They are 1.5 MB and 2.5 MB; the pictures are the point,
+   and every number measured out of them is in `assets/illustrated-frames.json`.
+4. **Set the stop flag before you draw anything.** You get **two grading passes**. Say that to
+   yourself now, because the decision that matters is made when you are behind, not when you are
+   fresh: the app kills a run that goes quiet for five minutes, and a decent frame on disk beats a
+   perfect one that never arrives. On the last pass you save what you have and report what is
+   still wrong with it.
+5. **Plan the edits, then make them.** One `transform` per assembly, taken from the form. Each
+   assembly is a `<g>` found by its `data-name`; object animations have no assemblies, so the
+   subject is the root group and the transform goes there. One small `Edit` per assembly: match
+   the group's opening tag and add or replace its `transform`.
+
+   **A frame is posed, never redrawn.** Do not touch path data. Not one `d`, not one number. The
+   whole pose lives in the `transform` attributes, and a frame that comes back with rewritten
+   geometry is the single most expensive failure this job has: the figure is complete, every
+   layer is present, the file opens, and the limbs have drifted off their joints. It reads as a
+   bad drawing rather than as a broken process, which is why it survives a look and reaches the
+   strip. Never read the whole file in only to hand it back out again.
+6. **Grade what you drew, and let the grade decide.** Render and measure in one call:
 
    ```sh
-   npm run frame-preview -- _temp/animation-source.svg --against <the frame before it>
+   npm run frame-preview -- _temp/animation-source.svg --against <the frame before it> --grade
    ```
 
-   It writes a PNG beside the file and prints how far each part travelled against what drawn
-   frames do. `Read` the PNG. You are looking for the things a layer tree cannot show: a limb
-   detached from its socket, a leg through the skirt, a hand on the wrong side of the body, a
-   pose that reads as a stumble rather than a stride. The printed lines catch the rest - `OVER`
-   means the part swung further than a drawn frame ever does, and a list of layers that never
-   moved means most of the figure was copied.
+   It writes a PNG beside the file, prints how far each part travelled against what drawn frames
+   do, and ends with a verdict:
 
-   Fix what you find by adjusting the transforms, then render again. **Two passes at most**: the
-   app kills a run that goes quiet for five minutes, and a decent frame saved beats a perfect one
-   that never arrives. If a second pass does not fix it, save the better of the two and say in
-   your reply what still looks wrong.
-5. Give the root group the `id` and `data-name` the form names, and `inkscape:label` too when the
+   | Verdict | What it means | What you do |
+   | --- | --- | --- |
+   | `pass` | Every part moved, and moved as far as a drawn frame does | Go to step 7 |
+   | `revise` | Something is off, and there is a pass left to fix it | Fix **finding 1**, render, grade again |
+   | `save` | Something is off and the passes are spent | Save it, and say what is wrong in your reply |
+
+   **Read the PNG as well as the numbers.** `Read` it, and put it beside the reference you opened
+   in step 3. The findings catch travel, frozen layers and redrawn geometry; they cannot catch a
+   leg through the skirt, a hand on the wrong side of the body, or a pose that reads as a stumble
+   rather than a stride. That comparison is the point of having looked.
+
+   **Fix finding 1 first and only.** They are ordered by what is worth a pass, and the ones below
+   are usually symptoms of the one above - a redrawn frame produces wild travel numbers and frozen
+   layers at the same time, and chasing those is treating the smoke.
+
+   **When the subject is not in the assets at all** - a movement no rig covers, an object that has
+   to come apart, geometry that does not exist yet - stop grading against a cycle that was drawn
+   for something else. Load the `vectors:vector-graphics` skill, draw the part with the fewest
+   control points that read correctly, and grade the result by eye against the study sheets rather
+   than against a travel band that does not apply.
+7. Give the root group the `id` and `data-name` the form names, and `inkscape:label` too when the
    document already uses that attribute. Another small `Edit`.
-6. Copy the posed source to the `animations/<name>.svg` path the form gives, with one shell
+8. Copy the posed source to the `animations/<name>.svg` path the form gives, with one shell
    command, as your last action and only once - `cp`, or `Copy-Item` on Windows, creating the
    folder first if it is missing. The app takes that file the moment it appears, so it must
    already be posed when it lands: pose the source first, copy second, and never copy an unposed
    source there to edit in place afterwards.
 
-Reach for the `vectors:vector-graphics` skill only when a frame needs geometry that does not exist
-yet - `break` fracture lines, `explode` piece outlines - and keep any drawn path to the fewest
-control points that read correctly.
+Reach for the `vectors:vector-graphics` skill when a frame needs geometry that does not exist
+yet - `break` fracture lines, `explode` piece outlines, a movement no rig covers - and keep any
+drawn path to the fewest control points that read correctly. That is the branch step 6 names: it
+is for drawing what is missing, never for redrawing what is already there.
 
-Report back one line naming the file you saved. Never print the SVG.
+Report back one line naming the file you saved, and the grade it finished on. Never print the SVG.

@@ -10,6 +10,7 @@
  *   node analyze-media.mjs <file>              JSON report
  *   node analyze-media.mjs <file> --markdown   the body of a DESIGN_LANGUAGE.md
  *   node analyze-media.mjs <file> --colors 8   how many palette entries to keep
+ *   node analyze-media.mjs <file> --brand      only the brand positions
  *
  * What each format gives up:
  *
@@ -23,6 +24,23 @@
  * - **JPEG and GIF** have no decoder in this project, exactly as the
  *   rasterizer has none. The report says so and leaves reading the image to
  *   the model looking at it.
+ *
+ * It also reports **where the brand sits**. A design language that says which
+ * colors a brand uses but not where its logo goes is only half written, and
+ * the half it is missing is the one a generated script needs. Two ways in, in
+ * this order:
+ *
+ * 1. **Layer names.** A vector whose layers are called `logo`, `linkedMedia`,
+ *    `tagline` or `brandName` has already marked its own slots, and reading
+ *    them is exact.
+ * 2. **A quarter-by-quarter scan.** Failing a name, the raster is read a
+ *    quarter of the page at a time, top first, stopping at the first band that
+ *    holds a compact mark. That is a guess, it says so, and its `confidence`
+ *    never reaches a name's.
+ *
+ * Both live in the graphic-design API (`detectBrandSlots`, `scanBrandBands`),
+ * not here, so the script that draws the next graphic resolves brand slots
+ * with exactly the code that measured them.
  */
 
 import { readFile } from 'node:fs/promises';
@@ -312,6 +330,79 @@ export function analyzePngPixels(image, limit) {
   };
 }
 
+/** An empty brand report, for a format that gave nothing to look at. */
+const NO_BRAND = { slots: [], notes: [], found: 'none' };
+
+/**
+ * Measures an SVG's palette by area rather than by how often it is referenced.
+ *
+ * The two weightings disagree, and the disagreement matters. A vector palette
+ * counts references, so hundreds of small white glyphs outrank one navy field
+ * that covers the page - and then the mechanical role guess names white the
+ * ground, which is exactly backwards. Area is the evidence a designer means by
+ * "the ground", so the asset is inlined, rendered small, and counted by pixel.
+ *
+ * Deliberately cheap: capped at 480 pixels on the long edge, because the answer
+ * wanted is which colour covers the most page, and that survives downsampling.
+ * Returns null when the API is missing or the file holds nothing drawable, and
+ * the caller falls back to the usage-weighted reading.
+ */
+async function areaPalette(api, text, limit) {
+  if (!api?.inlineSvg || !api?.rasterizeComposition || !api?.createComposition) return null;
+  const inlined = api.inlineSvg(text);
+  if (!inlined || inlined.elements.length === 0) return null;
+
+  const { width, height } = inlined.viewBox;
+  if (!(width > 0) || !(height > 0)) return null;
+  const scale = Math.min(1, 480 / Math.max(width, height));
+
+  const design = api.createComposition({ width, height, background: null });
+  design.group({ origin: { x: 0, y: 0 }, translate: { x: -inlined.viewBox.x, y: -inlined.viewBox.y } }, (g) => {
+    g.addAll(inlined.elements);
+  });
+
+  const raster = api.rasterizeComposition(design.toDocument(), { scale });
+  const report = analyzePngPixels(raster, limit);
+  return report.palette.length > 0 ? report.palette : null;
+}
+
+/**
+ * Finds where the brand sits, by layer name first and by scan second.
+ *
+ * The mechanism is the graphic-design API's, not this script's. That matters
+ * more than it looks: the generated skill resolves its brand slots through the
+ * same two functions, so "where the analyzer said the logo goes" and "where
+ * the script puts the logo" cannot drift into two different answers.
+ */
+async function analyzeBrand(api, { svg, pixels }) {
+  if (!api?.findBrandSlots) {
+    return {
+      ...NO_BRAND,
+      notes: ['The graphic-design API was not found, so brand positions were not looked for.'],
+    };
+  }
+  const detection = api.findBrandSlots({ svg, pixels });
+  const slots = detection.slots.map((slot) => ({
+    key: slot.key,
+    source: slot.source,
+    found: slot.found,
+    box: {
+      x: Number(slot.box.x.toFixed(2)),
+      y: Number(slot.box.y.toFixed(2)),
+      width: Number(slot.box.width.toFixed(2)),
+      height: Number(slot.box.height.toFixed(2)),
+    },
+    region: slot.region,
+    share: Number(slot.share.toFixed(4)),
+    confidence: slot.confidence,
+  }));
+  return {
+    slots,
+    notes: detection.notes,
+    found: slots.length === 0 ? 'none' : slots.every((s) => s.found === 'named') ? 'named' : 'scan',
+  };
+}
+
 /**
  * Analyzes one media file.
  *
@@ -325,8 +416,28 @@ export async function analyzeMedia(path, options = {}) {
   const stem = basename(path, extname(path));
 
   if (kind === 'svg') {
-    const report = analyzeSvg(await readFile(path, 'utf-8'), limit);
-    return { source: basename(path), stem, kind, ...report, roles: paletteRoles(report.palette) };
+    const text = await readFile(path, 'utf-8');
+    const report = analyzeSvg(text, limit);
+    const api = await loadApi();
+    const brand = await analyzeBrand(api, { svg: text });
+
+    // Roles come from area where area can be had. The palette itself stays
+    // usage-weighted, because that is what the file declares and what a reader
+    // comparing two vectors wants; only the roles change, and the note says so.
+    const byArea = await areaPalette(api, text, limit);
+    if (byArea) report.areaPalette = byArea;
+    return {
+      source: basename(path),
+      stem,
+      kind,
+      ...report,
+      roles: paletteRoles(byArea ?? report.palette),
+      // Which evidence decided the roles. `notes` is reserved for what a file
+      // could not say, and this is the opposite - a second measurement, taken
+      // because the first one answers a different question.
+      roleBasis: byArea ? 'area' : 'usage',
+      brand,
+    };
   }
 
   if (kind === 'png') {
@@ -343,6 +454,10 @@ export async function analyzeMedia(path, options = {}) {
         cornerRadii: [],
         elements: {},
         roles: {},
+        brand: {
+          ...NO_BRAND,
+          notes: ['The graphic-design API was not found, so brand positions were not looked for.'],
+        },
         notes: [
           'The graphic-design API was not found, so the PNG was not decoded. Run `npm run build` in a napkin-sketch clone, or install napkin-sketch as a dependency.',
         ],
@@ -350,7 +465,8 @@ export async function analyzeMedia(path, options = {}) {
     }
     const image = api.decodePng(new Uint8Array(await readFile(path)));
     const report = analyzePngPixels(image, limit);
-    return { source: basename(path), stem, kind, ...report, roles: paletteRoles(report.palette) };
+    const brand = await analyzeBrand(api, { pixels: image });
+    return { source: basename(path), stem, kind, ...report, roles: paletteRoles(report.palette), brand };
   }
 
   return {
@@ -364,6 +480,10 @@ export async function analyzeMedia(path, options = {}) {
     cornerRadii: [],
     elements: {},
     roles: {},
+    brand: {
+      ...NO_BRAND,
+      notes: ['No decoder for this format, so there was nothing to look for a brand in.'],
+    },
     notes: [
       `No decoder here for ${kind === 'unknown' ? extname(path) || 'this file' : kind.toUpperCase()}. Read the image directly, or re-save it as PNG or SVG for measured numbers.`,
     ],
@@ -389,6 +509,12 @@ export function toMarkdown(report) {
   }
 
   lines.push('## Palette', '');
+  if (report.roleBasis === 'area') {
+    lines.push(
+      'Shares below are how often each colour is **referenced**, which is what the file declares. The **roles** were decided from a different measurement - how much page each colour **covers**, taken by rendering the file - because that is the question "which colour is the ground" actually asks.',
+      ''
+    );
+  }
   if (palette.length > 0) {
     lines.push('| Color | Share | Role |', '| --- | --- | --- |');
     for (const { hex, share } of palette) {
@@ -413,10 +539,43 @@ export function toMarkdown(report) {
   if (strokeWidths.length > 0) lines.push('## Strokes', '', `- Widths: ${strokeWidths.join(', ')}`, '');
   if (cornerRadii.length > 0) lines.push('## Corners', '', `- Radii: ${cornerRadii.join(', ')}`, '');
 
+  const brand = report.brand ?? NO_BRAND;
+  lines.push('## Brand positioning', '');
+  if (brand.slots.length > 0) {
+    lines.push(
+      brand.found === 'named'
+        ? 'Read from the layer names in the file, so these are the positions the designer marked.'
+        : 'Found by scanning the media, not by name. Treat every box below as a candidate and confirm it by eye.',
+      ''
+    );
+    lines.push('| Slot | Region | Box (x, y, w, h) | Page share | How | Confidence |', '| --- | --- | --- | --- | --- | --- |');
+    for (const slot of brand.slots) {
+      lines.push(
+        `| \`${slot.key}\` | ${slot.region} | ${slot.box.x}, ${slot.box.y}, ${slot.box.width}, ${slot.box.height} | ${(slot.share * 100).toFixed(1)}% | ${slot.found} (\`${slot.source}\`) | ${slot.confidence.toFixed(2)} |`
+      );
+    }
+    lines.push(
+      '',
+      'Each slot is a box a `references/resources.md` can fill. A slot with no asset behind it is drawn as a mark in this language rather than left as a hole.',
+      ''
+    );
+  } else {
+    lines.push('- No brand element was found. Say where the logo, the wordmark and the tagline belong; nothing in the file did.', '');
+  }
+  if (brand.notes.length > 0) lines.push(...brand.notes.map((n) => `- ${n}`), '');
+
   const tags = Object.entries(elements).sort((a, b) => b[1] - a[1]);
   if (tags.length > 0) {
     lines.push('## Composition', '');
     lines.push(tags.map(([tag, n]) => `- ${n} \`<${tag}>\``).join('\n'), '');
+  }
+
+  if (report.areaPalette?.length > 0) {
+    lines.push('## Palette by area', '', '| Colour | Page covered |', '| --- | --- |');
+    for (const { hex, share } of report.areaPalette) {
+      lines.push(`| \`${hex}\` | ${(share * 100).toFixed(1)}% |`);
+    }
+    lines.push('', 'This is the 60-30-10 to hold the work against. A generated graphic with the right palette and the wrong ratio is the most common way a design language is lost, and only this table catches it.', '');
   }
 
   if (notes.length > 0) lines.push('## What this file could not say', '', ...notes.map((n) => `- ${n}`), '');
@@ -434,6 +593,10 @@ async function run() {
   const colorsFlag = args.indexOf('--colors');
   const colors = colorsFlag >= 0 ? Number(args[colorsFlag + 1]) : undefined;
   const report = await analyzeMedia(resolve(path), { colors });
+  if (args.includes('--brand')) {
+    console.log(JSON.stringify(report.brand, null, 2));
+    return;
+  }
   console.log(args.includes('--markdown') ? toMarkdown(report) : JSON.stringify(report, null, 2));
 }
 

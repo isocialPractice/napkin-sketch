@@ -141,7 +141,7 @@ design.group({ id: 'footer' }, (f) => {
 ## Writing both formats
 
 ```js
-import { writeComposition } from 'napkin-sketch/dist/core/graphic-design/files.js';
+import { writeComposition } from 'napkin-sketch/graphic-design/files';
 
 const { svg, png, warnings } = await writeComposition(design, './out', 'card');
 if (warnings.length > 0) console.warn(warnings.join('\n'));

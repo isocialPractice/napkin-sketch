@@ -1,6 +1,6 @@
 ---
 name: graphic-design-api
-description: 'Compose finished graphics in code through the napkin-sketch graphic-design API, with the visual judgment to make them good. Use when generating or editing a static graphic - a card, poster, banner, social post, badge, diagram, certificate, thumbnail, or template - from a script rather than by hand; when a composition must be produced in both SVG and PNG; when an existing composition script needs its hierarchy, palette, type scale, or spacing improved; or when a design language has to be turned into a working script. Covers the element vocabulary (rectangles, circles, ellipses, triangles, polygons, paths, styled text, placed media, groups, clipping masks), the 360x360 default page and unit system, the shared text layout both renderers measure with, the 60-30-10 color ratio, type scales, WCAG contrast on a static page, and the limits the API is honest about.'
+description: 'Compose finished graphics in code through the napkin-sketch graphic-design API, with the visual judgment to make them good. Use when generating or editing a static graphic - a card, poster, banner, social post, badge, diagram, certificate, thumbnail, or template - from a script rather than by hand; when a composition must be produced in both SVG and PNG; when an existing composition script needs its hierarchy, palette, type scale, or spacing improved; or when a design language has to be turned into a working script; and when a project has already registered one, in which case a request like "make a html cheatsheet" or a bare "generate" is drawn by the skill that was generated for it, with its brand assets already wired in. Covers the element vocabulary (rectangles, circles, ellipses, triangles, polygons, paths, styled text, placed media, groups, clipping masks), the 360x360 default page and unit system, the shared text layout both renderers measure with, the 60-30-10 color ratio, type scales, WCAG contrast on a static page, and the limits the API is honest about.'
 ---
 
 # Graphic Design API
@@ -25,11 +25,64 @@ repeat.
   arbitrary spacing
 - A captured design language (see the `design-language` skill) has to become a
   working script
+- A project has already captured one, and a graphic is wanted in it - see the
+  next section before writing anything
+
+## First: check whether you are already wired up
+
+Before composing anything from scratch, look for a registration. A project that
+has captured a design language has already written down which skill draws in
+it, which brand it draws with, and where the output goes - and using that beats
+writing a new script that agrees with it by luck.
+
+```bash
+node ai-helper/graphic-designer/skills/design-language/scripts/brand-resources.mjs --registration
+```
+
+It reads `references/graphic-design-api.json`, found by walking up from the
+working directory, and prints the skill, its script, the project's
+`resources.md`, the output folder, the modes the script can draw, and the
+command that satisfies a request. `registration: none` means nothing is wired
+up and the rest of this page applies as written.
+
+**When there is one, run what it prints.** The whole point of the registration
+is that the request is the only input:
+
+```text
+/graphic-design-api make a html cheatsheet. ensure to include linked assets
+/graphic-design-api generate
+```
+
+Both reach the same command. The first matches the word `cheatsheet` to a mode;
+the second matches nothing and falls through to the registered
+`defaultRequest`, which is what a project set when it wired itself up. A bare
+`generate`, an empty request, or anything else with no mode keyword in it means
+"draw the default".
+
+Three things follow that are worth being clear about:
+
+- **Do not ask the caller to name the assets.** "Ensure to include linked
+  assets" is a reasonable thing for somebody to say and an unnecessary one. If
+  `resources.md` names files that exist, every graphic carries them; if it does
+  not, every graphic is still complete, with brand areas drawn in the design
+  language. Either way the caller had nothing to add.
+- **Do not rewrite the generated script to change content.** It takes
+  `--title`, `--heading`, `--body`, `--footer`, `--name` and `--scale`. Pass
+  them. Editing the script is for changing the *language*, and the constants at
+  the top of it are the language.
+- **Report what it wrote and what the brand resolved to.** The script prints
+  both. A graphic drawn with a monogram where a logo should be is the quiet
+  failure mode, and the line that says `Brand: 0 assets` is the one that catches
+  it.
+
+To wire a project up in the first place, or to re-wire it after moving things,
+that is the `design-language` skill's job - `generate-skill.mjs` writes the
+registration as its last step.
 
 ## The API in one page
 
 ```js
-import { createComposition } from 'napkin-sketch';
+import { createComposition, placeBrand } from 'napkin-sketch';
 
 const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
 
@@ -44,6 +97,9 @@ design.text({ x: 180, y: 78, text: 'Acme Corp', align: 'center', fontSize: 28, f
 design.image({ src: dataUrl, x: 116, y: 156, width: 128, height: 128, fit: 'cover', clip: 'badge' });
 design.group({ translate: { x: 0, y: 240 } }, (g) => { /* children */ });
 design.defineClip('badge', { type: 'circle', cx: 180, cy: 220, r: 64 });
+
+// A vector asset, inlined as shapes so the PNG draws it too.
+placeBrand(design, { x: 292, y: 13, width: 45, height: 24 }, { kind: 'vector', svg: logoMarkup }, { fit: 'contain' });
 
 const svg = design.toSVG();
 const png = design.toPNG();
@@ -147,6 +203,19 @@ What follows from that:
 - **Place media by its box, and let `fit` do the rest.** `cover` fills and
   crops, `contain` fits and letterboxes. Choosing the wrong one is the most
   common way a placed logo ends up distorted.
+- **Place a vector by inlining it, not by linking it.** `placeBrand` reads an
+  SVG asset's shapes into the composition:
+
+  ```js
+  // A free function, not a method: it takes the composition or group first.
+  placeBrand(design, box, { kind: 'vector', svg: logoMarkup }, { fit: 'contain' });
+  ```
+
+  The reason is in the limits below: the rasterizer decodes PNG and nothing
+  else, so an `image` element holding an SVG data URL renders in the vector
+  export and is a hole in the raster. Inlining makes both renderers draw it, and
+  it stays vector, so it scales without going soft. `inlineSvg` is the same
+  machinery if you want the shapes rather than the placement.
 - **Order is depth.** Later elements paint over earlier ones. There is no
   z-index to reach for and no elevation model - if something needs to sit on
   top, it goes later in the list.
@@ -162,7 +231,11 @@ Named plainly, because designing around a limit beats discovering it:
 - **Raster text uses the built-in alphabet** (above).
 - **JPEG, GIF and SVG placements need a decoder to rasterize.** They embed in
   the SVG with no help; the PNG path decodes PNG only, and reports the rest in
-  `warnings` rather than failing the whole render.
+  `warnings` rather than failing the whole render. For SVG there is a way
+  around it that costs nothing: `inlineSvg` / `placeBrand` turn the asset into
+  elements, which both renderers draw. Gradients, patterns, filters, `<use>`
+  and elliptical arcs do not survive that translation and are reported in
+  `notes` rather than approximated.
 - **No shadows.** Depth comes from contrast, scale, and overlap.
 
 ## Gotchas
@@ -187,7 +260,8 @@ Named plainly, because designing around a limit beats discovering it:
 | Small text in the PNG is grey mush | The built-in alphabet's stroke is under a device pixel at that size; raster at `scale: 2` or `3` |
 | Text overflows the page | Set `maxWidth`, and check `align` against what `x` means under it |
 | Placed image is distorted | `fit: 'fill'` stretches; use `cover` or `contain` |
-| Image missing from the PNG but present in the SVG | Not a PNG data URL; pass a `decodeImage`, or convert the asset |
+| Image missing from the PNG but present in the SVG | Not a PNG data URL; for an SVG use `placeBrand`/`inlineSvg`, otherwise pass a `decodeImage` or convert the asset |
+| A brand slot is empty in the output | The asset did not resolve; the fallback draws a mark rather than a hole, so check `resources.md` rather than the script |
 | Colors look right in the SVG, wrong in the PNG | An opacity or a clip is compounding; check `rasterize().warnings` first |
 | Shape has a hole it should not have | `fillRule` - `evenodd` punches where `nonzero` unions |
 | Stroke looks heavier than specified | A group transform is scaling it |

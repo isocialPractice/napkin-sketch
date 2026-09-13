@@ -27,6 +27,12 @@
  * Re-baselining is deliberate: copy the live skill over this one, run
  * `npm test`, and read what changed. A fixture that drifts silently is worse
  * than one that is out of date loudly.
+ *
+ * Re-baselined 2026-09-12 to carry brand slots. `compose` and
+ * `composeCheatsheet` now take an optional `brand`, resolved from
+ * `references/resources.md` by `scripts/brand-resources.mjs`; without one every
+ * slot falls back to exactly what this script drew before, which is why the
+ * existing standards in `test/generated-skill.test.ts` still hold.
  * ---------------------------------------------------------------------------
  */
 
@@ -34,6 +40,8 @@ import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { brandInstructions, resolveBrand } from './brand-resources.mjs';
 
 /** The palette, in roles. The shares are the 60-30-10 the source measured. */
 const PALETTE = {
@@ -95,6 +103,24 @@ function monoWidth(text, size) {
   return text.length * size * MONO_ADVANCE;
 }
 
+/** The skill folder, so `references/resources.md` is found beside it. */
+const SKILL_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+/**
+ * A brand with nothing behind it.
+ *
+ * Every composing function takes a brand and this is the default, so a caller
+ * who has no `resources.md` - and every existing caller, including the test
+ * suite's own renderer - gets the composition this script drew before brand
+ * slots existed. That is the property worth keeping: configuring a brand adds
+ * marks to a page that was already complete without them.
+ */
+const NO_BRAND = {
+  has: () => false,
+  textFor: () => null,
+  place: (list, key, box) => ({ placed: false, mode: 'none', box, notes: [] }),
+};
+
 /**
  * Finds the napkin-sketch graphic-design API: the package when it is a
  * dependency, otherwise a clone's build output. Mirrors how the analyzer finds
@@ -125,7 +151,7 @@ async function loadApi() {
  * Horizontal bands, which is what the source does and what keeps it legible
  * small: a title on the ground, a rule, a white plate, a panel, a footer bar.
  */
-export function compose(api, { title, heading, body, footer }) {
+export function compose(api, { title, heading, body, footer, brand = NO_BRAND }) {
   const design = api.createComposition({
     width: PAGE.width,
     height: PAGE.height,
@@ -133,14 +159,21 @@ export function compose(api, { title, heading, body, footer }) {
     title: heading,
   });
 
+  // The title band carries the brand mark at its right, in the box the source
+  // asset's own `logo` layer occupies. With no asset configured the band is
+  // just the title, which is what this card was before.
+  const logoSlot = { x: PAGE.width - PAGE.margin - 45, y: 13, width: 45, height: 24 };
+  brand.place(design, 'logo', logoSlot, { fit: 'contain', fallback: false });
+
   design.text({
     x: PAGE.margin,
     y: 32,
-    text: title,
+    text: brand.textFor('brandName') ?? title,
     fontFamily: TYPE.displayFamily,
     fontSize: TYPE.display,
     letterSpacing: 1.2,
     transform: 'uppercase',
+    maxWidth: brand.has('logo') ? logoSlot.x - PAGE.margin - 8 : undefined,
     fill: PALETTE.paper,
   });
 
@@ -227,18 +260,36 @@ export function compose(api, { title, heading, body, footer }) {
     height: STROKE.bar,
     fill: PALETTE.accent,
   });
+  footerBand(design, brand, footer);
+
+  return design;
+}
+
+/**
+ * Sets the footer band: a linked asset if one is configured, otherwise type.
+ *
+ * The source asset puts a `linkedMedia` strip here, so a configured brand's
+ * footer artwork belongs in the same place. `fallback: false` matters - the
+ * alternative to a placed strip is a line of type, not a monogram, and a slot
+ * that drew a monogram here would be filling the space rather than reading the
+ * design language.
+ */
+function footerBand(design, brand, footer) {
+  const band = { x: PAGE.margin, y: PAGE.height - 40, width: PAGE.width - PAGE.margin * 2, height: 26 };
+  const placed = brand.place(design, 'linkedMedia', band, { fit: 'contain', fallback: false });
+  if (placed.placed) return placed;
+
   design.text({
     x: PAGE.margin,
     y: PAGE.height - 20,
-    text: footer,
+    text: brand.textFor('domain') ?? footer,
     fontFamily: TYPE.textFamily,
     fontSize: TYPE.small,
     transform: 'uppercase',
     letterSpacing: 0.6,
     fill: PALETTE.ink,
   });
-
-  return design;
+  return placed;
 }
 
 /**
@@ -307,7 +358,7 @@ function codeLine(design, api, x, baseline, tokens, size) {
  * left edge by an accent margin, and a paper footer. The card and the
  * cheatsheet are the same language wearing different content.
  */
-export function composeCheatsheet(api, { title, heading, subheading, rows, footer }) {
+export function composeCheatsheet(api, { title, heading, subheading, rows, footer, brand = NO_BRAND }) {
   const design = api.createComposition({
     width: PAGE.width,
     height: PAGE.height,
@@ -322,6 +373,7 @@ export function composeCheatsheet(api, { title, heading, subheading, rows, foote
   // rather than against what the caller passed.
   const badgeX = PAGE.width - PAGE.margin - 54;
   const fitted = fitDisplay(api, title.toUpperCase(), badgeX - PAGE.margin - 8, 1.2);
+  const badge = { x: badgeX, y: 16, width: 54, height: 20 };
   design.text({
     x: PAGE.margin,
     y: 32,
@@ -334,19 +386,22 @@ export function composeCheatsheet(api, { title, heading, subheading, rows, foote
   });
 
   // The badge is the source's own device: a small accent block in the title
-  // band, marking the topic. Structure, not content.
-  design.rect({ x: badgeX, y: 16, width: 54, height: 20, fill: PALETTE.accent });
-  design.text({
-    x: PAGE.width - PAGE.margin - 27,
-    y: 30,
-    text: 'cheatsheet',
-    fontFamily: TYPE.textFamily,
-    fontSize: TYPE.caption,
-    align: 'center',
-    transform: 'uppercase',
-    letterSpacing: 0.4,
-    fill: PALETTE.ground,
-  });
+  // band, marking the topic. Structure, not content - which is exactly why a
+  // configured logo goes here instead. Same box, same role on the page.
+  if (!brand.place(design, 'logo', badge, { fit: 'contain', fallback: false }).placed) {
+    design.rect({ ...badge, fill: PALETTE.accent });
+    design.text({
+      x: PAGE.width - PAGE.margin - 27,
+      y: 30,
+      text: 'cheatsheet',
+      fontFamily: TYPE.textFamily,
+      fontSize: TYPE.caption,
+      align: 'center',
+      transform: 'uppercase',
+      letterSpacing: 0.4,
+      fill: PALETTE.ground,
+    });
+  }
 
   design.line({
     x1: PAGE.margin,
@@ -408,16 +463,7 @@ export function composeCheatsheet(api, { title, heading, subheading, rows, foote
     height: STROKE.bar,
     fill: PALETTE.accent,
   });
-  design.text({
-    x: PAGE.margin,
-    y: PAGE.height - 20,
-    text: footer,
-    fontFamily: TYPE.textFamily,
-    fontSize: TYPE.small,
-    transform: 'uppercase',
-    letterSpacing: 0.6,
-    fill: PALETTE.ink,
-  });
+  footerBand(design, brand, footer);
 
   return design;
 }
@@ -457,8 +503,11 @@ async function run() {
   const api = await loadApi();
   const cheatsheet = args.includes('--cheatsheet');
 
+  const brand = await resolveBrand({ api, path: flag('resources'), skillDir: SKILL_DIR });
+
   const design = cheatsheet
     ? composeCheatsheet(api, {
+        brand,
         title: flag('title', 'HTML'),
         heading: flag('heading', 'HTML Document Structure Starting Point'),
         subheading: flag('subheading', 'Head, Body, and the Tags Worth Memorizing'),
@@ -466,6 +515,7 @@ async function run() {
         footer: flag('footer', 'jane.doe@example.com'),
       })
     : compose(api, {
+        brand,
         title: flag('title', 'Acme Corp'),
         heading: flag('heading', 'Quarterly Summary Starting Point'),
         body: flag(
@@ -491,6 +541,8 @@ async function run() {
   await writeFile(join(out, `${name}.svg`), design.toSVG(), 'utf-8');
   await writeFile(join(out, `${name}.png`), design.toPNG({ scale }));
   console.log(`wrote ${join(out, `${name}.svg`)} and ${join(out, `${name}.png`)} (raster at ${scale}x)`);
+  console.log('');
+  console.log(brandInstructions(brand));
 }
 
 const invoked = process.argv[1] ? resolve(process.argv[1]) : '';

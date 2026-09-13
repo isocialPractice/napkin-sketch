@@ -72,7 +72,7 @@ const KEEP_GRAPHICS = /^(1|true|yes)$/i.test(process.env.NAPKIN_KEEP_TEST_GRAPHI
 
 /** The footer mark the placement cases embed, as a data URL. */
 function logoDataUrl(): string {
-  const bytes = readFileSync(join(SAMPLES, 'links', 'footer.png'));
+  const bytes = readFileSync(join(SAMPLES, 'reference-graphics', 'links', 'footer.png'));
   return `data:image/png;base64,${bytes.toString('base64')}`;
 }
 

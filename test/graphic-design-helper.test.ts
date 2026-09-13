@@ -46,8 +46,16 @@ const FIXTURES = join(ROOT, 'test', 'graphic-design-api', 'skill');
 
 /** The two fixtures, and what each should point at. */
 const LINKS = [
-  { name: 'cheatsheet_js-composition.svg', target: '../created-svg_graphic-api.svg' },
-  { name: 'cheatsheet_js-composition.png', target: '../created-png_graphic-api.png' },
+  { name: 'cheatsheet_js-composition.svg', target: '../reference-graphics/created-svg_graphic-api.svg' },
+  { name: 'cheatsheet_js-composition.png', target: '../reference-graphics/created-png_graphic-api.png' },
+];
+
+/** The brand assets `npm run test:graphic-design-api` draws with. */
+const ASSETS = join(ROOT, 'test', 'graphic-design-api', 'test-assets');
+
+const ASSET_LINKS = [
+  { name: 'logo.svg', target: '../reference-graphics/links/logo.svg' },
+  { name: 'footer.png', target: '../reference-graphics/links/footer.png' },
 ];
 
 /** One analyzer report, as the JSON the script prints. */
@@ -62,6 +70,13 @@ interface Report {
   cornerRadii: number[];
   elements: Record<string, number>;
   roles: { paper?: string; ink?: string; accent?: string };
+  roleBasis?: 'area' | 'usage';
+  areaPalette?: Array<{ hex: string; share: number }>;
+  brand: {
+    found: 'named' | 'scan' | 'none';
+    slots: Array<{ key: string; source: string; found: string; region: string; confidence: number }>;
+    notes: string[];
+  };
   notes: string[];
 }
 
@@ -117,6 +132,77 @@ test('the symlinks are committed as symlinks, with portable targets', () => {
     assert.equal(stored, target, `${name} stores a target that will not resolve everywhere`);
     assert.ok(!stored.includes('\\'), `${name} stores a backslash path`);
   }
+});
+
+test('the brand assets are symlinks that resolve on any clone', () => {
+  // The defect this exists for: a symlink whose target is written from the
+  // repository root rather than from the link's own directory. It resolves
+  // nowhere, and because a missing brand asset falls back to a drawn mark
+  // rather than failing, the graphics come out looking plausible and wrong.
+  const listed = execFileSync('git', ['ls-files', '-s', 'test/graphic-design-api/test-assets/'], {
+    cwd: ROOT,
+    encoding: 'utf-8',
+  }).trim();
+
+  for (const { name, target } of ASSET_LINKS) {
+    const path = join(ASSETS, name);
+    assert.ok(existsSync(path), `${name} does not resolve - check its target`);
+    assert.ok(statSync(path).size > 0, `${name} resolves to an empty file`);
+
+    const link = lstatSync(path);
+    if (link.isSymbolicLink()) {
+      assert.equal(readlinkSync(path).replace(/\\/g, '/'), target, `${name} points somewhere else`);
+    }
+
+    const row = listed.split('\n').find((line) => line.endsWith(name));
+    assert.ok(row, `${name} is not in the index`);
+    assert.match(row, /^120000 /, `${name} is committed as a file, not a symlink`);
+
+    const stored = execFileSync('git', ['cat-file', '-p', row.split(/\s+/)[1]], {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+    assert.equal(stored, target, `${name} stores a target that will not resolve everywhere`);
+    assert.ok(stored.startsWith('../'), `${name} stores a repository-relative target`);
+    assert.ok(!stored.includes('\\'), `${name} stores a backslash path`);
+  }
+});
+
+test('the analyzer reports where the brand sits, and how it knows', () => {
+  const report = analyze(join(ROOT, 'test', 'graphic-design-api', 'reference-graphics', 'created-svg_graphic-api.svg'));
+
+  assert.ok(report.brand, 'a report should carry a brand section');
+  assert.equal(report.brand.found, 'named', 'this asset names its own layers');
+
+  const logo = report.brand.slots.find((s) => s.key === 'logo');
+  assert.ok(logo, `no logo slot in ${report.brand.slots.map((s) => s.key).join(', ')}`);
+  assert.equal(logo?.region, 'top-right');
+  assert.equal(logo?.found, 'named');
+
+  // A design language that cannot say where the logo goes is half written, so
+  // the markdown body has to carry the slots, not just the JSON.
+  const markdown = execFileSync(
+    process.execPath,
+    [ANALYZER, join(ROOT, 'test', 'graphic-design-api', 'reference-graphics', 'created-svg_graphic-api.svg'), '--markdown'],
+    { cwd: ROOT, encoding: 'utf-8' }
+  );
+  assert.match(markdown, /^## Brand positioning$/m);
+  assert.match(markdown, /\| `logo` \| top-right \|/);
+});
+
+test('an SVG palette is cross-checked by area, which is what decides the roles', () => {
+  const report = analyze(join(FIXTURES, 'cheatsheet_js-composition.svg'));
+
+  // The two weightings answer different questions. References say what the file
+  // declares; area says what covers the page, and "which colour is the ground"
+  // is an area question. The shipped worked example had to correct this by
+  // hand, which is the reason it is measured now.
+  assert.equal(report.roleBasis, 'area', 'an SVG that renders should have its roles decided by area');
+  assert.ok((report.areaPalette?.length ?? 0) > 0, 'the area measurement should be reported');
+
+  const byArea = report.areaPalette ?? [];
+  assert.ok(byArea[0].share > report.palette[0].share * 0.5, 'the ground should cover a real share of the page');
+  assert.notEqual(byArea[0].hex, report.palette[0].hex, 'and it is not the most-referenced colour here');
 });
 
 test('the analyzer measures an SVG down to its type and structure', () => {
@@ -182,7 +268,7 @@ test('both formats of one graphic yield the same design language', () => {
 });
 
 test('a format with no decoder reports that, rather than an empty design', () => {
-  const report = analyze(join(ROOT, 'test', 'graphic-design-api', 'links', 'data.pdf'));
+  const report = analyze(join(ROOT, 'test', 'graphic-design-api', 'reference-graphics', 'links', 'data.pdf'));
 
   assert.equal(report.palette.length, 0);
   assert.ok(report.notes.length > 0, 'an unreadable file must say why it read as nothing');

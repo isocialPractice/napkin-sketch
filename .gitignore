@@ -16,6 +16,14 @@ animations/
 ai-helper/installed.json
 reviews/
 
+# The project's own brand wiring, written by `npm run test:graphic-design-api`
+# and by `generate-skill.mjs`. Generated state, like `ai-helper/installed.json`:
+# `resources.md` names whichever assets this checkout points at, and
+# `graphic-design-api.json` carries a generation timestamp, so tracking either
+# would make every run a diff. Root-anchored on purpose - the helper skill's own
+# `references/` folder is tracked source.
+/references/
+
 # Local helper scripts for the machine they were written on - Illustrator
 # .jsx/.js run by hand, one-off utilities, anything tied to a personal setup.
 # They are not part of the build and are not meant to ship with the repo.

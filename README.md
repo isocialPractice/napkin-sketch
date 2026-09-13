@@ -1120,12 +1120,58 @@ folder the helper was installed to - carrying that language plus a script that
 composes new work in it through the API. The point is that a repeated graphics
 job stops being a brief somebody re-explains each time.
 
+**It also finds where the brand goes, and lets you fill it.** A design language
+measured from one asset can say which box the logo occupies and never which
+logo, because that is not a property of the file it measured. The generated
+skill carries a `references/resources.md` for the second half:
+
+```md
+- logo: assets/logo.svg
+- GLOBAL_ASSETS: assets/brand/
+- brand name: Acme Corp.
+- domain: example.com
+```
+
+In a `GLOBAL_ASSETS` folder the file name is the slot it fills, so `logo.svg`
+fills the logo and `footer.png` the footer - adding an asset to the folder is
+the whole of adding it to the brand. Three properties make it worth having:
+nothing ever has to *ask* for the linked assets, a vector asset is inlined as
+shapes so it draws in the PNG as well as the SVG, and a slot with nothing behind
+it is filled with a mark in the design language rather than left as a hole. A
+page with no brand configured is still a finished page.
+
+The positions themselves are measured, not assumed: a vector whose layers are
+named `logo`, `linkedMedia`, `tagline` or `brandName` has marked its own slots,
+and failing a name the media is scanned a quarter of the page at a time, top
+first. The report says which of the two it was - a name is exact, a scan is a
+guess, and only one of them should be trusted without a look.
+
+**And it leaves itself usable.** Generating a skill writes
+`references/graphic-design-api.json`, which records the script, the project's
+`resources.md`, where output goes, and what to draw when the request does not
+say. That file is the difference between a skill that exists and one that can
+be used without a manual, because it lets a request become a command with
+nothing else supplied:
+
+```text
+/graphic-design-api make a html cheatsheet. ensure to include linked assets
+/graphic-design-api generate
+```
+
+Both draw the same graphic. The first matches `cheatsheet` to a drawing mode;
+the second matches nothing and falls through to the registered default. The
+second sentence of the first line has never been necessary - linked assets are
+included whenever `resources.md` names files that exist.
+
 **It measures before it judges.** `skills/design-language/scripts/analyze-media.mjs`
 is a dependency-free CLI that reports what a file actually says:
 
 ```bash
 node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs asset.svg --colors 12
 node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs asset.svg --markdown
+node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs asset.svg --brand
+node ai-helper/graphic-designer/skills/design-language/scripts/generate-skill.mjs asset.svg --to .claude/skills
+node ai-helper/graphic-designer/skills/design-language/scripts/brand-resources.mjs --print
 ```
 
 | Format | Palette | Type | Strokes, radii, structure |
@@ -1133,6 +1179,13 @@ node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs
 | SVG | yes, weighted by how often each class is referenced | yes | yes |
 | PNG | yes, decoded and quantized from the pixels | no | no |
 | JPEG, GIF, WebP | no decoder | no | no |
+
+One measurement is taken twice, deliberately. A vector palette counts how often
+each colour is *referenced*; the analyzer also renders the file and counts how
+much page each colour *covers*. Roles come from the second, because "which
+colour is the ground" is an area question - hundreds of small white glyphs
+outnumber one navy field that covers the page, and reference count gets it
+exactly backwards. Both tables go in the design language file.
 
 **The honesty is the feature.** An empty palette means "not measured", never
 "no colors", and the report names what it could not read. A design language
@@ -1301,6 +1354,15 @@ reference, every element's properties, and worked examples are in
 [graphic-designer](#the-graphic-designer-helper), which reads an existing
 graphic into a design language and generates scripts that compose more like it.
 
+A composition can also place a brand's own files. `placeBrand` puts a resolved
+asset into a slot, and for a vector it **inlines the asset's shapes** rather
+than linking it - the rasterizer decodes PNG and nothing else, so a linked SVG
+logo would render in the SVG and be a hole in the PNG, silently. A slot with no
+asset behind it is filled by `brandMark` with a monogram in the design
+language's own palette, so a page is never left with a gap where a logo should
+be. [API-QUICKSTART.md](API-QUICKSTART.md#5-give-it-your-brand) is the short
+version, from a clone to a branded graphic.
+
 ## Packaging a desktop installer
 
 napkin-sketch builds native installers with **electron-builder** (configured in
@@ -1322,6 +1384,7 @@ on the fly by esbuild, so no separate compile step is needed.
 
 ```bash
 npm test
+npm run test:graphic-design-api   # the design-language pipeline, end to end
 ```
 
 Suites cover the geometry utilities, the auto-sharpen classifier and transforms,
@@ -1331,6 +1394,23 @@ round-trip, the CLI argument parser, the launch contract, the animation cycle
 and form helpers, the measurement units, the rotate transforms, the
 graphic-design API, and a regression suite pinning the defects earlier source
 reviews found — so a fix that was hard to see cannot quietly come undone.
+
+`npm run test:graphic-design-api` is the second one, and it measures a
+different thing: not compositions but the road to them. It reads the reference
+asset, generates a skill from it into the AI tool's real skills folder, points
+that skill at the symlinked brand assets in
+`test/graphic-design-api/test-assets/` through a `resources.md`, registers what
+a bare request means, and draws graphics that carry them into
+`test/graphic-design-api/generated-graphics/`. Every step is a production entry
+point invoked as the documentation says to invoke it, so a pass means a clone
+following [API-QUICKSTART.md](API-QUICKSTART.md) works. It needs a file system,
+a symlinked folder and a generated script, none of which a bundled `node:test`
+suite can exercise honestly.
+
+It also **leaves the tool wired up**, which is the point of running it rather
+than only of passing it: afterwards `/graphic-design-api generate` draws, with
+nothing to configure. The one thing it does that interactive use does not is
+answer the overwrite prompt in advance - a script cannot be asked.
 
 The graphic-design suite draws real files: it renders a reference composition
 and several variations of it to both formats, writes them to `.tmp/`, and

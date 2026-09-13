@@ -89,6 +89,37 @@ export {
   type TextStyle,
 } from '../core/graphic-design/index.js';
 
+// Brand resources: `resources.md`, vector inlining, and brand slots that fall
+// back to the design language when no asset is configured.
+export {
+  brandMark,
+  brandRegion,
+  descriptorFromFilename,
+  detectBrandSlots,
+  findBrandSlots,
+  scanBrandBands,
+  fitInto,
+  inlineSvg,
+  normalizeResourceKey,
+  parseResources,
+  placeBrand,
+  type BrandBox,
+  type BrandBand,
+  type BrandDetection,
+  type BrandScan,
+  type BrandSlot,
+  type PixelSource,
+  type BrandMarkOptions,
+  type BrandPalette,
+  type BrandRegion,
+  type BrandSource,
+  type InlinedVector,
+  type ParsedResources,
+  type PlaceBrandOptions,
+  type PlacedBrand,
+  type ResourceEntry,
+} from '../core/graphic-design/brand.js';
+
 // Vector import (browser-only: relies on DOM SVG geometry APIs)
 export { importSvg } from '../renderer/svg-import.js';
 export type { ImportedLayer, ImportedSvg, SvgImportOptions } from '../renderer/svg-import.js';

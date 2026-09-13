@@ -62,6 +62,31 @@ the plugin.
   separately can drift; one composition rendered twice cannot.
 - Accept the varying content (title, body, image) as parameters. A script that
   can only redraw the original asset has automated nothing.
+- Resolve its brand slots from `references/resources.md`, and **draw a complete
+  page whether or not one is configured**. A script that needs configuration
+  before it produces anything has moved the work rather than automated it.
+
+## Brand resources
+
+A design language is measured from an asset, so it can record *where* a logo
+goes and never *which* logo. `references/resources.md` carries the second half,
+and three rules hold it together:
+
+- **The file name is the slot.** In a folder declared as `GLOBAL_ASSETS`,
+  `logo.svg` fills `logo` and `footer.png` fills `footer`. No manifest, and
+  therefore no second place to fall out of step.
+- **A vector asset is inlined, not linked.** The rasterizer decodes PNG and
+  nothing else, so an SVG logo placed as an image is in the vector export and a
+  hole in the raster - a defect invisible to any check made against one format.
+  `placeBrand` reads its shapes into the composition instead.
+- **An unconfigured slot is filled, not skipped.** It gets a mark in the design
+  language: a monogram on the accent, or a set wordmark. Obviously a
+  placeholder to anyone holding the real logo, and never a hole in the page.
+
+A generated `resources.md` ships with values the parser rejects (`path/to/...`,
+`TBD`), so a fresh skill is unconfigured by construction. **Never fill those in
+with plausible values.** A brand name nobody gave you is worse than an empty
+slot, because the empty slot is obviously empty and the invented one is not.
 
 ## Failure modes, and what to do about them
 
@@ -72,6 +97,10 @@ the plugin.
 | Type sizes like 5.86, 16.49 | A design tool's scale factor, not intent | Round to the intended scale and say that you did |
 | SVG and PNG palettes rank colors differently | A vector palette is usage-weighted, a raster's is area-weighted | Expected. Say which file was measured |
 | Generated asset does not match the source | The script is not in the language yet | Fix the script; the design language file is the specification |
+| The logo is in the SVG and missing from the PNG | A vector was placed as an image rather than inlined | Place it through `placeBrand`, and read `warnings` |
+| A graphic draws a monogram where a logo belongs | The declared asset did not resolve | `node scripts/brand-resources.mjs --print` names the path that failed |
+| Brand slots are in the wrong places | They were scanned, not read off layer names | Check `found` in the report; correct the boxes by hand |
+| Ground and paper look swapped | Roles were taken from the reference-weighted palette | Use `areaPalette`; area is what "the ground" means |
 
 ## The check that matters
 

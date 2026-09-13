@@ -344,6 +344,62 @@ isolation would probably mean touching the same twenty lines twice.
   to all of them, would trade a little empty space per frame for frames that
   can be stacked and played without shifting.
 
+## Brand resources (4.2.1-alpha)
+
+What the brand pass left open. The mechanism works end to end - a generated
+skill reads `references/resources.md`, inlines a vector logo so both renderers
+draw it, and falls back to a mark in the design language when nothing is
+configured - and these are the edges it does not reach.
+
+- [ ] **`brand-resources.mjs` is copied into every generated skill.** That is
+  deliberate: a skill has to run without reaching back into the helper that
+  wrote it, and a cross-skill relative import breaks the moment the two are
+  installed differently. The cost is real though - a fix to the resolver has to
+  be re-copied into each skill already generated. Worth a
+  `--refresh-scripts` flag on the generator, or a version stamp in the copy so
+  a stale one can at least say so.
+- [ ] **The quarter scan finds one mark and stops.** A page with a logo at the
+  top and a footer strip at the bottom reports only the logo, because the scan
+  returns at the first band that holds a compact mark. That is the right
+  default for the common case and wrong for a page with two. Scanning every
+  band and ranking the candidates would cost one more pass.
+- [ ] **A scanned slot has no way to be confirmed and kept.** The report says
+  `found: 'scan'` and asks for a look, and then there is nowhere to record that
+  the look happened. The generated `SKILL.md` prints the boxes; a reader who
+  corrects one is editing generated output that the next run overwrites.
+- [ ] **`inlineSvg` does not resolve `<use>`.** A logo built from symbols -
+  common in an icon set exported as one file - loses the referenced shapes. The
+  note says so rather than drawing nothing silently, but resolving a `<use>`
+  against a `<symbol>` in the same document is a bounded job worth doing.
+- [ ] **No contrast check on a placed asset.** The API checks the palette it is
+  handed, and a brand's own logo arrives after that: a dark mark dropped into a
+  dark band passes every check in the suite and is invisible on the page.
+  Measuring the placed asset's dominant colour against the band it lands on
+  would catch it.
+- [ ] **`resources.md` has no schema beyond the parser.** A misspelled key is
+  read as a slot nobody draws, and the report lists it with everything else
+  rather than flagging it as unused. Naming the slots a skill actually places -
+  the generator knows them - would turn a typo into a warning.
+- [ ] **The registration records one skill, not several.** A project with two
+  captured languages - a poster language and a social-post language - overwrites
+  the first registration with the second. Keying the file by skill name and
+  adding a `default` pointer would cost little; the reason it is not done yet is
+  that nothing has needed a second one.
+- [ ] **Mode matching has no way to say "none of these".** A request that means
+  something the script cannot draw falls through to the default and draws the
+  wrong thing confidently. Returning no match, and letting the caller decide
+  between drawing the default and saying so, is the more honest shape.
+- [ ] **`--registration` prints absolute paths.** Useful when running it, noise
+  when pasting the output anywhere. Printing project-relative paths and keeping
+  the absolute ones behind a flag would make the output quotable.
+- [ ] **The generated starter script draws two layouts.** It carries the
+  language, the page, the type scale and the measured slots, and composes a card
+  or a cheatsheet from them. Both are horizontal bands, which is what the
+  shipped source asset happens to be; an asset built on a grid or a radial
+  composition would get band layouts that are in its palette and not in its
+  structure. Deriving the layout from the measured element census, rather than
+  from a template picked by hand, is the open half of this.
+
 ## Chores
 
 Housekeeping with no user-visible result: dead code left by a replacement,
@@ -965,6 +1021,12 @@ analysis was the first thing in the repository to notice.
   `created-svg_graphic-api.png`, which does not exist.
   - Correct targets are `../created-svg_graphic-api.svg` and
     `../created-png_graphic-api.png`.
+  - **Re-broken and re-fixed in 4.2.1-alpha.** The graphics later moved into
+    `reference-graphics/` and the targets were not moved with them, so both
+    links dangled again and took eleven tests with them. Now
+    `../reference-graphics/created-*-graphic-api.*`, with the same failure and
+    the same fix one directory deeper - which is the argument for the standing
+    test that reads them rather than for remembering.
   - Write them through `git hash-object` and `git update-index --cacheinfo
     120000,...`, not through `mklink`: git stores the target verbatim, so a
     backslash path would resolve on Windows and nowhere else.

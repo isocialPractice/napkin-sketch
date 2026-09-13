@@ -73,6 +73,21 @@ const configs = [
     entryPoints: [resolve(root, 'src/api/index.ts')],
     outfile: resolve(root, 'dist/api/index.js'),
   },
+  // The Node-only file helpers, as their own ESM module.
+  //
+  // `writeComposition` and `imageDataUrl` import `node:fs`, so they cannot join
+  // the browser bundle above - and a documented import has to be a real one, so
+  // they are built here rather than left as source only a clone could reach.
+  {
+    bundle: true,
+    platform: 'node',
+    target: 'node18',
+    format: 'esm',
+    sourcemap: true,
+    logLevel: 'info',
+    entryPoints: [resolve(root, 'src/core/graphic-design/files.ts')],
+    outfile: resolve(root, 'dist/graphic-design/files.js'),
+  },
   // Embeddable API as a global IIFE for <script> tags (WordPress / plain HTML).
   {
     bundle: true,
@@ -117,6 +132,14 @@ async function copyStatic() {
   // graphic-designer helper's media analysis is one such script.
   await mkdir(resolve(root, 'dist/api'), { recursive: true });
   await writeFile(resolve(root, 'dist/api/package.json'), `${JSON.stringify({ type: 'module' }, null, 2)}\n`, 'utf-8');
+
+  // Same reason, for the Node-only file helpers beside it.
+  await mkdir(resolve(root, 'dist/graphic-design'), { recursive: true });
+  await writeFile(
+    resolve(root, 'dist/graphic-design/package.json'),
+    `${JSON.stringify({ type: 'module' }, null, 2)}\n`,
+    'utf-8',
+  );
 }
 
 async function run() {

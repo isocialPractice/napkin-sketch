@@ -65,9 +65,15 @@ Folder: `<target>/skills/<stem>/`, or `<stem>_0`, `<stem>_1`, ... if taken.
 <target>/skills/<stem>/
 ├── SKILL.md
 ├── DESIGN_LANGUAGE.md
+├── references/
+│   └── resources.md
 └── scripts/
-    └── make-<stem>.mjs
+    ├── make-<stem>.mjs
+    └── brand-resources.mjs
 ```
+
+`node scripts/generate-skill.mjs <asset> --to <target>/skills` writes all of
+that. Work through the steps below where you are improving on what it wrote.
 
 `SKILL.md` frontmatter:
 
@@ -82,26 +88,49 @@ description: '<what asset this is the language of, in what medium, and the occas
 
 ```js
 import { createComposition } from 'napkin-sketch';
-import { writeComposition } from 'napkin-sketch/dist/core/graphic-design/files.js';
+import { writeComposition } from 'napkin-sketch/graphic-design/files';
+import { resolveBrand } from './brand-resources.mjs';
 
 const PALETTE = { paper: '<hex>', ink: '<hex>', accent: '<hex>' };
 const TYPE = { display: <n>, body: <n>, caption: <n>, family: '<family stack>' };
 const PAGE = { width: <n>, height: <n> };
 const SPACING = { margin: <n>, gutter: <n> };
+const SLOTS = { logo: { x: <n>, y: <n>, width: <n>, height: <n> } };
 
-export function compose({ title, body }) {
+export function compose(brand, { title, body }) {
   const design = createComposition({ ...PAGE, background: PALETTE.paper });
-  // ... the composition, in the language above
+  brand.place(design, 'logo', SLOTS.logo, { fit: 'contain', accent: PALETTE.accent });
+  // ... the rest of the composition, in the language above
   return design;
 }
 
 if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`) {
-  await writeComposition(compose({ title: 'Acme Corp', body: 'Sample body' }), './out', '<stem>');
+  const brand = await resolveBrand({ skillDir: SKILL_DIR });
+  await writeComposition(compose(brand, { title: 'Acme Corp', body: 'Sample body' }), './out', '<stem>');
 }
 ```
 
 Keep the constants at the top and the composition below them: a change to the
 language should be one edit, not a search.
+
+## 5a. Fill in `references/resources.md`
+
+The slots are boxes; this is what goes in them.
+
+```md
+- logo: assets/logo.svg
+- GLOBAL_ASSETS: assets/brand/
+- brand name: Acme Corp.
+- domain: example.com
+```
+
+A value with a separator or a media extension is a path, everything else is
+text. In a `GLOBAL_ASSETS` folder the file name is the slot: `logo.svg` fills
+the logo, `footer.png` the footer.
+
+Leave it as generated and nothing breaks - each slot draws a mark in the design
+language instead. Never fill it with plausible values you do not have; a
+placeholder that parses is worse than one that does not.
 
 ## 6. Check it
 
@@ -110,3 +139,8 @@ language should be one edit, not a search.
   the source's. They should agree on paper, ink, and accent
 - If they do not, the script is not in the language yet - fix the script, not
   the design language file
+- Run `node scripts/brand-resources.mjs --print` and read what resolved. An
+  asset that silently failed to resolve draws a fallback mark, which is a page
+  that looks finished and carries no brand
+- Look at the **PNG**, not only the SVG. A vector asset placed as an image
+  rather than inlined is present in one and missing from the other

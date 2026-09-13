@@ -4,6 +4,181 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.1-alpha] - 2026-09-12
+
+### Added
+
+- **Brand resources for generated graphics.** A design language is measured
+  from one asset, so it can record *where* a logo goes and never *which* logo -
+  that is a property of whoever is drawing next, not of the file that was
+  measured. `references/resources.md` carries the second half: a markdown list
+  of `- key: value` that a generated skill reads before it draws.
+  - **The format is a list and nothing more**, because the file is edited by
+    whoever owns the brand rather than whoever owns the build. Headings, prose,
+    `>` notes and fenced examples are ignored, so the file can explain itself
+    and still parse. A value with a folder separator or a media extension is a
+    path; anything else is text to draw, which is the whole rule behind
+    `example.com` printing as a domain and `assets/logo.svg` being drawn.
+  - **In a `GLOBAL_ASSETS` folder the file name is the slot.** `logo.svg` fills
+    the logo, `footer.png` the footer, `logo-mark.svg` fills `logoMark`. No
+    manifest, and therefore no second place to fall out of step: adding an
+    asset to the folder is the whole of adding it to the brand.
+  - **Nothing has to ask for the assets.** A caller never writes "include the
+    linked assets". If the declared paths resolve, every graphic the skill
+    draws carries them.
+  - **An unconfigured file is a working state.** Each brand slot falls back to a
+    mark in the design language - a monogram of the brand name on the accent, or
+    a set wordmark - so a page with no brand is still a finished page, and
+    obviously a placeholder to anyone holding the real logo. A generated
+    `resources.md` ships with values the parser rejects (`path/to/...`, `TBD`)
+    so a fresh skill is unconfigured by construction rather than by accident.
+- **Vector assets are inlined, not linked** (`inlineSvg`, `placeBrand`). The
+  rasterizer decodes PNG and nothing else, so an SVG logo placed as an `image`
+  renders in the SVG export and is a **hole in the PNG** - silently, with the
+  reason in `warnings` where nobody looking at the picture would find it. The
+  asset's shapes are read into the composition instead, so both renderers draw
+  the same mark and it stays vector, scaling without going soft. `rect`,
+  `circle`, `ellipse`, `line`, `polygon`, `polyline`, `path`, `text` and
+  data-URL `image` are handled, painted by presentation attribute, inline
+  `style`, or a class in a `<style>` block - which is what a design tool
+  writes. Nested `<g>` transforms are composed and applied. Gradients,
+  patterns, filters, `<use>` and elliptical arcs land in `notes` rather than
+  being approximated.
+- **Brand position detection** (`detectBrandSlots`, `scanBrandBands`,
+  `findBrandSlots`), reported by the analyzer and written into every
+  `DESIGN_LANGUAGE.md` as a table.
+  - **By layer name first.** A designer who called a layer `logo` has already
+    marked the slot, and reading it costs one pass over the markup. Names are
+    read from `id`, `data-name`, `inkscape:label`, `serif:id` and `aria-label`,
+    so Illustrator, Inkscape, Affinity and Figma exports are covered without
+    asking which tool wrote the file. Each slot reports a box, a region, a page
+    share and a confidence.
+  - **By scanning second.** Failing a name, the media is read a quarter of the
+    page at a time, top first, stopping at the first band holding a compact
+    mark: ink that covers a little of the band and is gathered rather than
+    spread across it the way a line of text is. That spread test is what
+    separates a logo from a headline. It is a heuristic with no idea what a
+    logo looks like, it says so in `notes`, and its confidence never reaches a
+    name's.
+- **`generate-skill.mjs`.** Measuring an asset, writing down what was measured
+  and scaffolding a script against those numbers is arithmetic, and arithmetic
+  should not need a model. The generator writes the skill, its design language,
+  its `resources.md` and its brand resolver, then prints how to point it at a
+  brand. Two overwrite rules that differ on purpose: a **design language file is
+  never overwritten** (a second asset gets `DESIGN_LANGUAGE-<stem>.md`, because
+  a reader's corrections are the most valuable thing in the first one), and a
+  **skill is overwritten only after asking** (`--force` answers in advance,
+  which is what a test passes).
+- **`npm run test:graphic-design-api`.** An end-to-end check of the road to a
+  graphic rather than of the graphic: read the reference asset, generate a skill
+  from it, point it at the symlinked brand assets through a `resources.md`, draw
+  a card and a cheatsheet that carry them into
+  `test/graphic-design-api/generated-graphics/`, and make 36 assertions about
+  what came out. Every step is a production entry point invoked as the
+  documentation says to invoke it, so a pass means a clone following
+  `API-QUICKSTART.md` works. It needs a file system, a symlinked folder and a
+  generated script, none of which a bundled `node:test` suite can exercise
+  honestly.
+- **`test/brand-resources.test.ts`.** Twelve standards across the three
+  mechanisms that can each fail quietly: reading the file, inlining a vector,
+  and falling back. The inlining test is the one worth keeping - it renders the
+  same logo twice, inlined and linked, and asserts that the inlined page has the
+  logo's green in its pixels while the linked one is blank paper.
+- **`napkin-sketch/graphic-design/files`.** The Node-only file helpers now build
+  to `dist/graphic-design/files.js` and are reachable by that subpath. They were
+  documented as a deep import into `dist/core/`, which the package's `exports`
+  map blocked and which the build never emitted - a documented import that
+  existed in neither form. Every doc now names the path that works.
+- **A generated skill registers itself, so using it needs no paths.**
+  `generate-skill.mjs` writes `references/graphic-design-api.json` as its last
+  act: which script draws, which `resources.md` it draws with, where output
+  goes, the modes the script can draw, and a `defaultRequest` for when the
+  request does not say. That file is the difference between a skill that exists
+  and one that can be used without a manual.
+  - **A request becomes a command by string matching**, deliberately. Each mode
+    carries its own keywords - `cheatsheet` answers to "cheatsheet", "syntax",
+    "html", "code" - and the default wins when none appear. That is why a bare
+    `generate` works: it contains no mode keyword, so it falls through to the
+    registered request. Anything cleverer would need a model, and the point of
+    this file is to be the part that does not.
+  - **The project's `resources.md` wins over the skill's copy.** A generated
+    skill carries a snapshot so it runs anywhere on its own; a registered
+    command passes the project's file explicitly, because that is the one
+    somebody edits.
+  - `--no-register` opts out, `--default-request` sets what a bare request
+    means, and `--registration` on `brand-resources.mjs` prints the whole
+    wiring plus the exact command it produces.
+- **The generated script draws a cheatsheet as well as a card.** `--cheatsheet`
+  swaps the paragraph for a panel of syntax-coloured code, advanced by the
+  monospace metric rather than by `measureText`, with the plate above it sized
+  from the heading it actually holds. The syntax colours are taken from what the
+  source declared and kept clear of the four structural roles, so a code panel
+  cannot quietly reuse the accent and leave the page with two things claiming to
+  be the important one.
+  - This is also the honest test of the claim that a design language is not a
+    template: the source asset carried no code at all, and the language carries
+    a cheatsheet without being stretched.
+
+### Changed
+
+- **`npm run test:graphic-design-api` installs what it tests.** It generates
+  into the AI tool's real skills folder rather than into `.tmp/`, refreshes the
+  helper first so the skill answering a request is the one this repository
+  ships, and writes the project wiring - so the command is plug-and-play by the
+  time it finishes rather than merely green. `--force` remains the only
+  concession to being a script: interactive use still asks before replacing a
+  skill, and a script cannot answer.
+- **The project's brand wiring moved to `references/` at the repository root**,
+  from `test/graphic-design-api/references/`. That is where the resolver
+  already looks - it walks up from the working directory - so the previous
+  location was only ever reachable by passing `--resources` by hand. It is
+  gitignored for the same reason `ai-helper/installed.json` is: it names
+  whichever assets a checkout points at, and the registration beside it carries
+  a timestamp.
+- **The composition skill checks whether it is already wired up** before
+  composing anything from scratch. `/graphic-design-api <request>` now reads the
+  registration, matches the request to a mode, and runs the generated script,
+  rather than writing a new script that agrees with the captured language by
+  luck. It is also told, in as many words, not to ask a caller to request the
+  linked assets: that has never been something a caller had to supply.
+
+
+- **Colour roles are decided by area, not by reference count.** A vector
+  palette counts how often each colour is referenced, so hundreds of small white
+  glyphs outrank one navy field covering the page, and the mechanical role guess
+  names white the ground - exactly backwards. The analyzer now also inlines the
+  asset, renders it small, and counts pixels, reporting that as `areaPalette`
+  and a `Palette by area` table. The declared palette is unchanged, because it
+  answers a different question and a reader comparing two vectors wants it. This
+  is the correction the shipped worked example had to make by hand; it is
+  mechanical, so it is made for you now.
+- **The generated composing script sizes its plate from its content.** Both
+  renderers lay text out from the same table, so a plate can be measured from
+  what it will hold rather than stretched to the space available and left two
+  thirds empty.
+- **The frozen fixture skill carries brand slots.** `compose` and
+  `composeCheatsheet` take an optional `brand`; without one, every slot falls
+  back to exactly what the script drew before, so its output is byte-identical
+  and the existing standards in `test/generated-skill.test.ts` still hold.
+
+### Fixed
+
+- **The brand asset symlinks resolved nowhere.**
+  `test/graphic-design-api/test-assets/logo.svg` and `footer.png` stored targets
+  written from the repository root rather than from the link's own directory,
+  which is where a symlink is resolved from. They resolved on no clone at all,
+  and because a missing brand asset falls back to a drawn mark rather than
+  failing, the graphics would have come out looking plausible and carrying no
+  brand. Both are now `../reference-graphics/links/...`, committed as mode
+  `120000` with forward slashes, with a standing test.
+- **The fixture symlinks under `test/graphic-design-api/skill/` broke** when the
+  graphics moved into `reference-graphics/`, and with them thirteen tests that
+  read through those links or the old `links/` and `created-*` paths. Targets
+  and test paths are corrected.
+- **A relative path in a copied `resources.md` is rewritten for its new
+  location.** Moving the file without rewriting them breaks every asset it
+  names, silently, for the same fallback reason as above.
+
 ## [4.2.0-alpha] - 2026-09-12
 
 ### Added

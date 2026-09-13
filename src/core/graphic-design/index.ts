@@ -38,6 +38,35 @@ export { decodePng, encodePng, isPng, type RgbaImage } from './png.js';
 export { formatColor, parseColor, parsePaint, type Rgba } from './color.js';
 
 export {
+  brandMark,
+  brandRegion,
+  descriptorFromFilename,
+  detectBrandSlots,
+  findBrandSlots,
+  scanBrandBands,
+  fitInto,
+  inlineSvg,
+  normalizeResourceKey,
+  parseResources,
+  placeBrand,
+  type BrandBox,
+  type BrandBand,
+  type BrandDetection,
+  type BrandScan,
+  type BrandSlot,
+  type PixelSource,
+  type BrandMarkOptions,
+  type BrandPalette,
+  type BrandRegion,
+  type BrandSource,
+  type InlinedVector,
+  type ParsedResources,
+  type PlaceBrandOptions,
+  type PlacedBrand,
+  type ResourceEntry,
+} from './brand.js';
+
+export {
   charWidth,
   fontMetrics,
   layoutText,

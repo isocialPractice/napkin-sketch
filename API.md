@@ -404,7 +404,7 @@ untouched. The file helpers are a separate, Node-only module for the same
 reason the PDF importer is:
 
 ```ts
-import { imageDataUrl, writeComposition } from 'napkin-sketch/dist/core/graphic-design/files.js';
+import { imageDataUrl, writeComposition } from 'napkin-sketch/graphic-design/files';
 
 const logo = await imageDataUrl('assets/logo.png');
 design.image({ src: logo, x: 24, y: 24, width: 64, height: 64 });
@@ -412,6 +412,102 @@ design.image({ src: logo, x: 24, y: 24, width: 64, height: 64 });
 const { svg, png, warnings } = await writeComposition(design, './out', 'card');
 // ./out/card.svg and ./out/card.png, written from one document in one call
 ```
+
+## Brand resources
+
+A composition script that draws the same layout for every project needs one
+thing the layout cannot supply: which logo, which footer strip, which brand
+name. That belongs in a file the project owns rather than in the script, and
+this is the surface that reads it.
+
+```ts
+import { parseResources, inlineSvg, placeBrand, brandMark, detectBrandSlots } from 'napkin-sketch';
+```
+
+### Reading `resources.md`
+
+```ts
+const brand = parseResources(await readFile('references/resources.md', 'utf-8'));
+// brand.paths       { logo: 'assets/logo.svg' }
+// brand.directories { globalAssets: 'assets/brand/' }
+// brand.text        { brandName: 'Acme Corp.', domain: 'example.com' }
+```
+
+The format is a markdown list of `- key: value` and nothing more, because the
+file is edited by whoever owns the brand rather than whoever owns the build.
+Headings, prose and `>` notes are ignored, and so is anything in a fenced
+block - an example of the format in the file is not a declaration in it.
+
+A value is a **path** when it carries a folder separator or a media extension,
+and **text** otherwise: `example.com` is a domain to print, `assets/logo.svg` is
+a file to draw. Keys normalize, so `GLOBAL_ASSETS`, `Global Assets` and
+`global-assets` are one key. In a folder key the **file name is the descriptor**:
+`descriptorFromFilename('footer.png')` is `footer`, which is the slot it fills.
+
+Resolving paths, reading bytes and following symlinks are the caller's half -
+this module takes strings so it stays in the browser-safe bundle. The
+graphic-designer helper's `brand-resources.mjs` is the Node half, and a
+generated skill carries a copy of it.
+
+### Placing an asset
+
+```ts
+placeBrand(design, { x: 292, y: 13, width: 45, height: 24 }, { kind: 'vector', svg }, { fit: 'contain' });
+placeBrand(design, band, { kind: 'raster', dataUrl }, { fit: 'contain' });
+```
+
+A raster is placed as an `image`, which both renderers already agree on. A
+**vector is inlined**: its shapes are read into the composition rather than
+embedded as an image. That is not an optimization, it is the fix for a real
+defect - the rasterizer decodes PNG and nothing else, so an SVG logo placed as
+an image renders in the SVG export and is a hole in the PNG, silently, with the
+reason in `warnings` where nobody looking at the picture would find it.
+Inlining also keeps it vector, so it scales without going soft.
+
+`inlineSvg` is that machinery on its own:
+
+```ts
+const { viewBox, elements, notes } = inlineSvg(markup);
+```
+
+It handles `rect`, `circle`, `ellipse`, `line`, `polygon`, `polyline`, `path`,
+`text` and data-URL `image`, painted by presentation attribute, by inline
+`style`, or by a class in a `<style>` block - which is what a design tool
+writes. Nested `<g>` transforms are composed and applied. Gradients, patterns,
+filters, `<use>` references, elliptical arcs and sheared transforms land in
+`notes` rather than being approximated.
+
+### When nothing is configured
+
+```ts
+brandMark(design, box, { label: 'Acme Corp', accent: '#4cae50', paper: '#ffffff' });
+```
+
+A slot with no asset behind it is filled with a mark in the design language - a
+monogram, a disc, or a set wordmark - rather than left as a hole. It is
+obviously a placeholder to anyone holding the real logo, which is the point: it
+completes the composition without pretending to be a brand it is not.
+
+### Finding where the brand goes
+
+```ts
+const { slots, notes } = detectBrandSlots(markup);
+const scan = scanBrandBands(decodePng(bytes));
+```
+
+`detectBrandSlots` reads layer names - `id`, `data-name`, `inkscape:label`,
+`serif:id`, `aria-label` - and reports a box, a region, a page share and a
+confidence for each of `logo`, `icon`, `wordmark`, `linkedMedia`, `tagline`,
+`brandName`, `domain`, `badge` and `footer`. A name is a statement of intent,
+so these are exact.
+
+`scanBrandBands` is the fallback for a raster, or for a vector whose layers are
+all called `Layer 1`. It reads a quarter of the page at a time, top first, and
+stops at the first band holding a compact mark - ink that covers a little of
+the band and is gathered rather than spread across it the way a line of text
+is. It is a heuristic with no idea what a logo looks like, it says so in
+`notes`, and its `confidence` never reaches a name's. `findBrandSlots` tries
+the names and falls back to the scan.
 
 ## Drawing into the GUI canvas
 
@@ -473,7 +569,13 @@ should render the SVG through a browser instead.
   at `scale: 1`, so it anti-aliases to grey. Raster at 2x or 3x when the design
   carries caption-sized type; the composition is unchanged, only the sampling.
 - **JPEG, GIF and SVG placements need a decoder to rasterize.** They embed in
-  the SVG with no help at all.
+  the SVG with no help at all. SVG has a way around it that costs nothing:
+  `placeBrand` and `inlineSvg` turn the asset into elements, which both
+  renderers draw.
+- **An inlined vector keeps only what this API models.** Gradients, patterns,
+  filters, `<use>` references, elliptical arcs and sheared transforms are
+  reported in `notes` rather than approximated. A logo of solid shapes comes
+  through exactly; a logo built on a mesh gradient should ship as a PNG.
 - **Gradients, filters and patterns.** Not modelled. Solid paint, opacity and
   clipping masks are the palette.
 - **Interlaced PNG placements.** Not decoded; re-save the asset without
@@ -486,7 +588,7 @@ a footer - the shape most of this API's work takes:
 
 ```ts
 import { createComposition } from 'napkin-sketch';
-import { imageDataUrl, writeComposition } from 'napkin-sketch/dist/core/graphic-design/files.js';
+import { imageDataUrl, writeComposition } from 'napkin-sketch/graphic-design/files';
 
 const palette = {
   page: '#000133',

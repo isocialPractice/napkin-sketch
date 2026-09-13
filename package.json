@@ -1,6 +1,6 @@
 {
   "name": "napkin-sketch",
-  "version": "4.2.0-alpha",
+  "version": "4.2.1-alpha",
   "description": "Quick and easy computer sketching with a drawing GUI that simulates pen and paper/napkin sketching, featuring an auto-sharpen algorithm that turns stiff computer strokes into more hand-drawn forms.",
   "author": "John Haugabook",
   "keywords": [
@@ -30,6 +30,7 @@
       "default": "./dist/api/index.js"
     },
     "./embed": "./dist/embed/napkin-sketch.js",
+    "./graphic-design/files": "./dist/graphic-design/files.js",
     "./styles.css": "./dist/renderer/styles.css"
   },
   "files": [
@@ -55,6 +56,7 @@
     "icon": "node scripts/make-icon.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test.mjs",
+    "test:graphic-design-api": "node scripts/test-graphic-design-api.mjs",
     "import-tree": "node scripts/import-tree.mjs",
     "todo": "node scripts/todo.mjs",
     "wireframe-cycles": "node scripts/wireframe-cycles.mjs",

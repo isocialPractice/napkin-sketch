@@ -54,6 +54,39 @@ For JPEG and GIF the analyzer will tell you it has no decoder. Read the image
 yourself and write down what you see, marked as observed rather than measured.
 Do not invent numbers a file did not give you.
 
+**One measurement is taken twice, on purpose.** A vector palette counts how
+often each colour is *referenced*; the analyzer also renders the file and
+counts how much page each colour *covers*, and reports that as `areaPalette`.
+Roles are decided from the area, because "which colour is the ground" is an
+area question - hundreds of small white glyphs outnumber one navy field that
+covers the page, and a role picked by reference count gets it exactly backwards.
+Both numbers go in the file. Say which one you are quoting.
+
+### 1a. Find where the brand sits
+
+A design language that names the colours but not the positions is half written,
+and the missing half is the one a generated script needs. The analyzer reports
+it, two ways, in this order:
+
+```bash
+node scripts/analyze-media.mjs <file> --brand
+```
+
+- **By layer name.** A vector whose layers are called `logo`, `linkedMedia`,
+  `tagline`, `brandName`, `icon` or `footer` has marked its own slots, and
+  reading them is exact. Names are read from `id`, `data-name`,
+  `inkscape:label`, `serif:id` and `aria-label`, so Illustrator, Inkscape,
+  Affinity and Figma exports are all covered.
+- **By scanning.** Failing a name, the media is read a quarter of the page at a
+  time, top first, stopping at the first band holding a compact mark - ink that
+  covers a little of the band and is gathered rather than spread across it the
+  way a line of text is.
+
+The difference matters and the report keeps it: a named slot carries
+`found: 'named'` and a high confidence, a scanned one `found: 'scan'` and a low
+one. **Confirm a scanned box by eye before drawing into it.** A scan has no idea
+what a logo looks like; it knows what a compact mark looks like.
+
 ### 2. Write the `DESIGN_LANGUAGE.md`
 
 Write it where the caller asked. A destination given as an argument or in
@@ -81,10 +114,35 @@ in two places gets the plain name in both.
   the display size, which is body, which is caption, and what the step between
   them is.
 - **The rhythm.** Margins, gutters, and the grid the elements sit on.
+- **The brand positions.** Which box the logo occupies, which band carries
+  placed media, where a tagline sits. `--markdown` writes these as a table; say
+  which were named and which were guessed at.
 - **What is forbidden.** The most useful line in a design language is usually
   the one that says what not to do.
 
 ### 3. Generate the per-asset skill
+
+Generating is mechanical, so it is a script rather than a job for a model:
+
+```bash
+node scripts/generate-skill.mjs <asset> --to .claude/skills
+node scripts/generate-skill.mjs <asset> --to .claude/skills --language docs/design
+```
+
+It measures the asset, writes the design language, scaffolds the skill, and
+prints how to point it at a brand. Two rules about overwriting, and they differ
+on purpose:
+
+- **A design language file is never overwritten.** A second asset in the same
+  folder gets `DESIGN_LANGUAGE-<stem>.md`, because a reader's corrections are
+  the most valuable thing in the first one.
+- **A skill is overwritten only after asking.** It is generated output, so
+  regenerating is normal; it may have been edited since, so doing it silently is
+  not. `--force` answers in advance, which is what a test passes.
+
+Then read what it wrote and improve it. The generator gets the language right
+and the layout only as right as arithmetic can: it knows the palette, the type
+scale, the page and the slots, and it does not know what the graphic is for.
 
 Write a lightweight skill named after the source media file into the AI tool's
 skills folder - the same target the helper was installed to (`.claude/skills/`,
@@ -100,8 +158,11 @@ The generated skill holds:
 <target>/skills/<stem>/
 ├── SKILL.md                  when to use it, and the language in brief
 ├── DESIGN_LANGUAGE.md        or a link to the one written in step 2
+├── references/
+│   └── resources.md          the brand this skill draws with
 └── scripts/
-    └── make-<stem>.mjs       composes a new asset in that language
+    ├── make-<stem>.mjs       composes a new asset in that language
+    └── brand-resources.mjs   resolves resources.md into placeable assets
 ```
 
 Its `SKILL.md` frontmatter needs a `name` matching the folder and a
@@ -117,7 +178,7 @@ is a real SVG and a real PNG rather than a description of one. Load the
 
 ```js
 import { createComposition } from 'napkin-sketch';
-import { writeComposition } from 'napkin-sketch/dist/core/graphic-design/files.js';
+import { writeComposition } from 'napkin-sketch/graphic-design/files';
 
 // The language, in one place, so a change is one edit.
 const PALETTE = { paper: '#ffffff', ink: '#1f2328', accent: '#4c8faf' };
@@ -137,6 +198,56 @@ await writeComposition(compose({ title: 'Acme Corp', body: 'Quarterly summary' }
 Both formats come off the one composition, so the SVG and the PNG are the same
 graphic. `scripts/template.md` is the fill-in-the-blank version of this step.
 
+### 5. Wire the brand slots
+
+The design language says where the logo goes. It cannot say which logo, because
+that is not a property of the asset it was measured from. `references/resources.md`
+is the other half, and `references/resources.md` in *this* skill folder is its
+full specification. The short version:
+
+```md
+- logo: assets/logo.svg
+- GLOBAL_ASSETS: assets/brand/
+- brand name: Acme Corp.
+- domain: example.com
+- tag line: This or That
+```
+
+A value with a folder separator or a media extension is a path; everything else
+is text to draw. In a folder given as `GLOBAL_ASSETS` **the file name is the
+slot it fills** - `logo.svg` fills the logo, `footer.png` fills the footer - so
+adding an asset to the folder is the whole of adding it to the brand.
+
+In the script, a slot is one call:
+
+```js
+import { resolveBrand } from './brand-resources.mjs';
+
+const brand = await resolveBrand({ api, skillDir: SKILL_DIR });
+brand.place(design, 'logo', { x: 292, y: 13, width: 45, height: 24 }, { fit: 'contain' });
+```
+
+Three properties of that call are the point of the whole design:
+
+1. **A vector asset is inlined, not linked.** The rasterizer decodes PNG and
+   nothing else, so an SVG logo placed as an image is in the SVG export and a
+   hole in the PNG. `placeBrand` reads its shapes into the composition instead,
+   so both renderers draw it and it stays vector.
+2. **An unconfigured slot still draws.** With no asset behind it, the slot gets
+   a mark in the design language - a monogram of the brand name on the accent,
+   or a set wordmark. Obviously a placeholder, and never a hole. Pass
+   `fallback: false` where a drawn mark would be wrong, as in a footer band
+   where the alternative is a line of type.
+3. **Nothing has to be asked for.** A caller never says "include the linked
+   assets". If `resources.md` names files that exist, every graphic carries
+   them; if it does not, every graphic is still complete.
+
+Check what resolved before wondering why a graphic looks wrong:
+
+```bash
+node scripts/brand-resources.mjs --print
+```
+
 ## Gotchas
 
 - **The analyzer needs the API built to read a PNG.** In a clone, run
@@ -154,6 +265,18 @@ graphic. `scripts/template.md` is the fill-in-the-blank version of this step.
 - **The skill name is global.** Two skills with one name is an ambiguity the
   tool resolves by luck, which is why the collision rule above appends a suffix
   instead of overwriting.
+- **A relative path in `resources.md` is relative to that file.** Moving the
+  file without rewriting its paths breaks every asset it names, silently,
+  because a missing asset falls back to a drawn mark rather than failing.
+  `generate-skill.mjs --resources` rewrites them on copy for exactly this
+  reason.
+- **A placeholder is not a configuration.** A generated `resources.md` ships
+  with `path/to/logo.svg` and `TBD`, both of which the parser rejects, so a
+  freshly generated skill draws exactly what it drew before the file existed.
+  Do not replace those with plausible-looking values you do not have.
+- **A brand asset that resolves to nothing is the quiet failure.** The fallback
+  makes a page that looks finished and carries no brand. `--print` is the
+  thirty-second check that catches it.
 
 ## Troubleshooting
 
@@ -164,10 +287,18 @@ graphic. `scripts/template.md` is the fill-in-the-blank version of this step.
 | SVG palette looks wrong | It is weighted by class references; check whether the file paints with inline attributes instead, and compare against a PNG export |
 | Two assets, one design language | The second writes `DESIGN_LANGUAGE-<stem>.md`; do not merge them unless asked |
 | Generated skill folder exists | Append `_0`, `_1`, ... Never overwrite |
+| The logo is in the SVG and missing from the PNG | It was placed as an image; place it through `brand.place` so the vector is inlined |
+| A graphic draws a monogram where a logo should be | The asset did not resolve; `node scripts/brand-resources.mjs --print` says which path failed |
+| A copied `resources.md` stopped finding anything | Its relative paths were not rewritten for the new location |
+| The brand slots are in the wrong places | They were scanned, not named. Check `found` in the report and correct the boxes by hand |
+| The ground and the paper look swapped | Roles were read off the reference-weighted palette; use `areaPalette` |
 
 ## References
 
+- `references/resources.md` - the brand file's full specification
 - `scripts/analyze-media.mjs` - the analyzer, importable as `analyzeMedia`
+- `scripts/generate-skill.mjs` - the generator, importable as `generateSkill`
+- `scripts/brand-resources.mjs` - the brand resolver, importable as `resolveBrand`
 - `scripts/template.md` - the fill-in-the-blank procedure
 - The `graphic-design-api` skill - the composition API this generates against
 - `API.md` at the repository root - the full API reference

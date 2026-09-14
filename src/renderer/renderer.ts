@@ -48,8 +48,12 @@ import {
   type ScaleUnit,
 } from '../core/units.js';
 import {
+  type AnimationFacing,
+  type AnimationFootSpan,
   animationFrameJob,
   animationFrameName,
+  figureFacing,
+  matchesFoot,
   animationFrameOffsetX,
   animationFrameTransforms,
   animationLayerBoxes,
@@ -103,6 +107,17 @@ import { sharpenStroke } from '../sharpen/sharpen.js';
 import { Surface, strokeBounds, type LiveStroke } from './surface.js';
 import { Store, type ImportedLayerNode, type LayerTreeNode, type ToolState } from './store.js';
 import { importSvg } from './svg-import.js';
+import {
+  SCALE_FACTOR_MAX,
+  SCALE_FACTOR_MIN,
+  scaledBox,
+  transformCursor,
+  transformHandlePoint,
+  transformScale,
+  TRANSFORM_HANDLES,
+  type TransformBox,
+  type TransformHandle,
+} from '../core/transform.js';
 
 /** Looks up a required element by id, throwing a clear error if absent. */
 function el<T extends HTMLElement>(id: string): T {
@@ -116,8 +131,8 @@ function el<T extends HTMLElement>(id: string): T {
  * in a percentage field would otherwise throw the geometry clean off the page
  * (or collapse it to nothing, which no later scale could recover).
  */
-const SCALE_FACTOR_MIN = 0.01;
-const SCALE_FACTOR_MAX = 100;
+/** How close to a handle counts as grabbing it, in screen pixels. */
+const TRANSFORM_GRAB_PX = 11;
 
 /** Minimum drag distance (px) before a text-tool press becomes a box draw. */
 const TEXT_DRAG_THRESHOLD = 10;
@@ -390,6 +405,17 @@ class App {
    * not, so the removal waits for the release.
    */
   private shiftToggleId: string | null = null;
+
+  /**
+   * The element a press landed on while a multi-element selection was already
+   * under the pointer. Taking it on the press is what made a selection so
+   * hard to move: the hit test is deliberately forgiving, so a press aimed at
+   * the middle of a selection lands "on" any unselected mark within a few
+   * pixels, and the whole selection is replaced by that one element a frame
+   * before the drag that was meant to move it. The selection keeps the press;
+   * the element gets it back on release, if the pointer never moved.
+   */
+  private pendingSelectHitId: string | null = null;
 
   // Rubber-band selection state.
   private rubberBandStart: Point | null = null;
@@ -832,6 +858,7 @@ class App {
               : undefined,
         snapTarget: this.snapTarget ?? undefined,
         rotate: this.rotateOverlay() ?? undefined,
+        transform: this.transformOverlay() ?? undefined,
         anchors: this.anchorOverlay() ?? undefined,
       });
       if (fading) this.scheduleRender();
@@ -1097,6 +1124,9 @@ class App {
     // than drawing on it, and the pivot marker can be dragged somewhere else.
     // Claimed ahead of every tool, since the gesture belongs to the dialog
     // and not to whichever tool happened to be active when it opened.
+    // Transform first: its handles sit on top of whatever is under them, and
+    // a press on a handle is never a press on the drawing.
+    if (this.transformActive && this.beginTransformDrag(e, pt)) return;
     if (this.rotateDialogOpen && this.beginRotateDrag(e, pt)) return;
 
     // Eyedropper reads the canvas; it needs no editable layer.
@@ -1310,6 +1340,7 @@ class App {
 
     // Rotate: carry a rotation or a pivot drag along, and keep the pointer
     // telling the truth about which of the two a press would start.
+    if (this.transformActive && this.onTransformPointerMove(e, this.lastCanvasPoint)) return;
     if (this.rotateDialogOpen && this.onRotatePointerMove(e, this.lastCanvasPoint)) return;
 
     const tool = this.store.tool.tool;
@@ -1607,6 +1638,7 @@ class App {
     }
 
     // Rotate: a released rotation is committed as one history step.
+    if (this.transformActive && this.endTransformDrag(e)) return;
     if (this.rotateDialogOpen && this.endRotateDrag(e)) return;
 
     const tool = this.store.tool.tool;
@@ -1832,6 +1864,12 @@ class App {
         ids.delete(this.shiftToggleId);
         this.store.setSelection(ids);
       }
+      // A press the selection kept, on an element the pointer then never left:
+      // that was a click asking for that element after all.
+      if (this.pendingSelectHitId && !this.dragMoved) {
+        this.store.setSelection([this.pendingSelectHitId]);
+      }
+      this.pendingSelectHitId = null;
       this.shiftToggleId = null;
       this.dragMoved = false;
       if (this.canvas.hasPointerCapture(e.pointerId)) {
@@ -3327,8 +3365,15 @@ class App {
     // or a multi-row selection easy to lose by accident: pressing the space
     // between two strokes of the thing you were about to drag cleared the
     // selection and started a rubber band instead.
-    const insideSelection =
-      !hit && this.store.selectedIds.size > 1 && this.pointInSelectedBounds(pt);
+    //
+    // Not conditioned on the press having missed everything, which it used to
+    // be. A selection of several elements is usually several elements close
+    // together with other marks among them, so a press in the middle of one
+    // nearly always has something under it - and the hit test is forgiving by
+    // design, widening every mark by a few screen pixels. The selection was
+    // therefore lost most reliably in exactly the case it was meant to be
+    // held: aiming at the middle of what you are about to drag.
+    const insideSelection = this.store.selectedIds.size > 1 && this.pointInSelectedBounds(pt);
 
     if (hit || insideSelection) {
       if (hit && e.shiftKey) {
@@ -3342,7 +3387,13 @@ class App {
           this.store.setSelection(new Set(this.store.selectedIds).add(hit.id));
         }
       } else if (hit && !this.store.selectedIds.has(hit.id)) {
-        this.store.setSelection([hit.id]);
+        // Inside the selection the press belongs to the selection, so this
+        // element waits for the release to find out whether the gesture was a
+        // drag (the selection moves, and this was never the subject) or a
+        // click (it was, and it is selected then). Outside, there is nothing
+        // to protect and the press means what it always did.
+        if (insideSelection) this.pendingSelectHitId = hit.id;
+        else this.store.setSelection([hit.id]);
       }
       // The drag is armed here and committed to in {@link commitSelectDrag},
       // once the pointer has travelled far enough to mean it. Nothing is moved,
@@ -3681,6 +3732,15 @@ class App {
 
   private updateCursor(): void {
     const tool = this.store.tool.tool;
+
+    // Transform: a handle under the pointer says which way it pulls. Anywhere
+    // else the tool underneath keeps its own cursor, since the box does not
+    // take those presses either.
+    const grabbed = this.transformDrag?.handle ?? this.transformHover;
+    if (this.transformActive && grabbed) {
+      this.canvas.style.cursor = transformCursor(grabbed);
+      return;
+    }
 
     // Rotate: while its dialog is open the canvas is a rotation handle, and
     // the pivot marker under the pointer is something to pick up instead.
@@ -4893,12 +4953,14 @@ class App {
         this.toast('The clipboard held no drawable shapes.');
         return;
       }
+      const before = new Set(this.store.sketch.layers.map((l) => l.id));
       this.store.addImportedLayers(imported.layers);
+      this.foldImportedLayers(before);
       // The paste came from outside, so this app's own clipboard no longer
       // describes what a further paste should produce.
       this.clipboard = null;
       this.clipboardSvgSent = svgText;
-      this.renderLayers();
+      // The panel was already rebuilt by the fold above.
       this.renderThumbnails();
       this.toast(
         `Pasted ${imported.layers.length} layer${imported.layers.length === 1 ? '' : 's'} from the clipboard.`,
@@ -5126,8 +5188,9 @@ class App {
       try {
         // Fully unnamed documents arrive as one layer named after the file.
         const imported = importSvg(result.text, { unnamedRootName: result.name });
+        const before = new Set(this.store.sketch.layers.map((l) => l.id));
         this.store.addImportedLayers(imported.layers);
-        this.renderLayers();
+        this.foldImportedLayers(before);
         this.toast(
           `Imported ${imported.layers.length} layer${imported.layers.length === 1 ? '' : 's'} from ${result.name}.svg.`,
         );
@@ -5262,7 +5325,9 @@ class App {
       x += w + gap;
       rowHeight = Math.max(rowHeight, h);
     }
+    const before = new Set(this.store.sketch.layers.map((l) => l.id));
     this.store.addImportedLayers(nodes);
+    this.foldImportedLayers(before);
   }
 
   // ---- Pages ---------------------------------------------------------------
@@ -5687,6 +5752,24 @@ class App {
     if (changed) this.renderLayers();
   }
 
+  /**
+   * The layer ids the panel is showing, top row first.
+   *
+   * A Shift range is drawn on this rather than on the layer stack: the rows
+   * inside a collapsed group are not on screen, and a range that swept them
+   * up would select what the user cannot see. Rebuilt per click rather than
+   * cached - the panel is tens of rows, and a cache is one more thing that
+   * can disagree with what is on screen.
+   */
+  private visibleLayerOrder(): string[] {
+    const order: string[] = [];
+    const layers = this.store.sketch.layers;
+    for (let i = layers.length - 1; i >= 0; i--) {
+      if (!this.hasCollapsedAncestor(layers[i])) order.push(layers[i].id);
+    }
+    return order;
+  }
+
   /** The layers panel row for a layer id, if that row is currently rendered. */
   private layerRow(id: string): HTMLElement | null {
     const rows = el('layers-list').querySelectorAll<HTMLElement>('.layer-row');
@@ -6049,12 +6132,14 @@ class App {
         ev.preventDefault();
         this.beginLayerRename(layer.id);
       });
-      // Click selects the layer and highlights its elements on the canvas;
-      // Shift-click adds/removes it; Ctrl/Cmd+Shift-click selects the range
-      // between the active layer and this one.
+      // Click selects the layer and highlights its elements on the canvas.
+      // The two modifiers are the ones every layer panel uses, and they are
+      // not the same gesture: Ctrl/Cmd picks rows out one at a time, Shift
+      // takes everything between the last row selected and this one. Shift
+      // wins the chord, since a range is what Ctrl+Shift always did here.
       row.addEventListener('click', (ev) => {
-        if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey) this.store.selectLayerRange(layer.id);
-        else this.store.selectLayer(layer.id, ev.shiftKey);
+        if (ev.shiftKey) this.store.selectLayerRange(layer.id, this.visibleLayerOrder());
+        else this.store.selectLayer(layer.id, ev.ctrlKey || ev.metaKey);
       });
       this.bindLayerRowDnD(row, layer);
       list.appendChild(row);
@@ -6384,6 +6469,8 @@ class App {
       // frame: a preview left applied would be baked into the pose the helper
       // is handed, and the dialog itself would sit on top of the wizard.
       if (this.moveDialogOpen) this.closeMoveDialog();
+      if (this.rotateDialogOpen) this.closeRotateDialog(true);
+      if (this.transformActive) this.closeTransformTool();
       this.store.setTool({ tool: 'select' });
       this.toggleLayers(true);
       this.refreshAnimationStatus();
@@ -6428,7 +6515,12 @@ class App {
     // another animation, so a second sequence picks its own type and length
     // rather than inheriting the finished one's.
     for (;;) {
-      const setup = await this.animationStep2(this.animationSourceLayer()?.name ?? null);
+      const source = this.animationSourceLayer();
+      const setup = await this.animationStep2(
+        source?.name ?? null,
+        this.animationPartNames(source),
+        source ? this.animationFacing([source.id]) : null,
+      );
       if (!setup) return;
 
       if (setup.category === 'character') {
@@ -6554,11 +6646,17 @@ class App {
    * sequence ends when the user says so - so the note names the frame the
    * first run will draw.
    */
-  private animationStep2(sourceName: string | null): Promise<{
+  private animationStep2(
+    sourceName: string | null,
+    partNames: readonly string[],
+    detectedFacing: AnimationFacing | null,
+  ): Promise<{
     category: AnimationCategory;
     type: string;
     frames: number;
     prompt: string | null;
+    apiDisabled: boolean;
+    facing: AnimationFacing;
   } | null> {
     return new Promise((resolve) => {
       const dlg = el('anim-step2-dialog');
@@ -6566,6 +6664,22 @@ class App {
       const type = el<HTMLSelectElement>('anim-type');
       const frames = el<HTMLInputElement>('anim-frames');
       const prompt = el<HTMLTextAreaElement>('anim-prompt');
+      const poseDisabled = el<HTMLInputElement>('anim-pose-disabled');
+      const facingLeft = el<HTMLInputElement>('anim-facing-left');
+      const facingRight = el<HTMLInputElement>('anim-facing-right');
+      // Preselected from the drawing, never decided by it: a figure drawn
+      // three-quarters on has no facing to find, and the person running the
+      // wizard is looking at the picture.
+      facingLeft.checked = detectedFacing === 'left';
+      facingRight.checked = detectedFacing !== 'left';
+
+      // The layers no assembly answers to. A measured run can only write a
+      // transform for a layer the rig can name, so this is the part of the
+      // figure that holds still - and knowing it before eight frames are drawn
+      // is the whole reason the choice below is offered rather than assumed.
+      const orphans = partNames.filter(
+        (name) => !REQUIRED_ASSEMBLIES.some((a) => matchesAssembly(name, a)),
+      );
 
       const categories: AnimationCategory[] = ['character', 'object'];
       category.innerHTML = '';
@@ -6599,6 +6713,36 @@ class App {
         frames.value = String(defaultSequenceFrames(type.value));
       };
 
+      // What the choice costs, in this figure's own numbers. An object has no
+      // assemblies to miss, so the count is only mentioned for a character.
+      const updatePoseNote = (): void => {
+        const counted =
+          category.value === 'character' && orphans.length > 0
+            ? ` ${orphans.length} of ${partNames.length} layers here match no assembly: ${orphans.join(', ')}.`
+            : '';
+        el('anim-pose-note').textContent = poseDisabled.checked
+          ? `The helper judges every angle itself and poses every layer, so the note below carries more of the sequence than usual.${counted}`
+          : `The app measures the joints and hands over finished angles.${counted}${
+              counted ? ' A measured run leaves those layers exactly where they are.' : ''
+            }`;
+      };
+
+      // What the app could and could not tell from the figure itself, so a
+      // preselection that is wrong is visibly a guess rather than a finding.
+      const updateFacingNote = (): void => {
+        const found =
+          detectedFacing === null
+            ? category.value === 'character'
+              ? 'This figure\u2019s feet point opposite ways, so it is not drawn in profile and the app has no reading to offer \u2014 set this from the drawing.'
+              : ''
+            : `The figure\u2019s feet point ${detectedFacing}.`;
+        const cost =
+          facingLeft.checked
+            ? ' The measured cycles were drawn walking right, so every angle is mirrored for this one.'
+            : ' The measured cycles were drawn walking right, so their angles apply as they are.';
+        el('anim-facing-note').textContent = category.value === 'object' ? '' : found + cost;
+      };
+
       const updateNote = (): void => {
         // The cycle behind a type is the AI helper's business, not the
         // user's: how many skeletons the asset happens to hold says nothing
@@ -6616,15 +6760,25 @@ class App {
         fillTypes();
         fillFrames();
         updateNote();
+        updatePoseNote();
+        updateFacingNote();
       };
       type.onchange = () => {
         fillFrames();
         updateNote();
       };
       frames.oninput = updateNote;
+      for (const radio of [el<HTMLInputElement>('anim-pose-measured'), poseDisabled]) {
+        radio.onchange = updatePoseNote;
+      }
+      for (const radio of [facingLeft, facingRight]) {
+        radio.onchange = updateFacingNote;
+      }
       fillTypes();
       fillFrames();
       updateNote();
+      updatePoseNote();
+      updateFacingNote();
 
       const done = (
         value: {
@@ -6632,6 +6786,8 @@ class App {
           type: string;
           frames: number;
           prompt: string | null;
+          apiDisabled: boolean;
+          facing: AnimationFacing;
         } | null,
       ): void => {
         dlg.classList.add('is-hidden');
@@ -6645,6 +6801,8 @@ class App {
           // Cleaned where it is read rather than where it is used, so the one
           // place that knows it came from a person is the one that tidies it.
           prompt: normalizeAnimationPrompt(prompt.value),
+          apiDisabled: poseDisabled.checked,
+          facing: facingLeft.checked ? 'left' : 'right',
         });
       el('anim-step2-cancel').onclick = () => done(null);
       dlg.classList.remove('is-hidden');
@@ -6666,6 +6824,8 @@ class App {
     type: string;
     frames: number;
     prompt: string | null;
+    apiDisabled: boolean;
+    facing: AnimationFacing;
   }): Promise<boolean> {
     const dlg = el('anim-step3-dialog');
     const assemblyNames: Partial<Record<RequiredAssembly, string>> = {};
@@ -6704,15 +6864,27 @@ class App {
           job,
           sourceLayerName: sourceName,
           assemblies: assemblyNames,
-          transforms: step
-            ? animationFrameTransforms(step, pose.pivots, pose.figureHeight, pose.figurePivot)
-            : {},
+          // Disabling the measuring is the same handover a type with no cycle
+          // table gets: no angles at all. What changes is that the form says
+          // the silence was chosen, and names the layers the rig cannot reach.
+          transforms:
+            step && !setup.apiDisabled
+              ? animationFrameTransforms(
+                  step,
+                  pose.pivots,
+                  pose.figureHeight,
+                  pose.figurePivot,
+                  setup.facing,
+                )
+              : {},
           layers: this.animationLayerInventory(sourceIds),
           frames: setup.frames,
           // The same note goes on every frame of the sequence: it describes the
           // animation, not this one step of it, and a helper drawing frame six
           // needs the reason as much as the one that drew frame one.
           prompt: setup.prompt,
+          apiDisabled: setup.apiDisabled,
+          facing: setup.facing,
           delivery: this.animationPlugin ? 'plugin' : 'files',
         });
 
@@ -6976,6 +7148,56 @@ class App {
    * assemblies sitting at the top level have no shared parent and start a
    * fresh `animationLayer-<type>` sequence instead.
    */
+  /**
+   * The names of the layers directly inside the source frame.
+   *
+   * Enough for the setup dialog to say how much of this figure the rig can
+   * reach, which is what decides whether measuring it is worth doing. No
+   * geometry is read: a layer either carries a name an assembly answers to or
+   * it does not.
+   */
+  private animationPartNames(source: Layer | undefined): string[] {
+    if (!source) return [];
+    return this.store.sketch.layers.filter((l) => l.parent === source.id).map((l) => l.name);
+  }
+
+  /**
+   * Which way the source figure is drawn to travel, or null when its own feet
+   * disagree and there is no answer to give.
+   *
+   * Read from the feet because a foot is the one part of a figure that cannot
+   * be read two ways - see {@link figureFacing}. The result preselects the
+   * Facing choice in the setup dialog rather than deciding it: the drawing is
+   * in front of the user, and a figure drawn three-quarters on has no facing
+   * for this to find however carefully it looks.
+   */
+  private animationFacing(rootIds: string[]): AnimationFacing | null {
+    const sketch = this.store.sketch;
+    const scope = new Set<string>();
+    for (const rootId of rootIds) {
+      scope.add(rootId);
+      for (const id of descendantLayerIds(sketch, rootId)) scope.add(id);
+    }
+    const spans: AnimationFootSpan[] = [];
+    for (const layer of sketch.layers) {
+      if (!scope.has(layer.id)) continue;
+      if (!REQUIRED_ASSEMBLIES.some((a) => a.endsWith('leg-assembly') && matchesAssembly(layer.name, a))) {
+        continue;
+      }
+      const leg = this.animationLayerBounds([layer.id]);
+      if (!leg) continue;
+      // The foot is a layer inside this leg, so a figure with two feet gives
+      // two readings and a figure with none gives no opinion at all.
+      for (const id of descendantLayerIds(sketch, layer.id)) {
+        const child = sketch.layers.find((l) => l.id === id);
+        if (!child || !matchesFoot(child.name)) continue;
+        const foot = this.animationLayerBounds([child.id]);
+        if (foot) spans.push({ leg, foot });
+      }
+    }
+    return figureFacing(spans);
+  }
+
   private animationSourceLayer(): Layer | undefined {
     const sketch = this.store.sketch;
     const roots = new Set(
@@ -7000,7 +7222,49 @@ class App {
         : { name, opacity: 1, strokes: [], children: imported.layers };
     this.store.addImportedLayers([node]);
     const added = this.store.sketch.layers.find((l) => !before.has(l.id) && !l.parent);
+    this.foldImportedLayers(before);
     return added?.id ?? null;
+  }
+
+  /**
+   * Folds everything an import just added, so it arrives as a row rather than
+   * as a panel.
+   *
+   * An illustrated character is a group of assemblies, each a group of parts,
+   * each a group of outlines: one figure is sixty-odd rows, and two of them
+   * leave the layers panel showing nothing but itself, with the page it is
+   * describing scrolled off the top. Whatever arrived is one thing to the
+   * person who imported it, so it arrives folded and the caret opens it.
+   *
+   * Every new group is folded, not only the outermost: folding the outer one
+   * alone hides the rows, and the first click on its caret then spills all
+   * sixty back out at once.
+   *
+   * `before` is the layer ids as they stood before the import, which is what
+   * makes this work for one root or twenty without being told which. It does
+   * nothing for an import that is a flat run of layers with no group among
+   * them - there is nothing to fold - and that is the one shape of import
+   * that still fills the panel.
+   */
+  private foldImportedLayers(before: ReadonlySet<string>): void {
+    const sketch = this.store.sketch;
+    const added = sketch.layers.filter((l) => !before.has(l.id));
+    for (const layer of added) {
+      if (layer.group) this.collapsedGroups.add(layer.id);
+    }
+    // An import leaves the active layer on the last leaf it wrote, which is
+    // now inside something folded and has no row to be active on. The panel
+    // reads as having no active layer at all, so it moves out to the outermost
+    // thing that did arrive - the row the import actually produced.
+    const active = this.store.activeLayer;
+    if (active && !before.has(active.id) && this.hasCollapsedAncestor(active)) {
+      let outermost = active;
+      for (const layer of added) {
+        if (this.layerDepth(layer) < this.layerDepth(outermost)) outermost = layer;
+      }
+      this.store.activeLayerId = outermost.id;
+    }
+    this.renderLayers();
   }
 
   /**
@@ -7384,7 +7648,7 @@ class App {
     // Committing is the end of the move, from the button or from Enter alike:
     // the distance the preview was showing is made real and the palette goes.
     el('move-apply').addEventListener('click', () => {
-      if (this.applyMove()) this.closeMoveDialog();
+      if (this.applyMove() && !this.popups.staysAfterApply('move-dialog')) this.closeMoveDialog();
     });
     el<HTMLInputElement>('move-preview').addEventListener('change', () => this.syncMovePreview());
     el<HTMLSelectElement>('move-x-unit').addEventListener('change', () =>
@@ -7415,6 +7679,11 @@ class App {
     for (const id of ['move-dialog', 'rotate-dialog', 'page-settings-dialog', 'sharpen-dialog']) {
       this.popups.register(id, { moveable: true, resize: true, dockable: true });
     }
+    // Which of the two kinds each tool panel is. See {@link PanelAfterApply}:
+    // Move answers one question and goes; Rotate is a workbench that is used
+    // again as soon as it has been used once.
+    this.popups.toolRemainsInView('rotate-dialog');
+    this.popups.toolGoesOutOfView('move-dialog');
     // The wizard's own dialogs move and resize the same way, so a step can be
     // pushed aside to see the frame it is talking about. They are not
     // dockable: a step of a modal flow parked in a column would be a prompt
@@ -7468,7 +7737,7 @@ class App {
     if (ev.key === 'Enter') {
       ev.preventDefault();
       ev.stopPropagation();
-      if (this.applyMove()) this.closeMoveDialog();
+      if (this.applyMove() && !this.popups.staysAfterApply('move-dialog')) this.closeMoveDialog();
       return;
     }
     if (ev.key === 'Escape') {
@@ -7694,6 +7963,236 @@ class App {
   }
 
 
+  // ---- Transform tool ------------------------------------------------------
+
+  /**
+   * True while the Transform box is on the canvas.
+   *
+   * A mode rather than a palette, and rather than an entry in the `Tool`
+   * union: `Tool` is the drawing tools, each of which persists on the strokes
+   * it makes, and this one draws nothing. It sits beside Rotate instead - an
+   * overlay the canvas gestures are read against while it is up, which stays
+   * up until it is dismissed.
+   */
+  private transformActive = false;
+
+  /** The box the handles are drawn on, in sketch coordinates. */
+  private transformBox: TransformBox | null = null;
+
+  /** The handle under the pointer, for the cursor and the lit handle. */
+  private transformHover: TransformHandle | null = null;
+
+  /**
+   * A handle drag in hand.
+   *
+   * `startBox` is the box the press landed on, and every factor is measured
+   * from it rather than from the box as it currently stands: a drag that
+   * wanders out and comes back lands exactly where it started instead of
+   * accumulating what the round trip cost. `shown` is what has been applied
+   * to the drawing so far, taken back off before the next total goes on - the
+   * same way the Rotate preview works, and the reason a modifier pressed
+   * halfway through a drag re-reads the whole gesture rather than bending
+   * only what comes after it.
+   */
+  private transformDrag: {
+    pointerId: number;
+    handle: TransformHandle;
+    startBox: TransformBox;
+    ids: string[];
+    shown: { sx: number; sy: number; ox: number; oy: number } | null;
+    /** Set once the drag has changed the drawing, so a click costs no undo step. */
+    committed: boolean;
+  } | null = null;
+
+  /** Turns the Transform box on for the current selection, or off again. */
+  private toggleTransformTool(): void {
+    if (this.transformActive) {
+      this.closeTransformTool();
+      return;
+    }
+    if (this.animationMode) {
+      this.toast('Transform is not available in Animation Mode.');
+      return;
+    }
+    const box = this.selectionBounds();
+    if (this.propertyTargets().length === 0 || !box) {
+      this.toast('Select something to transform first.');
+      return;
+    }
+    this.transformActive = true;
+    this.transformBox = box;
+    this.transformHover = null;
+    this.toast('Transform: drag a handle. Shift keeps the shape, Alt works from the centre.');
+    this.updateCursor();
+    this.scheduleRender();
+  }
+
+  /** Takes the box off the canvas, abandoning any drag still in hand. */
+  private closeTransformTool(): void {
+    this.transformActive = false;
+    this.transformBox = null;
+    this.transformHover = null;
+    this.transformDrag = null;
+    this.updateCursor();
+    this.scheduleRender();
+  }
+
+  /**
+   * The box the handles sit on, re-measured from the selection unless a drag
+   * is carrying it.
+   *
+   * Lazy on purpose. The selection can change under an open Transform box
+   * from the layers panel, from the canvas, or from an undo, and asking for
+   * the bounds at the moment they are needed is one rule instead of three
+   * subscriptions that each have to remember to keep the box honest.
+   */
+  private currentTransformBox(): TransformBox | null {
+    if (this.transformDrag) return this.transformBox;
+    const box = this.selectionBounds();
+    this.transformBox = box;
+    return box;
+  }
+
+  /** The handle within grabbing distance of a point, nearest first. */
+  private transformHandleAt(pt: Point): TransformHandle | null {
+    const box = this.currentTransformBox();
+    if (!box) return null;
+    // The handles are drawn at a constant on-screen size, so their reach is a
+    // screen distance and has to be taken back into sketch units.
+    const reach = TRANSFORM_GRAB_PX / this.surface.getViewport().zoom;
+    let best: TransformHandle | null = null;
+    let bestDist = reach;
+    for (const handle of TRANSFORM_HANDLES) {
+      const p = transformHandlePoint(box, handle);
+      const dist = Math.hypot(pt.x - p.x, pt.y - p.y);
+      // Corners win a tie: on a small box a corner sits within reach of two
+      // side handles, and the corner is what a press near one is usually for.
+      if (dist < bestDist || (dist === bestDist && handle.length === 2)) {
+        best = handle;
+        bestDist = dist;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Takes a press on a handle, and reports whether it took it. A press
+   * anywhere else is left to the tool underneath, so the selection can still
+   * be changed with the box up.
+   */
+  private beginTransformDrag(e: PointerEvent, pt: Point): boolean {
+    if (this.activePointerId !== null) return false;
+    const handle = this.transformHandleAt(pt);
+    const box = this.currentTransformBox();
+    if (!handle || !box) return false;
+    const ids = this.propertyTargets();
+    if (ids.length === 0) return false;
+    e.preventDefault();
+    this.canvas.setPointerCapture(e.pointerId);
+    this.activePointerId = e.pointerId;
+    this.transformDrag = {
+      pointerId: e.pointerId,
+      handle,
+      startBox: box,
+      ids,
+      shown: null,
+      committed: false,
+    };
+    this.transformHover = handle;
+    this.updateCursor();
+    this.scheduleRender();
+    return true;
+  }
+
+  /** Carries a handle drag along, and reports whether it took the move. */
+  private onTransformPointerMove(e: PointerEvent, pt: Point): boolean {
+    const drag = this.transformDrag;
+    if (!drag || drag.pointerId !== e.pointerId) {
+      // Not dragging: the pointer still has to say which handle it is over,
+      // which is the only thing telling the user the box can be grabbed.
+      if (!this.transformActive) return false;
+      const over = this.transformHandleAt(pt);
+      if (over !== this.transformHover) {
+        this.transformHover = over;
+        this.updateCursor();
+        this.scheduleRender();
+      }
+      return false;
+    }
+
+    const wanted = transformScale(drag.startBox, drag.handle, pt, {
+      uniform: e.shiftKey,
+      fromCenter: e.altKey,
+    });
+    const shown = drag.shown;
+    if (shown && shown.sx === wanted.sx && shown.sy === wanted.sy && shown.ox === wanted.ox) {
+      return true;
+    }
+    if (!drag.committed) {
+      // The history step waits for the first real change, so a press that
+      // grabs a handle and lets go again does not cost an undo.
+      this.store.pushHistory();
+      drag.committed = true;
+    }
+    // Off with what is showing, on with what is wanted, each about its own
+    // origin: Alt can move the origin halfway through a drag, and an inverse
+    // taken about the wrong point is not an inverse.
+    if (shown) {
+      this.store.scaleStrokes(drag.ids, 1 / shown.sx, 1 / shown.sy, shown.ox, shown.oy, false);
+    }
+    this.store.scaleStrokes(drag.ids, wanted.sx, wanted.sy, wanted.ox, wanted.oy, false);
+    drag.shown = wanted;
+    this.transformBox = scaledBox(drag.startBox, wanted);
+    this.scheduleRender();
+    return true;
+  }
+
+  /** Ends a handle drag, and reports whether it took the release. */
+  private endTransformDrag(e: PointerEvent): boolean {
+    const drag = this.transformDrag;
+    if (!drag || drag.pointerId !== e.pointerId) return false;
+    this.transformDrag = null;
+    this.activePointerId = null;
+    if (this.canvas.hasPointerCapture(e.pointerId)) {
+      this.canvas.releasePointerCapture(e.pointerId);
+    }
+    // What is on the canvas is the result. There is nothing to commit: the
+    // history step went on before the first change, and every scale since has
+    // been the real thing rather than a preview of one.
+    const shown = drag.shown;
+    if (shown) {
+      const pct = (f: number): number => Math.round(f * 1000) / 10;
+      this.toast(
+        shown.sx === shown.sy
+          ? `Scaled to ${pct(shown.sx)}%.`
+          : `Scaled to ${pct(shown.sx)}% by ${pct(shown.sy)}%.`,
+      );
+      if (shown.sx === SCALE_FACTOR_MIN || shown.sy === SCALE_FACTOR_MIN) {
+        this.toast('Scaling stops at 1%: Transform does not flip a selection yet.');
+      } else if (shown.sx === SCALE_FACTOR_MAX || shown.sy === SCALE_FACTOR_MAX) {
+        this.toast('Scaling is limited to 10000%.');
+      }
+    }
+    this.transformBox = this.selectionBounds();
+    this.updateCursor();
+    this.scheduleRender();
+    return true;
+  }
+
+  /** The box and its handles, for the canvas overlay. */
+  private transformOverlay(): {
+    box: TransformBox;
+    handles: { x: number; y: number }[];
+    hover?: number;
+  } | null {
+    if (!this.transformActive) return null;
+    const box = this.currentTransformBox();
+    if (!box) return null;
+    const handles = TRANSFORM_HANDLES.map((h) => transformHandlePoint(box, h));
+    const hover = this.transformHover ? TRANSFORM_HANDLES.indexOf(this.transformHover) : -1;
+    return { box, handles, hover: hover >= 0 ? hover : undefined };
+  }
+
   // ---- Rotate tool ---------------------------------------------------------
 
   /** The unit each Rotate centre field is written in, for converting on a change. */
@@ -7726,6 +8225,12 @@ class App {
     bearing: number;
     turned: number;
     base: number;
+    /** Where the press landed, in sketch units - the pivot a click asks for. */
+    origin: Point;
+    /** Where it landed on screen, which is where the threshold is measured. */
+    from: { x: number; y: number };
+    /** True once the pointer has travelled far enough to mean a turn. */
+    moved: boolean;
   } | null = null;
 
   /** The pointer dragging the centre marker itself, when one is. */
@@ -7736,19 +8241,6 @@ class App {
 
   /** True while the pointer is close enough to the centre marker to grab it. */
   private rotateOverCenter = false;
-
-  /**
-   * True when releasing a canvas rotate drag should accept the rotation and
-   * put the palette away, rather than leaving it up for another turn.
-   *
-   * Set only when `Ctrl+R` opened it. Reaching for the keyboard shortcut is a
-   * gesture in itself - press, swing, let go - and it is finished when the
-   * pointer comes up; having then to find the Rotate button or press Escape is
-   * one step too many for what was meant to be quick. Opening the palette from
-   * the toolbar or the menu is the opposite intent, a panel wanted for typed
-   * angles, presets, and repeated turns, so that one stays put.
-   */
-  private rotateAcceptOnRelease = false;
 
   /**
    * Wires the Rotate dialog: an angle typed in or dragged out, turned about a
@@ -7767,7 +8259,7 @@ class App {
     el('rotate-cancel').addEventListener('click', () => this.closeRotateDialog(true));
     el('rotate-apply').addEventListener('click', () => {
       this.applyRotate();
-      this.closeRotateDialog(false);
+      if (!this.popups.staysAfterApply('rotate-dialog')) this.closeRotateDialog(false);
     });
 
     // The direction pair sets the sign of whatever magnitude is typed, which
@@ -7844,12 +8336,11 @@ class App {
     this.rotateBox = box;
     this.rotateAnchorKey = 'mc';
     this.rotateCenter = this.rotateAnchorPoint('mc', box);
-    this.rotateAcceptOnRelease = quick;
     // The panel says which of the two it is, since the difference only shows
     // up at the end of a drag - by which point it is too late to wonder.
     el('rotate-msg').textContent =
       `Rotate ${targets.length} selected element${targets.length === 1 ? '' : 's'} around a centre point.` +
-      (quick ? ' Let go of a drag to accept it and close.' : '');
+      (quick ? ' Drag on the canvas to turn it; the panel stays up for the next one.' : '');
 
     const angle = el<HTMLInputElement>('rotate-angle');
     angle.value = '0';
@@ -7895,7 +8386,6 @@ class App {
     this.rotateOverCenter = false;
     this.rotateCenter = null;
     this.rotateBox = null;
-    this.rotateAcceptOnRelease = false;
     // A drag still in hand when the dialog went - entering Animation Mode,
     // say - would otherwise leave the grab cursor stuck on the panel.
     this.popups.releaseGrabs('rotate-dialog');
@@ -8213,7 +8703,15 @@ class App {
     // turned nothing yet, so the gesture starts at zero.
     const base = this.rotatePreview ? this.rotatePreview.degrees : 0;
     this.setRotateAngleField(base);
-    this.rotateDrag = { pointerId: e.pointerId, bearing: this.rotateBearing(pt), turned: 0, base };
+    this.rotateDrag = {
+      pointerId: e.pointerId,
+      bearing: this.rotateBearing(pt),
+      turned: 0,
+      base,
+      origin: pt,
+      from: { x: e.clientX, y: e.clientY },
+      moved: false,
+    };
     this.rotateRay = pt;
     this.updateCursor();
     this.scheduleRender();
@@ -8238,6 +8736,15 @@ class App {
 
     const drag = this.rotateDrag;
     if (drag && drag.pointerId === e.pointerId) {
+      // Same threshold the select drag uses, and for the same reason: a press
+      // that has not travelled this far has not said yet which gesture it is.
+      if (Math.hypot(e.clientX - drag.from.x, e.clientY - drag.from.y) >= SELECT_DRAG_THRESHOLD_PX) {
+        drag.moved = true;
+      }
+      // Below the threshold the press has not said it is a turn yet. Reading a
+      // bearing off it anyway would flick the selection a few degrees round
+      // and back again on what turns out to be a click asking for a pivot.
+      if (!drag.moved) return true;
       const bearing = this.rotateBearing(pt);
       drag.turned += rotationStep(drag.bearing, bearing);
       drag.bearing = bearing;
@@ -8289,6 +8796,21 @@ class App {
     if (this.canvas.hasPointerCapture(e.pointerId)) {
       this.canvas.releasePointerCapture(e.pointerId);
     }
+
+    // A press that never travelled is a click, and a click puts the pivot
+    // where it landed. The nine presets stay exactly as they were - they are
+    // the quick way to the corners and the middle of the box - and this is
+    // the loose way to everywhere else: a shoulder, a heel, a point off the
+    // shape entirely. It costs nothing that was there before, because a press
+    // that turned nothing already did nothing.
+    if (!drag.moved) {
+      this.revertRotatePreview();
+      this.setRotateAngleField(drag.base);
+      this.moveRotateCenter(drag.origin, null, true);
+      this.updateCursor();
+      this.scheduleRender();
+      return true;
+    }
     // Undo the shown turn and make it once for real, so the whole gesture is
     // one undo step rather than one per pointer event.
     this.revertRotatePreview();
@@ -8302,11 +8824,13 @@ class App {
     }
     this.setRotateAngleField(0);
     this.syncRotatePreview();
-    // Opened with Ctrl+R, the release is the end of the gesture: the rotation
-    // is already in the drawing, so the palette has nothing left to say. A
-    // press that turned nothing is not a gesture, though, and dismissing on a
-    // stray click would be a worse surprise than staying up.
-    if (this.rotateAcceptOnRelease && turned) {
+    // The rotation is in the drawing and the tool is still in hand. Letting
+    // go of a drag used to dismiss the palette when Ctrl+R had opened it,
+    // which threw away the pivot and the snap along with the answer and made
+    // a second turn cost a reopen and a re-place. What a panel does once its
+    // tool has been applied is one decision now, declared in one place:
+    // Rotate remains in view.
+    if (!this.popups.staysAfterApply('rotate-dialog') && turned) {
       this.closeRotateDialog(false);
       return true;
     }
@@ -8760,6 +9284,17 @@ class App {
         this.updateCursor();
       }
 
+      // Ctrl+T puts the Transform box on the selection, and takes it off
+      // again. Claimed explicitly because the chord is the browser's own
+      // (a new tab), and because it has to be swallowed inside a text field
+      // too - a stray Ctrl+T while renaming a layer must do nothing at all
+      // rather than something Chromium chose.
+      if ((e.ctrlKey || e.metaKey) && (e.key === 't' || e.key === 'T')) {
+        e.preventDefault();
+        if (!isTextEntry(document.activeElement)) this.toggleTransformTool();
+        return;
+      }
+
       // Reload throws the sketch away without asking, and Chromium still
       // handles both of these keys on its own however the menu is built - so
       // they are swallowed here, ahead of the text-field guard below. Inside
@@ -8895,6 +9430,14 @@ class App {
       // horizontal or vertical immediately, before the pointer next moves.
       if (e.key === 'Shift' && this.straightStart !== null && !e.repeat) {
         this.updateStraightEnd(true);
+        return;
+      }
+
+      // Escape takes the Transform box off. It comes first among the Escape
+      // handlers because the box is the thing most recently put up.
+      if (e.key === 'Escape' && this.transformActive) {
+        e.preventDefault();
+        this.closeTransformTool();
         return;
       }
 

@@ -238,6 +238,14 @@ async function run() {
  * because the whole figure tipped reads as no joint rotation; the tipping
  * itself is \`figureRotate\`.
  *
+ * **Every angle here is a right-facing figure's.** The skeletons all walk to
+ * the right, and a sign only means something once the facing is known:
+ * mirror a figure about its vertical axis and every rotation in it negates.
+ * Applying these to a left-facing character is a walk whose legs swing
+ * backwards. The mirror is \`mirrorPoseStep\`, and
+ * \`animationFrameTransforms\` applies it for the facing the wizard was
+ * told; see \`AnimationFacing\`.
+ *
  * Covered: ${names.map((n) => `${n.type} (${n.steps} steps)`).join(', ')}.
  */
 

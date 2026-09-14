@@ -148,6 +148,15 @@ reference.
   is *already* selected the removal now waits for the release, so the same
   press can start a Shift-constrained drag instead. A Shift-press that never
   moves is still a Shift-click.
+- **A press inside a selection belongs to the selection.** Hit-testing is
+  forgiving by design — every mark is widened by a few screen pixels so a thin
+  line can be clicked at all — and that forgiveness used to outrank the
+  selection: pressing in the middle of several selected elements would land on
+  whatever unselected mark happened to be nearby, replace the whole selection
+  with it, and drag that one thing instead. The selection now keeps the press,
+  so the drag moves what you were aiming at. The element under the pointer is
+  not lost: release without moving and it is selected, exactly as a click on it
+  always did.
 - **Layer restacking moves the whole selection.** The panel's move buttons
   (and `Ctrl+]` / `Ctrl+[`) shift every selected row one step, not just the
   active one; the selection keeps its own order, unselected rows keep theirs,
@@ -268,7 +277,14 @@ reference.
   same layer tree it left with — napkin-sketch's own exports round-trip
   losslessly), **PDF** (each page's vector content becomes a new sketch page,
   best effort), and **PNG / JPEG** (placed as a movable image on the active
-  layer).
+  layer). **What arrives lands folded**: an illustrated figure is a group of
+  assemblies, each a group of parts, each a group of outlines, and expanded
+  that is sixty-odd rows for one drawing. Whatever was imported is one thing,
+  so the panel gains one row for it and the caret opens it; the groups inside
+  are folded too, so opening one shows its assemblies rather than its whole
+  tree. The same goes for an SVG pasted from another editor, a sheet of
+  graphics placed together, and a frame drawn by Animation Mode. A flat import
+  with no groups in it has nothing to fold and still fills the panel.
 - **CapsLock cursor** — crosshair while CapsLock is on; a circle matching the
   current stroke width when off. The eraser carries a dashed circle the size of
   the area it will clear.
@@ -469,17 +485,21 @@ napkin-sketch ./notes.skbk
 | Eyedropper               | `I` (hold `Ctrl` to select a shape)       |
 | Move by a distance       | `Enter`, or the Move button (x / y, any unit) |
 | Step a Move field        | Arrow keys; hold `Shift` for a coarse step |
+| Transform (scale)        | `Ctrl/Cmd + T` (again, or `Esc`, to put it away) |
+| Keep the shape           | Hold `Shift` while dragging a handle      |
+| Scale from the centre    | Hold `Alt` while dragging a handle        |
 | Rotate                   | `Ctrl/Cmd + R`, or the Rotate button      |
 | Turn by hand             | Drag on the canvas while Rotate is open   |
-| Accept a `Ctrl+R` turn   | Release the drag (the palette closes)     |
 | Dock / undock a panel    | The button in the panel's title bar       |
-| Move the rotation centre | Drag the crosshair, the grid, or Centre x / y |
+| Move the rotation centre | Click the canvas, drag the crosshair, the grid, or Centre x / y |
 | Snap a rotation to 15°   | Hold `Shift` while dragging, or the Snap toggle |
 | Join strokes             | `Ctrl/Cmd + J`                            |
 | Close shape              | Close Shape button, then Sharp or Smooth  |
 | Drag-copy selection      | Hold `Alt` and drag the selection         |
 | Group layers             | `Ctrl/Cmd + G` (groups the selected layers) |
 | Ungroup layer            | `Ctrl/Cmd + Shift + G`                    |
+| Add / remove a layer row | `Ctrl/Cmd` + click the row                |
+| Select a run of layers   | `Shift` + click the far row               |
 | Rename layer             | `F2` or double-click the layer row        |
 | Move layer up / down     | `Ctrl/Cmd + ]` / `Ctrl/Cmd + [`            |
 | Select all               | `Ctrl/Cmd + A`                            |
@@ -700,7 +720,12 @@ keeping its layers. Deleting a group deletes the layers inside it.
 
 **Properties panel (`Ctrl+P`):** edits the current selection, element by
 element. Selecting a layer row selects that layer's elements, so the panel is
-also where a whole layer's stroke width is changed.
+also where a whole layer's stroke width is changed. **`Ctrl/Cmd`-click** picks
+rows out one at a time (clicking a selected row again takes it back out) and
+**`Shift`-click** takes every row between the last one selected and this one —
+the two modifiers every layer panel uses, and the one place they differ. A
+`Shift` range covers the rows the panel is *showing*: rows folded away inside a
+collapsed group are not swept up with them.
 
 - **Position** - the X and Y of the selection's top-left corner. Each axis has
   its own unit: `px` (default), `in`, `mm`, or `pt`. Typing a value moves the
@@ -733,6 +758,36 @@ being covered. The same button **undocks** it, back to the exact position it
 was floating at. A docked panel that is closed stays docked, and the dock takes
 no space at all while it is empty.
 
+**Transform (`Ctrl+T`):** puts one box around everything selected, with a
+handle on each corner and the middle of each side, and scales it by dragging
+one. The box stays up while it is in use — press `Ctrl+T` again or `Escape` to
+put it away — and a press anywhere off a handle still belongs to the tool
+underneath, so the selection can be changed without dismissing the box first.
+
+- **The handle decides which axes move.** A left or right handle scales across,
+  a top or bottom handle scales down, and a corner scales both — each axis by
+  its own amount, following the pointer. The handle opposite the one in hand
+  stays exactly where it is, so a drag reads as pulling that edge of the box.
+- **`Shift` keeps the shape.** Both axes take one factor, so the selection
+  grows or shrinks without being reshaped. On a corner the factor is whichever
+  axis the pointer committed to; on a side it is the one axis that handle can
+  measure, which is how a side handle scales the whole selection rather than
+  stretching it.
+- **`Alt` works from the centre.** The middle of the box stays put instead of
+  the opposite handle, so both sides move together and the selection grows in
+  place. `Alt` moves the point the scale is measured from and nothing else:
+  each axis still scales on its own, so a corner under `Alt` alone still
+  follows the pointer in both directions independently.
+- **`Shift + Alt`** is the two together: uniform, about the centre.
+- Either modifier can be pressed or let go **during** a drag, and the gesture is
+  re-read from where it started rather than bent from where it had got to.
+- A whole drag is **one undo step**, and a press that grabs a handle and lets go
+  without moving costs none at all.
+- **Dragging a handle through its anchor stops at 1%** rather than flipping the
+  selection inside out. Flipping is a real thing to want and this tool does not
+  do it yet — see `TODO.md`, along with skew, distort, perspective, and puppet
+  warp, which is the list this one box is meant to grow into.
+
 **Rotate (`Ctrl+R`, or the Rotate button beside Move):** turns the selection
 about a centre point, in a palette that opens in the top-right rather than
 centred - the canvas under the selection is where the rotation is dragged, so
@@ -743,17 +798,24 @@ a centred panel would be sitting on the pixels the gesture needs.
   drag has measured. Swinging past half a turn keeps counting the same way
   round, and a second lap counts as a second lap. Releasing commits the turn as
   a single undo step and puts the field back to zero.
-- **How it was opened decides what the release means.** From `Ctrl+R` the
-  release *accepts*: the rotation is committed and the palette closes, so the
-  whole thing is press, swing, let go. A press that turned nothing leaves it
-  open, so a stray click cannot dismiss it. From the **Rotate** button or the
-  Edit menu the palette stays up for typed angles, presets, and further turns,
-  and is dismissed with **Rotate**, **Cancel**, or `Escape`.
-- **The centre of rotation moves three ways**: drag the crosshair on the canvas
-  (the pointer offers a grab where it can be picked up), pick one of the nine
-  handles of the selection's box from the preset grid, or type an exact
-  **Centre x / y** in `px`, `in`, `mm`, or `pt`. A centre that has been dragged
-  or typed lights no preset, which is how the panel says it is custom.
+- **The tool stays in hand.** Letting go of a drag commits the turn and leaves
+  the palette up, and so does **Apply**: an angle is rarely the last one, and
+  closing on the first answer threw away the pivot that had just been placed
+  and the snap that had just been set along with it. `Ctrl+R` and the **Rotate**
+  button now behave the same way; either is dismissed with **Rotate**,
+  **Cancel**, or `Escape`. Move is the other kind of panel — it asks one
+  question and goes once it is answered — and which of the two a panel is is
+  declared in one place rather than decided in each Apply handler.
+- **The centre of rotation moves four ways**: **click anywhere on the canvas**
+  to put it there, drag the crosshair (the pointer offers a grab where it can
+  be picked up), pick one of the nine handles of the selection's box from the
+  preset grid, or type an exact **Centre x / y** in `px`, `in`, `mm`, or `pt`.
+  The presets are the quick way to the corners and the middle of the box; a
+  click is the loose way to everywhere else — a shoulder, a heel, a point off
+  the shape entirely. Click and drag are told apart by the same few pixels that
+  separate a click from a drag everywhere else, so a press that turns is still
+  a turn. A centre that has been clicked, dragged, or typed lights no preset,
+  which is how the panel says it is custom.
 - **Angle, direction, and snapping**: the angle field is signed, and the
   **CW / CCW** pair re-signs whatever magnitude is in it rather than clearing
   it - so `90` and a press of CCW gives `-90`. **Snap to 15°** rounds typed and
@@ -965,6 +1027,23 @@ With the mode installed, the banner's **Generate…** button runs the wizard:
 
    The list and the templates come from one table in the source, so an option
    can never appear without the prompt behind it.
+
+   **Posing: Measure the joints, or Disable API.** The app normally measures
+   this figure's own geometry and hands the helper a finished angle per
+   assembly. That only reaches a layer one of the six assemblies answers to,
+   and a real illustrated character has more layers than that: a drawing with
+   a skirt, a shirt, a glove and two jacket halves has layers with no slot at
+   all, and a measured run leaves every one of them exactly where it was.
+   Choosing **Disable API** hands over no angles at all. The helper poses every
+   layer itself, from the drawing, your note and - for a type the drawn studies
+   cover - that type's own measured travel band, printed in the form so there
+   is something to aim at. The form also names the layers the rig could never
+   have reached. The
+   dialog counts them for the figure in front of you - *"5 of 11 layers here
+   match no assembly"* - so the choice is made before a sequence is drawn
+   rather than after eight frames of it. What the setting never changes is that
+   a frame is **posed rather than redrawn**: the path data stays as it is
+   either way.
 2. **Map missing layers** (character animations only, and skipped when the
    page already validates) — for each missing assembly, a dialog asks which
    layers consist of it (Cancel / Back / Next); the chosen layers are grouped
@@ -972,9 +1051,12 @@ With the mode installed, the banner's **Generate…** button runs the wizard:
    entirely**: they move the graphic as a whole and have no arms or legs to
    map, so setup comes first and decides whether the assemblies are needed.
 3. **One frame at a time** — the source frame is written to
-   `_temp/animation-source.svg` and a short form (under 3 KB) to
-   `_temp/animation-form.txt`. The helper applies the `vector-animations` skill
-   and **edits that file rather than redrawing it**: it sets one `transform`
+   `_temp/animation-source.svg` and a short form (4 to 7 KB) to
+   `_temp/animation-form.txt`. The form asks for exactly one read before the
+   first edit - the `vector-animations` skill - and names the rest under a
+   heading that says when they apply, because a helper told to read everything
+   will. The helper applies that skill and **edits the source file rather than
+   redrawing it**: it sets one `transform`
    per assembly and saves the result as `animations/<type>_<n>.svg` (the
    folder is created if missing). A source frame named `character-walk_1`
    produces `animations/character-walk_2.svg`; an unnamed source starts a
@@ -988,6 +1070,24 @@ With the mode installed, the banner's **Generate…** button runs the wizard:
    it came from and the view fits the page afterwards, so the sequence builds
    left to right as an animation strip. Only the horizontal position moves;
    the cycle's vertical bob is part of the pose.
+
+   **Which way the figure travels decides the sign of every angle.** The
+   measured cycles were read off wireframe skeletons that all walk to the
+   right, and mirroring a figure negates every rotation in it - so the same
+   table applied to a left-facing character is a walk with the legs swinging
+   backwards. The setup dialog carries a **Facing** choice, *Travels right* or
+   *Travels left*, preselected from the figure's own feet: a foot sticks out in
+   front of the ankle, so two feet pointing the same way are a profile and two
+   pointing opposite ways are a drawing with no facing to read, which the note
+   under the choice says outright. Choosing *Travels left* mirrors the
+   dictated transforms, and the form tells the helper which way it was read
+   either way - including when the measuring is off and the helper is working
+   from the skill's own right-facing tables, where flipping the signs is its
+   job rather than the app's.
+
+   **A frame arrives as one row**, folded shut the way everything imported is
+   (see **Import** in the feature list above). The panel gains one row per
+   frame rather than the sixty-odd an illustrated pose is made of.
 
    **Frame files are sprites.** The SVG kept in `animations/` is sized to the
    ink, not to the napkin-sketch page, and carries no background rect — so a

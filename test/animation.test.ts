@@ -1,6 +1,8 @@
 /** Animation Mode layer-rule tests (validation, frame naming). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import {
   animationFrameFile,
   animationFrameJob,
@@ -17,8 +19,18 @@ import {
   type AnimationPoseStep,
   expandBounds,
   assemblyPivot,
+  animationFrameTransforms,
+  CYCLE_FACING,
+  figureFacing,
+  matchesFoot,
+  mirrorPoseStep,
+  ANIMATION_FRAME_TARGET_MS,
   ANIMATION_PROMPT_LIMIT,
   ANIMATION_PROMPT_TAG,
+  ANIMATION_SETUP_LIMIT_MS,
+  ANIMATION_STALL_LIMIT_MS,
+  ANIMATION_TRAVEL,
+  animationHasStalled,
   buildAnimationForm,
   normalizeAnimationPrompt,
   extractSvgMarkup,
@@ -410,6 +422,429 @@ test('buildAnimationForm templates the prompt for a type with no cycle', () => {
   assert.ok(!form.includes('front-leg-assembly'));
 });
 
+/**
+ * The eleven layers of a real illustrated walk frame, in paint order.
+ *
+ * Six carry names an assembly answers to; the skirt, the shirt, the glove and
+ * the two jacket halves carry names the rig has never heard of. That split is
+ * the whole reason Disable API exists, so the fixture keeps it.
+ */
+const BAD_GIRL_LAYERS = [
+  'body',
+  'back-leg-assembly',
+  'front-leg-assembly',
+  'skirt-assembly',
+  'back-arm-assembly',
+  'shirt',
+  'head-assembly',
+  'front-arm-assembly',
+  'jacket-left',
+  'front-glove',
+  'jacket-right',
+].map((name, order) => ({ name, order, x1: 0.1, y1: 0.1, x2: 0.9, y2: 0.9 }));
+
+
+/** The repository root, found from wherever the bundled test is run. */
+function repoRoot(): string {
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const pkg = join(dir, 'package.json');
+    if (existsSync(pkg) && JSON.parse(readFileSync(pkg, 'utf-8')).name === 'napkin-sketch') {
+      return dir;
+    }
+    const up = dirname(dir);
+    if (up === dir) break;
+    dir = up;
+  }
+  throw new Error(`repository root not found from ${process.cwd()}`);
+}
+
+test('both modes carry the travel bands, for the job each mode has for them', () => {
+  const base = {
+    category: 'character' as const,
+    type: 'walk',
+    job: animationFrameJob('BadGirl_walk_1', 'walk'),
+    sourceLayerName: 'BadGirl_walk_1',
+    assemblies: { head: 'head-assembly' },
+    layers: BAD_GIRL_LAYERS,
+  };
+  const measured = buildAnimationForm({ ...base, transforms: { head: 'rotate(-2 100 20)' } });
+  const disabled = buildAnimationForm({ ...base, transforms: {}, apiDisabled: true });
+
+  // Same numbers to both. With the measuring on they are a check on a frame
+  // whose angles are already decided; with it off they are the target.
+  for (const form of [measured, disabled]) assert.ok(form.includes('arms 4.8 (1.2-9.4)'));
+  assert.ok(measured.includes('For checking the result rather than choosing it'));
+  assert.ok(disabled.includes('these are the amounts to aim at'));
+
+  // The measured form is read on every frame of every sequence, and each line
+  // of it is time spent before the first edit, so it gets the short version.
+  // Measured as what the band costs the form, which the fixture cannot skew:
+  // from where the numbers start to where the next step begins.
+  const band = (form: string, from: string): string =>
+    form.slice(form.indexOf(from), form.indexOf('3. Name the frame'));
+  const measuredBand = band(measured, 'For checking the result');
+  const disabledBand = band(disabled, 'Nothing measured this frame');
+  assert.ok(measured.length < disabled.length);
+  assert.ok(
+    measuredBand.length * 2 < disabledBand.length,
+    `the band costs the measured form ${measuredBand.length} bytes against ${disabledBand.length}`,
+  );
+});
+
+test('a looping type is told its bob has to change direction', () => {
+  // The gap a band cannot describe. A walk that bobs 0.6, 0.7, 1.3 sits inside
+  // the band on every step and is still a figure sinking rather than walking:
+  // five of the six drawn walks change sign somewhere in the cycle, and a
+  // cycle that only ever drops cannot arrive back where it started.
+  const walk = buildAnimationForm({
+    category: 'character',
+    type: 'walk',
+    job: animationFrameJob('BadGirl_walk_1', 'walk'),
+    sourceLayerName: 'BadGirl_walk_1',
+    assemblies: {},
+    transforms: {},
+    apiDisabled: true,
+  });
+  assert.equal(animationTypeSpec('walk')!.loops, true);
+  assert.ok(walk.replace(/\s+/g, ' ').includes('Bob has a direction the band cannot show'));
+
+  // A type that runs from a start to an end has no such rule to give.
+  const down = buildAnimationForm({
+    category: 'character',
+    type: 'knocked-down',
+    job: animationFrameJob('BadGirl_kd_1', 'knocked-down'),
+    sourceLayerName: 'BadGirl_kd_1',
+    assemblies: {},
+    transforms: {},
+    apiDisabled: true,
+  });
+  assert.equal(animationTypeSpec('knocked-down')!.loops, false);
+  assert.ok(!down.includes('Bob has a direction'));
+});
+
+test('the cycles are a right-facing figure, and the table still says so', () => {
+  // The premise the whole sign convention rests on, pinned so that a
+  // regeneration from a mirrored asset fails here rather than in a sequence.
+  // In WALK_CYCLE's first step the front leg swings clockwise and the back leg
+  // counterclockwise; on a figure walking right that is the leading leg
+  // reaching forward.
+  assert.equal(CYCLE_FACING, 'right');
+  assert.ok(WALK_CYCLE[0].rotate['front-leg-assembly']! > 0);
+  assert.ok(WALK_CYCLE[0].rotate['back-leg-assembly']! < 0);
+});
+
+test('mirroring a step negates every angle and leaves the bob alone', () => {
+  // Mirroring art about its vertical axis negates rotations and preserves
+  // vertical distances. That is the whole of the transformation, and it is
+  // exact rather than an approximation of one.
+  const step = {
+    shiftYPercent: 2.5,
+    figureRotate: 14,
+    rotate: { 'front-leg-assembly': 12.3, 'back-leg-assembly': -13.5 },
+  };
+  const mirrored = mirrorPoseStep(step);
+  assert.equal(mirrored.shiftYPercent, 2.5);
+  assert.equal(mirrored.figureRotate, -14);
+  assert.equal(mirrored.rotate['front-leg-assembly'], -12.3);
+  assert.equal(mirrored.rotate['back-leg-assembly'], 13.5);
+
+  // And it is its own inverse, so a figure mirrored twice is itself.
+  assert.deepEqual(mirrorPoseStep(mirrored), step);
+
+  // A step with no figure tip does not grow one.
+  assert.equal(mirrorPoseStep({ shiftYPercent: 0, rotate: {} }).figureRotate, undefined);
+});
+
+test('a foot is what says which way a figure faces', () => {
+  assert.ok(matchesFoot('front-shoe'));
+  assert.ok(matchesFoot('back_foot'));
+  assert.ok(matchesFoot('Left Boot'));
+  assert.ok(matchesFoot('feet'));
+  // Not a foot: the leg above it, and a word that merely contains one.
+  assert.ok(!matchesFoot('front-leg-assembly'));
+  assert.ok(!matchesFoot('footer-text'));
+  assert.ok(!matchesFoot('shoulder'));
+});
+
+test('a figure faces the way its feet reach past its legs', () => {
+  const leg = { minX: 100, maxX: 120 };
+  // Both feet overhang to the right: a profile walking right.
+  assert.equal(
+    figureFacing([
+      { leg, foot: { minX: 105, maxX: 140 } },
+      { leg, foot: { minX: 108, maxX: 145 } },
+    ]),
+    'right',
+  );
+  // Both to the left: the same figure mirrored.
+  assert.equal(
+    figureFacing([
+      { leg, foot: { minX: 80, maxX: 115 } },
+      { leg, foot: { minX: 75, maxX: 118 } },
+    ]),
+    'left',
+  );
+});
+
+test('a figure whose feet disagree has no facing, and says so', () => {
+  // Null is an answer, not a failure: a character drawn three-quarters on, or
+  // standing with the feet splayed, has no facing for a side-view cycle to be
+  // mirrored against. This is the real BadGirl source - her front shoe reaches
+  // 14 units left of its leg and her back shoe 17 right of its own - and
+  // guessing a facing for her is what produced a walk with the legs inverted.
+  const facing = figureFacing([
+    { leg: { minX: 100, maxX: 120 }, foot: { minX: 86, maxX: 120 } },
+    { leg: { minX: 130, maxX: 150 }, foot: { minX: 130, maxX: 167 } },
+  ]);
+  assert.equal(facing, null);
+
+  // Nothing to read from at all is also null, not a default.
+  assert.equal(figureFacing([]), null);
+  // A foot centred under its leg expresses no opinion either.
+  assert.equal(
+    figureFacing([{ leg: { minX: 100, maxX: 120 }, foot: { minX: 95, maxX: 125 } }]),
+    null,
+  );
+});
+
+test('a left-facing figure gets the cycle mirrored, once', () => {
+  const step = {
+    shiftYPercent: 0,
+    rotate: { 'front-leg-assembly': 12.3, 'back-leg-assembly': -13.5 },
+  };
+  const pivots = {
+    'front-leg-assembly': { x: 10, y: 20 },
+    'back-leg-assembly': { x: 30, y: 20 },
+  };
+  const right = animationFrameTransforms(step, pivots, 100, undefined, 'right');
+  const left = animationFrameTransforms(step, pivots, 100, undefined, 'left');
+
+  assert.equal(right['front-leg-assembly'], 'rotate(12.3 10 20)');
+  assert.equal(left['front-leg-assembly'], 'rotate(-12.3 10 20)');
+  assert.equal(right['back-leg-assembly'], 'rotate(-13.5 30 20)');
+  assert.equal(left['back-leg-assembly'], 'rotate(13.5 30 20)');
+
+  // The pivots do not move: mirroring the cycle is not mirroring the drawing.
+  // The figure is already drawn facing left; only the angles were measured on
+  // one facing the other way.
+  assert.ok(left['front-leg-assembly']!.includes('10 20'));
+
+  // Saying nothing is what every run before this said, so it must still mean
+  // right - otherwise the fix would silently invert every working sequence.
+  assert.deepEqual(animationFrameTransforms(step, pivots, 100), right);
+});
+
+test('the form says which way it read the figure, in both modes', () => {
+  const base = {
+    category: 'character' as const,
+    type: 'walk',
+    job: animationFrameJob('BadGirl_walk_1', 'walk'),
+    sourceLayerName: 'BadGirl_walk_1',
+    assemblies: {},
+  };
+  const dictated = buildAnimationForm({
+    ...base,
+    transforms: { head: 'rotate(-2 100 20)' },
+    facing: 'left',
+  });
+  const judged = buildAnimationForm({ ...base, transforms: {}, apiDisabled: true, facing: 'left' });
+
+  // With the measuring on the app has already mirrored what it hands over, so
+  // the one thing the helper must not do is mirror it again.
+  assert.ok(dictated.includes('mirrored already - do not mirror them again'));
+
+  // With it off the helper is reading the skill's own right-facing tables and
+  // is the only participant that can see the drawing, so it is told to flip.
+  assert.ok(judged.replace(/\s+/g, ' ').includes('Nothing has mirrored them for you'));
+
+  // A figure facing the way the cycles were drawn is told that too, rather
+  // than told nothing: silence is what let this go wrong in the first place.
+  const plain = buildAnimationForm({ ...base, transforms: {}, apiDisabled: true });
+  assert.ok(plain.includes('which is the way the drawn cycles face'));
+  assert.ok(!plain.includes('mirror'));
+});
+
+test('a helper still reading gets longer to be quiet than one mid-pose', () => {
+  // The two silences mean opposite things. Before the first edit the helper is
+  // reading a 46 KB skill, a reference sheet that is half a megabyte as a
+  // picture, and a 60 KB drawing it has to find every layer in; none of that
+  // writes anything. Once it is editing, silence means it stopped.
+  assert.ok(ANIMATION_SETUP_LIMIT_MS > ANIMATION_STALL_LIMIT_MS);
+
+  // The run that failed: quiet for just over five minutes, having touched
+  // nothing yet. That is preparation, and killing it threw away the frame.
+  const justOverFive = 5 * 60 * 1000 + 2000;
+  assert.equal(animationHasStalled(justOverFive, false), false);
+
+  // The same silence once posing has started is a helper that has stopped.
+  assert.equal(animationHasStalled(justOverFive, true), true);
+
+  // And preparation is not unbounded either.
+  assert.equal(animationHasStalled(ANIMATION_SETUP_LIMIT_MS + 1, false), true);
+  assert.equal(animationHasStalled(ANIMATION_SETUP_LIMIT_MS - 1, false), false);
+});
+
+test('the form hands over the measured travel bands when nothing else is measured', () => {
+  const form = buildAnimationForm({
+    category: 'character',
+    type: 'walk',
+    job: animationFrameJob('BadGirl_walk_1', 'walk'),
+    sourceLayerName: 'BadGirl_walk_1',
+    assemblies: {},
+    transforms: {},
+    layers: BAD_GIRL_LAYERS,
+    apiDisabled: true,
+  });
+
+  // With no angles dictated these are the only numbers the helper has, and a
+  // run that produced arms travelling 10.6% of the figure's height - past the
+  // 9.4 that is the widest any drawn walk managed - had them nowhere in front
+  // of it.
+  assert.ok(form.includes('legs 8.9 (3.2-26.2)'));
+  assert.ok(form.includes('arms 4.8 (1.2-9.4)'));
+  assert.ok(form.includes('bob 0.6 (0-1.9)'));
+  // Collapsed, because the form wraps its prose and a test that pinned the
+  // line breaks would fail the next time a sentence was reworded.
+  const flat = form.replace(/\s+/g, ' ');
+  assert.ok(flat.includes('Arms travelling as far as the legs is a run, or a mistake.'));
+  // And the note keeps its licence to leave a band: "drop pedalling" wants a
+  // heavier drop than a walk's 0.6%, and a band that forbade it would be the
+  // form overruling the user.
+  assert.ok(flat.includes('may take one part outside its band'));
+});
+
+test('a type the studies never measured gets no numbers rather than invented ones', () => {
+  const form = buildAnimationForm({
+    category: 'character',
+    type: 'taunt',
+    job: animationFrameJob('BadGirl_taunt_1', 'taunt'),
+    sourceLayerName: 'BadGirl_taunt_1',
+    assemblies: {},
+    transforms: {},
+    layers: BAD_GIRL_LAYERS,
+    apiDisabled: true,
+  });
+
+  assert.equal(ANIMATION_TRAVEL['taunt'], undefined);
+  assert.ok(!form.includes('the amounts to aim at'));
+  // The rest of the mode still applies - it is only the numbers that are
+  // missing, and a helper posing every layer is what the mode is for.
+  assert.ok(form.includes('Pose every layer, not only the assemblies'));
+});
+
+test('the baked travel bands still match the studies they were measured from', () => {
+  // `buildAnimationForm` is a pure function, so the bands live in the source
+  // rather than being read from the skill's asset at call time. That is one
+  // copy too many, and this is what stops the two drifting: re-running
+  // `npm run illustrated-frames` changes the asset, and this fails until the
+  // table follows.
+  const assets = join(
+    repoRoot(),
+    'ai-helper/vectors/skills/vector-animations/assets/illustrated-frames.json',
+  );
+  const budgets = JSON.parse(readFileSync(assets, 'utf-8')).budgets as Record<
+    string,
+    Record<string, { low: number; typical: number; high: number } | null>
+  >;
+
+  for (const [type, travel] of Object.entries(ANIMATION_TRAVEL)) {
+    const measured = budgets[type];
+    assert.ok(measured, `${type} is in the table but not in the studies`);
+    for (const part of ['bob', 'leg', 'arm', 'clothing'] as const) {
+      const band = travel[part];
+      if (!band) {
+        assert.ok(!measured[part], `${type}.${part} is measured but missing from the table`);
+        continue;
+      }
+      assert.deepEqual(
+        [band[0], band[1], band[2]],
+        [measured[part]!.low, measured[part]!.typical, measured[part]!.high],
+        `${type}.${part} has drifted from the measured studies`,
+      );
+    }
+  }
+});
+
+test('Disable API hands over no angles, and says the silence was chosen', () => {
+  // `walk` has a cycle table, so this is the case the flag exists for: the
+  // measuring could have run and the user said not to.
+  const form = buildAnimationForm({
+    category: 'character',
+    type: 'walk',
+    job: animationFrameJob('BadGirl_walk_1', 'walk'),
+    sourceLayerName: 'BadGirl_walk_1',
+    assemblies: { head: 'head-assembly', body: 'body' },
+    transforms: {},
+    layers: BAD_GIRL_LAYERS,
+    apiDisabled: true,
+  });
+
+  assert.ok(form.includes('The measured transforms are switched off'));
+  assert.ok(form.includes('Pose every layer, not only the assemblies'));
+  // The reason has to be the right one. A type with no cycle table reaches the
+  // same empty-handed form by a different road, and telling the helper it is
+  // standing on that road would be a lie about this app rather than about the
+  // drawing.
+  assert.ok(!form.includes('no measured cycle yet'));
+  // No angle may be smuggled through. The only `rotate(` left in the form is
+  // the placeholder the helper fills in for itself; a measured value would
+  // carry digits, and there are none.
+  assert.ok(form.includes('transform="rotate(<degrees> <pivot-x> <pivot-y>)"'));
+  assert.ok(!/transform="rotate\(-?\d/.test(form));
+  // And nothing is told to hold still. "leave as it is" is the measured
+  // form's way of saying a cycle does not turn that joint; printed under an
+  // instruction to pose every layer it would order six of them frozen, which
+  // is the defect this whole mode exists to undo.
+  assert.ok(!form.includes('leave as it is'));
+  assert.ok(form.includes('head-assembly (head)'));
+  // And the one rule the flag does not touch.
+  assert.ok(form.includes('This is a file edit, not a redraw'));
+});
+
+test('the form names the layers no assembly can reach', () => {
+  const form = buildAnimationForm({
+    category: 'character',
+    type: 'walk',
+    job: animationFrameJob('BadGirl_walk_1', 'walk'),
+    sourceLayerName: 'BadGirl_walk_1',
+    assemblies: {},
+    transforms: {},
+    layers: BAD_GIRL_LAYERS,
+    apiDisabled: true,
+  });
+
+  // The five with no slot, named. This is the list only the app can write: it
+  // is the one party that knows both what the document holds and what the rig
+  // can address.
+  const orphans = form.slice(form.indexOf('These layers match no assembly'));
+  for (const name of ['skirt-assembly', 'shirt', 'jacket-left', 'front-glove', 'jacket-right']) {
+    assert.ok(orphans.includes(name), `${name} has no assembly and should be named`);
+  }
+  // And the six that do match are not among them - `head-assembly` is the one
+  // that would slip through a plainer check, since only `head` is on the list.
+  const line = orphans.slice(0, orphans.indexOf('.'));
+  for (const name of ['head-assembly', 'front-leg-assembly', 'body']) {
+    assert.ok(!line.includes(name), `${name} matches an assembly and is not an orphan`);
+  }
+});
+
+test('measuring left on, the form still dictates the angles it measured', () => {
+  const form = buildAnimationForm({
+    category: 'character',
+    type: 'walk',
+    job: animationFrameJob('BadGirl_walk_1', 'walk'),
+    sourceLayerName: 'BadGirl_walk_1',
+    assemblies: { head: 'head-assembly' },
+    transforms: { head: 'rotate(-2 100 20)' },
+    layers: BAD_GIRL_LAYERS,
+  });
+
+  assert.ok(form.includes('- head-assembly (head): transform="rotate(-2 100 20)"'));
+  assert.ok(!form.includes('switched off'));
+  assert.ok(!form.includes('Pose every layer'));
+});
+
 test('buildAnimationForm templates a looping character type onto the assemblies', () => {
   const form = buildAnimationForm({
     category: 'character',
@@ -425,7 +860,45 @@ test('buildAnimationForm templates a looping character type onto the assemblies'
   assert.ok(form.includes('- Head (head): leave as it is'));
 });
 
-test('the form names both skills, so curve work has somewhere to go', () => {
+test('the form asks for one read before the first edit, and says what it costs', () => {
+  // A frame run was cancelled at 520s having edited nothing at all. The form
+  // had pointed at 85 KB of prose under one heading reading "read before
+  // editing" - the skill, the canonical instructions and the curve skill -
+  // and then at a 60 KB drawing that is four fifths path data the helper must
+  // not touch. Reading all of it is a defensible way to spend a run, which is
+  // exactly the problem.
+  const form = buildAnimationForm({
+    category: 'character',
+    type: 'walk',
+    job: animationFrameJob('character-walk_1', 'walk'),
+    sourceLayerName: 'character-walk_1',
+    assemblies: {},
+    transforms: { head: 'rotate(-2 100 20)' },
+  });
+  assert.ok(form.includes('Read one thing before editing'));
+  assert.ok(!form.includes('read before editing):'));
+
+  // Search the drawing, do not read it.
+  assert.ok(form.includes('Find the layers without reading the drawing'));
+  assert.ok(form.includes('search for data-name='));
+
+  // And the helper is told the budget, because it is the only one who can
+  // spend it. The app's own limit is deliberately looser - a slow frame that
+  // arrives beats a fast failure - so the target has to be said, not enforced.
+  const minutes = Math.round(ANIMATION_FRAME_TARGET_MS / 60000);
+  assert.ok(form.includes(`A frame should take under ${minutes} minutes`));
+  assert.ok(ANIMATION_FRAME_TARGET_MS < ANIMATION_SETUP_LIMIT_MS);
+
+  // And the last step says how the file gets to its output path. It used to
+  // forbid copy-then-edit and never mention edit-then-copy, which leaves the
+  // obvious reading - take the document in, hand it back out - as the one way
+  // left, and that is the whole document through the helper twice.
+  assert.ok(form.includes('A shell copy'));
+  assert.ok(form.includes('read the document in and write it back out'));
+  assert.ok(!form.includes('Save the finished document'));
+});
+
+test('curve work has somewhere to go, without being read on every frame', () => {
   const form = buildAnimationForm({
     category: 'character',
     type: 'walk',
@@ -435,8 +908,15 @@ test('the form names both skills, so curve work has somewhere to go', () => {
     transforms: { head: 'rotate(-2 100 20)' },
   });
   assert.ok(form.includes(`Apply the ${ANIMATION_SKILL_NAME} skill`));
-  assert.ok(form.includes(`companion ${VECTOR_SKILL_NAME} skill`));
   assert.ok(form.includes(`${ANIMATION_PLUGIN.dir}/skills/${VECTOR_SKILL_NAME}/SKILL.md`));
+
+  // Named, but under the heading that says not to read it yet. The curve skill
+  // is 24 KB and a pose has never once needed it; a form putting "read before
+  // editing" over the whole list is what a helper spends a run obeying.
+  const offered = form.indexOf('Reach for the rest only when');
+  assert.ok(offered > 0);
+  assert.ok(form.indexOf(`skills/${VECTOR_SKILL_NAME}/SKILL.md`) > offered);
+  assert.ok(form.indexOf('instructions/animation-mode.instructions.md') > offered);
 });
 
 test('a plugin install makes the form name the plugin skills, not the bare ones', () => {
@@ -453,7 +933,7 @@ test('a plugin install makes the form name the plugin skills, not the bare ones'
 
   // A plugin renames what it carries, so the bare skill name reaches nothing.
   assert.ok(plugin.includes(`Apply the ${pluginRef(ANIMATION_SKILL_NAME)} skill`));
-  assert.ok(plugin.includes(`companion ${pluginRef(VECTOR_SKILL_NAME)} skill`));
+  assert.ok(plugin.includes(`- the ${pluginRef(VECTOR_SKILL_NAME)} skill`));
   assert.ok(plugin.includes(`/${ANIMATION_PLUGIN.name}:${ANIMATION_PLUGIN.command}`));
   // Its files sit in a cache the app cannot name, so the paths go away with them.
   assert.ok(!plugin.includes(`${ANIMATION_PLUGIN.dir}/skills/${VECTOR_SKILL_NAME}/SKILL.md`));

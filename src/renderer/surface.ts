@@ -105,6 +105,17 @@ export interface Overlay {
     /** True while the centre itself is being dragged to a new place. */
     moving?: boolean;
   };
+  /**
+   * The Transform tool's box and its eight handles, in sketch coordinates,
+   * plus the index of the handle the pointer is over so it can be lit. The
+   * handles arrive already placed: where they sit is arithmetic the tool owns
+   * and the surface only draws.
+   */
+  transform?: {
+    box: { minX: number; minY: number; maxX: number; maxY: number };
+    handles: { x: number; y: number }[];
+    hover?: number;
+  };
   /** Ring marking the endpoint the pointer will snap to (Shift held while drawing). */
   snapTarget?: Point;
   /**
@@ -407,6 +418,10 @@ export class Surface {
       this.paintSnapTarget(ctx, overlay.snapTarget);
     }
 
+    if (overlay?.transform) {
+      this.paintTransformBox(ctx, overlay.transform);
+    }
+
     if (overlay?.rotate) {
       this.paintRotateCenter(ctx, overlay.rotate);
     }
@@ -583,6 +598,46 @@ export class Surface {
     ctx.fillStyle = moving ? 'rgba(47, 111, 235, 0.25)' : 'rgba(255, 255, 255, 0.9)';
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * Draws the Transform box: a solid outline with a square on each corner and
+   * the middle of each side.
+   *
+   * Solid rather than dashed, which is what the selection border already is -
+   * two dashed rectangles around the same marks would read as one confused
+   * one. The squares are drawn at a constant on-screen size for the same
+   * reason the rotate pivot is: they are things to grab, and a handle that
+   * shrinks with the page stops being grabbable exactly when the drawing gets
+   * detailed enough to need it.
+   */
+  private paintTransformBox(
+    ctx: CanvasRenderingContext2D,
+    transform: {
+      box: { minX: number; minY: number; maxX: number; maxY: number };
+      handles: { x: number; y: number }[];
+      hover?: number;
+    },
+  ): void {
+    const { box, handles, hover } = transform;
+    const px = 1 / this.zoom;
+    const half = 4 * px;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(47, 111, 235, 0.9)';
+    ctx.lineWidth = 1.25 * px;
+    ctx.strokeRect(box.minX, box.minY, box.maxX - box.minX, box.maxY - box.minY);
+
+    ctx.lineWidth = 1.25 * px;
+    for (let i = 0; i < handles.length; i++) {
+      const h = handles[i];
+      ctx.fillStyle = i === hover ? '#2f6feb' : 'rgba(255, 255, 255, 0.95)';
+      ctx.strokeStyle = '#2f6feb';
+      ctx.beginPath();
+      ctx.rect(h.x - half, h.y - half, half * 2, half * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
     ctx.restore();
   }
 

@@ -228,6 +228,12 @@ Rules:
 - The bob (`translate`) goes on **every** assembly, turning or not, so the figure moves as one
   piece instead of coming apart at the joints.
 - Angles are clockwise-positive, because SVG's y axis points down.
+- **Every signed angle in this skill is a right-facing figure's.** The cycle tables below were
+  measured from the wireframe skeletons, and every one of those walks to the **right**. Mirroring
+  a figure about its vertical axis negates every angle in it, so a character drawn facing **left**
+  takes the same cycle with every sign flipped. Applying a table as written to a left-facing
+  figure is a walk whose legs swing backwards - the frames look posed, the travel numbers come out
+  in range, and the figure moonwalks.
 
 ## Joint Pivots
 
@@ -302,6 +308,15 @@ Eight steps carry frame 0 through a full stride and back to its starting pose, *
 `Walk-Animation` in the wireframe asset**. Each row is the change from the previous frame, in
 degrees; frame `n` uses row `((n - 1) mod 8) + 1`.
 
+**Check which way your figure faces before you use a single one of these numbers.** Those
+skeletons walk to the right. A figure facing left takes every sign below flipped; a figure drawn
+three-quarters on, or standing with its feet splayed, has no facing for the table to be mirrored
+against at all, and there the table gives you the *sizes* and the drawing gives you the
+directions. When napkin-sketch generates the form it says which way it read the figure, and
+mirrors the transforms itself when it is dictating them - so a form that says the figure faces
+left has already done this for the angles it hands you, and has not done it for anything you take
+from the table yourself.
+
 | Step | front-arm | back-arm | front-leg | back-leg |
 |------|-----------|----------|-----------|----------|
 | 1 | -10.0 | +21.1 | +12.3 | -13.5 |
@@ -316,6 +331,12 @@ degrees; frame `n` uses row `((n - 1) mod 8) + 1`.
 Every column sums to zero across the eight steps, so the cycle closes and loops. **The front arm
 swings against the front leg on every step** - that opposition is what makes a walk read, and
 inverting it is the single most visible way to get a walk wrong.
+
+Inverting *both* pairs together is the second most visible, and it is harder to catch because the
+opposition survives it: arms and legs still disagree with each other, every angle is still in
+range, and the figure still walks - backwards. That is what applying a right-facing table to a
+left-facing character does, and the only way to see it is to look at the drawing and ask which way
+the leading leg is reaching.
 
 Two things the drawn skeleton says that a guess would not:
 
@@ -395,6 +416,13 @@ round, and "The Walk Cycle" says so. The finished drawings of a walk do rise and
 - 0.6% of a figure's height, against the run's 8%. Both are true, and neither licenses inventing
 a bounce: if the form hands you a `shiftYPercent`, use that number and not this one.
 
+And bob has a direction, which the band cannot carry - a band gives a size. Five of the six drawn
+walks change the sign of their bob somewhere in the cycle; BadGirl's own drops 0.6% of her height
+and then rises 1.3%. A cycle has to arrive back at the pose it started from, and a figure that only
+ever drops never does, however comfortably each step sits inside the band. This is a rule for the
+cycle rather than for every adjacent pair: a drawn run keeps its bob going the same way for three
+steps together, which is a figure sinking into a stride and then coming back up out of it.
+
 ### Nothing Stays Frozen
 
 Across those 70 steps, 520 layers were compared from one frame to the next. **91-100% of them
@@ -417,6 +445,40 @@ Holding a part still for *one* step is ordinary - a drawn walk does it constantl
 that never moved. `npm run frame-preview -- <file.svg> --against <previous.svg>` does the same for
 one step and renders the frame to a PNG beside it, so the numbers arrive with the picture they are
 about.
+
+### When the Form Carries No Angles
+
+The form usually hands over a finished `transform` per assembly, measured off the figure itself.
+Sometimes it hands over none and says so: *"The measured transforms are switched off for this
+sequence."* That is the app's **Disable API** setting, chosen for a drawing the six-assembly rig
+does not fit.
+
+It is worth knowing why, because this mode is the cure for the defect above rather than a licence
+to improvise. The measuring can only write a transform for a layer whose name one of the six
+assemblies answers to. A figure drawn with a skirt, a shirt, a glove and two jacket halves has
+layers with no slot at all, and they come out of a measured run frozen - not because the frame
+was drawn badly, but because nothing ever gave them an angle. On one real eleven-layer walk, four
+layers moved and seven held still.
+
+So when the form carries no angles:
+
+- **Pose every layer, not the six.** The form lists the ones matching no assembly. Those are the
+  layers that would otherwise be frozen, and they are the reason the setting was switched on.
+- **Let clothing follow the part it sits on.** A skirt turns with the hips, a sleeve with the arm
+  inside it, hair with the head. They have joints too; they are just not on the rig's list.
+- **Aim at the numbers the form gives you.** For a type the studies cover, an angle-less form
+  carries that type's own travel band - `legs 8.9 (3.2-26.2)   arms 4.8 (1.2-9.4)   bob 0.6
+  (0-1.9)   clothing 3.5 (0.4-5.1)` for a walk - because with nothing dictated they are the only
+  yardstick there is. Aim at the typical. Arms travelling as far as the legs is a run, or a
+  mistake.
+- **The note may take one part out of its band.** A band describes the cycle; the note describes
+  this sequence. A walk bobs 0.6% of the figure's height, and a walk asked to read as *dropping* -
+  pedalling, wading, carrying something heavy - drops further than that. Leaving the band because
+  the note asked is the note working; leaving it by accident is the defect the band is there to
+  catch. Say which part you took out, and why, in your reply.
+- **It is still a pose, never a redraw.** Switching the measuring off changes where the angles
+  come from. It changes nothing about what may carry them: the path data stays exactly as it is
+  and the movement lives in `transform` attributes.
 
 ## Object Animations
 
@@ -691,12 +753,26 @@ same careless way.
 
 **Finished frames** - the frame naming is reliable; the layer naming is the lesson:
 
-- `assets/illustrated-multiple-character-actions.png` (the SVG is 2.5 MB; look at the picture):
-  five characters - BadGirl, SassyGirl,
-  JammingJabber, CrimeGuy and JumpingJunkie - each with a drawn set of frames for walking,
-  attacking, taking damage, going down, and for one of them getting back up. Named
-  `<Character>_<action>_<n>`, the convention Animation Mode itself uses, with each character's
-  base pose carrying the bare name.
+- `assets/illustrated-multiple-character-actions.png` (the SVG is 2.6 MB; look at the picture):
+  five characters, each titled on the sheet and each action bracketed and named above its strip,
+  so the frames you need can be found without studying the page:
+
+  | Titled on the sheet | In the layer names | Frames drawn |
+  |---------------------|--------------------|--------------|
+  | Character I | `JumpingJunkie` | walk x2, idle, attack, damage x3, preDefeat, defeat |
+  | Character II | `CrimeGuy` | walk, attack, damage x3, preDefeat |
+  | Character III | `JammingJabber` | walk x2, attack x3, damage x3, preDefeat, defeat |
+  | Character IV | `BadGirl` | walk x2, attack x3, damage x3, preDefeat x2, defeat |
+  | Character V | `SassyGirl` | walk x4, preAttack x2, attack x4, damage x3, preDefeat x6, defeat x2, getUp x6 |
+
+  The brackets on the sheet name the same strips in plainer words - **Take Damage** for `damage`,
+  **Knocked Out** for the `preDefeat`/`defeat` pair - so read the bracket to find the strip and the
+  layer name to search the file. Frames are named `<Character>_<action>_<n>`, the convention
+  Animation Mode itself uses, with each character's base pose carrying the bare name.
+
+  **Go to one strip, not to the whole sheet.** Drawing a walk means looking at the five labelled
+  walks; the rest of the page is other movements, and the time spent on them is time spent before
+  your first edit.
 - `assets/illustrated-single-character-actions.png` (the SVG is 1.5 MB; look at the picture):
   one character in six action strips - an
   eight-frame walk, a nine-frame run, a four-frame fighting stance, a walk-to-run transition, a

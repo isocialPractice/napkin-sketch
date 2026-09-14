@@ -788,6 +788,55 @@ body {
   color: var(--ink-faint);
 }
 
+/* The posing choice. Bordered as one block because the two rows are a single
+   decision, and a radio on its own row reads as a list of alternatives in a
+   way a switch never does. */
+.settings-choice {
+  margin: 0 0 var(--s3);
+  padding: 0 var(--s2) var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.settings-choice legend {
+  padding: 0 var(--s1);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.choice-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  padding: var(--s1) 0;
+  cursor: pointer;
+}
+
+.choice-row input[type="radio"] {
+  margin: 2px 0 0;
+  flex: none;
+  accent-color: var(--primary);
+}
+
+.choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.choice-text strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Not italic: this is the option's second line, not an aside. */
+.choice-text em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
 .anim-layer-list {
   display: flex;
   flex-direction: column;
@@ -956,6 +1005,15 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   background: var(--surface-2);
+}
+
+/* Sits under the preset grid and says what the grid cannot do, which is the
+   half of the feature that has no control to point at. */
+.rotate-anchor-note {
+  margin: calc(var(--s1) * -1) 0 var(--s3);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-faint);
 }
 
 .rotate-anchor {

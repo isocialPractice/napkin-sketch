@@ -9,7 +9,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clampToViewport } from '../src/renderer/popup.js';
+import { clampToViewport, PopupManager } from '../src/renderer/popup.js';
 
 /** A window big enough that the middle of it is nowhere near a limit. */
 const VIEWPORT = { width: 1280, height: 800 };
@@ -63,4 +63,26 @@ test('a window shorter than the reach still clamps to a usable top', () => {
     left: 10,
     top: 0,
   });
+});
+
+// ---- What a tool panel does once its tool has been applied -------------------
+
+test('a panel that has not said otherwise goes away when its tool is applied', () => {
+  const popups = new PopupManager();
+  assert.equal(popups.staysAfterApply('move-dialog'), false);
+  assert.equal(popups.staysAfterApply('never-registered'), false);
+});
+
+test('a panel can say it stays up, and say it the other way again', () => {
+  // The two named behaviours, in one place, so a third tool of either kind is
+  // one line rather than a fourth Apply handler with its own opinion.
+  const popups = new PopupManager();
+  popups.toolRemainsInView('rotate-dialog');
+  assert.equal(popups.staysAfterApply('rotate-dialog'), true);
+  // Rotate is a workbench and Move is a question: the answer is per panel,
+  // and setting one says nothing about the other.
+  assert.equal(popups.staysAfterApply('move-dialog'), false);
+
+  popups.toolGoesOutOfView('rotate-dialog');
+  assert.equal(popups.staysAfterApply('rotate-dialog'), false);
 });

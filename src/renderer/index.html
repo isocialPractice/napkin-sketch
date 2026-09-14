@@ -431,6 +431,45 @@
             <input id="anim-frames" type="number" min="2" max="60" step="1" value="8" />
           </label>
           <p class="anim-dialog-note">Not how many are drawn now - frames are still drawn one at a time. This is the pacing: the cycle's movement is spread across this many frames, so fewer frames move further each and more frames move less.</p>
+          <!-- How the frame gets its angles. A radio pair rather than a
+               switch: these are two ways of posing, not an on and an off, and
+               the one not taken still has to read as a choice. -->
+          <fieldset class="settings-choice">
+            <legend>Posing</legend>
+            <label class="choice-row">
+              <input id="anim-pose-measured" type="radio" name="anim-pose" value="measured" checked />
+              <span class="choice-text">
+                <strong>Measure the joints</strong>
+                <em>The app reads this figure's own geometry and hands the helper finished angles.</em>
+              </span>
+            </label>
+            <label class="choice-row">
+              <input id="anim-pose-disabled" type="radio" name="anim-pose" value="disabled" />
+              <span class="choice-text">
+                <strong>Disable API</strong>
+                <em>For a drawing the rig does not fit. The helper poses every layer itself, from the drawing, your note and the skill.</em>
+              </span>
+            </label>
+          </fieldset>
+          <p id="anim-pose-note" class="anim-dialog-note"></p>
+          <fieldset class="settings-choice">
+            <legend>Facing</legend>
+            <label class="choice-row">
+              <input id="anim-facing-right" type="radio" name="anim-facing" value="right" checked />
+              <span class="choice-text">
+                <strong>Travels right</strong>
+                <em>The way the drawn cycles were measured. Their angles apply as written.</em>
+              </span>
+            </label>
+            <label class="choice-row">
+              <input id="anim-facing-left" type="radio" name="anim-facing" value="left" />
+              <span class="choice-text">
+                <strong>Travels left</strong>
+                <em>The same cycles mirrored. Every angle is negated, or the limbs swing backwards.</em>
+              </span>
+            </label>
+          </fieldset>
+          <p id="anim-facing-note" class="anim-dialog-note"></p>
           <label class="settings-field">
             <span>What is this animation for? (optional)</span>
             <!-- The one thing the form cannot measure. Everything else handed
@@ -566,6 +605,9 @@
               <button class="rotate-anchor" type="button" data-anchor="br" title="Bottom right" aria-label="Bottom right"></button>
             </div>
           </div>
+          <p class="rotate-anchor-note">A preset puts the centre on the selection's box. Clicking
+            the canvas puts it anywhere - on a shoulder, a heel, or off the shape entirely - and
+            dragging from anywhere else turns the selection about it.</p>
           <label class="settings-field">
             <span>Centre x</span>
             <span class="move-field">

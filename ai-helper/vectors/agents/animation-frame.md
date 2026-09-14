@@ -23,10 +23,14 @@ and it is why this job takes about a minute instead of failing at five.
 
 Work in this order:
 
-1. Load the `vectors:vector-animations` skill. It is where the assemblies, the joint pivots, the
-   cycle tables, and the transform recipe live, and it lists every animation type and whether that
-   type loops. Read
-   `${CLAUDE_PLUGIN_ROOT}/instructions/animation-mode.instructions.md` for the full contract.
+1. Load the `vectors:vector-animations` skill, and read nothing else yet. It is where the
+   assemblies, the joint pivots, the cycle tables, and the transform recipe live, and it lists
+   every animation type and whether that type loops - it is the whole contract for this job.
+   `${CLAUDE_PLUGIN_ROOT}/instructions/animation-mode.instructions.md` says the same thing at
+   greater length; open it only when something here is ambiguous, and the `vector-graphics` skill
+   only when step 6 sends you there. **A frame should take under five minutes, and reading is
+   what spends that time.** There is no credit for having read every reference and saved no
+   frame: one run was cancelled at 520 seconds having edited nothing at all.
 2. Read the form (`_temp/animation-form.txt` unless you were given another path). It carries the
    frame numbers, the source file, a finished `transform` value per assembly, and the output path.
    Copy those transform values character for character - they were measured against this exact
@@ -65,7 +69,7 @@ Work in this order:
    | --- | --- |
    | a rig cycle: walk, run, punch, stance, knockdown | `assets/character-wireframes.png` |
    | an illustrated character action | `assets/illustrated-single-character-actions.png` |
-   | one of five characters walking, attacking, taking damage | `assets/illustrated-multiple-character-actions.png` |
+   | one of five characters walking, attacking, taking damage | `assets/illustrated-multiple-character-actions.png` - titled **Character I** to **Character V**, each strip bracketed and named, so go to the one strip |
    | an object breaking or dispersing | `assets/breaking-objects.png` |
    | an object travelling - a bounce, a throw | `assets/bouncing-object.png` |
    | a movement no cycle table describes | `assets/character-study-throwing-and-walking.png` |
@@ -86,6 +90,28 @@ Work in this order:
    assembly is a `<g>` found by its `data-name`; object animations have no assemblies, so the
    subject is the root group and the transform goes there. One small `Edit` per assembly: match
    the group's opening tag and add or replace its `transform`.
+
+   **Find those tags; do not read the drawing to get to them.** Four fifths of that file is `d`
+   path data you must not touch - 27 KB of 34 KB in one real source - so `Grep` for `data-name=`
+   with `-n`, then `Read` a short window around the group you are posing. The opening `<g ...>`
+   tag is the whole of what you edit, and the form already told you which layers there are.
+
+   **When the form carries no angles, pose every layer instead.** A form saying the measured
+   transforms are switched off is the app's **Disable API** setting: this drawing does not fit the
+   six-assembly rig, and the form names the layers no assembly can reach. Those are yours to pose
+   as well - one transform each, about the joint the part hangs from, with clothing following the
+   part it sits on. For a type the studies cover the form prints that type's travel band - aim at
+   the typical, and remember that arms travelling as far as the legs is a run or a mistake. The
+   note may take one part out of its band when it asks for something the cycle does not have; say
+   which and why in your reply. Everything else about this job is unchanged, the rule below most
+   of all.
+
+   **Check the facing before you use a signed angle from anywhere.** The skill's cycle tables
+   were measured from skeletons walking right, and a figure facing left takes every one of those
+   signs flipped. The form says which way napkin-sketch read this figure, and whether it has
+   already mirrored the transforms it gave you. Getting this wrong produces a frame that passes
+   every check there is - the travel is in range, arms and legs still oppose each other, nothing
+   is frozen - and shows a character walking backwards.
 
    **A frame is posed, never redrawn.** Do not touch path data. Not one `d`, not one number. The
    whole pose lives in the `transform` attributes, and a frame that comes back with rewritten

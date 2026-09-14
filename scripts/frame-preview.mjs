@@ -475,6 +475,18 @@ export function poseCheck(posedText, fromText) {
  * of the one above it. A redrawn frame, for instance, produces wild travel
  * numbers and frozen layers at the same time, and fixing those two directly
  * would be treating the smoke.
+ *
+ * What is deliberately not a finding is how large this step is against the one
+ * before it. A cycle winding down - legs travelling 6.9%, then 4.8%, then 4.5%
+ * - is a real defect and an obvious thing to want caught, but the drawn frames
+ * refuse to support the rule: across the 22 consecutive steps of the drawn
+ * walks and runs the leg travel ratio runs from 0.32x to 4.14x, and one drawn
+ * walk shrinks all the way down across four steps (9.7, 8.9, 4.8, 3.5). A walk
+ * has a contact frame and a passing frame and they are not the same size. Bob
+ * direction is the same story - seven of those 22 pairs keep their sign, and
+ * twice a drawn run keeps it for three steps together - so alternation is put
+ * to the helper in the form, as a rule to apply with judgement, rather than
+ * asserted here as a verdict.
  */
 export function findings(step, band, pose) {
   const out = [];

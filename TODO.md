@@ -222,6 +222,47 @@ which is the shape the rest should follow.
   pluggable, but every line of it is still compiled into the bundle. That is
   the right trade for a runtime toggle and the wrong one if "uninstalled"
   should mean the code is not shipped; worth deciding which was meant.
+- [ ] **Disable API is a choice the app could make for itself**: the setup
+  dialog already counts the layers no assembly can reach, which is the whole
+  evidence the decision needs - five of eleven is not a close call. It still
+  asks. Offering the choice is right while the count is the only signal, but
+  the app could preselect Disable API past some share of the figure and say
+  why, so the default stops being wrong for exactly the drawings the mode was
+  added for. The count is computed in `animationPartNames` and the dialog's
+  `orphans`, both in `src/renderer/renderer.ts`.
+- [ ] **Facing is asked once and applied to every frame**: the wizard reads it
+  off the source figure and the whole sequence inherits it, which is right for
+  a walk and wrong for anything that turns around. It is also asked per
+  sequence rather than stored on the character, so drawing a second animation
+  from the same figure asks again and can be answered differently. If Animation
+  Mode grows a turn, or a figure that leads with the other foot, facing stops
+  being a property of the run and becomes one of the frame.
+- [ ] **A three-quarter figure has no cycle that fits it**: `figureFacing`
+  returns null for one, and null is handled honestly - the app does not mirror
+  and the form says the table gives sizes rather than directions. But that
+  leaves the helper judging every direction from a drawing, which is the case
+  the cycle tables were meant to take off it. Either the studies grow a
+  three-quarter set, or the tables need to carry enough to be projected onto
+  one; BadGirl, the character this was found on, is exactly this case.
+- [ ] **The select gesture has no automated coverage at all**: `beginSelect`
+  and the release beside it are the hottest path in the app - every click on
+  the canvas goes through them - and they now carry three deferred decisions
+  (`pendingSelectionClear`, `shiftToggleId`, `pendingSelectHitId`), each of
+  which means the press and the release have to agree about what a gesture
+  turned out to be. Nothing checks that they do. `renderer.ts` exports
+  nothing, so the rules cannot be reached from a test the way the store's can;
+  either the decision moves somewhere importable, or the app gets driven over
+  the DevTools protocol with real pointer events and DOM assertions. The
+  second is what the behaviour actually is, and it needs a harness the repo
+  does not have yet.
+- [ ] **`frame-preview` cannot see a drawing made of primitives**: the
+  tokenizer in `scripts/frame-preview.mjs` matches `<g>` and `<path>` and
+  nothing else, so a file drawn with `<rect>`, `<circle>` or `<ellipse>`
+  renders as an empty page with its travel figures all zero - and reports that
+  as a frame that did not move rather than as a file it could not read. The
+  skill's own `character-wireframes.svg` is 163 rectangles, so the one asset a
+  helper would most want to render against is the one it cannot. Either teach
+  the tokenizer the primitives or make it say when it understood nothing.
 - [ ] **The movement budgets are checked by the helper, not by the app**:
   4.2.0-alpha gave the frame subagent `npm run frame-preview`, so it renders what
   it drew, looks at it, and sees the travel figures before saving. That closes
@@ -486,6 +527,59 @@ looks at the picture before it poses. What that left open:
   drawn against a reference reads better than one drawn against the numbers
   alone. That is believable and unmeasured, and the honest version is a handful
   of frames generated both ways and compared by eye.
+
+## The rest of Transform (4.2.2-alpha)
+
+`Ctrl+T` scales: one box, eight handles, `Shift` for uniform and `Alt` from the
+centre. Scale is the transform that needs nothing the model does not already
+have — `Store.scaleStrokes` maps every point, anchor, and tangent handle, and
+the tool is arithmetic on a bounding box. The four below are the ones that do
+need something new, ordered by how much.
+
+They share one question, which is worth settling before any of them is built:
+**where does a transform live?** Today every one of them is baked into the
+points — a scaled stroke *is* its new coordinates, and there is no record that
+it was ever scaled. That is fine for scale and rotate, which are closed under
+the model. It stops being fine for a warp: a puppet-warped path that is then
+scaled needs its deformation re-evaluated, not re-baked, or the two compose
+into mush. Either these stay destructive and each one bakes, or a stroke grows
+an optional transform stack and every reader (`serialize.ts`, the SVG export,
+`strokeBounds`, the hit test, the frame preview) learns to ask for the posed
+geometry rather than the stored geometry. The second is a much larger change
+than any single feature below and would be worth it exactly once.
+
+- [ ] **Skew**: the small one. A shear is still an affine map, so it composes
+  with the scale already there and bakes into the points the same way. It needs
+  `Store.skewStrokes(ids, kx, ky, ox, oy)`, a handle behaviour (drag a *side*
+  with `Ctrl` held, the usual convention), and an answer for what a shear does
+  to a stroke's width, which is no longer uniform around the mark — the same
+  question `scaleStrokes` answers with `sqrt(|sx*sy|)` and which a shear makes
+  genuinely directional. Text and images would shear as boxes or not at all.
+- [ ] **Distort / free transform**: drag one corner on its own, so the box
+  becomes an arbitrary quadrilateral and the map is a homography rather than an
+  affine one. Straight lines stay straight, which keeps it tractable, but
+  Bézier handles no longer transform as points do — a curve under a projective
+  map is not the same curve with mapped control points, so it needs either
+  subdivision or an accepted approximation. Worth prototyping against
+  `character-wireframes.svg`, where the error would be visible.
+- [ ] **Perspective**: distort's constrained sibling — drag a corner and the
+  one beside it mirrors, giving a trapezoid. Falls out of distort almost for
+  free once the homography exists, so it should not be built first.
+- [ ] **Puppet / character warp**: pins on the drawing, and the geometry between
+  them deforms. The largest by a distance, and the only one that is not a map
+  from the whole box: it needs a mesh (or a weighting from each point to each
+  pin), a solver, and — unlike the three above — a reason to keep the pins
+  around after the gesture, which is what forces the transform-stack question.
+  For Animation Mode this is the interesting one: it is how a frame could be
+  posed without a rig at all, which is exactly the case **Disable API** exists
+  to work around.
+- [ ] **Flip**: the gap in what Transform already does. Dragging a handle
+  through its anchor currently stops at 1% rather than mirroring, because
+  `scaleStrokes` takes a text item's font size and an image's width as
+  magnitudes and `Math.max(1, …)` turns a negative factor into a 1px item. A
+  negative factor maps geometry correctly today; making it correct for the
+  other two is a contained fix, and it is the smallest useful thing on this
+  list.
 
 ## Chores
 

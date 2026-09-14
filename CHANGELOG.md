@@ -4,6 +4,266 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.2-alpha] - 2026-09-13
+
+### Added
+
+- **Disable API: a posing choice for a drawing the rig does not fit.**
+  Animation Mode measures the source figure's own geometry and hands the AI
+  helper a finished angle per assembly. Measuring only reaches a layer whose
+  name one of the six required assemblies answers to, and an illustrated
+  character has more layers than that. On a real eleven-layer walk frame five
+  of them - the skirt, the shirt, the glove and the two jacket halves - match
+  nothing at all, so the measuring can never write them an angle and they come
+  out of every frame frozen. Four layers moved and seven held still: the
+  cardboard cut-out the skill has warned about since 4.1.4-alpha, arriving by
+  way of the app rather than by way of the helper.
+  - A **Posing** radio pair in the animation setup dialog: **Measure the
+    joints**, which is the default and unchanged, or **Disable API**.
+  - Disabled, the form carries no angles, says the silence was chosen rather
+    than missing, names the layers no assembly can reach, and asks the helper
+    to pose every layer from the drawing, the note and the skill's measured
+    movement budgets.
+  - The dialog counts the unreachable layers for the figure in front of you -
+    "5 of 11 layers here match no assembly" - so the choice can be made before
+    a sequence is drawn rather than after eight frames of it.
+  - What the setting does not touch is the rule that a frame is posed and
+    never redrawn. It changes where the angles come from, not what may carry
+    them, and the form says so in both modes.
+- **Every form carries its type's measured travel band.** Switching the
+  measuring off used to leave the helper with no numbers at all, and it
+  showed: a walk came back with the arms travelling 10.6% of the figure's
+  height, past the 9.4% that is the widest any of the 70 drawn steps managed,
+  and with barely any bob. The form now prints that type's own band -
+  `legs 8.9 (3.2-26.2)   arms 4.8 (1.2-9.4)   bob 0.6 (0-1.9)` for a walk -
+  for the six types the studies cover. Both modes get it, for opposite jobs:
+  with the measuring off the numbers are the target, and with it on they are a
+  check on angles already chosen, since a frame landing far outside what every
+  drawn frame does went wrong in the editing rather than in the measuring. The
+  measuring mode gets the short version, because that form is read before every
+  frame of every sequence and every line of it is time spent before the first
+  edit. A type the studies never measured gets no
+  numbers rather than invented ones.
+- **A looping type is told its bob has to change direction.** A band gives a
+  size and bob has a sign, which is the one thing a band cannot carry: a walk
+  that bobs 1.3, then 0.7, then 0.6 sits comfortably inside its band on every
+  step and is still a figure sinking rather than one walking. Five of the six
+  drawn walks change the sign of their bob somewhere in the cycle - BadGirl's
+  own goes 0.6, then -1.3 - and a cycle that only ever drops cannot arrive back
+  at the pose it started from. Types that run from a start to an end are not
+  given the rule, because they have no pose to come back to.
+
+- **A Transform tool, on `Ctrl+T`.** One box around everything selected, with a
+  handle on each corner and the middle of each side, and a drag on any of them
+  scales the selection. The model already knew how to do this — `scaleStrokes`
+  maps points, Bézier anchors and both tangent handles, and carries a text
+  item's size and an image's box with them — so what was missing was the box
+  and the four rules that make a handle mean something:
+  - **The handle decides which axes move**, and no modifier changes that: sides
+    across, top and bottom down, corners both, each axis following the pointer
+    on its own. The handle opposite the one in hand stays put, so a drag reads
+    as pulling that edge of the box.
+  - **`Shift` makes the two factors agree**, so the selection keeps its shape.
+    On a corner the axis the pointer committed to wins; on a side, the one axis
+    that handle can measure drives both — which is how a side handle scales the
+    whole selection instead of stretching it.
+  - **`Alt` moves the point the scale is measured from** to the centre of the
+    box, so both sides travel together and the selection grows in place. It
+    changes the anchor and nothing else: a corner under `Alt` alone still
+    scales each axis independently.
+  - **`Shift + Alt`** is both, and either can be pressed or released *during* a
+    drag — every factor is measured from the box the gesture started on, so a
+    modifier halfway through re-reads the whole drag rather than bending what
+    is left of it.
+  - The box stays up until `Ctrl+T` or `Escape`, a press off a handle still
+    belongs to the tool underneath, a whole drag is one undo step, and a press
+    that grabs a handle and lets go again costs nothing.
+  - Dragging a handle through its anchor **stops at 1% instead of flipping**.
+    A negative factor mirrors geometry correctly but `scaleStrokes` reads a
+    font size and an image width as magnitudes, so a flip would mirror the
+    shapes and destroy the text. Stopping is the honest failure until that is
+    handled; it is on the TODO with skew, distort, perspective and puppet warp,
+    which is the list this one box exists to grow into.
+- **A click on the canvas puts the rotation centre anywhere.** The nine
+  presets reach the corners and the middle of the selection's box, which is
+  where a pivot usually goes and nowhere near where an interesting one does -
+  a shoulder, a heel, a point off the shape entirely. Those needed the
+  crosshair dragged or two numbers typed. A press that turns nothing already
+  did nothing, so that is the gesture this takes: click to place the pivot,
+  drag to turn about it, told apart by the same few pixels that separate a
+  click from a drag everywhere else in the app. The presets are untouched.
+- **The Rotate tool stays active once a rotation has been applied.** It is a
+  workbench - an angle, a direction, a snap, a pivot that took placing - and
+  dismissing it on the first answer threw all of that away with the answer, so
+  every further turn cost a reopen and a re-place. Two things used to dismiss
+  it: the **Apply** button, and letting go of a canvas drag when `Ctrl+R` had
+  opened it. Neither does now. The code already half agreed about the first -
+  `applyRotate` is documented as leaving the dialog open and Enter has always
+  done exactly that; only the button disagreed. Which kind a tool panel is now
+  lives in one place: `toolRemainsInView` for Rotate, `toolGoesOutOfView` for
+  Move, which asks one question and goes once it is answered - so a third panel
+  of either kind is a line rather than a fourth Apply handler with an opinion,
+  and the flag that used to carry the `Ctrl+R` exception is gone.
+
+### Fixed
+
+- **Characters that walk left had their legs swinging backwards.** Every signed
+  angle Animation Mode hands out - the cycle tables in `animation-cycles.ts`,
+  the transforms built from them, and the copy of the walk table the
+  `vector-animations` skill carries - was measured from the wireframe
+  skeletons, and every one of those walks to the **right**. Nothing anywhere
+  said so. Mirroring a figure negates every rotation in it, so the table
+  applied as written to a left-facing character inverts the whole cycle, and
+  the result is a defect that passes every check there is: the travel numbers
+  land in range, arms and legs still oppose each other, no layer is frozen,
+  and the figure moonwalks.
+
+  Measured on a real case. BadGirl's generated walk turned her front leg
+  +12.3° and her back leg -13.5° - `WALK_CYCLE[0]` copied verbatim, which is
+  what the helper does with the skill's table when the measuring is off. The
+  artist's own drawn BadGirl walk turns them **-17.7° and +16.8°**: the same
+  cycle, every sign the other way. A hand-edited reference of the pose wanted
+  came out at -40.1°/+33.1° - the same signs as the artist, the opposite of
+  the app.
+  - A **Facing** choice in the setup dialog, *Travels right* or *Travels left*,
+    preselected from the figure's own feet. A foot sticks out in front of the
+    ankle, which makes it the one part of a figure that cannot be read two
+    ways; two feet pointing the same way are a profile, and two pointing
+    opposite ways are a drawing with no facing at all. The note says which it
+    found, so a preselection is visibly a reading rather than a finding.
+  - *Travels left* mirrors the cycle - `mirrorPoseStep`, which negates every
+    angle and leaves the bob alone, because that is exactly what mirroring
+    art about a vertical axis does. Saying nothing still means right, so no
+    existing sequence changes.
+  - The premise is now written down where each set of numbers lives: the
+    generated table says it (from the generator, so it survives a
+    regeneration), the skill says it twice - once where the sign convention is
+    introduced and once in the walk table itself - and the form says which way
+    it read this figure in both modes. With the measuring off the form tells
+    the helper to flip the signs itself, because there the helper is reading
+    the skill's tables directly and is the only participant that can see the
+    drawing.
+- **A press inside a selection was losing the selection.** Hit-testing is
+  forgiving on purpose: every mark is widened by a few screen pixels, or a
+  thin line could not be clicked at all. That forgiveness outranked the
+  selection, and a selection of several elements is usually several elements
+  close together with other marks among them - so pressing in the middle of
+  what you were about to drag landed "on" some unselected neighbour, replaced
+  the whole selection with it, and dragged that one thing instead. The
+  selection was lost most reliably in precisely the case the surrounding code
+  was written to protect. The selection now keeps the press; the element under
+  the pointer gets it back on release, if the pointer never moved, which is
+  what a click on it always meant.
+- **Shift and Ctrl in the layers panel were the wrong way round.** Shift-click
+  toggled one row and range select was on Ctrl+Shift - a chord for the common
+  gesture, and Shift doing the thing every other layer panel gives to Ctrl.
+  Ctrl/Cmd now picks rows out one at a time and Shift takes the run between
+  the last row selected and this one. The range is drawn on the rows the panel
+  is showing rather than on the layer stack: the stack inlines every group's
+  children, so a range across a collapsed group used to select forty rows
+  behind three visible ones.
+- **Anything imported unfolded the whole layers panel.** One illustrated
+  figure is a group of assemblies, each a group of parts, each a group of
+  outlines - sixty-odd rows arriving expanded, and two of them leave the panel
+  showing nothing but itself with the page scrolled off the top. Whatever
+  arrives is one thing to the person who imported it, so it now lands folded:
+  a generated animation frame, an SVG opened from the menu or the CLI, one
+  pasted from another editor, and a sheet of graphics placed together. Every
+  group inside is folded too, so opening one shows its assemblies rather than
+  spilling its whole tree, and the row left active is the one the import
+  produced rather than the last leaf it happened to write - which was inside
+  the fold, where the panel showed no active row at all. An import that is a
+  flat run of layers with no group among them still fills the panel: there is
+  nothing there to fold.
+- **The form asked for 92 KB of reading before the first edit.** "Full contract
+  and references ... (read before editing)" stood over three documents: the
+  skill, the same contract again as canonical instructions, and the 24 KB curve
+  skill - named four lines after the form had already said to reach for that one
+  only when a frame needs new geometry, which a pose never does. Step 1 then
+  said to open a 60 KB drawing that is four fifths `d="..."` path data the frame
+  must not touch. Reading all of it is a defensible way to spend a run, and one
+  run spent 520 seconds doing exactly that and was cancelled having edited
+  nothing at all. One read is required now - the skill, which is the whole
+  contract - with the instructions and the curve skill moved under **Reach for
+  the rest only when this frame turns out to need them**. Step 1 says to search
+  the drawing for `data-name=` and read a window around the group being posed
+  rather than the file. Required reading drops from 92 KB to 55 KB, the drawing
+  stops being read whole, and the form pays 250 bytes for it.
+- **The form never said how the finished frame reaches its output path.** It
+  forbade copying the source to that path and editing it there - the mistake
+  that puts the previous pose on the page - and then never mentioned the other
+  order. What is left is the reading a helper will actually take: pull the
+  document in, hand it back out, which is the whole 60 KB of path data through
+  the helper twice for a file that is already correct on disk, and it is the
+  exact failure the rest of the form is built to avoid. The step now says to
+  copy the file, with a shell copy, and why. (The one run in four since the app
+  started noticing that did edit its source in place was also the fastest, 158s
+  against 287s, 306s and the 520s cancellation - four runs is a hint, not a
+  finding, and the missing instruction is worth closing either way.)
+- **Nothing told the helper how long a frame was supposed to take.** The app's
+  limits only ever kill a run; a limit is not a budget, and the helper is the
+  only one who can spend one. The form and the frame agent now say a frame
+  should take under five minutes and that reading is what spends it - five
+  being the round number above the 158s, 260s, 287s and 306s the last four
+  finished frames cost. The app's own limit stays deliberately looser: a slow
+  frame that arrives beats a fast failure.
+- **A reference picture the helper could not reliably see.** The skill's
+  pictures are black line art, and
+  `assets/illustrated-single-character-actions.png` was 89.8% transparent - a
+  drawing with no ground under it, which flattens against whatever the viewer
+  puts behind it and disappears entirely against a dark one. A white-background
+  re-export existed but had landed beside it as
+  `illustrated-single-character-actions.svg.png`, a name nothing pointed at, so
+  the skill went on serving the transparent copy. The opaque export now holds
+  the name the skill uses, and all six of the skill's pictures are opaque. The
+  SVGs stay transparent on purpose: a background rectangle in an SVG is a real
+  layer, and a real layer is one more thing the helper has to pose.
+- **The stall limit killed helpers that were still reading.** Even counting
+  writes as activity, five minutes is not long enough for the half of the job
+  that writes nothing: the helper loads a 46 KB skill, 13 KB of instructions,
+  the form, and a reference sheet that is half a megabyte as a picture, then
+  finds every layer it has to pose inside a 60 KB drawing. That was survivable
+  while a frame meant four assemblies and stopped being survivable at eleven
+  layers - a second sequence died at 302s having never touched the frame. The
+  limit is now split by phase: ten minutes before the first edit, five after
+  it, because silence before the helper starts editing means it is reading and
+  silence afterwards means it stopped. The status line and the log say which
+  phase a run is in, so a stall names what the helper failed to do rather than
+  only how long it was quiet.
+- **The five-minute "stall" was a hard cap on the whole run.** The limit was
+  refreshed by helper output alone, and `claude -p` prints nothing until it
+  exits, so a run that was working looked exactly like a hung one. It went
+  unnoticed while a frame took two minutes and surfaced the moment the job got
+  bigger: posing eleven layers instead of four took 199s, then 260s, then the
+  third frame was killed at 301s mid-edit. **A sequence asked for four frames
+  and stopped at two.** Writes now count as activity - the helper edits the
+  source once per layer it poses and renders a preview beside it to grade
+  itself - so a working run is never mistaken for a hung one, while a helper
+  that has genuinely stopped still gets killed on time.
+- **The helper's reply was thrown away on every run the app has ever made.**
+  The child was killed the instant the frame file appeared, which is a moment
+  before it says what it saved and what grade it finished on. Every
+  `run end: stdout head:` in the log is blank, including the runs that came
+  back wrong, so a frame with a known problem arrived with the sentence naming
+  that problem already discarded. The frame now waits up to four seconds for
+  that line, and resolves the moment it arrives.
+
+### Changed
+
+- **The reference sheet names its characters, and the skill indexes them.**
+  `illustrated-multiple-character-actions` now titles each figure on the page -
+  **Character I** to **Character V** - and brackets each strip with the action
+  it draws. The skill carries the index that turns a title into something
+  searchable (Character IV is `BadGirl`; **Take Damage** is the `damage`
+  strip), together with what each character actually has drawn, and says to go
+  to the one strip rather than to the page. This is reading time, and reading
+  time is the half of a frame that has no output to show for itself: it is what
+  the ten-minute setup window above is spent on.
+- **The `vector-animations` skill and the frame agent both read an angle-less
+  form.** A form saying the measured transforms are switched off is an
+  instruction to pose every layer, not a gap to improvise into; the skill's
+  movement budgets are the yardstick precisely because nothing else is.
+
 ## [4.2.1-alpha] - 2026-09-12
 
 ### Added

@@ -319,6 +319,64 @@ export const ANIMATION_SOURCE_FILE = '_temp/animation-source.svg';
 export const ANIMATION_OUTPUT_DIR = 'animations';
 
 /**
+ * Where `npm run frame-preview` leaves the rendered frame: beside the source,
+ * under the same name. The app never writes this file - the helper does, when
+ * it grades its own work - which is exactly what makes it useful. A run that
+ * touches it is a run still working, however quiet its output is.
+ */
+export const ANIMATION_PREVIEW_FILE = ANIMATION_SOURCE_FILE.replace(/\.svg$/, '.png');
+
+/**
+ * How long a helper may be quiet before it has touched the frame at all.
+ *
+ * This is the reading half of the job and it is legitimately slow: the helper
+ * loads a 46 KB skill, 13 KB of instructions, the form, and a reference sheet
+ * that runs to half a megabyte as a picture, then finds every layer it has to
+ * pose inside a 60 KB drawing. None of that writes anything, so none of it
+ * looks like life from outside.
+ *
+ * It was five minutes, which was enough while a frame meant posing four
+ * assemblies and stopped being enough the moment a frame meant posing eleven
+ * layers - a sequence asked for four frames, drew two, and had the third
+ * killed mid-preparation.
+ */
+export const ANIMATION_SETUP_LIMIT_MS = 10 * 60 * 1000;
+
+/**
+ * How long a helper may be quiet once it has started editing.
+ *
+ * Tighter than the setup window on purpose. Posing is a run of small edits a
+ * few seconds apart, so silence here means something has gone wrong rather
+ * than that something large is being read.
+ */
+export const ANIMATION_STALL_LIMIT_MS = 5 * 60 * 1000;
+
+/**
+ * Whether a quiet run has been quiet too long.
+ *
+ * Split by phase because the two silences mean opposite things: before the
+ * first edit, silence is the helper reading; after it, silence is the helper
+ * stopped. Kept here, and pure, so the rule can be tested without an Electron
+ * main process around it.
+ */
+/**
+ * How long a frame should take, start to finish.
+ *
+ * Not enforced - a slow frame that arrives beats a fast failure, so the limits
+ * above stay where they are. This number is in the form because the helper is
+ * the only one who can act on it: told nothing, it reads everything it is
+ * pointed at, and a run that has read every reference and saved no frame is
+ * the failure this is here to prevent. The figure is what the log says a
+ * working frame costs - 158s, 260s, 287s and 306s across the last four that
+ * finished - rounded to the round number above them.
+ */
+export const ANIMATION_FRAME_TARGET_MS = 5 * 60 * 1000;
+
+export function animationHasStalled(quietMs: number, editing: boolean): boolean {
+  return quietMs > (editing ? ANIMATION_STALL_LIMIT_MS : ANIMATION_SETUP_LIMIT_MS);
+}
+
+/**
  * The skill the helper applies when drawing a frame. Named in the form so a
  * tool that loads skills on demand picks it up; its canonical copy lives in
  * `ai-helper/vectors/skills/<name>/`.
@@ -726,6 +784,84 @@ function svgNumber(value: number): string {
 }
 
 /**
+ * Which way a figure is drawn to travel.
+ *
+ * The measured cycles are signed degrees, and a sign only means something
+ * once you know which way the figure faces: mirror the art about its vertical
+ * axis and every rotation in it negates. The cycles were measured from the
+ * wireframe skeletons, which all walk to the **right**, and until this was
+ * named nothing said so - not the generated table, not the skill that carries
+ * a copy of it, not the form. A left-facing character therefore got the
+ * right-facing cycle applied verbatim and walked with its legs swinging
+ * backwards, which is what it looks like when an unstated premise is wrong.
+ */
+export type AnimationFacing = 'right' | 'left';
+
+/** The facing every measured cycle was drawn at. See {@link AnimationFacing}. */
+export const CYCLE_FACING: AnimationFacing = 'right';
+
+/**
+ * The same step for a figure facing the other way.
+ *
+ * Mirroring the art about a vertical axis negates every angle in it and
+ * leaves every vertical distance alone, so the bob is untouched and the whole
+ * figure's tip turns with the limbs. This is exact rather than a fudge: it is
+ * the same cycle seen from the other side.
+ */
+export function mirrorPoseStep(step: AnimationPoseStep): AnimationPoseStep {
+  const rotate: Record<string, number> = {};
+  for (const [assembly, degrees] of Object.entries(step.rotate)) {
+    if (degrees !== undefined) rotate[assembly] = -degrees;
+  }
+  return {
+    ...step,
+    rotate: rotate as AnimationPoseStep['rotate'],
+    ...(step.figureRotate === undefined ? {} : { figureRotate: -step.figureRotate }),
+  };
+}
+
+/** A foot and the leg it hangs off, as horizontal extents in any one unit. */
+export interface AnimationFootSpan {
+  readonly leg: { readonly minX: number; readonly maxX: number };
+  readonly foot: { readonly minX: number; readonly maxX: number };
+}
+
+/** Layer names that read as a foot rather than as the leg above it. */
+export function matchesFoot(name: string): boolean {
+  return /(^|[-_ ])(shoe|foot|feet|boot)s?([-_ ]|$)/i.test(name);
+}
+
+/**
+ * Which way a figure faces, read off its feet - or null when its own feet
+ * disagree and the drawing is therefore not a profile at all.
+ *
+ * A foot points the way its owner is going, and it is the one part of a
+ * figure that says so without being able to be read two ways: a head can be
+ * turned, an arm can reach behind, but a foot in a side view sticks out in
+ * front of the ankle. So the cue is how far each foot reaches past its own
+ * leg, and the answer is only given when every foot agrees.
+ *
+ * Null is a real answer and not a failure. A character drawn three-quarters
+ * on, or standing with the feet splayed, has no facing for a side-view cycle
+ * to be mirrored against, and guessing one would be worse than saying so: the
+ * caller can then leave the cycle alone and say why, which is the honest
+ * thing to hand a person who can see the drawing.
+ */
+export function figureFacing(feet: readonly AnimationFootSpan[]): AnimationFacing | null {
+  let answer: AnimationFacing | null = null;
+  for (const { leg, foot } of feet) {
+    const right = foot.maxX - leg.maxX;
+    const left = leg.minX - foot.minX;
+    // A foot centred under its leg says nothing; only a real overhang counts.
+    if (Math.abs(right - left) < 1e-6) continue;
+    const points: AnimationFacing = right > left ? 'right' : 'left';
+    if (answer === null) answer = points;
+    else if (answer !== points) return null;
+  }
+  return answer;
+}
+
+/**
  * The exact `transform` value each assembly needs for this step: the
  * figure's vertical shift wrapped around a rotation about the assembly's own
  * joint pivot. Assemblies with no pivot (or nothing to do) are left out, and
@@ -737,11 +873,15 @@ function svgNumber(value: number): string {
  * rigidly about a joint.
  */
 export function animationFrameTransforms(
-  step: AnimationPoseStep,
+  rawStep: AnimationPoseStep,
   pivots: Partial<Record<RequiredAssembly, AnimationPoint>>,
   figureHeight: number,
   figurePivot?: AnimationPoint,
+  facing: AnimationFacing = CYCLE_FACING,
 ): Partial<Record<RequiredAssembly, string>> {
+  // The cycles are a right-facing figure's. A left-facing one gets the same
+  // cycle mirrored, which is the same walk seen from the other side.
+  const step = facing === CYCLE_FACING ? rawStep : mirrorPoseStep(rawStep);
   const shift = (step.shiftYPercent / 100) * figureHeight;
   const translate = Math.abs(shift) >= 0.005 ? `translate(0 ${svgNumber(shift)})` : '';
   // The whole figure tipping goes on every assembly, outside its own joint
@@ -776,6 +916,119 @@ export function animationFrameTransforms(
  * barely swings" - and short enough that it cannot crowd out the steps, the
  * layer inventory and the transforms it is meant to be read alongside.
  */
+/** One part's travel in a single drawn step: `[low, typical, high]`. */
+export type AnimationTravelBand = readonly [number, number, number];
+
+/** The four parts a drawn step is measured by. */
+export interface AnimationTravel {
+  readonly bob: AnimationTravelBand;
+  readonly leg: AnimationTravelBand;
+  readonly arm: AnimationTravelBand;
+  readonly clothing?: AnimationTravelBand;
+}
+
+/**
+ * How far each part of a figure moves in one drawn step, as a percent of the
+ * figure's own height.
+ *
+ * Measured by `npm run illustrated-frames` from 70 steps of hand-drawn
+ * animation across six characters, and kept here rather than read from the
+ * skill's asset because {@link buildAnimationForm} is a pure function and the
+ * form has to be identical for the renderer, the hand-off and the tests. A
+ * test keeps the two copies honest.
+ *
+ * These are what a person drew, not what the rig computes, which is why they
+ * are the right yardstick when the measuring is switched off: with no angles
+ * dictated, they are the only numbers the helper has to aim at. Only the types
+ * the studies actually cover appear; a type with no entry gets no numbers
+ * rather than invented ones.
+ */
+export const ANIMATION_TRAVEL: Readonly<Record<string, AnimationTravel>> = {
+  walk: { bob: [0, 0.6, 1.9], leg: [3.2, 8.9, 26.2], arm: [1.2, 4.8, 9.4], clothing: [0.4, 3.5, 5.1] },
+  ideal: { bob: [0, 0.3, 0.4], leg: [0.7, 2.4, 2.9], arm: [1.5, 2.3, 2.5] },
+  run: { bob: [0.5, 8, 14.5], leg: [7.7, 17.5, 26.2], arm: [2.9, 9.3, 13.4], clothing: [0.5, 3, 7.4] },
+  attack: { bob: [0, 1.3, 13.2], leg: [0.1, 11.3, 46.4], arm: [0, 7.9, 31.3], clothing: [0.1, 1.2, 5.8] },
+  damage: { bob: [0.1, 1, 2.6], leg: [2.1, 4.8, 15.6], arm: [5.3, 9, 18.2], clothing: [3.9, 6, 13.2] },
+  'knocked-down': {
+    bob: [0.1, 9.4, 48.9],
+    leg: [3, 13.4, 43.8],
+    arm: [8.9, 16.1, 23.3],
+    clothing: [2.3, 5.8, 14.9],
+  },
+};
+
+/**
+ * The travel bands as one line of the form, or `''` for a type the studies do
+ * not cover. Silence is the honest answer there: a number invented to fill the
+ * gap would be aimed at just as carefully as a measured one.
+ */
+/**
+ * The travel bands as a block of the form, worded for the mode they land in.
+ *
+ * Both modes get them, for different jobs. With the measuring off they are the
+ * only numbers there are, so they are the target. With it on the angles are
+ * already decided, so they are a check: a posed frame that lands far outside
+ * what every drawn frame does went wrong in the editing rather than in the
+ * measuring, and that is worth knowing before the frame is saved.
+ *
+ * The bob paragraph is the part a band cannot carry on its own. A band gives a
+ * size and bob has a direction, and a figure can sit inside the band on every
+ * step while only ever sinking. Five of the six drawn walks change direction
+ * from one step to the next; a looping animation has to, since a cycle that
+ * only ever drops cannot arrive back where it started.
+ */
+function travelBlock(type: string, loops: boolean, measured: boolean): string {
+  const line = travelLine(type);
+  if (!line) return '';
+  // Bob is the one part a band cannot describe on its own, and the reason a
+  // frame can sit inside every number and still read wrongly.
+  const bob = loops
+    ? `
+
+   Bob has a direction the band cannot show: a "${type}" comes back to the pose
+   it started from, so a figure bobbing the same way on every step never gets
+   there. Five of the six drawn walks change that sign somewhere in the cycle.`
+    : '';
+  // Terse where the angles are already decided, full where these are the only
+  // numbers the helper has. The measured form is read on every single frame,
+  // and every line of it is time the helper spends before its first edit.
+  if (measured) {
+    return `
+
+   For checking the result rather than choosing it - percent of figure height,
+   typical (range): ${line}${bob}`;
+  }
+  return `
+
+   Nothing measured this frame for you, so these are the amounts to aim at.
+   Measured from 70 steps of hand-drawn animation, as a percent of the figure's
+   own height - typical first, the observed range in brackets:
+
+   ${line}
+
+   Aim at the typical. Arms travelling as far as the legs is a run, or a
+   mistake.${bob}
+
+   The note above may take one part outside its band when it asks for something
+   this cycle does not have - a heavier drop, a quieter arm - and that is the
+   note doing its job; say which part and why in your reply.`;
+}
+
+function travelLine(type: string): string {
+  const travel = ANIMATION_TRAVEL[type];
+  if (!travel) return '';
+  const band = (name: string, b: AnimationTravelBand | undefined): string =>
+    b ? `${name} ${b[1]} (${b[0]}-${b[2]})` : '';
+  return [
+    band('legs', travel.leg),
+    band('arms', travel.arm),
+    band('bob', travel.bob),
+    band('clothing', travel.clothing),
+  ]
+    .filter(Boolean)
+    .join('   ');
+}
+
 export const ANIMATION_PROMPT_LIMIT = 600;
 
 /** The tag the note is wrapped in, so the helper can tell direction from contract. */
@@ -863,6 +1116,41 @@ export interface AnimationFormData {
    * the figure and the step.
    */
   prompt?: string | null;
+  /**
+   * The user turned the measured transforms off for this sequence.
+   *
+   * Set by the **Disable API** radio in the setup dialog, and the honest
+   * answer to a figure the rig does not fit. The measuring pipeline can only
+   * write a transform for a layer that matches one of the six
+   * {@link REQUIRED_ASSEMBLIES}; a drawing with a skirt, a shirt and two
+   * jacket halves has layers with no slot at all, and those layers come out
+   * of a measured run frozen - not because the helper missed them, but
+   * because nothing ever handed it an angle for them.
+   *
+   * Off, the form dictates four to six angles and the rest of the figure
+   * holds still. On, the form hands over the same measured layer inventory
+   * and the same note, says which layers the rig cannot address, and asks the
+   * helper to pose all of them from the drawing.
+   *
+   * What it does not switch off is the rule that a frame is posed rather than
+   * redrawn. Disabling the measuring changes where the angles come from, not
+   * what may carry them.
+   */
+  apiDisabled?: boolean;
+
+  /**
+   * Which way the figure in the source is drawn to travel.
+   *
+   * Every signed angle this app or its skill hands over - the cycle tables,
+   * the dictated transforms, the worked example - was measured from a
+   * skeleton walking to the right. A figure facing the other way is that
+   * skeleton mirrored, so its cycle is the same cycle with every angle
+   * negated. Set from the Facing choice in the setup dialog, which is
+   * preselected from the figure's own feet; see {@link figureFacing}.
+   *
+   * Absent means right, which is what every run before this made of it.
+   */
+  facing?: AnimationFacing;
 }
 
 /**
@@ -946,20 +1234,21 @@ function animationPromptBlock(
 function animationFormReferences(delivery: AnimationHelperDelivery): string {
   if (delivery === 'plugin') {
     const plugin = ANIMATION_PLUGIN.name;
-    return `Full contract and references - the ${plugin} plugin is loaded, so ask for its parts by name (read before editing):
-- the ${pluginRef(ANIMATION_SKILL_NAME)} skill (assemblies, joint pivots, cycle tables, transform recipe)
-- the ${pluginRef(VECTOR_SKILL_NAME)} skill (curve work, for the frames that need new geometry)
-- /${plugin}:${ANIMATION_PLUGIN.command}, which is this same job as a command
-- the plugin's instructions/animation-mode.instructions.md (canonical instructions)
+    return `The ${plugin} plugin is loaded, so ask for its parts by name. Read one thing before editing: the ${pluginRef(ANIMATION_SKILL_NAME)} skill, which is the whole contract for this job - assemblies, joint pivots, cycle tables, transform recipe.
+
+Reach for the rest only when this frame turns out to need them:
+- the ${pluginRef(VECTOR_SKILL_NAME)} skill - if the note asks for geometry the rig does not have. A pose never does.
+- the plugin's instructions/animation-mode.instructions.md - the canonical contract, if something above is ambiguous.
+- /${plugin}:${ANIMATION_PLUGIN.command}, which is this same job as a command.
 A clone of napkin-sketch carries all of it under ${ANIMATION_PLUGIN.dir}/ as well.
 `;
   }
   const dir = ANIMATION_PLUGIN.dir;
-  return `Full contract and references, when present in the working directory (read before editing):
-- ${dir}/instructions/animation-mode.instructions.md (canonical instructions)
-- ${dir}/skills/${ANIMATION_SKILL_NAME}/SKILL.md (the ${ANIMATION_SKILL_NAME} skill)
-- ${dir}/skills/${VECTOR_SKILL_NAME}/SKILL.md (the ${VECTOR_SKILL_NAME} skill, for curve work)
-- Installed copies for your tool may exist under its dot-folder, e.g. .claude/skills/${ANIMATION_SKILL_NAME}/, .claude/skills/${VECTOR_SKILL_NAME}/, and .claude/instructions/.
+  return `Read one thing before editing: the ${ANIMATION_SKILL_NAME} skill, which is the whole contract for this job. Apply it as a skill if your tool can; if it cannot, read ${dir}/skills/${ANIMATION_SKILL_NAME}/SKILL.md, or the installed copy under .claude/skills/${ANIMATION_SKILL_NAME}/. Not both - it is the same document twice.
+
+Reach for the rest only when this frame turns out to need them:
+- ${dir}/skills/${VECTOR_SKILL_NAME}/SKILL.md - if the note asks for geometry the rig does not have. A pose never does.
+- ${dir}/instructions/animation-mode.instructions.md - the canonical contract, if something above is ambiguous.
 `;
 }
 
@@ -973,6 +1262,20 @@ A clone of napkin-sketch carries all of it under ${ANIMATION_PLUGIN.dir}/ as wel
  * to emit tens of thousands of tokens of SVG geometry and gets killed before
  * it prints anything.
  */
+/**
+ * The measured layers no required assembly can claim.
+ *
+ * These are the ones a measured run leaves frozen. Naming them in the form
+ * turns the vaguest possible instruction - "pose the whole figure" - into a
+ * list, and it is a list only the app can write: it knows both what the
+ * document contains and what the rig can reach.
+ */
+function layersWithoutAssembly(boxes: readonly AnimationLayerBox[]): string[] {
+  return boxes
+    .filter((box) => !REQUIRED_ASSEMBLIES.some((a) => matchesAssembly(box.name, a)))
+    .map((box) => box.name);
+}
+
 export function buildAnimationForm(data: AnimationFormData): string {
   const { job } = data;
   // How the helper was delivered decides what the skills are called: bare
@@ -1057,7 +1360,67 @@ ${assemblyLines}
    bob, measured from the source geometry. Replace a transform an assembly
    already has rather than adding to it; nothing else in the document changes.
 ${assemblyLines}`;
-  const poseStep = measured
+  // Why the form carries no angles, in the words that fit the reason. A type
+  // with no cycle table yet and a figure the rig cannot fit both end up here,
+  // and telling them apart matters: the first is a gap in this app, the second
+  // is a decision the user made about this drawing.
+  const orphans = layersWithoutAssembly(boxes);
+  const namedAssemblies = REQUIRED_ASSEMBLIES.filter((a) => data.assemblies[a]).map(
+    (a) => `${data.assemblies[a]} (${a})`,
+  );
+  const disabledStep = `2. Pose the frame yourself. The measured transforms are switched off for
+   this sequence, so the angles are yours to judge: work from the template
+   below, the note above, and the drawing in front of you.
+${template}
+   **Pose every layer, not only the assemblies.** The six assemblies are the
+   parts a cycle table knows about, and this document has more than six
+   layers. Give each layer its own
+   transform="rotate(<degrees> <pivot-x> <pivot-y>)" about the joint it hangs
+   from, and let a piece of clothing follow the part it sits on - a skirt
+   turns with the hips, a sleeve with the arm inside it.${
+     orphans.length > 0
+       ? `
+   These layers match no assembly, so a measured run could never have given
+   them an angle and they are exactly the ones that come out frozen:
+   ${orphans.join(', ')}.`
+       : ''
+   }
+${
+     namedAssemblies.length > 0
+       ? `
+   The assemblies this document does have, as somewhere to start rather than
+   somewhere to stop:
+${namedAssemblies.map((line) => `   - ${line}`).join('\n')}`
+       : ''
+   }`;
+  // The premise under every signed angle in this form and in the skill. It
+  // goes in both modes: with the measuring on the app has already mirrored the
+  // cycle and the helper needs to know not to mirror it again, and with the
+  // measuring off the helper is reading the skill's own right-facing tables
+  // and is the only one who can tell that they do not apply as written.
+  const facing = data.facing ?? CYCLE_FACING;
+  const facingLine =
+    data.category === 'object'
+      ? ''
+      : facing === CYCLE_FACING
+        ? `
+   This figure faces ${facing}, which is the way the drawn cycles face, so
+   their angles apply as they are written.`
+        : `
+   **This figure faces ${facing}, and the drawn cycles face ${CYCLE_FACING}.** Mirroring a
+   figure negates every angle in it, so a cycle table's signs are backwards
+   for this one: a step that turns the front leg +12 turns this figure's front
+   leg -12. ${
+     data.apiDisabled
+       ? `Nothing has mirrored them for you: flip the sign of every angle you
+   take from a table, and take the direction the limbs travel from the drawing
+   in front of you rather than from the table.`
+       : `The transforms above are mirrored already - do not mirror them again.`
+   }`;
+
+  const poseStepBody = data.apiDisabled
+    ? disabledStep
+    : measured
       ? measuredStep
       : data.category === 'object'
         ? `2. Pose the frame yourself - this type has no measured cycle yet, so work
@@ -1074,28 +1437,39 @@ ${template}
    put any whole-figure shift or lean on every assembly so the figure moves as
    one piece. The assemblies are:
 ${assemblyLines}`;
+  // Both modes, from one place: the measured path needs the numbers to check
+  // against just as much as the unmeasured one needs them to aim at.
+  const poseStep =
+    poseStepBody + facingLine + travelBlock(data.type, spec?.loops ?? false, measured);
   return `Animation Mode frame request (napkin-sketch)
 
 Draw frame ${job.frameIndex} of a ${data.category} "${data.type}" animation by editing frame ${job.sourceIndex}, which is already saved at ${ANIMATION_SOURCE_FILE}.
 
-Apply the ${animationSkill} skill before editing: it carries the assembly list, the joint pivots, the cycle tables, and the transform recipe. Its companion ${vectorSkill} skill owns the curve side - reach for it when a frame needs new or edited path geometry rather than a rotation.
+Apply the ${animationSkill} skill before editing: it carries the assembly list, the joint pivots, the cycle tables, and the transform recipe.
+
+A frame should take under ${Math.round(ANIMATION_FRAME_TARGET_MS / 60000)} minutes, and reading is what spends that time. Read what this frame needs and start posing: there is no credit for having read every reference and saved no frame.
 
 ${direction}This is a file edit, not a redraw. Do not rewrite, re-emit, or re-draw the geometry - every path in that file stays exactly as it is. Rotating an assembly's group rotates every anchor and Bezier handle inside it together, which is the rigid joint rotation this frame needs.
 
 Steps:
-1. Open ${ANIMATION_SOURCE_FILE} and work on it in place. Each assembly is a
-   <g> found by its data-name attribute (its id carries the same name).${inventory}
+1. Find the layers without reading the drawing. Work in
+   ${ANIMATION_SOURCE_FILE}, in place. Each assembly is a <g> found by its
+   data-name attribute (its id carries the same name): search for data-name=
+   with line numbers, then read only the lines around the group you are
+   posing. Most of that file is d="..." you must not touch, and reading it
+   start to finish is the most expensive thing you can do here.${inventory}
 ${poseStep}
 3. Name the frame: the document's root group must carry id="${frameName}" and
    data-name="${frameName}" (and inkscape:label if that attribute is present).
    Add one wrapping group with that name if the document has no single root
    group.
-4. Save the finished document to ${animationFrameFile(job)}, creating the
-   ${ANIMATION_OUTPUT_DIR}/ folder if it does not exist. Save it last and only
-   once, with the transforms already in it. Do NOT copy the source to that
-   path and then edit it there: the app takes that file the moment it appears,
-   and a copy taken before you posed it would put the previous frame on the
-   page again.
+4. Copy the finished file to ${animationFrameFile(job)}, creating the
+   ${ANIMATION_OUTPUT_DIR}/ folder if it does not exist. A shell copy - do not
+   read the document in and write it back out, which is tens of thousands of
+   tokens of path data through you for a file that is already right on disk.
+   Copy last and only once, with the transforms in it: the app takes that file
+   the moment it appears, so a copy made before you posed it puts the previous
+   frame back on the page.
 5. Reply with one short line, such as "saved ${frameName}". Do not print the
    SVG - printing the document is what made earlier runs run out of time.
 

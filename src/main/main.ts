@@ -7,12 +7,14 @@
 
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage } from 'electron';
 import { spawn, spawnSync } from 'node:child_process';
-import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import {
   ANIMATION_FORM_FILE,
   ANIMATION_OUTPUT_DIR,
+  ANIMATION_PREVIEW_FILE,
   ANIMATION_SOURCE_FILE,
+  animationHasStalled,
   animationFrameFile,
   animationFrameName,
   extractSvgMarkup,
@@ -447,17 +449,23 @@ function helperBinaryExists(binary: string): boolean {
   return result.status === 0;
 }
 
-/**
- * There is no overall time limit on a frame run, but a run that shows no
- * signs of life - no frame file, no output - for this long is treated as
- * hung and killed. One frame is a bounded task, yet an agentic CLI can read
- * instructions and study the pose for minutes before it prints anything, so
- * the window is generous; Cancel ends a run immediately either way.
+/*
+ * There is no overall time limit on a frame run, but a run showing no sign of
+ * life is treated as hung and killed. What counts as a sign of life, and how
+ * long it may be absent, lives in the core beside the rule that reads them:
+ * see `animationHasStalled`. Cancel ends a run immediately either way.
  */
-const ANIMATION_STALL_LIMIT_MS = 5 * 60 * 1000;
 
 /** How often the background listener looks for the finished frame file. */
 const ANIMATION_POLL_MS = 1000;
+
+/**
+ * How long the frame may wait for the helper's closing line.
+ *
+ * Long enough for a process that has already saved its file to flush one
+ * sentence, short enough that a sequence never noticeably waits on it.
+ */
+const ANIMATION_REPLY_GRACE_MS = 4000;
 
 /** The AI helper process currently running, if any (one run at a time). */
 let animationChild: ReturnType<typeof spawn> | null = null;
@@ -520,6 +528,33 @@ async function readAnimationFrame(job: AnimationFrameJob): Promise<AnimationFram
  * whole process tree down, and elsewhere SIGTERM reaches the shell's
  * children through the default process-group semantics.
  */
+/**
+ * When the helper last wrote to the frame it is posing.
+ *
+ * The stall limit used to watch stdout alone, and `claude -p` prints nothing
+ * until it exits - so a run that was working perfectly well looked identical
+ * to a hung one, and the limit was really a hard cap on the whole job rather
+ * than a stall detector. It only showed once the job grew: posing eleven
+ * layers instead of four took 199s, then 260s, then past 300s, and the third
+ * frame was killed mid-edit with nothing wrong.
+ *
+ * What a working helper does leave behind is writes. It edits the source once
+ * per layer it poses and renders a preview beside it to grade itself, so a
+ * moving mtime is proof of life that silence cannot hide. A helper that has
+ * genuinely stopped touches neither file and still gets killed on time.
+ */
+async function animationLastWrite(cwd: string): Promise<number> {
+  let latest = 0;
+  for (const rel of [ANIMATION_SOURCE_FILE, ANIMATION_PREVIEW_FILE]) {
+    try {
+      latest = Math.max(latest, (await stat(join(cwd, rel))).mtimeMs);
+    } catch {
+      // Not written yet, or already cleaned up. Absence is not activity.
+    }
+  }
+  return latest;
+}
+
 function killAnimationChild(): void {
   const child = animationChild;
   if (!child || child.killed || child.exitCode !== null) return;
@@ -611,8 +646,15 @@ async function runAnimationHelper(
     let stdout = '';
     let stderr = '';
     let lastActivity = Date.now();
+    let lastWrite = 0;
+    // The helper has touched the frame, so the tighter limit applies from here.
+    let editing = false;
     let announcedWork = false;
     let announcedCopy = false;
+    // The frame file appears before the helper has finished speaking, and the
+    // poller keeps firing while we wait for it to. Without this a second tick
+    // finds the same file and starts a second finish.
+    let finishing = false;
     let poller: ReturnType<typeof setInterval> | null = null;
 
     const settle = (result: AnimationHelperResult): void => {
@@ -634,7 +676,7 @@ async function runAnimationHelper(
     };
     animationSettle = settle;
 
-    sendAnimationStatus('Starting the AI helper…');
+    sendAnimationStatus('Helper is reading the skill and studying the pose…');
     const child = spawn(command, { cwd, shell: true, windowsHide: true });
     animationChild = child;
 
@@ -659,19 +701,71 @@ async function runAnimationHelper(
             }
             return;
           }
+          if (finishing) return;
+          finishing = true;
           sendAnimationStatus(`Drew ${frame.name}; importing…`);
           void logAnimation(`frame file complete: ${animationFrameFile(job)}; ending the run`);
+          // Saving the frame is the helper's last action; its reply - the file
+          // it saved and the grade it finished on - lands a moment later. This
+          // app killed the process on sight of the file for its whole life, so
+          // every `run end: stdout head:` in the log is blank, including the
+          // runs that came back wrong. A frame with something still wrong with
+          // it is only diagnosable if the sentence saying so survives.
+          await waitForReply();
           killAnimationChild();
           settle({ ok: true, frame });
           return;
         }
-        if (Date.now() - lastActivity > ANIMATION_STALL_LIMIT_MS) {
-          void logAnimation('stalled: no frame file and no output for 5 minutes; killing helper');
+        // Writes count as activity, not only output. See animationLastWrite.
+        const touched = await animationLastWrite(cwd);
+        if (lastWrite === 0) {
+          // The app's own write of the source, made before the helper started.
+          // Recording it without crediting it is what makes the next write
+          // recognisable as the helper's first edit.
+          lastWrite = touched;
+        } else if (touched > lastWrite) {
+          lastWrite = touched;
+          lastActivity = Date.now();
+          if (!editing) {
+            editing = true;
+            sendAnimationStatus('Helper is posing the frame…');
+            void logAnimation('helper made its first edit; the tighter stall limit applies now');
+          }
+        }
+        if (animationHasStalled(Date.now() - lastActivity, editing)) {
+          const phase = editing
+            ? 'stopped part-way through posing the frame'
+            : 'never started editing the frame';
+          void logAnimation(`stalled: ${phase}; killing helper`);
           killAnimationChild();
-          settle({ ok: false, error: 'AI helper stalled (no frame and no output for 5 minutes).' });
+          settle({ ok: false, error: `AI helper stalled: it ${phase}.` });
         }
       })();
     }, ANIMATION_POLL_MS);
+
+    /**
+     * Gives the helper a moment to finish its sentence once the frame lands.
+     *
+     * Bounded hard: the frame is already on disk and the sequence must not
+     * wait on a process that has nothing more to say. Resolves the instant the
+     * helper exits or speaks, so the usual cost is a fraction of a second.
+     */
+    const waitForReply = (): Promise<void> =>
+      new Promise((done) => {
+        if (child.exitCode !== null || stdout.trim()) return done();
+        let settledReply = false;
+        const finish = (): void => {
+          if (settledReply) return;
+          settledReply = true;
+          clearTimeout(timer);
+          child.off('exit', finish);
+          child.stdout.off('data', finish);
+          done();
+        };
+        const timer = setTimeout(finish, ANIMATION_REPLY_GRACE_MS);
+        child.once('exit', finish);
+        child.stdout.once('data', finish);
+      });
 
     const sawOutput = (): void => {
       lastActivity = Date.now();

@@ -43,6 +43,23 @@ export interface PopupCapabilities {
   dockable?: boolean;
 }
 
+/**
+ * What a tool's panel does once the tool has been applied.
+ *
+ * Two behaviours, because tool panels are two different things wearing the
+ * same frame. Move asks a question with one answer - how far, in which
+ * direction - so the panel has nothing left to say once it has been answered
+ * and gets out of the way. Rotate is a workbench: an angle, a direction pair,
+ * a snap, and a pivot that can be put anywhere and then turned about again
+ * and again. Closing that on the first Apply throws away the setup along with
+ * the answer, and every further turn costs a reopen.
+ *
+ * Held here rather than at each Apply button because the choice belongs to
+ * the panel, not to the handler, and a third tool of either kind should be
+ * able to say which it is in one line.
+ */
+export type PanelAfterApply = 'remains' | 'dismisses';
+
 /** How far a placed panel must stay on screen, so it can always be grabbed again. */
 const REACHABLE_PX = 64;
 
@@ -130,7 +147,37 @@ export class PopupManager {
    * sizes itself to its container, so it has to be told; nothing else in here
    * knows or cares what the callback does.
    */
+  /**
+   * What each panel does after its tool is applied. Absent means `dismisses`:
+   * a panel that has not said otherwise is the ordinary ask-once kind.
+   */
+  private readonly afterApply = new Map<string, PanelAfterApply>();
+
   constructor(private readonly onLayoutChange: () => void = () => {}) {}
+
+  /**
+   * The panel stays up while its tool is in use, so the tool can be applied
+   * again without reopening it. Rotate is the case this exists for.
+   */
+  toolRemainsInView(dialogId: string): void {
+    this.afterApply.set(dialogId, 'remains');
+  }
+
+  /**
+   * The panel goes once its tool has done its work - the default, and what
+   * Move does: one distance, applied, gone.
+   */
+  toolGoesOutOfView(dialogId: string): void {
+    this.afterApply.set(dialogId, 'dismisses');
+  }
+
+  /**
+   * True when applying should leave this panel on screen. The one question
+   * every Apply handler asks, so none of them has to hold the answer.
+   */
+  staysAfterApply(dialogId: string): boolean {
+    return this.afterApply.get(dialogId) === 'remains';
+  }
 
   /**
    * Gives a dialog the capabilities it asks for. Safe to call for an id that

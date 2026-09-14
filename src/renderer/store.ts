@@ -343,8 +343,12 @@ export class Store {
   }
 
   /**
-   * Selects a layer row in the panel (Shift = add/remove) and highlights the
-   * strokes on every selected layer, groups including their descendants.
+   * Selects a layer row in the panel and highlights the strokes on every
+   * selected layer, groups including their descendants.
+   *
+   * `additive` is Ctrl/Cmd-click: it toggles this one row's membership and
+   * leaves the rest of the selection alone. Shift-click is a range and goes
+   * through {@link selectLayerRange}.
    */
   selectLayer(id: string, additive = false): void {
     const layer = this.sketch.layers.find((l) => l.id === id);
@@ -373,13 +377,22 @@ export class Store {
   }
 
   /**
-   * Selects every layer between the active (anchor) layer and `id` in the
-   * stack, inclusive (Ctrl+Shift+click range select), and highlights their
-   * elements on the canvas.
+   * Selects every layer between the active (anchor) layer and `id`, inclusive
+   * - Shift-click - and highlights their elements on the canvas.
+   *
+   * `order` is the rows as the panel is showing them, and it is what makes
+   * the range mean what it looks like it means. The layer array is the paint
+   * order with every group's children inlined, so a range taken on it sweeps
+   * up rows folded away inside a collapsed group: six visible rows, and a
+   * selection of forty that cannot be seen or reasoned about. Passed the
+   * visible order, the range covers exactly the rows between the two that
+   * were clicked. Omitted, it falls back to the stack, which is right when
+   * nothing is collapsed and is the only thing available off-screen.
    */
-  selectLayerRange(id: string): void {
-    const anchor = this.sketch.layers.findIndex((l) => l.id === this.activeLayerId);
-    const target = this.sketch.layers.findIndex((l) => l.id === id);
+  selectLayerRange(id: string, order?: readonly string[]): void {
+    const rows = order ?? this.sketch.layers.map((l) => l.id);
+    const anchor = rows.indexOf(this.activeLayerId);
+    const target = rows.indexOf(id);
     if (target === -1) return;
     if (anchor === -1) {
       this.selectLayer(id);
@@ -387,7 +400,7 @@ export class Store {
     }
     const lo = Math.min(anchor, target);
     const hi = Math.max(anchor, target);
-    this.selectedLayerIds = new Set(this.sketch.layers.slice(lo, hi + 1).map((l) => l.id));
+    this.selectedLayerIds = new Set(rows.slice(lo, hi + 1));
     this.activeLayerId = id;
     const layerIds = new Set<string>();
     for (const lid of this.selectedLayerIds) {

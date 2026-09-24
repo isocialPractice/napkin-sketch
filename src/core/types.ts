@@ -29,8 +29,8 @@ export interface Point {
  * Tool used to lay down a stroke or interact with the canvas.
  *
  * The Sketch Support tools (`rect`, `ellipse`, `curve`, `vector`, `bucket`,
- * `fill`, `eyedrop`) and the Direct Select tool (`point`) are UI-only: they
- * never persist on a stroke. Shape tools and the Vector Path commit their
+ * `fill`, `eyedrop`), the Direct Select tool (`point`) and Mesh Warp (`warp`)
+ * are UI-only: they never persist on a stroke. Shape tools and the Vector Path commit their
  * outlines as `pen` strokes, the bucket commits a filled `pen` shape, Fill
  * Color recolors existing strokes, Direct Select edits anchor points, and
  * the eyedropper commits nothing.
@@ -50,7 +50,8 @@ export type Tool =
   | 'vector'
   | 'bucket'
   | 'fill'
-  | 'eyedrop';
+  | 'eyedrop'
+  | 'warp';
 
 /**
  * A single layer in a sketch's layer stack. Layers paint in array order
@@ -130,6 +131,16 @@ export type StrokeStyle = 'solid' | 'dashed' | 'dotted';
 export const STROKE_STYLES: StrokeStyle[] = ['solid', 'dashed', 'dotted'];
 
 /**
+ * How a stroke's width runs along its length. `'uniform'` is the constant
+ * line every stroke had before profiles, and the absent state on a stroke;
+ * the rest are defined, and measured, in `stroke-profile.ts`.
+ */
+export type StrokeProfile = 'uniform' | 'rounded' | 'tapered' | 'wave';
+
+/** Every stroke profile, in the order the Stroke Profile list shows them. */
+export const STROKE_PROFILES: StrokeProfile[] = ['uniform', 'rounded', 'tapered', 'wave'];
+
+/**
  * A continuous drawing stroke, a text item when `tool === 'text'`, or a
  * placed raster image when `tool === 'image'`.
  */
@@ -167,6 +178,18 @@ export interface Stroke {
    * restart the dash rhythm at every sample.
    */
   strokeStyle?: StrokeStyle;
+  /**
+   * How the outline's width runs along the stroke. Absent = `'uniform'`, the
+   * constant line. Pen and marker strokes only: a Copic stroke's nib is its
+   * width, and text, images and erasers have no outline to shape.
+   */
+  profile?: Exclude<StrokeProfile, 'uniform'>;
+  /**
+   * True when the profile's two sides are swapped: the stroke is the mirror
+   * image of one drawn with it. Only an asymmetric profile - Wave - looks any
+   * different; Mirror sets it so that a mirrored Wave leans the mirrored way.
+   */
+  profileMirrored?: boolean;
   /**
    * True when the outline is switched off, leaving a fill-only shape.
    * `color` and `width` are kept so the outline can be restored. Shapes

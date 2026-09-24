@@ -220,6 +220,23 @@ test('setStrokeProps writes values and deletes the keys set to undefined', () =>
   assert.equal(store.setStrokeProps(['nope'], { width: 9 }), 0);
 });
 
+test('a color drag through fillSelected is one undo step', () => {
+  const store = storeWithLayers(2);
+  store.setSelection(['s0', 's1']);
+  // A picker's first tick opens the step and the rest of the drag folds
+  // into it, so undo walks back to where the drag began, not one color.
+  assert.deepEqual(store.fillSelected('#2a9d8f'), { filled: 0, recolored: 2 });
+  store.fillSelected('#e9c46a', false);
+  store.fillSelected('#d0342c', false);
+  assert.equal(store.sketch.strokes[1].color, '#d0342c');
+  store.undo();
+  assert.deepEqual(
+    store.sketch.strokes.map((s) => s.color),
+    ['#1f2328', '#1f2328'],
+  );
+  assert.equal(store.canUndo, false);
+});
+
 test('moveStrokes shifts only the named strokes', () => {
   const store = storeWithLayers(2);
   store.moveStrokes(['s1'], 5, -3);

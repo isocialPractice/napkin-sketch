@@ -184,6 +184,8 @@ function buildMenu(): void {
         // clipboard items above do not: the page has to keep Ctrl+R away from
         // Chromium's own reload, which it can only do by seeing the keypress.
         { label: 'Rotate…', accelerator: 'CmdOrCtrl+R', registerAccelerator: false, click: () => dispatch('rotate') },
+        // A bare letter, so the page must see it: shown here, handled there.
+        { label: 'Mirror…', accelerator: 'O', registerAccelerator: false, click: () => dispatch('mirror') },
         { type: 'separator' },
         { label: 'Delete', accelerator: 'Delete', registerAccelerator: false, click: () => dispatch('delete-selection') },
         { label: 'Select All', accelerator: 'CmdOrCtrl+A', registerAccelerator: false, click: () => dispatch('select-all') },

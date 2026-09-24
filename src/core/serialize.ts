@@ -109,6 +109,11 @@ function normalizeStrokeStyle(raw: unknown): StrokeStyle | undefined {
   return raw === 'dashed' || raw === 'dotted' ? raw : undefined;
 }
 
+/** Reads a stroke's profile; anything unrecognized - and Default itself - reads as absent. */
+function normalizeProfile(raw: unknown): Stroke['profile'] {
+  return raw === 'rounded' || raw === 'tapered' || raw === 'wave' ? raw : undefined;
+}
+
 function normalizeStroke(raw: unknown): Stroke | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
@@ -156,6 +161,14 @@ function normalizeStroke(raw: unknown): Stroke | null {
         : undefined,
     gradient: !isText && !isImage && tool !== 'eraser' ? normalizeGradient(r.gradient) : undefined,
     strokeStyle: !isImage && tool !== 'eraser' ? normalizeStrokeStyle(r.strokeStyle) : undefined,
+    // Pen and marker marks only: a Copic nib is its own width, and text,
+    // images and erasers have no outline for a profile to shape.
+    profile: tool === 'pen' || tool === 'marker' ? normalizeProfile(r.profile) : undefined,
+    // Only ever beside a profile it can swap the sides of.
+    profileMirrored:
+      (tool === 'pen' || tool === 'marker') && normalizeProfile(r.profile) && r.profileMirrored === true
+        ? true
+        : undefined,
     noStroke:
       r.noStroke === true && !isText && !isImage && tool !== 'eraser' ? true : undefined,
     nibAngle:

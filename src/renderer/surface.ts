@@ -32,6 +32,7 @@ import {
   type VectorAnchor,
 } from '../core/types.js';
 import { copicNibPolygons } from '../core/nib.js';
+import { activeProfile, profileInputOf, profileOutline, profilePieces } from '../core/stroke-profile.js';
 import { simplify } from '../sharpen/geometry.js';
 
 /** How much of the page {@link Surface.toSVG} writes, and on what. */
@@ -141,6 +142,24 @@ export interface Overlay {
     /** Corner-rounding target icon position (Vector Path edit mode). */
     roundTarget?: Point;
   };
+  /** Mesh Warp's hover outline, mesh and pins. */
+  warp?: WarpOverlay;
+}
+
+/**
+ * What Mesh Warp draws over the art: the art under the pointer, outlined in
+ * green; the mesh as the pins hold it; and the pins themselves. Everything is
+ * in sketch coordinates and drawn at a fixed size on screen.
+ */
+export interface WarpOverlay {
+  /** Art to outline, 1 screen pixel wide in green: what a click would mesh. */
+  outline?: Stroke[];
+  /** The deformed mesh: its vertices (x then y), triangles and outline edges. */
+  mesh?: { positions: Float64Array; triangles: Uint32Array; boundary: Uint32Array };
+  /** Where the pins are now. */
+  pins?: Point[];
+  /** Which pins are selected. */
+  selected?: number[];
 }
 
 /** Pan/zoom viewport applied to the drawn content (in CSS pixels / unitless zoom). */
@@ -430,7 +449,117 @@ export class Surface {
       this.paintAnchors(ctx, overlay.anchors);
     }
 
+    if (overlay?.warp) {
+      this.paintWarpOverlay(ctx, overlay.warp);
+    }
+
     ctx.restore();
+  }
+
+  /**
+   * Mesh Warp's overlay, drawn as the Puppet Warp it follows draws it: the
+   * mesh in thin grey lines with its outline in green, the art under the
+   * pointer outlined in green, and the pins - black with a white edge, a
+   * selected one white with a black edge and a dot, and a dashed ring round a
+   * pin selected on its own. Sizes are in screen pixels, whatever the zoom.
+   */
+  private paintWarpOverlay(ctx: CanvasRenderingContext2D, warp: WarpOverlay): void {
+    const px = 1 / this.zoom;
+    const green = '#2da44e';
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.setLineDash([]);
+    if (warp.mesh) {
+      const { positions: p, triangles: t, boundary: b } = warp.mesh;
+      ctx.beginPath();
+      for (let i = 0; i < t.length; i += 3) {
+        ctx.moveTo(p[2 * t[i]], p[2 * t[i] + 1]);
+        ctx.lineTo(p[2 * t[i + 1]], p[2 * t[i + 1] + 1]);
+        ctx.lineTo(p[2 * t[i + 2]], p[2 * t[i + 2] + 1]);
+        ctx.closePath();
+      }
+      ctx.strokeStyle = 'rgba(96, 102, 110, 0.45)';
+      ctx.lineWidth = 0.5 * px;
+      ctx.stroke();
+      ctx.beginPath();
+      for (let i = 0; i < b.length; i += 2) {
+        ctx.moveTo(p[2 * b[i]], p[2 * b[i] + 1]);
+        ctx.lineTo(p[2 * b[i + 1]], p[2 * b[i + 1] + 1]);
+      }
+      ctx.strokeStyle = green;
+      ctx.lineWidth = px;
+      ctx.stroke();
+    }
+    if (warp.outline && warp.outline.length > 0) {
+      ctx.strokeStyle = green;
+      ctx.lineWidth = px;
+      for (const stroke of warp.outline) {
+        if (isTextStroke(stroke) || isImageStroke(stroke)) {
+          const box = strokeBounds(stroke, (t) => this.measureText(t));
+          if (box) ctx.strokeRect(box.minX, box.minY, box.maxX - box.minX, box.maxY - box.minY);
+          continue;
+        }
+        ctx.beginPath();
+        tracePoints(ctx, stroke.points);
+        if (stroke.fill) ctx.closePath();
+        ctx.stroke();
+      }
+    }
+    const pins = warp.pins ?? [];
+    const selected = new Set(warp.selected ?? []);
+    pins.forEach((p, i) => {
+      const on = selected.has(i);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4.5 * px, 0, Math.PI * 2);
+      ctx.fillStyle = on ? '#ffffff' : '#1f2328';
+      ctx.fill();
+      ctx.lineWidth = 1.5 * px;
+      ctx.strokeStyle = on ? '#1f2328' : '#ffffff';
+      ctx.stroke();
+      if (on) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.5 * px, 0, Math.PI * 2);
+        ctx.fillStyle = '#1f2328';
+        ctx.fill();
+      }
+    });
+    if (selected.size === 1) {
+      const p = pins[[...selected][0]];
+      if (p) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 14 * px, 0, Math.PI * 2);
+        ctx.setLineDash([3 * px, 3 * px]);
+        ctx.lineWidth = px;
+        ctx.strokeStyle = '#1f2328';
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  /**
+   * Paints strokes into a coverage mask for Mesh Warp: every mark at its real
+   * width, fills and outlines alike, on transparency, `scale` mask pixels to
+   * the sketch pixel from `origin`. Returns the RGBA pixels; their alpha is
+   * the coverage.
+   */
+  paintMask(
+    strokes: Stroke[],
+    originX: number,
+    originY: number,
+    width: number,
+    height: number,
+    scale: number,
+  ): Uint8ClampedArray {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return new Uint8ClampedArray(width * height * 4);
+    ctx.setTransform(scale, 0, 0, scale, -originX * scale, -originY * scale);
+    for (const stroke of strokes) this.paintStroke(ctx, stroke);
+    return ctx.getImageData(0, 0, width, height).data;
   }
 
   /** Applies the pan/zoom viewport to a context already scaled by the DPR. */
@@ -780,6 +909,21 @@ export class Surface {
       return;
     }
 
+    // A stroke profile runs the width along the length, which no canvas line
+    // can: the stroke paints as the shape it is, its pieces merged by one
+    // non-zero fill so translucent ink lays down flat. Dashes are cut from
+    // the profiled outline, so this goes before the dash branch below.
+    if (pts.length > 1 && activeProfile(stroke)) {
+      ctx.beginPath();
+      for (const piece of profilePieces(profileInputOf(stroke))) {
+        piece.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+        ctx.closePath();
+      }
+      ctx.fill('nonzero');
+      ctx.restore();
+      return;
+    }
+
     // Dashed and dotted outlines paint as one continuous path at a uniform
     // width: the per-segment pressure taper below restarts the dash pattern
     // at every sample, which would render as a solid line.
@@ -1080,6 +1224,7 @@ export class Surface {
           if (isTextStroke(s)) return svgText(s, order);
           if (isImageStroke(s)) return svgImage(s, order);
           if (s.tool === 'copic') return svgCopic(s, order);
+          if (activeProfile(s) && !s.noStroke) return svgProfiled(s, order, defs);
           return svgPath(s, order, defaults, undefined, defs);
         })
         .filter(Boolean);
@@ -1524,6 +1669,8 @@ function paintDefaults(sketch: Sketch): SvgPaintDefaults {
   const counts = new Map<number, number>();
   for (const stroke of sketch.strokes) {
     if (isTextStroke(stroke) || isImageStroke(stroke) || stroke.tool === 'copic') continue;
+    // A profiled outline is filled, never stroked, so its width is no default.
+    if (activeProfile(stroke) && !stroke.noStroke) continue;
     const width = round2(stroke.width);
     counts.set(width, (counts.get(width) ?? 0) + 1);
   }
@@ -1607,8 +1754,21 @@ function pathD(stroke: Stroke): string {
     }
     return out.toString();
   }
-  const pts = simplify(stroke.points, EXPORT_SIMPLIFY_EPSILON);
-  pts.forEach((p, i) => (i === 0 ? out.moveTo(p.x, p.y) : out.lineTo(p.x, p.y)));
+  // A compound stroke lifts the pen at each `move` point, so each run is a
+  // subpath of its own - and is simplified on its own, since RDP across the
+  // break would read the jump between two contours as part of the line.
+  let run: Point[] = [];
+  const flush = (): void => {
+    simplify(run, EXPORT_SIMPLIFY_EPSILON).forEach((p, i) =>
+      i === 0 ? out.moveTo(p.x, p.y) : out.lineTo(p.x, p.y),
+    );
+    run = [];
+  };
+  for (const p of stroke.points) {
+    if (p.move && run.length > 0) flush();
+    run.push(p);
+  }
+  if (run.length > 0) flush();
   return out.toString();
 }
 
@@ -1638,31 +1798,16 @@ function svgPath(
   }
   const d = pathD(stroke);
   // Filled shapes paint their interior (SVG auto-closes fills, so the path
-  // data stays an M/L polyline and round-trips through import unchanged);
-  // `data-fill` lets import restore the fill exactly. A gradient registers a
-  // paint server in <defs> and rides along as `data-gradient` so napkin's own
-  // importer restores the editable stops rather than re-reading the server.
-  let fillAttrs = '';
-  if (!colorOverride && stroke.gradient && defs) {
-    const id = `grad-${order}`;
-    const server = svgGradient(stroke, id);
-    if (server) {
-      defs.push(server);
-      const json = escXml(JSON.stringify(stroke.gradient));
-      // The flat fill rides along beside the gradient: the model keeps it so
-      // removing the gradient restores it, and the round trip must too.
-      const kept = stroke.fill ? ` data-fill="${escXml(stroke.fill)}"` : '';
-      fillAttrs = ` fill="url(#${id})" data-gradient="${json}"${kept}`;
-    }
-  }
-  if (fillAttrs === '' && !colorOverride && stroke.fill) {
-    const fill = escXml(stroke.fill);
-    fillAttrs = ` fill="${fill}" data-fill="${fill}"`;
-  }
+  // data stays an M/L polyline and round-trips through import unchanged).
+  const fill = colorOverride ? null : svgFill(stroke, order, defs);
+  const fillAttrs = fill ? fill.paint + fill.data : '';
   // An outline switched off exports as `stroke="none"` - the SVG spelling of
-  // a fill-only shape - with the kept color/width riding along for re-import.
+  // a fill-only shape - with the kept color/width riding along for re-import,
+  // and the profile the outline would take when it is switched back on.
   if (!colorOverride && stroke.noStroke) {
-    return `<path d="${d}" stroke="none"${fillAttrs}${alpha} ${data} data-nostroke="1" data-color="${escXml(stroke.color)}" data-width="${stroke.width}"/>`;
+    const profile = activeProfile(stroke);
+    const kept = profile ? ` data-profile="${profile}"${profileMirroredData(stroke)}` : '';
+    return `<path d="${d}" stroke="none"${fillAttrs}${alpha} ${data} data-nostroke="1" data-color="${escXml(stroke.color)}" data-width="${stroke.width}"${kept}/>`;
   }
   const dash = dashPatternFor(stroke.strokeStyle, stroke.width);
   const dashAttrs =
@@ -1674,6 +1819,83 @@ function svgPath(
   const widthAttr =
     round2(stroke.width) === defaults.strokeWidth ? '' : ` stroke-width="${fmt(stroke.width)}"`;
   return `<path d="${d}" stroke="${color}"${widthAttr}${dashAttrs}${fillAttrs}${alpha} ${data}/>`;
+}
+
+/**
+ * A shape's fill as attributes: the paint, and the data napkin's importer
+ * restores it from exactly (`data-fill`). A gradient registers a paint
+ * server in <defs> and rides along as `data-gradient` so napkin's own
+ * importer restores the editable stops rather than re-reading the server.
+ * Null when the shape has no fill.
+ */
+function svgFill(
+  stroke: Stroke,
+  order: number,
+  defs?: string[],
+): { paint: string; data: string } | null {
+  if (stroke.gradient && defs) {
+    const id = `grad-${order}`;
+    const server = svgGradient(stroke, id);
+    if (server) {
+      defs.push(server);
+      const json = escXml(JSON.stringify(stroke.gradient));
+      // The flat fill rides along beside the gradient: the model keeps it so
+      // removing the gradient restores it, and the round trip must too.
+      const kept = stroke.fill ? ` data-fill="${escXml(stroke.fill)}"` : '';
+      return { paint: ` fill="url(#${id})"`, data: ` data-gradient="${json}"${kept}` };
+    }
+  }
+  if (!stroke.fill) return null;
+  const fill = escXml(stroke.fill);
+  return { paint: ` fill="${fill}"`, data: ` data-fill="${fill}"` };
+}
+
+/**
+ * Serialises a profiled stroke. SVG has no variable-width stroke, so the
+ * outline is written as the shape the profile makes, filled in the ink - the
+ * shape the canvas fills, traced as its boundary - and the stroke itself
+ * rides along as data: its centreline in `data-d`, and its width, ink,
+ * profile and dash, which is what napkin's importer rebuilds it from.
+ *
+ * A stroke with a fill as well takes two paints, so it is a group of two
+ * paths - the fill, then the outline over it, the order the canvas paints
+ * them in - carrying the data once, and it reads back as one mark.
+ */
+function svgProfiled(stroke: Stroke, order: number, defs: string[]): string {
+  const profile = activeProfile(stroke);
+  if (!profile) return '';
+  const raw = stroke.opacity ?? defaultOpacityFor(stroke.tool);
+  const alpha = raw === 1 ? '' : ` opacity="${raw}"`;
+  const ink = escXml(stroke.color);
+  // The outline is derived, like Copic's chisel: its samples can be pruned.
+  const outline = new PathData();
+  for (const contour of profileOutline(profileInputOf(stroke))) {
+    simplify(contour, EXPORT_SIMPLIFY_EPSILON).forEach((p, i) =>
+      i === 0 ? outline.moveTo(p.x, p.y) : outline.lineTo(p.x, p.y),
+    );
+    outline.close();
+  }
+  const centreline = pathD(stroke);
+  const dash = stroke.strokeStyle ? ` data-dash="${stroke.strokeStyle}"` : '';
+  const data =
+    `data-tool="${stroke.tool}" data-i="${order}" data-profile="${profile}" ` +
+    `data-width="${stroke.width}" data-color="${ink}" data-d="${centreline}"${dash}` +
+    profileMirroredData(stroke);
+  const fill = svgFill(stroke, order, defs);
+  if (!fill || stroke.points.length < 3) {
+    return `<path d="${outline}" fill="${ink}"${alpha} ${data}/>`;
+  }
+  return (
+    `<g${alpha} ${data}${fill.data}>` +
+    `<path d="${centreline}"${fill.paint}/>` +
+    `<path d="${outline}" fill="${ink}"/>` +
+    `</g>`
+  );
+}
+
+/** `data-profile-mirrored` for a stroke whose profile's sides are swapped. */
+function profileMirroredData(stroke: Stroke): string {
+  return stroke.profileMirrored ? ' data-profile-mirrored="1"' : '';
 }
 
 /**

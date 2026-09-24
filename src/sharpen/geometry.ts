@@ -396,6 +396,41 @@ export function cubicBezierPoints(
   return pts;
 }
 
+/**
+ * Samples the segments between vector anchors into stroke points. Each
+ * segment is the cubic Bézier steered by its anchors' handles; a segment
+ * with no handles on either end is a straight line and needs no
+ * intermediate samples. `closed` appends the segment back to the first
+ * anchor.
+ */
+export function sampleVectorPathPoints(anchors: VectorAnchor[], closed: boolean): Point[] {
+  if (anchors.length === 0) return [];
+  const out: Point[] = [{ x: anchors[0].p.x, y: anchors[0].p.y, pressure: 0.5 }];
+  const addSegment = (from: VectorAnchor, to: VectorAnchor): void => {
+    if (!from.hOut && !to.hIn) {
+      out.push({ x: to.p.x, y: to.p.y, pressure: 0.5 });
+      return;
+    }
+    const a = { x: from.p.x, y: from.p.y, pressure: 0.5 };
+    const b = { x: to.p.x, y: to.p.y, pressure: 0.5 };
+    out.push(...cubicBezierPoints(a, from.hOut ?? from.p, to.hIn ?? to.p, b).slice(1));
+  };
+  // A compound path's subpaths each close back to their own first anchor,
+  // and the pen lifts (a `move` point) between them.
+  let subStart = 0;
+  for (let i = 1; i < anchors.length; i++) {
+    if (anchors[i].move) {
+      if (closed) addSegment(anchors[i - 1], anchors[subStart]);
+      out.push({ x: anchors[i].p.x, y: anchors[i].p.y, pressure: 0.5, move: true });
+      subStart = i;
+      continue;
+    }
+    addSegment(anchors[i - 1], anchors[i]);
+  }
+  if (closed && anchors.length >= 2) addSegment(anchors[anchors.length - 1], anchors[subStart]);
+  return out;
+}
+
 /** Least-squares circle fit (Kåsa method). Returns center, radius, and RMS error. */
 export function fitCircle(points: Vec2[]): { center: Vec2; radius: number; error: number } | null {
   const n = points.length;

@@ -574,7 +574,7 @@ export function dashContour(
 }
 
 /** A disc as a closed contour, wound the same way every other outline is. */
-function disc(centre: Point, radius: number, steps = 16): Contour {
+export function disc(centre: Point, radius: number, steps = 16): Contour {
   const pts: Contour = [];
   for (let i = 0; i < steps; i++) {
     const angle = (i / steps) * Math.PI * 2;
@@ -584,7 +584,7 @@ function disc(centre: Point, radius: number, steps = 16): Contour {
 }
 
 /** Twice the signed area of a contour; positive means clockwise on screen. */
-function signedArea(contour: Contour): number {
+export function signedArea(contour: Contour): number {
   let sum = 0;
   for (let i = 0; i < contour.length; i++) {
     const a = contour[i];
@@ -595,7 +595,7 @@ function signedArea(contour: Contour): number {
 }
 
 /** Winds a contour clockwise, so a union of pieces fills under `nonzero`. */
-function clockwise(contour: Contour): Contour {
+export function clockwise(contour: Contour): Contour {
   return signedArea(contour) >= 0 ? contour : [...contour].reverse();
 }
 

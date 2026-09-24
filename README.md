@@ -74,23 +74,42 @@ reference.
   fill it with the selected color; with nothing under the click the current
   selection is filled), **Eyedropper** (`I`: pick a color from the canvas
   and fill the selected shape), **Rotate** (`Ctrl+R`: turn the selection about
-  a movable centre, by dragging on the canvas or by typing an angle), and
-  **Join strokes** (`Ctrl+J`).
+  a movable centre, by dragging on the canvas or by typing an angle),
+  **Mirror** (`O`: reflect the selection horizontally, vertically or both, in
+  place or as a copy that lands beside it), and **Join strokes** (`Ctrl+J`).
 - **Fill Shape** — with the Select tool active and a shape selected, clicking
-  a Quick Access Color fills the shape with it. Fills are honored by the
-  canvas, thumbnails, and SVG/PDF export.
+  a Quick Access Color fills the shape with it. The custom color well beside
+  the swatches does the same: the selection follows the picker as it is
+  dragged, and the whole drag undoes as one step. Selected open strokes take
+  the color as their ink instead. Fills are honored by the canvas,
+  thumbnails, and SVG/PDF export.
+- **Stroke width on a selection** - with the Select tool active and something
+  selected, the **Width** slider widens or narrows the selected outlines as it
+  moves, and the whole drag undoes as one step. A width typed with Quick Width
+  (`W`, then a number) does the same. Text and images have no outline and are
+  left alone; with a drawing tool in hand, the slider sets the width of the
+  next mark only.
+- **Stroke Profiles** - the **Stroke Profile** control above the Width slider
+  sets how the width runs along new pen and marker strokes: **Default**,
+  **Rounded**, **Tapered** or **Wave**. With the Select tool it reshapes the
+  selection too, and the Properties panel's **Profile** select sets one
+  element's. A profiled stroke exports to SVG and PDF as the shape it is and
+  comes back into napkin as the stroke it was.
+- **Mesh Warp** - below the tools in the side rail: click art to mesh it, then
+  drag its pins to bend it, as Illustrator's Puppet Warp does. `Enter` bakes the
+  bend into the art as one undo step, and `Escape` throws it away.
 - **Layer groups** — `Ctrl+G` groups the active layer (nesting allowed);
   group visibility, lock, and opacity apply to every layer inside, and
   `Ctrl+Shift+G` ungroups.
-- **Show Selection Borders** (`Ctrl/Cmd + H`) — a switch in the **Move**
-  palette, beside its live preview, draws or drops the dashed blue outline
+- **Show Selection Borders** (`Ctrl/Cmd + H`) — a switch in the **Move** and
+  **Mirror** palettes, beside their live preview, draws or drops the dashed blue outline
   around the selected elements. They stay selected and still move, copy and export the same way,
   and the layers panel still shows what is selected; only the outline on the
   canvas goes, so a drawing can be judged with something selected. On by
   default, and the same switch appears in both settings views.
 - **Two synced settings views** — **Quick Settings** in-app (`Ctrl+,`: live
-  sharpen, show selection borders, wobble, smoothing, circle snap, taper,
-  symmetry, text size) and
+  sharpen, show selection borders, show mesh, wobble, smoothing, circle snap,
+  taper, symmetry, text size) and
   the **Verbose Settings** window (`Ctrl+Alt+,`, Edit menu, or the gear icon)
   which holds those same Quick Settings plus zoom/pan sensitivity, inverted
   zoom, the quick-feature timer, endpoint snap and Join stroke, the
@@ -748,8 +767,8 @@ collapsed group are not swept up with them.
   anchored at the selection's top-left corner, so the Position values above
   stay put, and line weight scales with the shape.
 
-**Docking the editing panels:** **Move**, **Rotate**, **Page Settings**, and
-**Sharpen Selection** are floating palettes - dragged by their title or by the
+**Docking the editing panels:** **Move**, **Rotate**, **Mirror**, **Page
+Settings**, and **Sharpen Selection** are floating palettes - dragged by their title or by the
 narrow band at their border, resized from their corner, and kept on screen if
 the window shrinks. Each also carries a small button in its title bar that
 **docks** it: the panel leaves the drawing and becomes a column beside the
@@ -784,9 +803,9 @@ underneath, so the selection can be changed without dismissing the box first.
 - A whole drag is **one undo step**, and a press that grabs a handle and lets go
   without moving costs none at all.
 - **Dragging a handle through its anchor stops at 1%** rather than flipping the
-  selection inside out. Flipping is a real thing to want and this tool does not
-  do it yet — see `TODO.md`, along with skew, distort, perspective, and puppet
-  warp, which is the list this one box is meant to grow into.
+  selection inside out. Flipping is what **Mirror** (`O`) is for; letting a
+  handle do it too is in `TODO.md`, along with skew, distort, perspective, and
+  puppet warp, which is the list this one box is meant to grow into.
 
 **Rotate (`Ctrl+R`, or the Rotate button beside Move):** turns the selection
 about a centre point, in a palette that opens in the top-right rather than
@@ -829,6 +848,102 @@ a centred panel would be sitting on the pixels the gesture needs.
   have no orientation to turn, so they orbit the centre upright - an image by
   its middle rather than by its top-left anchor.
 
+**Mirror (`O`, Edit > Mirror…, or the Mirror button after Clear):** reflects the
+selection, in a palette that opens in the top-right like Rotate's.
+
+- **Orientation**: **Horizontal** swaps left and right, so a figure facing
+  right faces left; **Vertical** swaps top and bottom. Both together turn the
+  selection half a turn. With neither ticked, **Mirror** has nothing to do and
+  says so.
+- **Create Copy** keeps the selection and mirrors a copy of it, reflected about
+  the selection's trailing edge - the right edge for Horizontal, the bottom
+  edge for Vertical - so the copy lands beside the original as its mirror image
+  and the two meet at that edge: draw half of something symmetric, mirror a
+  copy, and it is whole. The copy is left selected. Without **Create Copy** the
+  selection flips where it stands, about the middle of its box.
+- **Live preview** (on by default) shows the result on the canvas as the
+  choices change, copy and all. **Cancel** or `Escape` takes it back and leaves
+  no trace - not even an undo step - and **Mirror** or `Enter` keeps it as one
+  undo step and closes the palette. Starting another edit on the preview, such
+  as dragging the previewed copy, keeps the mirror and builds on it.
+- **Show Selection Borders** is the same switch as the Move palette's.
+- A reflection is exact on vector geometry: anchors and both of their handles
+  are reflected, so a curve keeps its control points rather than being
+  resampled. A Copic stroke's broad nib and a linear gradient's direction turn
+  with the drawing, and a Wave-profiled stroke - the one profile that leans -
+  swaps its sides, so its mirror image leans the mirrored way. Text stays readable - its box moves to where its mirror
+  image would be - and a placed image's pixels are flipped.
+
+**Stroke Profile (the control above the Width slider):** sets how a stroke's
+width runs along its length, as a width profile does in Illustrator. The
+control shows a picture of the current profile, and clicking it opens the
+**Stroke Profile** picker beneath it.
+
+- **Default** is the constant width every stroke has always had. **Rounded**
+  swells from a point to full width halfway along and back to a point.
+  **Tapered** starts at full width with a round end and narrows to 0.3 of it.
+  **Wave** is a band that snakes about the path as it swells, so its two sides
+  differ. The three were measured from the design drawings rather than
+  described by eye, and every picture of one - in the control and in the
+  picker - is drawn by the code that draws the canvas.
+- **Select**, a double-click or `Enter` makes the highlighted profile the one
+  new pen and marker strokes are drawn with. Like the width, it is tool state:
+  it lasts while the app runs and is not saved as a setting. With the Select
+  tool and a selection, the selected strokes take it too, as one undo step.
+  The arrow keys, `Home` and `End` move through the list; **Cancel**,
+  `Escape` or a press beside the picker closes it.
+- The **Properties** panel's **Profile** select, under Stroke, changes the
+  selected elements alone and leaves the tool's profile as it was.
+- Pen and marker marks take a profile, and so does everything that commits as
+  a pen stroke: Rectangle, Ellipse, Curve, straight lines and Vector Path. A
+  Copic stroke's nib is its own width, and the eraser always cuts at full
+  width.
+- A profile runs once along each subpath from where it starts, so a closed
+  shape is thin (Rounded) or full (Tapered) at the seam where its path begins.
+  A dashed or dotted profiled stroke keeps the width the whole stroke has
+  where each dash falls: a dashed Rounded line has thin dashes at its ends and
+  fat ones in the middle. The pen's pressure still scales the width underneath
+  the profile.
+- **Export.** SVG has no variable-width stroke, so a profiled stroke is written
+  as the filled shape it is: the boundary of exactly what the canvas paints,
+  however tightly the path bends back on itself. The stroke rides along as
+  data (`data-profile`, with its centreline in `data-d`, and
+  `data-profile-mirrored` on a mirrored Wave), so another editor
+  sees the shape and napkin reads back the stroke, editable, with its profile.
+  A profiled shape with a fill is a group of two paths, its fill and then its
+  outline. PDF export fills the same outline.
+
+**Mesh Warp (below the tools in the side rail):** bends art by pins, as
+Illustrator's Puppet Warp does. It has no key, as in Illustrator.
+
+- **Picking the art.** Hovering outlines in green the art a click would pick,
+  with "(click to select art)" beside the pointer. A click picks the group one
+  level below the top of the mark's layer tree - a figure's leg assembly,
+  rather than the whole figure or one of the leg's paths - or, for a mark in no
+  group, its own layer; the layers panel highlights that row. Chosen with
+  something already selected, the tool meshes the selection at once.
+- **The mesh.** The art's silhouette, grown by 3 px, is filled with grey
+  triangles - about a thousand, whatever the art's size - and outlined in
+  green. **Show mesh** in Quick Settings (and in the Settings window) hides the
+  triangles and leaves the pins. Two pins go in along the art's long axis, a
+  fifth of the way in from each end, and one goes in every separate piece.
+- **Pins.** Click in the mesh to add a pin, and drag straight away to move it.
+  Click a pin to select it, `Shift`+click to add one to the selection or take
+  it out, and drag to move every selected pin: the art bends between them as
+  rigidly as it can while the others hold. `Delete` or `Backspace` takes the
+  selected pins out - never the art. A piece with one pin follows it rigidly,
+  and a piece with none stays put.
+- **Ending.** `Enter`, choosing another tool, or a click on empty canvas keeps
+  the warp; a click on other art keeps it and meshes the new art. `Escape`
+  throws it away, putting the art back exactly. While a warp is open, `Ctrl+Z`
+  steps back through the pin moves; once it is kept, one `Ctrl+Z` takes the
+  whole warp back.
+- **What moves.** A freehand mark moves point by point. A Vector Path keeps its
+  Bézier structure: its anchors and handles move, and a curve is split only
+  where one piece could no longer follow the bend to within a fifth of a pixel.
+  Text and images move with the point that anchors them, unbent, and a Copic
+  nib turns with the art. No width is stretched.
+
 Gradients and dash styles are written into exported SVGs as real
 `<linearGradient>` / `<radialGradient>` paint servers and `stroke-dasharray`
 values, so other editors see them, and they round-trip back into napkin
@@ -865,6 +980,18 @@ stroke with its inner contour, a ring, a letter with a counter) stays one
 stroke whose contours are separate subpaths, so its holes fill as holes and
 export as `… Z M …`. Path data the parser cannot read is sampled along its
 length as before.
+
+**Imported SVGs keep their gradients.** A shape painted with another editor's
+`<linearGradient>` or `<radialGradient>` arrives with that gradient's stops,
+and a linear one with the direction of its axis. A gradient that borrows its
+stops from another through `href` is followed to them. The paint server's own
+coordinate system (`gradientUnits`, `gradientTransform`, focal points) is not
+carried, so an unusual gradient lands approximately rather than not at all.
+A paint that resolves to no gradient still arrives painted: a one-stop
+gradient as that stop's color, a reference to a gradient the file never
+defines as the fallback color written after it, and with no fallback as the
+default ink, so it shows up where it can be fixed. A gradient-painted outline
+takes the middle color of its ramp.
 
 **CapsLock cursor:** while any drawing tool is active, **CapsLock on** shows a
 precision crosshair; **CapsLock off** shows a circle preview matching the
@@ -1373,7 +1500,11 @@ corrupt an existing book.
 gains a single default layer and every stroke is assigned to it. Version 2
 files also allow `"tool": "image"` strokes carrying an `image` data URL plus
 `imageWidth` / `imageHeight` for placed raster imports, and `"tool": "copic"`
-strokes carrying a `nibAngle` (degrees) for the rotatable broad nib.
+strokes carrying a `nibAngle` (degrees) for the rotatable broad nib. A pen or
+marker stroke may carry a `"profile"` of `"rounded"`, `"tapered"` or
+`"wave"`; an absent profile is Default, and a value napkin does not know is
+dropped on load rather than failing it. `"profileMirrored": true` beside a
+profile swaps its two sides, which is how a mirrored Wave is saved.
 
 ## Embedding the editor
 
@@ -1491,8 +1622,11 @@ Suites cover the geometry utilities, the auto-sharpen classifier and transforms,
 `.skbk` serialization/normalization (including the version 1 → 2 layer
 migration), the layer-aware SVG exporter, the PDF writer and its import
 round-trip, the CLI argument parser, the launch contract, the animation cycle
-and form helpers, the measurement units, the rotate transforms, the
-graphic-design API, and a regression suite pinning the defects earlier source
+and form helpers, the measurement units, the rotate transforms, the mirror rules
+and the store's edit transaction, the stroke profiles - including a check that
+the outline an export writes covers exactly the pixels the canvas paints, on
+shapes chosen to break one - Mesh Warp's mesh, its as-rigid-as-possible solve and the
+map that carries art onto it, the graphic-design API, and a regression suite pinning the defects earlier source
 reviews found — so a fix that was hard to see cannot quietly come undone.
 
 `npm run test:graphic-design-api` is the second one, and it measures a
@@ -1521,6 +1655,23 @@ so there is a flag for looking:
 ```bash
 npm test -- --keep-graphics   # keep the generated SVGs and PNGs, and print where
 ```
+
+Some defects can only be seen in the running app: the SVG importer needs a
+DOM, the color picker is a native popup, and a paint that went missing shows up
+only as pixels. `npm run gui-check` drives the built app for those. It
+launches Electron with the DevTools protocol open, runs each `check-*.mjs` in
+`test/gui/` in turn, and asserts on what the page shows (canvas pixels, the
+toast, the layer rows) rather than on the code behind it:
+
+```bash
+npm run build                    # the checks drive dist/, so build first
+npm run gui-check                # every check, one app launch each
+npm run gui-check -- gradient    # only the checks whose names match
+```
+
+A check opens a new, unsaved sketch with a fixture from `test/imports/`
+imported, so it leaves the working tree as it found it. The window does appear
+on screen while a check runs.
 
 ## Project structure
 
@@ -1583,6 +1734,7 @@ npm run build:watch  # Rebuild on change
 npm run build:types  # Emit .d.ts declarations for the embeddable API
 npm run typecheck    # Type-check without emitting
 npm test             # Run the unit test suites
+npm run gui-check    # Drive the built app and check what it shows (build first)
 npm run start        # Build, then launch a new sketch
 npm run clean        # Remove dist/
 

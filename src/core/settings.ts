@@ -81,6 +81,11 @@ export interface AppSettings {
    * endpoint (endpoint snap) is merged with that stroke into one stroke.
    */
   joinStrokeOnSnap: boolean;
+  /**
+   * Mesh Warp: draw the triangle mesh over the art being warped. Off, only
+   * the pins show, so the bend can be judged on the art alone.
+   */
+  warpShowMesh: boolean;
   /** Eyedropper: color-sampling radius around the click, in screen pixels (1-36). */
   eyedropSensitivityPx: number;
   /** Quick Settings: auto-sharpen each stroke on pen-up. */
@@ -205,6 +210,7 @@ export function defaultSettings(): AppSettings {
     directSelectSensitivityPx: 3,
     showSelectionBorders: true,
     joinStrokeOnSnap: false,
+    warpShowMesh: true,
     eyedropSensitivityPx: 10,
     liveSharpen: false,
     sharpenWobble: 1.1,
@@ -291,6 +297,7 @@ export function normalizeSettings(input: unknown): AppSettings {
         : base.showSelectionBorders,
     joinStrokeOnSnap:
       typeof raw.joinStrokeOnSnap === 'boolean' ? raw.joinStrokeOnSnap : base.joinStrokeOnSnap,
+    warpShowMesh: typeof raw.warpShowMesh === 'boolean' ? raw.warpShowMesh : base.warpShowMesh,
     eyedropSensitivityPx: Math.round(
       clampNumber(
         raw.eyedropSensitivityPx,

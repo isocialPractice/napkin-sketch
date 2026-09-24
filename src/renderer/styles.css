@@ -1071,6 +1071,276 @@ body {
   width: 340px;
 }
 
+/* ---- Mirror dialog ------------------------------------------------------- */
+
+/* A floating palette like Move's: its live preview is the canvas underneath,
+   so the overlay neither dims the drawing nor takes a pointer aimed at it. */
+#mirror-dialog {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+#mirror-dialog .export-dialog-inner {
+  width: 300px;
+}
+
+.mirror-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: center;
+}
+
+/* The two orientations side by side, split by a rule, and set off from the
+   switches below by a second one - the layout the mockup draws. */
+.mirror-orientation {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--s4);
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--border);
+}
+
+.mirror-orientation-rule {
+  width: 2px;
+  background: var(--ink);
+}
+
+.mirror-axis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.mirror-axis-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.mirror-axis-choice input {
+  margin: 0;
+}
+
+/* Outlined triangles facing the axis they reflect across; the axis itself is
+   drawn in the focus blue, as in the mockup. */
+.mirror-glyph {
+  width: auto;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.mirror-glyph-h {
+  height: 24px;
+}
+
+.mirror-glyph-v {
+  height: 40px;
+}
+
+.mirror-glyph-axis {
+  stroke: var(--focus);
+  stroke-width: 3;
+}
+
+.mirror-copy-field {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+/* The toolbar button carries the Horizontal glyph at text size. */
+.btn-with-glyph {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-glyph {
+  height: 11px;
+  stroke-width: 3;
+}
+
+.btn-glyph .mirror-glyph-axis {
+  stroke-width: 4;
+}
+
+/* ---- Mesh Warp ----------------------------------------------------------- */
+
+/* A heavy rule sets Mesh Warp off from the tools before it, as the mockup
+   draws it: across the side rail, and upright in the top bar. */
+.warp-group {
+  gap: var(--s2);
+}
+
+.warp-rule {
+  align-self: stretch;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+
+.side-rail .warp-rule {
+  width: auto;
+  height: 4px;
+}
+
+.warp-glyph {
+  display: block;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.warp-glyph circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* "(click to select art)", beside the pointer while it is over art. */
+.warp-hint {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-1);
+  white-space: nowrap;
+}
+
+.warp-hint[hidden] {
+  display: none;
+}
+
+/* ---- Stroke Profile ------------------------------------------------------ */
+
+/* The Stroke width group stacks two rows: the profile over the width, as the
+   placement mockup puts it. The side rail stacks every group the same way. */
+.group-stack {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+/* One button, one focus stop: the label and a picture of the profile. It is
+   kept short so the stacked group is no taller than two rows of the bar. */
+.btn-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 3px 1px 6px;
+  font-size: 11px;
+}
+
+.profile-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.profile-pill svg {
+  display: block;
+  width: 48px;
+  height: 10px;
+  fill: var(--ink);
+}
+
+/* The picker drops from its control like a menu, so it leaves the toolbar
+   undimmed, as the mockup draws it; the overlay still takes the press that
+   closes it. */
+#profile-dialog {
+  background: none;
+  backdrop-filter: none;
+}
+
+#profile-dialog .export-dialog-inner {
+  width: 240px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--s2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  outline: none;
+}
+
+.profile-list:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.profile-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 10px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.profile-option + .profile-option {
+  border-top: 1px solid var(--border);
+}
+
+.profile-option:hover {
+  background: var(--surface-2);
+}
+
+/* The highlighted row, grey as Default is in the mockup. */
+.profile-option.is-selected {
+  background: var(--border);
+}
+
+.profile-option-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.profile-option-picture {
+  display: block;
+  width: 120px;
+  height: 26px;
+  fill: var(--ink);
+}
+
+/* Cancel is a quiet link over a Select button as wide as the panel. */
+.profile-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s1);
+}
+
+.profile-actions #profile-cancel {
+  align-self: center;
+  border-color: transparent;
+  background: none;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
 /* ---- Popups: the shared editing panels ----------------------------------- */
 
 /* Resizing is a capability a popup asks for rather than something every

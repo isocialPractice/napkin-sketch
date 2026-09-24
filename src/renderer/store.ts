@@ -24,10 +24,12 @@ import {
   type Sketch,
   type SketchBook,
   type Stroke,
+  type StrokeProfile,
   type Tool,
 } from '../core/types.js';
 import { DEFAULT_SHARPEN_OPTIONS, type SharpenOptions } from '../sharpen/sharpen.js';
 import { catmullRom, cubicBezierPoints, rotateAbout, rotationTrig } from '../sharpen/geometry.js';
+import { mirrorStroke, type Mirror, type TransformBox } from '../core/transform.js';
 
 /** Snapshot of the current tool configuration. */
 export interface ToolState {
@@ -47,6 +49,11 @@ export interface ToolState {
   symmetry: number;
   /** Copic broad-nib rotation in degrees (0 = horizontal, clockwise). */
   nibAngle: number;
+  /**
+   * The profile new pen and marker strokes are drawn with. Tool state, like
+   * the width: it lasts while the app runs and is not saved as a setting.
+   */
+  profile: StrokeProfile;
   /** Tunable auto-sharpen settings. */
   sharpen: SharpenOptions;
 }
@@ -100,6 +107,34 @@ interface PageSnapshot {
   activeLayerId: string;
 }
 
+/** An edit shown live, and everything needed to put the page back if it goes. */
+interface Transaction {
+  before: PageSnapshot;
+  dirty: boolean;
+  selectedIds: string[];
+  selectedLayerIds: string[];
+  onSettled?: () => void;
+}
+
+/**
+ * Structural equality for plain data - primitives, arrays and plain objects,
+ * the only things a page is made of. A key holding `undefined` counts as
+ * absent, since `setStrokeProps` deletes keys and spreads can leave them.
+ */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((value, i) => sameValue(value, b[i]));
+  }
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left).filter((k) => left[k] !== undefined);
+  if (keys.length !== Object.keys(right).filter((k) => right[k] !== undefined).length) return false;
+  return keys.every((k) => sameValue(left[k], right[k]));
+}
+
 export class Store {
   book: SketchBook;
   filePath: string | null = null;
@@ -125,6 +160,7 @@ export class Store {
     fontSize: 24,
     symmetry: 1,
     nibAngle: DEFAULT_NIB_ANGLE,
+    profile: 'uniform',
     sharpen: { ...DEFAULT_SHARPEN_OPTIONS },
   };
 
@@ -132,6 +168,9 @@ export class Store {
   private undoStack: PageSnapshot[] = [];
   private redoStack: PageSnapshot[] = [];
   private listeners = new Set<Listener>();
+
+  // The edit being shown live, if one is open (see beginTransaction).
+  private transaction: Transaction | null = null;
 
   constructor(book: SketchBook, filePath: string | null = null) {
     this.book = book;
@@ -175,6 +214,7 @@ export class Store {
 
   /** Replaces the entire book (e.g. after opening a file) and resets history. */
   setBook(book: SketchBook, filePath: string | null): void {
+    this.settleTransaction();
     this.book = book;
     this.filePath = filePath;
     if (filePath) this.book.name = basename(filePath).replace(/\.skbk$/i, '');
@@ -190,9 +230,101 @@ export class Store {
 
   /** Pushes the current page state onto the undo stack before a mutation. */
   pushHistory(): void {
+    // An edit that keeps history is the end of any edit being previewed: the
+    // preview is what is on the page, so it is kept, and this builds on it.
+    this.settleTransaction();
     this.undoStack.push(this.snapshot());
     if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift();
     this.redoStack = [];
+  }
+
+  // ---- Transactions ---------------------------------------------------------
+
+  /**
+   * Opens an edit that is shown live and then either kept as one undo step
+   * or thrown away - a palette's live preview, a warp in progress. Edits made
+   * inside pass `history: false`. {@link commitTransaction} turns the page as
+   * it was here into the undo step; {@link rollbackTransaction} puts it back,
+   * selection and saved state included, so a cancelled preview leaves no trace.
+   *
+   * Reversible deltas - the way Move and Rotate preview - cannot express an
+   * edit that adds strokes, like a mirrored copy, or one that rewrites every
+   * anchor, like a warp. A snapshot can.
+   *
+   * One runs at a time, and anything that would otherwise build on top of it
+   * settles it first: another edit that keeps history, an undo or redo, a new
+   * book or a page change all commit the open transaction - it is what the
+   * page shows - and then call `onSettled`, so its owner can close whatever
+   * was previewing. Beginning a second transaction settles the first the same
+   * way. The owner's own commit or rollback does not call back.
+   */
+  beginTransaction(onSettled?: () => void): void {
+    this.settleTransaction();
+    this.transaction = {
+      before: this.snapshot(),
+      dirty: this.dirty,
+      selectedIds: [...this.selectedIds],
+      selectedLayerIds: [...this.selectedLayerIds],
+      onSettled,
+    };
+  }
+
+  /** True while a transaction is open. */
+  get inTransaction(): boolean {
+    return this.transaction !== null;
+  }
+
+  /**
+   * Keeps what the open transaction did, as a single undo step. One that left
+   * the page exactly as it found it leaves no step behind - an undo press that
+   * changes nothing is a defect this store has fixed once already - and puts
+   * the saved state back the way it was.
+   */
+  commitTransaction(): void {
+    const open = this.transaction;
+    if (!open) return;
+    this.transaction = null;
+    if (this.pageMatches(open.before)) {
+      this.dirty = open.dirty;
+      this.emit();
+      return;
+    }
+    this.undoStack.push(open.before);
+    if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift();
+    this.redoStack = [];
+    this.touch();
+  }
+
+  /**
+   * Throws the open transaction away: the page, the selection and the saved
+   * state go back to exactly what they were when it began.
+   */
+  rollbackTransaction(): void {
+    const open = this.transaction;
+    if (!open) return;
+    this.transaction = null;
+    this.restore(open.before);
+    this.selectedIds = new Set(open.selectedIds);
+    this.selectedLayerIds = new Set(open.selectedLayerIds);
+    this.dirty = open.dirty;
+    this.emit();
+  }
+
+  /** Commits an open transaction on its owner's behalf, and tells the owner. */
+  private settleTransaction(): void {
+    const open = this.transaction;
+    if (!open) return;
+    this.commitTransaction();
+    open.onSettled?.();
+  }
+
+  /** True when the active page is exactly what a snapshot holds. */
+  private pageMatches(snapshot: PageSnapshot): boolean {
+    return (
+      snapshot.activeLayerId === this.activeLayerId &&
+      sameValue(snapshot.layers, this.sketch.layers) &&
+      sameValue(snapshot.strokes, this.sketch.strokes)
+    );
   }
 
   private snapshot(): PageSnapshot {
@@ -209,6 +341,13 @@ export class Store {
     this.activeLayerId = snapshot.activeLayerId;
   }
 
+  /**
+   * Copies strokes deeply enough that a later edit cannot reach back into a
+   * snapshot. `move` rides along on each anchor: without it a compound
+   * shape's contours export as one stitched outline after an undo, although
+   * the canvas - which draws the sampled points - still looks right. The
+   * gradient is copied rather than shared for the same reason the points are.
+   */
   private cloneStrokes(strokes: Stroke[]): Stroke[] {
     return strokes.map((s) => ({
       ...s,
@@ -220,10 +359,14 @@ export class Store {
                 p: { ...a.p },
                 ...(a.hIn ? { hIn: { ...a.hIn } } : {}),
                 ...(a.hOut ? { hOut: { ...a.hOut } } : {}),
+                ...(a.move ? { move: true as const } : {}),
               })),
               ...(s.vector.closed ? { closed: true as const } : {}),
             },
           }
+        : {}),
+      ...(s.gradient
+        ? { gradient: { ...s.gradient, stops: s.gradient.stops.map((stop) => ({ ...stop })) } }
         : {}),
     }));
   }
@@ -482,6 +625,30 @@ export class Store {
   }
 
   /**
+   * Sets the geometry of several strokes at once, with one change event and
+   * no history of its own: a frame of a live gesture - a Mesh Warp drag -
+   * inside a transaction that keeps the whole gesture as one undo step. A
+   * stroke given no `vector` loses the one it had, as {@link setStrokeGeometry}
+   * does, and a `nibAngle` turns a Copic nib.
+   */
+  setStrokesGeometry(
+    updates: Array<{ id: string; points: Point[]; vector?: Stroke['vector']; nibAngle?: number }>,
+  ): void {
+    const byId = new Map(updates.map((u) => [u.id, u]));
+    let changed = false;
+    for (const stroke of this.sketch.strokes) {
+      const update = byId.get(stroke.id);
+      if (!update || update.points.length === 0) continue;
+      stroke.points = update.points;
+      if (update.vector) stroke.vector = update.vector;
+      else delete stroke.vector;
+      if (update.nibAngle !== undefined) stroke.nibAngle = update.nibAngle;
+      changed = true;
+    }
+    if (changed) this.touch();
+  }
+
+  /**
    * Sets absolute positions for specific points of a stroke — the Direct
    * Select handle drag, which recomputes every affected point from the
    * geometry captured at drag start (no history; pushed at drag start).
@@ -564,6 +731,9 @@ export class Store {
   // ---- Undo / redo ---------------------------------------------------------
 
   undo(): void {
+    // Undo while a preview is showing takes the preview back: settling makes
+    // it the step this pops.
+    this.settleTransaction();
     const prev = this.undoStack.pop();
     if (!prev) return;
     this.redoStack.push(this.snapshot());
@@ -574,6 +744,7 @@ export class Store {
   }
 
   redo(): void {
+    this.settleTransaction();
     const next = this.redoStack.pop();
     if (!next) return;
     this.undoStack.push(this.snapshot());
@@ -595,6 +766,8 @@ export class Store {
 
   /** Adds a new blank page after the active one and switches to it. */
   addPage(name = 'unnamed'): void {
+    // A transaction belongs to the page it began on, and history is per page.
+    this.settleTransaction();
     const sketch = createSketch(name);
     sketch.width = this.sketch.width;
     sketch.height = this.sketch.height;
@@ -608,6 +781,7 @@ export class Store {
   /** Appends already-built pages (e.g. from a PDF import) after the active one. */
   addImportedPages(pages: Sketch[]): void {
     if (pages.length === 0) return;
+    this.settleTransaction();
     this.book.sketches.splice(this.activeIndex + 1, 0, ...pages);
     this.activeIndex += 1;
     this.resetPageState();
@@ -630,6 +804,7 @@ export class Store {
   /** Removes the active page (keeps at least one). */
   removePage(): void {
     if (this.book.sketches.length <= 1) return;
+    this.settleTransaction();
     this.book.sketches.splice(this.activeIndex, 1);
     this.activeIndex = Math.max(0, this.activeIndex - 1);
     this.resetPageState();
@@ -640,6 +815,7 @@ export class Store {
   goToPage(index: number): void {
     const clamped = Math.max(0, Math.min(this.book.sketches.length - 1, index));
     if (clamped === this.activeIndex) return;
+    this.settleTransaction();
     this.activeIndex = clamped;
     this.resetPageState();
     this.emit();
@@ -1312,13 +1488,15 @@ export class Store {
   /**
    * Applies `color` to the selection: closed shapes are filled, other
    * drawing strokes and text recolored. Returns the counts of each.
+   * Continuous edits (a color picker being dragged) pass `history: false`
+   * after the first tick so the whole drag collapses into one undo step.
    */
-  fillSelected(color: string): { filled: number; recolored: number } {
+  fillSelected(color: string, history = true): { filled: number; recolored: number } {
     const targets = this.sketch.strokes.filter(
       (s) => this.selectedIds.has(s.id) && !isImageStroke(s) && s.tool !== 'eraser',
     );
     if (targets.length === 0) return { filled: 0, recolored: 0 };
-    this.pushHistory();
+    if (history) this.pushHistory();
     let filled = 0;
     let recolored = 0;
     for (const stroke of targets) {
@@ -1489,6 +1667,27 @@ export class Store {
         stroke.nibAngle = ((nib % 360) + 360) % 360;
       }
     }
+    this.touch();
+  }
+
+  /**
+   * Mirrors specific strokes - left-right across x = `mirror.x`, top-bottom
+   * across y = `mirror.y`, or both. What happens to each kind of element is
+   * {@link mirrorStroke}'s business; `boxOf` measures text the way the canvas
+   * lays it out, so a mirrored text box lands where its image would.
+   */
+  mirrorStrokes(
+    ids: Iterable<string>,
+    mirror: Mirror,
+    options: { history?: boolean; boxOf?: (stroke: Stroke) => TransformBox | null } = {},
+  ): void {
+    if (!mirror.flipX && !mirror.flipY) return;
+    if (!Number.isFinite(mirror.x) || !Number.isFinite(mirror.y)) return;
+    const targets = new Set(ids);
+    const strokes = this.sketch.strokes.filter((s) => targets.has(s.id));
+    if (strokes.length === 0) return;
+    if (options.history !== false) this.pushHistory();
+    for (const stroke of strokes) mirrorStroke(stroke, mirror, options.boxOf?.(stroke));
     this.touch();
   }
 

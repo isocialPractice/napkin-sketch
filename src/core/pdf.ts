@@ -28,6 +28,7 @@ import {
   type Stroke,
 } from './types.js';
 import { copicNibPolygons } from './nib.js';
+import { activeProfile, profileInputOf, profileOutline } from './stroke-profile.js';
 
 /** RGB color with components in 0-1. */
 type Rgb = [number, number, number];
@@ -284,6 +285,25 @@ export function sketchesToPdf(sketches: Sketch[]): string {
               .map(
                 (poly) =>
                   poly.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 ? 'm' : 'l'}`).join(' ') +
+                  ' h',
+              )
+              .join(' ') + ' f';
+          ops.push('q', ...(gs ? [gs] : []), `${col(r)} ${col(g)} ${col(b)} rg`, fillPath, 'Q');
+          continue;
+        }
+
+        // A stroke profile: fill the outline the SVG export writes, the
+        // boundary of what the canvas paints. A switched-off outline paints
+        // nothing here, its fill having been painted above.
+        if (activeProfile(stroke)) {
+          if (stroke.noStroke) continue;
+          const contours = profileOutline(profileInputOf(stroke));
+          if (contours.length === 0) continue;
+          const fillPath =
+            contours
+              .map(
+                (contour) =>
+                  contour.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 ? 'm' : 'l'}`).join(' ') +
                   ' h',
               )
               .join(' ') + ' f';

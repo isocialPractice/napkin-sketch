@@ -133,6 +133,9 @@ class SettingsApp {
     el<HTMLInputElement>('show-selection-borders').addEventListener('change', (e) =>
       this.patch({ showSelectionBorders: (e.target as HTMLInputElement).checked }),
     );
+    el<HTMLInputElement>('warp-show-mesh').addEventListener('change', (e) =>
+      this.patch({ warpShowMesh: (e.target as HTMLInputElement).checked }),
+    );
     el<HTMLInputElement>('qs-live-sharpen').addEventListener('change', (e) =>
       this.patch({ liveSharpen: (e.target as HTMLInputElement).checked }),
     );
@@ -257,6 +260,7 @@ class SettingsApp {
     this.setValue('direct-select-px', s.directSelectSensitivityPx);
     el('direct-select-px-value').textContent = `${s.directSelectSensitivityPx}px`;
     el<HTMLInputElement>('show-selection-borders').checked = s.showSelectionBorders;
+    el<HTMLInputElement>('warp-show-mesh').checked = s.warpShowMesh;
 
     el<HTMLInputElement>('qs-live-sharpen').checked = s.liveSharpen;
     this.setValue('qs-wobble', s.sharpenWobble);

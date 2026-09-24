@@ -4,6 +4,216 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0-alpha] - 2026-09-23
+
+Three features - Mirror Selection, Stroke Profiles and Mesh Warp - make this a
+minor release. It also carries the fixes that were to have been the 4.2.3-alpha
+patch, which never shipped on its own.
+
+### Added
+
+- **Mirror Selection: reflect the selection, in place or as a copy beside it.**
+  A **Mirror** button after **Clear**, **Edit > Mirror…** and `O` open a
+  palette with the two orientations the mockup draws: **Horizontal** swaps left
+  and right, **Vertical** swaps top and bottom, and both together make a half
+  turn. Below them are **Create Copy**, **Live preview** and **Show Selection
+  Borders**.
+  - A copy is reflected about the selection's trailing edge, so it lands beside
+    the original as its mirror image and the two meet there: half of something
+    symmetric, mirrored, is the whole of it. Without a copy the selection flips
+    where it stands.
+  - The reflection is exact on vector geometry. A reflection is affine, so
+    mapping a curve's anchors and both of their handles maps the curve itself:
+    nothing is resampled, and a curve keeps its control points. A Copic nib and
+    a linear gradient's direction turn with the drawing. Text stays readable,
+    its box moving to where its mirror image would be, and a placed image's
+    pixels are flipped. The rules live in one pure function, `mirrorStroke`,
+    with a test for each kind of element.
+  - `npm run gui-check -- mirror` checks it in the running app. A triangle that
+    points right points left afterwards, with its box unmoved. A mirrored copy
+    doubles the ink one box-width further right. One `Ctrl+Z` undoes either,
+    and a cancelled preview leaves Redo exactly as it was.
+- **An edit transaction in the store.** Mirror's live preview can add a copy,
+  which the Move and Rotate previews cannot express: they are reversible deltas,
+  applied and then taken back. `beginTransaction` snapshots the page, and
+  everything the preview does runs without history. `commitTransaction` makes it
+  one undo step, or none at all if the page came back unchanged.
+  `rollbackTransaction` puts the page, the selection and the saved state back.
+  An edit that keeps history, an undo or redo, or a page change settles an open
+  transaction by keeping it, since it is what the page shows, and then tells its
+  owner. So dragging a previewed copy moves the copy, and the palette steps
+  aside.
+- **Stroke Profiles: how a stroke's width runs along its length.** A **Stroke
+  Profile** control above the Width slider shows a picture of the current
+  profile and opens a picker of four. **Default** is the constant width every
+  stroke already had. **Rounded** is pointed at both ends and full in the
+  middle. **Tapered** is full at a round start and narrows to 0.3. **Wave** is a
+  band that snakes about the path as it swells. **Select** sets the profile new
+  pen and marker strokes take, and with the Select tool it reshapes the
+  selection too, as one undo step. The Properties panel's **Profile** select
+  sets one element's alone.
+  - The profiles were measured from the design drawings, each shape's thickness
+    read column by column at 4x, rather than described by eye. Rounded is sin(πt)
+    to within 3%, and Tapered is 1 - 0.7·t^1.6 to within 0.04. Wave is a table
+    for each side, joined by monotone cubics that never overshoot a measurement
+    or dip below zero.
+  - Pen and marker marks take a profile, and so does everything that commits as
+    a pen stroke. A ruled line has only its two ends to read a profile at, both
+    of zero width for Rounded, so a long run is cut into steps first. Dashes
+    keep the width the stroke has where they fall, and the pen's pressure still
+    scales the width underneath the profile. Mirror reflects a profiled stroke
+    exactly: Wave, the one profile that leans, swaps its sides
+    (`profileMirrored`) so its mirror image leans the mirrored way.
+  - Neither the canvas nor SVG has a variable-width stroke, so both draw the
+    shape. The canvas fills a union of convex pieces with one non-zero fill.
+    The exporter writes that union's boundary: it traces a chain whose winding
+    about every point is the number of pieces covering it, then keeps only the
+    edges with fill on one side and none on the other. So the two agree exactly
+    however tightly a path bends, and a test rasterizes both on twelve shapes -
+    from a hairpin tighter than the stroke to a ring smaller than it - holding
+    them to 99.9% of the same pixels. The stroke rides along as data
+    (`data-profile`, the centreline in `data-d`), so napkin reads back the
+    stroke rather than its outline. A profiled shape with a fill exports as a
+    group of the fill and its outline, and PDF export fills the same outline.
+  - `npm run gui-check -- profile` checks it in the running app. A Rounded line
+    is under half as thick a tenth of the way along as in its middle, and one
+    `Ctrl+Z` undoes it. The Properties select tapers a stroke without changing
+    the tool, and `End` then `Enter` picks Wave for the next stroke. A fixture
+    the exporter wrote imports with every profile, fill and dash intact.
+- **Mesh Warp: bend art by pins, as Illustrator's Puppet Warp does.** A **Mesh
+  Warp** tool sits below the others in the side rail, set off by a heavy rule.
+  Hovering outlines in green the art a click would pick, with "(click to select
+  art)" beside the pointer. A click meshes it and puts two pins along its long
+  axis. Click the mesh to add a pin, drag pins to bend the art, and press
+  `Delete` to take pins out. `Enter` keeps the warp as one undo step, and
+  `Escape` throws it away.
+  - The mesh comes from what the art paints. Its silhouette, grown by 3 px, is
+    traced by marching squares, filled with a hexagonal lattice and triangulated
+    (Bowyer-Watson Delaunay). Any triangle that strays across a notch or a hole
+    is dropped, and so is any sliver Delaunay lays along the hull between two
+    pieces. The mesh has about a thousand vertices whatever the art's size.
+    **Show mesh** in Quick Settings hides it.
+  - The bend is As-Rigid-As-Possible shape manipulation (Igarashi, Moscovich and
+    Hughes, 2005). Its two matrices are factored once when the pins change, so a
+    drag frame is a few triangular solves: about a millisecond at a thousand
+    vertices, and about 4 ms a frame on a figure's leg assembly with the art
+    carried along. A piece with one pin follows it rigidly, and a piece with none
+    stays put.
+  - The art keeps its structure. A Vector Path's anchors and handles move, and a
+    curve is split only where it would otherwise stray more than a fifth of a
+    pixel from the bend. A warp nobody pulled gives back the very anchors it was
+    handed. Text and images move unbent, a Copic nib turns with the art, and no
+    width stretches.
+  - `npm run gui-check -- mesh-warp` checks it with real pointer events on a
+    bar. Hovering outlines it, a click meshes it with two pins, and dragging the
+    right pin 80 px down drops the right half while the left holds. `Escape`
+    restores the bar exactly, `Ctrl+Z` inside a warp steps back, `Delete` takes a
+    pin rather than the bar, and a kept warp is one `Ctrl+Z` from where it
+    began.
+- **`npm run gui-check`: scripted checks against the running app.** The first
+  two defects fixed in this release could only be seen in the running app, one
+  because the importer needs a DOM and the other because the color picker is a
+  native popup. `test/gui/` now holds the DevTools-protocol driver that the
+  4.1.0-alpha menu work proved out (`cdp.mjs`), a runner that launches the built
+  app once per `check-*.mjs` (`run.mjs`), and seven checks: gradient import, the
+  color picker and the Width slider reaching a selection, Mirror, Stroke
+  Profiles drawn and imported, and Mesh Warp. The checks assert on what the
+  page shows (canvas pixels, the toast, the layer rows) rather than on the code
+  that produced it, and the first two were each run against the unfixed build
+  and failed there. They drive `dist/`, so build first.
+  `npm run gui-check -- gradient` narrows a run to the checks whose names match.
+
+### Fixed
+
+- **Gradient-painted artwork imported as an invisible ghost.** `importSvg`
+  restored a gradient only from `data-gradient`, napkin's own export
+  attribute, and a foreign `url(#...)` paint was dropped on purpose. A drawing
+  whose base shapes were all gradient-filled therefore came back with correct
+  geometry, a correct layer tree, and nothing painted - and since the shapes
+  were all still there, nothing about it said why. Worse, `normalizeColor`
+  passes through anything that is not `rgb(...)`, so the same paint was stored
+  as the stroke's **colour** and written back out as
+  `stroke="url(#skinLimb)"`: a reference to a definition the export does not
+  carry.
+  - The importer now reads the referenced `<linearGradient>` or
+    `<radialGradient>` out of the document's defs, follows an `href` to
+    another gradient's stops where one is used, derives a linear gradient's
+    angle from its axis, and hands the result to `normalizeGradient`. What it
+    does not carry is the paint server's own coordinate system, so a gradient
+    lands as its stops along its own axis: approximate for the unusual cases
+    and right for the rest.
+  - A paint that still resolves to nothing falls back to a stop colour rather
+    than to the `url(...)` string, so the worst case is a flat colour from the
+    right ramp rather than a shape nobody can see. That holds for every way a
+    paint server can fail to become a gradient, not only for an outline. A
+    one-stop gradient paints its stop's flat colour, as SVG specifies. A
+    reference to a gradient the document never defines, or to one with no
+    stops, paints the fallback colour written after it (`url(#skin) #c48a5f`),
+    or napkin's default ink when there is none: visibly wrong and one click
+    from fixed, where a browser would paint nothing. A fallback written beside
+    a gradient that does exist no longer hides that gradient; the reference
+    used to be read only when it ended at its closing parenthesis.
+  - `npm run gui-check` gained a check for it, against a fixture whose every
+    shape is gradient-painted. This is the bug a unit test could not have
+    caught: the importer needs a DOM, and the symptom is pixels. The check
+    measures how much of the painted area's bounding box is filled rather than
+    counting painted samples, because the ghost is not blank: it leaves thin
+    outlines behind, and a raw count left it two samples short of passing.
+    Filled, the fixture covers 80% of its box; the ghost covered 12%.
+  - Anything an editor or a generator paints with gradients was affected. An
+    AI redraw asked for modelled form reaches for gradients first, so this is
+    what one looked like on arrival: a figure drawn correctly and then erased
+    on the way in.
+- **The custom color picker never reached the selection.** With the Select
+  tool active and something selected, a swatch fills the selected closed shapes
+  and recolors the selected open strokes. The color well beside the swatches
+  only ever set the ink for the *next* mark, so a fill or stroke color picked
+  there left the selection as it was. Because the pick recorded no history
+  either, the next `Ctrl+Z` undid whatever came before it.
+  - The well now takes the swatches' path. One `applyInkToSelection` serves
+    both, so the two cannot drift apart again, and both report what they did in
+    the same toast.
+  - Chromium's picker fires an `input` for every color the pointer crosses and
+    one `change` when it closes. The selection follows the drag live, and the
+    whole drag is one undo step: `Store.fillSelected` takes the same `history`
+    flag `setStrokeProps` already did. The toast waits for the color actually
+    chosen.
+  - `npm run gui-check` covers it: a closed shape and an open stroke, selected
+    with `Ctrl+A`, taken through a three-color drag. Afterwards nothing on the
+    page is left in the old ink, and one `Ctrl+Z` puts every sample back.
+- **The Width slider never reached the selection either.** With the Select
+  tool active and an element selected, moving the slider only set the width
+  of the *next* mark. The selected element kept its own until another was
+  drawn, so the only way to change it was the Properties panel.
+  - The slider now takes the color well's path. With the Select tool and a
+    selection, the selected outlines follow the slider as it is dragged, and
+    the whole drag is one undo step: its first change opens the step, and
+    `setStrokeProps` folds the rest into it. A width typed with Quick Width
+    (`W`, then a number) reaches the selection the same way. Text and placed
+    images have no outline to widen, so they are left as they are. With a
+    drawing tool in hand, the slider is still only for the next mark, whatever
+    is selected.
+  - `npm run gui-check -- stroke-width` covers it on a 4 px line. The line is
+    selected with `Ctrl+A` and dragged through 8, 14 and 20: it becomes five
+    times as thick, one `Ctrl+Z` restores it, Quick Width `12` makes it three
+    times, and with the Pen in hand the slider leaves it alone.
+- **Undo and redo stitched the holes shut in compound shapes.** Every history
+  snapshot copied a vector anchor as its point and two handles and left out
+  `move`, the flag that starts a new subpath. The canvas draws the sampled
+  points, which kept theirs, so nothing looked wrong until export. A square with
+  a square hole exported as `M0 0H20V20H0V0ZM5 5H15V15H5V5Z` before a move and an
+  undo, and as `M0 0H20V20H0L5 5H15V15H5L0 0Z` after, with the hole joined into
+  the outline. A snapshot copies the whole page, so one undo did this to every
+  letter with a counter, ring and outlined stroke on it. Placing several imports
+  in a grid rebuilt anchors the same way, so those arrived already stripped.
+  Both now keep the flag, and a snapshot now holds its own copy of a gradient
+  rather than sharing the live one.
+- **A stroke with subpath breaks but no Bézier anchors exported as one line.**
+  The exporter's polyline branch wrote a `lineTo` for every point after the
+  first, so a compound stroke that had lost its anchors came out with its
+  contours joined, and its simplification ran straight across the break. Each
+  run between breaks is now its own subpath, simplified on its own.
+
 ## [4.2.2-alpha] - 2026-09-13
 
 ### Added

@@ -24,6 +24,7 @@ import {
   layerOf,
   normalizedStops,
   strokesByLayer,
+  STROKE_PROFILES,
   STROKE_STYLES,
   type Gradient,
   type GradientStop,
@@ -31,6 +32,7 @@ import {
   type Point,
   type Sketch,
   type Stroke,
+  type StrokeProfile,
   type StrokeStyle,
   type Tool,
   type VectorAnchor,
@@ -94,6 +96,7 @@ import {
   catmullRom,
   constrainDrag,
   cubicBezierPoints,
+  sampleVectorPathPoints,
   normalizeRotation,
   quarterArcCubic,
   rotationStep,
@@ -104,7 +107,20 @@ import {
 } from '../sharpen/geometry.js';
 import { PopupManager } from './popup.js';
 import { sharpenStroke } from '../sharpen/sharpen.js';
-import { Surface, strokeBounds, type LiveStroke } from './surface.js';
+import { Surface, strokeBounds, type LiveStroke, type WarpOverlay } from './surface.js';
+import {
+  ArapSolver,
+  MeshLocator,
+  MeshMap,
+  autoPins,
+  buildMesh,
+  mapStrokeGeometry,
+  maskFromRgba,
+  pinRest,
+  type Mesh,
+  type Vec as WarpVec,
+  type WarpPin,
+} from '../core/mesh-warp.js';
 import { Store, type ImportedLayerNode, type LayerTreeNode, type ToolState } from './store.js';
 import { importSvg } from './svg-import.js';
 import {
@@ -115,9 +131,11 @@ import {
   transformHandlePoint,
   transformScale,
   TRANSFORM_HANDLES,
+  type Mirror,
   type TransformBox,
   type TransformHandle,
 } from '../core/transform.js';
+import { profileApplies, profilePreviewPath, STROKE_PROFILE_LABELS } from '../core/stroke-profile.js';
 
 /** Looks up a required element by id, throwing a clear error if absent. */
 function el<T extends HTMLElement>(id: string): T {
@@ -180,6 +198,53 @@ const PASTE_OFFSET = 16;
  * enough that a panel deliberately left behind does not linger.
  */
 const SUBMENU_GRACE_MS = 320;
+
+/**
+ * Every copy of the Show Selection Borders switch: the Move and Mirror
+ * palettes', where it is reached while a selection is being worked on, and
+ * Quick Settings'. They are one setting, bound and synced from this one list.
+ */
+const SELECTION_BORDER_SWITCHES = [
+  'show-selection-borders',
+  'mirror-show-selection-borders',
+  'qs-show-selection-borders',
+] as const;
+
+/** A Mesh Warp in progress: the art being bent, its mesh and its pins. */
+interface WarpSession {
+  /** The page it began on: a warp does not follow the page when it turns. */
+  sketch: Sketch;
+  /** The art as it was when the warp began, which every frame is carried from afresh. */
+  rest: Stroke[];
+  mesh: Mesh;
+  /** Finds points in the rest mesh. */
+  locator: MeshLocator;
+  solver: ArapSolver;
+  pins: WarpPin[];
+  /** Where each pin has been dragged to. */
+  targets: WarpVec[];
+  selected: Set<number>;
+  /** The mesh as the pins hold it now. */
+  deformed: Float64Array;
+  /** Finds points in the deformed mesh - the one on screen - for a click to land in. */
+  onScreen: MeshLocator;
+  /** Pin states for Ctrl+Z to step back to while the warp is open, oldest first. */
+  undo: Array<{ pins: WarpPin[]; targets: WarpVec[] }>;
+  /** True once the art has moved: the store transaction is open from then. */
+  moved: boolean;
+}
+
+/** The Mirror palette's four choices, as its checkboxes hold them. */
+interface MirrorOptions {
+  /** Swap left and right (`Mirror.flipX`). */
+  horizontal: boolean;
+  /** Swap top and bottom (`Mirror.flipY`). */
+  vertical: boolean;
+  /** Keep the selection and mirror a copy beside it. */
+  copy: boolean;
+  /** Show the result on the canvas before it is kept. */
+  preview: boolean;
+}
 
 /** Page-turn animation length; must match `.turn-next`/`.turn-prev` in styles.css. */
 const PAGE_TURN_MS = 360;
@@ -335,6 +400,7 @@ const TOOL_IDS = [
   'tool-bucket',
   'tool-fill',
   'tool-eyedrop',
+  'tool-warp',
 ] as const;
 
 /** An endpoint-snap hit: the endpoint position plus the stroke it ends. */
@@ -485,6 +551,15 @@ class App {
   private gradientDragging = false;
   // True while the fill color picker is open (same one-history-step rule).
   private fillDragging = false;
+  // What the toolbar's custom color has done to the selection since its
+  // popup opened, or null while no pick has reached a selection: set by the
+  // first tick, which opens the one history step the rest of the drag folds
+  // into, and cleared when the popup closes.
+  private inkPick: { filled: number; recolored: number } | null = null;
+  // The same for the toolbar's width: how many outlines the selection held
+  // when a width first reached it, or null until one has. A slider drag's
+  // first change opens the step and the rest fold into it.
+  private widthPick: number | null = null;
 
   // True while a layer-opacity slider drag is in progress (one history step).
   private layerOpacityDragging = false;
@@ -718,6 +793,8 @@ class App {
     this.bindProperties();
     this.bindMove();
     this.bindRotate();
+    this.bindMirror();
+    this.bindStrokeProfile();
     this.bindPopups();
     this.bindPanelResize();
 
@@ -835,7 +912,8 @@ class App {
       const fading = this.stepSymmetryFade(now);
       this.surface.render(this.store.sketch, this.live, {
         selectedIds: this.store.selectedIds,
-        showSelectionBorders: this.settings.showSelectionBorders,
+        // The mesh and its pins are the selection while a warp is open.
+        showSelectionBorders: this.settings.showSelectionBorders && !this.warp,
         symmetry: this.symmetryGuideAxes,
         symmetryAlpha: this.symmetryFade,
         liveTextBox: this.textDragLive ?? undefined,
@@ -860,6 +938,7 @@ class App {
         rotate: this.rotateOverlay() ?? undefined,
         transform: this.transformOverlay() ?? undefined,
         anchors: this.anchorOverlay() ?? undefined,
+        warp: this.warpOverlay() ?? undefined,
       });
       if (fading) this.scheduleRender();
     });
@@ -1061,6 +1140,7 @@ class App {
       if (this.activePointerId !== null) this.onPointerUp(e);
       // Paste aims at the pointer only while there is one on the page.
       this.pointerOverCanvas = false;
+      this.showWarpHint(null);
     });
     c.addEventListener('pointerenter', () => {
       this.pointerOverCanvas = true;
@@ -1128,6 +1208,13 @@ class App {
     // a press on a handle is never a press on the drawing.
     if (this.transformActive && this.beginTransformDrag(e, pt)) return;
     if (this.rotateDialogOpen && this.beginRotateDrag(e, pt)) return;
+
+    // Mesh Warp: pins, and picking the art to bend.
+    if (tool === 'warp') {
+      e.preventDefault();
+      this.warpPointerDown(e, pt);
+      return;
+    }
 
     // Eyedropper reads the canvas; it needs no editable layer.
     if (tool === 'eyedrop') {
@@ -1280,6 +1367,7 @@ class App {
         layer: this.store.activeLayer.id,
         sharpened: true,
         ...(opacity != null ? { opacity } : {}),
+        ...this.toolProfile('pen'),
       };
       this.scheduleRender();
       return;
@@ -1315,6 +1403,7 @@ class App {
       layer: this.store.activeLayer.id,
       ...(opacity != null ? { opacity } : {}),
       ...(tool === 'copic' ? { nibAngle } : {}),
+      ...this.toolProfile(tool),
     };
     this.scheduleRender();
   }
@@ -1358,6 +1447,13 @@ class App {
       this.surface.panBy((to.x - this.panLast.x) * sign, (to.y - this.panLast.y) * sign);
       this.panLast = to;
       this.scheduleRender();
+      return;
+    }
+
+    // Mesh Warp: a pin drag bends the art; otherwise the art under the
+    // pointer is outlined for the click that would mesh it.
+    if (tool === 'warp') {
+      this.warpPointerMove(e, this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure));
       return;
     }
 
@@ -1428,6 +1524,7 @@ class App {
         sharpened: true,
         ...(opacity != null ? { opacity } : {}),
         ...(this.curveTool === 'copic' ? { nibAngle } : {}),
+        ...this.toolProfile(this.curveTool),
       };
       this.scheduleRender();
       return;
@@ -1655,6 +1752,9 @@ class App {
       return;
     }
 
+    // Mesh Warp: the release puts the dragged pins down.
+    if (this.warpPointerUp(e)) return;
+
     // Direct Select: release the dragged anchor(s), handle, or path.
     if (this.anchorDragKind && this.activePointerId === e.pointerId) {
       if (this.canvas.hasPointerCapture(e.pointerId)) {
@@ -1729,6 +1829,7 @@ class App {
         sharpened: true,
         ...(opacity != null ? { opacity } : {}),
         ...(this.curveTool === 'copic' ? { nibAngle } : {}),
+        ...this.toolProfile(this.curveTool),
       };
       this.toast('Move to bend the curve, click to place it (Esc cancels).');
       this.scheduleRender();
@@ -1780,6 +1881,7 @@ class App {
         points: [a, b],
         ...(opacity != null ? { opacity } : {}),
         ...(lineTool === 'copic' ? { nibAngle } : {}),
+        ...this.toolProfile(lineTool),
       };
       if (this.store.tool.liveSharpen && lineTool !== 'eraser') {
         finished = sharpenStroke(finished, this.store.tool.sharpen);
@@ -2015,6 +2117,16 @@ class App {
     );
   }
 
+  /**
+   * The Stroke Profile a new stroke drawn with `tool` takes, to spread into
+   * it: pen and marker marks take the chosen profile. A Copic nib is its own
+   * width, and the eraser always cuts at full width.
+   */
+  private toolProfile(tool: Stroke['tool']): Pick<Stroke, 'profile'> {
+    const { profile } = this.store.tool;
+    return profile !== 'uniform' && (tool === 'pen' || tool === 'marker') ? { profile } : {};
+  }
+
   /** Builds the live quick-curve stroke, or clears it while the arc is empty. */
   private quickCurveStroke(points: Point[]): LiveStroke | null {
     if (points.length < 2) return null;
@@ -2029,6 +2141,7 @@ class App {
       sharpened: true,
       ...(opacity != null ? { opacity } : {}),
       ...(this.curveTool === 'copic' ? { nibAngle } : {}),
+      ...this.toolProfile(this.curveTool),
     };
   }
 
@@ -2145,6 +2258,7 @@ class App {
       layer: this.store.activeLayer.id,
       sharpened: true,
       ...(opacity != null ? { opacity } : {}),
+      ...this.toolProfile('pen'),
     };
     this.scheduleRender();
   }
@@ -2182,6 +2296,7 @@ class App {
       layer: this.store.activeLayer.id,
       sharpened: true,
       ...(opacity != null ? { opacity } : {}),
+      ...this.toolProfile('pen'),
       // The anchors persist so the path stays Vector Path editable.
       vector: {
         anchors: cloneAnchors(this.vectorAnchors),
@@ -3787,6 +3902,12 @@ class App {
       return;
     }
 
+    // Mesh Warp: a pin is picked up; anywhere else is a click to pick.
+    if (tool === 'warp') {
+      this.canvas.style.cursor = this.warpDrag ? 'grabbing' : this.warpOverPin ? 'grab' : CURSOR_ARROW_BLACK;
+      return;
+    }
+
     // Vector Path edit mode: the pointer follows the hover target and the
     // held modifier (see updateVectorEditCursor).
     if (tool === 'vector' && this.vectorEditId) {
@@ -3846,6 +3967,7 @@ class App {
         if (this.rearranging) return;
         this.store.setTool({ tool: id.replace('tool-', '') as Tool });
         this.updateCursor();
+        if (id === 'tool-warp') this.beginWarpTool();
       });
     }
 
@@ -3873,21 +3995,43 @@ class App {
     this.makeSortable([el('tool-group'), el('sketch-group')], '.tool', () => this.persistToolOrder());
     this.makeSortable([el('swatches')], '.swatch', () => this.persistQuickColors());
 
+    // The custom color picks ink the way a swatch does, so a selection takes
+    // it too. Chromium fires `input` for each color the pointer crosses while
+    // the popup is open and `change` once it closes: the first tick opens a
+    // history step that the rest of the drag folds into, and the report
+    // waits for the color actually chosen.
     const custom = el<HTMLInputElement>('color-custom');
     custom.addEventListener('input', () => {
+      this.inkPick = this.applyInkToSelection(custom.value, this.inkPick === null) ?? this.inkPick;
+      this.store.setTool({ color: custom.value });
+      this.updateCursor();
+    });
+    custom.addEventListener('change', () => {
+      this.reportInkPick(custom.value, this.inkPick ?? this.applyInkToSelection(custom.value));
+      this.inkPick = null;
       this.store.setTool({ color: custom.value });
       this.updateCursor();
     });
 
+    // The width reaches a selection too, the way the colour does: with the
+    // Select tool and something selected, the selected outlines take it as
+    // the slider moves. The whole drag is one undo step, and the report
+    // waits for the width it was let go at.
     const width = el<HTMLInputElement>('width');
     width.addEventListener('input', () => {
-      this.store.setTool({ width: Number(width.value) });
+      const value = Number(width.value);
+      this.store.setTool({ width: value });
+      this.applyWidthToSelection(value);
       this.updateCursor();
+    });
+    width.addEventListener('change', () => {
+      if (this.widthPick !== null) this.reportWidthPick(Number(width.value), this.widthPick);
+      this.widthPick = null;
     });
 
     el('sharpen-all').addEventListener('click', () => this.sharpenAll());
-    el('undo').addEventListener('click', () => this.store.undo());
-    el('redo').addEventListener('click', () => this.store.redo());
+    el('undo').addEventListener('click', () => this.undo());
+    el('redo').addEventListener('click', () => this.redo());
     el('clear').addEventListener('click', () => this.store.clear());
 
     el('app-settings').addEventListener('click', () => {
@@ -3999,19 +4143,60 @@ class App {
       btn.draggable = this.rearranging;
       btn.addEventListener('click', () => {
         if (this.rearranging) return;
-        // Fill Shape: with the select tool active and a selection made,
-        // picking a color fills the selected shape(s) instead of only
-        // changing the ink color.
-        if (this.store.tool.tool === 'select' && this.store.selectedIds.size > 0) {
-          const result = this.store.fillSelected(color);
-          if (result.filled > 0) this.toast(`Filled ${result.filled} shape(s) with ${color}.`);
-          else if (result.recolored > 0) this.toast(`Recolored the selection with ${color}.`);
-        }
+        this.reportInkPick(color, this.applyInkToSelection(color));
         this.store.setTool({ color });
         this.updateCursor();
       });
       swatches.appendChild(btn);
     }
+  }
+
+  /**
+   * Fill Shape: with the select tool active and a selection made, picking an
+   * ink color - a swatch or the custom color - fills the selected closed
+   * shapes and recolors the selected open strokes, instead of only changing
+   * the ink for the next mark. `history: false` folds a picker drag into the
+   * step its first tick opened. Returns what changed, or null when the pick
+   * had no selection to reach.
+   */
+  private applyInkToSelection(
+    color: string,
+    history = true,
+  ): { filled: number; recolored: number } | null {
+    if (this.store.tool.tool !== 'select' || this.store.selectedIds.size === 0) return null;
+    return this.store.fillSelected(color, history);
+  }
+
+  /**
+   * Gives the selection the toolbar's width, with the Select tool and
+   * something selected - as picking a colour recolours it. Only outlines take
+   * it: text and placed images have none to widen. The first change since
+   * {@link widthPick} was cleared opens an undo step, and every later one
+   * folds into it. Returns how many outlines the selection holds, or null
+   * when it holds none, or the Select tool is not the one in hand.
+   */
+  private applyWidthToSelection(width: number): number | null {
+    if (this.store.tool.tool !== 'select' || this.store.selectedIds.size === 0) return null;
+    const outlines = this.propertyShapes();
+    if (outlines.length === 0) return null;
+    const changing = outlines.filter((s) => s.width !== width).map((s) => s.id);
+    if (changing.length > 0) {
+      this.store.setStrokeProps(changing, { width }, this.widthPick === null);
+      this.widthPick = outlines.length;
+    }
+    return outlines.length;
+  }
+
+  /** Says what a width did to the selection. */
+  private reportWidthPick(width: number, outlines: number): void {
+    this.toast(`Width ${width}px on ${outlines} ${outlines === 1 ? 'outline' : 'outlines'}.`);
+  }
+
+  /** Says what an ink pick did to the selection, when it did anything. */
+  private reportInkPick(color: string, result: { filled: number; recolored: number } | null): void {
+    if (!result) return;
+    if (result.filled > 0) this.toast(`Filled ${result.filled} shape(s) with ${color}.`);
+    else if (result.recolored > 0) this.toast(`Recolored the selection with ${color}.`);
   }
 
   // ---- Settings application ------------------------------------------------
@@ -4032,6 +4217,7 @@ class App {
       circleTolerance: s.sharpenCircleSnap,
       taperEnds: s.sharpenTaperEnds,
     });
+    el<HTMLInputElement>('qs-warp-show-mesh').checked = s.warpShowMesh;
     this.rebuildSwatches();
     this.applyMenuPlacement();
     // The selection border is a painted thing, so a change made in the Verbose
@@ -4052,7 +4238,9 @@ class App {
 
     for (const group of this.toolbarGroups) {
       if (placement === 'side') rail.appendChild(group);
-      else if (placement === 'both') (group.id === 'tool-group' ? rail : toolbar).appendChild(group);
+      else if (placement === 'both') {
+        (group.id === 'tool-group' || group.id === 'warp-group' ? rail : toolbar).appendChild(group);
+      }
       else toolbar.appendChild(group);
     }
 
@@ -4162,7 +4350,7 @@ class App {
 
   /** Puts every copy of the selection-border switch at the stored value. */
   private syncSelectionBorderSwitches(): void {
-    for (const id of ['show-selection-borders', 'qs-show-selection-borders']) {
+    for (const id of SELECTION_BORDER_SWITCHES) {
       const box = document.getElementById(id);
       if (box instanceof HTMLInputElement) box.checked = this.settings.showSelectionBorders;
     }
@@ -4260,7 +4448,12 @@ class App {
       const width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value));
       this.store.setTool({ width });
       this.updateCursor();
-      this.toast(`Width set to ${width}px.`);
+      // A typed width reaches the selection as the slider's does, one step.
+      this.widthPick = null;
+      const outlines = this.applyWidthToSelection(width);
+      this.widthPick = null;
+      if (outlines !== null) this.reportWidthPick(width, outlines);
+      else this.toast(`Width set to ${width}px.`);
       return;
     }
 
@@ -4461,14 +4654,20 @@ class App {
       this.store.setTool({ liveSharpen });
       void this.saveSettings({ liveSharpen });
     });
-    // The same setting has a switch in the Move palette, where it is reached
-    // while a selection is being worked on, and one in each settings view. They
-    // are one value, so throwing any of them moves all three.
-    for (const id of ['show-selection-borders', 'qs-show-selection-borders']) {
+    // The same setting has a switch in the Move and Mirror palettes, where it
+    // is reached while a selection is being worked on, and one in each settings
+    // view. They are one value, so throwing any of them moves them all.
+    for (const id of SELECTION_BORDER_SWITCHES) {
       el<HTMLInputElement>(id).addEventListener('change', (e) => {
         this.setShowSelectionBorders((e.target as HTMLInputElement).checked);
       });
     }
+    el<HTMLInputElement>('qs-warp-show-mesh').addEventListener('change', (e) => {
+      const warpShowMesh = (e.target as HTMLInputElement).checked;
+      this.settings = { ...this.settings, warpShowMesh };
+      this.scheduleRender();
+      void this.saveSettings({ warpShowMesh });
+    });
     el<HTMLInputElement>('set-wobble').addEventListener('input', (e) => {
       const wobble = Number((e.target as HTMLInputElement).value);
       this.store.setSharpen({ wobble });
@@ -6388,10 +6587,10 @@ class App {
         void this.exportPdf();
         break;
       case 'undo':
-        this.store.undo();
+        this.undo();
         break;
       case 'redo':
-        this.store.redo();
+        this.redo();
         break;
       case 'cut':
         this.cutSelection();
@@ -6432,6 +6631,9 @@ class App {
       case 'rotate':
         this.openRotateDialog();
         break;
+      case 'mirror':
+        this.openMirrorDialog();
+        break;
       case 'toggle-rearrange':
         this.toggleRearrange();
         break;
@@ -6470,6 +6672,7 @@ class App {
       // is handed, and the dialog itself would sit on top of the wizard.
       if (this.moveDialogOpen) this.closeMoveDialog();
       if (this.rotateDialogOpen) this.closeRotateDialog(true);
+      if (this.mirrorDialogOpen) this.closeMirrorDialog();
       if (this.transformActive) this.closeTransformTool();
       this.store.setTool({ tool: 'select' });
       this.toggleLayers(true);
@@ -7540,6 +7743,21 @@ class App {
       this.store.setStrokeProps(shapes, { strokeStyle: style === 'solid' ? undefined : style });
     });
 
+    // One element's profile, without changing the one new strokes take.
+    const strokeProfile = el<HTMLSelectElement>('prop-stroke-profile');
+    strokeProfile.addEventListener('change', () => {
+      const shapes = this.propertyShapes().filter(profileApplies).map((stroke) => stroke.id);
+      if (shapes.length === 0) return;
+      const value = strokeProfile.value as StrokeProfile;
+      const profile = STROKE_PROFILES.includes(value) ? value : 'uniform';
+      // Default is the absent state, not a stored one, and a profile chosen
+      // fresh is the plain one, however the stroke was mirrored before.
+      this.store.setStrokeProps(shapes, {
+        profile: profile === 'uniform' ? undefined : profile,
+        profileMirrored: undefined,
+      });
+    });
+
     el('prop-stroke-remove').addEventListener('click', () => {
       const strokes = this.propertyShapes();
       if (strokes.length === 0) return;
@@ -7676,14 +7894,25 @@ class App {
   private bindPopups(): void {
     // The editing palettes: they sit over the drawing they are editing, which
     // is exactly why each one can be pushed aside or parked in the dock.
-    for (const id of ['move-dialog', 'rotate-dialog', 'page-settings-dialog', 'sharpen-dialog']) {
+    for (const id of [
+      'move-dialog',
+      'rotate-dialog',
+      'mirror-dialog',
+      'page-settings-dialog',
+      'sharpen-dialog',
+    ]) {
       this.popups.register(id, { moveable: true, resize: true, dockable: true });
     }
     // Which of the two kinds each tool panel is. See {@link PanelAfterApply}:
-    // Move answers one question and goes; Rotate is a workbench that is used
-    // again as soon as it has been used once.
+    // Move and Mirror answer one question and go; Rotate is a workbench that
+    // is used again as soon as it has been used once.
     this.popups.toolRemainsInView('rotate-dialog');
     this.popups.toolGoesOutOfView('move-dialog');
+    this.popups.toolGoesOutOfView('mirror-dialog');
+    // The Stroke Profile picker is a chooser, not a palette: it moves out of
+    // the way, but has nothing to resize or dock, and goes once it is used.
+    this.popups.register('profile-dialog', { moveable: true, resize: false });
+    this.popups.toolGoesOutOfView('profile-dialog');
     // The wizard's own dialogs move and resize the same way, so a step can be
     // pushed aside to see the frame it is talking about. They are not
     // dockable: a step of a modal flow parked in a column would be a prompt
@@ -7960,6 +8189,836 @@ class App {
     // No preview is put back: the distance has been made real, and the
     // palette is about to close over it.
     return true;
+  }
+
+  // ---- Mirror dialog -------------------------------------------------------
+
+  /** The Mirror palette's choices, remembered while the app runs. */
+  private mirrorOptions: MirrorOptions = {
+    horizontal: true,
+    vertical: false,
+    copy: true,
+    preview: true,
+  };
+
+  /** True while a preview the palette put up is on the page. */
+  private mirrorPreviewing = false;
+
+  /** What was selected when the palette opened: the selection it mirrors. */
+  private mirrorSource: { strokes: string[]; layers: string[] } | null = null;
+
+  /**
+   * Bumped by every preview request, every commit and every close. A preview
+   * that had to wait for an image flip checks it before drawing, so a slow
+   * flip cannot put up a preview that has since changed or been cancelled.
+   */
+  private mirrorRequest = 0;
+
+  /**
+   * Mirrored pixels for placed images, by source image and then by axes, so a
+   * preview or a commit can swap them in without waiting. Kept for one
+   * opening of the palette and cleared when it goes.
+   */
+  private mirroredImages = new Map<string, Map<string, string>>();
+
+  // ---- Mesh Warp -------------------------------------------------------------
+
+  /** The warp in progress: the art being bent, its mesh and its pins. */
+  private warp: WarpSession | null = null;
+  /** The art under the pointer with Mesh Warp, as a click would pick it. */
+  private warpHover: string[] | null = null;
+  /** A pin drag in hand: the pins it carries, where the pointer last was, and whether the step is saved. */
+  private warpDrag: { pins: number[]; last: Point; saved: boolean } | null = null;
+  /** True while the pointer is over a pin, for the cursor. */
+  private warpOverPin = false;
+
+  /**
+   * Choosing Mesh Warp with something selected meshes the selection at once:
+   * Illustrator's order, select and then warp. With nothing selected the tool
+   * waits for a click on art.
+   */
+  private beginWarpTool(): void {
+    if (this.warp) return;
+    const ids = this.warpableIds(this.store.selectedIds);
+    if (ids.length > 0 && this.startWarp(ids)) return;
+    this.toast('Click art to mesh it, then drag its pins to bend it.');
+  }
+
+  /** The strokes among `ids` a warp can bend: on a visible, unlocked layer, and not erasers. */
+  private warpableIds(ids: Iterable<string>): string[] {
+    const editable = this.editableStrokeIds();
+    const wanted = new Set(ids);
+    return this.store.sketch.strokes
+      .filter((s) => wanted.has(s.id) && editable.has(s.id) && s.tool !== 'eraser' && s.points.length > 0)
+      .map((s) => s.id);
+  }
+
+  /**
+   * The art a click at `pt` would pick: the group one level below the
+   * top-most group of the stroke under the pointer - a figure's leg assembly
+   * rather than the whole figure or one of the leg's paths - or, for a stroke
+   * in no group, its own layer. Null over empty canvas.
+   */
+  private warpArtAt(pt: Point): { ids: string[]; layerId: string } | null {
+    const hit = this.hitTest(pt) ?? this.hitFilledInterior(pt);
+    if (!hit || hit.tool === 'eraser') return null;
+    const sketch = this.store.sketch;
+    const layer = layerOf(sketch, hit);
+    const top = topMostParent(sketch, layer);
+    let unit = layer;
+    while (unit.id !== top.id && unit.parent && unit.parent !== top.id) {
+      const parent = sketch.layers.find((l) => l.id === unit.parent);
+      if (!parent) break;
+      unit = parent;
+    }
+    const scope = new Set([unit.id, ...descendantLayerIds(sketch, unit.id)]);
+    const byLayer = strokesByLayer(sketch);
+    const inScope: string[] = [];
+    for (const id of scope) for (const s of byLayer.get(id) ?? []) inScope.push(s.id);
+    const ids = this.warpableIds(inScope);
+    return ids.length > 0 ? { ids, layerId: unit.id } : null;
+  }
+
+  /**
+   * Meshes the art and puts in its first pins: two along the long axis of its
+   * biggest piece, a fifth of the way in from each end, and one in every
+   * other piece. Nothing on the page changes yet - the store transaction
+   * opens on the first pin that moves, so meshing and leaving costs no undo
+   * step.
+   */
+  private startWarp(ids: string[], layerId?: string): boolean {
+    const sketch = this.store.sketch;
+    const wanted = new Set(ids);
+    const strokes = sketch.strokes.filter((s) => wanted.has(s.id));
+    if (strokes.length === 0) return false;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const s of strokes) {
+      const box = strokeBounds(s, (t) => this.surface.measureText(t));
+      if (!box) continue;
+      minX = Math.min(minX, box.minX);
+      minY = Math.min(minY, box.minY);
+      maxX = Math.max(maxX, box.maxX);
+      maxY = Math.max(maxY, box.maxY);
+    }
+    if (!Number.isFinite(minX)) return false;
+    // Room for a stroke's round ends past its points.
+    const pad = 8;
+    minX -= pad;
+    minY -= pad;
+    maxX += pad;
+    maxY += pad;
+    // About 400 mask pixels along the art's long side, whatever its size.
+    const scale = Math.min(4, Math.max(0.05, 400 / Math.max(maxX - minX, maxY - minY, 1)));
+    const width = Math.max(1, Math.ceil((maxX - minX) * scale));
+    const height = Math.max(1, Math.ceil((maxY - minY) * scale));
+    const rgba = this.surface.paintMask(strokes, minX, minY, width, height, scale);
+    const mesh = buildMesh(maskFromRgba(rgba, width, height, minX, minY, scale));
+    if (!mesh) {
+      this.toast('There is nothing there to mesh.');
+      return false;
+    }
+    const locator = new MeshLocator(mesh);
+    const pins: WarpPin[] = autoPins(mesh).map((p) => {
+      const spot = locator.locate(p);
+      return { triangle: spot.triangle, weights: spot.weights };
+    });
+    const solver = new ArapSolver(mesh);
+    solver.setPins(pins);
+    // The layers panel lights the art's row, as the art is meshed.
+    if (layerId) this.store.selectLayer(layerId);
+    this.warp = {
+      sketch,
+      rest: strokes.map((s) => structuredClone(s)),
+      mesh,
+      locator,
+      solver,
+      pins,
+      targets: pins.map((p) => pinRest(mesh, p)),
+      selected: new Set(),
+      deformed: Float64Array.from(mesh.rest),
+      onScreen: locator,
+      undo: [],
+      moved: false,
+    };
+    this.warpHover = null;
+    this.showWarpHint(null);
+    this.scheduleRender();
+    return true;
+  }
+
+  /** The pin under a sketch point, within a few screen pixels of it, or -1. */
+  private warpPinAt(pt: Point): number {
+    const session = this.warp;
+    if (!session) return -1;
+    let best = -1;
+    let bestD = 9 / this.surface.getViewport().zoom;
+    session.targets.forEach((t, k) => {
+      const d = Math.hypot(t.x - pt.x, t.y - pt.y);
+      if (d <= bestD) {
+        bestD = d;
+        best = k;
+      }
+    });
+    return best;
+  }
+
+  /**
+   * A press with Mesh Warp. On a pin it selects the pin - Shift adds or takes
+   * it away - and picks the selected pins up. Elsewhere in the mesh it adds a
+   * pin there and picks that up. Off the mesh it keeps the warp: on other art
+   * it starts a new warp there, and on empty canvas it puts the tool down.
+   */
+  private warpPointerDown(e: PointerEvent, pt: Point): void {
+    if (this.spaceDown) {
+      this.beginPanDrag(e);
+      return;
+    }
+    const session = this.warp;
+    if (session) {
+      const hit = this.warpPinAt(pt);
+      if (hit >= 0) {
+        if (e.shiftKey) {
+          if (session.selected.has(hit)) session.selected.delete(hit);
+          else session.selected.add(hit);
+        } else if (!session.selected.has(hit)) {
+          session.selected = new Set([hit]);
+        }
+        if (session.selected.has(hit)) this.beginWarpDrag(e, pt, false);
+        this.scheduleRender();
+        return;
+      }
+      if (session.onScreen.contains(pt)) {
+        // The press is on the deformed mesh, which is what is on screen; its
+        // weights there place the pin in the rest mesh.
+        const spot = session.onScreen.locate(pt);
+        this.saveWarpStep();
+        session.pins.push({ triangle: spot.triangle, weights: spot.weights });
+        session.targets.push({ x: pt.x, y: pt.y });
+        session.selected = new Set([session.pins.length - 1]);
+        session.solver.setPins(session.pins);
+        this.beginWarpDrag(e, pt, true);
+        this.scheduleRender();
+        return;
+      }
+    }
+    const art = this.warpArtAt(pt);
+    if (session) this.keepWarp();
+    if (art) this.startWarp(art.ids, art.layerId);
+    this.scheduleRender();
+  }
+
+  private beginWarpDrag(e: PointerEvent, pt: Point, saved: boolean): void {
+    const session = this.warp;
+    if (!session) return;
+    this.activePointerId = e.pointerId;
+    this.canvas.setPointerCapture(e.pointerId);
+    this.warpDrag = { pins: [...session.selected], last: { x: pt.x, y: pt.y }, saved };
+    this.updateCursor();
+  }
+
+  /** Pointer movement with Mesh Warp: a drag bends the art; otherwise the hover outline follows. */
+  private warpPointerMove(e: PointerEvent, pt: Point): void {
+    const drag = this.warpDrag;
+    const session = this.warp;
+    if (drag && session && this.activePointerId === e.pointerId) {
+      const dx = pt.x - drag.last.x;
+      const dy = pt.y - drag.last.y;
+      if (dx === 0 && dy === 0) return;
+      // The whole drag is one step back while the warp is open.
+      if (!drag.saved) {
+        this.saveWarpStep();
+        drag.saved = true;
+      }
+      for (const k of drag.pins) {
+        session.targets[k] = { x: session.targets[k].x + dx, y: session.targets[k].y + dy };
+      }
+      drag.last = { x: pt.x, y: pt.y };
+      this.solveWarp();
+      return;
+    }
+    const overPin = this.warpPinAt(pt) >= 0;
+    const onMesh = overPin || (session !== null && session.onScreen.contains(pt));
+    const art = onMesh ? null : this.warpArtAt(pt);
+    const hover = art ? art.ids : null;
+    const changed = (hover?.join('|') ?? '') !== (this.warpHover?.join('|') ?? '');
+    this.warpHover = hover;
+    if (overPin !== this.warpOverPin) {
+      this.warpOverPin = overPin;
+      this.updateCursor();
+    }
+    this.showWarpHint(hover ? e : null);
+    if (changed) this.scheduleRender();
+  }
+
+  /** The release that ends a pin drag. True when there was one. */
+  private warpPointerUp(e: PointerEvent): boolean {
+    if (!this.warpDrag || this.activePointerId !== e.pointerId) return false;
+    if (this.canvas.hasPointerCapture(e.pointerId)) this.canvas.releasePointerCapture(e.pointerId);
+    this.activePointerId = null;
+    this.warpDrag = null;
+    const session = this.warp;
+    if (session) session.onScreen = new MeshLocator({ ...session.mesh, rest: session.deformed });
+    this.updateCursor();
+    this.scheduleRender();
+    return true;
+  }
+
+  /** "(click to select art)" beside the pointer while it is over art; hidden when `at` is null. */
+  private showWarpHint(at: PointerEvent | null): void {
+    const hint = el('warp-hint');
+    if (!at) {
+      hint.hidden = true;
+      return;
+    }
+    hint.hidden = false;
+    hint.style.left = `${at.clientX + 14}px`;
+    hint.style.top = `${at.clientY + 18}px`;
+  }
+
+  /**
+   * Solves the mesh for the pins where they are and carries the art onto it.
+   * The first time the art moves, the store transaction opens: from then the
+   * warp is kept as one undo step or thrown away whole.
+   */
+  private solveWarp(): void {
+    const session = this.warp;
+    if (!session) return;
+    const atRest = session.targets.every((t, k) => {
+      const from = pinRest(session.mesh, session.pins[k]);
+      return t.x === from.x && t.y === from.y;
+    });
+    if (atRest && !session.moved) {
+      session.deformed = Float64Array.from(session.mesh.rest);
+      return;
+    }
+    session.deformed = session.solver.solve(session.targets);
+    const map = new MeshMap(session.mesh, session.locator, session.deformed);
+    const updates = session.rest.map((stroke) => ({ id: stroke.id, ...mapStrokeGeometry(stroke, map) }));
+    if (!session.moved) {
+      session.moved = true;
+      this.store.beginTransaction(() => this.onWarpSettled());
+    }
+    this.store.setStrokesGeometry(updates);
+  }
+
+  /** Something else kept the warp - an edit, an undo, a page change: the session is over. */
+  private onWarpSettled(): void {
+    this.warp = null;
+    this.warpDrag = null;
+    this.scheduleRender();
+  }
+
+  /** Remembers the pins as they are, for Ctrl+Z to step back to while the warp is open. */
+  private saveWarpStep(): void {
+    const session = this.warp;
+    if (!session) return;
+    session.undo.push({
+      pins: session.pins.map((p) => ({ triangle: p.triangle, weights: [...p.weights] as [number, number, number] })),
+      targets: session.targets.map((t) => ({ x: t.x, y: t.y })),
+    });
+  }
+
+  /**
+   * Ctrl+Z while a warp is open: back one pin move, pin added or pins taken
+   * out. Back at the start, the transaction is rolled back rather than kept,
+   * so a warp undone to nothing leaves no step behind.
+   */
+  private undoWarpStep(): void {
+    const session = this.warp;
+    if (!session) return;
+    const step = session.undo.pop();
+    if (!step) {
+      this.toast('The warp is back where it began. Enter keeps it; Esc puts it down.');
+      return;
+    }
+    const pinsChanged = JSON.stringify(step.pins) !== JSON.stringify(session.pins);
+    session.pins = step.pins;
+    session.targets = step.targets;
+    session.selected = new Set([...session.selected].filter((k) => k < session.pins.length));
+    if (pinsChanged) session.solver.setPins(session.pins);
+    if (session.undo.length === 0 && session.moved) {
+      session.moved = false;
+      this.store.rollbackTransaction();
+      session.deformed = Float64Array.from(session.mesh.rest);
+    } else {
+      this.solveWarp();
+    }
+    session.onScreen = new MeshLocator({ ...session.mesh, rest: session.deformed });
+    this.scheduleRender();
+  }
+
+  /** Delete or Backspace while a warp is open: takes out the selected pins, never the art. */
+  private deleteWarpPins(): void {
+    const session = this.warp;
+    if (!session) return;
+    if (session.selected.size === 0) {
+      this.toast('Select a pin to take it out - click it, Shift+click for more.');
+      return;
+    }
+    this.saveWarpStep();
+    session.pins = session.pins.filter((_, k) => !session.selected.has(k));
+    session.targets = session.targets.filter((_, k) => !session.selected.has(k));
+    session.selected = new Set();
+    session.solver.setPins(session.pins);
+    this.solveWarp();
+    session.onScreen = new MeshLocator({ ...session.mesh, rest: session.deformed });
+    this.scheduleRender();
+  }
+
+  /** Keeps the warp - one undo step, if the art moved - and puts it down. */
+  private keepWarp(): void {
+    const session = this.warp;
+    if (!session) return;
+    this.warp = null;
+    this.warpDrag = null;
+    if (session.moved) this.store.commitTransaction();
+    this.scheduleRender();
+  }
+
+  /** Throws the warp away: the art goes back exactly as it was. */
+  private cancelWarp(): void {
+    const session = this.warp;
+    if (!session) return;
+    this.warp = null;
+    this.warpDrag = null;
+    if (session.moved) this.store.rollbackTransaction();
+    this.scheduleRender();
+  }
+
+  /** Undo from anywhere - a key, the toolbar, the menu: inside a warp it steps back through the pins. */
+  private undo(): void {
+    if (this.warp) this.undoWarpStep();
+    else this.store.undo();
+  }
+
+  /** Redo from anywhere. Inside a warp there is nothing to redo, and the warp is left as it is. */
+  private redo(): void {
+    if (!this.warp) this.store.redo();
+  }
+
+  /** What Mesh Warp draws over the canvas, when the tool is up. */
+  private warpOverlay(): WarpOverlay | null {
+    if (this.store.tool.tool !== 'warp') return null;
+    const hoverIds = this.warpHover ? new Set(this.warpHover) : null;
+    const outline = hoverIds ? this.store.sketch.strokes.filter((s) => hoverIds.has(s.id)) : undefined;
+    const session = this.warp;
+    if (!session) return outline ? { outline } : null;
+    return {
+      outline,
+      mesh: this.settings.warpShowMesh
+        ? { positions: session.deformed, triangles: session.mesh.triangles, boundary: session.mesh.boundary }
+        : undefined,
+      pins: session.targets,
+      selected: [...session.selected],
+    };
+  }
+
+  // ---- Stroke Profile --------------------------------------------------------
+
+  /** The row the Stroke Profile picker has highlighted: what Select chooses. */
+  private profileChoice: StrokeProfile = 'uniform';
+
+  /** The profile the toolbar control last drew, so it redraws only on a change. */
+  private shownProfile: StrokeProfile | null = null;
+
+  /** True while the Stroke Profile picker is up. */
+  private get profileDialogOpen(): boolean {
+    return !el('profile-dialog').classList.contains('is-hidden');
+  }
+
+  /**
+   * Wires the Stroke Profile control and its picker. Every picture, the
+   * toolbar's and the list's, is drawn by the outline code the exporter uses,
+   * so a row shows what choosing it will draw.
+   */
+  private bindStrokeProfile(): void {
+    const list = el('profile-list');
+    for (const profile of STROKE_PROFILES) {
+      const option = document.createElement('div');
+      option.id = `profile-option-${profile}`;
+      option.className = 'profile-option';
+      option.setAttribute('role', 'option');
+      option.setAttribute('aria-selected', 'false');
+      option.dataset.profile = profile;
+      const name = document.createElement('span');
+      name.className = 'profile-option-name';
+      name.textContent = STROKE_PROFILE_LABELS[profile];
+      option.append(name, profilePicture(profile, 'profile-option-picture', 120, 26));
+      option.addEventListener('click', () => this.highlightProfile(profile));
+      option.addEventListener('dblclick', () => {
+        this.highlightProfile(profile);
+        this.applyStrokeProfile();
+      });
+      list.appendChild(option);
+    }
+    el('stroke-profile').addEventListener('click', () => this.openProfileDialog());
+    el('profile-cancel').addEventListener('click', () => this.closeProfileDialog());
+    // The overlay does not dim, so a press beside the picker looks like a
+    // press on the app: it cancels, as it would close any dropdown.
+    el('profile-dialog').addEventListener('pointerdown', (e) => {
+      if (e.target === e.currentTarget) this.closeProfileDialog();
+    });
+    el('profile-apply').addEventListener('click', () => this.applyStrokeProfile());
+    this.syncStrokeProfileControl();
+  }
+
+  /** Brings the toolbar control's picture and name up to the current profile. */
+  private syncStrokeProfileControl(): void {
+    const { profile } = this.store.tool;
+    if (profile === this.shownProfile) return;
+    this.shownProfile = profile;
+    const label = STROKE_PROFILE_LABELS[profile];
+    const button = el('stroke-profile');
+    button.setAttribute('aria-label', `Stroke profile: ${label}`);
+    button.title = `Stroke Profile: ${label} - how the width runs along new pen and marker strokes`;
+    el('stroke-profile-picture')
+      .querySelector('path')
+      ?.setAttribute('d', profilePreviewPath(profile, 48, 10));
+  }
+
+  /**
+   * Opens the picker under its control with the current profile highlighted.
+   * It waits while another dialog is up, as the other panels do.
+   */
+  private openProfileDialog(): void {
+    if (this.profileDialogOpen || this.otherDialogOpen('profile-dialog')) return;
+    this.highlightProfile(this.store.tool.profile);
+    el('profile-dialog').classList.remove('is-hidden');
+    // Dropped below the control the first time, and kept wholly on screen:
+    // the control sits at the right of the bar, where a panel hung from its
+    // left edge would run off the window. A picker moved on purpose opens
+    // where it was left.
+    if (!this.popups.isPlaced('profile-dialog')) {
+      const anchor = el('stroke-profile').getBoundingClientRect();
+      const panel = el('profile-dialog').querySelector<HTMLElement>('.export-dialog-inner')!;
+      const margin = 12;
+      const left = Math.min(anchor.left, window.innerWidth - panel.offsetWidth - margin);
+      const top = Math.min(anchor.bottom + 8, window.innerHeight - panel.offsetHeight - margin);
+      this.popups.park('profile-dialog', Math.max(margin, left), Math.max(margin, top));
+    }
+    this.popups.clamp('profile-dialog');
+    el('profile-list').focus();
+  }
+
+  private closeProfileDialog(): void {
+    this.popups.releaseGrabs('profile-dialog');
+    el('profile-dialog').classList.add('is-hidden');
+  }
+
+  /** Highlights one row of the picker. */
+  private highlightProfile(profile: StrokeProfile): void {
+    this.profileChoice = profile;
+    for (const option of el('profile-list').querySelectorAll<HTMLElement>('.profile-option')) {
+      const on = option.dataset.profile === profile;
+      option.setAttribute('aria-selected', String(on));
+      option.classList.toggle('is-selected', on);
+    }
+    el('profile-list').setAttribute('aria-activedescendant', `profile-option-${profile}`);
+  }
+
+  /** Moves the highlight `step` rows, stopping at either end of the list. */
+  private stepProfile(step: number): void {
+    const at = STROKE_PROFILES.indexOf(this.profileChoice);
+    const next = Math.min(STROKE_PROFILES.length - 1, Math.max(0, at + step));
+    this.highlightProfile(STROKE_PROFILES[next]);
+  }
+
+  /**
+   * Select: the highlighted profile becomes the one new pen and marker
+   * strokes are drawn with - tool state, like the width. With the Select tool
+   * and a selection, the selected strokes that can take it do too, as one
+   * undo step, the way picking a color recolors them.
+   */
+  private applyStrokeProfile(): void {
+    const profile = this.profileChoice;
+    const label = STROKE_PROFILE_LABELS[profile];
+    this.store.setTool({ profile });
+    const eligible =
+      this.store.tool.tool === 'select' ? this.propertyShapes().filter(profileApplies) : [];
+    const changing = eligible.filter((stroke) => (stroke.profile ?? 'uniform') !== profile);
+    if (changing.length > 0) {
+      this.store.setStrokeProps(
+        changing.map((stroke) => stroke.id),
+        // Default is the absent state, not a stored one, and a profile
+        // chosen fresh is the plain one, however the stroke was mirrored.
+        { profile: profile === 'uniform' ? undefined : profile, profileMirrored: undefined },
+      );
+      this.toast(`${label} on ${changing.length} ${changing.length === 1 ? 'stroke' : 'strokes'}.`);
+    } else if (eligible.length > 0) {
+      this.toast(`The selection is already ${label}.`);
+    } else {
+      this.toast(`New pen and marker strokes: ${label}.`);
+    }
+    if (!this.popups.staysAfterApply('profile-dialog')) this.closeProfileDialog();
+    this.syncStrokeProfileControl();
+  }
+
+  /** True while the Mirror palette is up. */
+  private get mirrorDialogOpen(): boolean {
+    return !el('mirror-dialog').classList.contains('is-hidden');
+  }
+
+  /**
+   * Wires the Mirror palette: reflect the selection left-right, top-bottom
+   * or both, in place or as a copy that lands beside it. Its preview and its
+   * commit are one store transaction, which is what lets a preview add a
+   * copy and still leave nothing behind when it is cancelled.
+   */
+  private bindMirror(): void {
+    el('mirror-selection').addEventListener('click', () => this.openMirrorDialog());
+    el('mirror-cancel').addEventListener('click', () => this.closeMirrorDialog());
+    el('mirror-apply').addEventListener('click', () => void this.applyMirror());
+    const boxes: Array<[string, keyof MirrorOptions]> = [
+      ['mirror-horizontal', 'horizontal'],
+      ['mirror-vertical', 'vertical'],
+      ['mirror-copy', 'copy'],
+      ['mirror-preview', 'preview'],
+    ];
+    for (const [id, key] of boxes) {
+      el<HTMLInputElement>(id).addEventListener('change', (e) => {
+        this.mirrorOptions[key] = (e.target as HTMLInputElement).checked;
+        this.syncMirrorControls();
+        void this.syncMirrorPreview();
+      });
+    }
+  }
+
+  /**
+   * Opens the Mirror palette for the current selection. It refuses where Move
+   * does: in Animation Mode, over another dialog, and with nothing selected,
+   * which is worth saying rather than showing a palette with nothing to do.
+   */
+  private openMirrorDialog(): void {
+    if (this.mirrorDialogOpen) return;
+    if (this.animationMode) {
+      this.toast('Mirror is not available in Animation Mode.');
+      return;
+    }
+    if (this.otherDialogOpen('mirror-dialog')) return;
+    if (this.propertyTargets().length === 0) {
+      this.toast('Select something to mirror first.');
+      return;
+    }
+    this.mirrorSource = {
+      strokes: [...this.store.selectedIds],
+      layers: [...this.store.selectedLayerIds],
+    };
+    el<HTMLInputElement>('mirror-horizontal').checked = this.mirrorOptions.horizontal;
+    el<HTMLInputElement>('mirror-vertical').checked = this.mirrorOptions.vertical;
+    el<HTMLInputElement>('mirror-copy').checked = this.mirrorOptions.copy;
+    el<HTMLInputElement>('mirror-preview').checked = this.mirrorOptions.preview;
+    this.syncSelectionBorderSwitches();
+    this.syncMirrorControls();
+    el('mirror-dialog').classList.remove('is-hidden');
+    // Clear of the drawing on its first opening, as Move and Rotate open: the
+    // preview is the drawing, and a palette centred over it would hide it.
+    this.popups.parkTopRight('mirror-dialog');
+    this.popups.clamp('mirror-dialog');
+    el<HTMLButtonElement>('mirror-apply').focus();
+    void this.syncMirrorPreview();
+  }
+
+  /**
+   * Closes the palette. A preview is an edit that was never kept, so it goes
+   * with the palette: its transaction is rolled back, which puts the page,
+   * the selection and the saved state back as the palette found them.
+   */
+  private closeMirrorDialog(): void {
+    this.mirrorRequest++;
+    this.endMirrorPreview();
+    this.mirrorSource = null;
+    this.mirroredImages.clear();
+    this.popups.releaseGrabs('mirror-dialog');
+    el('mirror-dialog').classList.add('is-hidden');
+  }
+
+  /**
+   * Selects the palette's own selection again, before each preview and
+   * before the commit. The palette mirrors what was selected when it opened:
+   * a click on the canvas while it is up does not retarget it, whether or not
+   * a preview happened to be showing at the time - a click could land on the
+   * previewed copy itself, which the next preview takes away.
+   *
+   * @returns False when none of it is on the page any more.
+   */
+  private selectMirrorSource(): boolean {
+    const source = this.mirrorSource;
+    if (!source) return false;
+    const present = new Set(this.store.sketch.strokes.map((s) => s.id));
+    const strokes = source.strokes.filter((id) => present.has(id));
+    if (strokes.length === 0) return false;
+    const layers = new Set(this.store.sketch.layers.map((l) => l.id));
+    this.store.selectedIds = new Set(strokes);
+    this.store.selectedLayerIds = new Set(source.layers.filter((id) => layers.has(id)));
+    return true;
+  }
+
+  /** Mirror needs an axis: with neither orientation ticked there is nothing to do. */
+  private syncMirrorControls(): void {
+    const apply = el<HTMLButtonElement>('mirror-apply');
+    const ready = this.mirrorOptions.horizontal || this.mirrorOptions.vertical;
+    apply.disabled = !ready;
+    apply.title = ready ? '' : 'Pick an orientation';
+  }
+
+  /**
+   * The reflection the palette's choices describe, for the current selection.
+   *
+   * In place it runs through the middle of the selection's bounds, so the
+   * selection flips where it stands. A copy is reflected about the trailing
+   * edge instead - the right edge, the bottom edge, or the bottom-right
+   * corner for both - so it lands beside the original as its mirror image,
+   * the two meeting at that edge: half a vase, mirrored, becomes a vase.
+   */
+  private mirrorForSelection(): Mirror | null {
+    const { horizontal, vertical, copy } = this.mirrorOptions;
+    if (!horizontal && !vertical) return null;
+    const box = this.selectionBounds();
+    if (!box) return null;
+    return {
+      flipX: horizontal,
+      flipY: vertical,
+      x: copy ? box.maxX : (box.minX + box.maxX) / 2,
+      y: copy ? box.maxY : (box.minY + box.maxY) / 2,
+    };
+  }
+
+  /**
+   * Makes the mirror on the current selection with no history of its own -
+   * the transaction around it is the undo step. With Create Copy the
+   * selection is duplicated in place first and the copy is what turns, which
+   * leaves the copy selected, as a paste's result is.
+   *
+   * @returns How many elements were mirrored.
+   */
+  private performMirror(m: Mirror): number {
+    if (this.mirrorOptions.copy) this.store.duplicateSelectedElements();
+    const ids = this.propertyTargets();
+    this.store.mirrorStrokes(ids, m, {
+      history: false,
+      boxOf: (stroke) => strokeBounds(stroke, (t) => this.surface.measureText(t)),
+    });
+    // The geometry moved above; an image's pixels are flipped here, from the
+    // copies prepareMirroredImages made before the mirror began.
+    const mirrored = new Set(ids);
+    const axes = mirrorAxesKey(m);
+    for (const stroke of this.store.sketch.strokes) {
+      if (!mirrored.has(stroke.id) || !isImageStroke(stroke) || !stroke.image) continue;
+      const flipped = this.mirroredImages.get(stroke.image)?.get(axes);
+      if (flipped) this.store.setStrokeProps([stroke.id], { image: flipped }, false);
+    }
+    return ids.length;
+  }
+
+  /**
+   * Gets every selected image's mirrored pixels ready, so the mirror itself
+   * can swap them in without waiting. Flipping means decoding the image, the
+   * one slow part of a mirror, so each is done once per axis pair.
+   */
+  private async prepareMirroredImages(m: Mirror): Promise<void> {
+    const axes = mirrorAxesKey(m);
+    const pending: Promise<void>[] = [];
+    for (const stroke of this.propertyStrokes()) {
+      if (!isImageStroke(stroke) || !stroke.image) continue;
+      const source = stroke.image;
+      let byAxes = this.mirroredImages.get(source);
+      if (!byAxes) {
+        byAxes = new Map();
+        this.mirroredImages.set(source, byAxes);
+      }
+      if (byAxes.has(axes)) continue;
+      const cache = byAxes;
+      pending.push(
+        mirroredImageUrl(source, m.flipX, m.flipY)
+          .then((url) => void cache.set(axes, url))
+          // An image that will not decode still moves; it just is not flipped.
+          .catch(() => void cache.set(axes, source)),
+      );
+    }
+    await Promise.all(pending);
+  }
+
+  /**
+   * Shows what Mirror would do, on the canvas, while the palette is open.
+   *
+   * The preview is a store transaction: each change of choice rolls the last
+   * one back and makes the mirror again from the selection the palette
+   * opened on, with no history, and Mirror commits what is on screen. An
+   * edit that keeps history while the preview is up - a drag on the
+   * previewed copy, say - keeps the preview rather than losing it, since it
+   * is building on what the palette showed; the palette then goes.
+   */
+  private async syncMirrorPreview(): Promise<void> {
+    const request = ++this.mirrorRequest;
+    this.endMirrorPreview();
+    if (!this.mirrorDialogOpen || !this.mirrorOptions.preview) return;
+    if (!this.selectMirrorSource()) return;
+    const m = this.mirrorForSelection();
+    if (!m) return;
+    await this.prepareMirroredImages(m);
+    // A click may have changed the selection while an image was flipping.
+    if (request !== this.mirrorRequest || !this.mirrorDialogOpen) return;
+    if (!this.selectMirrorSource()) return;
+    this.store.beginTransaction(() => this.onMirrorPreviewKept());
+    this.mirrorPreviewing = true;
+    this.performMirror(m);
+  }
+
+  /** Takes a preview back off the canvas, if the palette put one up. */
+  private endMirrorPreview(): void {
+    if (!this.mirrorPreviewing) return;
+    this.mirrorPreviewing = false;
+    this.store.rollbackTransaction();
+  }
+
+  /**
+   * Another edit kept the preview on the palette's behalf: the mirror is
+   * real now and is one undo step of its own, so the palette just goes.
+   */
+  private onMirrorPreviewKept(): void {
+    this.mirrorPreviewing = false;
+    this.mirrorRequest++;
+    this.mirrorSource = null;
+    this.mirroredImages.clear();
+    this.popups.releaseGrabs('mirror-dialog');
+    el('mirror-dialog').classList.add('is-hidden');
+  }
+
+  /**
+   * Mirrors for real, from the button or from Enter. Whatever the preview
+   * was showing is put back first and the mirror is made again inside a
+   * transaction of its own, so the result is one undo step whether or not a
+   * preview was up, and never a preview's leftovers.
+   */
+  private async applyMirror(): Promise<void> {
+    if (!this.mirrorDialogOpen) return;
+    const request = ++this.mirrorRequest;
+    this.endMirrorPreview();
+    if (!this.selectMirrorSource()) {
+      this.toast('What was selected is no longer on the page.');
+      this.closeMirrorDialog();
+      return;
+    }
+    const m = this.mirrorForSelection();
+    if (!m) {
+      this.toast('Pick an orientation to mirror across.');
+      return;
+    }
+    await this.prepareMirroredImages(m);
+    if (request !== this.mirrorRequest || !this.mirrorDialogOpen) return;
+    if (!this.selectMirrorSource()) return;
+    this.store.beginTransaction();
+    const count = this.performMirror(m);
+    this.store.commitTransaction();
+    const which = m.flipX && m.flipY ? 'both ways' : m.flipX ? 'horizontally' : 'vertically';
+    const what = `${count} element${count === 1 ? '' : 's'}`;
+    this.toast(
+      this.mirrorOptions.copy ? `Mirrored a copy of ${what} ${which}.` : `Mirrored ${what} ${which}.`,
+    );
+    if (!this.popups.staysAfterApply('mirror-dialog')) this.closeMirrorDialog();
   }
 
 
@@ -9216,6 +10275,13 @@ class App {
       styleSelect.value = outlineFirst?.strokeStyle ?? 'solid';
     }
     styleSelect.disabled = shapes.length === 0;
+    // Only pen and marker marks take a profile: a Copic nib is its own width.
+    const profiled = shapes.filter(profileApplies);
+    const profileSelect = el<HTMLSelectElement>('prop-stroke-profile');
+    if (document.activeElement !== profileSelect) {
+      profileSelect.value = profiled[0]?.profile ?? 'uniform';
+    }
+    profileSelect.disabled = profiled.length === 0;
     const removeStroke = el<HTMLButtonElement>('prop-stroke-remove');
     const allOff = shapes.length > 0 && shapes.every((s) => s.noStroke === true);
     removeStroke.textContent = allOff ? 'Add stroke' : 'No stroke';
@@ -9382,6 +10448,65 @@ class App {
         return;
       }
 
+      // Mirror: the palette has no fields to type in, so its keys are the
+      // window's - Enter mirrors, as the button does, and Escape closes.
+      if (this.mirrorDialogOpen && (e.key === 'Escape' || e.key === 'Enter')) {
+        e.preventDefault();
+        if (e.key === 'Escape') this.closeMirrorDialog();
+        else void this.applyMirror();
+        return;
+      }
+
+      // Stroke Profile: while the picker is up its list has the keys - the
+      // arrows, Home and End move through it, Enter selects, Escape closes.
+      if (this.profileDialogOpen) {
+        const steps: Record<string, number> = { ArrowUp: -1, ArrowDown: 1, Home: -Infinity, End: Infinity };
+        if (e.key in steps) {
+          e.preventDefault();
+          this.stepProfile(steps[e.key]);
+          return;
+        }
+        if (e.key === 'Escape' || e.key === 'Enter') {
+          e.preventDefault();
+          if (e.key === 'Escape') this.closeProfileDialog();
+          else this.applyStrokeProfile();
+          return;
+        }
+      }
+
+      // Mesh Warp: while a warp is open, Enter keeps it and Escape throws it
+      // away; Delete takes out the selected pins - never the art, which the
+      // generic Delete below would take - and Ctrl+Z steps back through the
+      // pins rather than the page.
+      if (this.warp) {
+        const mod = e.ctrlKey || e.metaKey;
+        const key = e.key.toLowerCase();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.keepWarp();
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          this.cancelWarp();
+          return;
+        }
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          this.deleteWarpPins();
+          return;
+        }
+        if (mod && key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          this.undoWarpStep();
+          return;
+        }
+        if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) {
+          e.preventDefault();
+          return;
+        }
+      }
+
       // Enter opens the Move dialog for whatever is selected. It comes after
       // the Vector Path commit so an open path still finishes on Enter, and
       // the dialog's own fields are text entry, which returned above.
@@ -9526,10 +10651,10 @@ class App {
       const key = e.key.toLowerCase();
       if (mod && key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        this.store.undo();
+        this.undo();
       } else if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) {
         e.preventDefault();
-        this.store.redo();
+        this.redo();
       } else if (mod && key === 'a' && e.shiftKey) {
         // Deselect all (Ctrl/Cmd + Shift + A).
         e.preventDefault();
@@ -9633,6 +10758,9 @@ class App {
         this.updateCursor();
       } else if (!mod && key === 'h') {
         this.sharpenAll();
+      } else if (!mod && key === 'o') {
+        // Illustrator's Reflect key, and free here.
+        this.openMirrorDialog();
       } else if (!mod && key === 'w') {
         this.startQuickEntry('width');
       } else if (!mod && key === 'q') {
@@ -9766,6 +10894,18 @@ class App {
     }
     el('vector-options').classList.toggle('is-hidden', tool !== 'vector');
 
+    // Leaving Mesh Warp keeps the warp in hand, by the Vector Path's rule. A
+    // warp left on a page that has since turned is over.
+    if (this.warp && this.warp.sketch !== this.store.sketch) this.onWarpSettled();
+    if (tool !== 'warp') {
+      if (this.warp) this.keepWarp();
+      if (this.warpHover) {
+        this.warpHover = null;
+        this.scheduleRender();
+      }
+      this.showWarpHint(null);
+    }
+
     // Leaving the Direct Select tool drops its anchor-edit state.
     if (tool !== 'point' && this.anchorStrokeId !== null) {
       this.anchorStrokeId = null;
@@ -9788,6 +10928,7 @@ class App {
 
     el<HTMLInputElement>('width').value = String(width);
     el('width-value').textContent = `${width}px`;
+    this.syncStrokeProfileControl();
 
     el<HTMLInputElement>('live-sharpen').checked = liveSharpen;
     this.syncSelectionBorderSwitches();
@@ -10140,6 +11281,9 @@ function transformImportedLayers(
           p: map(a.p),
           ...(a.hIn ? { hIn: map(a.hIn) } : {}),
           ...(a.hOut ? { hOut: map(a.hOut) } : {}),
+          // A compound shape's subpath breaks travel with it, or its contours
+          // export joined into one outline.
+          ...(a.move ? { move: true as const } : {}),
         }));
       }
       stroke.width = Math.max(0.1, stroke.width * scale);
@@ -10149,6 +11293,31 @@ function transformImportedLayers(
     }
     if (layer.children) transformImportedLayers(layer.children, scale, dx, dy);
   }
+}
+
+/** Which axes a mirrored image was flipped across, as its cache key. */
+function mirrorAxesKey(m: Mirror): string {
+  return `${m.flipX ? 'x' : ''}${m.flipY ? 'y' : ''}`;
+}
+
+/**
+ * A placed image's pixels, mirrored, as a PNG data URL. The image is redrawn
+ * through a canvas under a scale of -1, which moves pixels without resampling
+ * them, and a data URL is same-origin, so the canvas can be read back.
+ */
+async function mirroredImageUrl(src: string, flipX: boolean, flipY: boolean): Promise<string> {
+  const image = new Image();
+  image.src = src;
+  await image.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx || canvas.width === 0 || canvas.height === 0) return src;
+  ctx.translate(flipX ? canvas.width : 0, flipY ? canvas.height : 0);
+  ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  ctx.drawImage(image, 0, 0);
+  return canvas.toDataURL('image/png');
 }
 
 /** Euclidean distance between two screen points. */
@@ -10218,41 +11387,6 @@ function cloneAnchors(anchors: VectorAnchor[]): VectorAnchor[] {
     ...(a.hOut ? { hOut: { ...a.hOut } } : {}),
     ...(a.move ? { move: true as const } : {}),
   }));
-}
-
-/**
- * Samples the segments between vector anchors into stroke points. Each
- * segment is the cubic Bézier steered by its anchors' handles; a segment
- * with no handles on either end is a straight line and needs no
- * intermediate samples. `closed` appends the segment back to the first
- * anchor.
- */
-function sampleVectorPathPoints(anchors: VectorAnchor[], closed: boolean): Point[] {
-  if (anchors.length === 0) return [];
-  const out: Point[] = [{ x: anchors[0].p.x, y: anchors[0].p.y, pressure: 0.5 }];
-  const addSegment = (from: VectorAnchor, to: VectorAnchor): void => {
-    if (!from.hOut && !to.hIn) {
-      out.push({ x: to.p.x, y: to.p.y, pressure: 0.5 });
-      return;
-    }
-    const a = { x: from.p.x, y: from.p.y, pressure: 0.5 };
-    const b = { x: to.p.x, y: to.p.y, pressure: 0.5 };
-    out.push(...cubicBezierPoints(a, from.hOut ?? from.p, to.hIn ?? to.p, b).slice(1));
-  };
-  // A compound path's subpaths each close back to their own first anchor,
-  // and the pen lifts (a `move` point) between them.
-  let subStart = 0;
-  for (let i = 1; i < anchors.length; i++) {
-    if (anchors[i].move) {
-      if (closed) addSegment(anchors[i - 1], anchors[subStart]);
-      out.push({ x: anchors[i].p.x, y: anchors[i].p.y, pressure: 0.5, move: true });
-      subStart = i;
-      continue;
-    }
-    addSegment(anchors[i - 1], anchors[i]);
-  }
-  if (closed && anchors.length >= 2) addSegment(anchors[anchors.length - 1], anchors[subStart]);
-  return out;
 }
 
 /** Closed rectangle outline for a drag from `a` to `b` (uniform = square). */
@@ -10331,6 +11465,21 @@ function distToSegment(p: Point, a: Point, b: Point): number {
   let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
   t = Math.max(0, Math.min(1, t));
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+/**
+ * A profile's picture: the outline of a straight stroke drawn with it, as an
+ * inline SVG sized `w` x `h` in its own units.
+ */
+function profilePicture(profile: StrokeProfile, className: string, w: number, h: number): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', className);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', profilePreviewPath(profile, w, h));
+  svg.appendChild(path);
+  return svg;
 }
 
 window.addEventListener('DOMContentLoaded', () => {

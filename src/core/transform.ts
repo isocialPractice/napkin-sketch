@@ -17,7 +17,20 @@
  * it: a side handle scales across, a top or bottom handle scales down, and a
  * corner scales both. `Shift` makes the two factors agree; `Alt` moves the
  * point they are measured from.
+ *
+ * The file also holds the Mirror palette's rules ({@link mirrorStroke}), for
+ * the same reason: what a reflection does to each kind of element - a curve,
+ * a nib, a gradient, a line of text, a placed image - is the whole of the
+ * feature, and it is easiest to see right when it is pure.
  */
+
+import {
+  DEFAULT_NIB_ANGLE,
+  isImageStroke,
+  isTextStroke,
+  type Stroke,
+} from './types.js';
+import { profileIsSymmetric } from './stroke-profile.js';
 
 /** The eight grab points of a selection box, named by compass point. */
 export type TransformHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
@@ -59,7 +72,9 @@ export interface TransformScale {
  * item's font size and an image's width are magnitudes, so they would come
  * back as 1px rather than mirrored. Until that is handled properly, dragging
  * through the anchor stops at a sliver rather than producing a selection that
- * is partly mirrored and partly destroyed.
+ * is partly mirrored and partly destroyed. {@link mirrorStroke} already knows
+ * how each kind of element flips, so that is where a flipping drag would send
+ * a negative factor.
  */
 export const SCALE_FACTOR_MIN = 0.01;
 export const SCALE_FACTOR_MAX = 100;
@@ -214,5 +229,115 @@ export function transformCursor(handle: TransformHandle): string {
       return 'nwse-resize';
     default:
       return 'nesw-resize';
+  }
+}
+
+// ---- Mirror -------------------------------------------------------------------
+
+/**
+ * A reflection. `flipX` swaps left and right across the vertical line at
+ * `x`; `flipY` swaps top and bottom across the horizontal line at `y`; both
+ * together is the point reflection through (`x`, `y`), a half turn.
+ *
+ * The names follow the Mirror palette rather than Illustrator's Reflect:
+ * *Horizontal* there is `flipX` here, the flip that turns a figure facing
+ * right into one facing left.
+ */
+export interface Mirror {
+  flipX: boolean;
+  flipY: boolean;
+  x: number;
+  y: number;
+}
+
+/** Reflects one point in place. */
+export function mirrorPoint(p: { x: number; y: number }, m: Mirror): void {
+  if (m.flipX) p.x = 2 * m.x - p.x;
+  if (m.flipY) p.y = 2 * m.y - p.y;
+}
+
+/**
+ * An angle measured in the app's convention - 0 along +x, increasing
+ * clockwise on the downward y axis - after a reflection, in [0, 360). A
+ * direction (cos θ, sin θ) reflected left-right keeps its y and negates its
+ * x, which is 180 − θ; reflected top-bottom it is −θ; both, θ + 180.
+ */
+export function mirrorAngle(degrees: number, m: Mirror): number {
+  let angle = degrees;
+  if (m.flipX) angle = 180 - angle;
+  if (m.flipY) angle = -angle;
+  return ((angle % 360) + 360) % 360;
+}
+
+/**
+ * Mirrors one element in place.
+ *
+ * A reflection is affine, so it maps a Bézier curve exactly by mapping its
+ * control points: every sampled point and every anchor with both of its
+ * handles is reflected, `move` stays where it was, and a curve that was four
+ * numbers is still four numbers. The path keeps its direction and each
+ * handle stays on its own anchor; only the image of the path flips. Width,
+ * dash, fill and opacity are untouched, since a reflection changes no
+ * length.
+ *
+ * Two things carry a direction of their own and turn with the drawing: a
+ * Copic stroke's broad nib and a linear gradient's axis, both reflected by
+ * {@link mirrorAngle}. The gradient is replaced rather than edited, so an
+ * undo snapshot that still holds the old object is left as it was.
+ *
+ * Text and placed images are boxes rather than shapes. Their box lands where
+ * its mirror image would be - the box's far edge becomes its near one - and
+ * what is inside keeps its orientation: text stays readable, which is the
+ * rule Rotate already follows by orbiting text upright. `box` is the item's
+ * measured box (text needs the canvas to measure it); without one, an image
+ * is measured from its placed size and text moves by its anchor alone. An
+ * image's pixels are mirrored by the caller, which has a canvas to do it
+ * with; this moves the image, it does not redraw it.
+ */
+export function mirrorStroke(stroke: Stroke, m: Mirror, box?: TransformBox | null): void {
+  if (!m.flipX && !m.flipY) return;
+
+  if (isTextStroke(stroke) || isImageStroke(stroke)) {
+    const anchor = stroke.points[0];
+    if (!anchor) return;
+    const measured =
+      box ??
+      (isImageStroke(stroke)
+        ? {
+            minX: anchor.x,
+            minY: anchor.y,
+            maxX: anchor.x + (stroke.imageWidth ?? 100),
+            maxY: anchor.y + (stroke.imageHeight ?? 100),
+          }
+        : { minX: anchor.x, minY: anchor.y, maxX: anchor.x, maxY: anchor.y });
+    const dx = m.flipX ? 2 * m.x - measured.maxX - measured.minX : 0;
+    const dy = m.flipY ? 2 * m.y - measured.maxY - measured.minY : 0;
+    for (const p of stroke.points) {
+      p.x += dx;
+      p.y += dy;
+    }
+    return;
+  }
+
+  for (const p of stroke.points) mirrorPoint(p, m);
+  if (stroke.vector) {
+    for (const anchor of stroke.vector.anchors) {
+      mirrorPoint(anchor.p, m);
+      if (anchor.hIn) mirrorPoint(anchor.hIn, m);
+      if (anchor.hOut) mirrorPoint(anchor.hOut, m);
+    }
+  }
+  if (stroke.tool === 'copic') {
+    stroke.nibAngle = mirrorAngle(stroke.nibAngle ?? DEFAULT_NIB_ANGLE, m);
+  }
+  if (stroke.gradient && stroke.gradient.type === 'linear') {
+    stroke.gradient = { ...stroke.gradient, angle: mirrorAngle(stroke.gradient.angle ?? 0, m) };
+  }
+  // One reflection turns a stroke's left side into its right, so a profile
+  // that leans has to swap its sides to lean the mirrored way. Two are a half
+  // turn, which keeps the handedness it had.
+  if (stroke.profile && !profileIsSymmetric(stroke.profile) && m.flipX !== m.flipY) {
+    if (stroke.profileMirrored) delete stroke.profileMirrored;
+    else stroke.profileMirrored = true;
   }
 }

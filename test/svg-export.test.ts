@@ -746,3 +746,102 @@ test('toSVG writes a compound vector stroke as one path with a subpath per conto
   const svg = Surface.toSVG(sketch);
   assert.match(svg, /d="M0 0H10V10H0V0ZM3 3V7H7V3H3Z"/);
 });
+
+// ---- Stroke profiles -------------------------------------------------------------
+
+const near = (a: number, b: number, tolerance: number): boolean => Math.abs(a - b) <= tolerance;
+
+/** The extent of some path data's anchors. */
+function extentOf(d: string): { minX: number; maxX: number; minY: number; maxY: number } {
+  const points = (parsePathD(d) ?? []).flatMap((sub) => sub.anchors.map((a) => a.p));
+  return {
+    minX: Math.min(...points.map((p) => p.x)),
+    maxX: Math.max(...points.map((p) => p.x)),
+    minY: Math.min(...points.map((p) => p.y)),
+    maxY: Math.max(...points.map((p) => p.y)),
+  };
+}
+
+test('a profiled stroke exports as the filled shape its profile makes, the stroke riding as data', () => {
+  const svg = Surface.toSVG(
+    paintedSketch({ points: [{ x: 0, y: 40 }, { x: 60, y: 40 }], profile: 'rounded' }),
+  );
+  const mark = /<path [^>]*data-profile="rounded"[^>]*\/>/.exec(svg)?.[0] ?? '';
+  assert.ok(mark, 'the profiled mark is one path');
+  assert.match(mark, /fill="#112233"/);
+  assert.doesNotMatch(mark, /\bstroke=|stroke-width=/);
+  assert.match(mark, /data-tool="pen"/);
+  assert.match(mark, /data-width="4"/);
+  assert.match(mark, /data-color="#112233"/);
+  assert.match(mark, /data-d="M0 40H60"/);
+  // The lens the canvas fills: as long as the line, and at its middle 0.7 of
+  // the width, the pen's scale for a pressure of 0.5. A ruled line has only
+  // its two ends to read a profile at; they are both of zero width.
+  const box = extentOf(/ d="([^"]+)"/.exec(mark)![1]);
+  assert.ok(near(box.minX, 0, 0.5) && near(box.maxX, 60, 0.5), JSON.stringify(box));
+  assert.ok(near(box.minY, 40 - 1.4, 0.05) && near(box.maxY, 40 + 1.4, 0.05), JSON.stringify(box));
+});
+
+test('a profiled stroke with a fill is one group: the fill, then the outline over it', () => {
+  const svg = Surface.toSVG(paintedSketch({ profile: 'tapered', fill: '#00ff00' }));
+  const group = /<g ([^>]*data-profile="tapered"[^>]*)>(.*?)<\/g>/.exec(svg);
+  assert.ok(group, 'the mark is a group');
+  assert.match(group[1], /data-tool="pen"/);
+  assert.match(group[1], /data-fill="#00ff00"/);
+  assert.match(group[1], /data-d="M0 0H20V20H0V0"/);
+  const paths = [...group[2].matchAll(/<path [^>]*\/>/g)].map((m) => m[0]);
+  assert.equal(paths.length, 2);
+  assert.match(paths[0], /fill="#00ff00"/, 'the fill first');
+  assert.match(paths[1], /fill="#112233"/, 'then the outline, in the ink');
+});
+
+test('a profiled outline switched off keeps its profile for when it comes back', () => {
+  const svg = Surface.toSVG(paintedSketch({ profile: 'wave', fill: '#00ff00', noStroke: true }));
+  assert.match(svg, /<path [^>]*stroke="none"[^>]*data-nostroke="1"[^>]*data-profile="wave"/);
+});
+
+test('a dashed profile cuts its dashes from the outline and keeps the style as data', () => {
+  const svg = Surface.toSVG(
+    paintedSketch({ points: [{ x: 0, y: 40 }, { x: 200, y: 40 }], profile: 'rounded', strokeStyle: 'dashed' }),
+  );
+  const mark = /<path [^>]*data-profile="rounded"[^>]*\/>/.exec(svg)?.[0] ?? '';
+  assert.match(mark, /data-dash="dashed"/);
+  assert.doesNotMatch(mark, /stroke-dasharray/);
+  const contours = (/ d="([^"]+)"/.exec(mark)![1].match(/[Zz]/g) ?? []).length;
+  assert.ok(contours >= 5, `${contours} dashes along 200px of 12-on, 8-off`);
+});
+
+test('a Default stroke exports exactly as it did before profiles', () => {
+  const svg = Surface.toSVG(paintedSketch({ fill: '#00ff00', strokeStyle: 'dashed' }));
+  assert.match(
+    svg,
+    /<path d="M0 0H20V20H0V0" stroke="#112233" stroke-dasharray="12,8" data-dash="dashed" fill="#00ff00" data-fill="#00ff00" data-tool="pen" data-i="0"\/>/,
+  );
+});
+
+test('a profiled outline is filled, so it never sets the width the root shares', () => {
+  const sketch = paintedSketch({ width: 3 });
+  for (const id of ['q1', 'q2']) {
+    sketch.strokes.push({
+      id,
+      tool: 'pen',
+      color: '#112233',
+      width: 10,
+      layer: sketch.layers[0].id,
+      profile: 'rounded',
+      points: [
+        { x: 0, y: 60 },
+        { x: 40, y: 60 },
+      ],
+    });
+  }
+  assert.match(Surface.toSVG(sketch), /<svg [^>]*stroke-width="3"/);
+});
+
+test('a mirrored profile says so, so the mirror image comes back as one', () => {
+  const svg = Surface.toSVG(
+    paintedSketch({ points: [{ x: 0, y: 40 }, { x: 60, y: 40 }], profile: 'wave', profileMirrored: true }),
+  );
+  assert.match(svg, /<path [^>]*data-profile="wave"[^>]*data-profile-mirrored="1"/);
+  assert.doesNotMatch(Surface.toSVG(paintedSketch({ profile: 'wave' })), /data-profile-mirrored/);
+});

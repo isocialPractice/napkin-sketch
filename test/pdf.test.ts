@@ -120,3 +120,24 @@ test('multi-line text round-trips through PDF export and import', () => {
 test('importPdf rejects non-PDF data', () => {
   assert.throws(() => importPdf(Buffer.from('not a pdf', 'latin1')));
 });
+
+test('a profiled stroke fills its outline in the ink rather than stroking a line', () => {
+  const sketch = createSketch('profiled');
+  sketch.strokes.push({
+    id: 'p',
+    tool: 'pen',
+    color: '#ff0000',
+    width: 10,
+    layer: sketch.layers[0].id,
+    profile: 'rounded',
+    points: [
+      { x: 10, y: 10 },
+      { x: 110, y: 10 },
+    ],
+  });
+  const pdf = sketchesToPdf([sketch]);
+  // The lens, as one closed fill in red, and no stroked line under it.
+  assert.match(pdf, /1 0 0 rg\n[\d. ml]+ h f/);
+  assert.doesNotMatch(pdf, / RG\n/);
+  assert.doesNotMatch(pdf, /\d S\n/);
+});

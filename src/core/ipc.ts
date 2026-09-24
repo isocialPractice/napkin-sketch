@@ -112,7 +112,8 @@ export type MenuAction =
   | 'toggle-settings'
   | 'toggle-rearrange'
   | 'toggle-animation'
-  | 'rotate';
+  | 'rotate'
+  | 'mirror';
 
 /** Raster image export formats. */
 export type ImageFormat = 'png' | 'jpeg';

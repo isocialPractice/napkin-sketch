@@ -124,3 +124,12 @@ test('the selection border is on unless a saved setting turns it off', () => {
   assert.equal(normalizeSettings({ showSelectionBorders: 'no' }).showSelectionBorders, true);
   assert.equal(normalizeSettings({}).showSelectionBorders, true);
 });
+
+test('Mesh Warp shows its mesh unless a saved setting hides it', () => {
+  assert.equal(defaultSettings().warpShowMesh, true);
+  assert.equal(normalizeSettings({ warpShowMesh: false }).warpShowMesh, false);
+  // Only a boolean is an answer; anything else leaves the default standing,
+  // and a save cannot strip it away.
+  assert.equal(normalizeSettings({ warpShowMesh: 'off' }).warpShowMesh, true);
+  assert.equal(normalizeSettings({}).warpShowMesh, true);
+});

@@ -37,6 +37,13 @@
           </button>
         </section>
 
+        <section id="warp-group" class="group warp-group" aria-label="Warp">
+          <span class="warp-rule" aria-hidden="true"></span>
+          <button id="tool-warp" class="tool" type="button" title="Mesh Warp - click art to mesh it, then drag its pins to bend it. Click the mesh to add a pin, Delete takes the selected pins out, Enter keeps the warp and Esc throws it away" aria-label="Mesh Warp">
+            <span class="icon" aria-hidden="true"><svg class="warp-glyph" viewBox="0 0 16 16"><path d="M1.5 12.5 8 2.5l6.5 10ZM4.75 7.5h6.5M8 2.5l-3.25 10M8 2.5l3.25 10" /><circle cx="8" cy="7.5" r="1.7" /></svg></span><span class="label">Mesh Warp</span>
+          </button>
+        </section>
+
         <section id="sketch-group" class="group" aria-label="Sketch support">
           <button id="tool-rect" class="tool" type="button" title="Rectangle (R) — hold Shift for a square" aria-label="Rectangle">
             <span class="icon" aria-hidden="true">▭</span><span class="label">Rect</span>
@@ -84,7 +91,13 @@
           </label>
         </section>
 
-        <section class="group" aria-label="Stroke width">
+        <section class="group group-stack" aria-label="Stroke width">
+          <button id="stroke-profile" class="btn btn-profile" type="button" aria-haspopup="dialog" aria-label="Stroke profile: Default" title="Stroke Profile - how the width runs along new pen and marker strokes">
+            <span>Stroke Profile</span>
+            <span class="profile-pill" aria-hidden="true">
+              <svg id="stroke-profile-picture" viewBox="0 0 48 10"><path d="" /></svg>
+            </span>
+          </button>
           <label class="slider" for="width">
             <span class="slider-text">Width</span>
             <input id="width" type="range" min="1" max="40" step="1" value="3" />
@@ -108,6 +121,17 @@
           <button id="undo" class="btn" type="button" title="Undo (Ctrl+Z)">Undo</button>
           <button id="redo" class="btn" type="button" title="Redo (Ctrl+Y)">Redo</button>
           <button id="clear" class="btn" type="button" title="Clear page">Clear</button>
+        </section>
+
+        <section id="mirror-group" class="group" aria-label="Mirror">
+          <button id="mirror-selection" class="btn btn-with-glyph" type="button" title="Mirror the selection horizontally or vertically, in place or as a copy (O)">
+            <svg class="btn-glyph mirror-glyph" viewBox="0 0 48 26" aria-hidden="true">
+              <polygon points="3,3 19,13 3,23" />
+              <polygon points="45,3 29,13 45,23" />
+              <line class="mirror-glyph-axis" x1="24" y1="1" x2="24" y2="25" />
+            </svg>
+            Mirror
+          </button>
         </section>
 
         <section class="group group-right" aria-label="File">
@@ -256,6 +280,15 @@
                   </select>
                   <button id="prop-stroke-remove" class="btn btn-ghost" type="button" title="Remove the outline">No stroke</button>
                 </div>
+                <div class="prop-row">
+                  <label class="prop-field" for="prop-stroke-profile"><span>Profile</span></label>
+                  <select id="prop-stroke-profile" class="prop-unit prop-unit-wide" aria-label="Stroke profile" title="How the width runs along the outline. Pen and marker strokes take one; a Copic nib is its own width.">
+                    <option value="uniform">Default</option>
+                    <option value="rounded">Rounded</option>
+                    <option value="tapered">Tapered</option>
+                    <option value="wave">Wave</option>
+                  </select>
+                </div>
               </section>
 
               <section class="prop-section" aria-labelledby="prop-scale-title">
@@ -296,6 +329,12 @@
             <input id="qs-show-selection-borders" type="checkbox" checked />
             <span class="switch-track" aria-hidden="true"></span>
             <span class="switch-text">Show selection borders</span>
+          </label>
+
+          <label class="switch settings-row" title="Draw the triangle mesh over art being bent with Mesh Warp. Off, only the pins show.">
+            <input id="qs-warp-show-mesh" type="checkbox" checked />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">Show mesh (Mesh Warp)</span>
           </label>
 
           <label class="settings-field">
@@ -343,6 +382,8 @@
       </footer>
 
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      <!-- Mesh Warp: follows the pointer while it is over art a click would mesh -->
+      <div id="warp-hint" class="warp-hint" hidden>(click to select art)</div>
 
       <!-- Copic nib rotation indicator (visible while quick nib-rotate is active) -->
       <div id="nib-indicator" class="nib-indicator is-hidden" role="status" aria-live="polite" aria-label="Copic nib rotation">
@@ -634,6 +675,69 @@
           <div class="export-dialog-actions">
             <button id="rotate-cancel" class="btn btn-ghost" type="button">Cancel</button>
             <button id="rotate-apply" class="btn btn-primary" type="button">Rotate</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mirror dialog: reflects the selection, in place or as a copy beside it -->
+      <div id="mirror-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Mirror selection">
+        <div class="export-dialog-inner">
+          <p id="mirror-title" class="export-dialog-title">Mirror Selection</p>
+          <p class="mirror-subtitle">Orientation</p>
+          <div class="mirror-orientation">
+            <label class="mirror-axis" title="Swap left and right, across a vertical line">
+              <span class="mirror-axis-name">Horizontal</span>
+              <span class="mirror-axis-choice">
+                <input id="mirror-horizontal" type="checkbox" checked />
+                <svg class="mirror-glyph mirror-glyph-h" viewBox="0 0 48 26" aria-hidden="true">
+                  <polygon points="3,3 19,13 3,23" />
+                  <polygon points="45,3 29,13 45,23" />
+                  <line class="mirror-glyph-axis" x1="24" y1="1" x2="24" y2="25" />
+                </svg>
+              </span>
+            </label>
+            <span class="mirror-orientation-rule" aria-hidden="true"></span>
+            <label class="mirror-axis" title="Swap top and bottom, across a horizontal line">
+              <span class="mirror-axis-name">Vertical</span>
+              <span class="mirror-axis-choice">
+                <input id="mirror-vertical" type="checkbox" />
+                <svg class="mirror-glyph mirror-glyph-v" viewBox="0 0 26 48" aria-hidden="true">
+                  <polygon points="3,3 23,3 13,19" />
+                  <polygon points="3,45 23,45 13,29" />
+                  <line class="mirror-glyph-axis" x1="1" y1="24" x2="25" y2="24" />
+                </svg>
+              </span>
+            </label>
+          </div>
+          <label class="settings-field move-preview-field mirror-copy-field" title="Keep the selection and mirror a copy of it, placed beside the original so the two meet at its edge">
+            <input id="mirror-copy" type="checkbox" checked />
+            <span>Create Copy</span>
+          </label>
+          <label class="settings-field move-preview-field">
+            <input id="mirror-preview" type="checkbox" checked />
+            <span>Live preview</span>
+          </label>
+          <label class="settings-field move-preview-field" title="Draw the dashed outline around selected elements (Ctrl+H). The same switch as the one in the Move palette.">
+            <input id="mirror-show-selection-borders" type="checkbox" checked />
+            <span>Show Selection Borders</span>
+          </label>
+          <p class="anim-dialog-note">Both orientations together turn the selection half a turn. <code>Enter</code> mirrors and closes, the same as the button; <code>Escape</code> closes without mirroring.</p>
+          <div class="export-dialog-actions">
+            <button id="mirror-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="mirror-apply" class="btn btn-primary" type="button">Mirror</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stroke Profile picker: opened from the Stroke width group -->
+      <div id="profile-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+        <div class="export-dialog-inner">
+          <p id="profile-title" class="export-dialog-title">Stroke Profile</p>
+          <div id="profile-list" class="profile-list" role="listbox" tabindex="0" aria-labelledby="profile-title"></div>
+          <p class="anim-dialog-note">New pen and marker strokes are drawn with the profile you select. With the Select tool, the selected strokes take it too.</p>
+          <div class="export-dialog-actions profile-actions">
+            <button id="profile-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="profile-apply" class="btn btn-primary" type="button">Select</button>
           </div>
         </div>
       </div>

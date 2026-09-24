@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One right-pointing triangle, for the Mirror check.
+
+  A triangle's ink sits towards its base, so where the ink's centre falls in
+  its box says which way it points: a third of the way across before a
+  horizontal mirror, two thirds after.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+  <g id="shapes" data-name="shapes">
+    <path id="arrow" d="M20 20 L100 50 L20 80 Z" fill="#1f2328"/>
+  </g>
+</svg>

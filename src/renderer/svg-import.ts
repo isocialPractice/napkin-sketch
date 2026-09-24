@@ -33,6 +33,8 @@
 import {
   DEFAULT_FONT_FAMILY,
   createId,
+  type Gradient,
+  type GradientStop,
   type Stroke,
   type Tool,
   type VectorAnchor,
@@ -124,6 +126,13 @@ const MIN_IMPORT_WIDTH = 0.1;
 
 /** Coordinates and handles closer than this read as the same point. */
 const COINCIDENT = 1e-6;
+
+/**
+ * napkin's default ink, the colour a new sketch draws in. A paint server that
+ * resolves to no colour at all is drawn in it, so it arrives visibly rather
+ * than not at all.
+ */
+const DEFAULT_INK = '#1f2328';
 
 /** A stroke plus its recovered paint order (from `data-i`, else document order). */
 interface OrderedStroke {
@@ -348,7 +357,7 @@ function groupToLayer(
     splitUnnamed ||
     kids.some(
       (child) =>
-        child.tagName.toLowerCase() === 'g' ||
+        isLayerGroup(child) ||
         elementName(child) !== null ||
         !child.hasAttribute('data-tool'),
     );
@@ -401,7 +410,7 @@ function childLayers(
   };
 
   for (const child of elements) {
-    if (child.tagName.toLowerCase() === 'g') {
+    if (isLayerGroup(child)) {
       flushRun();
       layers.push(
         groupToLayer(child as SVGGElement, root, nextOrder, layerName(child), splitUnnamed),
@@ -444,6 +453,15 @@ function childLayers(
   }
   flushRun();
   return layers;
+}
+
+/**
+ * True for a `<g>` that is a layer. A group napkin wrote for one mark - a
+ * profiled stroke with a fill, which takes two paths - carries `data-tool`
+ * like any other mark and is read as that mark instead.
+ */
+function isLayerGroup(el: Element): boolean {
+  return el.tagName.toLowerCase() === 'g' && !el.hasAttribute('data-tool');
 }
 
 /** Recovers eraser strokes from a napkin-sketch layer mask, if present. */
@@ -503,6 +521,15 @@ function elementToStrokes(
     if (stroke) out.push({ order, stroke });
     return;
   }
+  // A profiled napkin stroke: its outline is for other editors, and the
+  // stroke comes back from the centreline it carries.
+  if (el.hasAttribute('data-tool') && el.hasAttribute('data-d')) {
+    const stroke = profiledToStroke(el, root);
+    if (stroke) {
+      out.push({ order, stroke });
+      return;
+    }
+  }
   if (!GEOMETRY_TAGS.has(tag) || !(el instanceof SVGGeometryElement)) return;
 
   const matrix = matrixToRoot(el, root);
@@ -524,7 +551,7 @@ function elementToStrokes(
   const keptColor = el.getAttribute('data-color');
   const keptWidth = Number(el.getAttribute('data-width'));
   const outlineOff = el.getAttribute('data-nostroke') === '1';
-  const color = normalizeColor(
+  const color = resolvePaintColor(
     tool === 'eraser'
       ? '#000000'
       : outlineOff && keptColor
@@ -532,6 +559,7 @@ function elementToStrokes(
         : hasStroke
           ? style.stroke
           : style.fill,
+    root,
   );
   const width = importWidth(
     outlineOff && Number.isFinite(keptWidth) && keptWidth > 0
@@ -600,42 +628,29 @@ function elementToStrokes(
   const subpaths =
     tag === 'path' ? parsePathD(el.getAttribute('d') ?? '') : shapeSubpaths(el, tag);
   if (subpaths) {
-    const fill =
-      hasFill && tool !== 'eraser' && !style.fill.startsWith('url(')
+    // A paint server is read out of the document's defs rather than dropped:
+    // a gradient keeps its first stop as the flat fill beneath it, and one
+    // that resolves to no gradient paints the flat colour it falls back to.
+    const paintsFill = hasFill && tool !== 'eraser';
+    const paintGradient =
+      paintsFill && style.fill.startsWith('url(') ? readPaintServer(style.fill, root) : undefined;
+    const fill = !paintsFill
+      ? null
+      : !style.fill.startsWith('url(')
         ? normalizeColor(style.fill)
-        : null;
-    // One element is one stroke, however many subpaths it holds: a compound
-    // path (an outlined stroke with its inner contour, a ring, a letter with
-    // a counter) fills as outer-minus-inner only while its contours stay
-    // together. Each later subpath starts at a `move` anchor.
-    const anchors: VectorAnchor[] = [];
-    const points: Vec2WithMove[] = [];
-    for (const sub of subpaths) {
-      const mapped: VectorAnchor[] = sub.anchors.map((a) => ({
-        p: applyMatrix(matrix, a.p.x, a.p.y),
-        ...(a.hIn ? { hIn: applyMatrix(matrix, a.hIn.x, a.hIn.y) } : {}),
-        ...(a.hOut ? { hOut: applyMatrix(matrix, a.hOut.x, a.hOut.y) } : {}),
-      }));
-      const sampled = sampleAnchors(mapped, sub.closed);
-      if (sampled.length < 2) continue;
-      if (anchors.length > 0) {
-        mapped[0].move = true;
-        sampled[0].move = true;
-      }
-      anchors.push(...mapped);
-      points.push(...sampled);
-    }
-    if (points.length < 2) return;
-    // A compound path closes as a whole when its contours all close, which
-    // is what an outlined shape is; a subpath left open in a mostly closed
-    // compound (rare) still fills correctly and only loses its explicit Z.
-    const closed = subpaths.every((sub) => sub.closed);
+        : paintGradient
+          ? paintGradient.stops[0].color
+          : paintFallback(style.fill, root);
+    const geometry = geometryOf(subpaths, matrix);
+    if (!geometry) return;
+    const { anchors, points, closed } = geometry;
     const stroke = makeStroke(tool, color, width, points, opacity);
     for (let k = 0; k < points.length; k++) if (points[k].move) stroke.points[k].move = true;
     if (fill && points.length > 2) {
       stroke.fill = fill;
       if (!hasStroke) stroke.noStroke = true;
     }
+    if (paintGradient && points.length > 2) stroke.gradient = paintGradient;
     applyNapkinPaint(el, stroke);
     stroke.vector = { anchors, ...(closed ? { closed: true } : {}) };
     out.push({ order, stroke });
@@ -662,14 +677,100 @@ function elementToStrokes(
   const stroke = makeStroke(tool, color, width, points, opacity);
   // Filled source shapes stay filled (previously they imported as outlines).
   // A `url(#…)` paint server is not a color: the gradient it points at is
-  // restored from `data-gradient` below for napkin's own exports, and a
-  // foreign one is dropped rather than stored as a broken fill string.
-  if (hasFill && tool !== 'eraser' && points.length > 2 && !style.fill.startsWith('url(')) {
-    stroke.fill = normalizeColor(style.fill);
+  // read out of the document's defs (napkin's own exports are restored from
+  // `data-gradient` below), and one that resolves to no gradient paints the
+  // flat colour it falls back to rather than being stored as a fill string.
+  if (hasFill && tool !== 'eraser' && points.length > 2) {
+    const paintServer = style.fill.startsWith('url(');
+    const gradient = paintServer ? readPaintServer(style.fill, root) : undefined;
+    if (gradient) stroke.gradient = gradient;
+    stroke.fill = gradient
+      ? gradient.stops[0].color
+      : paintServer
+        ? paintFallback(style.fill, root)
+        : normalizeColor(style.fill);
     if (!hasStroke) stroke.noStroke = true;
   }
   applyNapkinPaint(el, stroke);
   out.push({ order, stroke });
+}
+
+/**
+ * One element's subpaths as the geometry of one vector stroke: the anchors
+ * mapped into root space, the points sampled from them, and whether it
+ * closes.
+ *
+ * One element is one stroke, however many subpaths it holds: a compound path
+ * (an outlined stroke with its inner contour, a ring, a letter with a
+ * counter) fills as outer-minus-inner only while its contours stay together.
+ * Each later subpath starts at a `move` anchor. The whole closes when its
+ * contours all close, which is what an outlined shape is; a subpath left open
+ * in a mostly closed compound (rare) still fills correctly and only loses its
+ * explicit Z. Null when nothing long enough to draw is left.
+ */
+function geometryOf(
+  subpaths: ParsedSubpath[],
+  matrix: DOMMatrix,
+): { anchors: VectorAnchor[]; points: Vec2WithMove[]; closed: boolean } | null {
+  const anchors: VectorAnchor[] = [];
+  const points: Vec2WithMove[] = [];
+  for (const sub of subpaths) {
+    const mapped: VectorAnchor[] = sub.anchors.map((a) => ({
+      p: applyMatrix(matrix, a.p.x, a.p.y),
+      ...(a.hIn ? { hIn: applyMatrix(matrix, a.hIn.x, a.hIn.y) } : {}),
+      ...(a.hOut ? { hOut: applyMatrix(matrix, a.hOut.x, a.hOut.y) } : {}),
+    }));
+    const sampled = sampleAnchors(mapped, sub.closed);
+    if (sampled.length < 2) continue;
+    if (anchors.length > 0) {
+      mapped[0].move = true;
+      sampled[0].move = true;
+    }
+    anchors.push(...mapped);
+    points.push(...sampled);
+  }
+  if (points.length < 2) return null;
+  return { anchors, points, closed: subpaths.every((sub) => sub.closed) };
+}
+
+/**
+ * Rebuilds a profiled napkin stroke. SVG has no variable-width stroke, so the
+ * exporter writes the shape a profile makes as a filled outline - grouped with
+ * the shape's fill, when it has one - and carries the stroke itself on the
+ * outer element as data: its centreline (`data-d`), width, ink and profile.
+ * The stroke is rebuilt from those, as the mark it was drawn as: a polyline
+ * comes back as its samples and anything with curves or several contours as
+ * a Vector Path, just as the same path data would as a mark's own `d`.
+ * Null when the centreline does not parse, and the caller reads the element
+ * as it would any other.
+ */
+function profiledToStroke(el: Element, root: SVGSVGElement): Stroke | null {
+  const subpaths = parsePathD(el.getAttribute('data-d') ?? '');
+  if (!subpaths || subpaths.length === 0) return null;
+  const matrix = matrixToRoot(el as SVGGraphicsElement, root);
+  const tool: Tool = el.getAttribute('data-tool') === 'marker' ? 'marker' : 'pen';
+  const color = normalizeColor(el.getAttribute('data-color') ?? DEFAULT_INK);
+  const width = importWidth((Number(el.getAttribute('data-width')) || 1) * matrixScale(matrix));
+  const opacity = clamp01(Number(getComputedStyle(el).opacity || 1));
+  const [only] = subpaths;
+  let stroke: Stroke;
+  if (subpaths.length === 1 && !only.closed && !only.anchors.some((a) => a.hIn || a.hOut)) {
+    const points = only.anchors.map((a) => applyMatrix(matrix, a.p.x, a.p.y));
+    if (points.length < 2) return null;
+    stroke = makeStroke(tool, color, width, points, opacity);
+  } else {
+    const geometry = geometryOf(subpaths, matrix);
+    if (!geometry) return null;
+    stroke = makeStroke(tool, color, width, geometry.points, opacity);
+    geometry.points.forEach((p, k) => {
+      if (p.move) stroke.points[k].move = true;
+    });
+    stroke.vector = { anchors: geometry.anchors, ...(geometry.closed ? { closed: true } : {}) };
+  }
+  const fill = el.getAttribute('data-fill');
+  if (fill && stroke.points.length > 2) stroke.fill = fill;
+  applyNapkinPaint(el, stroke);
+  return stroke;
 }
 
 /**
@@ -1172,10 +1273,146 @@ function sampleAnchors(anchors: VectorAnchor[], closed: boolean): Vec2WithMove[]
 }
 
 /**
+ * A paint as a flat colour, resolving a paint server to one of its stops.
+ *
+ * `normalizeColor` passes anything that is not `rgb(…)` straight through, so
+ * a `url(#id)` paint used to be stored as a stroke's colour verbatim and then
+ * written back out as `stroke="url(#id)"` - a reference to a definition the
+ * export does not carry, which renders as nothing at all. Resolving it here
+ * means the worst case is a flat colour from the right ramp rather than a
+ * shape nobody can see, and a paint with no ramp to take a colour from gets
+ * the one {@link paintFallback} gives it. A `url(…)` string is never stored.
+ */
+function resolvePaintColor(paint: string, root: SVGSVGElement): string {
+  if (!paint.trim().startsWith('url(')) return normalizeColor(paint);
+  const gradient = readPaintServer(paint, root);
+  if (!gradient) return paintFallback(paint, root);
+  // The middle of the ramp reads as the shape's colour better than either
+  // end, which are its lightest and darkest extremes.
+  return gradient.stops[Math.floor(gradient.stops.length / 2)].color;
+}
+
+/**
+ * Splits a `url(…)` paint into the element id it references (empty when the
+ * target is not in this document) and the fallback written after it, as in
+ * `url(#skin) #c48a5f`. Null for a paint that is not a reference at all.
+ */
+function paintReference(paint: string): { id: string; fallback: string } | null {
+  const ref = /^url\(\s*(["']?)(.*?)\1\s*\)\s*(.*)$/.exec(paint.trim());
+  if (!ref) return null;
+  return { id: ref[2].startsWith('#') ? ref[2].slice(1) : '', fallback: ref[3].trim() };
+}
+
+/**
+ * The flat colour a `url(…)` paint stands for when it resolves to no
+ * gradient.
+ *
+ * SVG paints a gradient with a single stop as that stop's solid colour, and a
+ * reference that finds nothing - an id the document never defines, or a
+ * gradient left with no stops - as the fallback colour written after it.
+ * With no fallback a browser paints nothing at all, which is the invisible
+ * shape this importer exists to avoid, so the default ink stands in: wrong,
+ * but visibly so, and one click from fixed.
+ */
+function paintFallback(paint: string, root: SVGSVGElement): string {
+  const ref = paintReference(paint);
+  const stops = ref ? (findPaintServer(ref.id, root)?.stops ?? []) : [];
+  if (stops.length === 1) return stops[0].color;
+  const fallback = ref?.fallback ?? '';
+  return fallback && fallback !== 'none' ? normalizeColor(fallback) : DEFAULT_INK;
+}
+
+/**
+ * The gradient a `url(#id)` paint points at, read out of the document's defs.
+ *
+ * Foreign gradients used to be dropped: the importer restored one only from
+ * `data-gradient`, which is napkin's own export attribute, and anything else
+ * that painted with `url(#…)` came back with no paint at all. A drawing whose
+ * every base shape was gradient-filled therefore imported as an invisible
+ * ghost - correct geometry, correct layer tree, nothing painted. It is the
+ * silent kind of data loss, because the shapes are all still there.
+ *
+ * SVG's gradient model and this app's line up closely enough to carry across:
+ * ordered stops of offset and colour, plus an angle for a linear one. What is
+ * not carried is the paint server's own coordinate system - `gradientUnits`,
+ * `spreadMethod`, transforms and focal points - so a gradient lands as its
+ * stops along its own axis, which is right for the overwhelming majority and
+ * approximate for the rest. Approximate and visible beats exact and absent.
+ */
+function readPaintServer(paint: string, root: SVGSVGElement): Gradient | undefined {
+  const ref = paintReference(paint);
+  const server = ref ? findPaintServer(ref.id, root) : undefined;
+  if (!server) return undefined;
+  const { node, stops } = server;
+
+  const type = node.tagName.toLowerCase() === 'radialgradient' ? 'radial' : 'linear';
+  // A linear gradient's direction, from its axis. Absent coordinates mean the
+  // SVG default, which is left to right.
+  const num = (name: string, fallback: number): number => {
+    const raw = node.getAttribute(name);
+    if (raw === null) return fallback;
+    const value = raw.endsWith('%') ? parseFloat(raw) / 100 : parseFloat(raw);
+    return Number.isFinite(value) ? value : fallback;
+  };
+  const angle =
+    type === 'linear'
+      ? (Math.atan2(num('y2', 0) - num('y1', 0), num('x2', 1) - num('x1', 0)) * 180) / Math.PI
+      : 0;
+
+  return normalizeGradient({ type, angle, stops });
+}
+
+/**
+ * The gradient element an id names, with its colour stops: its own, or those
+ * of the gradient its `href` inherits them from. Stops with no readable
+ * colour are left out, so the list may hold one stop or none.
+ */
+function findPaintServer(
+  id: string,
+  root: SVGSVGElement,
+): { node: Element; stops: GradientStop[] } | undefined {
+  if (!id) return undefined;
+  // `getElementById` is not on a detached fragment in every engine, and the
+  // id may hold characters a selector would have to escape.
+  const defs = Array.from(root.querySelectorAll('linearGradient, radialGradient'));
+  const node = defs.find((d) => d.getAttribute('id') === id);
+  if (!node) return undefined;
+
+  // `xlink:href` / `href` lets a gradient inherit another one's stops, which
+  // is how editors emit a family of gradients sharing a ramp.
+  let stopSource: Element = node;
+  for (let hops = 0; hops < 4 && stopSource.children.length === 0; hops++) {
+    const href =
+      stopSource.getAttribute('href') ??
+      stopSource.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ??
+      '';
+    const target = href.startsWith('#') ? href.slice(1) : '';
+    const next = target ? defs.find((d) => d.getAttribute('id') === target) : undefined;
+    if (!next) break;
+    stopSource = next;
+  }
+
+  const stops = Array.from(stopSource.querySelectorAll('stop')).map((stop, i, all) => {
+    const raw = stop.getAttribute('offset') ?? '';
+    const offset = raw.endsWith('%') ? parseFloat(raw) / 100 : parseFloat(raw);
+    const style = stop.getAttribute('style') ?? '';
+    const inline = /stop-color\s*:\s*([^;]+)/.exec(style);
+    const color = (stop.getAttribute('stop-color') ?? inline?.[1] ?? '').trim();
+    return {
+      offset: Number.isFinite(offset) ? offset : all.length < 2 ? 0 : i / (all.length - 1),
+      color: color ? normalizeColor(color) : '',
+    };
+  });
+  return { node, stops: stops.filter((s) => s.color) };
+}
+
+/**
  * Restores the properties-panel paint a napkin export carries in its data
  * attributes: an editable gradient fill (`data-gradient`), a dash style
- * (`data-dash`), and a switched-off outline (`data-nostroke`). Foreign SVGs
- * carry none of these and pass through untouched.
+ * (`data-dash`), a switched-off outline (`data-nostroke`), and a stroke
+ * profile (`data-profile`, with `data-profile-mirrored` when its sides are
+ * swapped), which only a pen or marker mark keeps. Foreign SVGs carry none of
+ * these and pass through untouched.
  */
 function applyNapkinPaint(el: Element, stroke: Stroke): void {
   const raw = el.getAttribute('data-gradient');
@@ -1200,6 +1437,14 @@ function applyNapkinPaint(el: Element, stroke: Stroke): void {
   const dash = el.getAttribute('data-dash');
   if (dash === 'dashed' || dash === 'dotted') stroke.strokeStyle = dash;
   if (el.getAttribute('data-nostroke') === '1') stroke.noStroke = true;
+  const profile = el.getAttribute('data-profile');
+  if (
+    (profile === 'rounded' || profile === 'tapered' || profile === 'wave') &&
+    (stroke.tool === 'pen' || stroke.tool === 'marker')
+  ) {
+    stroke.profile = profile;
+    if (el.getAttribute('data-profile-mirrored') === '1') stroke.profileMirrored = true;
+  }
 }
 
 /** Parses a `data-pts` attribute of space-separated "x,y" pairs. */

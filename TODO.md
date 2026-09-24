@@ -23,13 +23,19 @@ back without losing where it started.
 - [ ] **More tests**: cover the renderer store (undo/redo, pages, selection) and the
   embeddable `NapkinSketch` editor via a DOM test environment.
   - From: Patch
-- [ ] **Scripted GUI checks**: the menu bugs in 4.1.0-alpha were only findable
-  by driving the running app - synthetic OS cursor moves were too coarse to
-  tell "the panel closed" from "the pointer missed it". Launching Electron
-  with `--remote-debugging-port` and dispatching real pointer events over the
-  DevTools protocol worked well and can read the DOM back; worth turning into
-  a checked-in harness (`npm run gui-check`) covering menus, panel toggles,
-  and page/selection flows.
+- [x] **PARTLY DONE (4.3.0-alpha)** - **Scripted GUI checks**: the menu bugs in
+  4.1.0-alpha were only findable by driving the running app - synthetic OS
+  cursor moves were too coarse to tell "the panel closed" from "the pointer
+  missed it". Launching Electron with `--remote-debugging-port` and
+  dispatching real pointer events over the DevTools protocol worked well and
+  can read the DOM back. `npm run gui-check` now exists: `test/gui/` holds the
+  driver and a runner that executes each `check-*.mjs` in turn. There are
+  seven checks: gradient import; the custom color picker and the Width slider
+  reaching a selection (select all, change it, undo); Mirror; Stroke Profiles,
+  drawn and imported; and Mesh Warp, with real pointer drags. **What it does
+  not cover yet** is most of the original list - menus, panel toggles and page
+  flows. The scaffolding was the expensive half and it is done; each further
+  check is a file.
   - From: Patch
 - [ ] **Docs**: API reference for the embeddable package and a WordPress block
   example.
@@ -37,9 +43,11 @@ back without losing where it started.
 
 ## Found Issues
 
-Defects noticed while working and not yet scheduled. Thirteen sit here: six
+Defects noticed while working and not yet scheduled. Eighteen sit here: six
 from 4.1.0-alpha, four from the Animation Mode work, two the 4.1.2-alpha source
-review turned up, and one the popup pass found. Three of those were
+review turned up, one the popup pass found, four from surveying the transform
+and export code for the 4.3.0-alpha feature plan, and one from building its
+Stroke Profiles. Three of those were
 found only by driving the running app rather than by reading it - an ARIA
 attribute reads correctly in the source and is wrong only once something reads
 it back, a click that moves what it selects reads as an ordinary drag handler,
@@ -47,11 +55,65 @@ and a panel positioned against the wrong box reads the same either way - and
 the four in the middle came out of generating frames, where the failures show
 up in the artifacts rather than in the code.
 
-Eight are open. The five that have been resolved are stamped rather than
+Eleven are open. The seven that have been resolved are stamped rather than
 deleted, so the record of what was found stays with the record of what fixed
 it; the 4.1.2-alpha source review, including the reasoning behind the calls it
 made, is in `reviews/source-code-09-01-2026.log`.
 
+- [x] **RESOLVED (4.3.0-alpha)** - **Undo and redo strip the holes out of compound shapes**:
+  `Store.cloneStrokes`, which every history snapshot goes through, copies a
+  vector anchor as `{p, hIn, hOut}` and leaves out `move`, the flag that starts
+  a new subpath. The sampled `points` keep theirs, so the canvas still looks
+  right, but the SVG export writes a stroke from its anchors. A square with a
+  square hole exports as `M0 0H20V20H0V0ZM5 5H15V15H5V5Z`; after one move and
+  one undo it exports as `M0 0H20V20H0L5 5H15V15H5L0 0Z`, with the hole
+  stitched into the outline. A snapshot copies the whole page, so one undo does
+  this to every compound shape on it: a letter with a counter, a ring, an
+  outlined stroke. `transformImportedLayers`, which places a grid of imports,
+  rebuilds anchors the same way, so those arrive already stripped. Both need
+  the one line `cloneAnchors` already carries. Mirror Selection and Mesh Warp
+  both push history on exactly these shapes, so the feature plan fixes this
+  first. (Found by running the store and the exporter in Node on a compound
+  shape while surveying the transform code for that plan.) Both copies keep
+  `move` now, the snapshot holds its own copy of a gradient too, and
+  `test/mirror.test.ts` runs the ring above through move, undo and redo.
+- [x] **RESOLVED (4.3.0-alpha)** - **The polyline export ignores subpath breaks**: `pathD` writes a stroke
+  with no Bézier anchors as one polyline, a `moveTo` for the first point and a
+  `lineTo` for every other, so a stroke whose points carry `move` but that has
+  no `vector` exports with its contours joined. The RDP simplification it runs
+  first spans the break as well. `setStrokeGeometry` drops `vector` whenever a
+  caller passes none, which is how a compound stroke would get there. The PDF
+  writer already starts a new subpath at `move`. (Found reading `pathD` in the
+  same survey; not yet reproduced through a user action.) Each run between
+  breaks is now its own subpath, simplified on its own.
+- [ ] **The Vector Path button's place in the toolbar is not remembered**:
+  `DEFAULT_TOOL_ORDER` lists every reorderable tool except `tool-vector`, and
+  `normalizeToolOrder` keeps only ids from that list, so wherever the Vector
+  Path button is dragged in rearrange mode, the saved order never records it.
+  (Found reading the settings code in the same survey; not run.)
+- [ ] **Outlines draw at 70% of their width on canvas and export at 100%**:
+  `paintStroke` draws every pen-tool mark segment by segment at
+  `width * (0.4 + 0.6 * pressure)`. That is right for a stylus, but shapes,
+  Vector Path and Curve commits, and every imported outline carry pressure 0.5,
+  so all of them draw at 0.7 of their width. The SVG and PDF writers use the
+  full width, so an imported `stroke-width="10"` shows as 7 and goes back out
+  as 10. A single-point dot has the same mismatch: the canvas scales its
+  radius, while the export writes `r = width / 2`. Whether pressure should
+  apply to marks that never had any is a design call rather than a one-line
+  fix, and it decides what Stroke Profiles' Default has to match. (Found
+  reading the painter in the same survey; the arithmetic is unambiguous, not
+  measured on screen.) Stroke Profiles, built since, keep the pressure scale
+  and export the outline the canvas draws, so a profiled stroke is the same
+  width in both; only a Default outline still exports wider than it draws.
+- [ ] **The PDF writer paints a switched-off outline, and prints dashes solid**:
+  `sketchesToPdf` strokes every mark's path whatever its `noStroke` says, so a
+  fill-only shape gains the outline the canvas and the SVG leave off. It never
+  reads `strokeStyle` either, so a dashed or dotted outline prints as a solid
+  line. The SVG writer handles both, with `stroke="none"` and
+  `stroke-dasharray`. Profiled strokes are the exception: their branch skips a
+  switched-off outline and fills dashes already cut from the profile. (Found
+  adding that branch while building Stroke Profiles; read in the source, not
+  run.)
 - [ ] **`aria-selected` marks only the active layer row**: the layers panel is a
   `role="listbox"` with multi-select, but `renderLayers` sets
   `aria-selected` from `layer.id === active.id` and marks the rest with an
@@ -565,21 +627,32 @@ than any single feature below and would be worth it exactly once.
 - [ ] **Perspective**: distort's constrained sibling — drag a corner and the
   one beside it mirrors, giving a trapezoid. Falls out of distort almost for
   free once the homography exists, so it should not be built first.
-- [ ] **Puppet / character warp**: pins on the drawing, and the geometry between
+- [x] **DONE (4.3.0-alpha)** - **Puppet / character warp**: pins on the drawing, and the geometry between
   them deforms. The largest by a distance, and the only one that is not a map
   from the whole box: it needs a mesh (or a weighting from each point to each
   pin), a solver, and — unlike the three above — a reason to keep the pins
   around after the gesture, which is what forces the transform-stack question.
   For Animation Mode this is the interesting one: it is how a frame could be
   posed without a rig at all, which is exactly the case **Disable API** exists
-  to work around.
-- [ ] **Flip**: the gap in what Transform already does. Dragging a handle
+  to work around. Built as **Mesh Warp** (Minor, *The 4.3.0-alpha features*),
+  which answers the transform-stack question the way Illustrator's Puppet Warp
+  does: pins live for the session, and the warp bakes into the anchors on
+  commit. Keeping pins for Animation Mode stays a follow-on. Mesh Warp is in.
+  Two parts of Puppet Warp are left for later: turning the art about a pin by
+  dragging the dashed ring round it, which needs a pin to hold an angle as well
+  as a place; and keeping pins on a mark after the warp is put down.
+- [x] **PARTLY DONE (4.3.0-alpha)** - **Flip**: the gap in what Transform already does. Dragging a handle
   through its anchor currently stops at 1% rather than mirroring, because
   `scaleStrokes` takes a text item's font size and an image's width as
   magnitudes and `Math.max(1, …)` turns a negative factor into a 1px item. A
   negative factor maps geometry correctly today; making it correct for the
   other two is a contained fix, and it is the smallest useful thing on this
-  list.
+  list. **Mirror Selection** now flips from a palette, and its
+  `mirrorStroke` answers the text and image questions once: text stays
+  readable while its box moves, and an image's pixels are flipped. What is
+  left is the handle itself - letting a drag cross its anchor and send the
+  negative factor through `mirrorStroke` - which waits on whether it is wanted
+  (open question 6 in the plan).
 
 ## Chores
 
@@ -603,9 +676,13 @@ carries.
   why they went stale unnoticed - either regenerate them from the real importer
   (needs a DOM, like `npm run import-tree`) and assert against them, or drop
   them.
-- [ ] **Promote the GUI harness out of `.tmp/`**: the DevTools-protocol scripts
-  that verified 4.1.0-alpha live in a gitignored folder and will be lost. They
-  are the working half of the **Scripted GUI checks** item under Current.
+- [x] **DONE (4.3.0-alpha)** - **Promote the GUI harness out of `.tmp/`**: the
+  DevTools-protocol scripts that verified 4.1.0-alpha lived in a gitignored
+  folder and would be lost. They were, before this was done: `.tmp/` no longer
+  holds them. The driver was rewritten instead, and is checked in as
+  `test/gui/cdp.mjs` behind `npm run gui-check`. The menu checks it once ran
+  are still owed; that half lives with the **Scripted GUI checks** item under
+  Current.
 - [ ] **4.1.0-alpha carries features, not just fixes**: copy and paste, the
   Selection export, the pages menu, and the Shift drag constraint all landed
   under a patch version because the version was pinned for the batch. Decide
@@ -702,12 +779,43 @@ press a letter, type a value within the quick-feature timer, and it applies.
 
 ## Minor (backward-compatible features → next `x.++.z`)
 
-Backward-compatible features: twelve entries, of which the two largest - the
-animation preset cycles and the `vector-graphics` skill follow-ons - carry
-fifteen sub-items between them. Most of the animation entries need a skeleton
-drawn into `character-wireframes.svg` before any code is written; the two object
-types that come apart are drawn in `object-animations.svg` instead.
+Backward-compatible features: thirteen entries, of which the three largest - the
+three features 4.3.0-alpha shipped, the animation preset cycles and the
+`vector-graphics` skill follow-ons - carry eighteen sub-items between them.
+Most of the animation entries need a skeleton drawn into
+`character-wireframes.svg` before any code is written; the two object types that
+come apart are drawn in `object-animations.svg` instead.
 
+- [x] **DONE (4.3.0-alpha)** - **The 4.3.0-alpha features**: three features specified by the mockups in
+  `.support/features/`, with the plan for building them in
+  `.claude/prompts/features-4.2.3-alpha.md`. They were planned during the
+  4.2.3-alpha patch, and being backward-compatible features they made it a
+  minor release: 4.3.0-alpha carries them and the patch's fixes together. The compound-shape undo fix under **Found Issues**, which all three
+  needed first because each pushes history on exactly the shapes it broke, is
+  in.
+  - [x] **DONE (4.3.0-alpha)** - **Mirror Selection**: a **Mirror** button after
+    **Clear** (and `O`, and **Edit > Mirror…**) opens a palette to reflect the
+    selection horizontally, vertically or both, in place or as a copy that
+    lands beside the original, with Live preview and Show Selection Borders.
+    Its preview and commit are one store transaction, which Mesh Warp is
+    planned to reuse. This answers the **Flip** item under *The rest of
+    Transform* from a palette; a Transform handle still does not flip.
+  - [x] **DONE (4.3.0-alpha)** - **Stroke Profiles**: how a stroke's width runs
+    along its length - Default, Rounded, Tapered, Wave - picked from a **Stroke
+    Profile** control above the Width slider and applied to new strokes and to
+    the selection, or to one element from the Properties panel. A profiled
+    stroke draws and exports as a filled outline, and its editable centreline
+    rides along in data attributes so it imports back as a stroke. Left for
+    later: fitting the exported outline with cubic Béziers (Schneider's
+    algorithm) instead of a simplified polyline, which would make the file
+    smaller and the outline easier to edit in another editor. The polyline is
+    what napkin already exports for a freehand stroke.
+  - [x] **DONE (4.3.0-alpha)** - **Mesh Warp**: a rail tool that meshes the art
+    under the pointer and bends it by pins - click to pin, drag to bend, Delete
+    to unpin - with the result baked back into Bézier anchors. This is the
+    **Puppet / character warp** item under *The rest of Transform*. The dashed
+    ring round a selected pin is drawn, but dragging it to turn the art about
+    the pin is left for later.
 - [ ] **Animation preset cycles**: walk, run, idle, and knocked down are driven
   by cycles measured from skeletons in `character-wireframes.svg`. The
   rest are offered but posed from a prompt template; each needs a skeleton

@@ -4,10 +4,10 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.3.0-alpha] - 2026-09-23
+## [1.0.0-alpha.4.3.0] - 2026-09-23
 
 Three features - Mirror Selection, Stroke Profiles and Mesh Warp - make this a
-minor release. It also carries the fixes that were to have been the 4.2.3-alpha
+minor release. It also carries the fixes that were to have been the 1.0.0-alpha.4.2.3
 patch, which never shipped on its own.
 
 ### Added
@@ -114,14 +114,14 @@ patch, which never shipped on its own.
   two defects fixed in this release could only be seen in the running app, one
   because the importer needs a DOM and the other because the color picker is a
   native popup. `test/gui/` now holds the DevTools-protocol driver that the
-  4.1.0-alpha menu work proved out (`cdp.mjs`), a runner that launches the built
-  app once per `check-*.mjs` (`run.mjs`), and seven checks: gradient import, the
-  color picker and the Width slider reaching a selection, Mirror, Stroke
-  Profiles drawn and imported, and Mesh Warp. The checks assert on what the
-  page shows (canvas pixels, the toast, the layer rows) rather than on the code
-  that produced it, and the first two were each run against the unfixed build
-  and failed there. They drive `dist/`, so build first.
-  `npm run gui-check -- gradient` narrows a run to the checks whose names match.
+  1.0.0-alpha.4.1.0 menu work proved out (`cdp.mjs`), a runner that launches
+  the built app once per `check-*.mjs` (`run.mjs`), and seven checks: gradient
+  import, the color picker and the Width slider reaching a selection, Mirror,
+  Stroke Profiles drawn and imported, and Mesh Warp. The checks assert on what
+  the page shows (canvas pixels, the toast, the layer rows) rather than on the
+  code that produced it, and the first two were each run against the unfixed
+  build and failed there. They drive `dist/`, so build first.
+  `npm run gui-check -- gradient` narrows a run to checks whose names match.
 
 ### Fixed
 
@@ -214,7 +214,7 @@ patch, which never shipped on its own.
   contours joined, and its simplification ran straight across the break. Each
   run between breaks is now its own subpath, simplified on its own.
 
-## [4.2.2-alpha] - 2026-09-13
+## [1.0.0-alpha.4.2.2] - 2026-09-13
 
 ### Added
 
@@ -226,8 +226,8 @@ patch, which never shipped on its own.
   of them - the skirt, the shirt, the glove and the two jacket halves - match
   nothing at all, so the measuring can never write them an angle and they come
   out of every frame frozen. Four layers moved and seven held still: the
-  cardboard cut-out the skill has warned about since 4.1.4-alpha, arriving by
-  way of the app rather than by way of the helper.
+  cardboard cut-out the skill has warned about since 1.0.0-alpha.4.1.4,
+  arriving by way of the app rather than by way of the helper.
   - A **Posing** radio pair in the animation setup dialog: **Measure the
     joints**, which is the default and unchanged, or **Disable API**.
   - Disabled, the form carries no angles, says the silence was chosen rather
@@ -474,7 +474,7 @@ patch, which never shipped on its own.
   instruction to pose every layer, not a gap to improvise into; the skill's
   movement budgets are the yardstick precisely because nothing else is.
 
-## [4.2.1-alpha] - 2026-09-12
+## [1.0.0-alpha.4.2.1] - 2026-09-12
 
 ### Added
 
@@ -784,7 +784,7 @@ patch, which never shipped on its own.
   location.** Moving the file without rewriting them breaks every asset it
   names, silently, for the same fallback reason as above.
 
-## [4.2.0-alpha] - 2026-09-12
+## [1.0.0-alpha.4.2.0] - 2026-09-12
 
 ### Added
 
@@ -1151,7 +1151,7 @@ patch, which never shipped on its own.
   `npm install`'s postinstall, but the test that keeps the helper container
   tidy allowed only a README beside the helper folders.
 
-## [4.1.2-alpha] - 2026-09-01
+## [1.0.0-alpha.4.1.2] - 2026-09-01
 
 ### Added
 
@@ -1459,7 +1459,7 @@ patch, which never shipped on its own.
   in the order the pipeline runs rather than by size. It is scoped as a minor
   because every entry in it is additive - no existing export, signature, or
   file format moves - and it is a plan rather than an implementation, which
-  is why this release stays at 4.1.2-alpha.
+  is why this release stays at 1.0.0-alpha.4.1.2.
 - **And a section for the tool that writes those instructions.** Recording a
   drawing session, replaying it through the app's own API, generating the
   Animation Mode helper script from the layers a user assembled, and
@@ -1472,7 +1472,7 @@ patch, which never shipped on its own.
   fifty methods called from the whole of the renderer. The undo stack is not
   that path, and the section refuses the shortcut up front: it holds page
   snapshots, not the actions between them. A plan rather than an
-  implementation, so this release stays at 4.1.2-alpha as well.
+  implementation, so this release stays at 1.0.0-alpha.4.1.2 as well.
 - **And a section for Animation Mode itself, led by a typed prompt.** The
   wizard offers a fixed list of movements, so a user who wants something not
   on the list has no way to ask. `TODO.md` now carries **Animation Mode**,
@@ -1488,7 +1488,7 @@ patch, which never shipped on its own.
   prompt worth keeping, a frame worth fixing rather than redrawing, a step
   worth trying twice, and a sequence worth managing as a sequence. Additive
   against the mode as it stands, so `x.++.z` - and a plan again, so the
-  release is still 4.1.2-alpha.
+  release is still 1.0.0-alpha.4.1.2.
 
 ### Fixed
 
@@ -1694,7 +1694,7 @@ patch, which never shipped on its own.
   that were measured); the wording is now right too, and the generated tables
   give both counts.
 
-## [4.1.1-alpha] - 2026-09-01
+## [1.0.0-alpha.4.1.1] - 2026-09-01
 
 ### Added
 
@@ -1834,7 +1834,7 @@ patch, which never shipped on its own.
     a dot-folder that already holds `svg-animations` does not end up carrying
     two copies of the same skill under two names. Uninstall sweeps them too.
 
-## [4.1.0-alpha] - 2026-08-30
+## [1.0.0-alpha.4.1.0] - 2026-08-30
 
 ### Added
 
@@ -2063,7 +2063,7 @@ patch, which never shipped on its own.
   skips the background, the paper texture, and the sized-page outline, which
   is what lets a cropped raster export of a selection land on transparency.
 
-## [4.0.0-alpha] - 2026-08-28
+## [1.0.0-alpha.4.0.0] - 2026-08-28
 
 ### Added
 
@@ -2356,7 +2356,7 @@ patch, which never shipped on its own.
   points**; previously only the sampled points moved, so a vector stroke's
   export would have drawn the curve where it was before placement.
 
-## [3.3.0-alpha] - 2026-08-22
+## [1.0.0-alpha.3.3.0] - 2026-08-22
 
 ### Fixed
 
@@ -2461,7 +2461,7 @@ patch, which never shipped on its own.
   its input instead of starting a second edit over the top of the first.
 - A layer row's tooltip reads `(double-click or F2 to rename)`.
 
-## [3.2.2-alpha] - 2026-08-17
+## [1.0.0-alpha.3.2.2] - 2026-08-17
 
 ### Fixed
 
@@ -2497,7 +2497,7 @@ patch, which never shipped on its own.
   page-turn class and the symmetry fade when the OS asks for reduced
   motion.
 
-## [3.2.1-alpha] - 2026-08-17
+## [1.0.0-alpha.3.2.1] - 2026-08-17
 
 ### Fixed
 
@@ -2526,7 +2526,7 @@ patch, which never shipped on its own.
   structure was kept only in `.skbk` files and a re-imported stroke fell
   back to a plain freehand polyline.
 
-## [3.2.0-alpha] - 2026-08-16
+## [1.0.0-alpha.3.2.0] - 2026-08-16
 
 ### Added
 
@@ -2627,7 +2627,7 @@ patch, which never shipped on its own.
   layers grouped under the file's name, PDF pages arrive one layer per
   page). Quoted names with spaces and spaces after commas both parse.
 
-## [3.1.0-alpha] - 2026-08-08
+## [1.0.0-alpha.3.1.0] - 2026-08-08
 
 ### Added
 
@@ -2753,7 +2753,7 @@ patch, which never shipped on its own.
 
 The Curve tool (`V`) is unchanged: drag a chord, bend, click to place.
 
-## [3.0.1-alpha] - 2026-07-30
+## [1.0.0-alpha.3.0.1] - 2026-07-30
 
 ### Fixed
 
@@ -2789,7 +2789,7 @@ The Curve tool (`V`) is unchanged: drag a chord, bend, click to place.
   default, `'merge'`, keeps unnamed marks as strokes on their group's layer so
   stroke-heavy artwork does not explode into hundreds of rows.
 
-## [3.0.0-alpha] - 2026-07-12
+## [1.0.0-alpha.3.0.0] - 2026-07-12
 
 ### Added
 
@@ -2923,7 +2923,7 @@ The Curve tool (`V`) is unchanged: drag a chord, bend, click to place.
   group as its own layer instead of one flattened layer; the wrapper's
   opacity carries into the imported layers.
 
-## [2.1.0-alpha] - 2026-07-12
+## [1.0.0-alpha.2.1.0] - 2026-07-12
 
 ### Added
 
@@ -2949,7 +2949,7 @@ The Curve tool (`V`) is unchanged: drag a chord, bend, click to place.
 - Rotational symmetry (mandala mode) rotates the Copic nib angle with each
   mirrored copy so every arm shows the same thick/thin behaviour.
 
-## [2.0.0-alpha] - 2026-07-10
+## [1.0.0-alpha.2.0.0] - 2026-07-10
 
 ### Added
 
@@ -2988,7 +2988,7 @@ The Curve tool (`V`) is unchanged: drag a chord, bend, click to place.
   field, and `Tool` gained the `'image'` variant used by placed raster
   imports. Code constructing sketches via `createSketch()` is unaffected.
 
-## [1.0.0-alpha] - 2026-06-28
+## [1.0.0-alpha.1.0.0] - 2026-06-28
 
 ### Added
 
@@ -3015,7 +3015,7 @@ The Curve tool (`V`) is unchanged: drag a chord, bend, click to place.
 - Per-stroke opacity in the data model, honored by the canvas, thumbnails, and
   SVG export.
 
-## [0.0.0-alpha] - 2026-06-06
+## [1.0.0-alpha.0.0.0] - 2026-06-06
 
 ### Added
 

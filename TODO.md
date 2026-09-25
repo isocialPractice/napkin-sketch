@@ -23,8 +23,8 @@ back without losing where it started.
 - [ ] **More tests**: cover the renderer store (undo/redo, pages, selection) and the
   embeddable `NapkinSketch` editor via a DOM test environment.
   - From: Patch
-- [x] **PARTLY DONE (4.3.0-alpha)** - **Scripted GUI checks**: the menu bugs in
-  4.1.0-alpha were only findable by driving the running app - synthetic OS
+- [x] **PARTLY DONE (1.0.0-alpha.4.3.0)** - **Scripted GUI checks**: the menu bugs in
+  1.0.0-alpha.4.1.0 were only findable by driving the running app - synthetic OS
   cursor moves were too coarse to tell "the panel closed" from "the pointer
   missed it". Launching Electron with `--remote-debugging-port` and
   dispatching real pointer events over the DevTools protocol worked well and
@@ -44,9 +44,9 @@ back without losing where it started.
 ## Found Issues
 
 Defects noticed while working and not yet scheduled. Eighteen sit here: six
-from 4.1.0-alpha, four from the Animation Mode work, two the 4.1.2-alpha source
+from 1.0.0-alpha.4.1.0, four from the Animation Mode work, two the 1.0.0-alpha.4.1.2 source
 review turned up, one the popup pass found, four from surveying the transform
-and export code for the 4.3.0-alpha feature plan, and one from building its
+and export code for the 1.0.0-alpha.4.3.0 feature plan, and one from building its
 Stroke Profiles. Three of those were
 found only by driving the running app rather than by reading it - an ARIA
 attribute reads correctly in the source and is wrong only once something reads
@@ -57,10 +57,10 @@ up in the artifacts rather than in the code.
 
 Eleven are open. The seven that have been resolved are stamped rather than
 deleted, so the record of what was found stays with the record of what fixed
-it; the 4.1.2-alpha source review, including the reasoning behind the calls it
+it; the 1.0.0-alpha.4.1.2 source review, including the reasoning behind the calls it
 made, is in `reviews/source-code-09-01-2026.log`.
 
-- [x] **RESOLVED (4.3.0-alpha)** - **Undo and redo strip the holes out of compound shapes**:
+- [x] **RESOLVED (1.0.0-alpha.4.3.0)** - **Undo and redo strip the holes out of compound shapes**:
   `Store.cloneStrokes`, which every history snapshot goes through, copies a
   vector anchor as `{p, hIn, hOut}` and leaves out `move`, the flag that starts
   a new subpath. The sampled `points` keep theirs, so the canvas still looks
@@ -77,7 +77,7 @@ made, is in `reviews/source-code-09-01-2026.log`.
   shape while surveying the transform code for that plan.) Both copies keep
   `move` now, the snapshot holds its own copy of a gradient too, and
   `test/mirror.test.ts` runs the ring above through move, undo and redo.
-- [x] **RESOLVED (4.3.0-alpha)** - **The polyline export ignores subpath breaks**: `pathD` writes a stroke
+- [x] **RESOLVED (1.0.0-alpha.4.3.0)** - **The polyline export ignores subpath breaks**: `pathD` writes a stroke
   with no Bézier anchors as one polyline, a `moveTo` for the first point and a
   `lineTo` for every other, so a stroke whose points carry `move` but that has
   no `vector` exports with its contours joined. The RDP simplification it runs
@@ -120,7 +120,7 @@ made, is in `reviews/source-code-09-01-2026.log`.
   `is-selected` class instead. A screen reader is told one row is selected when
   several are. (Found by a test probe reading the attribute and seeing one row
   where the panel showed two.)
-- [x] **RESOLVED (4.1.2-alpha)** - **A select-tool click leaves a no-op undo
+- [x] **RESOLVED (1.0.0-alpha.4.1.2)** - **A select-tool click leaves a no-op undo
   step**: `onPointerDown` called `store.pushHistory()` as soon as a stroke was
   hit, before any movement, so clicking an element to select it cost an undo
   press later. Driving the app showed the same premature commitment doing
@@ -132,7 +132,7 @@ made, is in `reviews/source-code-09-01-2026.log`.
   which is where the history step, the Alt-drag copy and the first move all
   wait. Below the threshold the gesture is a click and the drawing is left
   exactly as found.
-- [x] **RESOLVED (4.1.2-alpha source review)** - **The CLI inherits
+- [x] **RESOLVED (1.0.0-alpha.4.1.2 source review)** - **The CLI inherits
   `ELECTRON_RUN_AS_NODE`**: `launchGui` spawns Electron with
   `env: { ...process.env, ... }`, so a shell that has the variable set (some
   editor and agent terminals do) makes `napkin-sketch` fail at startup with
@@ -141,7 +141,7 @@ made, is in `reviews/source-code-09-01-2026.log`.
   nothing. The key is now deleted from the child's environment; the GUI is
   never meant to run as Node, so there is no case where inheriting it is
   wanted.
-- [x] **RESOLVED (4.1.2-alpha)** - **A placed popup was positioned against
+- [x] **RESOLVED (1.0.0-alpha.4.1.2)** - **A placed popup was positioned against
   its overlay, not the viewport**: `.dialog-floating.is-placed
   .export-dialog-inner` was `position: absolute`, so the coordinates the popup
   manager drags, parks and clamps in were only true for the palettes whose
@@ -187,7 +187,7 @@ made, is in `reviews/source-code-09-01-2026.log`.
   auth-failure detection behind it has never been exercised against a genuinely
   signed-out tool either - the patterns are unit-tested against the wording
   those CLIs use, not against a live refusal.
-- [x] **RESOLVED (4.1.2-alpha source review)** - **`defaultSequenceFrames`
+- [x] **RESOLVED (1.0.0-alpha.4.1.2 source review)** - **`defaultSequenceFrames`
   counts steps, not skeletons**: the doc said "the number of skeletons its
   cycle was measured from" while the function returned the step count, and the
   generated table put a 6-entry array under a "7 frames" heading. Working it
@@ -197,7 +197,7 @@ made, is in `reviews/source-code-09-01-2026.log`.
   source is the 7 poses that were measured. The doc now says step count and
   works both cases through, and the generator emits both counts so the array
   length and the heading stop looking like a contradiction.
-- [x] **RESOLVED (4.1.2-alpha source review)** - **`animationLogFile` accepts
+- [x] **RESOLVED (1.0.0-alpha.4.1.2 source review)** - **`animationLogFile` accepts
   an absolute or traversing path**: the setting was normalized with a trim and
   nothing else, then joined onto the work dir - so an absolute path replaced
   the work dir outright and `../../` climbed out of it, with `logAnimation`
@@ -214,7 +214,7 @@ made, is in `reviews/source-code-09-01-2026.log`.
 Code that works but should not stay as it is: duplication left behind by
 features that outgrew their first implementation, two export attributes paid
 for on every mark, three seams the Animation Mode work left showing, and two
-left behind by the 4.1.2-alpha source review - one sub-decision that wants
+left behind by the 1.0.0-alpha.4.1.2 source review - one sub-decision that wants
 measuring before it is made, one tidy-up that belongs with the split - and one
 check the app could run for itself instead of asking the helper to.
 `renderer.ts` is 9,578 lines, which is the single biggest reason changes in the
@@ -230,7 +230,7 @@ which is the shape the rest should follow.
     replaced are gone from `renderer.ts`. It is worth reading as the pattern -
     the module reads the `is-hidden` class the app already toggles rather than
     demanding new calls, which is why nine call sites needed no edit.
-- [ ] **A decoded image outlives the mark that placed it** *(4.1.2-alpha source
+- [ ] **A decoded image outlives the mark that placed it** *(1.0.0-alpha.4.1.2 source
   review, residual - needs measuring)*: `Surface.imageCache` is now emptied
   whenever the whole document is replaced, and by the throwaway surface Export
   All builds per page, which is what stopped it growing without bound. Within
@@ -242,7 +242,7 @@ which is the shape the rest should follow.
   more images than the bound, which is worse than the leak; a sweep against the
   images the book still references is exact but costs a pass over every page.
   Measure typical placed-image sizes and counts first.
-- [ ] **The direct `renderLayers()` calls are now redundant** *(4.1.2-alpha
+- [ ] **The direct `renderLayers()` calls are now redundant** *(1.0.0-alpha.4.1.2
   source review)*: sixteen call sites rebuild the panel by hand right after a
   store mutation, and the mutation's own coalesced `syncUi` rebuilds it again
   on the next frame. They are one-off user actions (paste, import, delete), not
@@ -326,7 +326,7 @@ which is the shape the rest should follow.
   helper would most want to render against is the one it cannot. Either teach
   the tokenizer the primitives or make it say when it understood nothing.
 - [ ] **The movement budgets are checked by the helper, not by the app**:
-  4.2.0-alpha gave the frame subagent `npm run frame-preview`, so it renders what
+  1.0.0-alpha.4.2.0 gave the frame subagent `npm run frame-preview`, so it renders what
   it drew, looks at it, and sees the travel figures before saving. That closes
   the loop only as far as the helper follows its instructions - nothing in the
   app enforces it, and a run that skips the step still saves whatever it made.
@@ -339,7 +339,7 @@ which is the shape the rest should follow.
 ## Documentation Update Ideas
 
 The README is 1,167 lines and documents each editing gesture where it was
-added rather than beside the others. 4.1.0-alpha alone introduced five
+added rather than beside the others. 1.0.0-alpha.4.1.0 alone introduced five
 clipboard shortcuts and a drag modifier, and the file now mentions `Ctrl`
 thirty times without ever listing them in one place. The last two entries are
 a different problem: Animation Mode is documented in three files that have to
@@ -356,7 +356,7 @@ agree, and one of them is read by the AI helper rather than by a person.
   thing on a press and another during a drag, which is worth saying once,
   plainly, in a place a reader will look.
 - [ ] **Document the version policy in CONTRIBUTING or the CHANGELOG header**:
-  the 4.1.0-alpha entry is 241 lines and holds features as well as fixes, and
+  the 1.0.0-alpha.4.1.0 entry is 241 lines and holds features as well as fixes, and
   nothing in the repo says when a batch should take a minor bump instead. See
   the matching chore below.
 - [ ] **The animation type table is written in three places**: the source list
@@ -375,8 +375,8 @@ agree, and one of them is read by the AI helper rather than by a person.
 ## Ideas
 
 Exploratory - worth trying, not yet worth scheduling. These came out of the
-work rather than from a plan: the first five from the 4.1.2-alpha popup dock,
-then four from 4.1.0-alpha, each small enough to prototype in an afternoon, and
+work rather than from a plan: the first five from the 1.0.0-alpha.4.1.2 popup dock,
+then four from 1.0.0-alpha.4.1.0, each small enough to prototype in an afternoon, and
 the last three from Animation Mode. Those three are larger, and the first of
 them would change what the mode needs to run at all.
 
@@ -447,7 +447,7 @@ isolation would probably mean touching the same twenty lines twice.
   to all of them, would trade a little empty space per frame for frames that
   can be stacked and played without shifting.
 
-## Brand resources (4.2.1-alpha)
+## Brand resources (1.0.0-alpha.4.2.1)
 
 What the brand pass left open. The mechanism works end to end - a generated
 skill reads `references/resources.md`, inlines a vector logo so both renderers
@@ -503,7 +503,7 @@ configured - and these are the edges it does not reach.
   structure. Deriving the layout from the measured element census, rather than
   from a template picked by hand, is the open half of this.
 
-## The animation note (4.2.1-alpha)
+## The animation note (1.0.0-alpha.4.2.1)
 
 Animation Mode now asks what the sequence is for, hands the answer to the
 helper with every frame, and ranks it above the type dropdown. What it does not
@@ -535,7 +535,7 @@ yet do:
   enough not to crowd the form, and nothing has measured where the real
   trade-off sits.
 
-## Frame grading (4.2.1-alpha)
+## Frame grading (1.0.0-alpha.4.2.1)
 
 The grade-and-revise loop closes: a frame is rendered, measured, graded, and the
 verdict says revise, save or pass. What it still cannot see:
@@ -562,7 +562,7 @@ verdict says revise, save or pass. What it still cannot see:
   still wrong, and nothing writes that down beside the frame. A sidecar note per
   saved-with-defects frame would let a later pass find them without re-grading.
 
-## Asset previews (4.2.1-alpha)
+## Asset previews (1.0.0-alpha.4.2.1)
 
 Every reference asset now ships as a `.svg` and a `.png`, and Animation Mode
 looks at the picture before it poses. What that left open:
@@ -590,7 +590,7 @@ looks at the picture before it poses. What that left open:
   alone. That is believable and unmeasured, and the honest version is a handful
   of frames generated both ways and compared by eye.
 
-## The rest of Transform (4.2.2-alpha)
+## The rest of Transform (1.0.0-alpha.4.2.2)
 
 `Ctrl+T` scales: one box, eight handles, `Shift` for uniform and `Alt` from the
 centre. Scale is the transform that needs nothing the model does not already
@@ -627,21 +627,21 @@ than any single feature below and would be worth it exactly once.
 - [ ] **Perspective**: distort's constrained sibling — drag a corner and the
   one beside it mirrors, giving a trapezoid. Falls out of distort almost for
   free once the homography exists, so it should not be built first.
-- [x] **DONE (4.3.0-alpha)** - **Puppet / character warp**: pins on the drawing, and the geometry between
+- [x] **DONE (1.0.0-alpha.4.3.0)** - **Puppet / character warp**: pins on the drawing, and the geometry between
   them deforms. The largest by a distance, and the only one that is not a map
   from the whole box: it needs a mesh (or a weighting from each point to each
   pin), a solver, and — unlike the three above — a reason to keep the pins
   around after the gesture, which is what forces the transform-stack question.
   For Animation Mode this is the interesting one: it is how a frame could be
   posed without a rig at all, which is exactly the case **Disable API** exists
-  to work around. Built as **Mesh Warp** (Minor, *The 4.3.0-alpha features*),
+  to work around. Built as **Mesh Warp** (Minor, *The 1.0.0-alpha.4.3.0 features*),
   which answers the transform-stack question the way Illustrator's Puppet Warp
   does: pins live for the session, and the warp bakes into the anchors on
   commit. Keeping pins for Animation Mode stays a follow-on. Mesh Warp is in.
   Two parts of Puppet Warp are left for later: turning the art about a pin by
   dragging the dashed ring round it, which needs a pin to hold an angle as well
   as a place; and keeping pins on a mark after the warp is put down.
-- [x] **PARTLY DONE (4.3.0-alpha)** - **Flip**: the gap in what Transform already does. Dragging a handle
+- [x] **PARTLY DONE (1.0.0-alpha.4.3.0)** - **Flip**: the gap in what Transform already does. Dragging a handle
   through its anchor currently stops at 1% rather than mirroring, because
   `scaleStrokes` takes a text item's font size and an image's width as
   magnitudes and `Math.max(1, …)` turns a negative factor into a 1px item. A
@@ -661,7 +661,7 @@ stray files from a mis-driven save dialog and from animation runs that failed,
 a log nobody trims, and one version number that no longer matches what it
 carries.
 
-- [ ] **Delete `store.moveLayer`**: `moveLayers` replaced it in 4.1.0-alpha and
+- [ ] **Delete `store.moveLayer`**: `moveLayers` replaced it in 1.0.0-alpha.4.1.0 and
   nothing calls the single-layer version any more. It also carries the old
   behaviour worth not resurrecting - it swapped with whatever sat next in the
   flat stack, which could carry a layer across a group boundary without
@@ -676,17 +676,17 @@ carries.
   why they went stale unnoticed - either regenerate them from the real importer
   (needs a DOM, like `npm run import-tree`) and assert against them, or drop
   them.
-- [x] **DONE (4.3.0-alpha)** - **Promote the GUI harness out of `.tmp/`**: the
-  DevTools-protocol scripts that verified 4.1.0-alpha lived in a gitignored
+- [x] **DONE (1.0.0-alpha.4.3.0)** - **Promote the GUI harness out of `.tmp/`**: the
+  DevTools-protocol scripts that verified 1.0.0-alpha.4.1.0 lived in a gitignored
   folder and would be lost. They were, before this was done: `.tmp/` no longer
   holds them. The driver was rewritten instead, and is checked in as
   `test/gui/cdp.mjs` behind `npm run gui-check`. The menu checks it once ran
   are still owed; that half lives with the **Scripted GUI checks** item under
   Current.
-- [ ] **4.1.0-alpha carries features, not just fixes**: copy and paste, the
+- [ ] **1.0.0-alpha.4.1.0 carries features, not just fixes**: copy and paste, the
   Selection export, the pages menu, and the Shift drag constraint all landed
   under a patch version because the version was pinned for the batch. Decide
-  whether to re-tag it as 4.1.0-alpha before release, and write the rule down
+  whether to re-tag it as 1.0.0-alpha.4.1.0 before release, and write the rule down
   (see the documentation item above).
 - [ ] **Delete the stale root `animation-helper.log`**: 519 bytes written on
   2026-08-23 by the first Animation Mode default, which logged to the working
@@ -736,7 +736,7 @@ without a technical shape yet.
 ## Quick Features (ideas → next `x.++.z`)
 
 Small additive features that need no new contract - twelve of them. The first
-seven are follow-ons from the 4.1.0-alpha drag, clipboard, and export work; the
+seven are follow-ons from the 1.0.0-alpha.4.1.0 drag, clipboard, and export work; the
 rest are quick-feature shortcuts.
 
 - [ ] **Show the constrained axis while Shift is held**: a faint guide line
@@ -780,27 +780,27 @@ press a letter, type a value within the quick-feature timer, and it applies.
 ## Minor (backward-compatible features → next `x.++.z`)
 
 Backward-compatible features: thirteen entries, of which the three largest - the
-three features 4.3.0-alpha shipped, the animation preset cycles and the
+three features 1.0.0-alpha.4.3.0 shipped, the animation preset cycles and the
 `vector-graphics` skill follow-ons - carry eighteen sub-items between them.
 Most of the animation entries need a skeleton drawn into
 `character-wireframes.svg` before any code is written; the two object types that
 come apart are drawn in `object-animations.svg` instead.
 
-- [x] **DONE (4.3.0-alpha)** - **The 4.3.0-alpha features**: three features specified by the mockups in
+- [x] **DONE (1.0.0-alpha.4.3.0)** - **The 1.0.0-alpha.4.3.0 features**: three features specified by the mockups in
   `.support/features/`, with the plan for building them in
-  `.claude/prompts/features-4.2.3-alpha.md`. They were planned during the
-  4.2.3-alpha patch, and being backward-compatible features they made it a
-  minor release: 4.3.0-alpha carries them and the patch's fixes together. The compound-shape undo fix under **Found Issues**, which all three
+  `.claude/prompts/features-1.0.0-alpha.4.2.3.md`. They were planned during the
+  1.0.0-alpha.4.2.3 patch, and being backward-compatible features they made it a
+  minor release: 1.0.0-alpha.4.3.0 carries them and the patch's fixes together. The compound-shape undo fix under **Found Issues**, which all three
   needed first because each pushes history on exactly the shapes it broke, is
   in.
-  - [x] **DONE (4.3.0-alpha)** - **Mirror Selection**: a **Mirror** button after
+  - [x] **DONE (1.0.0-alpha.4.3.0)** - **Mirror Selection**: a **Mirror** button after
     **Clear** (and `O`, and **Edit > Mirror…**) opens a palette to reflect the
     selection horizontally, vertically or both, in place or as a copy that
     lands beside the original, with Live preview and Show Selection Borders.
     Its preview and commit are one store transaction, which Mesh Warp is
     planned to reuse. This answers the **Flip** item under *The rest of
     Transform* from a palette; a Transform handle still does not flip.
-  - [x] **DONE (4.3.0-alpha)** - **Stroke Profiles**: how a stroke's width runs
+  - [x] **DONE (1.0.0-alpha.4.3.0)** - **Stroke Profiles**: how a stroke's width runs
     along its length - Default, Rounded, Tapered, Wave - picked from a **Stroke
     Profile** control above the Width slider and applied to new strokes and to
     the selection, or to one element from the Properties panel. A profiled
@@ -810,7 +810,7 @@ come apart are drawn in `object-animations.svg` instead.
     algorithm) instead of a simplified polyline, which would make the file
     smaller and the outline easier to edit in another editor. The polyline is
     what napkin already exports for a freehand stroke.
-  - [x] **DONE (4.3.0-alpha)** - **Mesh Warp**: a rail tool that meshes the art
+  - [x] **DONE (1.0.0-alpha.4.3.0)** - **Mesh Warp**: a rail tool that meshes the art
     under the pointer and bends it by pins - click to pin, drag to bend, Delete
     to unpin - with the result baked back into Bézier anchors. This is the
     **Puppet / character warp** item under *The rest of Transform*. The dashed
@@ -1312,7 +1312,7 @@ analysis was the first thing in the repository to notice.
   `created-svg_graphic-api.png`, which does not exist.
   - Correct targets are `../created-svg_graphic-api.svg` and
     `../created-png_graphic-api.png`.
-  - **Re-broken and re-fixed in 4.2.1-alpha.** The graphics later moved into
+  - **Re-broken and re-fixed in 1.0.0-alpha.4.2.1.** The graphics later moved into
     `reference-graphics/` and the targets were not moved with them, so both
     links dangled again and took eleven tests with them. Now
     `../reference-graphics/created-*-graphic-api.*`, with the same failure and
@@ -1568,7 +1568,7 @@ helper scripts, the rule-driven layer organizer, then what the four share.
 ## Patch (fixes, polish, internal → next `x.y.++`)
 
 Fixes and internal polish. Only one entry stands here: most patch-sized work in
-4.1.0-alpha was found and finished in the same sitting rather than queued, and
+1.0.0-alpha.4.1.0 was found and finished in the same sitting rather than queued, and
 what was left behind is filed under **Found Issues** and **Chores** above.
 
 - [ ] **Panel Improvements**:
@@ -1586,8 +1586,8 @@ what was left behind is filed under **Found Issues** and **Chores** above.
 
 Thirty-one shipped entries, roughly newest first, each noting the group it
 graduated from. The newest is the graphic-design API, which is unreleased; then
-the Rotate tool, which lands with Move in the 4.1.2-alpha batch; then the
-plugin work, and the eight after that are the 4.1.0-alpha batch: the clipboard,
+the Rotate tool, which lands with Move in the 1.0.0-alpha.4.1.2 batch; then the
+plugin work, and the eight after that are the 1.0.0-alpha.4.1.0 batch: the clipboard,
 the Selection export, the pages menu, and the drag and layer-integrity work.
 
 - [x] **Simple graphic design elements**: a composition API in

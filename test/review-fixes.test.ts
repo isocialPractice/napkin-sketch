@@ -1,5 +1,5 @@
 /**
- * Regression tests for the 4.1.2-alpha source review fixes.
+ * Regression tests for the 1.0.0-alpha.4.1.2 source review fixes.
  *
  * Each test pins one defect the review found, so the behaviour cannot drift
  * back: the per-layer stroke and layer-state lookups that made rendering,

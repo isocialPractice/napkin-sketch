@@ -1,8 +1,8 @@
 # Current Roadmap
 
 Working order for the next pass of `TODO.md`, chosen against the source state
-at **3.2.2-alpha**. Every item below is patch-level, so the pass lands as
-`3.2.3-alpha`.
+at **1.0.0-alpha.3.2.2**. Every item below is patch-level, so the pass lands as
+`1.0.0-alpha.3.2.3`.
 
 ## Sequence
 
@@ -35,7 +35,7 @@ their own `BrowserWindow`s, which reworks the same renderer layout and IPC
 surface that items 3 and 4 are meant to test and document. It waits for its
 own pass.
 
-`Panel Improvements > Resize Panels` is already shipped (3.2.0-alpha) and is
+`Panel Improvements > Resize Panels` is already shipped (1.0.0-alpha.3.2.0) and is
 left in `TODO.md` only because its parent item is still open.
 
 ## Deferred

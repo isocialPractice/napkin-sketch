@@ -13,7 +13,8 @@
  * point - `generate-skill.mjs`, `brand-resources.mjs`, the generated script -
  * invoked exactly as the documentation says to invoke it. Nothing about the
  * brand path is test-only, which is the property the whole exercise is for: if
- * this passes, cloning the repository and following `API-QUICKSTART.md` works.
+ * this passes, cloning the repository and following `docs/api/ai/QUICKSTART.md`
+ * works.
  *
  * The one thing it does differently: `--force`. Generating a skill over one
  * that already exists asks first, and a test cannot answer. Interactive use

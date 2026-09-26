@@ -1,0 +1,3466 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/isocialPractice/napkin-sketch/docs/api/schema/instructions.schema.json",
+  "title": "napkin script 1, the object form",
+  "description": "A script as JSON: an array of instructions, each an object naming its verb. Generated from the verb table by npm run api-docs; validateScript is the full check.",
+  "$ref": "#/definitions/body",
+  "definitions": {
+    "body": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/verbs/napkin"
+          },
+          {
+            "$ref": "#/definitions/verbs/page"
+          },
+          {
+            "$ref": "#/definitions/verbs/background"
+          },
+          {
+            "$ref": "#/definitions/verbs/name"
+          },
+          {
+            "$ref": "#/definitions/verbs/units"
+          },
+          {
+            "$ref": "#/definitions/verbs/seed"
+          },
+          {
+            "$ref": "#/definitions/verbs/newpage"
+          },
+          {
+            "$ref": "#/definitions/verbs/layer"
+          },
+          {
+            "$ref": "#/definitions/verbs/group"
+          },
+          {
+            "$ref": "#/definitions/verbs/tool"
+          },
+          {
+            "$ref": "#/definitions/verbs/color"
+          },
+          {
+            "$ref": "#/definitions/verbs/width"
+          },
+          {
+            "$ref": "#/definitions/verbs/opacity"
+          },
+          {
+            "$ref": "#/definitions/verbs/fill"
+          },
+          {
+            "$ref": "#/definitions/verbs/gradient"
+          },
+          {
+            "$ref": "#/definitions/verbs/stroke"
+          },
+          {
+            "$ref": "#/definitions/verbs/style"
+          },
+          {
+            "$ref": "#/definitions/verbs/profile"
+          },
+          {
+            "$ref": "#/definitions/verbs/nib"
+          },
+          {
+            "$ref": "#/definitions/verbs/rough"
+          },
+          {
+            "$ref": "#/definitions/verbs/font"
+          },
+          {
+            "$ref": "#/definitions/verbs/rect"
+          },
+          {
+            "$ref": "#/definitions/verbs/circle"
+          },
+          {
+            "$ref": "#/definitions/verbs/ellipse"
+          },
+          {
+            "$ref": "#/definitions/verbs/line"
+          },
+          {
+            "$ref": "#/definitions/verbs/polygon"
+          },
+          {
+            "$ref": "#/definitions/verbs/polyline"
+          },
+          {
+            "$ref": "#/definitions/verbs/star"
+          },
+          {
+            "$ref": "#/definitions/verbs/arc"
+          },
+          {
+            "$ref": "#/definitions/verbs/spiral"
+          },
+          {
+            "$ref": "#/definitions/verbs/shape"
+          },
+          {
+            "$ref": "#/definitions/verbs/path"
+          },
+          {
+            "$ref": "#/definitions/verbs/through"
+          },
+          {
+            "$ref": "#/definitions/verbs/push"
+          },
+          {
+            "$ref": "#/definitions/verbs/pop"
+          },
+          {
+            "$ref": "#/definitions/verbs/translate"
+          },
+          {
+            "$ref": "#/definitions/verbs/rotate"
+          },
+          {
+            "$ref": "#/definitions/verbs/scale"
+          },
+          {
+            "$ref": "#/definitions/verbs/mirror"
+          },
+          {
+            "$ref": "#/definitions/verbs/let"
+          },
+          {
+            "$ref": "#/definitions/verbs/define"
+          },
+          {
+            "$ref": "#/definitions/verbs/place"
+          },
+          {
+            "$ref": "#/definitions/verbs/repeat"
+          },
+          {
+            "$ref": "#/definitions/verbs/text"
+          },
+          {
+            "$ref": "#/definitions/verbs/image"
+          },
+          {
+            "$ref": "#/definitions/verbs/link"
+          },
+          {
+            "$ref": "#/definitions/verbs/use"
+          },
+          {
+            "$ref": "#/definitions/verbs/effect"
+          },
+          {
+            "$ref": "#/definitions/verbs/crop"
+          },
+          {
+            "$ref": "#/definitions/verbs/registration"
+          }
+        ]
+      }
+    },
+    "pathBody": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/verbs/move"
+          },
+          {
+            "$ref": "#/definitions/verbs/to"
+          },
+          {
+            "$ref": "#/definitions/verbs/by"
+          },
+          {
+            "$ref": "#/definitions/verbs/curve"
+          },
+          {
+            "$ref": "#/definitions/verbs/smooth"
+          },
+          {
+            "$ref": "#/definitions/verbs/through"
+          },
+          {
+            "$ref": "#/definitions/verbs/close"
+          }
+        ]
+      }
+    },
+    "expression": {
+      "type": "object",
+      "description": "An expression, its source without the parentheses: { \"expr\": \"20 + i * 40\" }.",
+      "properties": {
+        "expr": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "expr"
+      ],
+      "additionalProperties": false
+    },
+    "point": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        },
+        "y": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false
+    },
+    "stop": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "type": "string",
+          "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        }
+      },
+      "required": [
+        "color",
+        "offset"
+      ],
+      "additionalProperties": false
+    },
+    "position": {
+      "type": "object",
+      "description": "Where a parsed instruction came from. A program building JSON leaves it out.",
+      "properties": {
+        "line": {
+          "type": "integer"
+        },
+        "column": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "verbs": {
+      "napkin": {
+        "type": "object",
+        "title": "napkin",
+        "description": "The language version the script was written for. The first line of a script; without it version 1 is assumed, with a warning.",
+        "properties": {
+          "verb": {
+            "const": "napkin"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "verb",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "page": {
+        "type": "object",
+        "title": "page",
+        "description": "The page size: a named size (a3, a4, a5, letter, legal, tabloid, square, slide, napkin) or a width and a height, turned portrait or landscape.",
+        "properties": {
+          "verb": {
+            "const": "page"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "paper": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "a3",
+                  "a4",
+                  "a5",
+                  "letter",
+                  "legal",
+                  "tabloid",
+                  "square",
+                  "slide",
+                  "napkin"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "width": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT])?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "height": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT])?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orientation": {
+            "anyOf": [
+              {
+                "const": "portrait"
+              },
+              {
+                "const": "landscape"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb"
+        ],
+        "additionalProperties": false
+      },
+      "background": {
+        "type": "object",
+        "title": "background",
+        "description": "The page color, or none for a transparent page.",
+        "properties": {
+          "verb": {
+            "const": "background"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "color"
+        ],
+        "additionalProperties": false
+      },
+      "name": {
+        "type": "object",
+        "title": "name",
+        "description": "The page's name, and the file stem it is written under.",
+        "properties": {
+          "verb": {
+            "const": "name"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "verb",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "units": {
+        "type": "object",
+        "title": "units",
+        "description": "The unit bare numbers are read in from here on: px, in, mm or pt. Pixels until changed.",
+        "properties": {
+          "verb": {
+            "const": "units"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "units": {
+            "type": "string",
+            "enum": [
+              "px",
+              "in",
+              "mm",
+              "pt"
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "units"
+        ],
+        "additionalProperties": false
+      },
+      "seed": {
+        "type": "object",
+        "title": "seed",
+        "description": "The seed for the hand-drawn pass. One script and one seed draw the same bytes every run.",
+        "properties": {
+          "verb": {
+            "const": "seed"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "seed": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "verb",
+          "seed"
+        ],
+        "additionalProperties": false
+      },
+      "newpage": {
+        "type": "object",
+        "title": "newpage",
+        "description": "Starts another page the same size, carrying the paint state across.",
+        "properties": {
+          "verb": {
+            "const": "newpage"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb"
+        ],
+        "additionalProperties": false
+      },
+      "layer": {
+        "type": "object",
+        "title": "layer",
+        "description": "A drawing layer. Marks after it go on it until the next layer.",
+        "properties": {
+          "verb": {
+            "const": "layer"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "type": "string"
+          },
+          "opacity": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locked": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "group": {
+        "type": "object",
+        "title": "group",
+        "description": "A group layer. The layer and group lines in its block become its children.",
+        "properties": {
+          "verb": {
+            "const": "group"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "type": "string"
+          },
+          "opacity": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locked": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "$ref": "#/definitions/body"
+          }
+        },
+        "required": [
+          "verb",
+          "name",
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "tool": {
+        "type": "object",
+        "title": "tool",
+        "description": "The kind of mark: pen, marker (translucent, so overlapping passes build up like ink) or copic (a broad, angled nib).",
+        "properties": {
+          "verb": {
+            "const": "tool"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "tool": {
+            "type": "string",
+            "enum": [
+              "pen",
+              "marker",
+              "copic"
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "tool"
+        ],
+        "additionalProperties": false
+      },
+      "color": {
+        "type": "object",
+        "title": "color",
+        "description": "The ink color of every mark after it.",
+        "properties": {
+          "verb": {
+            "const": "color"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "color": {
+            "type": "string",
+            "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+          }
+        },
+        "required": [
+          "verb",
+          "color"
+        ],
+        "additionalProperties": false
+      },
+      "width": {
+        "type": "object",
+        "title": "width",
+        "description": "The stroke width of every mark after it.",
+        "properties": {
+          "verb": {
+            "const": "width"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "width"
+        ],
+        "additionalProperties": false
+      },
+      "opacity": {
+        "type": "object",
+        "title": "opacity",
+        "description": "The opacity of every mark after it, from 0 to 1.",
+        "properties": {
+          "verb": {
+            "const": "opacity"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "opacity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "opacity"
+        ],
+        "additionalProperties": false
+      },
+      "fill": {
+        "type": "object",
+        "title": "fill",
+        "description": "The fill color of closed shapes after it, or none.",
+        "properties": {
+          "verb": {
+            "const": "fill"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "fill": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "fill"
+        ],
+        "additionalProperties": false
+      },
+      "gradient": {
+        "type": "object",
+        "title": "gradient",
+        "description": "A gradient fill for closed shapes after it: linear at an angle, or radial from the centre out, or none.",
+        "properties": {
+          "verb": {
+            "const": "gradient"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "const": "linear"
+              },
+              {
+                "const": "radial"
+              },
+              {
+                "const": "none"
+              }
+            ]
+          },
+          "angle": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stops": {
+            "anyOf": [
+              {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "$ref": "#/definitions/stop"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "stroke": {
+        "type": "object",
+        "title": "stroke",
+        "description": "Turns the outline on or off. With it off, a closed shape is its fill alone.",
+        "properties": {
+          "verb": {
+            "const": "stroke"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "on": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "verb",
+          "on"
+        ],
+        "additionalProperties": false
+      },
+      "style": {
+        "type": "object",
+        "title": "style",
+        "description": "The outline's dash: solid, dashed or dotted.",
+        "properties": {
+          "verb": {
+            "const": "style"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "style": {
+            "type": "string",
+            "enum": [
+              "solid",
+              "dashed",
+              "dotted"
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "style"
+        ],
+        "additionalProperties": false
+      },
+      "profile": {
+        "type": "object",
+        "title": "profile",
+        "description": "How the width runs along a pen or marker stroke: uniform, rounded, tapered or wave.",
+        "properties": {
+          "verb": {
+            "const": "profile"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "profile": {
+            "type": "string",
+            "enum": [
+              "uniform",
+              "rounded",
+              "tapered",
+              "wave"
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "profile"
+        ],
+        "additionalProperties": false
+      },
+      "nib": {
+        "type": "object",
+        "title": "nib",
+        "description": "The angle of the copic nib, in degrees.",
+        "properties": {
+          "verb": {
+            "const": "nib"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "angle": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "angle"
+        ],
+        "additionalProperties": false
+      },
+      "rough": {
+        "type": "object",
+        "title": "rough",
+        "description": "The hand-drawn pass for every mark after it: 0 is exact, 1 is clearly drawn by hand, and off is 0. Seeded, so it draws the same way every run.",
+        "properties": {
+          "verb": {
+            "const": "rough"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "const": 0
+              }
+            ]
+          },
+          "passes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "overshoot": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "font": {
+        "type": "object",
+        "title": "font",
+        "description": "The font family and size of text after it.",
+        "properties": {
+          "verb": {
+            "const": "font"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb"
+        ],
+        "additionalProperties": false
+      },
+      "rect": {
+        "type": "object",
+        "title": "rect",
+        "description": "A rectangle, with rounded corners when r is given.",
+        "properties": {
+          "verb": {
+            "const": "rect"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "additionalProperties": false
+      },
+      "circle": {
+        "type": "object",
+        "title": "circle",
+        "description": "A circle, drawn as four cubic curves rather than a polygon.",
+        "properties": {
+          "verb": {
+            "const": "circle"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "cx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "cy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "r": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "cx",
+          "cy",
+          "r"
+        ],
+        "additionalProperties": false
+      },
+      "ellipse": {
+        "type": "object",
+        "title": "ellipse",
+        "description": "An ellipse, from its centre and two radii.",
+        "properties": {
+          "verb": {
+            "const": "ellipse"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "cx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "cy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "rx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "ry": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "cx",
+          "cy",
+          "rx",
+          "ry"
+        ],
+        "additionalProperties": false
+      },
+      "line": {
+        "type": "object",
+        "title": "line",
+        "description": "A straight line between two points.",
+        "properties": {
+          "verb": {
+            "const": "line"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "x1": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y1": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "x2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "x1",
+          "y1",
+          "x2",
+          "y2"
+        ],
+        "additionalProperties": false
+      },
+      "polygon": {
+        "type": "object",
+        "title": "polygon",
+        "description": "A closed shape through a list of points, with rounded corners when r is given.",
+        "properties": {
+          "verb": {
+            "const": "polygon"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "points": {
+            "type": "array",
+            "minItems": 3,
+            "items": {
+              "$ref": "#/definitions/point"
+            }
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "polyline": {
+        "type": "object",
+        "title": "polyline",
+        "description": "An open line through a list of points.",
+        "properties": {
+          "verb": {
+            "const": "polyline"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "points": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "$ref": "#/definitions/point"
+            }
+          }
+        },
+        "required": [
+          "verb",
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "star": {
+        "type": "object",
+        "title": "star",
+        "description": "A star with the given number of points, between an outer and an inner radius.",
+        "properties": {
+          "verb": {
+            "const": "star"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "cx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "cy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "outer": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "inner": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "cx",
+          "cy",
+          "outer",
+          "inner",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "arc": {
+        "type": "object",
+        "title": "arc",
+        "description": "An open arc of a circle between two angles, in degrees clockwise from three o'clock.",
+        "properties": {
+          "verb": {
+            "const": "arc"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "cx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "cy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "r": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "cx",
+          "cy",
+          "r",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      },
+      "spiral": {
+        "type": "object",
+        "title": "spiral",
+        "description": "A spiral winding out from its centre to the radius over the given number of turns.",
+        "properties": {
+          "verb": {
+            "const": "spiral"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "cx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "cy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "r": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "turns": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "cx",
+          "cy",
+          "r",
+          "turns"
+        ],
+        "additionalProperties": false
+      },
+      "shape": {
+        "type": "object",
+        "title": "shape",
+        "description": "A named shape from the built-in library, drawn in a box from x, y. With one size its longer side is that long and it keeps its proportions; with a width and a height it is stretched to fill them.",
+        "properties": {
+          "verb": {
+            "const": "shape"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "type": "string"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "height": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "name",
+          "x",
+          "y",
+          "width"
+        ],
+        "additionalProperties": false
+      },
+      "path": {
+        "type": "object",
+        "title": "path",
+        "description": "One mark, from SVG path data or from a block of path steps. Each subpath of a compound path is one piece of the same mark.",
+        "properties": {
+          "verb": {
+            "const": "path"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "d": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/pathBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb"
+        ],
+        "additionalProperties": false
+      },
+      "move": {
+        "type": "object",
+        "title": "move",
+        "description": "Starts a new subpath at a point.",
+        "properties": {
+          "verb": {
+            "const": "move"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "to": {
+        "type": "object",
+        "title": "to",
+        "description": "A straight segment to a point.",
+        "properties": {
+          "verb": {
+            "const": "to"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "by": {
+        "type": "object",
+        "title": "by",
+        "description": "A straight segment by an offset from the current point.",
+        "properties": {
+          "verb": {
+            "const": "by"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "dx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "dy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "dx",
+          "dy"
+        ],
+        "additionalProperties": false
+      },
+      "curve": {
+        "type": "object",
+        "title": "curve",
+        "description": "A cubic curve to a point, steered by two handles.",
+        "properties": {
+          "verb": {
+            "const": "curve"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "c1x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "c1y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "c2x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "c2y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "c1x",
+          "c1y",
+          "c2x",
+          "c2y",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "smooth": {
+        "type": "object",
+        "title": "smooth",
+        "description": "A cubic curve whose first handle mirrors the last one, so the join stays smooth.",
+        "properties": {
+          "verb": {
+            "const": "smooth"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "c2x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "c2y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "c2x",
+          "c2y",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "through": {
+        "type": "object",
+        "title": "through",
+        "description": "A smooth curve through a list of points. Inside a path block it continues the subpath; outside one it is an open mark of its own.",
+        "properties": {
+          "verb": {
+            "const": "through"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "points": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "$ref": "#/definitions/point"
+            }
+          }
+        },
+        "required": [
+          "verb",
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "close": {
+        "type": "object",
+        "title": "close",
+        "description": "Closes the current subpath back to its start.",
+        "properties": {
+          "verb": {
+            "const": "close"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          }
+        },
+        "required": [
+          "verb"
+        ],
+        "additionalProperties": false
+      },
+      "push": {
+        "type": "object",
+        "title": "push",
+        "description": "Saves the transform, the paint state and the units, for the next pop to restore.",
+        "properties": {
+          "verb": {
+            "const": "push"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          }
+        },
+        "required": [
+          "verb"
+        ],
+        "additionalProperties": false
+      },
+      "pop": {
+        "type": "object",
+        "title": "pop",
+        "description": "Restores the transform, the paint state and the units the last push saved.",
+        "properties": {
+          "verb": {
+            "const": "pop"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          }
+        },
+        "required": [
+          "verb"
+        ],
+        "additionalProperties": false
+      },
+      "translate": {
+        "type": "object",
+        "title": "translate",
+        "description": "Moves everything drawn after it.",
+        "properties": {
+          "verb": {
+            "const": "translate"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "dx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "dy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "dx",
+          "dy"
+        ],
+        "additionalProperties": false
+      },
+      "rotate": {
+        "type": "object",
+        "title": "rotate",
+        "description": "Turns everything drawn after it, clockwise in degrees, about the origin or a point given with at.",
+        "properties": {
+          "verb": {
+            "const": "rotate"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "angle": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "cx": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cy": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "angle"
+        ],
+        "additionalProperties": false
+      },
+      "scale": {
+        "type": "object",
+        "title": "scale",
+        "description": "Scales everything drawn after it, about the origin or a point given with at. One factor scales both ways.",
+        "properties": {
+          "verb": {
+            "const": "scale"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "sx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "sy": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cx": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cy": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "sx"
+        ],
+        "additionalProperties": false
+      },
+      "mirror": {
+        "type": "object",
+        "title": "mirror",
+        "description": "Reflects everything drawn after it: x swaps left and right across a vertical line, y swaps top and bottom across a horizontal one, at 0 unless given.",
+        "properties": {
+          "verb": {
+            "const": "mirror"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "axis": {
+            "type": "string",
+            "enum": [
+              "x",
+              "y"
+            ]
+          },
+          "about": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "axis"
+        ],
+        "additionalProperties": false
+      },
+      "let": {
+        "type": "object",
+        "title": "let",
+        "description": "Names a number for the expressions after it, in the current units.",
+        "properties": {
+          "verb": {
+            "const": "let"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT])?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "name",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "define": {
+        "type": "object",
+        "title": "define",
+        "description": "Records a block of drawing under a name without drawing it, for place to draw.",
+        "properties": {
+          "verb": {
+            "const": "define"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "type": "string"
+          },
+          "body": {
+            "$ref": "#/definitions/body"
+          }
+        },
+        "required": [
+          "verb",
+          "name",
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "place": {
+        "type": "object",
+        "title": "place",
+        "description": "Draws a definition, moved, scaled or turned.",
+        "properties": {
+          "verb": {
+            "const": "place"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "type": "string"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scale": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rotate": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "repeat": {
+        "type": "object",
+        "title": "repeat",
+        "description": "Runs a block a number of times, counting from 0 in the name given with as.",
+        "properties": {
+          "verb": {
+            "const": "repeat"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "as": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "$ref": "#/definitions/body"
+          }
+        },
+        "required": [
+          "verb",
+          "count",
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "text": {
+        "type": "object",
+        "title": "text",
+        "description": "A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as pen strokes instead.",
+        "properties": {
+          "verb": {
+            "const": "text"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "text": {
+            "type": "string"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "size": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "box": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "align": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "left",
+                  "center",
+                  "right"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "asMarks": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "text",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "image": {
+        "type": "object",
+        "title": "image",
+        "description": "Places an image: an asset the host supplied, by name, or a data URL. Nothing is read from disk.",
+        "properties": {
+          "verb": {
+            "const": "image"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "src": {
+            "type": "string"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "width": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "height": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "src",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "link": {
+        "type": "object",
+        "title": "link",
+        "description": "Places a linked file: one selectable element that references the file instead of drawing its contents into the page.",
+        "properties": {
+          "verb": {
+            "const": "link"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "href": {
+            "type": "string"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "width": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "height": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "href",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "use": {
+        "type": "object",
+        "title": "use",
+        "description": "Copies in a document the host supplied, as a group, with its layers and anchors.",
+        "properties": {
+          "verb": {
+            "const": "use"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "type": "string"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scale": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "layer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "effect": {
+        "type": "object",
+        "title": "effect",
+        "description": "An effect for the next layer, group or mark the script makes, as its CSS filter function works: blur, brightness, contrast, saturate, grayscale, sepia, invert, hue-rotate, opacity or drop-shadow. Several stack in order, and none clears what is waiting.",
+        "properties": {
+          "verb": {
+            "const": "effect"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "const": "blur"
+              },
+              {
+                "const": "brightness"
+              },
+              {
+                "const": "contrast"
+              },
+              {
+                "const": "saturate"
+              },
+              {
+                "const": "grayscale"
+              },
+              {
+                "const": "sepia"
+              },
+              {
+                "const": "invert"
+              },
+              {
+                "const": "hue-rotate"
+              },
+              {
+                "const": "opacity"
+              },
+              {
+                "const": "drop-shadow"
+              },
+              {
+                "const": "none"
+              }
+            ]
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "angle": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dx": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dy": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blur": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "crop": {
+        "type": "object",
+        "title": "crop",
+        "description": "The box every output is cut to: auto fits the ink with room to spare, none keeps the page, or a box given outright.",
+        "properties": {
+          "verb": {
+            "const": "crop"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "const": "auto"
+              },
+              {
+                "const": "none"
+              },
+              {
+                "const": "box"
+              }
+            ]
+          },
+          "pad": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "x": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "width": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "height": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "mode"
+        ],
+        "additionalProperties": false
+      },
+      "registration": {
+        "type": "object",
+        "title": "registration",
+        "description": "One box every page is written in, so frames drawn by one script line up when they are played in sequence.",
+        "properties": {
+          "verb": {
+            "const": "registration"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

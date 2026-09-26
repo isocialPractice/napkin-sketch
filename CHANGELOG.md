@@ -4,6 +4,595 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-alpha.4.4.0] - 2026-09-25
+
+Drawing from written instructions, with no pointer and no window, makes this a
+minor release. Napkin script is a small language that a person, an AI tool or a
+program in any language writes. It runs into the same pages, layers and Bezier
+anchors the app draws by hand; one call writes the drawing as SVG, PNG, PDF, a
+`.skbk` the app opens, or a script that rebuilds it in Adobe Illustrator; and
+`napkin-sketch draw`, `check`, `render` and `verbs` do all of it from a
+shell, with no Electron. With `draw --prompt` and a third AI helper, a
+sentence becomes the script, and for the four animations with a measured cycle
+a character's frames draw with no AI at all. A drawing can link a file made
+elsewhere rather than import it, a mark, a layer or an element can carry CSS
+filter effects - a blur, a drop shadow, a color shift - and the API's
+documentation is rebuilt as a hub over eight categories. What existed keeps
+working as it did - the modules that moved are still exported from where they
+were - and the `.skbk` format stays at version 3.
+
+### Added
+
+- **The napkin script contract.** `src/core/script/instructions.ts` defines the
+  object form every front end of the coming instruction language lowers to:
+  55 verbs in nine categories - document, layers, paint, shapes, paths,
+  transforms, control, text and media, and output. Each instruction is a plain
+  object naming its `verb`, so a program in any language can build a script as
+  JSON. `verbs.json` beside it is the verb table: every verb's category, a
+  one-line summary, an example that runs as written, and the argument grammar
+  the text parser will follow, with the 31 diagnostic codes and their levels.
+  The parser, the documentation tables, the CLI's verb listing and the helper
+  skill are all to be generated from that one table.
+  - **The table and the types cannot drift.** A field table typed from the
+    instruction union compiles only when it names exactly the fields each
+    instruction has and says correctly which are optional.
+    `test/script-instructions.test.ts` holds `verbs.json` to it verb by verb
+    and field by field, and checks the table's choice lists - units, tools,
+    dash styles, profiles and paper sizes - against the model they choose from.
+  - **The budget was measured before anything could hang.** `SCRIPT_LIMITS`
+    caps one evaluation at 200,000 instructions, 50,000 marks, 250,000
+    anchors, 1,000,000 sampled points and 64 nested blocks. Sampled points are
+    the cost that matters: sampled at 24 points a curved segment, 50,000
+    circles came to 4.85 million points, more than the `.skbk` writer can hold
+    in one string, while a million points build, export to SVG and save in
+    about two seconds.
+  - **The hand-drawn pass is calibrated.** `src/core/script/rough.ts` holds the
+    constants `rough <amount>` runs on, read off a contact sheet of the
+    `test/imports/` fixtures at three strengths, and what the sheet showed:
+    straight segments have to bow, the bow grows with the square root of their
+    length, and a closed mark reopens along the tangent it leaves by.
+- **A headless contract.** `test/headless.test.ts` installs a DOM that exists
+  and throws on first touch, then runs every entry point documented as
+  DOM-free: `Surface.toSVG` on a page holding every kind of mark, cropped and
+  transparent too, the PDF writer, the `.skbk` round trip, the sharpen engine,
+  the path-data parser, and both composition renderers. A `document.` added
+  inside any of them used to pass every suite, because Node has no document;
+  now it fails and names what it touched. The same suite checks that the
+  DOM-free core imports nothing from the renderer, the main process or Node.
+- **Newer marks degrade to their picture.** A test pins that an image item
+  carrying a field this build does not know loads with its picture, size and
+  position intact and survives a save, which is how a file from a newer build
+  will show its linked graphics on an older one.
+- **Napkin script reads, checks and writes itself.** `parseScript` reads the
+  text form into instructions, `validateScript` checks a script built as JSON
+  the same way, and `formatScript` writes either back as canonical text. The
+  parser walks the verb table's forms rather than carrying a function per verb,
+  so the grammar and every listing of it cannot disagree. Neither reader
+  throws: each returns the instructions it could read, the errors and warnings
+  with their stable codes, and whether there were any errors. A script read
+  from text and the same script built as JSON come out equal, and every verb's
+  example survives a round trip through the formatter.
+  - **Three typos report three.** Each diagnostic names its line and column,
+    or its index path in a JSON script, and prints the way editors and CI read
+    it: `card.napkin:3:1: error unknown-verb: ...`. A misspelled verb, color or
+    choice suggests the one that was meant - `circl` names `circle`,
+    `rectangle` names `rect`, `grean` names `green`.
+  - **Written the way people and helpers write.** A newline or `;` ends an
+    instruction, and a block may open and close on one line. Paint
+    instructions share a line by their verbs, `color #1f2328 width 3 fill
+    #ffe08a`. `#` followed by a space starts a comment while `#1f2328` is a
+    color, and keywords ignore case.
+  - **Expressions in parentheses**, with `+ - * / %`, `let` names, `repeat`
+    counters, the page's `width` and `height`, units and shares of the page
+    inside them, and `sin`, `cos` and `tan` in degrees with `sqrt`, `abs`,
+    `round`, `floor`, `ceil`, `min` and `max`. A malformed one is reported at
+    its column before anything runs.
+  - Three diagnostic codes joined the table: `missing-argument`,
+    `expected-block`, and the warning `unknown-field` for a JSON field a verb
+    does not have.
+- **Napkin script draws.** `evaluate` runs a script - text, or JSON built as
+  the object form - and returns a sketch book: sized pages, the layer tree the
+  script's `layer` and `group` instructions describe, and marks that are the
+  app's own `Stroke` objects, Bezier anchors in `vector` with the points the
+  canvas paints sampled from them. A generated drawing opens in the app as
+  editable work and exports through the app's own writers.
+  - **Shapes and paths as anchors.** `rect` with or without rounded corners,
+    `circle`, `ellipse`, `line`, `polyline`, `polygon`, `star`, `arc`, `spiral`,
+    and `path` from SVG path data or from `move`, `to`, `by`, `curve`, `smooth`
+    and `close`. The circle, the ellipse and the rounded rectangle are built
+    with the SVG importer's own code, so a generated circle and an imported one
+    are the same curve.
+  - **Paint, transforms and units carry** from one instruction to the next.
+    Transforms are baked into the anchors, a stroke's width scales with them,
+    and a copic nib and a gradient's axis turn with them. `push` and `pop` save
+    and restore all three. A `group` or a placed definition keeps its changes
+    to itself; a `repeat` builds on its own passes.
+  - **Names and definitions.** `let` sets the nearest name or makes a new one.
+    `define` is hoisted, and a definition reads the names in force where it is
+    placed, so a name set before `place` works as a parameter. A definition
+    that places itself is refused.
+  - **Errors are values.** An instruction that cannot run - an unknown name, a
+    value out of range, a `pop` with no `push` - is reported and skipped, and
+    the run goes on. Only the budget stops a run, and the book keeps what was
+    drawn. A new code, `unsupported-verb`, is left for a host that does not
+    draw an instruction.
+  - **One script, one book.** Ids are counted rather than random and the time
+    stamped on the book can be fixed, so a run is the same byte for byte every
+    time. `test/script-evaluate.test.ts` checks that, and that every verb's
+    example runs, and that a generated book loads back exactly as it was built.
+  - **Curves through points.** `through` draws a smooth curve through every
+    point it is given, with an anchor at each, so the curve reshapes point by
+    point in the app. It runs along the line from the point before to the
+    point after, each handle a third of its own segment, so points spaced
+    unevenly do not throw it into loops, and it ends in parabolas. Inside a
+    `path` it carries on from the current point, smoothly after a curve.
+  - **Rounded polygons at any angle.** `polygon ... r 12` rounds every corner
+    with the arc that touches both of its sides, held to half of either side.
+    A rounded square is the rounded rectangle, anchor for anchor.
+  - **A shape library.** `shape "cube-isometric" at 40 40 size 120` draws one
+    of 22 named shapes: a square, a rectangle, a circle, an ellipse, two
+    triangles, a hexagon and a star, lines at set angles, an arc and a spiral,
+    and a wheel, a sphere, a cube and a cylinder, each isometric and in
+    perspective. One size sets the longer side and keeps the proportions; two
+    stretch the shape to fit. Each part shows only what its source showed, so
+    the objects are line drawings until a `fill` makes them solid. A name the
+    library lacks is reported with the names it most likely meant: `cube`
+    names `cube-isometric` and `cube-perspective`.
+- **The shape library is generated, and checked.** `npm run shape-library`
+  reads `shapes.svg`, `isometric-objects.svg` and `perspective-objects.svg`
+  from the vector-graphics skill's assets into
+  `src/core/script/shape-library.json`, with the SVG importer's own element
+  and path code and no browser. `npm run shape-library -- --check` fails when
+  the committed file is out of date, and so does a test. The reader stops at
+  anything it does not read - a transform, a `<text>`, a style rule other than
+  a class - and names it, rather than drawing a shape wrong.
+- **Geometry has its own suite.** `test/script-geometry.test.ts` holds the
+  shapes to their rules: a circle's handles, an arc against the importer's
+  reading of the same SVG arc, the fillets of a rounded polygon, a curve
+  through points, and every library shape filling the box it is given.
+- **Napkin script draws by hand.** `rough <amount>` runs the hand-drawn pass
+  on every mark after it, from barely there at `rough 0.3` to clearly drawn by
+  hand at `rough 1`. Straight segments bow by the square root of their length,
+  anchors close together drift together, the curves a shape was drawn with
+  turn and stretch with their joins kept smooth, and lines run past their
+  ends, a closed one opening at its start so the join shows. What comes out is
+  anchors like any other mark, editable in the app.
+  - **Filled shapes are coloured in.** A closed shape with a fill and a line
+    comes out as two marks, the fill roughened half as much and then the line,
+    as a hand colours a shape in and draws round it. `passes 2` restates the
+    line on a wobble of its own, thinner and lighter.
+  - **Seeded, and local.** One script and one seed draw the same bytes on
+    every run, and another seed draws the drawing by another hand. Each mark's
+    wobble comes from the seed and the mark itself, so adding or moving one
+    mark leaves every other mark's wobble as it was. The noise is integer
+    arithmetic, so a seed gives the same wobble in any JavaScript engine.
+  - **Measured, and documented from the measurements.** How far each part
+    reaches is a table on the drawing reference generated from the constants,
+    and `test/script-rough.test.ts` holds the pass to them.
+- **Napkin script sets text, places images and copies documents in**, none of
+  it reading a file or needing a DOM.
+  - **`text`** places a text item the app edits as text, in the font `font`
+    set, aligned on its `at` point by the measure of the built-in face the
+    composition renderers use. `box` wraps it at a width, and `\n` breaks a
+    line. Like the app's own text, it stays upright when the drawing turns.
+  - **`text ... as marks`** draws the letters as the built-in face's pen
+    strokes, one mark in the current paint, so lettering turns with the
+    drawing and takes the hand-drawn pass. A character the face lacks is left
+    as a gap and reported.
+  - **`image`** places a data URL, or an image the host passed by name in
+    `options.assets`. Its own size, and its proportions when one size is
+    given, are read from its header: PNG, JPEG, GIF, WebP or SVG. A path or a
+    web address is refused, with how to hand the image over instead.
+  - **`use`** copies a page or a book the host passed in `options.documents`
+    into a group of its own: its layers with their names, opacity, visibility
+    and lock, and its marks, each with a new id, placed at `at` and scaled.
+  - Two warnings joined the diagnostic table: `image-size-unknown` and
+    `glyph-missing`. `test/script-text.test.ts` covers all four verbs.
+- **Linked graphics.** A drawing or a composition can place a file by
+  reference - one selectable item and one layer row that stand for the file,
+  its contents neither drawn in nor broken into layers - which is what a
+  design tool calls a linked file, as against an import.
+  - **In a sketch** a link is an image item with a `link` field. Its picture
+    is a placeholder, a dashed box with the file's name, which the app draws
+    and moves like any image, and which a build without links shows instead.
+    The loader keeps the field, so a book keeps its links through a save.
+  - **Outputs keep the reference.** The SVG export writes
+    `<image href="assets/logo.svg" data-link="true">`, and the importer reads
+    it back - any image that names a file rather than carrying data now
+    imports as a link, where before it was skipped. A PDF draws the
+    placeholder, since embedding the file would make it an import.
+  - **Compositions link too.** An `image` element with `link: true` keeps its
+    path in the SVG. The rasterizer draws the file only through a
+    `resolveLink` function the host passes - an SVG from its shapes, fitted
+    and clipped to the box, a PNG from its pixels - and otherwise draws the
+    placeholder and says so in `warnings`.
+  - **The host reads, inside one folder.** `resolveLinkFromDir(folder)`, in
+    the Node file helpers, refuses absolute paths, drive letters, UNC shares,
+    `..` steps, web addresses and symbolic links out of the folder. A script
+    only names a file.
+  - **`link` in napkin script** places one on a layer of its own, sized like
+    an `image` and read for its size when the run is given `resolveLink`.
+    Every verb in the table now draws.
+  - `test/link.test.ts` covers all of it, and `test/gui/check-link.mjs` opens
+    a book with a link, moves it, saves it, and imports an SVG that places a
+    file by reference.
+- **The drawing reference.** `docs/api/drawing/README.md` covers running a
+  script and what each instruction draws: the shape library in a table made
+  from the library itself, curves through points, the hand-drawn pass, text,
+  images, copied documents and linked graphics. The language page gained the
+  budget. Every script on both pages is run by the documentation test, and
+  must come out clean. `API.md` documents linked files in compositions.
+- **The language has its reference page.** `docs/api/language/README.md`
+  covers the syntax, the values, expressions, the version line, the object
+  form, every verb with its fields in JSON, and every diagnostic code, with a
+  section for agents. Its tables are generated from the verb table, and
+  `test/script-docs.test.ts` holds every page under `docs/api/` to the code:
+  each script shown must read, each error example must produce the codes it
+  names and the printout it shows, and each table must be current.
+- **Every format from one call.** `renderSketch(page, options)` writes a page
+  and `renderBook(book, options)` a book, as SVG, PNG, PDF or `.skbk`, with no
+  DOM and no dependency, in a browser or in plain Node.
+  - **PNG without a canvas.** `sketchToComposition` lowers a sketch into the
+    graphic-design composition model mark for mark as the SVG export writes
+    it - the same path data, round caps and joins, dashes, gradients,
+    profiled and Copic outlines, layers as groups at their opacity, erasers
+    cutting their own layer - and the composition rasterizer draws it.
+    Against the SVG as `rsvg-convert` draws it, at least 99.78% of the ink
+    agrees on every fixture in `test/imports/`, and
+    `test/sketch-composition.test.ts` holds it to 99% wherever `rsvg-convert`
+    is installed.
+  - **One box for every format.** `crop: 'auto'` cuts to the ink - the marks
+    on visible layers, grown by half the widest line, the box the Selection
+    export cuts to - with an optional pad; a box is used as given; and
+    `registration` cuts every page of a book to one box, so frames drawn by
+    one script line up. A script's `crop` and `registration` apply when its
+    `output` is spread into the options. The box is the SVG's view box, the
+    PNG's page and the PDF's media box, which `sketchesToPdf` now takes page
+    by page.
+  - **A `.skbk` keeps the book's own time**, so one script writes the same
+    bytes every run, and it opens in the app with its layers and anchors,
+    which `test/gui/check-script.mjs` proves by opening one, saving it and
+    reading the anchors back.
+  - **Warnings, not failures.** `onWarning` is told what a format left out or
+    drew as a stand-in - an image the PDF cannot embed, a gradient it prints
+    flat, a link the PNG drew as its placeholder, a color that is not one -
+    once a page, and the rest of the page is drawn.
+  - `test/script-render.test.ts` covers the calls, and the headless suite
+    writes every format with the DOM poisoned.
+- **Compositions gain gradients and erase shapes.** A `fill` can be
+  `{ type: 'linear' | 'radial', angle?, stops }`, which the SVG writer writes
+  as a paint server in user space and the rasterizer works out pixel by
+  pixel, placed where the sketch export has always placed a shape's gradient.
+  A group's `erase` shapes clear it wherever they paint - a `<mask>` in the
+  SVG, a cut in the PNG - which is how an eraser reaches the PNG. `API.md`
+  documents both, and its limits no longer say gradients are not modelled.
+- **The output reference.** `docs/api/output/README.md` covers the formats,
+  their options, the box, the warnings and the lowering behind the PNG, with
+  a section for agents.
+- **The language is in the public API.** `napkin-sketch` exports napkin script
+  beside the editor and the composition API, all of it browser-safe:
+  `parseScript`, `validateScript`, `formatScript` and `formatDiagnostic`,
+  `evaluate`, `renderSketch`, `renderBook`, `inkBox`, `renderBox` and
+  `sketchToComposition`, the verb and diagnostic tables, `SCRIPT_VERSION` and
+  `SCRIPT_LIMITS`, and the types their calls take and give. Nothing the entry
+  exported before is renamed or removed, and `test/api-surface.test.ts` holds
+  it to the list.
+  - **`drawSvg`** runs a script and gives back its first page as SVG in one
+    call, cut as the script's `crop` asks, with the diagnostics and whether it
+    was `ok`.
+- **`napkin-sketch/node`, the file half.** A new Node-only entry: `drawFile`
+  and `drawToFiles` run a script and write each format asked for into a
+  folder - a file a page for SVG and PNG, one file for PDF and `.skbk` - and
+  give back `{ ok, files, diagnostics, stats, warnings }`; `writeBook` writes
+  a book already drawn; `readScript` reads napkin text, or the object form
+  from a `.json` file; `loadAssets` and `loadDocuments` read what a script
+  names, by name. The composition's file helpers are exported here too, so a
+  Node program has one import for the disk.
+  - **Safe to hand a script.** A script names its own pages, so a name is
+    made a file name before anything is written - every character a file name
+    cannot hold becomes `-` - and no file lands outside the output folder. A
+    script's links are read inside its own folder, or `base`, and nowhere else.
+  - **Errors are values; the disk throws.** A script with errors still writes
+    what it drew, with `ok` false and the diagnostics saying why, and `strict`
+    writes nothing when anything at all was reported. Every file is rendered
+    before any is written, and each is written whole or not at all.
+  - It builds to `dist/node/index.js`, with its declarations named in the
+    package map, and `test/script-files.test.ts` covers it on a real file
+    system.
+- **The Node reference.** `docs/api/node/README.md` covers the two entries, ES
+  modules and CommonJS, the types, drawing and writing, the result object, and
+  what throws. The examples on the other pages import from `napkin-sketch`.
+- **The command line draws.** `napkin-sketch draw <script | ->` writes a
+  napkin script to SVG, PNG, PDF or `.skbk` files with no window; `check`
+  reads and runs a script and writes nothing; `render` writes a sketch book as
+  files, all of it or one page; and `verbs` lists the language by category,
+  with the shape library. A first word that names a command selects it, and
+  every flag the app had keeps its meaning.
+  - **Any language can call it.** `-` reads the script from standard input,
+    and `--json` prints one line of JSON on standard output - `{ ok, exitCode,
+    files, diagnostics, warnings, stats, version, language }` - and nothing
+    else. Without it, problems print as `file:line:column: level code:
+    message` on standard error, and the files written on standard output.
+  - **Exit codes a caller can branch on:** `0` drew, `1` the arguments were
+    wrong, `2` the script had errors - what could be drawn is still written,
+    unless `--strict` - and `3` a file could not be read or written, a linked
+    file included.
+  - **No Electron on the way.** The commands run before anything can load
+    Electron, so they work on an install where the GUI cannot start; a test
+    runs the built CLI with `require('electron')` made to throw.
+  - **Callers in five languages** under `docs/api/cli/examples/` - a shell
+    script, a batch file, Node, Python and C - and `test/cli-examples.test.ts`
+    runs each wherever its shell, interpreter or compiler is installed.
+    `docs/api/cli/README.md` is the reference.
+  - `drawToFiles` gained `defaultName` and `writeBook` gained `strict`, which
+    the commands use.
+- **The API documentation, in eight categories.** `API.md` is now the hub:
+  what the API is and is not, how it fits together, the ways in, who the pages
+  are for, and the language's version policy. `API-QUICKSTART.md` is the whole
+  API in five steps, and the new `API-CHEATSHEET.md` puts every verb, command,
+  render option and exit code on one page. Under `docs/api/`, eight
+  categories - language, drawing, compose, output, cli, node, interop and ai -
+  each have a reference, a quickstart that runs as written on a fresh clone,
+  and a cheatsheet of tables, and every page links to its hub and its two
+  siblings in its first lines.
+  - **Working with other programs** (`docs/api/interop/`) is new: what
+    napkin's SVG carries for Illustrator and Inkscape, how the importer names
+    another editor's layers, what survives a round trip each way, and linking
+    a file rather than importing or embedding it.
+  - **`docs/api/INDEX.json`** lists every page with its category, kind, first
+    paragraph and size, so an agent can pick the smallest page that answers.
+  - **`docs/api/schema/instructions.schema.json`** is the object form as a JSON
+    Schema, draft-07, made from the verb table, so a script built as JSON can
+    be checked before it is handed over. It is stricter than `validateScript`:
+    a field a verb does not have fails it.
+  - **`npm run api-docs`** writes the generated parts - the verb, command, flag
+    and exit code tables, the schema and the index - from the tables the code
+    reads (`src/docs/api-docs.ts`), and `-- --check` fails when any is out of
+    date. The command line's `--help` lists its commands from the same table,
+    and `EXIT_SUMMARIES` gives each exit code its line.
+  - **Tests.** `test/api-docs.test.ts` holds the pages to their shapes - a
+    reference's headings, a quickstart's steps and length, a cheatsheet's
+    length, the links at the top, every link to a heading - and the schema to
+    the verb table: it accepts every verb's own example and refuses what the
+    object form refuses. `test/script-docs.test.ts` now runs the scripts and
+    follows the links on the three hubs too.
+- **Effects: the CSS filter functions, on marks, layers, groups and
+  elements.** `blur`, `brightness`, `contrast`, `saturate`, `grayscale`,
+  `sepia`, `invert`, `hue-rotate`, `opacity` and `drop-shadow`, as data -
+  `effects` on a sketch's marks and layers and on any composition element - and
+  drawn by every output that can draw them.
+  - **In napkin script**, `effect <name> <arguments>` gives the next layer,
+    group or mark the script makes an effect, and several stack in order; a
+    mark the hand-drawn pass draws as several strokes, a library shape of
+    several parts, and a placed definition take them whole, on a layer or a
+    group of their own. An effect nothing takes is the new warning
+    `unused-effect`. Outside parentheses a hyphen now joins a word, so
+    `drop-shadow` and `hue-rotate` read as the names they are.
+  - **The SVG writers** write a `<filter>` of SVG 1.1 primitives in sRGB, over
+    a region the element's own box grown by the effects' reach, and the sketch
+    writer the list itself as `data-effects`, which the importer reads back.
+  - **The PNG** draws the element or the layer on a layer of its own, runs each
+    effect over it - a Gaussian blur as the Filter Effects specification draws
+    one, the color matrices it defines - and lays it down; against
+    `rsvg-convert` the two differ by under one level in 255 on average.
+  - **The app and the canvas painter** paint them through `ctx.filter`, a group
+    with effects as one picture. A PDF prints what carries them plain, and
+    says so.
+  - `EFFECT_TYPES`, `readEffects`, `cssFilter` and the `Effect` type are
+    exported, and `test/effects.test.ts`, `test/script-effects.test.ts` and
+    `test/gui/check-effects.mjs` hold them.
+- **An Illustrator script: `--to jsx`.** `renderSketch(page, { format: 'jsx' })`,
+  `renderBook`, the new `sketchesToJsx`, and `napkin-sketch draw` and `render`
+  with `--to jsx` write one ExtendScript file that, run in Adobe Illustrator
+  with File > Scripts > Other Script, rebuilds the drawing out of Illustrator's
+  own objects rather than handing it an SVG to read.
+  - **A page is a document**, its artboard the page or the box it is cut to, a
+    page pixel a point as in the PDF, with its paper on a locked `Background`
+    layer. A top-level layer is a layer and the layers in a group are named
+    groups inside it, hidden and locked ones too, made so once what is on them
+    is drawn.
+  - **Marks keep their anchors.** A curve's anchors and handles become its
+    path's points one to one, a point `SMOOTH` where its handles are in line;
+    a mark of several contours is a compound path; a profiled or Copic mark is
+    the outline it fills. Paint is `RGBColor`s, gradients with their stops,
+    dashes, and opacity with a color's own alpha folded in.
+  - **Text is text frames**, a box as area text, in the first family of the
+    item's list that Illustrator has. An image rides in the script and is
+    embedded; a link is a `PlacedItem` linked to the file, found from the
+    script's folder, which `writeBook` and `drawToFiles` point at the links
+    through `base`, and the render option `linkFolder` names outright.
+  - **What cannot be made is said.** The writer warns that an effect is left
+    off and that an eraser is drawn in the paper's color. The script draws a
+    link it cannot find or place as its placeholder, and ends by naming those
+    and any font it could not find, or the page, layer, mark and line it
+    stopped at. It is ES3 and ASCII, and returns its report as its result for
+    a caller with no window.
+  - `test/illustrator.test.ts` runs each script against a stand-in for
+    Illustrator's scripting objects that holds it to Illustrator's rules, and
+    reads back what it built. The script has not yet been run in Illustrator
+    itself; that run is filed in TODO.
+- **A script from a sentence: `draw --prompt` and the `scripting` helper.**
+  `napkin-sketch draw --prompt "a three-box flowchart with arrows"` has an AI
+  tool write the script, then draws it like any other.
+  - **The `scripting` helper** is the third plugin in `ai-helper/`: the
+    `napkin-script` skill, which teaches the language - the two rules the
+    parser holds a script to, page layout, three complete scripts that check
+    clean - with a verb reference `npm run api-docs` generates from the verb
+    table; the `/scripting:draw` command; and the contract it answers to. The
+    installer, the app's registry and the marketplace list it, and
+    `test/ai-helper.test.ts` checks the three together and the skill's
+    scripts.
+  - **The bridge**, `src/core/script/ai-bridge.ts`, writes the form - the
+    request, the rules, the images and documents `--asset` and `--use` hand
+    over - reads back the script the tool saved to `_temp/script-out.napkin`,
+    or printed, checks it as `check` does, and on errors runs the tool once
+    more with the script and its diagnostics. It starts no process itself: the
+    command line hands it a runner, `src/cli/helper.ts`, that runs the helper
+    command in the working folder through the shell, as Animation Mode does.
+  - **The command line**: `--prompt`, and `--helper` or
+    `NAPKIN_SCRIPT_HELPER` for the tool (Claude Code by default). The script
+    is kept beside the files as `<name>.napkin` and carried in the JSON report
+    as `script`, and a tool that is missing, signed out, or saves no script
+    ends the command with the new exit code 4, `error.reason` saying which.
+  - `test/ai-bridge.test.ts` runs the loop against a stand-in helper, and
+    `test/cli-draw.test.ts` runs `draw --prompt` against a stand-in AI tool
+    as a real process. No real AI tool was run for these tests.
+- **Animation frames from a measured cycle, with no AI.** For the four
+  character types with a measured cycle - walk, run, idle and knocked down -
+  the frames can now be drawn in-process, all at once, rather than by the AI
+  helper one at a time.
+  - **The generator**, `src/core/script/animation.ts`, measures the figure as
+    Animation Mode does - each assembly's joint, the figure's height and base,
+    its facing from its feet - and writes a napkin script: a page a frame, and
+    on it each part of the figure copied in with `use` and turned about its
+    joint by the cycle's total up to that frame, every page cut to one
+    `registration` box, the union of the frames' ink. The parts go to
+    `evaluate` as documents, so the script holds no geometry and reads as
+    what it does. A frame is posed from the source rather than from the frame
+    before it, so a joint stays put however long the sequence runs, and a
+    looping cycle's last frame is the source pose again.
+  - **In the app**, Animation Mode's setup dialog gains **Draw measured
+    frames** beside Next for those types. Once the assemblies are mapped, it
+    shows the script before anything is drawn; **Draw frames** then lands the
+    whole sequence - one row per frame, side by side, each saved to
+    `animations/` as a helper's frame is - and one undo takes it back.
+    **Disable API** hides the button, since a figure with layers no assembly
+    holds is what the helper is for.
+  - **On the command line**, `napkin-sketch render hero.skbk --animate walk`
+    writes the figure on the book's first page, or on `--page`, as a file a
+    frame, `hero-walk-1.svg` on. `--frames` spreads the cycle across more
+    frames or fewer, `--facing` says which way the figure travels when its
+    feet should not decide, and the JSON report carries the script as
+    `script.text`. A page with none of the assemblies exits 2. `idle` and
+    `knocked down`, the names the app shows, are read as the ids `ideal` and
+    `knocked-down`.
+  - `test/script-animation.test.ts` draws the figure in
+    `test/imports/walk.svg` through the cycles, `test/cli-draw.test.ts` runs
+    `render --animate`, and `test/gui/check-measured-frames.mjs` presses the
+    button in the app, draws the frames and undoes them.
+- **Golden scripts.** Six scripts in `test/scripts/` - the goal example, a
+  shape sheet, compound paths with holes, a sketch drawn by hand, a two-page
+  deck with a link, and a `use` of an imported fixture - are drawn to SVG and
+  compared byte for byte with the files beside them, twice in one process and
+  once in a fresh one. `npm test -- --update-golden` rewrites them and nothing
+  else does, and `.gitattributes` keeps them LF on every checkout.
+- **`npm run pack-check`** packs the package, installs the tarball into an
+  empty folder, and draws with it: from standard input with the installed
+  `napkin-sketch draw -`, and with `napkin-sketch` and `napkin-sketch/node`
+  imported by name. It fails when the install brings Electron, when the
+  tarball lacks a file an entry needs, or when it holds one machine's state.
+- **More of the release is held by tests.** A generated circle written as SVG
+  reads back as its four anchors to two decimals, and the no-DOM suite lowers a
+  sketch into a composition, adds to it, and renders it.
+
+### Changed
+
+- **Path data is read in `src/core/path-data.ts`.** `parsePathD`,
+  `parseVectorD`, the arc converter and the subpath builder need no DOM, and
+  now live beside the model, where code running in plain Node reaches them
+  without importing the SVG importer. The importer uses them from there and
+  still exports the two parsers, so nothing that imported them changes.
+- **Generated marks are sampled to their size, as imported ones are.** The
+  importer's sampler moved to `src/core/path-data.ts`, beside a wrapper for
+  marks with several subpaths, and the evaluator samples with it: a curved
+  segment gives about one point for each pixel along its handles, 4 at the
+  least and 24 at the most, where every generated segment used to give 24. A
+  circle of radius 10 is 73 points rather than 97, so the points budget goes
+  further on drawings of small curves. The importer's code for basic shapes -
+  circles, ellipses, rectangles, lines and polygons - moved there too, reading
+  attributes through a function rather than a DOM element, so the shape
+  library builds its shapes with it. What the importer reads does not change.
+- **The sketch SVG writer is in `src/core/sketch-svg.ts`.** `sketchToSvg`,
+  with the compact path writer (`src/core/svg-path.ts`) and `strokeBounds`
+  (`src/core/bounds.ts`), moved out of the renderer to beside the model, so
+  code running in plain Node reaches it with no DOM. `Surface.toSVG` calls it
+  and `surface.ts` still exports `strokeBounds`, so nothing that imported them
+  changes, and every export test passes on the same bytes.
+- **The API documentation moved into `docs/api/`.** The graphic-design
+  reference that was `API.md` is `docs/api/compose/README.md`, under the fixed
+  headings every reference page has and with two more worked examples: a
+  gradient under a ring with a hole in it, and a drawing with a band added in
+  code. The helper half of `API-QUICKSTART.md` is `docs/api/ai/README.md` and
+  `docs/api/ai/QUICKSTART.md`, and its composition half
+  `docs/api/compose/QUICKSTART.md`. README, CHEATSHEET, the two
+  `graphic-designer` skills and the code comments that named the old pages
+  name the new ones; README gains *Drawing from a script*, and CHEATSHEET the
+  twenty verbs most scripts use.
+  - Two statements the old page made are corrected: a color a composition
+    cannot read stops the PNG render with an error that names it, and the SVG
+    writes it as given, where the page said the call that set it throws; and
+    `inlineSvg` draws a gradient as its first stop, where the page said it
+    only noted one.
+
+### Fixed
+
+- **An inlined SVG paints what it can and says what it cannot.** `inlineSvg`,
+  which places a vector asset in a composition and now draws a linked SVG in
+  a PNG, read a gradient fill as no paint and fell back to SVG's default, so a
+  gradient-filled logo came out as a black silhouette, and it said nothing of
+  masks, group opacity or dashes. A gradient is now drawn as its first stop's
+  colour, a group's opacity is folded into its shapes, dashes, caps, joins,
+  stroke opacity and `text-anchor` carry over, and masks, clip paths,
+  filters and patterns are reported in `notes`.
+- **A composition image with no `fit` fills its box in the SVG as well.**
+  `fit` defaults to `fill`, and the rasterizer stretched such an image to its
+  box, but the SVG writer left `preserveAspectRatio` out, so a browser
+  letterboxed it. The writer now says `none`, as for `fit: 'fill'`.
+- **An image stretched in the app stays stretched in its SVG export.** The
+  canvas draws a placed image to fill its box, but the SVG writer left
+  `preserveAspectRatio` at its default, so a browser shrank a stretched image
+  back to its own proportions inside the box. The writer now says
+  `preserveAspectRatio="none"`, and reading the file back is unchanged.
+- **A PNG paints every CSS color name.** The rasterizer knew 39 named colors,
+  so a composition filled with `steelblue` or `cornflowerblue` wrote a correct
+  SVG and then failed its PNG with `unsupported color`. `parseColor` now reads
+  all 148 CSS names. Nothing that painted before changes, since the 39 it knew
+  already had the CSS values, and the script language accepts exactly this
+  set, so a script cannot name a color some output cannot paint.
+- **The PDF writer paints every color the PNG does.** Named colors,
+  eight-digit hex, `hsl()` and a transparent page printed black. Colors are
+  read with the composition model's parser now: a color's alpha is its
+  opacity, a transparent page prints no paper, and a value that is not a color
+  is left out and reported rather than printed black.
+- **The PDF writer leaves a switched-off outline off, and dashes a dashed
+  one.** A fill-only shape printed with the outline the canvas and the SVG
+  leave off, and a dashed or dotted line printed solid.
+- **A text box wraps in SVG and PDF exports.** The SVG writer split a text
+  item at its newlines only, so a boxed caption exported as one long line. It
+  now breaks the box where the built-in face breaks it, as the composition
+  writers do, and keeps the text as typed and the box's width in `data-text`
+  and `data-box`, which the importer reads back as the box. The PDF breaks it
+  at the same words.
+- **A composition group's opacity covers the group as one picture.** The
+  rasterizer drew each child at the group's opacity, so where two children
+  overlapped, the one below showed through; the canvas painter did the same.
+  A group is now drawn on a layer of its own and laid down once, as SVG draws
+  it, and a translucent shape's fill no longer shows through its own outline.
+- **A composition path fills its open subpaths**, as SVG fills them. The
+  rasterizer and the canvas painter filled closed subpaths only, so an open
+  path with a fill came out as its outline alone in a PNG.
+- **A script's group sits above the layers it holds.** The sketch sink put a
+  group's row below its children in the stack, so the Layers panel drew a
+  generated group under what it held; the app keeps a group's row above them,
+  and so does a generated book now. Paint order is unchanged.
+- **`napkin-sketch/graphic-design/files` is typed.** Its entry in the
+  package's exports map named the bundle alone, so a TypeScript project that
+  imported it found no declarations. The entry names them now, as the main
+  entry's does.
+- **The GUI checks end the whole app.** A check stopped the app with
+  `child.kill()`, which on Windows ends the main process alone, and the
+  renderer it started could outlive it, orphaned and spinning a core. Runs
+  piled them up until the machine slowed enough for checks to fail on timing.
+  `stop()` in `test/gui/cdp.mjs` ends the process tree with `taskkill /T`, and
+  every check uses it.
+- **The package no longer ships this machine's Animation Mode install
+  record.** `ai-helper/installed.json` is local state, and git ignores it, but
+  `files` packed it with the rest of `ai-helper/`, so a published tarball
+  would carry one machine's record - which AI tool Animation Mode was installed
+  for, and when - into every install, where `scripts/animation-mode.mjs` reads
+  it. `package.json` leaves it out now, and `npm run pack-check` fails if it
+  comes back.
+
 ## [1.0.0-alpha.4.3.0] - 2026-09-23
 
 Three features - Mirror Selection, Stroke Profiles and Mesh Warp - make this a

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="640" height="400" viewBox="0 0 640 400" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" data-generator="napkin-sketch">
+<rect width="640" height="400" fill="#ffffff"/>
+<g id="Shapes" data-name="Shapes" inkscape:label="Shapes" inkscape:groupmode="layer">
+<path d="M20 20H120V80H20V20Z" stroke="#1f2328" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="0"/>
+<path d="M152 20h76c6.63 0 12 5.37 12 12V68c0 6.63-5.37 12-12 12H152c-6.63 0-12-5.37-12-12V32c0-6.63 5.37-12 12-12Z" stroke="#1f2328" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="1"/>
+<path d="M340 50c0 16.57-13.43 30-30 30s-30-13.43-30-30 13.43-30 30-30 30 13.43 30 30Z" stroke="#1f2328" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="2"/>
+<path d="M480 50c0 16.57-26.86 30-60 30s-60-13.43-60-30 26.86-30 60-30 60 13.43 60 30Z" stroke="#1f2328" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="3"/>
+<path d="M500 20 620 80" stroke="#1f2328" data-tool="pen" data-i="4"/>
+<path d="M20 120H120L70 200 20 120Z" stroke="#1f2328" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="5"/>
+<path d="M140 136c0-8.84 7.16-16 16-16h68c8.84 0 16 7.16 16 16v48c0 8.84-7.16 16-16 16H156c-8.84 0-16-7.16-16-16V136Z" stroke="#1f2328" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="6"/>
+<path d="M260 200l40-80 40 80 40-80" stroke="#1f2328" data-tool="pen" data-i="7"/>
+<path d="M460 120l9.4 27.06 28.64.58-22.82 17.3 8.29 27.42L460 176l-23.51 16.36 8.29-27.42-22.82-17.3 28.64-.58L460 120Z" stroke="#1f2328" fill="#ff8a65" data-fill="#ff8a65" data-tool="pen" data-i="8"/>
+<path d="M600 160c0 22.09-17.91 40-40 40s-40-17.91-40-40 17.91-40 40-40" stroke="#1f2328" data-tool="pen" data-i="9"/>
+<path d="M70 300c1.67 0 2.62 3.33 0 5s-8.33.24-10-5 2.15-13.33 10-15 18.33 4.53 20 15-6.91 23.33-20 25-28.33-9.29-30-25 11.67-33.33 30-35 38.33 14.06 40 35-16.44 43.33-40 45-48.33-18.82-50-45 21.2-53.33 50-55 58.33 23.58 60 55" stroke="#1f2328" data-tool="pen" data-i="10"/>
+</g>
+<g id="Library" data-name="Library" inkscape:label="Library" inkscape:groupmode="layer">
+<path d="M235 240H185l-25 43.3 25 43.3h50l25-43.3L235 240Z" stroke="#1f2328" fill="#326478" data-fill="#326478" data-tool="pen" data-i="11"/>
+<path d="M324.82 240.17h74.43v61.99l-26.33 25.67H300V264.99l24.82-24.82Z" stroke="#1f2328" fill="#326478" data-fill="#326478" data-tool="pen" data-i="12"/>
+<path d="M300 264.99h72.92v64.26H300V264.99Z" stroke="#1f2328" fill="#326478" data-fill="#326478" data-tool="pen" data-i="13"/>
+<path d="M324.05 240.56h75.2" stroke="#1f2328" data-tool="pen" data-i="14"/>
+<path d="M399.98 302.74V240.17" stroke="#1f2328" data-tool="pen" data-i="15"/>
+<path d="M300 264.99l24.82-24.82" stroke="#1f2328" data-tool="pen" data-i="16"/>
+<path d="M372.92 329.25 400 302.16" stroke="#1f2328" data-tool="pen" data-i="17"/>
+<path d="M372.92 264.99 399.98 240" stroke="#1f2328" data-tool="pen" data-i="18"/>
+<path d="M540 248.09c0-6.05-22.38-8.09-50-8.09-27.61 0-50 2.04-50 8.09 0 1.78 6.08 92.39 6.08 92.39 0 6.05 16.31 19.52 43.92 19.52 27.62 0 43.92-13.47 43.92-19.52l6.06-92.09c.01-.1.02-.2.02-.3Z" stroke="none" fill="#326478" data-fill="#326478" data-tool="pen" data-i="19" data-nostroke="1" data-color="#1f2328" data-width="2"/>
+<path d="M533.92 340.48c0 6.05-16.3 19.52-43.92 19.52-27.61 0-43.92-13.47-43.92-19.52" stroke="#1f2328" data-tool="pen" data-i="20"/>
+<path d="M440 248.09l6.08 92.39" stroke="#1f2328" data-tool="pen" data-i="21"/>
+<path d="M540 248.09l-6.08 92.39" stroke="#1f2328" data-tool="pen" data-i="22"/>
+<path d="M540 248.09c0 6.05-22.38 10.95-50 10.95-27.61 0-50-4.9-50-10.95S462.39 240 490 240c27.62 0 50 2.04 50 8.09Z" stroke="#1f2328" fill="#326478" data-fill="#326478" data-tool="pen" data-i="23"/>
+</g>
+</svg>

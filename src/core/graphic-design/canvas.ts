@@ -21,10 +21,15 @@ import {
   type ClipShape,
   type CompositionDocument,
   type Element,
+  type GradientPaint,
+  type GroupElement,
   type TextElement,
+  eraseShapes,
 } from './types.js';
-import { elementMatrix, flattenShape, shapeCentre, type Contour, type Matrix } from './geometry.js';
+import { contourBounds, elementMatrix, flattenShape, shapeCentre, type Contour, type Matrix } from './geometry.js';
 import { layoutText, transformText } from './font.js';
+import { flatPaint, gradientAxis, isGradientPaint, sortedStops, type PaintBox } from './gradient.js';
+import { cssFilter, readEffects, type Effect } from '../effects.js';
 import { toPx } from '../units.js';
 
 /** Resolves an `image` element's `src` to something the canvas can draw. */
@@ -72,10 +77,114 @@ function applyClip(
   ctx.clip();
 }
 
-/** Sets the paint state an element asks for. */
+/** A canvas gradient for a paint over a box in the element's own coordinates, as the SVG and the PNG place it. */
+function canvasGradient(ctx: CanvasRenderingContext2D, paint: GradientPaint, box: PaintBox): CanvasGradient {
+  const axis = gradientAxis(paint, box);
+  const gradient =
+    axis.type === 'radial'
+      ? ctx.createRadialGradient(axis.cx, axis.cy, 0, axis.cx, axis.cy, axis.r)
+      : ctx.createLinearGradient(axis.x1, axis.y1, axis.x2, axis.y2);
+  for (const stop of sortedStops(paint)) {
+    try {
+      gradient.addColorStop(stop.offset, stop.color);
+    } catch {
+      // A stop that is not a color paints nothing, as it does in the other formats.
+    }
+  }
+  return gradient;
+}
+
+/**
+ * Draws a group with an opacity, or with shapes to erase, on a canvas of its
+ * own and lays it down once at the alpha the context already carries, as the
+ * rasterizer and SVG composite a group. Erase shapes clear that canvas where
+ * they paint.
+ */
+function paintIsolated(
+  ctx: CanvasRenderingContext2D,
+  el: GroupElement,
+  clips: Map<string, ClipShape[]>,
+  options: PaintOptions,
+): void {
+  const layer = document.createElement('canvas');
+  layer.width = ctx.canvas.width;
+  layer.height = ctx.canvas.height;
+  const lctx = layer.getContext('2d');
+  if (!lctx) return;
+  lctx.setTransform(ctx.getTransform());
+  for (const child of el.children) paintElement(lctx, child, clips, options);
+  const erase = el.erase ?? [];
+  if (erase.length > 0) {
+    lctx.globalCompositeOperation = 'destination-out';
+    for (const shape of eraseShapes(erase)) paintElement(lctx, shape, clips, options);
+  }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(layer, 0, 0);
+  ctx.restore();
+}
+
+/**
+ * Draws an element that carries effects: its own picture - a group's as one -
+ * on a canvas of its own, then that picture through the effects as a CSS
+ * filter, then a group's erase shapes cut from the filtered picture, as SVG
+ * masks after it filters, and last the result laid down at the alpha and
+ * inside the clip the context already carries.
+ */
+function paintFiltered(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  effects: readonly Effect[],
+  clips: Map<string, ClipShape[]>,
+  options: PaintOptions,
+): void {
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+  const picture = document.createElement('canvas');
+  picture.width = width;
+  picture.height = height;
+  const pctx = picture.getContext('2d');
+  const filtered = document.createElement('canvas');
+  filtered.width = width;
+  filtered.height = height;
+  const fctx = filtered.getContext('2d');
+  if (!pctx || !fctx) return;
+  const transform = ctx.getTransform();
+  // The context already stands in the element's own frame, so the picture is
+  // the element less its transform and less what is laid on afterwards.
+  const plain = {
+    ...el,
+    effects: undefined,
+    opacity: undefined,
+    clip: undefined,
+    rotate: undefined,
+    scale: undefined,
+    translate: undefined,
+    origin: undefined,
+    ...(el.type === 'group' ? { erase: undefined } : {}),
+  } as Element;
+  pctx.setTransform(transform);
+  paintElement(pctx, plain, clips, options);
+  fctx.filter = cssFilter(effects, transform);
+  fctx.drawImage(picture, 0, 0);
+  fctx.filter = 'none';
+  const erase = el.type === 'group' ? el.erase ?? [] : [];
+  if (erase.length > 0) {
+    fctx.setTransform(transform);
+    fctx.globalCompositeOperation = 'destination-out';
+    for (const shape of eraseShapes(erase)) paintElement(fctx, shape, clips, options);
+  }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(filtered, 0, 0);
+  ctx.restore();
+}
+
+/** Sets the paint state an element asks for. A gradient is set by the shape that knows its box. */
 function applyPaint(ctx: CanvasRenderingContext2D, el: Element): void {
   if (el.opacity !== undefined) ctx.globalAlpha *= el.opacity;
-  if (el.fill) ctx.fillStyle = el.fill;
+  const fill = flatPaint(el.fill);
+  if (fill) ctx.fillStyle = fill;
   if (el.stroke) ctx.strokeStyle = el.stroke;
   ctx.lineWidth = el.strokeWidth ?? 1;
   ctx.lineCap = el.lineCap ?? 'butt';
@@ -127,9 +236,20 @@ function paintElement(
   if (el.clip) applyClip(ctx, el.clip, clips);
   applyPaint(ctx, el);
 
+  const effects = readEffects(el.effects);
+  if (effects) {
+    paintFiltered(ctx, el, effects, clips, options);
+    ctx.restore();
+    return;
+  }
+
   switch (el.type) {
     case 'group':
-      for (const child of el.children) paintElement(ctx, child, clips, options);
+      if ((el.opacity === undefined || el.opacity >= 1) && !(el.erase && el.erase.length > 0)) {
+        for (const child of el.children) paintElement(ctx, child, clips, options);
+      } else {
+        paintIsolated(ctx, el, clips, options);
+      }
       break;
     case 'text':
       paintText(ctx, el);
@@ -142,8 +262,14 @@ function paintElement(
     default: {
       const flat = flattenShape(el);
       if (el.fill) {
+        if (isGradientPaint(el.fill)) {
+          const box = contourBounds([...flat.closed, ...flat.open]);
+          if (box) ctx.fillStyle = canvasGradient(ctx, el.fill, box);
+        }
         ctx.beginPath();
         tracePath(ctx, flat.closed, true);
+        // A path fills its open subpaths too, as SVG does; the canvas closes them for the fill.
+        if (el.type === 'path') tracePath(ctx, flat.open, false);
         ctx.fill(el.fillRule ?? 'nonzero');
       }
       if (el.stroke) {

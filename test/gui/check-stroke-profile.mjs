@@ -10,7 +10,7 @@
  * Those ratios are what each profile is, so they are what is checked, rather
  * than any particular pixel.
  */
-import { launch, connect, sleep, checker } from './cdp.mjs';
+import { launch, connect, sleep, checker, stop } from './cdp.mjs';
 
 const c = checker();
 const app = launch({ mode: 'new', sketchName: 'profiles' });
@@ -163,5 +163,5 @@ try {
   console.error('check failed:', err);
   process.exitCode = 1;
 } finally {
-  app.kill();
+  await stop(app);
 }

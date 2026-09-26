@@ -13,7 +13,7 @@
  * particular pixel count.
  */
 import { resolve } from 'node:path';
-import { launch, connect, sleep, checker } from './cdp.mjs';
+import { launch, connect, sleep, checker, stop } from './cdp.mjs';
 
 const c = checker();
 const app = launch({
@@ -113,5 +113,5 @@ try {
   console.error('check failed:', err);
   process.exitCode = 1;
 } finally {
-  app.kill();
+  await stop(app);
 }

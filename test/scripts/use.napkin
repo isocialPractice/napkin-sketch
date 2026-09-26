@@ -1,0 +1,12 @@
+napkin 1
+# Copies in two documents the host passes: `figure`, the gradient-painted
+# fixture test/imports/gradient-figure.svg read with no DOM, and `badge`, the
+# small card every documentation example is handed.
+page 400 300
+name "use"
+background #ffffff
+layer "Frame"
+color #1f2328 width 2
+rect 10 10 380 280 r 12
+use "figure" at 40 40 scale 2 layer "Figure"
+use "badge" at 280 200 scale 0.5

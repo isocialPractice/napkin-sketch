@@ -788,6 +788,23 @@ body {
   color: var(--ink-faint);
 }
 
+/* The script that draws measured frames, shown before it runs: as written,
+   in a box that scrolls rather than a dialog that grows off the screen. */
+.anim-script {
+  max-height: 40vh;
+  margin: 0 0 var(--s3);
+  padding: var(--s2) var(--s3);
+  overflow: auto;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
 /* The posing choice. Bordered as one block because the two rows are a single
    decision, and a radio on its own row reads as a list of alternatives in a
    way a switch never does. */

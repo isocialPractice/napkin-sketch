@@ -7,60 +7,84 @@
  * importer (`pdf-import.ts`) can round-trip napkin-sketch exports.
  *
  * Fidelity notes (mirrors the SVG exporter's approximations):
- * - Strokes are uniform-width polylines with round caps and joins.
+ * - Strokes are uniform-width polylines with round caps and joins, dashed as
+ *   the SVG dashes them. A switched-off outline is not drawn.
  * - Eraser strokes are painted in the page background color, so they also
- *   cover content on layers beneath their own.
- * - Layer opacity multiplies each stroke's opacity via an ExtGState.
+ *   cover content on layers beneath their own. A transparent page has no
+ *   color to paint them in, so there they draw nothing.
+ * - Layer opacity multiplies each stroke's opacity via an ExtGState, and so
+ *   does the alpha of a color that has one.
+ * - A gradient fill prints as the shape's flat fill.
+ * - Effects - a blur, a shadow, a color shift, on a mark or a layer - are
+ *   not drawn: what carries them prints plain.
+ * - A text box wraps between words where the built-in face breaks it, as the
+ *   SVG export wraps it, and is set in Helvetica.
  * - Image items are embedded only when their data URL is a JPEG
  *   (`image/jpeg`); callers should pre-convert other formats.
+ *
+ * What a page holds that the PDF cannot print - an image that is not a JPEG,
+ * a color that is not a color, a gradient, an effect - is reported through
+ * `PdfOptions.onWarning`.
  *
  * The returned string contains only code points 0-255; write it to disk with
  * latin1/binary encoding to preserve embedded image bytes.
  */
 
 import {
+  dashPatternFor,
   defaultOpacityFor,
   effectiveLayers,
   isImageStroke,
   isTextStroke,
   strokesByLayer,
+  type Layer,
   type Sketch,
   type Stroke,
 } from './types.js';
 import { copicNibPolygons } from './nib.js';
+import { linkName } from './link.js';
 import { activeProfile, profileInputOf, profileOutline } from './stroke-profile.js';
+import { parseColor } from './graphic-design/color.js';
+import { wrapText } from './graphic-design/font.js';
 
 /** RGB color with components in 0-1. */
 type Rgb = [number, number, number];
 
-/** Parses a CSS hex or rgb()/rgba() color into 0-1 RGB components. */
+/** A color as PDF paint: its components in 0-1 and its alpha. */
+interface PdfPaint {
+  rgb: Rgb;
+  alpha: number;
+}
+
+/**
+ * Reads a CSS color - hex of three to eight digits, `rgb()`, `hsl()`, a named
+ * color, `transparent` - with the composition model's parser, the one the
+ * PNG is painted with. Null for anything that is not a color.
+ */
+function readColor(color: string): PdfPaint | null {
+  try {
+    const { r, g, b, a } = parseColor(color);
+    return { rgb: [r / 255, g / 255, b / 255], alpha: a };
+  } catch {
+    return null;
+  }
+}
+
+/** Parses a CSS color into 0-1 RGB components: any color {@link readColor} reads, and black for anything else. */
 export function parseCssColor(color: string): Rgb {
-  const c = color.trim();
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
-  if (hex) {
-    const h = hex[1];
-    if (h.length === 3) {
-      return [
-        parseInt(h[0] + h[0], 16) / 255,
-        parseInt(h[1] + h[1], 16) / 255,
-        parseInt(h[2] + h[2], 16) / 255,
-      ];
-    }
-    return [
-      parseInt(h.slice(0, 2), 16) / 255,
-      parseInt(h.slice(2, 4), 16) / 255,
-      parseInt(h.slice(4, 6), 16) / 255,
-    ];
-  }
-  const rgb = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(c);
-  if (rgb) {
-    return [
-      Math.min(255, Number(rgb[1])) / 255,
-      Math.min(255, Number(rgb[2])) / 255,
-      Math.min(255, Number(rgb[3])) / 255,
-    ];
-  }
-  return [0, 0, 0];
+  return readColor(color)?.rgb ?? [0, 0, 0];
+}
+
+/** How {@link sketchesToPdf} writes its pages. */
+export interface PdfOptions {
+  /**
+   * A box a page, in page pixels, to cut each page to. The page's media box
+   * becomes the box, so a viewer shows that part of the page and nothing
+   * else. A missing or null entry writes the whole page.
+   */
+  crops?: ReadonlyArray<{ x: number; y: number; width: number; height: number } | null | undefined>;
+  /** Told about each thing a page holds that the PDF leaves out or prints as a stand-in. */
+  onWarning?: (message: string) => void;
 }
 
 /** Formats a number for a PDF content stream (compact, no exponent). */
@@ -146,7 +170,7 @@ function strokeAlpha(stroke: Stroke, layerOpacity: number): number {
  *
  * Returns a latin1-safe string; persist it with binary/latin1 encoding.
  */
-export function sketchesToPdf(sketches: Sketch[]): string {
+export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): string {
   // Object 1: catalog, 2: pages tree, 3: Helvetica. ExtGStates, images, and
   // per-page objects are appended in that order below.
   const objects: string[] = [
@@ -191,45 +215,86 @@ export function sketchesToPdf(sketches: Sketch[]): string {
   };
 
   interface PendingPage {
-    width: number;
-    height: number;
+    /** The media box, in PDF points: left, bottom, right, top. */
+    media: [number, number, number, number];
     content: string;
   }
   const pages: PendingPage[] = [];
 
-  for (const sketch of sketches) {
+  // Each thing left out is said once for the document, however often it recurs.
+  const said = new Set<string>();
+  const warn = (message: string): void => {
+    if (said.has(message)) return;
+    said.add(message);
+    options.onWarning?.(message);
+  };
+
+  for (const [index, sketch] of sketches.entries()) {
     const H = sketch.height;
     const ops: string[] = [];
     // Both resolved once for the page rather than per layer (see
     // strokesByLayer and effectiveLayers).
     const byLayer = strokesByLayer(sketch);
     const effectiveOf = effectiveLayers(sketch);
+    const page = `page "${sketch.name}"`;
+    const layerById = new Map(sketch.layers.map((l) => [l.id, l]));
+    const effectsAbove = (layer: Layer): boolean => {
+      const seen = new Set<string>();
+      for (let at: Layer | undefined = layer; at && !seen.has(at.id); at = at.parent ? layerById.get(at.parent) : undefined) {
+        seen.add(at.id);
+        if (at.effects && at.effects.length > 0) return true;
+      }
+      return false;
+    };
 
-    // Opaque paper background, matching the JPEG export behaviour.
-    const [br, bg, bb] = parseCssColor(sketch.background);
-    ops.push('q', `${col(br)} ${col(bg)} ${col(bb)} rg`, `0 0 ${num(sketch.width)} ${num(H)} re f`, 'Q');
+    // An ExtGState for any alpha below 1, as the operator list to splice in.
+    const alphaOps = (alpha: number): string[] => (alpha < 1 ? [`/${gstateFor(alpha)} gs`] : []);
+    // A color the page names, or null - said once - when it is not a color.
+    const paintOf = (color: string): PdfPaint | null => {
+      const paint = readColor(color);
+      if (!paint) warn(`${page}: "${color}" is not a color, so what it colors was left out`);
+      return paint;
+    };
+
+    // The paper, matching the JPEG export behaviour; a transparent page has none.
+    const paper = paintOf(sketch.background);
+    if (paper && paper.alpha > 0) {
+      const [br, bg, bb] = paper.rgb;
+      ops.push('q', ...alphaOps(paper.alpha), `${col(br)} ${col(bg)} ${col(bb)} rg`, `0 0 ${num(sketch.width)} ${num(H)} re f`, 'Q');
+    }
 
     for (const layer of sketch.layers) {
       if (layer.group) continue; // groups paint nothing themselves
       const effective = effectiveOf.get(layer.id);
       if (!effective || !effective.visible) continue;
+      if (effectsAbove(layer)) warn(`${page}: an effect is not drawn in a PDF, so what carries it prints plain`);
       for (const stroke of byLayer.get(layer.id) ?? []) {
+        if (stroke.effects && stroke.effects.length > 0) {
+          warn(`${page}: an effect is not drawn in a PDF, so what carries it prints plain`);
+        }
         const alpha = strokeAlpha(stroke, effective.opacity);
         const gs = alpha < 1 ? `/${gstateFor(alpha)} gs` : '';
 
         if (isTextStroke(stroke)) {
           const anchor = stroke.points[0];
           if (!anchor || !stroke.text) continue;
+          const ink = paintOf(stroke.color);
+          if (!ink) continue;
           const size = stroke.fontSize ?? 24;
           const leading = size * 1.25;
-          const [r, g, b] = parseCssColor(stroke.color);
-          const lines = stroke.text.split('\n');
+          const [r, g, b] = ink.rgb;
+          // A fixed-width box breaks between words where the built-in face breaks it, as the SVG does.
+          const box = stroke.textBoxWidth && stroke.textBoxWidth > 0 ? stroke.textBoxWidth : 0;
+          const lines =
+            box > 0
+              ? stroke.text.split('\n').flatMap((paragraph) => wrapText(paragraph, box, { fontSize: size }))
+              : stroke.text.split('\n');
           const text = lines
             .map((line, i) => `(${pdfString(line)}) Tj${i < lines.length - 1 ? ' T*' : ''}`)
             .join(' ');
           ops.push(
             'q',
-            ...(gs ? [gs] : []),
+            ...alphaOps(alpha * ink.alpha),
             `${col(r)} ${col(g)} ${col(b)} rg`,
             'BT',
             `/F1 ${num(size)} Tf`,
@@ -243,11 +308,46 @@ export function sketchesToPdf(sketches: Sketch[]): string {
           continue;
         }
 
+        if (isImageStroke(stroke) && stroke.link) {
+          // A linked file is drawn as its placeholder: a dashed box the placed
+          // size with the file's name in it. Embedding the file itself would
+          // make the PDF an import of it rather than a link to it.
+          const anchor = stroke.points[0];
+          if (!anchor) continue;
+          const w = stroke.imageWidth ?? 100;
+          const h = stroke.imageHeight ?? 100;
+          const left = anchor.x;
+          const bottom = H - anchor.y - h;
+          const size = Math.min(28, Math.max(8, Math.min(w, h) * 0.14));
+          const name = linkName(stroke.link.href);
+          // Helvetica averages about half the size a character, which centres the name closely enough.
+          const nameWidth = Math.min(name.length * size * 0.5, w - 8);
+          ops.push(
+            'q',
+            ...(gs ? [gs] : []),
+            '0.965 0.973 0.98 rg',
+            `${num(left)} ${num(bottom)} ${num(w)} ${num(h)} re f`,
+            '0.431 0.467 0.506 RG 2 w [6 4] 0 d',
+            `${num(left + 1)} ${num(bottom + 1)} ${num(w - 2)} ${num(h - 2)} re S`,
+            '0.341 0.376 0.416 rg',
+            'BT',
+            `/F1 ${num(size)} Tf`,
+            `${num(left + (w - nameWidth) / 2)} ${num(bottom + h / 2 - size * 0.35)} Td`,
+            `(${pdfString(name)}) Tj`,
+            'ET',
+            'Q',
+          );
+          continue;
+        }
+
         if (isImageStroke(stroke)) {
           const anchor = stroke.points[0];
           if (!anchor || !stroke.image) continue;
           const image = imageFor(stroke.image);
-          if (!image) continue;
+          if (!image) {
+            warn(`${page}: an image that is not a JPEG was left out, since the PDF embeds JPEG images only`);
+            continue;
+          }
           const w = stroke.imageWidth ?? image.width;
           const h = stroke.imageHeight ?? image.height;
           ops.push(
@@ -262,19 +362,28 @@ export function sketchesToPdf(sketches: Sketch[]): string {
 
         const pts = stroke.points;
         if (pts.length === 0) continue;
-        const [r, g, b] = parseCssColor(stroke.tool === 'eraser' ? sketch.background : stroke.color);
+        const isEraser = stroke.tool === 'eraser';
+        // An eraser paints the paper back over what it crossed; with no paper there is nothing to paint.
+        const ink = isEraser ? (paper && paper.alpha > 0 ? paper : null) : paintOf(stroke.color);
+        const [r, g, b] = ink?.rgb ?? [0, 0, 0];
+        const inkOps = alphaOps(alpha * (ink?.alpha ?? 1));
 
         // Filled shape interior, painted before its outline.
-        if (stroke.fill && stroke.tool !== 'eraser' && pts.length > 2) {
-          const [fr, fg, fb] = parseCssColor(stroke.fill);
-          // Each `move` point opens a new subpath so compound shapes keep
-          // their holes (`h` closes only the current subpath; `f` closes
-          // the rest implicitly).
-          const fillPath =
-            pts.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 || p.move ? 'm' : 'l'}`).join(' ') +
-            ' h f';
-          ops.push('q', ...(gs ? [gs] : []), `${col(fr)} ${col(fg)} ${col(fb)} rg`, fillPath, 'Q');
+        if (stroke.fill && !isEraser && pts.length > 2) {
+          if (stroke.gradient) warn(`${page}: a gradient fill prints as the shape's flat fill`);
+          const fill = paintOf(stroke.fill);
+          if (fill) {
+            const [fr, fg, fb] = fill.rgb;
+            // Each `move` point opens a new subpath so compound shapes keep
+            // their holes (`h` closes only the current subpath; `f` closes
+            // the rest implicitly).
+            const fillPath =
+              pts.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 || p.move ? 'm' : 'l'}`).join(' ') +
+              ' h f';
+            ops.push('q', ...alphaOps(alpha * fill.alpha), `${col(fr)} ${col(fg)} ${col(fb)} rg`, fillPath, 'Q');
+          }
         }
+        if (!ink) continue;
 
         // Copic marker: fill the chisel-nib footprint (single non-zero fill,
         // matching the canvas renderer). The vertical flip to PDF coordinates
@@ -288,7 +397,7 @@ export function sketchesToPdf(sketches: Sketch[]): string {
                   ' h',
               )
               .join(' ') + ' f';
-          ops.push('q', ...(gs ? [gs] : []), `${col(r)} ${col(g)} ${col(b)} rg`, fillPath, 'Q');
+          ops.push('q', ...inkOps, `${col(r)} ${col(g)} ${col(b)} rg`, fillPath, 'Q');
           continue;
         }
 
@@ -307,10 +416,14 @@ export function sketchesToPdf(sketches: Sketch[]): string {
                   ' h',
               )
               .join(' ') + ' f';
-          ops.push('q', ...(gs ? [gs] : []), `${col(r)} ${col(g)} ${col(b)} rg`, fillPath, 'Q');
+          ops.push('q', ...inkOps, `${col(r)} ${col(g)} ${col(b)} rg`, fillPath, 'Q');
           continue;
         }
 
+        // A switched-off outline paints nothing; its fill was painted above.
+        if (!isEraser && stroke.noStroke) continue;
+        // Dashed and dotted as the SVG writes them; a dotted line's zero-length dashes print as round dots.
+        const dash = dashPatternFor(stroke.strokeStyle, stroke.width);
         const path =
           pts.length === 1
             ? // Zero-length round-capped segment renders as a dot.
@@ -320,17 +433,23 @@ export function sketchesToPdf(sketches: Sketch[]): string {
                 .join(' ') + ' S';
         ops.push(
           'q',
-          ...(gs ? [gs] : []),
+          ...inkOps,
           `${col(r)} ${col(g)} ${col(b)} RG`,
           `${num(Math.max(0.5, stroke.width))} w`,
           '1 J 1 j',
+          ...(dash.length > 0 ? [`[${dash.map(num).join(' ')}] 0 d`] : []),
           path,
           'Q',
         );
       }
     }
 
-    pages.push({ width: sketch.width, height: H, content: ops.join('\n') });
+    // A crop is the media box: page pixels, flipped to PDF's upward y.
+    const crop = options.crops?.[index];
+    const media: PendingPage['media'] = crop
+      ? [crop.x, H - crop.y - crop.height, crop.x + crop.width, H - crop.y]
+      : [0, 0, sketch.width, H];
+    pages.push({ media, content: ops.join('\n') });
   }
 
   // Shared resource dictionary referencing every gstate and image object.
@@ -348,7 +467,7 @@ export function sketchesToPdf(sketches: Sketch[]): string {
       `<< /Length ${page.content.length} >>\nstream\n${page.content}\nendstream`,
     );
     const pageId = addObject(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(page.width)} ${num(page.height)}] ` +
+      `<< /Type /Page /Parent 2 0 R /MediaBox [${page.media.map(num).join(' ')}] ` +
         `/Resources ${resources} /Contents ${contentId} 0 R >>`,
     );
     pageIds.push(pageId);

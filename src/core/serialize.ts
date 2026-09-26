@@ -20,6 +20,7 @@ import {
   type Gradient,
   type GradientStop,
   type Layer,
+  type LinkKind,
   type Sketch,
   type SketchBook,
   type Stroke,
@@ -27,6 +28,8 @@ import {
   type Tool,
   type VectorAnchor,
 } from './types.js';
+import { readEffects } from './effects.js';
+import { linkKind } from './link.js';
 
 /** Ensures a path/name ends with the `.skbk` extension. */
 export function withSketchBookExtension(filePath: string): string {
@@ -143,6 +146,8 @@ function normalizeStroke(raw: unknown): Stroke | null {
   const isImage = tool === 'image' && typeof r.image === 'string';
   // An image item without its data is unrenderable; drop it.
   if (tool === 'image' && !isImage) return null;
+  // An eraser clears; it has no picture of its own for an effect to work on.
+  const effects = tool !== 'eraser' ? readEffects(r.effects) : undefined;
 
   return {
     id: typeof r.id === 'string' ? r.id : createId('st'),
@@ -184,12 +189,29 @@ function normalizeStroke(raw: unknown): Stroke | null {
     image: isImage ? (r.image as string) : undefined,
     imageWidth: isImage && typeof r.imageWidth === 'number' ? r.imageWidth : undefined,
     imageHeight: isImage && typeof r.imageHeight === 'number' ? r.imageHeight : undefined,
+    link: isImage ? normalizeLink(r.link) : undefined,
+    ...(effects ? { effects } : {}),
   };
+}
+
+const LINK_KINDS: readonly LinkKind[] = ['svg', 'png', 'jpeg', 'gif', 'pdf', 'unknown'];
+
+/**
+ * Reads a linked file's reference. A link without a usable `href` is dropped,
+ * which leaves the image it carries: its placeholder, drawn as any image is.
+ */
+function normalizeLink(raw: unknown): Stroke['link'] {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.href !== 'string' || r.href.trim() === '') return undefined;
+  const kind = LINK_KINDS.includes(r.kind as LinkKind) ? (r.kind as LinkKind) : linkKind(r.href);
+  return { href: r.href, kind };
 }
 
 function normalizeLayer(raw: unknown, index: number): Layer | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
+  const effects = readEffects(r.effects);
   return {
     id: typeof r.id === 'string' ? r.id : createId('ly'),
     name: typeof r.name === 'string' && r.name.length > 0 ? r.name : `Layer ${index + 1}`,
@@ -198,6 +220,7 @@ function normalizeLayer(raw: unknown, index: number): Layer | null {
     locked: r.locked === true,
     group: r.group === true ? true : undefined,
     parent: typeof r.parent === 'string' ? r.parent : undefined,
+    ...(effects ? { effects } : {}),
   };
 }
 

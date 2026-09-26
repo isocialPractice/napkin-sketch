@@ -1,0 +1,25 @@
+napkin 1
+# Every shape verb, and three shapes from the library.
+page 640 400
+name "shapes"
+background #ffffff
+layer "Shapes"
+color #1f2328 width 2 fill #ffe08a
+rect 20 20 100 60
+rect 140 20 100 60 r 12
+circle 310 50 30
+ellipse 420 50 60 30
+line 500 20 620 80
+polygon 20 120, 120 120, 70 200
+polygon 140 120, 240 120, 240 200, 140 200 r 16
+fill none
+polyline 260 200, 300 120, 340 200, 380 120
+fill #ff8a65
+star 460 160 40 16 5
+arc 560 160 40 0 270
+spiral 70 300 60 3
+layer "Library"
+fill #326478
+shape "hexagon" at 160 240 size 100
+shape "cube-isometric" at 300 240 size 100
+shape "cylinder-perspective" at 440 240 size 100 120

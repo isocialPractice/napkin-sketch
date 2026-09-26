@@ -110,8 +110,9 @@ coordinates are **pixels** unless the page names `in`, `mm`, or `pt`, the
 background is **transparent** unless set, and the API is **headless** - it
 never touches whatever sketch is open in the app.
 
-Full reference, every property, and worked examples: `API.md` at the
-repository root.
+Full reference, every property, and worked examples:
+`docs/api/compose/README.md` in the repository, and `API.md` at its root is
+the map of every API page.
 
 ## Core Decision Framework
 
@@ -272,4 +273,5 @@ Named plainly, because designing around a limit beats discovering it:
 - `references/color-and-type.md` - ratios, scales, and contrast on a static page
 - `references/principles.md` - hierarchy, Gestalt, and whitespace as they apply
   to a composition with no interaction
-- `API.md` at the repository root - the full API reference
+- `docs/api/compose/README.md` in the repository - the full API reference, with
+  `API.md` at the root as the map of every API page

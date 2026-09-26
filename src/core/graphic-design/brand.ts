@@ -386,11 +386,16 @@ const SHAPE_TAGS = new Set(['rect', 'circle', 'ellipse', 'line', 'polygon', 'pol
  * What it handles: `rect`, `circle`, `ellipse`, `line`, `polygon`, `polyline`,
  * `path`, `text` and data-URL `image`, painted by presentation attribute, by
  * inline `style`, or by a class declared in a `<style>` block - which is what a
- * design tool writes. Nested `<g>` transforms are composed and applied.
+ * design tool writes. Nested `<g>` transforms are composed and applied, and a
+ * group's opacity is multiplied into every shape inside it. Dashes, line caps
+ * and joins, stroke opacity and `text-anchor` carry over.
  *
- * What it does not: gradients, patterns, filters, masks, `<use>` references,
+ * What it approximates: a gradient fill or stroke is drawn as its first stop's
+ * colour, since this API paints solids, and says so in `notes`.
+ *
+ * What it does not: patterns, filters, masks, clip paths, `<use>` references,
  * and elliptical arc path commands, each of which lands in `notes` rather than
- * being approximated. Returns `null` when the text is not an SVG at all.
+ * being drawn wrong. Returns `null` when the text is not an SVG at all.
  */
 export function inlineSvg(text: string): InlinedVector | null {
   if (!/<svg[\s>]/i.test(text)) return null;
@@ -409,6 +414,52 @@ export function inlineSvg(text: string): InlinedVector | null {
     }
   }
 
+  // Gradients are read for their first stop, which is the flat colour a shape
+  // painted with one is drawn in. A gradient may take its stops from another
+  // by `href`, as design tools write them.
+  const gradients = new Map<string, { stop?: string; href?: string }>();
+  for (const match of text.matchAll(/<(linearGradient|radialGradient)\b([^>]*?)(\/?)>/gi)) {
+    const attrs = parseAttributes(match[2]);
+    if (!attrs.id) continue;
+    let stop: string | undefined;
+    if (!match[3]) {
+      const rest = text.slice((match.index ?? 0) + match[0].length);
+      const end = rest.search(new RegExp(`</${match[1]}\\s*>`, 'i'));
+      const first = /<stop\b([^>]*?)\/?>/i.exec(end >= 0 ? rest.slice(0, end) : '');
+      if (first) {
+        const stopAttrs = parseAttributes(first[1]);
+        stop = parseStyle(stopAttrs.style ?? '')['stop-color'] ?? stopAttrs['stop-color'];
+      }
+    }
+    gradients.set(attrs.id, { stop, href: (attrs.href ?? attrs['xlink:href'])?.replace(/^#/, '') });
+  }
+  const gradientColor = (id: string, depth = 0): string | undefined => {
+    const gradient = gradients.get(id);
+    if (!gradient || depth > 8) return undefined;
+    return gradient.stop ?? (gradient.href ? gradientColor(gradient.href, depth + 1) : undefined);
+  };
+  let flattenedGradient = false;
+  let droppedPattern = false;
+  /** A paint, with a `url(#...)` resolved: a gradient to its first stop, anything else to no paint at all. */
+  const resolvePaint = (raw: string | undefined): string | null | undefined => {
+    if (raw === undefined || !/^\s*url\(/i.test(raw)) return paint(raw);
+    const id = /url\(\s*['"]?#([^'")\s]+)/i.exec(raw)?.[1];
+    const color = id ? gradientColor(id) : undefined;
+    if (color !== undefined) {
+      flattenedGradient = true;
+      return paint(color) ?? null;
+    }
+    droppedPattern = true;
+    return null;
+  };
+  // What a shape or a group asks for that this API cannot draw, said once each.
+  const unapplied = new Set<string>();
+  const noteUnapplied = (attrs: Record<string, string>, style: Style): void => {
+    if (attrs.mask || style.mask) unapplied.add('A mask was not applied.');
+    if (attrs['clip-path'] || style['clip-path']) unapplied.add('A clip path was not applied.');
+    if (attrs.filter || style.filter) unapplied.add('A filter was not applied.');
+  };
+
   const root = /<svg\b([^>]*)>/i.exec(text);
   const rootAttrs = parseAttributes(root ? root[1] : '');
   const box = (rootAttrs.viewbox ?? '').trim().split(/[\s,]+/).map(Number);
@@ -424,6 +475,8 @@ export function inlineSvg(text: string): InlinedVector | null {
 
   const elements: Element[] = [];
   const stack: Affine[] = [NO_TRANSFORM];
+  // A group's opacity, multiplied down the nesting, is folded into each shape inside it.
+  const opacities: number[] = [1];
   const body = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
 
   // Everything between `<defs>` and `</defs>` is a definition, not a drawing.
@@ -444,17 +497,26 @@ export function inlineSvg(text: string): InlinedVector | null {
 
     if (tag === 'g' || tag === 'svg') {
       if (closing) {
-        if (stack.length > 1) stack.pop();
+        if (stack.length > 1) {
+          stack.pop();
+          opacities.pop();
+        }
       } else if (!selfClosing) {
         const attrs = parseAttributes(attrText);
         const local = attrs.transform ? parseTransform(attrs.transform) : NO_TRANSFORM;
         stack.push(compose(stack[stack.length - 1], local));
+        const style: Style = {};
+        for (const cls of (attrs.class ?? '').trim().split(/\s+/)) Object.assign(style, classStyles.get(cls) ?? {});
+        if (attrs.style) Object.assign(style, parseStyle(attrs.style));
+        const own = parseFloat(style.opacity ?? attrs.opacity ?? '');
+        opacities.push(opacities[opacities.length - 1] * (Number.isFinite(own) ? Math.min(1, Math.max(0, own)) : 1));
+        noteUnapplied(attrs, style);
       }
       continue;
     }
 
     if (closing || !SHAPE_TAGS.has(tag)) {
-      if (!closing && !SHAPE_TAGS.has(tag) && /^(use|filter|lineargradient|radialgradient|pattern|foreignobject)$/.test(tag)) {
+      if (!closing && !SHAPE_TAGS.has(tag) && /^(use|filter|pattern|foreignobject)$/.test(tag)) {
         skipped.add(tag);
       }
       continue;
@@ -469,8 +531,9 @@ export function inlineSvg(text: string): InlinedVector | null {
     if (attrs.style) Object.assign(style, parseStyle(attrs.style));
 
     const value = (prop: string): string | undefined => style[prop] ?? attrs[prop];
-    const fill = paint(value('fill'));
-    const stroke = paint(value('stroke'));
+    noteUnapplied(attrs, style);
+    const fill = resolvePaint(value('fill'));
+    const stroke = resolvePaint(value('stroke'));
     const common: Record<string, unknown> = {};
     // SVG fills black when nothing says otherwise; this API fills nothing. Say
     // what the asset meant rather than inheriting a different default.
@@ -478,9 +541,24 @@ export function inlineSvg(text: string): InlinedVector | null {
     if (stroke !== undefined && stroke !== null) {
       common.stroke = stroke;
       common.strokeWidth = parseFloat(value('stroke-width') ?? '1') || 1;
+      const dash = (value('stroke-dasharray') ?? '').trim();
+      if (dash !== '' && dash !== 'none') {
+        const pattern = dash.split(/[\s,]+/).map(Number).filter((n) => Number.isFinite(n) && n >= 0);
+        // An odd dash list repeats to make an even one, as SVG reads it.
+        if (pattern.some((n) => n > 0)) common.dash = pattern.length % 2 === 1 ? [...pattern, ...pattern] : pattern;
+        const offset = parseFloat(value('stroke-dashoffset') ?? '');
+        if (common.dash && Number.isFinite(offset) && offset !== 0) common.dashOffset = offset;
+      }
+      const cap = value('stroke-linecap');
+      if (cap === 'butt' || cap === 'round' || cap === 'square') common.lineCap = cap;
+      const join = value('stroke-linejoin');
+      if (join === 'miter' || join === 'round' || join === 'bevel') common.lineJoin = join;
+      const strokeOpacity = parseFloat(value('stroke-opacity') ?? '');
+      if (Number.isFinite(strokeOpacity) && strokeOpacity < 1) common.strokeOpacity = Math.max(0, strokeOpacity);
     }
-    const opacity = parseFloat(value('opacity') ?? '');
-    if (Number.isFinite(opacity) && opacity < 1) common.opacity = opacity;
+    const own = parseFloat(value('opacity') ?? '');
+    const opacity = (Number.isFinite(own) ? Math.min(1, Math.max(0, own)) : 1) * opacities[opacities.length - 1];
+    if (opacity < 1) common.opacity = opacity;
     const fillOpacity = parseFloat(value('fill-opacity') ?? '');
     if (Number.isFinite(fillOpacity) && fillOpacity < 1) common.fillOpacity = fillOpacity;
     const rule = value('fill-rule');
@@ -565,6 +643,8 @@ export function inlineSvg(text: string): InlinedVector | null {
         }
         const content = inner.replace(/<[^>]*>/g, '').trim();
         if (!content) break;
+        const anchor = value('text-anchor');
+        const align = anchor === 'middle' ? 'center' : anchor === 'end' ? 'right' : undefined;
         element = {
           type: 'text',
           x: num(attrs, 'x'),
@@ -572,6 +652,7 @@ export function inlineSvg(text: string): InlinedVector | null {
           text: content,
           fontSize: parseFloat(value('font-size') ?? '') || DEFAULT_FONT_SIZE,
           ...(value('font-family') ? { fontFamily: value('font-family') as string } : {}),
+          ...(align ? { align } : {}),
           ...common,
         } as Element;
         break;
@@ -608,6 +689,9 @@ export function inlineSvg(text: string): InlinedVector | null {
     }
   }
 
+  if (flattenedGradient) notes.push("A gradient was drawn as its first stop's colour: this API paints solids only.");
+  if (droppedPattern) notes.push('A pattern, or a paint that named nothing, was not drawn.');
+  notes.push(...unapplied);
   if (skipped.size > 0) {
     notes.push(`Skipped ${[...skipped].map((t) => `\`<${t}>\``).join(', ')}: this API paints solids only.`);
   }

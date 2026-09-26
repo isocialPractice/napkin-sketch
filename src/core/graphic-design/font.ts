@@ -14,7 +14,8 @@
  * "the same composition in two formats" holds for layout, which is the part a
  * composition actually controls. A caller who needs the raster text to match a
  * licensed face to the pixel should render the SVG through a browser instead;
- * that is a different trade, and it is named in `API.md` rather than hidden.
+ * that is a different trade, and it is named in `docs/api/compose/README.md`
+ * rather than hidden.
  *
  * Grid: x runs left to right from 0, y runs **up** from the baseline. The cap
  * height is 11, the x-height is 7, descenders reach -3, and the em is 15 units

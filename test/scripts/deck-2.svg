@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="400" height="240" viewBox="0 0 400 240" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" data-generator="napkin-sketch">
+<rect width="400" height="240" fill="#ffffff"/>
+<g id="Chart" data-name="Chart" inkscape:label="Chart" inkscape:groupmode="layer">
+<path d="M60 165h50v35H60V165Z" stroke="#326478" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="0"/>
+<path d="M135 130h50v70H135V130Z" stroke="#326478" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="1"/>
+<path d="M210 95h50V200H210V95Z" stroke="#326478" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="2"/>
+<path d="M285 60h50V200H285V60Z" stroke="#326478" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="3"/>
+<path d="M40 200H360" stroke="#326478" data-tool="pen" data-i="4"/>
+</g>
+</svg>

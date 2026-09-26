@@ -1,6 +1,6 @@
 # AI helpers
 
-The AI-facing half of napkin-sketch, in two plugins. Each one owns a folder
+The AI-facing half of napkin-sketch, in three plugins. Each one owns a folder
 here, and a folder is the whole plugin: the manifest, the commands, any
 subagents, the skills, and the contract the tool reads before it edits
 anything. The marketplace that lists them is
@@ -10,17 +10,19 @@ repository root.
 ```text
 ai-helper/
 ├── vectors/            Animation Mode: pose one SVG frame into the next
-└── graphic-designer/   Design language: read an asset, then draw more like it
+├── graphic-designer/   Design language: read an asset, then draw more like it
+└── scripting/          Napkin scripts: write one from a request
 ```
 
 | Plugin | What it does | Command |
 | --- | --- | --- |
 | [`vectors`](vectors/) | Draws the next Animation Mode frame from the form the app writes, and carries the Bezier and layer-structure knowledge behind it | `/vectors:animation-mode` |
 | [`graphic-designer`](graphic-designer/) | Reads a media file into a `DESIGN_LANGUAGE.md`, then generates a per-asset skill and scripts that compose new work in that language | `/graphic-designer:design-language` |
+| [`scripting`](scripting/) | Writes a napkin script from a request, for `napkin-sketch draw --prompt` or by itself, with a skill that teaches the language from the verb table | `/scripting:draw` |
 
 ## Installing
 
-Both plugins are tracked source, so a clone already has them. What installing
+All three plugins are tracked source, so a clone already has them. What installing
 does is put them where an AI tool looks.
 
 ```bash
@@ -40,10 +42,11 @@ commands that load it:
 /plugin marketplace add .
 /plugin install vectors@napkin-sketch
 /plugin install graphic-designer@napkin-sketch
+/plugin install scripting@napkin-sketch
 ```
 
 Without a clone, `/plugin marketplace add isocialPractice/napkin-sketch`
-reaches the same two.
+reaches the same three.
 
 ## Animation Mode is a feature switch, not a file copy
 
@@ -57,8 +60,10 @@ npm run animation-mode -- --uninstall
 ```
 
 It writes `ai-helper/installed.json` (gitignored), and the app reads that one
-file to decide whether the mode exists. `graphic-designer` has no such switch:
-nothing in the GUI runs it, so there is nothing to gate.
+file to decide whether the mode exists. `graphic-designer` and `scripting` have
+no such switch: nothing in the GUI runs them, so there is nothing to gate.
+`scripting` is run by the command line's `draw --prompt`, which needs only the
+AI tool on the PATH.
 
 ## Adding a helper
 

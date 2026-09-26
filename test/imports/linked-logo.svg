@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="480" height="320" viewBox="0 0 480 320">
+  <title>A logo placed by reference</title>
+  <g id="Logo" data-name="Logo">
+    <image x="120" y="90" width="240" height="140" href="assets/logo.svg" xlink:href="assets/logo.svg" data-link="true" data-name="logo.svg"/>
+  </g>
+</svg>

@@ -1,0 +1,16 @@
+napkin 1
+# A sketch drawn by hand: two passes, a curve through points, and text left
+# exact, since the hand-drawn pass does not reach a text item.
+page 400 300
+name "rough"
+seed 7
+background #fcfaf5
+layer "Sketch"
+rough 0.8 passes 2
+color #1f2328 width 2 fill #ffe08a
+rect 40 40 140 100 r 8
+circle 290 90 50
+color #c0392b
+through 40 220, 120 180, 200 240, 280 180, 360 220
+rough off
+text "Acme Corp" at 200 260 size 18 align center

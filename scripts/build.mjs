@@ -88,6 +88,19 @@ const configs = [
     entryPoints: [resolve(root, 'src/core/graphic-design/files.ts')],
     outfile: resolve(root, 'dist/graphic-design/files.js'),
   },
+  // `napkin-sketch/node`: the script API's file half - a script read from
+  // disk, a drawing written out as files - with the composition's file
+  // helpers beside it, as a Node ESM module of its own for the same reason.
+  {
+    bundle: true,
+    platform: 'node',
+    target: 'node18',
+    format: 'esm',
+    sourcemap: true,
+    logLevel: 'info',
+    entryPoints: [resolve(root, 'src/api/node.ts')],
+    outfile: resolve(root, 'dist/node/index.js'),
+  },
   // Embeddable API as a global IIFE for <script> tags (WordPress / plain HTML).
   {
     bundle: true,
@@ -133,13 +146,11 @@ async function copyStatic() {
   await mkdir(resolve(root, 'dist/api'), { recursive: true });
   await writeFile(resolve(root, 'dist/api/package.json'), `${JSON.stringify({ type: 'module' }, null, 2)}\n`, 'utf-8');
 
-  // Same reason, for the Node-only file helpers beside it.
-  await mkdir(resolve(root, 'dist/graphic-design'), { recursive: true });
-  await writeFile(
-    resolve(root, 'dist/graphic-design/package.json'),
-    `${JSON.stringify({ type: 'module' }, null, 2)}\n`,
-    'utf-8',
-  );
+  // Same reason, for the two Node-only entries.
+  for (const folder of ['dist/graphic-design', 'dist/node']) {
+    await mkdir(resolve(root, folder), { recursive: true });
+    await writeFile(resolve(root, folder, 'package.json'), `${JSON.stringify({ type: 'module' }, null, 2)}\n`, 'utf-8');
+  }
 }
 
 async function run() {

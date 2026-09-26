@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="400" height="300" viewBox="0 0 400 300" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" data-generator="napkin-sketch">
+<rect width="400" height="300" fill="#ffffff"/>
+<defs>
+<linearGradient id="grad-1" gradientUnits="userSpaceOnUse" x1="100" y1="60" x2="100" y2="140"><stop offset="0%" stop-color="#f6d2ae"/><stop offset="100%" stop-color="#8a4d2c"/></linearGradient>
+<radialGradient id="grad-2" gradientUnits="userSpaceOnUse" cx="200" cy="100" r="56.57"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#2c3126"/></radialGradient>
+<linearGradient id="grad-3" gradientUnits="userSpaceOnUse" x1="150" y1="156" x2="150" y2="184"><stop offset="0%" stop-color="#f6d2ae"/><stop offset="100%" stop-color="#8a4d2c"/></linearGradient>
+</defs>
+<g id="Frame" data-name="Frame" inkscape:label="Frame" inkscape:groupmode="layer">
+<path d="M22 10H378c6.63 0 12 5.37 12 12V278c0 6.63-5.37 12-12 12H22c-6.63 0-12-5.37-12-12V22c0-6.63 5.37-12 12-12Z" stroke="#1f2328" data-tool="pen" data-i="0"/>
+</g>
+<g id="Figure" data-name="Figure" inkscape:label="Figure" inkscape:groupmode="layer">
+<g id="Layer_x20_1" data-name="Layer 1" inkscape:label="Layer 1" inkscape:groupmode="layer">
+<path d="M60 60h80v80H60V60Z" stroke="none" fill="url(#grad-1)" data-gradient="{&quot;type&quot;:&quot;linear&quot;,&quot;angle&quot;:90,&quot;stops&quot;:[{&quot;offset&quot;:0,&quot;color&quot;:&quot;#f6d2ae&quot;},{&quot;offset&quot;:1,&quot;color&quot;:&quot;#8a4d2c&quot;}]}" data-fill="#f6d2ae" data-tool="pen" data-i="1" data-nostroke="1" data-color="#000000" data-width="2"/>
+<path d="M160 60h80v80H160V60Z" stroke="none" fill="url(#grad-2)" data-gradient="{&quot;type&quot;:&quot;radial&quot;,&quot;stops&quot;:[{&quot;offset&quot;:0,&quot;color&quot;:&quot;#ffffff&quot;},{&quot;offset&quot;:1,&quot;color&quot;:&quot;#2c3126&quot;}]}" data-fill="#ffffff" data-tool="pen" data-i="2" data-nostroke="1" data-color="#000000" data-width="2"/>
+<path d="M60 156H240v28H60V156Z" stroke="none" fill="url(#grad-3)" data-gradient="{&quot;type&quot;:&quot;linear&quot;,&quot;angle&quot;:90,&quot;stops&quot;:[{&quot;offset&quot;:0,&quot;color&quot;:&quot;#f6d2ae&quot;},{&quot;offset&quot;:1,&quot;color&quot;:&quot;#8a4d2c&quot;}]}" data-fill="#f6d2ae" data-tool="pen" data-i="3" data-nostroke="1" data-color="#000000" data-width="2"/>
+</g>
+</g>
+<g id="badge" data-name="badge" inkscape:label="badge" inkscape:groupmode="layer">
+<g id="Card" data-name="Card" inkscape:label="Card" inkscape:groupmode="layer">
+<path d="M292 205h76c3.87 0 7 3.13 7 7v36c0 3.87-3.13 7-7 7H292c-3.87 0-7-3.13-7-7V212c0-3.87 3.13-7 7-7Z" stroke="#1f2328" stroke-width="1.5" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="4"/>
+</g>
+<g id="Words" data-name="Words" inkscape:label="Words" inkscape:groupmode="layer">
+<text x="310.87" y="220" font-size="14" font-family="&quot;Segoe UI&quot;, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif" fill="#1f2328" dominant-baseline="hanging" data-tool="text" data-i="5"><tspan x="310.87" dy="0">Acme</tspan></text>
+</g>
+<g id="Mark" data-name="Mark" inkscape:label="Mark" inkscape:groupmode="layer">
+<g id="Dot" data-name="Dot" inkscape:label="Dot" inkscape:groupmode="layer">
+<path d="M365 242.5c0 2.76-2.24 5-5 5s-5-2.24-5-5 2.24-5 5-5 5 2.24 5 5Z" stroke="#1f2328" stroke-width="1.5" fill="#c0392b" data-fill="#c0392b" data-tool="pen" data-i="6"/>
+</g>
+</g>
+</g>
+</svg>

@@ -1,0 +1,18 @@
+napkin 1
+# Two pages: a title page with a linked logo, and a chart drawn by a repeat.
+page 400 240
+name "deck"
+background #ffffff
+layer "Title"
+font "Georgia" 28
+color #1f2328
+text "Acme Corp" at 200 50 align center
+text "Quarterly review" at 200 100 size 18 align center
+link "assets/logo.svg" at 160 150 size 80 40 name "Logo"
+newpage "deck-2"
+layer "Chart"
+color #326478 width 2 fill #ffe08a
+repeat 4 as i {
+  rect (60 + i * 75) (200 - (i + 1) * 35) 50 ((i + 1) * 35)
+}
+line 40 200 360 200

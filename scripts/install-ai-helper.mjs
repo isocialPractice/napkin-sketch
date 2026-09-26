@@ -12,6 +12,8 @@
  *                           animation-frame subagent, and two skills
  *       graphic-designer/   design language: /graphic-designer:design-language
  *                           and two skills
+ *       scripting/          napkin scripts from a request: /scripting:draw and
+ *                           the napkin-script skill
  *
  * Usage:
  *   node scripts/install-ai-helper.mjs                    # every helper -> .claude
@@ -72,6 +74,13 @@ export const HELPERS = {
     skills: ['design-language', 'graphic-design-api'],
     instructions: ['design-language.instructions.md'],
     commands: ['design-language.md'],
+    agents: [],
+  },
+  scripting: {
+    dir: `${AI_HELPER_ROOT}/scripting`,
+    skills: ['napkin-script'],
+    instructions: ['napkin-script.instructions.md'],
+    commands: ['draw.md'],
     agents: [],
   },
 };

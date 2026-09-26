@@ -4,9 +4,10 @@
  * Rebuilds the cheatsheet in `created-png_graphic-api.png` and
  * `created-svg_graphic-api.svg` - a 360 by 360 card with a title bar, a badge,
  * rules, a heading block, a code panel, and a footer with a placed logo - out
- * of nothing but the API's own elements. It is the worked example `API.md`
- * points at and the fixture `graphic-design-api.test.ts` renders, so a change
- * that breaks real composition work breaks a test rather than a user's script.
+ * of nothing but the API's own elements. It is the kind of card the worked
+ * example in `docs/api/compose/README.md` builds, and the fixture
+ * `graphic-design-api.test.ts` renders, so a change that breaks real
+ * composition work breaks a test rather than a user's script.
  *
  * Every colour and every position a test varies is a parameter, which is what
  * lets the variation cases re-render the same design in another palette and

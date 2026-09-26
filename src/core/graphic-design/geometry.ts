@@ -24,7 +24,10 @@ export type Matrix = [number, number, number, number, number, number];
 /** The transform that changes nothing. */
 export const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
 
-/** Composes two transforms: the result applies `n` after `m`. */
+/**
+ * Composes two transforms: the result applies `n` first, then `m`, as the
+ * matrix product `m * n` does to a point.
+ */
 export function multiply(m: Matrix, n: Matrix): Matrix {
   return [
     m[0] * n[0] + m[2] * n[1],

@@ -524,7 +524,23 @@
           <p id="anim-next-frame" class="anim-dialog-note">First frame drawn: <code>walk_1</code></p>
           <div class="export-dialog-actions">
             <button id="anim-step2-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <!-- Only for a character type with a measured cycle, posed by the
+                 measured joints: the whole sequence at once, with no AI. -->
+            <button id="anim-step2-measured" class="btn is-hidden" type="button" title="Draw every frame now from the measured cycle, with no AI">Draw measured frames</button>
             <button id="anim-step2-next" class="btn btn-primary" type="button">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Measured frames: the script that draws them, shown before it runs -->
+      <div id="anim-script-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Draw measured frames">
+        <div class="export-dialog-inner">
+          <p class="export-dialog-title">Draw measured frames</p>
+          <p id="anim-script-msg" class="anim-dialog-msg"></p>
+          <pre id="anim-script-text" class="anim-script" tabindex="0" aria-label="The script that draws the frames"></pre>
+          <div class="export-dialog-actions">
+            <button id="anim-script-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="anim-script-run" class="btn btn-primary" type="button">Draw frames</button>
           </div>
         </div>
       </div>

@@ -21,10 +21,14 @@ import {
   type CommonProps,
   type CompositionDocument,
   type Element,
+  type GradientPaint,
   type TextElement,
+  eraseShapes,
 } from './types.js';
-import { elementMatrix, IDENTITY, shapeCentre, type Matrix } from './geometry.js';
+import { effectReach, filterRegion, readEffects, svgFilterMarkup } from '../effects.js';
+import { apply, contourBounds, elementMatrix, flattenShape, IDENTITY, shapeCentre, type Matrix } from './geometry.js';
 import { layoutText, transformText } from './font.js';
+import { flatPaint, gradientAxis, isGradientPaint, sortedStops, type PaintBox } from './gradient.js';
 
 /** Options for {@link compositionToSvg}. */
 export interface SvgOptions {
@@ -32,6 +36,14 @@ export interface SvgOptions {
   pretty?: boolean;
   /** Decimal places coordinates are rounded to. Default 3. */
   precision?: number;
+}
+
+/** The definitions elements refer to by id: a clip, a gradient fill, and a group's erase mask. */
+interface Refs {
+  clips: Map<object, string>;
+  gradients: Map<object, string>;
+  masks: Map<object, string>;
+  filters: Map<object, string>;
 }
 
 /** Escapes the five characters that cannot appear raw in XML text or values. */
@@ -67,9 +79,15 @@ function matrixAttr(m: Matrix, precision: number): string | undefined {
   return `matrix(${[a, b, c, d, e, f].map((n) => fmt(n, precision)).join(' ')})`;
 }
 
-/** The paint and stroke attributes shared by every drawable element. */
-function paintAttrs(el: CommonProps, precision: number): Record<string, string | number | undefined> {
-  const fill = el.fill === undefined ? undefined : el.fill === null ? 'none' : el.fill;
+/**
+ * The paint and stroke attributes shared by every drawable element. A
+ * gradient fill refers to its `<linearGradient>` or `<radialGradient>` by
+ * `gradientId`; without one - text, whose glyphs the rasterizer strokes - it
+ * is written as its first color.
+ */
+function paintAttrs(el: CommonProps, precision: number, gradientId?: string): Record<string, string | number | undefined> {
+  const flat = flatPaint(el.fill);
+  const fill = gradientId ? `url(#${gradientId})` : flat === undefined ? undefined : flat === null ? 'none' : flat;
   const stroke = el.stroke === undefined || el.stroke === null ? undefined : el.stroke;
   return {
     fill,
@@ -90,15 +108,16 @@ function paintAttrs(el: CommonProps, precision: number): Record<string, string |
 function frameAttrs(
   el: Element | ClipShape,
   precision: number,
-  clipIds: Map<object, string>,
+  refs: Refs,
 ): Record<string, string | number | undefined> {
-  const clipId = clipIds.get(el);
+  const clipId = refs.clips.get(el);
   const clip = typeof el.clip === 'string' ? el.clip : clipId;
   return {
     id: el.id,
     'data-name': el.name,
     transform: matrixAttr(elementMatrix(el, shapeCentre(el)), precision),
     'clip-path': clip ? `url(#${clip})` : undefined,
+    filter: refs.filters.has(el) ? `url(#${refs.filters.get(el)})` : undefined,
   };
 }
 
@@ -108,10 +127,10 @@ function pointList(points: Array<{ x: number; y: number }>, precision: number): 
 }
 
 /** Writes the `<text>` element, one `<tspan>` per laid-out line. */
-function textMarkup(el: TextElement, precision: number, frame: string): string {
+/** A text element laid out into lines, as both renderers lay it out. */
+function textLayout(el: TextElement): ReturnType<typeof layoutText> {
   const fontSize = el.fontSize ?? DEFAULT_FONT_SIZE;
-  const content = transformText(el.text, el.transform);
-  const layout = layoutText(content, {
+  return layoutText(transformText(el.text, el.transform), {
     x: el.x,
     y: el.y,
     fontSize,
@@ -124,6 +143,11 @@ function textMarkup(el: TextElement, precision: number, frame: string): string {
     paragraphSpacing: el.paragraphSpacing,
     indent: el.indent,
   });
+}
+
+function textMarkup(el: TextElement, precision: number, frame: string): string {
+  const fontSize = el.fontSize ?? DEFAULT_FONT_SIZE;
+  const layout = textLayout(el);
 
   const style = attrs({
     'font-family': el.fontFamily ?? DEFAULT_TEXT_FONT,
@@ -159,13 +183,13 @@ function textMarkup(el: TextElement, precision: number, frame: string): string {
 function elementMarkup(
   el: Element,
   precision: number,
-  clipIds: Map<object, string>,
+  refs: Refs,
   indent: string,
   pretty: boolean,
 ): string {
   if (el.visible === false) return '';
-  const frame = attrs(frameAttrs(el, precision, clipIds));
-  const paint = attrs(paintAttrs(el, precision));
+  const frame = attrs(frameAttrs(el, precision, refs));
+  const paint = attrs(paintAttrs(el, precision, refs.gradients.get(el)));
   const nl = pretty ? '\n' : '';
 
   switch (el.type) {
@@ -220,14 +244,16 @@ function elementMarkup(
         preserveAspectRatio: preserveAspectRatio(el.fit),
         href: el.src,
         'xlink:href': el.src,
+        'data-link': el.link ? 'true' : undefined,
         opacity: el.opacity !== undefined ? fmt(el.opacity, 4) : undefined,
       })}>${title}</image>${nl}`;
     }
     case 'group': {
       const inner = el.children
-        .map((child) => elementMarkup(child, precision, clipIds, pretty ? `${indent}  ` : '', pretty))
+        .map((child) => elementMarkup(child, precision, refs, pretty ? `${indent}  ` : '', pretty))
         .join('');
-      return `${indent}<g${frame}${paint}>${nl}${inner}${indent}</g>${nl}`;
+      const mask = refs.masks.get(el);
+      return `${indent}<g${frame}${paint}${attrs({ mask: mask ? `url(#${mask})` : undefined })}>${nl}${inner}${indent}</g>${nl}`;
     }
     default:
       return '';
@@ -278,8 +304,13 @@ function imageBox(el: Extract<Element, { type: 'image' }>): {
   return { x: el.x, y: el.y, width: el.width, height: el.height };
 }
 
-/** Maps a `fit` onto the SVG attribute that means the same thing. */
-function preserveAspectRatio(fit: string | undefined): string | undefined {
+/**
+ * Maps a `fit` onto the SVG attribute that means the same thing. No `fit` is
+ * `fill`, the documented default and what the rasterizer draws, so it is
+ * written as `none` too: left out, SVG's own default would letterbox an image
+ * the PNG stretches.
+ */
+function preserveAspectRatio(fit: string | undefined): string {
   switch (fit) {
     case 'contain':
       return 'xMidYMid meet';
@@ -289,31 +320,196 @@ function preserveAspectRatio(fit: string | undefined): string | undefined {
       return 'xMidYMid meet';
     case 'fill':
     default:
-      return fit === 'fill' ? 'none' : undefined;
+      return 'none';
   }
 }
 
-/** Writes the `<clipPath>` definitions a composition references. */
-function clipMarkup(
-  clips: ClipDefinition[],
-  precision: number,
-  clipIds: Map<object, string>,
-  pretty: boolean,
-): string {
-  if (clips.length === 0) return '';
-  const nl = pretty ? '\n' : '';
-  const body = clips
-    .map((clip) => {
-      const shapes = clip.shapes
-        .map((shape) => elementMarkup(shape as Element, precision, clipIds, '', false))
-        .join('');
-      return `${pretty ? '    ' : ''}<clipPath${attrs({
-        id: clip.id,
-        clipPathUnits: 'userSpaceOnUse',
-      })}>${shapes}</clipPath>${nl}`;
-    })
+/** The `<clipPath>` definitions a composition references. */
+function clipDefs(clips: ClipDefinition[], precision: number, refs: Refs): string[] {
+  return clips.map((clip) => {
+    const shapes = clip.shapes.map((shape) => elementMarkup(shape as Element, precision, refs, '', false)).join('');
+    return `<clipPath${attrs({ id: clip.id, clipPathUnits: 'userSpaceOnUse' })}>${shapes}</clipPath>`;
+  });
+}
+
+/**
+ * A gradient paint server for an element whose box, in its own coordinates,
+ * is `box`: in user space, so a linear gradient keeps its angle on a box that
+ * is not square, where `objectBoundingBox` would skew it.
+ */
+function gradientMarkup(paint: GradientPaint, box: PaintBox, id: string, precision: number): string {
+  const stops = sortedStops(paint)
+    .map((stop) => `<stop${attrs({ offset: `${fmt(stop.offset * 100, 3)}%`, 'stop-color': stop.color })}/>`)
     .join('');
-  return `${pretty ? '  ' : ''}<defs>${nl}${body}${pretty ? '  ' : ''}</defs>${nl}`;
+  const axis = gradientAxis(paint, box);
+  if (axis.type === 'radial') {
+    return `<radialGradient${attrs({
+      id,
+      gradientUnits: 'userSpaceOnUse',
+      cx: fmt(axis.cx, precision),
+      cy: fmt(axis.cy, precision),
+      r: fmt(axis.r, precision),
+    })}>${stops}</radialGradient>`;
+  }
+  return `<linearGradient${attrs({
+    id,
+    gradientUnits: 'userSpaceOnUse',
+    x1: fmt(axis.x1, precision),
+    y1: fmt(axis.y1, precision),
+    x2: fmt(axis.x2, precision),
+    y2: fmt(axis.y2, precision),
+  })}>${stops}</linearGradient>`;
+}
+
+/** How far a mask's white cover reaches either way from the origin, in its group's units. */
+const MASK_REACH = 100000;
+
+/**
+ * The mask a group's erase shapes make: white wherever the group shows, and
+ * the shapes in black where it does not. Their own colors and opacity do not
+ * count: an erase shape clears all the way.
+ */
+function maskMarkup(shapes: readonly Element[], id: string, precision: number, refs: Refs): string {
+  const body = eraseShapes(shapes)
+    .map((shape) => elementMarkup(shape, precision, refs, '', false))
+    .join('');
+  const cover = { x: -MASK_REACH, y: -MASK_REACH, width: 2 * MASK_REACH, height: 2 * MASK_REACH };
+  return `<mask${attrs({ id, maskUnits: 'userSpaceOnUse', ...cover })}><rect${attrs({ ...cover, fill: '#fff' })}/>${body}</mask>`;
+}
+
+/** Finds the gradient fills and erase masks a tree of elements needs, and writes their definitions. */
+function collectPaintDefs(
+  elements: readonly Element[],
+  refs: Refs,
+  defs: string[],
+  counter: { next: number },
+  precision: number,
+): void {
+  for (const el of elements) {
+    if (isGradientPaint(el.fill) && el.type !== 'text' && el.type !== 'image' && el.type !== 'group') {
+      const flat = flattenShape(el);
+      const box = contourBounds([...flat.closed, ...flat.open]);
+      if (box) {
+        const id = `gradient-${counter.next++}`;
+        refs.gradients.set(el, id);
+        defs.push(gradientMarkup(el.fill, box, id, precision));
+      }
+    }
+    if (el.type === 'group') {
+      collectPaintDefs(el.children, refs, defs, counter, precision);
+      if (el.erase && el.erase.length > 0) {
+        const id = `erase-${counter.next++}`;
+        refs.masks.set(el, id);
+        defs.push(maskMarkup(el.erase, id, precision, refs));
+      }
+    }
+  }
+}
+
+/** A box by its edges. */
+type Edges = { minX: number; minY: number; maxX: number; maxY: number };
+
+const grown = (box: Edges, by: number): Edges => ({ minX: box.minX - by, minY: box.minY - by, maxX: box.maxX + by, maxY: box.maxY + by });
+
+const joined = (a: Edges, b: Edges): Edges => ({
+  minX: Math.min(a.minX, b.minX),
+  minY: Math.min(a.minY, b.minY),
+  maxX: Math.max(a.maxX, b.maxX),
+  maxY: Math.max(a.maxY, b.maxY),
+});
+
+/** The box a box covers once transformed. */
+function placedBox(box: Edges, m: Matrix): Edges {
+  const corners = [
+    apply(m, { x: box.minX, y: box.minY }),
+    apply(m, { x: box.maxX, y: box.minY }),
+    apply(m, { x: box.minX, y: box.maxY }),
+    apply(m, { x: box.maxX, y: box.maxY }),
+  ];
+  return {
+    minX: Math.min(...corners.map((p) => p.x)),
+    minY: Math.min(...corners.map((p) => p.y)),
+    maxX: Math.max(...corners.map((p) => p.x)),
+    maxY: Math.max(...corners.map((p) => p.y)),
+  };
+}
+
+/**
+ * An element's box in its own coordinates - its geometry as written, before
+ * its own transform, which is the space its filter region is read in - with
+ * room for its outline and for what a child's own effects reach. Text gets a
+ * font size of room around the measured lines, since a viewer sets it in a
+ * real face. Null for an element with nothing to box.
+ */
+function localBox(el: Element): Edges | null {
+  if (el.visible === false) return null;
+  switch (el.type) {
+    case 'group': {
+      let box: Edges | null = null;
+      for (const child of el.children) {
+        const inner = localBox(child);
+        if (!inner) continue;
+        const effects = readEffects(child.effects);
+        const placed = placedBox(effects ? grown(inner, effectReach(effects)) : inner, elementMatrix(child, shapeCentre(child)));
+        box = box ? joined(box, placed) : placed;
+      }
+      return box;
+    }
+    case 'text': {
+      const lines = textLayout(el).lines;
+      if (lines.length === 0) return null;
+      const size = el.fontSize ?? DEFAULT_FONT_SIZE;
+      return {
+        minX: Math.min(...lines.map((line) => line.x)) - size,
+        minY: Math.min(...lines.map((line) => line.y)) - 2 * size,
+        maxX: Math.max(...lines.map((line) => line.x + line.width)) + size,
+        maxY: Math.max(...lines.map((line) => line.y)) + size,
+      };
+    }
+    case 'image':
+      return { minX: el.x, minY: el.y, maxX: el.x + el.width, maxY: el.y + el.height };
+    default: {
+      const flat = flattenShape(el);
+      const box = contourBounds([...flat.closed, ...flat.open]);
+      if (!box) return null;
+      // A miter can stand out past the half width an outline covers, so a whole width is room enough.
+      const outline = el.stroke ? el.strokeWidth ?? 1 : 0;
+      return grown({ minX: box.x, minY: box.y, maxX: box.x + box.width, maxY: box.y + box.height }, outline);
+    }
+  }
+}
+
+/**
+ * Writes a filter for each element that carries effects. Elements with the
+ * same effects over the same region share one; the region is the element's
+ * own box grown by as far as the effects reach, in its own user space, so a
+ * small element and a wide shadow both fit it.
+ */
+function collectFilterDefs(
+  elements: readonly Element[],
+  refs: Refs,
+  defs: string[],
+  seen: Map<string, string>,
+  counter: { next: number },
+  precision: number,
+): void {
+  for (const el of elements) {
+    const effects = readEffects(el.effects);
+    const box = effects ? localBox(el) : null;
+    if (effects && box) {
+      const region = filterRegion(box, effects);
+      const format = (value: number): string => fmt(value, precision);
+      const key = JSON.stringify([effects, [region.x, region.y, region.width, region.height].map(format)]);
+      let id = seen.get(key);
+      if (!id) {
+        id = `effect-${counter.next++}`;
+        seen.set(key, id);
+        defs.push(svgFilterMarkup(effects, id, region, format));
+      }
+      refs.filters.set(el, id);
+    }
+    if (el.type === 'group') collectFilterDefs(el.children, refs, defs, seen, counter, precision);
+  }
 }
 
 /**
@@ -350,9 +546,15 @@ export function compositionToSvg(doc: CompositionDocument, options: SvgOptions =
   const nl = pretty ? '\n' : '';
   const indent = pretty ? '  ' : '';
 
-  const clipIds = new Map<object, string>();
+  const refs: Refs = { clips: new Map(), gradients: new Map(), masks: new Map(), filters: new Map() };
   const clips: ClipDefinition[] = [...doc.clips];
-  collectInlineClips(doc.elements, clips, clipIds, { next: 1 });
+  collectInlineClips(doc.elements, clips, refs.clips, { next: 1 });
+  const paintDefs: string[] = [];
+  collectPaintDefs(doc.elements, refs, paintDefs, { next: 1 }, precision);
+  collectFilterDefs(doc.elements, refs, paintDefs, new Map(), { next: 1 }, precision);
+  const defs = [...clipDefs(clips, precision, refs), ...paintDefs];
+  const defsMarkup =
+    defs.length > 0 ? `${indent}<defs>${nl}${defs.map((def) => `${pretty ? '    ' : ''}${def}${nl}`).join('')}${indent}</defs>${nl}` : '';
 
   const size =
     doc.units === 'px'
@@ -378,14 +580,14 @@ export function compositionToSvg(doc: CompositionDocument, options: SvgOptions =
       })}/>${nl}`
     : '';
   const body = doc.elements
-    .map((el) => elementMarkup(el, precision, clipIds, indent, pretty))
+    .map((el) => elementMarkup(el, precision, refs, indent, pretty))
     .join('');
 
   return (
     `<?xml version="1.0" encoding="UTF-8"?>${nl}` +
     `${head}${nl}` +
     title +
-    clipMarkup(clips, precision, clipIds, pretty) +
+    defsMarkup +
     background +
     body +
     `</svg>${nl}`

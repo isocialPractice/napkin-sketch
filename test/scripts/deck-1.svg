@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="400" height="240" viewBox="0 0 400 240" fill="none" stroke-linecap="round" stroke-linejoin="round" data-generator="napkin-sketch">
+<rect width="400" height="240" fill="#ffffff"/>
+<g id="Title" data-name="Title" inkscape:label="Title" inkscape:groupmode="layer">
+<text x="125.33" y="50" font-size="28" font-family="Georgia" fill="#1f2328" dominant-baseline="hanging" data-tool="text" data-i="0"><tspan x="125.33" dy="0">Acme Corp</tspan></text>
+<text x="128" y="100" font-size="18" font-family="Georgia" fill="#1f2328" dominant-baseline="hanging" data-tool="text" data-i="1"><tspan x="128" dy="0">Quarterly review</tspan></text>
+</g>
+<g id="Logo" data-name="Logo" inkscape:label="Logo" inkscape:groupmode="layer">
+<image x="160" y="150" width="80" height="40" preserveAspectRatio="none" href="assets/logo.svg" data-link="true" data-name="logo.svg" data-tool="image" data-i="2"/>
+</g>
+</svg>

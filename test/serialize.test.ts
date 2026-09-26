@@ -154,6 +154,39 @@ test('image items keep their data and are dropped when the data is missing', () 
   assert.equal(strokes[0].imageHeight, 30);
 });
 
+test('an image item carrying a field this build does not know still loads as its image', () => {
+  // A file written by a newer build can hold marks with fields this one has
+  // never heard of. The mark must survive with everything this build does
+  // understand, so a newer kind of image degrades to the picture it carries
+  // rather than disappearing from the page.
+  const placeholder = `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>')}`;
+  const raw = {
+    sketches: [
+      {
+        strokes: [
+          {
+            tool: 'image',
+            image: placeholder,
+            imageWidth: 120,
+            imageHeight: 60,
+            points: [{ x: 20, y: 30 }],
+            link: { href: 'assets/logo.svg', kind: 'svg' },
+          },
+        ],
+      },
+    ],
+  };
+  const loaded = normalizeSketchBook(raw, 'x').sketches[0].strokes;
+  assert.equal(loaded.length, 1);
+  assert.equal(loaded[0].tool, 'image');
+  assert.equal(loaded[0].image, placeholder);
+  assert.deepEqual([loaded[0].imageWidth, loaded[0].imageHeight], [120, 60]);
+  assert.deepEqual([loaded[0].points[0].x, loaded[0].points[0].y], [20, 30]);
+
+  const reread = parseSketchBook(serializeSketchBook(normalizeSketchBook(raw, 'x')), 'x');
+  assert.equal(reread.sketches[0].strokes[0].image, placeholder);
+});
+
 test('vector anchor structure survives a save/load round trip', () => {
   const book = normalizeSketchBook(
     {

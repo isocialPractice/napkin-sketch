@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="600" height="200" viewBox="0 0 600 200" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" data-generator="napkin-sketch">
+<rect width="600" height="200" fill="#ffffff"/>
+<g id="Holes" data-name="Holes" inkscape:label="Holes" inkscape:groupmode="layer">
+<path d="M20 20H180V180H20V20ZM60 60v80h80V60H60Z" stroke="#1f2328" fill="#326478" data-fill="#326478" data-tool="pen" data-i="0"/>
+<path d="M220 100c0-44.18 35.82-80 80-80s80 35.82 80 80-35.82 80-80 80-80-35.82-80-80Zm40 0c0 22.09 17.91 40 40 40s40-17.91 40-40-17.91-40-40-40-40 17.91-40 40Z" stroke="#1f2328" fill="#326478" data-fill="#326478" data-tool="pen" data-i="1"/>
+<path d="M420 180 500 20l80 160H420Zm80-30h30L500 90l-30 60h30Z" stroke="#1f2328" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="2"/>
+</g>
+</svg>

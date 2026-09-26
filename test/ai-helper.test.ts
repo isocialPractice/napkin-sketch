@@ -23,7 +23,10 @@ import {
   allHelperSkills,
   ANIMATION_PLUGIN,
   GRAPHIC_DESIGNER_PLUGIN,
+  SCRIPTING_PLUGIN,
 } from '../src/core/ai-tool.js';
+import { SCRIPT_FORM_FILE, SCRIPT_OUT_FILE, SCRIPT_SKILL_NAME } from '../src/core/script/ai-bridge.js';
+import { evaluate, VERBS } from '../src/core/script/index.js';
 import { ANIMATION_SKILL_NAME, VECTOR_SKILL_NAME } from '../src/core/animation.js';
 import { ANIMATION_INSTALL_FILE } from '../src/core/animation-install.js';
 
@@ -292,6 +295,7 @@ test('each plugin root is its own install source, not a copy of one', () => {
     resolve(ROOT, GRAPHIC_DESIGNER_PLUGIN.dir),
     resolve(ROOT, AI_HELPER_ROOT, 'graphic-designer')
   );
+  assert.equal(resolve(ROOT, SCRIPTING_PLUGIN.dir), resolve(ROOT, AI_HELPER_ROOT, 'scripting'));
 
   // And the container holds nothing but those folders, its own README, and the
   // install record the installer drops beside them, so "each helper has an
@@ -306,6 +310,38 @@ test('each plugin root is its own install source, not a copy of one', () => {
     )
     .map((e) => e.name);
   assert.deepEqual(stray, [], `${AI_HELPER_ROOT}/ holds something that is not a helper`);
+});
+
+test("the napkin-script skill's three scripts check clean, and its reference lists every verb", () => {
+  // The skill is what a tool writes scripts from, so a script in it that does
+  // not check is a mistake the tool copies. The reference is generated - the
+  // api-docs suite holds it to the generator - so here it only has to be there
+  // and whole.
+  const dir = join(ROOT, SCRIPTING_PLUGIN.dir, 'skills', SCRIPTING_PLUGIN.skill);
+  const skill = readFileSync(join(dir, 'SKILL.md'), 'utf-8').replace(/\r\n/g, '\n');
+  const scripts = [...skill.matchAll(/^```napkin\n([\s\S]*?)\n```$/gm)].map((m) => m[1]);
+  assert.equal(scripts.length, 3, 'three complete scripts');
+  for (const script of scripts) {
+    assert.deepEqual(evaluate(script).diagnostics, [], script.split('\n').slice(0, 3).join(' / '));
+  }
+  assert.ok(skill.includes('](references/verbs.md)'), 'the skill points at its reference');
+  const reference = readFileSync(join(dir, 'references', 'verbs.md'), 'utf-8');
+  for (const verb of VERBS) assert.ok(reference.includes(`### \`${verb.name}\``), `the reference lists ${verb.name}`);
+});
+
+test('the scripting command, its contract and the command line agree on the files and the skill', () => {
+  // napkin-sketch writes the form and reads the script at fixed paths; a
+  // command or a contract that named others would have the tool save where
+  // nothing reads.
+  const base = join(ROOT, SCRIPTING_PLUGIN.dir);
+  const command = readFileSync(join(base, 'commands', `${SCRIPTING_PLUGIN.command}.md`), 'utf-8');
+  const contract = readFileSync(join(base, 'instructions', 'napkin-script.instructions.md'), 'utf-8');
+  for (const [name, text] of [['the command', command], ['the contract', contract]] as const) {
+    assert.ok(text.includes(SCRIPT_FORM_FILE), `${name} names ${SCRIPT_FORM_FILE}`);
+    assert.ok(text.includes(SCRIPT_OUT_FILE), `${name} names ${SCRIPT_OUT_FILE}`);
+  }
+  assert.equal(SCRIPT_SKILL_NAME, SCRIPTING_PLUGIN.skill);
+  assert.ok(command.includes(`${SCRIPTING_PLUGIN.name}:${SCRIPTING_PLUGIN.skill}`), 'the command loads the skill by its plugin name');
 });
 
 test('the installer registry and the app registry agree', () => {

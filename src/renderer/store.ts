@@ -6,6 +6,7 @@
  * strokes for the active page. Emits a change event so the UI re-renders.
  */
 
+import type { Effect } from '../core/effects.js';
 import { basename } from '../core/paths.js';
 import {
   createGroupLayer,
@@ -96,6 +97,8 @@ export interface ImportedLayerNode {
   opacity: number;
   strokes: Stroke[];
   children?: ImportedLayerNode[];
+  /** Effects the layer carried in the file, drawn over its picture. */
+  effects?: Effect[];
 }
 
 type Listener = () => void;
@@ -935,10 +938,12 @@ export class Store {
       parent?: string,
       opacity = item.opacity,
       name = item.name,
+      effects = item.effects,
     ): void => {
       const layer = createLayer(name);
       layer.opacity = opacity;
       layer.parent = parent;
+      if (effects) layer.effects = effects;
       this.sketch.layers.push(layer);
       for (const stroke of item.strokes) {
         this.sketch.strokes.push({ ...stroke, id: createId('st'), layer: layer.id });
@@ -950,11 +955,13 @@ export class Store {
         const group = createGroupLayer(item.name);
         group.opacity = item.opacity;
         group.parent = parent;
+        if (item.effects) group.effects = item.effects;
         // Children push first: the group header renders above them in the panel.
         for (const child of item.children) append(child, group.id);
         // Marks the source kept on the group itself get a row of their own; it
         // is named apart from the group so the panel shows no duplicate name.
-        if (item.strokes.length > 0) appendLeaf(item, group.id, 1, `${item.name} contents`);
+        // The group's effects stay on the group.
+        if (item.strokes.length > 0) appendLeaf(item, group.id, 1, `${item.name} contents`, undefined);
         this.sketch.layers.push(group);
       } else {
         appendLeaf(item, parent);

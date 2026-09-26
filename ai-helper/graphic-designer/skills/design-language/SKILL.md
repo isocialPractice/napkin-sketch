@@ -301,4 +301,5 @@ node scripts/brand-resources.mjs --print
 - `scripts/brand-resources.mjs` - the brand resolver, importable as `resolveBrand`
 - `scripts/template.md` - the fill-in-the-blank procedure
 - The `graphic-design-api` skill - the composition API this generates against
-- `API.md` at the repository root - the full API reference
+- `docs/api/compose/README.md` in the repository - the full API reference, with
+  `API.md` at the root as the map of every API page

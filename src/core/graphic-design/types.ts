@@ -14,6 +14,7 @@
  * frame SVG uses, so what is written here is what the SVG says.
  */
 
+import type { Effect } from '../effects.js';
 import type { LengthUnit } from '../units.js';
 
 /** A point in composition units. */
@@ -62,8 +63,8 @@ export interface CommonProps {
   id?: string;
   /** Name, written as `data-name` - the label a design tool would show. */
   name?: string;
-  /** Fill paint as a CSS color, or `null` for no fill. */
-  fill?: string | null;
+  /** Fill paint: a CSS color, a {@link GradientPaint}, or `null` for no fill. */
+  fill?: Paint | null;
   /** Fill alpha in 0-1, multiplied into the fill color's own alpha. */
   fillOpacity?: number;
   /** How a self-intersecting outline decides inside from outside. */
@@ -94,6 +95,13 @@ export interface CommonProps {
   origin?: Point;
   /** Clipping mask: an id defined with `defineClip`, or an inline shape. */
   clip?: string | ClipShape;
+  /**
+   * CSS filter effects - `blur`, `drop-shadow`, `sepia` and the rest - drawn
+   * over the element's finished picture, a group's as one, in order and
+   * before its clip and its opacity, as SVG orders a filter. Lengths are in
+   * composition units. See `core/effects.ts`.
+   */
+  effects?: Effect[];
   /** Set false to keep an element in the model but out of every render. */
   visible?: boolean;
 }
@@ -255,13 +263,51 @@ export interface ImageElement extends CommonProps {
   fit?: ImageFit;
   /** Alternative text, written as a `<title>` inside the `<image>`. */
   alt?: string;
+  /**
+   * True when `src` is the path of a file to link rather than data to embed.
+   * The SVG keeps the path as its `href`, marked `data-link`; the rasterizer
+   * draws the file the host's `resolveLink` reads, or a placeholder - a dashed
+   * box with the file's name - when it cannot.
+   */
+  link?: boolean;
 }
 
 /** A transform applied to a set of children as one. */
 export interface GroupElement extends CommonProps {
   type: 'group';
   children: Element[];
+  /**
+   * Shapes cut out of the group, the way an eraser cuts through a layer:
+   * wherever one of them paints - its fill or its stroke - the group's
+   * children are cleared, and what lies under the group shows through. The
+   * SVG writes them as a mask; the rasterizer draws the group on a layer of
+   * its own and clears it there. They are drawn in the group's coordinates,
+   * and their colors do not matter.
+   */
+  erase?: Element[];
 }
+
+/** One color of a gradient, and where along it the color sits, from 0 to 1. */
+export interface GradientStop {
+  offset: number;
+  color: string;
+}
+
+/**
+ * A gradient fill. A linear one runs through the middle of the element's box
+ * at `angle` degrees - 0 left to right, 90 top to bottom - and reaches the
+ * box's edges along it; a radial one runs from the box's centre out to its
+ * corners. Colors between stops are mixed as a browser mixes them.
+ */
+export interface GradientPaint {
+  type: 'linear' | 'radial';
+  /** Linear only: the direction the colors run, in degrees. Default 0. */
+  angle?: number;
+  stops: GradientStop[];
+}
+
+/** A fill: a CSS color, or a gradient. */
+export type Paint = string | GradientPaint;
 
 /** Any element a composition can hold. */
 export type Element =
@@ -325,4 +371,22 @@ export const DEFAULT_LINE_HEIGHT = 1.2;
 /** Type guard for the elements that carry a `children` array. */
 export function isGroup(el: Element): el is GroupElement {
   return el.type === 'group';
+}
+
+/**
+ * A group's erase shapes as they clear: black, fully opaque and unclipped,
+ * with text and images left out, since they do not erase. An erase shape
+ * clears all the way whatever paint it was given; it only has to paint. The
+ * SVG writer, the rasterizer and the canvas painter all clear with these, so
+ * one erase list cuts the same hole in every format.
+ */
+export function eraseShapes(shapes: readonly Element[]): Element[] {
+  const bare = { opacity: undefined, fillOpacity: undefined, strokeOpacity: undefined, clip: undefined };
+  const out: Element[] = [];
+  for (const el of shapes) {
+    if (el.type === 'text' || el.type === 'image') continue;
+    if (el.type === 'group') out.push({ ...el, ...bare, erase: undefined, children: eraseShapes(el.children) });
+    else out.push({ ...el, ...bare, fill: el.fill ? '#000' : null, stroke: el.stroke ? '#000' : null });
+  }
+  return out;
 }

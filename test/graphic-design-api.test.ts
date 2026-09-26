@@ -34,6 +34,7 @@ import {
   type CompositionDocument,
   type RasterResult,
 } from '../src/core/graphic-design/index.js';
+import { COLOR_NAMES } from '../src/core/graphic-design/color.js';
 import { buildCheatsheet, DEFAULT_LAYOUT, DEFAULT_PALETTE } from './graphic-design-api/cheatsheet.js';
 
 /**
@@ -283,6 +284,18 @@ test('opacity multiplies down through a group', () => {
   // Half of a half over white leaves three quarters of the white showing.
   const [r, g, b] = pixel(design.rasterize(), 20, 20);
   assert.ok(Math.abs(r - 191) <= 2 && Math.abs(g - 191) <= 2 && Math.abs(b - 191) <= 2, `got rgb(${r}, ${g}, ${b})`);
+});
+
+test('every CSS color name paints in the PNG as it does in the SVG', () => {
+  // A name missing from the rasterizer's table writes a valid SVG and fails the
+  // PNG, so the table is the whole CSS list rather than a common subset.
+  assert.equal(COLOR_NAMES.length, 149, 'the 148 CSS names and `transparent`');
+  const design = createComposition({ width: 40, height: 20, background: '#ffffff' });
+  design.rect({ x: 0, y: 0, width: 20, height: 20, fill: 'steelblue' });
+  design.rect({ x: 20, y: 0, width: 20, height: 20, fill: 'CornflowerBlue' });
+  const raster = design.rasterize();
+  assertPixel(raster, 10, 10, '#4682b4', 'steelblue');
+  assertPixel(raster, 30, 10, '#6495ed', 'cornflowerblue');
 });
 
 test('a clipping mask keeps what is inside it and drops the rest', () => {

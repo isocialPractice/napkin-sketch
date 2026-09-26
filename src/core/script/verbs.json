@@ -1,0 +1,954 @@
+{
+  "$comment": "The napkin script verb table. The text parser, the documentation generator, the CLI's verb listing and the helper skill read it; src/core/script/instructions.ts holds the matching types, and test/script-instructions.test.ts keeps the two in step field for field.",
+  "version": 1,
+  "categories": [
+    { "id": "document", "title": "Document", "summary": "The page: its size, background and name, the unit bare numbers are read in, the seed, and more pages." },
+    { "id": "layers", "title": "Layers", "summary": "Named layers and nested groups, with opacity, visibility and lock." },
+    { "id": "paint", "title": "Paint", "summary": "What every mark after it is drawn with: tool, color, width, opacity, fill, gradient, outline, dash, profile, nib, font, and the hand-drawn pass." },
+    { "id": "shapes", "title": "Shapes", "summary": "Marks built from Bezier anchors: rectangles, circles, ellipses, lines, polygons, stars, arcs, spirals and the shape library." },
+    { "id": "paths", "title": "Paths", "summary": "Marks written segment by segment, from SVG path data or from a block of steps, and curves through points." },
+    { "id": "transforms", "title": "Transforms", "summary": "Translate, rotate, scale and mirror, baked into the anchors of every mark after them, with push and pop to undo them." },
+    { "id": "control", "title": "Control", "summary": "Named numbers, reusable definitions, and repetition." },
+    { "id": "media", "title": "Text and media", "summary": "Text, placed images, linked files, and documents the host supplied." },
+    { "id": "effects", "title": "Effects", "summary": "Blur, shadow and color effects for the next layer, group or mark, as CSS filter functions are: drawn in SVG, in PNG and in the app, and left out of a PDF." },
+    { "id": "output", "title": "Output", "summary": "Hints the renderers read: the box every output is cut to, and one box every page shares." }
+  ],
+  "verbs": [
+    {
+      "name": "napkin",
+      "category": "document",
+      "context": "document",
+      "summary": "The language version the script was written for. The first line of a script; without it version 1 is assumed, with a warning.",
+      "example": "napkin 1",
+      "forms": [
+        { "signature": "napkin <version>", "parts": [{ "slot": "version", "type": "integer", "literal": true }] }
+      ]
+    },
+    {
+      "name": "page",
+      "category": "document",
+      "context": "document",
+      "summary": "The page size: a named size (a3, a4, a5, letter, legal, tabloid, square, slide, napkin) or a width and a height, turned portrait or landscape.",
+      "example": "page a4 landscape",
+      "forms": [
+        {
+          "signature": "page <paper> [portrait|landscape]",
+          "parts": [
+            { "slot": "paper", "type": "choice", "choices": ["a3", "a4", "a5", "letter", "legal", "tabloid", "square", "slide", "napkin"] },
+            { "flag": "portrait", "field": "orientation", "value": "portrait" },
+            { "flag": "landscape", "field": "orientation", "value": "landscape" }
+          ]
+        },
+        {
+          "signature": "page <width> <height> [portrait|landscape]",
+          "parts": [
+            { "slot": "width", "type": "length", "axis": "none" },
+            { "slot": "height", "type": "length", "axis": "none" },
+            { "flag": "portrait", "field": "orientation", "value": "portrait" },
+            { "flag": "landscape", "field": "orientation", "value": "landscape" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "background",
+      "category": "document",
+      "context": "document",
+      "summary": "The page color, or none for a transparent page.",
+      "example": "background #fcfaf5",
+      "forms": [
+        { "signature": "background <color>", "parts": [{ "slot": "color", "type": "color" }] },
+        { "signature": "background none", "parts": [{ "word": "none" }], "set": { "color": null } }
+      ]
+    },
+    {
+      "name": "name",
+      "category": "document",
+      "context": "document",
+      "summary": "The page's name, and the file stem it is written under.",
+      "example": "name \"Acme Corp card\"",
+      "forms": [
+        { "signature": "name \"<name>\"", "parts": [{ "slot": "name", "type": "string" }] }
+      ]
+    },
+    {
+      "name": "units",
+      "category": "document",
+      "context": "document",
+      "summary": "The unit bare numbers are read in from here on: px, in, mm or pt. Pixels until changed.",
+      "example": "units mm",
+      "forms": [
+        { "signature": "units px|in|mm|pt", "parts": [{ "slot": "units", "type": "choice", "choices": ["px", "in", "mm", "pt"] }] }
+      ]
+    },
+    {
+      "name": "seed",
+      "category": "document",
+      "context": "document",
+      "summary": "The seed for the hand-drawn pass. One script and one seed draw the same bytes every run.",
+      "example": "seed 7",
+      "forms": [
+        { "signature": "seed <n>", "parts": [{ "slot": "seed", "type": "integer", "literal": true }] }
+      ]
+    },
+    {
+      "name": "newpage",
+      "category": "document",
+      "context": "document",
+      "summary": "Starts another page the same size, carrying the paint state across.",
+      "example": "newpage \"Back\"",
+      "forms": [
+        { "signature": "newpage [\"<name>\"]", "parts": [{ "slot": "name", "type": "string", "optional": true }] }
+      ]
+    },
+    {
+      "name": "layer",
+      "category": "layers",
+      "context": "document",
+      "summary": "A drawing layer. Marks after it go on it until the next layer.",
+      "example": "layer \"Sky\" opacity 0.8",
+      "forms": [
+        {
+          "signature": "layer \"<name>\" [opacity <0-1>] [hidden] [locked]",
+          "parts": [
+            { "slot": "name", "type": "string" },
+            { "clause": "opacity", "optional": true, "parts": [{ "slot": "opacity", "type": "number" }] },
+            { "flag": "hidden", "field": "hidden", "value": true },
+            { "flag": "locked", "field": "locked", "value": true }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "group",
+      "category": "layers",
+      "context": "document",
+      "summary": "A group layer. The layer and group lines in its block become its children.",
+      "example": "group \"Figure\" {\n  layer \"Head\"\n  circle 200 80 30\n  layer \"Body\"\n  rect 170 115 60 100\n}",
+      "forms": [
+        {
+          "signature": "group \"<name>\" [opacity <0-1>] [hidden] [locked] { ... }",
+          "parts": [
+            { "slot": "name", "type": "string" },
+            { "clause": "opacity", "optional": true, "parts": [{ "slot": "opacity", "type": "number" }] },
+            { "flag": "hidden", "field": "hidden", "value": true },
+            { "flag": "locked", "field": "locked", "value": true },
+            { "block": "instructions", "field": "body" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tool",
+      "category": "paint",
+      "context": "document",
+      "summary": "The kind of mark: pen, marker (translucent, so overlapping passes build up like ink) or copic (a broad, angled nib).",
+      "example": "tool marker",
+      "forms": [
+        { "signature": "tool pen|marker|copic", "parts": [{ "slot": "tool", "type": "choice", "choices": ["pen", "marker", "copic"] }] }
+      ]
+    },
+    {
+      "name": "color",
+      "category": "paint",
+      "context": "document",
+      "summary": "The ink color of every mark after it.",
+      "example": "color #1f2328",
+      "forms": [
+        { "signature": "color <color>", "parts": [{ "slot": "color", "type": "color" }] }
+      ]
+    },
+    {
+      "name": "width",
+      "category": "paint",
+      "context": "document",
+      "summary": "The stroke width of every mark after it.",
+      "example": "width 3",
+      "forms": [
+        { "signature": "width <length>", "parts": [{ "slot": "width", "type": "length", "axis": "min" }] }
+      ]
+    },
+    {
+      "name": "opacity",
+      "category": "paint",
+      "context": "document",
+      "summary": "The opacity of every mark after it, from 0 to 1.",
+      "example": "opacity 0.5",
+      "forms": [
+        { "signature": "opacity <0-1>", "parts": [{ "slot": "opacity", "type": "number" }] }
+      ]
+    },
+    {
+      "name": "fill",
+      "category": "paint",
+      "context": "document",
+      "summary": "The fill color of closed shapes after it, or none.",
+      "example": "fill #ffe08a",
+      "forms": [
+        { "signature": "fill <color>", "parts": [{ "slot": "fill", "type": "color" }] },
+        { "signature": "fill none", "parts": [{ "word": "none" }], "set": { "fill": null } }
+      ]
+    },
+    {
+      "name": "gradient",
+      "category": "paint",
+      "context": "document",
+      "summary": "A gradient fill for closed shapes after it: linear at an angle, or radial from the centre out, or none.",
+      "example": "gradient linear 90 (#ffe08a 0, #ff8a65 1)",
+      "forms": [
+        {
+          "signature": "gradient linear <angle> (<color> <offset>, ...)",
+          "parts": [{ "word": "linear" }, { "slot": "angle", "type": "number" }, { "slot": "stops", "type": "stops" }],
+          "set": { "type": "linear" }
+        },
+        {
+          "signature": "gradient radial (<color> <offset>, ...)",
+          "parts": [{ "word": "radial" }, { "slot": "stops", "type": "stops" }],
+          "set": { "type": "radial" }
+        },
+        { "signature": "gradient none", "parts": [{ "word": "none" }], "set": { "type": "none" } }
+      ]
+    },
+    {
+      "name": "stroke",
+      "category": "paint",
+      "context": "document",
+      "summary": "Turns the outline on or off. With it off, a closed shape is its fill alone.",
+      "example": "stroke off",
+      "forms": [
+        { "signature": "stroke on|off", "parts": [{ "slot": "on", "type": "switch" }] }
+      ]
+    },
+    {
+      "name": "style",
+      "category": "paint",
+      "context": "document",
+      "summary": "The outline's dash: solid, dashed or dotted.",
+      "example": "style dashed",
+      "forms": [
+        { "signature": "style solid|dashed|dotted", "parts": [{ "slot": "style", "type": "choice", "choices": ["solid", "dashed", "dotted"] }] }
+      ]
+    },
+    {
+      "name": "profile",
+      "category": "paint",
+      "context": "document",
+      "summary": "How the width runs along a pen or marker stroke: uniform, rounded, tapered or wave.",
+      "example": "profile tapered",
+      "forms": [
+        {
+          "signature": "profile uniform|rounded|tapered|wave",
+          "parts": [{ "slot": "profile", "type": "choice", "choices": ["uniform", "rounded", "tapered", "wave"] }]
+        }
+      ]
+    },
+    {
+      "name": "nib",
+      "category": "paint",
+      "context": "document",
+      "summary": "The angle of the copic nib, in degrees.",
+      "example": "nib 30",
+      "forms": [
+        { "signature": "nib <degrees>", "parts": [{ "slot": "angle", "type": "number" }] }
+      ]
+    },
+    {
+      "name": "rough",
+      "category": "paint",
+      "context": "document",
+      "summary": "The hand-drawn pass for every mark after it: 0 is exact, 1 is clearly drawn by hand, and off is 0. Seeded, so it draws the same way every run.",
+      "example": "rough 0.6 passes 2",
+      "forms": [
+        {
+          "signature": "rough <0-1> [passes 1|2] [overshoot <length>]",
+          "parts": [
+            { "slot": "amount", "type": "number" },
+            { "clause": "passes", "optional": true, "parts": [{ "slot": "passes", "type": "integer", "literal": true }] },
+            { "clause": "overshoot", "optional": true, "parts": [{ "slot": "overshoot", "type": "length", "axis": "min" }] }
+          ]
+        },
+        { "signature": "rough off", "parts": [{ "word": "off" }], "set": { "amount": 0 } }
+      ]
+    },
+    {
+      "name": "font",
+      "category": "paint",
+      "context": "document",
+      "summary": "The font family and size of text after it.",
+      "example": "font \"Georgia\" 24",
+      "forms": [
+        {
+          "signature": "font \"<family>\" [<size>]",
+          "parts": [{ "slot": "family", "type": "string" }, { "slot": "size", "type": "length", "axis": "min", "optional": true }]
+        },
+        { "signature": "font <size>", "parts": [{ "slot": "size", "type": "length", "axis": "min" }] }
+      ]
+    },
+    {
+      "name": "rect",
+      "category": "shapes",
+      "context": "document",
+      "summary": "A rectangle, with rounded corners when r is given.",
+      "example": "rect 20 20 360 80 r 12",
+      "forms": [
+        {
+          "signature": "rect <x> <y> <width> <height> [r <radius>]",
+          "parts": [
+            { "slot": "x", "type": "length", "axis": "x" },
+            { "slot": "y", "type": "length", "axis": "y" },
+            { "slot": "width", "type": "length", "axis": "x" },
+            { "slot": "height", "type": "length", "axis": "y" },
+            { "clause": "r", "optional": true, "parts": [{ "slot": "radius", "type": "length", "axis": "min" }] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "circle",
+      "category": "shapes",
+      "context": "document",
+      "summary": "A circle, drawn as four cubic curves rather than a polygon.",
+      "example": "circle 50% 50% 48",
+      "forms": [
+        {
+          "signature": "circle <cx> <cy> <r>",
+          "parts": [
+            { "slot": "cx", "type": "length", "axis": "x" },
+            { "slot": "cy", "type": "length", "axis": "y" },
+            { "slot": "r", "type": "length", "axis": "min" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ellipse",
+      "category": "shapes",
+      "context": "document",
+      "summary": "An ellipse, from its centre and two radii.",
+      "example": "ellipse 200 150 120 60",
+      "forms": [
+        {
+          "signature": "ellipse <cx> <cy> <rx> <ry>",
+          "parts": [
+            { "slot": "cx", "type": "length", "axis": "x" },
+            { "slot": "cy", "type": "length", "axis": "y" },
+            { "slot": "rx", "type": "length", "axis": "x" },
+            { "slot": "ry", "type": "length", "axis": "y" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "line",
+      "category": "shapes",
+      "context": "document",
+      "summary": "A straight line between two points.",
+      "example": "line 20 20 380 280",
+      "forms": [
+        {
+          "signature": "line <x1> <y1> <x2> <y2>",
+          "parts": [
+            { "slot": "x1", "type": "length", "axis": "x" },
+            { "slot": "y1", "type": "length", "axis": "y" },
+            { "slot": "x2", "type": "length", "axis": "x" },
+            { "slot": "y2", "type": "length", "axis": "y" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "polygon",
+      "category": "shapes",
+      "context": "document",
+      "summary": "A closed shape through a list of points, with rounded corners when r is given.",
+      "example": "polygon 200 40, 360 260, 40 260 r 8",
+      "forms": [
+        {
+          "signature": "polygon <x> <y>, <x> <y>, ... [r <radius>]",
+          "parts": [
+            { "slot": "points", "type": "points", "minItems": 3 },
+            { "clause": "r", "optional": true, "parts": [{ "slot": "radius", "type": "length", "axis": "min" }] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "polyline",
+      "category": "shapes",
+      "context": "document",
+      "summary": "An open line through a list of points.",
+      "example": "polyline 20 200, 120 120, 220 200, 320 120",
+      "forms": [
+        { "signature": "polyline <x> <y>, <x> <y>, ...", "parts": [{ "slot": "points", "type": "points", "minItems": 2 }] }
+      ]
+    },
+    {
+      "name": "star",
+      "category": "shapes",
+      "context": "document",
+      "summary": "A star with the given number of points, between an outer and an inner radius.",
+      "example": "star 200 150 80 32 5",
+      "forms": [
+        {
+          "signature": "star <cx> <cy> <outer> <inner> <count>",
+          "parts": [
+            { "slot": "cx", "type": "length", "axis": "x" },
+            { "slot": "cy", "type": "length", "axis": "y" },
+            { "slot": "outer", "type": "length", "axis": "min" },
+            { "slot": "inner", "type": "length", "axis": "min" },
+            { "slot": "count", "type": "integer" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "arc",
+      "category": "shapes",
+      "context": "document",
+      "summary": "An open arc of a circle between two angles, in degrees clockwise from three o'clock.",
+      "example": "arc 200 150 80 0 90",
+      "forms": [
+        {
+          "signature": "arc <cx> <cy> <r> <from> <to>",
+          "parts": [
+            { "slot": "cx", "type": "length", "axis": "x" },
+            { "slot": "cy", "type": "length", "axis": "y" },
+            { "slot": "r", "type": "length", "axis": "min" },
+            { "slot": "from", "type": "number" },
+            { "slot": "to", "type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "spiral",
+      "category": "shapes",
+      "context": "document",
+      "summary": "A spiral winding out from its centre to the radius over the given number of turns.",
+      "example": "spiral 200 150 90 3",
+      "forms": [
+        {
+          "signature": "spiral <cx> <cy> <r> <turns>",
+          "parts": [
+            { "slot": "cx", "type": "length", "axis": "x" },
+            { "slot": "cy", "type": "length", "axis": "y" },
+            { "slot": "r", "type": "length", "axis": "min" },
+            { "slot": "turns", "type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "shape",
+      "category": "shapes",
+      "context": "document",
+      "summary": "A named shape from the built-in library, drawn in a box from x, y. With one size its longer side is that long and it keeps its proportions; with a width and a height it is stretched to fill them.",
+      "example": "shape \"cube-isometric\" at 40 40 size 120",
+      "forms": [
+        {
+          "signature": "shape \"<name>\" at <x> <y> size <width> [<height>]",
+          "parts": [
+            { "slot": "name", "type": "string" },
+            {
+              "clause": "at",
+              "parts": [
+                { "slot": "x", "type": "length", "axis": "x" },
+                { "slot": "y", "type": "length", "axis": "y" }
+              ]
+            },
+            {
+              "clause": "size",
+              "parts": [
+                { "slot": "width", "type": "length", "axis": "x" },
+                { "slot": "height", "type": "length", "axis": "y", "optional": true }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "path",
+      "category": "paths",
+      "context": "document",
+      "summary": "One mark, from SVG path data or from a block of path steps. Each subpath of a compound path is one piece of the same mark.",
+      "example": "path \"M20 20 C60 0 100 40 140 20\"",
+      "forms": [
+        { "signature": "path \"<svg path data>\"", "parts": [{ "slot": "d", "type": "string" }] },
+        { "signature": "path { ... }", "parts": [{ "block": "path", "field": "body" }] }
+      ]
+    },
+    {
+      "name": "move",
+      "category": "paths",
+      "context": "path",
+      "summary": "Starts a new subpath at a point.",
+      "example": "path {\n  move 20 20\n  to 120 20\n  move 20 60\n  to 120 60\n}",
+      "forms": [
+        {
+          "signature": "move <x> <y>",
+          "parts": [{ "slot": "x", "type": "length", "axis": "x" }, { "slot": "y", "type": "length", "axis": "y" }]
+        }
+      ]
+    },
+    {
+      "name": "to",
+      "category": "paths",
+      "context": "path",
+      "summary": "A straight segment to a point.",
+      "example": "path {\n  move 20 20\n  to 120 20\n  to 120 80\n}",
+      "forms": [
+        {
+          "signature": "to <x> <y>",
+          "parts": [{ "slot": "x", "type": "length", "axis": "x" }, { "slot": "y", "type": "length", "axis": "y" }]
+        }
+      ]
+    },
+    {
+      "name": "by",
+      "category": "paths",
+      "context": "path",
+      "summary": "A straight segment by an offset from the current point.",
+      "example": "path {\n  move 20 20\n  by 100 0\n  by 0 60\n  close\n}",
+      "forms": [
+        {
+          "signature": "by <dx> <dy>",
+          "parts": [{ "slot": "dx", "type": "length", "axis": "x" }, { "slot": "dy", "type": "length", "axis": "y" }]
+        }
+      ]
+    },
+    {
+      "name": "curve",
+      "category": "paths",
+      "context": "path",
+      "summary": "A cubic curve to a point, steered by two handles.",
+      "example": "path {\n  move 20 100\n  curve 60 20 140 20 180 100\n}",
+      "forms": [
+        {
+          "signature": "curve <c1x> <c1y> <c2x> <c2y> <x> <y>",
+          "parts": [
+            { "slot": "c1x", "type": "length", "axis": "x" },
+            { "slot": "c1y", "type": "length", "axis": "y" },
+            { "slot": "c2x", "type": "length", "axis": "x" },
+            { "slot": "c2y", "type": "length", "axis": "y" },
+            { "slot": "x", "type": "length", "axis": "x" },
+            { "slot": "y", "type": "length", "axis": "y" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "smooth",
+      "category": "paths",
+      "context": "path",
+      "summary": "A cubic curve whose first handle mirrors the last one, so the join stays smooth.",
+      "example": "path {\n  move 20 100\n  curve 60 20 140 20 180 100\n  smooth 300 180 340 100\n}",
+      "forms": [
+        {
+          "signature": "smooth <c2x> <c2y> <x> <y>",
+          "parts": [
+            { "slot": "c2x", "type": "length", "axis": "x" },
+            { "slot": "c2y", "type": "length", "axis": "y" },
+            { "slot": "x", "type": "length", "axis": "x" },
+            { "slot": "y", "type": "length", "axis": "y" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "through",
+      "category": "paths",
+      "context": "any",
+      "summary": "A smooth curve through a list of points. Inside a path block it continues the subpath; outside one it is an open mark of its own.",
+      "example": "through 20 100, 80 40, 140 100, 200 40, 260 100",
+      "forms": [
+        { "signature": "through <x> <y>, <x> <y>, ...", "parts": [{ "slot": "points", "type": "points", "minItems": 2 }] }
+      ]
+    },
+    {
+      "name": "close",
+      "category": "paths",
+      "context": "path",
+      "summary": "Closes the current subpath back to its start.",
+      "example": "path {\n  move 20 20\n  to 120 20\n  to 70 100\n  close\n}",
+      "forms": [
+        { "signature": "close", "parts": [] }
+      ]
+    },
+    {
+      "name": "push",
+      "category": "transforms",
+      "context": "document",
+      "summary": "Saves the transform, the paint state and the units, for the next pop to restore.",
+      "example": "push\nrotate 15 at 200 150\nrect 150 100 100 100\npop",
+      "forms": [
+        { "signature": "push", "parts": [] }
+      ]
+    },
+    {
+      "name": "pop",
+      "category": "transforms",
+      "context": "document",
+      "summary": "Restores the transform, the paint state and the units the last push saved.",
+      "example": "push\ntranslate 40 0\ncircle 100 100 20\npop",
+      "forms": [
+        { "signature": "pop", "parts": [] }
+      ]
+    },
+    {
+      "name": "translate",
+      "category": "transforms",
+      "context": "document",
+      "summary": "Moves everything drawn after it.",
+      "example": "translate 40 0",
+      "forms": [
+        {
+          "signature": "translate <dx> <dy>",
+          "parts": [{ "slot": "dx", "type": "length", "axis": "x" }, { "slot": "dy", "type": "length", "axis": "y" }]
+        }
+      ]
+    },
+    {
+      "name": "rotate",
+      "category": "transforms",
+      "context": "document",
+      "summary": "Turns everything drawn after it, clockwise in degrees, about the origin or a point given with at.",
+      "example": "rotate 45 at 200 150",
+      "forms": [
+        {
+          "signature": "rotate <degrees> [at <x> <y>]",
+          "parts": [
+            { "slot": "angle", "type": "number" },
+            {
+              "clause": "at",
+              "optional": true,
+              "parts": [{ "slot": "cx", "type": "length", "axis": "x" }, { "slot": "cy", "type": "length", "axis": "y" }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "scale",
+      "category": "transforms",
+      "context": "document",
+      "summary": "Scales everything drawn after it, about the origin or a point given with at. One factor scales both ways.",
+      "example": "scale 2 at 200 150",
+      "forms": [
+        {
+          "signature": "scale <s> [<sy>] [at <x> <y>]",
+          "parts": [
+            { "slot": "sx", "type": "number" },
+            { "slot": "sy", "type": "number", "optional": true },
+            {
+              "clause": "at",
+              "optional": true,
+              "parts": [{ "slot": "cx", "type": "length", "axis": "x" }, { "slot": "cy", "type": "length", "axis": "y" }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mirror",
+      "category": "transforms",
+      "context": "document",
+      "summary": "Reflects everything drawn after it: x swaps left and right across a vertical line, y swaps top and bottom across a horizontal one, at 0 unless given.",
+      "example": "mirror x at 200",
+      "forms": [
+        {
+          "signature": "mirror x|y [at <position>]",
+          "parts": [
+            { "slot": "axis", "type": "choice", "choices": ["x", "y"] },
+            { "clause": "at", "optional": true, "parts": [{ "slot": "about", "type": "length", "axis": "axis" }] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "let",
+      "category": "control",
+      "context": "document",
+      "summary": "Names a number for the expressions after it, in the current units.",
+      "example": "let gap 24\nrect 20 20 (gap * 4) (gap * 2)",
+      "forms": [
+        {
+          "signature": "let <name> <value>",
+          "parts": [{ "slot": "name", "type": "identifier" }, { "slot": "value", "type": "length", "axis": "none" }]
+        }
+      ]
+    },
+    {
+      "name": "define",
+      "category": "control",
+      "context": "document",
+      "summary": "Records a block of drawing under a name without drawing it, for place to draw.",
+      "example": "define \"tick\" {\n  line 0 10 4 14\n  line 4 14 14 0\n}\nplace \"tick\" at 40 40 scale 2",
+      "forms": [
+        {
+          "signature": "define \"<name>\" { ... }",
+          "parts": [{ "slot": "name", "type": "string" }, { "block": "instructions", "field": "body" }]
+        }
+      ]
+    },
+    {
+      "name": "place",
+      "category": "control",
+      "context": "document",
+      "summary": "Draws a definition, moved, scaled or turned.",
+      "example": "define \"tick\" {\n  line 0 10 4 14\n  line 4 14 14 0\n}\nplace \"tick\" at 40 40 scale 2 rotate 15",
+      "forms": [
+        {
+          "signature": "place \"<name>\" [at <x> <y>] [scale <s>] [rotate <degrees>]",
+          "parts": [
+            { "slot": "name", "type": "string" },
+            {
+              "clause": "at",
+              "optional": true,
+              "parts": [{ "slot": "x", "type": "length", "axis": "x" }, { "slot": "y", "type": "length", "axis": "y" }]
+            },
+            { "clause": "scale", "optional": true, "parts": [{ "slot": "scale", "type": "number" }] },
+            { "clause": "rotate", "optional": true, "parts": [{ "slot": "rotate", "type": "number" }] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "repeat",
+      "category": "control",
+      "context": "document",
+      "summary": "Runs a block a number of times, counting from 0 in the name given with as.",
+      "example": "repeat 10 as i {\n  rect (20 + i * 36) 20 30 30\n}",
+      "forms": [
+        {
+          "signature": "repeat <count> [as <name>] { ... }",
+          "parts": [
+            { "slot": "count", "type": "integer" },
+            { "clause": "as", "optional": true, "parts": [{ "slot": "as", "type": "identifier" }] },
+            { "block": "instructions", "field": "body" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "text",
+      "category": "media",
+      "context": "document",
+      "summary": "A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as pen strokes instead.",
+      "example": "text \"Acme Corp\" at 200 70 size 28 align center",
+      "forms": [
+        {
+          "signature": "text \"<text>\" at <x> <y> [size <size>] [box <width>] [align left|center|right] [as marks]",
+          "parts": [
+            { "slot": "text", "type": "string" },
+            {
+              "clause": "at",
+              "parts": [{ "slot": "x", "type": "length", "axis": "x" }, { "slot": "y", "type": "length", "axis": "y" }]
+            },
+            { "clause": "size", "optional": true, "parts": [{ "slot": "size", "type": "length", "axis": "min" }] },
+            { "clause": "box", "optional": true, "parts": [{ "slot": "box", "type": "length", "axis": "x" }] },
+            {
+              "clause": "align",
+              "optional": true,
+              "parts": [{ "slot": "align", "type": "choice", "choices": ["left", "center", "right"] }]
+            },
+            { "flag": "as marks", "field": "asMarks", "value": true }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "category": "media",
+      "context": "document",
+      "summary": "Places an image: an asset the host supplied, by name, or a data URL. Nothing is read from disk.",
+      "example": "image \"logo\" at 20 20 size 120",
+      "forms": [
+        {
+          "signature": "image \"<asset or data URL>\" at <x> <y> [size <width> [<height>]]",
+          "parts": [
+            { "slot": "src", "type": "string" },
+            {
+              "clause": "at",
+              "parts": [{ "slot": "x", "type": "length", "axis": "x" }, { "slot": "y", "type": "length", "axis": "y" }]
+            },
+            {
+              "clause": "size",
+              "optional": true,
+              "parts": [
+                { "slot": "width", "type": "length", "axis": "x" },
+                { "slot": "height", "type": "length", "axis": "y", "optional": true }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "link",
+      "category": "media",
+      "context": "document",
+      "summary": "Places a linked file: one selectable element that references the file instead of drawing its contents into the page.",
+      "example": "link \"assets/logo.svg\" at 20 120 size 120 120 name \"Logo\"",
+      "forms": [
+        {
+          "signature": "link \"<path>\" at <x> <y> [size <width> [<height>]] [name \"<layer name>\"]",
+          "parts": [
+            { "slot": "href", "type": "string" },
+            {
+              "clause": "at",
+              "parts": [{ "slot": "x", "type": "length", "axis": "x" }, { "slot": "y", "type": "length", "axis": "y" }]
+            },
+            {
+              "clause": "size",
+              "optional": true,
+              "parts": [
+                { "slot": "width", "type": "length", "axis": "x" },
+                { "slot": "height", "type": "length", "axis": "y", "optional": true }
+              ]
+            },
+            { "clause": "name", "optional": true, "parts": [{ "slot": "name", "type": "string" }] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "use",
+      "category": "media",
+      "context": "document",
+      "summary": "Copies in a document the host supplied, as a group, with its layers and anchors.",
+      "example": "use \"badge\" at 200 40 scale 0.5",
+      "forms": [
+        {
+          "signature": "use \"<document>\" [at <x> <y>] [scale <s>] [layer \"<name>\"]",
+          "parts": [
+            { "slot": "name", "type": "string" },
+            {
+              "clause": "at",
+              "optional": true,
+              "parts": [{ "slot": "x", "type": "length", "axis": "x" }, { "slot": "y", "type": "length", "axis": "y" }]
+            },
+            { "clause": "scale", "optional": true, "parts": [{ "slot": "scale", "type": "number" }] },
+            { "clause": "layer", "optional": true, "parts": [{ "slot": "layer", "type": "string" }] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "effect",
+      "category": "effects",
+      "context": "document",
+      "summary": "An effect for the next layer, group or mark the script makes, as its CSS filter function works: blur, brightness, contrast, saturate, grayscale, sepia, invert, hue-rotate, opacity or drop-shadow. Several stack in order, and none clears what is waiting.",
+      "example": "effect drop-shadow 4 4 8 #00000066\nrect 40 40 200 120 r 12",
+      "forms": [
+        { "signature": "effect blur <radius>", "parts": [{ "word": "blur" }, { "slot": "radius", "type": "length", "axis": "min" }], "set": { "type": "blur" } },
+        { "signature": "effect brightness <amount>", "parts": [{ "word": "brightness" }, { "slot": "amount", "type": "number" }], "set": { "type": "brightness" } },
+        { "signature": "effect contrast <amount>", "parts": [{ "word": "contrast" }, { "slot": "amount", "type": "number" }], "set": { "type": "contrast" } },
+        { "signature": "effect saturate <amount>", "parts": [{ "word": "saturate" }, { "slot": "amount", "type": "number" }], "set": { "type": "saturate" } },
+        { "signature": "effect grayscale [<0-1>]", "parts": [{ "word": "grayscale" }, { "slot": "amount", "type": "number", "optional": true }], "set": { "type": "grayscale" } },
+        { "signature": "effect sepia [<0-1>]", "parts": [{ "word": "sepia" }, { "slot": "amount", "type": "number", "optional": true }], "set": { "type": "sepia" } },
+        { "signature": "effect invert [<0-1>]", "parts": [{ "word": "invert" }, { "slot": "amount", "type": "number", "optional": true }], "set": { "type": "invert" } },
+        { "signature": "effect hue-rotate <degrees>", "parts": [{ "word": "hue-rotate" }, { "slot": "angle", "type": "number" }], "set": { "type": "hue-rotate" } },
+        { "signature": "effect opacity <0-1>", "parts": [{ "word": "opacity" }, { "slot": "amount", "type": "number" }], "set": { "type": "opacity" } },
+        {
+          "signature": "effect drop-shadow <dx> <dy> <blur> <color>",
+          "parts": [
+            { "word": "drop-shadow" },
+            { "slot": "dx", "type": "length", "axis": "x" },
+            { "slot": "dy", "type": "length", "axis": "y" },
+            { "slot": "blur", "type": "length", "axis": "min" },
+            { "slot": "color", "type": "color" }
+          ],
+          "set": { "type": "drop-shadow" }
+        },
+        { "signature": "effect none", "parts": [{ "word": "none" }], "set": { "type": "none" } }
+      ]
+    },
+    {
+      "name": "crop",
+      "category": "output",
+      "context": "document",
+      "summary": "The box every output is cut to: auto fits the ink with room to spare, none keeps the page, or a box given outright.",
+      "example": "crop auto pad 12",
+      "forms": [
+        {
+          "signature": "crop auto [pad <length>]",
+          "parts": [
+            { "word": "auto" },
+            { "clause": "pad", "optional": true, "parts": [{ "slot": "pad", "type": "length", "axis": "min" }] }
+          ],
+          "set": { "mode": "auto" }
+        },
+        { "signature": "crop none", "parts": [{ "word": "none" }], "set": { "mode": "none" } },
+        {
+          "signature": "crop <x> <y> <width> <height>",
+          "parts": [
+            { "slot": "x", "type": "length", "axis": "x" },
+            { "slot": "y", "type": "length", "axis": "y" },
+            { "slot": "width", "type": "length", "axis": "x" },
+            { "slot": "height", "type": "length", "axis": "y" }
+          ],
+          "set": { "mode": "box" }
+        }
+      ]
+    },
+    {
+      "name": "registration",
+      "category": "output",
+      "context": "document",
+      "summary": "One box every page is written in, so frames drawn by one script line up when they are played in sequence.",
+      "example": "registration 0 0 400 300",
+      "forms": [
+        {
+          "signature": "registration <x> <y> <width> <height>",
+          "parts": [
+            { "slot": "x", "type": "length", "axis": "x" },
+            { "slot": "y", "type": "length", "axis": "y" },
+            { "slot": "width", "type": "length", "axis": "x" },
+            { "slot": "height", "type": "length", "axis": "y" }
+          ]
+        }
+      ]
+    }
+  ],
+  "diagnostics": [
+    { "code": "unknown-verb", "level": "error", "summary": "A line starts with a word that is not a verb." },
+    { "code": "misplaced-verb", "level": "error", "summary": "A verb where it cannot appear: a path step outside a path block, a napkin line after the first, a layer inside a path, a newpage inside a group or a definition." },
+    { "code": "unsupported-verb", "level": "error", "summary": "The verb, or this way of writing it, is known but not drawn by this build or by the host running the script; the instruction is skipped." },
+    { "code": "expected-number", "level": "error", "summary": "A number, or an expression in parentheses, was expected." },
+    { "code": "expected-length", "level": "error", "summary": "A length was expected: a number, a number with a unit (10mm, 0.5in, 12pt, 4px), a percentage, or an expression." },
+    { "code": "expected-string", "level": "error", "summary": "A double-quoted string was expected." },
+    { "code": "expected-identifier", "level": "error", "summary": "A bare name was expected: letters, digits and underscores, starting with a letter." },
+    { "code": "expected-color", "level": "error", "summary": "A CSS color was expected, such as #1f2328, red or rgb(31, 35, 40)." },
+    { "code": "expected-choice", "level": "error", "summary": "One word from a fixed list was expected; the message lists them." },
+    { "code": "expected-points", "level": "error", "summary": "A list of points was expected: x y pairs separated by commas." },
+    { "code": "expected-stops", "level": "error", "summary": "A list of gradient stops was expected: (color offset, color offset, ...)." },
+    { "code": "unexpected-token", "level": "error", "summary": "Something is left on the line after the instruction was read, or a character that cannot start anything." },
+    { "code": "missing-argument", "level": "error", "summary": "A required argument is missing; the message names it and shows how the verb is written." },
+    { "code": "expected-block", "level": "error", "summary": "A block was expected: { at the end of the line, the instructions it holds, and } to close it." },
+    { "code": "unclosed-block", "level": "error", "summary": "A block opened with { is never closed with }." },
+    { "code": "unexpected-close", "level": "error", "summary": "A } closes a block that was never opened." },
+    { "code": "unclosed-string", "level": "error", "summary": "A string runs to the end of the line without its closing quote." },
+    { "code": "invalid-expression", "level": "error", "summary": "An expression could not be read: an unknown operator, a missing operand, or an unclosed parenthesis." },
+    { "code": "unit-unknown", "level": "error", "summary": "A number carries a unit the language does not know. The units are px, in, mm and pt, and % for a share of the page." },
+    { "code": "invalid-value", "level": "error", "summary": "A value is out of range: an opacity above 1, a negative radius, a star with fewer than 2 points, a percentage where the page cannot measure one." },
+    { "code": "version-missing", "level": "warning", "summary": "The script does not start with napkin <version>; version 1 is assumed." },
+    { "code": "version-unsupported", "level": "error", "summary": "The script names a version newer than this build reads; the message names the newest it does." },
+    { "code": "unknown-variable", "level": "error", "summary": "An expression uses a name no let or repeat has set." },
+    { "code": "unknown-definition", "level": "error", "summary": "place names something no define recorded." },
+    { "code": "unknown-shape", "level": "error", "summary": "shape names something the shape library does not have." },
+    { "code": "unknown-asset", "level": "error", "summary": "image names an asset the host did not supply." },
+    { "code": "unknown-document", "level": "error", "summary": "use names a document the host did not supply." },
+    { "code": "image-size-unknown", "level": "warning", "summary": "An image's size cannot be read from its data, so it is placed square: 100 by 100, or the one size given by itself." },
+    { "code": "glyph-missing", "level": "warning", "summary": "text as marks has a character the built-in face does not draw; it is left as a gap." },
+    { "code": "unknown-field", "level": "warning", "summary": "An instruction in a JSON script has a field its verb does not have; it is left out." },
+    { "code": "recursive-definition", "level": "error", "summary": "A definition places itself, directly or through another definition." },
+    { "code": "division-by-zero", "level": "error", "summary": "An expression divides by zero." },
+    { "code": "budget-exceeded", "level": "error", "summary": "The script ran more instructions, drew more marks, emitted more anchors or sampled points, or nested deeper than the limit allows; what it drew up to that point is kept." },
+    { "code": "pop-without-push", "level": "error", "summary": "pop with nothing saved to restore." },
+    { "code": "unbalanced-push", "level": "warning", "summary": "A push is never popped before its block ends; the saved state is restored there anyway." },
+    { "code": "duplicate-definition", "level": "warning", "summary": "A second define replaces an earlier one of the same name." },
+    { "code": "link-unresolved", "level": "warning", "summary": "A linked file could not be read for an output that has to draw it, so its placeholder was drawn instead." },
+    { "code": "unused-effect", "level": "warning", "summary": "An effect nothing took: no layer, group or mark followed it before its block, its page or the script ended." }
+  ]
+}

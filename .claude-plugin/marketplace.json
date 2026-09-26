@@ -1,6 +1,6 @@
 {
   "name": "napkin-sketch",
-  "description": "Animation Mode, vector drawing, and graphic design for napkin-sketch, packaged for AI tools that load plugins.",
+  "description": "Animation Mode, vector drawing, graphic design, and napkin scripts for napkin-sketch, packaged for AI tools that load plugins.",
   "owner": {
     "name": "John Haugabook",
     "url": "https://github.com/isocialPractice"
@@ -17,6 +17,12 @@
       "source": "./ai-helper/graphic-designer",
       "category": "productivity",
       "description": "Graphic design for napkin-sketch, as a plugin: the /graphic-designer:design-language command that reads one media file into a written DESIGN_LANGUAGE.md and generates a per-asset skill that can draw more work in the same language, and the two skills behind it - design-language (what to measure in an asset, how to write it down, and how to generate the skill and its scripts) and graphic-design-api (composing rectangles, circles, ellipses, triangles, polygons, clipping masks, styled text and placed media into an SVG or a PNG through the napkin-sketch graphic-design API)."
+    },
+    {
+      "name": "scripting",
+      "source": "./ai-helper/scripting",
+      "category": "productivity",
+      "description": "Napkin scripts for napkin-sketch, as a plugin: the /scripting:draw command that writes one script from the form `napkin-sketch draw --prompt` leaves in _temp/script-form.txt, or from a request typed after it, and the napkin-script skill behind it - the language, a verb reference generated from the verb table, three complete example scripts, and the rules the parser holds a script to."
     }
   ]
 }

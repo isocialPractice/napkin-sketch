@@ -9,8 +9,11 @@
  * is: so importing the API never drags `node:fs` into a web build.
  */
 
+import { readFileSync, realpathSync } from 'node:fs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { extname, join, resolve, sep } from 'node:path';
+
+import { safeLinkPath, type LinkResolver } from '../link.js';
 
 import { compositionToSvg, type SvgOptions } from './svg.js';
 import { renderPng, Composition, type CompositionFormat } from './compose.js';
@@ -46,6 +49,33 @@ export async function imageDataUrl(path: string): Promise<string> {
     return `data:image/svg+xml;utf8,${encodeURIComponent(bytes.toString('utf8'))}`;
   }
   return `data:${mime};base64,${bytes.toString('base64')}`;
+}
+
+/**
+ * A {@link LinkResolver} that reads linked files from one folder and nothing
+ * outside it. A link is followed only when it is a relative path that stays
+ * inside `baseDir` - no absolute path, drive letter, UNC share, `..` step or
+ * address with a scheme, and no link out of the folder once symbolic links
+ * are followed - and anything else, or a file that cannot be read, resolves
+ * to null, so the output draws the link's placeholder.
+ */
+export function resolveLinkFromDir(baseDir: string): LinkResolver {
+  const root = resolve(baseDir);
+  let realRoot: string | null = null;
+  return (href) => {
+    const relative = safeLinkPath(href);
+    if (!relative) return null;
+    const path = resolve(root, relative);
+    if (!path.startsWith(root + sep)) return null;
+    try {
+      realRoot ??= realpathSync(root);
+      const real = realpathSync(path);
+      if (!real.startsWith(realRoot + sep)) return null;
+      return { bytes: new Uint8Array(readFileSync(real)), mediaType: mediaTypeOf(real) };
+    } catch {
+      return null;
+    }
+  };
 }
 
 /** Options for {@link writeComposition}. */

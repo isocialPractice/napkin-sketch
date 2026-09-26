@@ -1,0 +1,8 @@
+napkin 1
+page 400 300
+name "card"
+background #fcfaf5
+layer "Card"
+color #1f2328 width 3 fill #ffe08a
+rect 20 20 360 260 r 16
+text "Acme Corp" at 200 120 size 32 align center

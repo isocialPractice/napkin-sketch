@@ -1,11 +1,12 @@
 /**
- * The AI tools Animation Mode can drive, and how to tell why one refused.
+ * The AI tools napkin-sketch can drive, and how to tell why one refused.
  *
- * Animation Mode is the only part of napkin-sketch that needs software the
- * app does not ship: an agentic AI command-line tool. That dependency is why
- * the mode installs separately (see `animationInstall`) and why a run can
- * fail for reasons that have nothing to do with drawing - the tool may not be
- * on the machine, or the user may never have signed in to it.
+ * Animation Mode in the app, and `napkin-sketch draw --prompt` on the command
+ * line, are the two parts of napkin-sketch that need software it does not
+ * ship: an agentic AI command-line tool. That dependency is why Animation
+ * Mode installs separately (see `animationInstall`) and why a run can fail
+ * for reasons that have nothing to do with drawing - the tool may not be on
+ * the machine, or the user may never have signed in to it.
  *
  * Credentials are never read, written, or held by napkin-sketch. Each tool
  * keeps its own login, and the most the app does is start that tool so the
@@ -138,6 +139,28 @@ export const GRAPHIC_DESIGNER_PLUGIN = {
   command: 'design-language',
 } as const;
 
+/**
+ * The scripting helper, packaged as a plugin.
+ *
+ * The third helper. Its one skill, `napkin-script`, teaches the napkin script
+ * language from the verb table, so a script a tool writes from a request is
+ * one the parser accepts; its command, `/scripting:draw`, writes one from the
+ * form `napkin-sketch draw --prompt` leaves in `_temp/script-form.txt`. The
+ * command line runs it; the app does not yet.
+ */
+export const SCRIPTING_PLUGIN = {
+  /** Plugin id, and the namespace its skill and command answer to. */
+  name: 'scripting',
+  /** Marketplace that lists it, the same one that lists the other two. */
+  marketplace: 'napkin-sketch',
+  /** The plugin root inside the repository. */
+  dir: `${AI_HELPER_ROOT}/scripting`,
+  /** Slash command that writes one script from the form. */
+  command: 'draw',
+  /** The skill that teaches the language. */
+  skill: 'napkin-script',
+} as const;
+
 /** One of the plugin's parts, named the way a tool addresses it: `vectors:...`. */
 export function pluginRef(part: string): string {
   return `${ANIMATION_PLUGIN.name}:${part}`;
@@ -183,6 +206,14 @@ export const AI_HELPERS: readonly AiHelper[] = [
     commands: [`${GRAPHIC_DESIGNER_PLUGIN.command}.md`],
     agents: [],
     instructions: ['design-language.instructions.md'],
+  },
+  {
+    name: SCRIPTING_PLUGIN.name,
+    dir: SCRIPTING_PLUGIN.dir,
+    skills: [SCRIPTING_PLUGIN.skill],
+    commands: [`${SCRIPTING_PLUGIN.command}.md`],
+    agents: [],
+    instructions: ['napkin-script.instructions.md'],
   },
 ];
 
@@ -239,7 +270,8 @@ const AUTH_PATTERNS = [
 /**
  * Classifies a failed helper run so the app can offer the right way out: the
  * tool is absent, the tool is there but nobody has signed in, or something
- * else entirely. Only ever called for a run that produced no frame.
+ * else entirely. Only ever called for a run that produced nothing: no frame,
+ * or no script.
  */
 export function classifyHelperFailure(result: {
   code: number | null;

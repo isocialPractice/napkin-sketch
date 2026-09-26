@@ -105,7 +105,7 @@ made, is in `reviews/source-code-09-01-2026.log`.
   measured on screen.) Stroke Profiles, built since, keep the pressure scale
   and export the outline the canvas draws, so a profiled stroke is the same
   width in both; only a Default outline still exports wider than it draws.
-- [ ] **The PDF writer paints a switched-off outline, and prints dashes solid**:
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **The PDF writer paints a switched-off outline, and prints dashes solid**:
   `sketchesToPdf` strokes every mark's path whatever its `noStroke` says, so a
   fill-only shape gains the outline the canvas and the SVG leave off. It never
   reads `strokeStyle` either, so a dashed or dotted outline prints as a solid
@@ -114,6 +114,9 @@ made, is in `reviews/source-code-09-01-2026.log`.
   switched-off outline and fills dashes already cut from the profile. (Found
   adding that branch while building Stroke Profiles; read in the source, not
   run.)
+  - Fixed with the output work, since a script draws both: a switched-off
+    outline is left off, and a dashed or dotted line is dashed with the
+    pattern the SVG writes. `test/script-render.test.ts` holds both.
 - [ ] **`aria-selected` marks only the active layer row**: the layers panel is a
   `role="listbox"` with multi-select, but `renderLayers` sets
   `aria-selected` from `layer.id === active.id` and marks the rest with an
@@ -170,6 +173,9 @@ made, is in `reviews/source-code-09-01-2026.log`.
   different origins. Every frame is a clean sprite on its own; played as a
   sequence they do not line up. See the shared-box idea below for the fix that
   trades the tight crop away.
+  - The render calls have the mechanism now: `registration` cuts every page
+    of a book to one box, for a script's frames. Animation Mode's own frame
+    export still crops each frame to its ink.
 - [ ] **A helper that revises after saving loses the revision**: the app takes
   the output file the moment it holds a complete document and kills the helper,
   so a run that saves a draft and then improves it delivers the draft. The
@@ -181,6 +187,12 @@ made, is in `reviews/source-code-09-01-2026.log`.
   fails with the "Run npm install first" message. The library exports are fine;
   only the desktop CLI is affected. An optional peer dependency would turn the
   failure into an install-time warning without upsetting the packager.
+  - The drawing commands - `draw`, `check`, `render` and `verbs` - work on
+    such an install, since they never load Electron. Opening the window still
+    needs it.
+  - Checked for 1.0.0-alpha.4.4.0: `npm run pack-check` installs the packed
+    tarball into an empty folder, where no `electron` arrives, and draws an
+    SVG there from standard input with `napkin-sketch draw -`.
 - [ ] **The sign-in launcher is only proven on Windows**: opening a terminal for
   the AI tool uses `cmd /c start` on Windows, `osascript` on macOS, and
   `x-terminal-emulator || xterm` elsewhere. Only the first has been run. The
@@ -208,6 +220,71 @@ made, is in `reviews/source-code-09-01-2026.log`.
   rejects a leading separator, a drive letter, a UNC prefix, or a `..` segment
   in either separator's spelling, and falls back to the default so a path meant
   to go elsewhere fails visibly rather than half working.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **`inlineSvg` turns a gradient fill black and drops masks, group opacity
+  and dashes without a note**: it skips everything inside `<defs>` before its
+  skipped-tag note is built, and it reads a `url(#...)` paint as no paint, so
+  a shape filled with a gradient and drawn with no outline falls through to
+  SVG's default and inlines as solid `#000000`. It also never reads a
+  `mask=`, a group's `opacity`, or an element's `stroke-dasharray`,
+  `stroke-linecap` and `stroke-linejoin`, and in every case `notes` comes back
+  empty, although its documentation and `API.md` both say gradients and masks
+  are reported there. A logo with a gradient placed with `placeBrand` becomes
+  a black silhouette in both formats, with nothing to say why. Found while
+  measuring what a sketch loses on its way to a PNG, for the API plan.
+  - Fixed with linked graphics, since the rasterizer draws a linked SVG
+    through it. A gradient is drawn as its first stop's colour, a group's
+    opacity is folded in, dashes, caps, joins, stroke opacity and
+    `text-anchor` carry over, and masks, clip paths, filters and patterns are
+    reported in `notes`. `<use>` is still its own entry.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **The PDF writer paints named colors and transparency black**:
+  `parseCssColor` in `pdf.ts` reads `#rgb`, `#rrggbb` and `rgb()` and returns
+  black for anything else, so `steelblue`, an eight-digit hex, `hsl()`, or a
+  `transparent` page background print black. Drawing by hand rarely hits it,
+  since the color picker writes hex, but an imported SVG with named colors
+  does, and so does a script. The composition module's `parseColor` reads all
+  of them; the API plan's output phase routes the PDF writer through it.
+  - The PDF writer reads colors with `parseColor` now. A color's alpha is its
+    opacity, a transparent page prints no paper, and a value that is not a
+    color is left out and reported through `onWarning` rather than printed
+    black. `parseCssColor` keeps its answer of black for such a value.
+- [ ] **A `.skbk` cannot hold a few million points**: `serializeSketchBook`
+  pretty-prints with two-space indentation, about 155 bytes per sampled point,
+  and at 4.85 million points the text passes V8's longest string, so the save
+  throws `RangeError: Invalid string length`. Generated drawings stay far
+  below it (the script budget caps sampled points at a million), but a very
+  large import could reach it, and nothing would say why. Compact JSON would
+  roughly halve the size; writing it out in pieces would remove the wall.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **A text box does not wrap in an SVG export**: `svgText` in
+  `src/renderer/surface.ts` splits a text item at its newlines and nothing
+  else, while the canvas wraps a fixed-width box (`textBoxWidth`) between
+  words. A boxed caption drawn in the app or by `text ... box` exports as one
+  long line. The SVG writer has no font to measure with; wrapping with the
+  built-in face's measure, as the composition writer does, would bring it
+  close. The API plan's output phase is to settle it.
+  - Settled that way. The writer, now `src/core/sketch-svg.ts`, breaks a box
+    where the built-in face breaks it and keeps the text as typed and the
+    box's width in `data-text` and `data-box`, which the importer reads back
+    as the box rather than the lines. The PDF breaks it at the same words.
+    `test/gui/check-script.mjs` imports such an SVG and finds one text item
+    in its box.
+- [ ] **A composition shape with no `fill` is filled black in the SVG and empty
+  in the PNG**: `fill` left out of a rect, circle or path writes no `fill`
+  attribute, and SVG paints a missing fill black, while the rasterizer and the
+  canvas painter read a missing fill as none. A `createComposition` rect given
+  only a `stroke` comes out as a black square in the SVG and an outline in the
+  PNG, which breaks the promise that the two formats are one graphic. A
+  group's `fill` differs the same way: SVG passes it down to children without
+  one, and the rasterizer ignores it. Either the SVG writes `fill="none"`
+  where the model has none, or the model defaults a shape's fill to black; the
+  sketch lowering sets every fill, so the PNG of a sketch is not affected.
+  (Found checking the erase shapes in all three renderers for the output
+  work; reproduced with a 40 by 40 composition.)
+- [ ] **Mirror flips a link's placeholder, not its file**: Mirror replaces an
+  image item's pixels with mirrored ones, and on a linked item those are the
+  placeholder's, so the name reads backwards in the app while every output
+  that follows the link draws the file the right way round. A link has
+  nowhere to record a mirror. Either Mirror leaves a link's picture alone and
+  moves its box only, or a link gains a transform the outputs apply.
 
 ## Things to Improve
 
@@ -377,8 +454,9 @@ agree, and one of them is read by the AI helper rather than by a person.
 Exploratory - worth trying, not yet worth scheduling. These came out of the
 work rather than from a plan: the first five from the 1.0.0-alpha.4.1.2 popup dock,
 then four from 1.0.0-alpha.4.1.0, each small enough to prototype in an afternoon, and
-the last three from Animation Mode. Those three are larger, and the first of
-them would change what the mode needs to run at all.
+the last three from Animation Mode. Those three are larger. The first of
+them, which changes what the mode needs to run at all, is built in
+1.0.0-alpha.4.4.0.
 
 The five dock entries are deliberately small and deliberately together: each
 one is a thing the shared popup module could grow, and doing any of them in
@@ -428,13 +506,20 @@ isolation would probably mean touching the same twenty lines twice.
   already captures the page. Storing a reference image per flow would catch
   the class of bug that the cursor rework hit - art that is technically correct
   and visually a mess.
-- [ ] **Draw the measured frames without an AI at all**: for a type with a
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Draw the measured frames without an AI at all**: for a type with a
   measured cycle the app already computes the finished `transform` per
   assembly, and applying them is a handful of attribute writes on a copy of
   the source. Doing that in-process would give walk, idle, and knocked down a
   path that needs no AI tool, no sign-in, and no waiting - and would leave the
   helper for the types that still need judgment. It would also make the mode
   demonstrable on a machine with no agentic CLI installed.
+  - Built as a napkin script: `src/core/script/animation.ts` copies the
+    figure's parts onto a frame and turns each about its joint by the cycle's
+    total up to it. Animation Mode's setup dialog draws the whole sequence
+    with **Draw measured frames** for walk, run, idle and knocked down, after
+    showing the script, and `napkin-sketch render --animate` draws it from a
+    saved book with no app. The mode itself still needs its install record;
+    the follow-on is under **Napkin script follow-ons**.
 - [ ] **Verify a generated sequence by measuring it back**: `wireframe-cycles`
   already reads joint angles out of an SVG. Pointed at the frames a run
   produced rather than at the skeleton, the same measurement would say whether
@@ -446,6 +531,12 @@ isolation would probably mean touching the same twenty lines twice.
   without a common origin. One box sized to the widest frame in a run, applied
   to all of them, would trade a little empty space per frame for frames that
   can be stacked and played without shifting.
+  - Built for scripts: `registration` in a script, or in `renderBook`'s
+    options, cuts every page to one box. What is left is sizing the box to
+    the widest frame by itself, and Animation Mode's export using it.
+  - Measured frames size it themselves: `render --animate` cuts every frame
+    to the union of the frames' ink. Animation Mode still saves each frame to
+    its own ink, whether the helper posed it or the cycle did.
 
 ## Brand resources (1.0.0-alpha.4.2.1)
 
@@ -700,6 +791,12 @@ carries.
 - [ ] **`logs/animation-helper.log` never rotates**: 12 KB after a handful of
   runs, and each run writes the command, the frame, timings, stderr, and 2 KB
   of stdout. A size cap or a per-run file would keep it readable.
+- [ ] **Fix the `verticla` id in `shapes.svg`**: the vertical line's group in
+  `ai-helper/vectors/skills/vector-graphics/assets/shapes.svg` is misspelled.
+  The shape library maps it to `vertical`, so no script sees the typo, but the
+  vector-graphics skill hands the file out as it is. Rename the id, drop the
+  mapping from `src/core/script/library-build.ts`, and run
+  `npm run shape-library` in the same change.
 
 ## Resolve Issues (`x.y.++`)
 
@@ -779,9 +876,10 @@ press a letter, type a value within the quick-feature timer, and it applies.
 
 ## Minor (backward-compatible features → next `x.++.z`)
 
-Backward-compatible features: thirteen entries, of which the three largest - the
-three features 1.0.0-alpha.4.3.0 shipped, the animation preset cycles and the
-`vector-graphics` skill follow-ons - carry eighteen sub-items between them.
+Backward-compatible features: fourteen entries, of which the four largest - the
+three features 1.0.0-alpha.4.3.0 shipped, the animation preset cycles, the
+`vector-graphics` skill follow-ons and the napkin script follow-ons - carry
+thirty sub-items between them.
 Most of the animation entries need a skeleton drawn into
 `character-wireframes.svg` before any code is written; the two object types that
 come apart are drawn in `object-animations.svg` instead.
@@ -877,6 +975,56 @@ come apart are drawn in `object-animations.svg` instead.
   choices for raster export.
 - [ ] **Prompt to Save**: If a file contains data, and has not been saved; when
  GUI is closed, prompt user to save file.
+- [ ] **Napkin script follow-ons**: what 1.0.0-alpha.4.4.0 left for later on
+  purpose, with the reasons in `.claude/prompts/api-1.0.0-alpha.4.4.0.md`.
+  - [ ] **The `alphabet.svg` face**: text drawn from the `vector-graphics`
+    skill's letterforms rather than the built-in single-stroke face. The entry
+    under **API Implementation** has the detail.
+  - [ ] **The linked file drawn on the canvas, and Embed**: the app shows a link
+    as its placeholder. The two entries under **API Implementation** say what
+    drawing the file and embedding it would take.
+  - [ ] **A long-lived `--jsonl` mode**: `napkin-sketch draw` is a process a
+    script, so a host drawing hundreds of graphics pays for a start each time.
+    A mode that reads a request a line on standard input and answers a line of
+    JSON for each would pay once.
+  - [ ] **A store sink**: the evaluator writes to a `ScriptSink`, and the app's
+    store could be a second one, so a script could draw into the open sketch
+    with undo. That is the replay path the **Automation and Scripting Tool**
+    section needs, as a second sink rather than a second evaluator.
+  - [ ] **Blend modes**: `multiply`, `screen` and the rest are the next
+    thing to lay over a picture after effects, as SVG's `feBlend`; the
+    rasterizer composites source-over only, so it needs a compositing
+    change first.
+  - [ ] **Effects in the app's own controls**: the app draws a mark's, a
+    layer's and a group's effects but has nothing to add or change one,
+    and Transform and Mirror move a mark without resizing its effects or
+    turning a shadow's offset.
+  - [ ] **Run the Illustrator script in Illustrator**: `--to jsx` is tested
+    against a stand-in for Illustrator's scripting objects, not in
+    Illustrator. Run the goal script's `.jsx` and the `test/scripts/` ones in
+    Illustrator by hand, check the gradients' direction and length above all,
+    and write "verified by hand on Illustrator <version>" into the changelog.
+  - [ ] **Illustrator back to a `.napkin`**: a `.jsx` that walks an open
+    Illustrator document - its layers, groups, paths with their anchors and
+    handles, text frames, and placed and embedded images - and writes a
+    `.napkin` script, so a drawing finished in Illustrator comes back as
+    instructions rather than as an SVG import.
+  - [ ] **`draw --prompt` against each AI tool**: the tests run a stand-in.
+    Run the default Claude Code command by hand, then find and document the
+    `--helper` command that reads the form and saves the script for Copilot
+    CLI, Codex CLI and Gemini CLI, whose non-interactive flags differ.
+  - [ ] **A request box in the app**: `promptScript` takes any runner, so the
+    main process can run the helper as it runs Animation Mode's, and the
+    script it gets back can draw into the open sketch or open as a new page.
+  - [ ] **`--prompt` from Node**: `napkin-sketch/node` could export a
+    `drawFromPrompt` over the same bridge, for a program that has no model of
+    its own and wants the command line's behaviour without spawning it.
+  - [ ] **Measured frames without installing Animation Mode**: **Draw
+    measured frames** needs no AI tool, no sign-in and no skill, yet it sits
+    inside Animation Mode, which exists only with its install record. A
+    command outside the mode - on the Edit menu, beside Animation Mode - would
+    draw a selected figure's frames with nothing installed, as
+    `napkin-sketch render --animate` already does from a shell.
 
 ## Animation Mode (new features → next `x.++.z`)
 
@@ -1111,176 +1259,345 @@ reads in pipeline order: the language, the evaluator, the geometry, the
 hand-drawn pass, the output, the public surface, the CLI, then the optional AI
 bridge and the tests and documentation that make the rest of it usable.
 
-- [ ] **Settle the instruction shape before writing a parser**: two front ends,
+**Planned in 1.0.0-alpha.4.3.0 for 1.0.0-alpha.4.4.0**: the plan, phase by phase,
+is `.claude/prompts/api-1.0.0-alpha.4.4.0.md` (gitignored on this machine, like
+all of `.claude/`). It maps every entry below to a phase, adds linked graphics,
+a `draw` verb reachable from any language, Illustrator output, photo effects
+and the `docs/api/` tree with a verbose page, a quickstart and a cheatsheet per
+category, and lists sixteen open questions with a recommendation each. Twelve
+phases make the minor; effects, Illustrator, the AI bridge and the measured
+animation frames are gated behind a `Y` each. All sixteen phases are built
+and ship in 1.0.0-alpha.4.4.0 - 0 through V, and the gated F (effects), I (the
+Illustrator script), A (the AI bridge) and N (the measured animation frames) -
+and the plan's **Progress** section records what each phase decided and found.
+
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Settle the instruction shape before writing a parser**: two front ends,
   one intermediate form. A line-oriented text script is what a person or an AI
   helper writes; a plain object is what a program builds. Both should lower to
   the same instruction list, and the object form is the one to freeze first,
   because the text syntax can then change without touching anything
   downstream of it.
-- [ ] **The instruction type**: an `Instruction` union in a new browser-safe
+  - The object form is `src/core/script/instructions.ts`: 55 verbs, each a
+    plain object naming its `verb`, which a program in any language can build
+    as JSON. `verbs.json` beside it is the verb table the parser will follow,
+    and `test/script-instructions.test.ts` holds the two together field for
+    field.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **The instruction type**: an `Instruction` union in a new browser-safe
   `src/core/instructions.ts`, beside the other model modules. Every
   instruction carries the source position it came from, so a diagnostic can
   point at the line that caused it, and the union is the one seam the parser,
   the evaluator, and any later front end all meet at.
-- [ ] **Tokenizer and parser**: verbs, arguments, comments, and blocks, with no
+  - It lives in `src/core/script/instructions.ts`, beside the verb table and
+    the rest of the language. A parsed instruction carries
+    `at: { line, column }`; one a program built has none, and a diagnostic
+    about it names its index in the list instead.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Tokenizer and parser**: verbs, arguments, comments, and blocks, with no
   dependency - the repo has none at runtime and a script language should not
-  be the first. `parsePathD` in `svg-import.ts` is the shape to copy: a cursor
+  be the first. `parsePathD` in `core/path-data.ts` is the shape to copy: a cursor
   over a string with one small function per production.
-- [ ] **Diagnostics that name the line and the column**: `parsePathD` returns
+  - `src/core/script/tokenize.ts` and `parse.ts`. The parser walks the verb
+    table's forms instead of carrying a function per verb, so a new verb is a
+    row in `verbs.json`. `validateScript` checks a script built as JSON the
+    same way, and `formatScript` writes either back as text.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Diagnostics that name the line and the column**: `parsePathD` returns
   `null` for anything it cannot read, which is right for an attribute and
   useless for a script. Errors should be collected rather than thrown at the
   first one, so a file with three typos reports three, and each says what was
   expected where.
-- [ ] **Lengths in the language go through `src/core/units.ts`**: `10mm`,
+  - A test reads a script with three typos and gets three diagnostics at the
+    right lines and columns, with the rest of the script read. A near miss
+    suggests the word that was meant.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Lengths in the language go through `src/core/units.ts`**: `10mm`,
   `0.5in`, `12pt`, and a bare number as px, converted with `toPx` rather than
   by a second table. The properties panel and the Rotate palette already read
   every length this way, and a third spelling of the same arithmetic is
   exactly the thing that drifts.
-- [ ] **Coordinates absolute, relative, and page-relative**: `to 100 200`
+  - The parser checks every unit against `units.ts` and keeps the literal as
+    written, `"10mm"`; converting it with `toPx` happens when the evaluator
+    runs the instruction, since a bare number means whatever `units` says at
+    that point.
+  - The evaluator converts every length with `toPx` as the instruction runs,
+    and names in expressions come back in the current units.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Coordinates absolute, relative, and page-relative**: `to 100 200`
   against `by 20 0` is the distinction SVG path data already draws and costs
   nothing to carry; a `50% 50%` measured against the page is what lets one
   script render at more than one page size.
-- [ ] **A transform stack**: `push` and `pop` around translate, rotate, and
+  - The syntax is in: `to` and `by`, and `%` on any length, measured along the
+    axis the verb table gives each argument. Resolving them against a page is
+    the evaluator's.
+  - The evaluator resolves `%` against the current page along each argument's
+    axis, and `by` from the path's current point.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **A transform stack**: `push` and `pop` around translate, rotate, and
   scale, applied to the anchors as they are emitted rather than written out as
   an SVG `transform` attribute. Affine invariance means the transformed
   control points *are* the transformed curve, which is what the Rotate tool
   already relies on, and baking it keeps a generated mark indistinguishable
   from a drawn one on export.
-- [ ] **`repeat` and arithmetic, with a budget decided up front**: a row of ten
+  - `push` and `pop` save the paint and the units too. A group or a placed
+    definition puts everything back when it ends; a repeat does not, so its
+    passes build on each other unless they `push` and `pop`.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **`repeat` and arithmetic, with a budget decided up front**: a row of ten
   boxes should not be ten copies of one line. The evaluator needs a hard cap
   on instructions executed and marks emitted, chosen before the first script
   that hangs a build rather than after it.
-- [ ] **Reusable definitions**: a way to draw a shape once and place it many
+  - The budget is decided and measured: `SCRIPT_LIMITS` caps instructions,
+    marks, anchors, sampled points and nesting depth. Sampled points turned
+    out to be the cost that matters - 50,000 small circles sample to 4.85
+    million points, more than the `.skbk` writer can hold in one string.
+  - `repeat` runs with a counter and expressions; every pass costs an
+    instruction, so even an empty body stops at the budget, and a run that
+    reaches any limit keeps what it drew.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Reusable definitions**: a way to draw a shape once and place it many
   times. This is the seam the shape library below plugs into, so the two want
   designing together rather than one retrofitting the other.
-- [ ] **The evaluator**: instructions to a `Sketch`. It emits the `Stroke`
+  - `define` and `place`, hoisted within their block. A definition reads the
+    names in force where it is placed, so a name set before `place` is a
+    parameter. The shape library turned out not to need the seam: its shapes
+    are anchors rather than instructions, and `shape` fits them to a box.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **The evaluator**: instructions to a `Sketch`. It emits the `Stroke`
   objects `src/core/types.ts` already defines, `vector.anchors` included, so a
   generated drawing is as editable in the GUI as a drawn one and needs no
   import step to become one. Every entry below this one stands on it.
-- [ ] **Geometry comes out as anchors, never as samples**: the standard the
+  - `src/core/script/evaluate.ts`, writing to a sink (`sink.ts`) so a replay
+    into the live document can be a second sink rather than a second
+    evaluator. A generated book loads back through the `.skbk` loader exactly
+    as it was built, and one script gives the same book on every run.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Geometry comes out as anchors, never as samples**: the standard the
   import path was already held to. A generated circle is four cubics with
   handle length `4/3 (sqrt(2) - 1) r`, not a polyline, and `points` is
   resampled from the anchors the way the Vector Path tool resamples - so the
   canvas has something to paint and the exporter has something exact to write.
-- [ ] **Layer statements build the tree, not a flat stack**: named layers and
+  - Every shape the evaluator draws is anchors, and a test reads a generated
+    circle back from its SVG export as the same four cubics. A curve is
+    sampled to its size, with the importer's own sampler: about a point a
+    pixel along its handles, 4 at the least and 24 at the most.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Layer statements build the tree, not a flat stack**: named layers and
   nested groups with opacity, visibility, and lock. `createLayer`,
   `createGroupLayer`, and the `parent` field are the model already; the
   evaluator only has to keep a stack of layer ids as it walks the script.
-- [ ] **Paint statements map onto the fields that exist**: color, width,
+  - Naming a layer again goes back to it; a mark drawn straight into a group
+    lands on a layer named after the group, as imported loose geometry does.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Paint statements map onto the fields that exist**: color, width,
   opacity, `fill`, `gradient` with stops, `noStroke`, `strokeStyle`, and a nib
   angle for a Copic mark. Each is a `Stroke` field today, so the work is
   naming them in the language rather than adding them to the model.
-- [ ] **Text without a DOM is the first real gap**: `Surface.measureText` runs
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Text without a DOM is the first real gap**: `Surface.measureText` runs
   on a canvas context, so auto-sized text boxes and every bounds calculation
   that depends on them have no headless answer. Three ways out, wanting a
   decision rather than a discovery: emit the text element and leave it
   unmeasured, require an explicit box on every text instruction, or draw the
   letters as paths.
+  - A fourth way, and the third as well: a text item is emitted and measured
+    with the built-in single-stroke face the composition renderers share,
+    which is what `align` places it by, and `text ... as marks` draws the
+    letters as paths in that face.
 - [ ] **The `alphabet.svg` asset is the third way out**: the `vector-graphics`
   skill ships two typefaces as letterform groups, one path per letter pair. A
   text-as-paths mode composed from those needs no font metrics at all, and
   gives a drawing made of marks - which is what a sprite or a cut file wants
   anyway. It needs advance widths, which the asset does not carry yet, so
   measuring them into the asset is the first step.
-- [ ] **An image instruction takes a data URL and nothing else**: a script must
+  - `text ... as marks` exists now, drawn with the built-in face. These faces
+    would be a second choice for it, once the widths are measured.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **An image instruction takes a data URL and nothing else**: a script must
   not be able to read the filesystem. A caller can load a file and hand the
   API its bytes; the language should have no verb that opens one.
-- [ ] **A shape library read from the skill assets**: `shapes.svg` already
+  - `image` takes a data URL, or the name of one the host passes in
+    `options.assets`. A path or a web address is refused, and the message
+    says how to hand the image over.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **A shape library read from the skill assets**: `shapes.svg` already
   draws squares, circles, ellipses, triangles, polygons, stars, lines at set
   angles, an arc, and a spiral, and `isometric-objects.svg` /
   `perspective-objects.svg` a wheel, a sphere, and a cube in one projection
   each. Those are the primitives a script wants by name, and reading their
   anchors at build time beats re-deriving each one in code.
-- [ ] **Arcs and rounded corners derive rather than get eyeballed**:
+  - `shape "<name>"` draws 22 of them; the object files carry a cylinder too.
+    `npm run shape-library` reads the assets into
+    `src/core/script/shape-library.json` with the importer's own element code
+    and no browser, and a test fails when the two disagree. A part keeps
+    whether its asset filled and stroked it, not the asset's colors.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Arcs and rounded corners derive rather than get eyeballed**:
   quarter-turn cubic pieces with handles `4/3 tan(dtheta/4)` along the
   tangents, which is the rule `arcToCubics` in `svg-import.ts` already
   applies. One helper shared by the arc verb, the rounded rectangle, and the
   circle, so an imported arc and a generated one are the same curve.
-- [ ] **A verb that fits a curve through waypoints**: the skill's
+  - `arc`, `circle`, `ellipse` and the rounded `rect` are built this way, the
+    last three with the importer's own code. A rounded `polygon`'s corners,
+    at any angle, are arcs from the same helper as `arc`, so a rounded square
+    polygon is the rounded rectangle, anchor for anchor.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **A verb that fits a curve through waypoints**: the skill's
   `matlib-script.js --through` already solves for the handles that put a curve
   through given points. Saying "curve through these five points" is much
   closer to how a shape gets described than dictating two handles per segment,
   and the solver exists.
-- [ ] **The hand-drawn pass is the point of the tool and its least defined
+  - `through` draws it, with an anchor at every point: Catmull-Rom tangents,
+    handles a third of each segment, and parabolas at the ends. The skill's
+    solver was not ported. It fits one cubic through at most four points at
+    fixed parameters, which loops when the points are spaced unevenly and
+    leaves the inner points with no anchor to edit.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **The hand-drawn pass is the point of the tool and its least defined
   part**: `sharpenStrokes` turns a shaky human line into a clean shape, and
   this wants the inverse - an exact shape roughened into something that reads
   as drawn. Without it the API generates diagrams anybody could generate; with
   it, it generates napkin sketches, which is the only reason to generate them
   here.
-- [ ] **Seed the roughening, and decide what it perturbs**: anchor positions,
+  - `rough <amount>` runs it on every mark after it, in
+    `src/core/script/rough.ts`: bowed segments, drift, turned handles,
+    overshoot, a fill drawn apart from its line, and a second pass. The
+    drawing reference lists how far each part reaches, from the constants.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Seed the roughening, and decide what it perturbs**: anchor positions,
   handle lengths, a slight overshoot at each end, a second pass offset from
   the first. All four are cheap on anchors and awkward on samples, which is
   another reason the anchor rule above is load-bearing. Seeded so one script
   renders the same bytes every run - an unseeded one is useless for tests, for
   diffs, and for anybody who wants their diagram back tomorrow. Worth
   prototyping against `test/imports/` before any of it is specified.
-- [ ] **Prove the headless path with a test that imports no DOM**:
+  - Prototyped against the `test/imports/` fixtures at three strengths; the
+    constants, and what the prototype showed, are in
+    `src/core/script/rough.ts`. The four perturbations were not enough: anchor
+    drift alone leaves ruled lines, so a straight segment bows too, by the
+    square root of its length.
+  - Seeded per mark, from the seed and the mark's own geometry, so one script
+    renders the same bytes every run and editing one mark leaves every other
+    mark's wobble alone.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Prove the headless path with a test that imports no DOM**:
   `Surface.toSVG` is DOM-free and `test/svg-export.test.ts` says so in a
   comment, but nothing enforces it - a single `document.` added inside the
   class would break the API and pass all 278 tests. A test that renders a
   script end to end in plain Node is the contract that comment is standing in
   for.
-- [ ] **Raster output has no obvious answer**: PNG and JPEG come off a canvas
+  - `test/headless.test.ts` installs a DOM that exists and throws on first
+    touch, then runs `Surface.toSVG`, the PDF writer, the `.skbk` round trip,
+    the sharpen engine, the path-data parser and both composition renderers
+    under it.
+  - The same suite now runs a script end to end - read, evaluated, written as
+    SVG - with the DOM poisoned.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Raster output has no obvious answer**: PNG and JPEG come off a canvas
   and Node has none. Either the API is honest and offers SVG and PDF only, it
   takes a rasterizer the caller supplies, or it grows the first runtime
   dependency in the repo. The first is the right default; the other two want
   naming as options rather than arriving as a surprise.
-- [ ] **PDF is already there**: `sketchesToPdf` is browser-safe and exported.
+  - The composition rasterizer was the answer: `sketchToComposition` lowers a
+    sketch into the composition model the way the SVG export writes it, and
+    `renderSketch(page, { format: 'png' })` draws it, with no dependency. The
+    PNG agrees with the SVG as `rsvg-convert` draws it on at least 99.78% of
+    the ink of every fixture in `test/imports/`. A caller-supplied decoder
+    survives as `decodeImage`, for placed JPEGs.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **PDF is already there**: `sketchesToPdf` is browser-safe and exported.
   A multi-page script maps onto a `SketchBook` and out to PDF with no new code
   beyond the wiring.
-- [ ] **Crop and registration reuse the Selection export**: the crop box Export
+  - `renderBook(book, { format: 'pdf' })`, a PDF page a sketch, each cut to
+    its box by its media box.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Crop and registration reuse the Selection export**: the crop box Export
   Selection computes is the same box a generated sprite wants, and one box
   shared across a set of scripts is the fix already filed under **Ideas** for
   animation frames. One option, both uses, rather than two spellings of a
   viewBox.
-- [ ] **The public surface and the promise it makes**: a render entry point, a
+  - `crop: 'auto'` is the Selection export's box, the ink grown by half the
+    widest line, with a pad on top, and `registration` is one box for every
+    page. The box is the SVG's view box, the PNG's page and the PDF's media
+    box, for every format through one option.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **The public surface and the promise it makes**: a render entry point, a
   straight-to-SVG convenience, and the instruction types, added to
   `src/api/index.ts`. Additive only - every export that is there stays exactly
   as it is, which is what keeps this a minor.
-- [ ] **Errors come back as values**: a result carrying the sketch and the
+  - `napkin-sketch` exports the language - `evaluate`, `drawSvg`, the render
+    calls, the readers and the tables, with their types - and a new
+    `napkin-sketch/node` entry holds the file half: `drawFile`,
+    `drawToFiles`, `writeBook` and the loaders. `test/api-surface.test.ts`
+    holds every name the barrel had before to the list.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Errors come back as values**: a result carrying the sketch and the
   diagnostics beats a thrown string, because a caller generating a hundred
   graphics wants the ninety-nine that worked and a list of what went wrong
   with the other one. It also matches how the importer already reports what it
   could not read.
-- [ ] **A `draw` verb on the CLI**: a script file or stdin in, an SVG or a PDF
+  - `evaluate` returns `{ ok, book, diagnostics, stats, output }` and never
+    throws for anything in a script; an instruction that cannot run is
+    reported and skipped.
+  - The Node calls keep to it: `drawFile` and `drawToFiles` write what a
+    script drew and give back its diagnostics with `ok` false, and only the
+    disk throws.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **A `draw` verb on the CLI**: a script file or stdin in, an SVG or a PDF
   out, and no Electron anywhere in the path - `src/cli/index.ts` only reaches
   `require('electron')` inside the GUI launch, so a draw command can exit
   without ever resolving it. That also answers the global-install failure
   filed under **Found Issues**: a CLI that draws is useful on exactly the
   installs where the GUI cannot start.
-- [ ] **Round-trip back into the app**: a script should be able to write a
+  - `napkin-sketch draw`, with `check`, `render` and `verbs` beside it, `--json`
+    and exit codes for callers in other languages. A test runs the built CLI
+    with `require('electron')` made to throw.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Round-trip back into the app**: a script should be able to write a
   `.skbk` as readily as an SVG, so a generated drawing opens in the GUI with
   its layers and its anchors intact and gets edited by hand from there.
   `serializeSketchBook` is browser-safe and already exported, so this is one
   more output format rather than a second pipeline.
-- [ ] **An optional AI bridge, kept optional**: the settings, the tool list,
+  - `skbk` is one of the four formats `renderBook`, `drawToFiles` and
+    `napkin-sketch draw --to skbk` write, and `test/gui/check-script.mjs`
+    opens a generated book in the app, saves it, and reads its anchors back.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **An optional AI bridge, kept optional**: the settings, the tool list,
   the terminal launcher, and the auth-failure detection in
   `src/core/ai-tool.ts` already know how to run a helper. Natural language to
   an instruction script is a far smaller ask than a posed SVG frame, because
   the output is text in a grammar the parser checks - a bad answer fails
   loudly instead of drawing something subtly wrong. Nothing above this entry
   should need it to work.
-- [ ] **A skill that teaches the language to the helper**: `vector-animations`
+  - Built for the command line: `napkin-sketch draw --prompt` hands the
+    request to the AI helper through `src/core/script/ai-bridge.ts`, which
+    checks the script it gets back and sends it back once with its errors. A
+    missing or signed-out tool ends the command with exit code 4, and nothing
+    else in the language needs a helper. The app's request box is a follow-on
+    under **Napkin script follow-ons**.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **A skill that teaches the language to the helper**: `vector-animations`
   is the model, a skill written so the instruction the helper emits is the
   instruction the parser accepts. Generate it from the verb table rather than
   writing it twice - the cost of a table kept in more than one place is
-  already filed under **Documentation Update Ideas**.
-- [ ] **This is also how the measured animation frames get drawn with no AI at
+  already filed under **Documentation Update Ideas**. What it would be
+  generated from is generated already: the tables under `docs/api/`, the
+  object form's schema, and `napkin-sketch verbs --json`.
+  - Built as the `napkin-script` skill in `ai-helper/scripting/`. Its verb
+    reference is generated from the verb table by `npm run api-docs`, and
+    `test/ai-helper.test.ts` checks its three example scripts.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **This is also how the measured animation frames get drawn with no AI at
   all**: the idea filed under **Ideas** wants the app to apply the transforms
   it has already computed, and `animationFrameTransforms` returns them per
   assembly. An instruction script is precisely a way to say "take this source
   and apply these transforms". The animation path and the drawing path meet
   here, or they get written twice and drift.
-- [ ] **Tests**: golden files, a script in and an SVG out, for the language; a
+  - Built that way: `src/core/script/animation.ts` writes the script - each
+    part of the figure copied in with `use` and turned about its joint - and
+    `evaluate` draws it, for Animation Mode's **Draw measured frames** and for
+    `napkin-sketch render --animate` alike.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Tests**: golden files, a script in and an SVG out, for the language; a
   determinism test that renders one script twice and compares bytes; and a
   geometry test that a generated circle and an imported one agree, which is
   the identity check `test/svg-export.test.ts` already makes about the round
   trip, pointed at the generator instead.
-- [ ] **Documentation**: a README section beside **Embedding the editor**, a
+  - Six golden scripts in `test/scripts/`, each compared byte for byte with
+    the SVG beside it and drawn twice in one process and once in a fresh one
+    (`test/script-golden.test.ts`, rewritten only by
+    `npm test -- --update-golden`). A generated circle, written as SVG and
+    read back, is its four anchors to two decimals, and a generated circle and
+    an imported one were already the same curve. Every phase added its own
+    suite; 757 tests in all.
+- [x] **DONE (1.0.0-alpha.4.4.0)** - **Documentation**: a README section beside **Embedding the editor**, a
   verb reference, and worked examples. At 1,286 lines the README is already
   where the keyboard-shortcut and editing-gesture items above came from, so
   the place a language goes wants deciding before it is written rather than
   after.
+  - Built as `docs/api/`: eight categories with a reference, a quickstart and
+    a cheatsheet each, `API.md` as the hub with `API-QUICKSTART.md` and
+    `API-CHEATSHEET.md` beside it, and README's *Drawing from a script*. The
+    verb, command and exit code tables, the object form's JSON Schema and
+    `docs/api/INDEX.json` are generated by `npm run api-docs`, and the tests
+    run every script on the pages and follow every link.
+- [ ] **Draw a linked file on the canvas, not only its placeholder**: the app
+  shows a link as a dashed box with the file's name. The main process could
+  read the file - relative to the book's folder, with the rules
+  `resolveLinkFromDir` keeps - and hand the renderer its pixels or its
+  shapes, so a link looks like what it links. Open question 8 in the API plan.
+- [ ] **Embed a link**: a command that turns a linked file into an import, its
+  contents brought in and broken into layers in place of the one linked item,
+  for a drawing that has to stop depending on the file. Also open question 8.
 
 ### New Skill to Auto Generate Design Language
 
@@ -1590,6 +1907,10 @@ the Rotate tool, which lands with Move in the 1.0.0-alpha.4.1.2 batch; then the
 plugin work, and the eight after that are the 1.0.0-alpha.4.1.0 batch: the clipboard,
 the Selection export, the pages menu, and the drag and layer-integrity work.
 
+<details>
+
+<summary>Show Details</summary>
+
 - [x] **Simple graphic design elements**: a composition API in
   `src/core/graphic-design/`. `createComposition()` opens a page - 360 by 360
   pixels unless a size is named, in pixels unless the page asks for inches,
@@ -1768,3 +2089,5 @@ the Selection export, the pages menu, and the drag and layer-integrity work.
 - [x] **Reduced-motion support**: honor `prefers-reduced-motion` for the page-turn
   animation.
   - From: Patch
+
+</details>

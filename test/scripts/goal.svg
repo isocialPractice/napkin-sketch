@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="400" height="300" viewBox="0 0 400 300" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" data-generator="napkin-sketch">
+<rect width="400" height="300" fill="#fcfaf5"/>
+<g id="Card" data-name="Card" inkscape:label="Card" inkscape:groupmode="layer">
+<path d="M32 20H368c6.63 0 12 5.37 12 12V88c0 6.63-5.37 12-12 12H32c-6.63 0-12-5.37-12-12V32c0-6.63 5.37-12 12-12Z" stroke="#1f2328" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="0"/>
+<text x="125.33" y="70" font-size="28" font-family="&quot;Segoe UI&quot;, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif" fill="#1f2328" dominant-baseline="hanging" data-tool="text" data-i="1"><tspan x="125.33" dy="0">Acme Corp</tspan></text>
+<path d="M346.92 199.81c-.19 25.69-19.46 47.57-45.98 47.82-26.53.26-48.77-19.65-49.11-47.02s20.84-48.49 47.47-48.55c26.62-.05 47.82 22.05 47.62 47.75Z" stroke="none" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="3" data-nostroke="1" data-color="#1f2328" data-width="3"/>
+<path d="M347.32 199.91c1.02 24.7-18.25 49.41-46.85 49.66-28.6.24-50-22.55-50.17-50.98-.17-28.44 20.28-48.38 48.27-48.14 28 .23 46.93 27.68 47.95 52.37" stroke="#1f2328" data-tool="pen" data-i="4"/>
+</g>
+<g id="Logo" data-name="Logo" inkscape:label="Logo" inkscape:groupmode="layer">
+<image x="20" y="120" width="120" height="120" preserveAspectRatio="none" href="assets/logo.svg" data-link="true" data-name="logo.svg" data-tool="image" data-i="2"/>
+</g>
+</svg>

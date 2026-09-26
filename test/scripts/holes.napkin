@@ -1,0 +1,22 @@
+napkin 1
+# Compound marks: each is one mark, and its inner contours wind the other way,
+# so they are holes.
+page 600 200
+name "holes"
+background #ffffff
+layer "Holes"
+color #1f2328 width 2 fill #326478
+path "M20 20 H180 V180 H20 Z M60 60 V140 H140 V60 Z"
+path "M220 100 A80 80 0 0 1 380 100 A80 80 0 0 1 220 100 Z M260 100 A40 40 0 0 0 340 100 A40 40 0 0 0 260 100 Z"
+fill #ffe08a
+path {
+  move 420 180
+  to 500 20
+  to 580 180
+  close
+  move 500 150
+  to 530 150
+  to 500 90
+  to 470 150
+  close
+}

@@ -9,7 +9,7 @@
  * Run with `node --experimental-websocket`, which Node 21 needs before
  * `globalThis.WebSocket` exists, or through `npm run gui-check`.
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..', '..');
@@ -32,6 +32,24 @@ export function launch(launchOptions) {
   child.stdout.on('data', (b) => process.stdout.write(`[app] ${b}`));
   child.stderr.on('data', (b) => process.stderr.write(`[app!] ${b}`));
   return child;
+}
+
+/**
+ * Stops the app and every process it started, and waits for it to go, so the
+ * next check can take the debugging port.
+ *
+ * `child.kill()` ends the main process alone, and on Windows the renderer it
+ * started can outlive it - orphaned, spinning a core each. Twenty of them had
+ * piled up over a day of runs and slowed the machine until checks failed on
+ * timing alone. `taskkill /T` ends the whole tree.
+ */
+export async function stop(app) {
+  if (app.exitCode !== null || app.signalCode !== null) return;
+  const gone = new Promise((done) => app.once('exit', done));
+  if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(app.pid), '/T', '/F'], { stdio: 'ignore' });
+  else app.kill();
+  await gone;
+  await sleep(1000);
 }
 
 /** Waits for the drawing window's target, then connects to it. */

@@ -50,9 +50,14 @@ async function run() {
   // `node --test` takes file paths and nothing else, so suite flags travel as
   // environment variables. `--keep-graphics` stops the graphic-design suite
   // deleting the SVGs and PNGs it draws, which is the only way to look at them.
+  // `--update-golden` rewrites the golden SVGs in test/scripts/ from what the
+  // scripts beside them draw today; nothing else writes them.
   const env = { ...process.env };
   if (process.argv.slice(2).includes('--keep-graphics')) {
     env.NAPKIN_KEEP_TEST_GRAPHICS = '1';
+  }
+  if (process.argv.slice(2).includes('--update-golden')) {
+    env.NAPKIN_UPDATE_GOLDEN = '1';
   }
 
   const child = spawn(process.execPath, ['--test', ...outFiles], { stdio: 'inherit', env });

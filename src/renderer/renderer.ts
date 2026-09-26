@@ -90,6 +90,7 @@ import type {
   MenuAction,
 } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
+import { scaleEffects } from '../core/effects.js';
 import { sketchesToPdf } from '../core/pdf.js';
 import { defaultSettings, type AppSettings, type QuickModifier } from '../core/settings.js';
 import {
@@ -122,6 +123,9 @@ import {
   type WarpPin,
 } from '../core/mesh-warp.js';
 import { Store, type ImportedLayerNode, type LayerTreeNode, type ToolState } from './store.js';
+import { MEASURED_ANIMATION_TYPES, MeasuredFramesError, measuredFramesScript, type MeasuredFrames } from '../core/script/animation.js';
+import { evaluate } from '../core/script/evaluate.js';
+import { layerTree, type LayerNode } from '../core/script/media.js';
 import { importSvg } from './svg-import.js';
 import {
   SCALE_FACTOR_MAX,
@@ -6734,6 +6738,10 @@ class App {
         }
       }
 
+      if (setup.measured) {
+        if (!(await this.animationDrawMeasured(setup))) return;
+        continue;
+      }
       if (!(await this.animationStep3(setup))) return;
     }
   }
@@ -6860,6 +6868,8 @@ class App {
     prompt: string | null;
     apiDisabled: boolean;
     facing: AnimationFacing;
+    /** True when the whole sequence is to be drawn now from the measured cycle, with no AI. */
+    measured: boolean;
   } | null> {
     return new Promise((resolve) => {
       const dlg = el('anim-step2-dialog');
@@ -6946,6 +6956,16 @@ class App {
         el('anim-facing-note').textContent = category.value === 'object' ? '' : found + cost;
       };
 
+      // The measured frames are offered where there is a cycle to draw them
+      // from and a rig to turn: a character type with a measured cycle, posed
+      // by the measured joints. Disable API says the rig does not fit.
+      const measuredButton = el('anim-step2-measured');
+      const updateMeasured = (): void => {
+        const offered =
+          category.value === 'character' && MEASURED_ANIMATION_TYPES.includes(type.value) && !poseDisabled.checked;
+        measuredButton.classList.toggle('is-hidden', !offered);
+      };
+
       const updateNote = (): void => {
         // The cycle behind a type is the AI helper's business, not the
         // user's: how many skeletons the asset happens to hold says nothing
@@ -6965,14 +6985,19 @@ class App {
         updateNote();
         updatePoseNote();
         updateFacingNote();
+        updateMeasured();
       };
       type.onchange = () => {
         fillFrames();
         updateNote();
+        updateMeasured();
       };
       frames.oninput = updateNote;
       for (const radio of [el<HTMLInputElement>('anim-pose-measured'), poseDisabled]) {
-        radio.onchange = updatePoseNote;
+        radio.onchange = () => {
+          updatePoseNote();
+          updateMeasured();
+        };
       }
       for (const radio of [facingLeft, facingRight]) {
         radio.onchange = updateFacingNote;
@@ -6982,6 +7007,7 @@ class App {
       updateNote();
       updatePoseNote();
       updateFacingNote();
+      updateMeasured();
 
       const done = (
         value: {
@@ -6991,22 +7017,25 @@ class App {
           prompt: string | null;
           apiDisabled: boolean;
           facing: AnimationFacing;
+          measured: boolean;
         } | null,
       ): void => {
         dlg.classList.add('is-hidden');
         resolve(value);
       };
-      el('anim-step2-next').onclick = () =>
-        done({
-          category: category.value as AnimationCategory,
-          type: type.value,
-          frames: clampSequenceFrames(Number(frames.value)),
-          // Cleaned where it is read rather than where it is used, so the one
-          // place that knows it came from a person is the one that tidies it.
-          prompt: normalizeAnimationPrompt(prompt.value),
-          apiDisabled: poseDisabled.checked,
-          facing: facingLeft.checked ? 'left' : 'right',
-        });
+      const chosen = (measured: boolean) => ({
+        category: category.value as AnimationCategory,
+        type: type.value,
+        frames: clampSequenceFrames(Number(frames.value)),
+        // Cleaned where it is read rather than where it is used, so the one
+        // place that knows it came from a person is the one that tidies it.
+        prompt: normalizeAnimationPrompt(prompt.value),
+        apiDisabled: poseDisabled.checked,
+        facing: (facingLeft.checked ? 'left' : 'right') as AnimationFacing,
+        measured,
+      });
+      el('anim-step2-next').onclick = () => done(chosen(false));
+      measuredButton.onclick = () => done(chosen(true));
       el('anim-step2-cancel').onclick = () => done(null);
       dlg.classList.remove('is-hidden');
     });
@@ -7148,6 +7177,111 @@ class App {
         // Temp cleanup is main-process-only; nothing to clear outside Electron.
       }
     }
+  }
+
+  /**
+   * Draws the whole sequence at once from the measured cycle, with no AI: a
+   * script from `measuredFramesScript` copies the figure's parts onto a frame
+   * each and turns them about their joints by the cycle's totals. The script
+   * is shown before it runs - a generated script is read before it touches the
+   * page - and the frames land as the helper's frames land: a group layer
+   * each, folded, standing in a strip beside the source, and saved to the
+   * animations folder. One undo takes the whole sequence back off the page.
+   *
+   * Resolves true when another animation should be set up.
+   */
+  private async animationDrawMeasured(setup: { type: string; frames: number; facing: AnimationFacing }): Promise<boolean> {
+    const root = this.animationSourceLayer();
+    const sourceIds = root ? [root.id] : [...findAssemblyLayers(this.store.sketch).values()].map((l) => l.id);
+    let plan: MeasuredFrames;
+    try {
+      plan = measuredFramesScript(this.store.sketch, {
+        type: setup.type,
+        frames: setup.frames,
+        facing: setup.facing,
+        ...(root ? { root: root.id } : {}),
+      });
+    } catch (err) {
+      this.toast(err instanceof MeasuredFramesError ? `No measured frames: ${err.message}.` : `The frames could not be drawn: ${(err as Error).message}`);
+      return false;
+    }
+    if (!(await this.animationScriptPrompt(plan, setup.type))) return false;
+
+    this.animationBusy = true;
+    try {
+      const result = evaluate(plan.script, { documents: plan.documents });
+      if (!result.ok) {
+        const error = result.diagnostics.find((d) => d.level === 'error');
+        this.toast(`The frames did not draw: ${error?.message ?? 'the script has errors'}`);
+        return false;
+      }
+      const before = new Set(this.store.sketch.layers.map((l) => l.id));
+      // Every frame in one step, so one undo takes the sequence back.
+      this.store.pasteLayerTree(this.measuredFrameTrees(result.book.sketches), null);
+      const frames = this.store.sketch.layers.filter((l) => !before.has(l.id) && !l.parent);
+      this.foldImportedLayers(before);
+      // A strip, as the helper's frames stand: each beside the one before it.
+      let previous = sourceIds;
+      for (const frame of frames) {
+        this.animationPlaceFrame(frame.id, previous);
+        previous = [frame.id];
+      }
+      this.fitAllInView();
+      for (const frame of frames) {
+        try {
+          await window.napkin.saveAnimationFrame(frame.name, this.animationSubtreeSvg([frame.id]));
+        } catch {
+          // Outside Electron there is no output folder to write.
+        }
+      }
+      this.toast(`Drew ${frames.length} ${setup.type} frames from the measured cycle.`);
+      return await this.animationDonePrompt(frames.length);
+    } finally {
+      this.animationBusy = false;
+    }
+  }
+
+  /**
+   * The drawn pages' layers as the trees the store pastes: each layer's name,
+   * opacity, visibility and lock, and its marks in the order they were drawn,
+   * counted across every page so the frames paste in order.
+   */
+  private measuredFrameTrees(pages: readonly Sketch[]): LayerTreeNode[] {
+    let order = 0;
+    const tree = (node: LayerNode): LayerTreeNode => ({
+      name: node.layer.name,
+      group: node.layer.group === true,
+      opacity: node.layer.opacity,
+      visible: node.layer.visible,
+      locked: node.layer.locked,
+      marks: node.strokes.map((stroke) => ({ stroke, order: order++ })),
+      children: node.children.map(tree),
+    });
+    return pages.flatMap((page) => layerTree(page).map(tree));
+  }
+
+  /**
+   * Shows the script that draws the measured frames, and in a sentence what
+   * it will do, before it runs. Resolves true when the frames are to be drawn.
+   */
+  private animationScriptPrompt(plan: MeasuredFrames, type: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const dlg = el('anim-script-dialog');
+      const first = plan.frames[0];
+      const last = plan.frames[plan.frames.length - 1];
+      const facing = plan.facingFrom === 'feet' ? `travelling ${plan.facing}, the way its feet point` : `travelling ${plan.facing}`;
+      el('anim-script-msg').textContent =
+        `${plan.frames.length} frames, ${first} to ${last}, from the measured ${type} cycle and no AI: the figure's parts copied onto each ` +
+        `frame and turned about their joints, ${facing}. This is the script that draws them; nothing on the page changes until you draw them.`;
+      el('anim-script-text').textContent = plan.text;
+      const done = (run: boolean): void => {
+        dlg.classList.add('is-hidden');
+        resolve(run);
+      };
+      el('anim-script-run').onclick = () => done(true);
+      el('anim-script-cancel').onclick = () => done(false);
+      dlg.classList.remove('is-hidden');
+    });
   }
 
   /**
@@ -7920,6 +8054,7 @@ class App {
     for (const id of [
       'anim-step1-dialog',
       'anim-step2-dialog',
+      'anim-script-dialog',
       'anim-step3-dialog',
       'anim-done-dialog',
       'anim-signin-dialog',
@@ -11290,7 +11425,10 @@ function transformImportedLayers(
       if (stroke.fontSize !== undefined) stroke.fontSize *= scale;
       if (stroke.imageWidth !== undefined) stroke.imageWidth *= scale;
       if (stroke.imageHeight !== undefined) stroke.imageHeight *= scale;
+      // A blur and a shadow shrink with what they are on.
+      if (stroke.effects) stroke.effects = scaleEffects(stroke.effects, scale);
     }
+    if (layer.effects) layer.effects = scaleEffects(layer.effects, scale);
     if (layer.children) transformImportedLayers(layer.children, scale, dx, dy);
   }
 }

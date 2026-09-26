@@ -14,9 +14,9 @@ hand-drawn rather than vector-perfect.
 **New here?** [QUICKSTART.md](QUICKSTART.md) gets you from a fresh clone to a
 sharpened sketch in five minutes, and [CHEATSHEET.md](CHEATSHEET.md) puts every
 shortcut, CLI flag, and npm script on one page. Drawing from a script rather
-than by hand? [API-QUICKSTART.md](API-QUICKSTART.md) gets you from a clone to a
-generated graphic, and [API.md](API.md) is the full graphic-design API
-reference.
+than by hand? [API-QUICKSTART.md](API-QUICKSTART.md) is the whole API in five
+steps, [API.md](API.md) is the map of its documentation, and
+[API-CHEATSHEET.md](API-CHEATSHEET.md) puts every verb and flag on one page.
 
 ## Features
 
@@ -224,7 +224,9 @@ reference.
   is a small file edit rather than a redrawn document. Each frame lands as a
   group layer continuing the `<type>_<n>` sequence and is offered for
   **Redraw / Keep and draw next / Done**. A frame count sets the pacing rather
-  than a batch size: fewer frames move further each, more move less. See
+  than a batch size: fewer frames move further each, more move less. For the
+  four types with a measured cycle, **Draw measured frames** leaves the helper
+  out and draws the whole sequence at once, with no AI. See
   [Animation Mode](#animation-mode) for the workflow and requirements.
 - **Native application menus** — *File* (New, Open, Import, Save, Save As,
   Export PNG / JPEG / SVG / PDF), *Edit* (Undo, Redo, **Cut / Copy / Paste /
@@ -313,9 +315,16 @@ reference.
   VS Code webview (see [Embedding](#embedding-the-editor)).
 - **Graphic-design API** — build a composition from rectangles, circles,
   ellipses, triangles, polygons, clipping masks, styled text and placed media,
-  then render it to SVG or PNG from a plain Node script, with no browser and no
+  with CSS filter effects - a blur, a drop shadow, a color shift - on any of
+  them, then render it to SVG or PNG from a plain Node script, with no browser and no
   image dependency. Both formats come off one document, so they are the same
-  graphic (see [API.md](API.md)).
+  graphic (see [the graphic design API](docs/api/compose/README.md)).
+- **Drawing from a script** - a napkin script says what to draw one instruction
+  a line; `napkin-sketch draw` turns it into SVG, PNG, PDF, a `.skbk` or a
+  script that rebuilds it in Adobe Illustrator, with no window, from a shell,
+  from Node, or from any language that can start a process (see
+  [Drawing from a script](#drawing-from-a-script)). An AI tool can write the
+  script from a sentence: `draw --prompt "a three-box flowchart with arrows"`.
 - **Installable desktop app** with a Start-menu/desktop shortcut and app icon
   (via electron-builder).
 - Calm, accessible UI (WCAG-AA contrast, reduced-motion support — the
@@ -433,6 +442,29 @@ scale down to fit the page. Every imported file becomes its own named layer.
 Quote file names that contain spaces, for example
 `-m logo.svg,"site map.svg",photo.png`.
 
+### Commands
+
+A first word that names a command runs it instead of opening the window. The
+commands never load Electron, so they work where the GUI cannot start:
+
+```bash
+napkin-sketch <command> [arguments]
+```
+
+| Command               | Description                                                                  |
+| :-------------------- | :--------------------------------------------------------------------------- |
+| `draw <script \| ->`  | Draw a napkin script to `svg`, `png`, `pdf`, `skbk` or `jsx` files (`--to`). |
+| `check <script \| ->` | Read and run a script and report what is wrong; write nothing.               |
+| `render <book.skbk>`  | Write a book as files (`--to`), or its figure as frames (`--animate`).       |
+| `verbs`               | List napkin script's verbs by category, and the shape library.               |
+
+`-` reads the script from standard input, and `--json` prints one line of JSON
+instead of the human report. The exit code is `0` drew, `1` the arguments were
+wrong, `2` the script had errors, `3` a file could not be read or written, `4`
+the AI helper gave back no script.
+[The napkin-sketch command line](docs/api/cli/README.md) has every option,
+and callers in five languages.
+
 ### Examples
 
 ```bash
@@ -456,6 +488,12 @@ napkin-sketch --import logo.svg
 
 # Open a new sketch with three files laid out in a grid
 napkin-sketch -m logo.svg,"site map.svg",photo.png
+
+# Draw a napkin script to SVG and PNG, with no window
+napkin-sketch draw card.napkin --to svg,png --out out
+
+# Check a script handed over on standard input, and report in JSON
+napkin-sketch check - --json < card.napkin
 ```
 
 A bare path is treated as a sketch book to open:
@@ -1171,6 +1209,21 @@ With the mode installed, the banner's **Generate…** button runs the wizard:
    rather than after eight frames of it. What the setting never changes is that
    a frame is **posed rather than redrawn**: the path data stays as it is
    either way.
+
+   **Or draw every frame now, with no AI.** For a character type with a
+   measured cycle - walk, run, idle, knocked down - the dialog adds **Draw
+   measured frames** beside Next. It leaves the helper out: once any missing
+   assemblies are mapped, the app writes a napkin script that copies the
+   figure's parts onto each frame and turns every part about its joint by the
+   cycle's total up to that frame, and shows the script before anything is
+   drawn. **Draw frames** runs it. The whole sequence lands at once - one row
+   per frame, side by side, each saved to `animations/` as a helper's frame
+   is - and one undo takes all of it back. A measured frame is the cycle's
+   pose exactly, so it needs no sign-in, no waiting and no second look. What
+   it cannot do is move a layer no assembly holds, so **Disable API** hides
+   the button and leaves such a figure to the helper. `napkin-sketch render
+   --animate walk` draws the same frames from a saved book (see
+   [the command line](docs/api/cli/README.md#render)).
 2. **Map missing layers** (character animations only, and skipped when the
    page already validates) — for each missing assembly, a dialog asks which
    layers consist of it (Cancel / Back / Next); the chosen layers are grouped
@@ -1263,7 +1316,8 @@ dependency-free script that derives SVG path data from control points). That
 folder is also the plugin itself, so the same files reach a tool that loads
 plugins and a tool that reads a dot-folder, and neither copy can go stale.
 `ai-helper/` above it is a container, holding one folder per helper -
-`vectors/` and the [graphic-designer](#the-graphic-designer-helper) beside it.
+`vectors/`, the [graphic-designer](#the-graphic-designer-helper) beside it, and
+[scripting](#the-scripting-helper).
 Every generated form names the `vector-animations` skill and tells the helper
 where to find both; a frame turns existing geometry, so `vector-graphics` only
 comes into play when something has to be drawn from scratch. Because AI tool
@@ -1296,6 +1350,7 @@ ai-helper/
     skills/vector-graphics/       Bezier formulas, layer structure, path scripting
     instructions/                 the contract a helper follows
   graphic-designer/               the second helper, below
+  scripting/                      the third, below that
 ```
 
 So the target checks that tree, syncs the manifest version to `package.json`,
@@ -1428,6 +1483,35 @@ static page). Unlike `vectors`, nothing in the app runs this helper: there is
 no install record and no feature switch, because there is no button that
 spawns it.
 
+### The scripting helper
+
+The third plugin in `ai-helper/`, and the one behind
+`napkin-sketch draw --prompt`. Its one skill, `napkin-script`, teaches an AI
+tool napkin script - the two rules the parser holds a script to, how a page is
+laid out, three complete scripts, and a verb reference `npm run api-docs`
+generates from the verb table the parser reads - and its command,
+`/scripting:draw`, writes one script from a form or from a request typed after
+it.
+
+```bash
+napkin-sketch draw --prompt "a three-box flowchart with arrows" --to svg,png
+```
+
+The command line writes the request into `_temp/script-form.txt`, runs the
+helper command there - `--helper`, else `$NAPKIN_SCRIPT_HELPER`, else Claude
+Code - checks the script the tool saves to `_temp/script-out.napkin`, sends it
+back once with its diagnostics when it has errors, and keeps it beside the
+drawings as `<name>.napkin`, so drawing it again needs no AI. A tool that is
+missing, signed out, or saves no script ends the command with exit code 4 and
+says which. Install it as the others install:
+
+```bash
+npm run ai-helper -- --helper scripting   # or /plugin install scripting@napkin-sketch
+```
+
+Like graphic-designer, it has no install record and no switch: the app does
+not run it yet.
+
 ## How auto-sharpen works
 
 Each stroke runs through a four-stage pipeline:
@@ -1552,12 +1636,27 @@ import { sharpenStrokes, parseSketchBook, sketchesToPdf, importSvg } from 'napki
 const { width, height, layers } = importSvg(svgText, { unnamedElements: 'split' });
 ```
 
+Or draw from written instructions, a napkin script, with no pointer and no
+DOM. The language is in the same browser-safe entry; reading and writing
+files is in `napkin-sketch/node`:
+
+```ts
+import { drawSvg } from 'napkin-sketch';
+import { drawFile } from 'napkin-sketch/node';
+
+const { svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60');
+const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png', 'pdf'] });
+```
+
+[Using napkin-sketch from code](docs/api/node/README.md) covers both entries,
+ES modules and CommonJS, the types and the result object.
+
 ## Drawing with the graphic-design API
 
 Compositions are the other way to make a graphic here: instead of a pointer, a
 script. Build a page out of simple elements - rectangles, circles, ellipses,
-triangles, polygons, lines, paths, text, placed media and clipping masks - then
-render it to **SVG** or **PNG**.
+triangles, polygons, lines, paths, text, placed media and clipping masks, with
+CSS filter effects on any of them - then render it to **SVG** or **PNG**.
 
 ```ts
 import { createComposition } from 'napkin-sketch';
@@ -1581,18 +1680,107 @@ the app's own canvas is drawn into only when it is explicitly handed over.
 Both renderers read one document, so the SVG and the PNG of a composition are
 the same graphic and differ only in the media export format. The full
 reference, every element's properties, and worked examples are in
-[API.md](API.md). The AI helper that drives it is
+[the graphic design API](docs/api/compose/README.md). The AI helper that drives it is
 [graphic-designer](#the-graphic-designer-helper), which reads an existing
 graphic into a design language and generates scripts that compose more like it.
 
 A composition can also place a brand's own files. `placeBrand` puts a resolved
 asset into a slot, and for a vector it **inlines the asset's shapes** rather
-than linking it - the rasterizer decodes PNG and nothing else, so a linked SVG
-logo would render in the SVG and be a hole in the PNG, silently. A slot with no
+than placing it as an image - the rasterizer decodes PNG and nothing else, so an
+SVG logo placed as an image would render in the SVG and be a hole in the PNG,
+silently. A slot with no
 asset behind it is filled by `brandMark` with a monogram in the design
 language's own palette, so a page is never left with a gap where a logo should
-be. [API-QUICKSTART.md](API-QUICKSTART.md#5-give-it-your-brand) is the short
-version, from a clone to a branded graphic.
+be. [The AI helpers' quickstart](docs/api/ai/QUICKSTART.md) is the short
+version, from a clone to a branded graphic, and
+[Give it your brand](docs/api/ai/README.md#give-it-your-brand) the long one.
+
+## Drawing from a script
+
+A napkin script says what to draw in words, one instruction a line, and runs
+with no window: into the same pages, layers and Bezier anchors the app draws by
+hand, and out as SVG, PNG, PDF, a `.skbk` the app opens as editable work, or
+a script that rebuilds it in Adobe Illustrator.
+
+```napkin
+napkin 1
+page 400 300
+background #fcfaf5
+layer "Card"
+color #1f2328 width 3 fill #ffe08a
+rect 20 20 360 80 r 12
+text "Acme Corp" at 200 70 size 28 align center
+link "assets/logo.svg" at 20 120 size 120 120 name "Logo"
+rough 0.5
+circle 300 200 48
+```
+
+There are three ways in, and all three draw the same bytes from the same
+script and seed.
+
+**From a shell, a batch file or CI**, with no window and without loading
+Electron:
+
+```bash
+napkin-sketch draw card.napkin --to svg,png,pdf,skbk --out out
+napkin-sketch check card.napkin --json    # one line of JSON: the diagnostics, the exit code
+```
+
+**From Node**, as a dependency:
+
+```ts
+import { drawSvg } from 'napkin-sketch';
+import { drawFile } from 'napkin-sketch/node';
+
+const { svg, diagnostics } = drawSvg(text);
+const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png'] });
+```
+
+**From any other language**, with the script on standard input and one line of
+JSON back, as the Python, C, shell and batch callers in
+[docs/api/cli/examples/](docs/api/cli/examples/) do:
+
+```python
+subprocess.run([shutil.which("napkin-sketch"), "draw", "-", "--json"], input=script, capture_output=True, encoding="utf-8")
+```
+
+What comes out:
+
+- **SVG**, with the layer tree named three ways, so it opens with its layers in
+  Illustrator and Inkscape, and a linked file kept as its reference.
+- **PNG**, from the same rasterizer the composition API uses, with no canvas
+  and no native library; a linked file is drawn from the folder the script is in.
+- **PDF**, in vector, every page of a book in one document.
+- **`.skbk`**, the book as the app saves it.
+- **`.jsx`**, a script that, run in Adobe Illustrator, rebuilds the drawing
+  there: its layers as layers and named groups, its marks as paths on their own
+  anchors, its text as text frames, and a linked file placed as a linked file
+  (see [Working with other programs](docs/api/interop/README.md#rebuilding-a-drawing-in-illustrator)).
+
+A mistake in a script is reported, not thrown: `card.napkin:7:1: error
+unknown-verb: ...`, exit code 2, and whatever could be drawn is still written.
+A program that would rather not write the text builds the same script as JSON,
+the object form, and checks it against
+[the schema](docs/api/schema/instructions.schema.json). The language is one
+table, so `napkin-sketch verbs` lists it, and `verbs --json` hands all of it to
+an agent at once.
+
+**Or from a sentence.** `napkin-sketch draw --prompt "a three-box flowchart
+with arrows"` has an AI tool write the script first; napkin-sketch checks it,
+keeps it as a `.napkin` beside the files, and draws it (see
+[the scripting helper](#the-scripting-helper)).
+
+**Or from a figure.** `napkin-sketch render hero.skbk --animate walk` draws
+the character on the book's first page through the measured walk cycle:
+eight frames, `hero-walk-1.svg` to `hero-walk-8.svg`, all cut to one box so
+they play back without shifting, with no AI and no window. The script that
+drew them is in the JSON report, and Animation Mode's **Draw measured
+frames** draws the same in the app (see [Animation Mode](#animation-mode)).
+
+[API.md](API.md) maps the documentation - eight categories, each with a
+reference, a quickstart and a cheatsheet - [API-QUICKSTART.md](API-QUICKSTART.md)
+is the whole API in five steps, and [API-CHEATSHEET.md](API-CHEATSHEET.md) puts
+every verb, flag and exit code on one page.
 
 ## Packaging a desktop installer
 
@@ -1629,6 +1817,96 @@ shapes chosen to break one - Mesh Warp's mesh, its as-rigid-as-possible solve an
 map that carries art onto it, the graphic-design API, and a regression suite pinning the defects earlier source
 reviews found — so a fix that was hard to see cannot quietly come undone.
 
+Two suites hold contracts rather than behaviour. `test/headless.test.ts`
+installs a DOM that exists and throws on first touch, then runs every entry
+point documented as DOM-free under it: the SVG, PDF and Illustrator script
+writers, the `.skbk` round trip, the sharpen engine, the path-data parser, both composition
+renderers, a napkin script run end to end with its shape library, and the
+render calls writing a page to every format. A stray
+`document.` fails there by name, where elsewhere it would pass because Node
+has no document. `test/script-instructions.test.ts` holds the instruction
+language's verb table to its types, field by field.
+
+The language's own suites read scripts (`test/script-parse.test.ts`), run
+expressions (`test/script-expr.test.ts`), and write scripts back and check them
+as JSON (`test/script-format.test.ts`), including a round trip of every verb's
+example. `test/script-evaluate.test.ts` runs scripts into sketch books and
+checks the pages, the layer tree and each mark's anchors and paint, down to the
+budget stopping a run and one script giving the same book twice.
+`test/script-geometry.test.ts` holds the geometry to its rules: a circle's
+handles, an arc against the importer's reading of the same SVG arc, a rounded
+polygon's fillets, a curve through points, every library shape filling its
+box, and the committed shape library matching its assets.
+`test/script-rough.test.ts` holds the hand-drawn pass to its measurements:
+drift within reach, smooth joins kept smooth, bows growing with the square
+root of a segment's length, overshoot along the tangents, the fill drawn apart
+from its line, and one script and seed giving the same drawing every run.
+`test/script-text.test.ts` covers text and media: text items aligned on the
+built-in face's measure, lettering drawn as marks, images sized from their
+own headers, and documents copied in with `use`. The assets and documents
+those examples name come from `test/helpers/script-fixtures.ts`.
+`test/link.test.ts` covers linked files: the model keeps a link, the SVG
+writers keep the reference, the rasterizer draws the file only through the
+host's resolver and draws the placeholder otherwise, and a host reads only
+inside the folder it names.
+`test/sketch-composition.test.ts` covers the PNG's road from a sketch: each
+kind of mark lowered into the composition model, the gradients, erase shapes
+and one-picture groups the model gained for it, and, wherever `rsvg-convert`
+is installed, the PNG against the SVG as `rsvg-convert` draws it, agreeing on
+at least 99% of the ink of every fixture in `test/imports/`, which
+`test/helpers/fixture-sketch.ts` reads with no DOM.
+`test/script-render.test.ts` covers the render calls: every format from one
+call, the ink box and its pad, a registration box every page shares, the
+`.skbk` round trip, and the PDF's colors, outlines, dashes and text boxes.
+`test/script-files.test.ts` covers `napkin-sketch/node` on a real file
+system: scripts read from files, assets and documents loaded by name, links
+read beside the script and refused outside it, a file a format and a file a
+page, names that cannot leave the output folder, `strict`, and files written
+whole. `test/api-surface.test.ts` holds both entries to lists: every name the
+barrel exported before the language joined it is still there, and the
+language and the Node calls are exported where the package map says.
+`test/cli-draw.test.ts` runs the command line's `draw`, `check`, `render` and
+`verbs` in memory - files, standard input, the JSON report, every exit code -
+and then the built CLI as a process, with `electron` made impossible to load.
+`test/cli-examples.test.ts` runs the callers in `docs/api/cli/examples/`
+through `sh`, `cmd`, Node, Python and a C compiler, each where it is
+installed.
+`test/effects.test.ts` holds each effect to the pixels its matrix gives, to
+SVG's order of a filter, a mask, a clip and an opacity, and to what
+`rsvg-convert` draws from the SVG, and `test/script-effects.test.ts` holds
+the `effect` verb to what it attaches to; `test/gui/check-effects.mjs` finds
+them painted in the app, read back from napkin's own SVG, and drawn by the
+composition canvas painter.
+`test/illustrator.test.ts` runs each Illustrator script the writer makes
+against a stand-in for Illustrator's scripting objects, which holds it to
+Illustrator's rules - an item added goes on top, nothing is drawn on a hidden
+or locked layer, an SVG will not place - and reads back the layer tree, the
+anchors and handles, the paint, the text, the images and the links it built;
+it also holds the script to ES3 and ASCII, and the interop page's excerpt to
+the writer.
+`test/ai-bridge.test.ts` holds the form a script helper reads, the script read
+back from what it saved or printed, and the loop that sends a script with
+errors back once, against a stand-in for the helper; `test/cli-draw.test.ts`
+runs `draw --prompt` with a stand-in AI tool as a real process, through every
+way it ends; and `test/ai-helper.test.ts` checks the `napkin-script` skill's
+three scripts and the three registries.
+`test/script-animation.test.ts` draws the figure in `test/imports/walk.svg`,
+read with no DOM by `test/helpers/walk-figure.ts`, through the measured
+cycles: eight pages sharing one box, each limb turned about the joint it has
+in the source, a looping cycle closing on the source pose, the pacing and the
+mirroring, and what cannot be drawn said as much; `test/cli-draw.test.ts`
+runs `render --animate`, and `test/gui/check-measured-frames.mjs` presses
+**Draw measured frames** in the app, draws the frames and undoes them.
+`test/script-docs.test.ts` holds the pages under `docs/api/` and the three
+hubs at the root to the code: every script on a page must read, every error
+example must produce the codes it names, every JSON script must validate, and
+every generated table must be current. `test/api-docs.test.ts` holds their
+shape: every file `npm run api-docs` writes must be what it writes today,
+every category has its three pages, each kind of page keeps its headings and
+its length, every page links to its hub and its siblings in its first lines,
+every link to a heading reaches one, and the object form's schema accepts
+every verb's example and refuses what the object form refuses.
+
 `npm run test:graphic-design-api` is the second one, and it measures a
 different thing: not compositions but the road to them. It reads the reference
 asset, generates a skill from it into the AI tool's real skills folder, points
@@ -1637,9 +1915,9 @@ that skill at the symlinked brand assets in
 a bare request means, and draws graphics that carry them into
 `test/graphic-design-api/generated-graphics/`. Every step is a production entry
 point invoked as the documentation says to invoke it, so a pass means a clone
-following [API-QUICKSTART.md](API-QUICKSTART.md) works. It needs a file system,
-a symlinked folder and a generated script, none of which a bundled `node:test`
-suite can exercise honestly.
+following [the AI helpers' quickstart](docs/api/ai/QUICKSTART.md) works. It
+needs a file system, a symlinked folder and a generated script, none of which a
+bundled `node:test` suite can exercise honestly.
 
 It also **leaves the tool wired up**, which is the point of running it rather
 than only of passing it: afterwards `/graphic-design-api generate` draws, with
@@ -1656,6 +1934,21 @@ so there is a flag for looking:
 npm test -- --keep-graphics   # keep the generated SVGs and PNGs, and print where
 ```
 
+The golden scripts are the suite a person rewrites on purpose. Each script in
+`test/scripts/` is drawn to SVG and compared byte for byte with the file beside
+it, twice in one process and once in a fresh one, so a change to what the
+language draws fails until someone has looked at it and asked for it:
+
+```bash
+npm test -- --update-golden   # rewrite test/scripts/*.svg from what the scripts draw today
+```
+
+`npm run pack-check` is the install, checked: it packs the package, installs
+the tarball into an empty folder - where no Electron arrives, since it is a
+development dependency - and draws from it with `napkin-sketch draw -` and
+with both entries imported by name. Build and emit the types first; it packs
+what `dist/` holds.
+
 Some defects can only be seen in the running app: the SVG importer needs a
 DOM, the color picker is a native popup, and a paint that went missing shows up
 only as pixels. `npm run gui-check` drives the built app for those. It
@@ -1670,14 +1963,21 @@ npm run gui-check -- gradient    # only the checks whose names match
 ```
 
 A check opens a new, unsaved sketch with a fixture from `test/imports/`
-imported, so it leaves the working tree as it found it. The window does appear
-on screen while a check runs.
+imported, or a book it writes to a temporary folder, so it leaves the working
+tree as it found it. The measured-frames check needs Animation Mode installed
+and says so when it is not; it saves its frames to `animations/` under names
+no one else's frames have, and removes them after. The window does appear on
+screen while a check runs.
 
 ## Project structure
 
 ```text
 src/
-├── cli/index.ts        # Command-line entry (arg parsing, GUI launch, headless sharpen)
+├── cli/
+│   ├── index.ts        # Command-line entry (GUI launch, headless sharpen, commands)
+│   ├── args.ts         # Pure argument parsing, the commands' included
+│   ├── draw.ts         # draw, check, render, verbs: no window, no Electron
+│   └── helper.ts       # Runs the AI helper for draw --prompt, in the working folder
 ├── main/
 │   ├── main.ts         # Electron main process, native menus, image export, IPC
 │   └── preload.ts      # Secure window.napkin bridge
@@ -1694,8 +1994,11 @@ src/
 │   ├── geometry.ts     # Geometry & curve utilities
 │   └── sharpen.ts      # Auto-sharpen engine
 ├── api/
-│   ├── index.ts        # Public, browser-safe API barrel
+│   ├── index.ts        # Public, browser-safe API barrel: `napkin-sketch`
+│   ├── node.ts         # Node-only entry: `napkin-sketch/node`, the file half
 │   └── embed.ts        # Embeddable NapkinSketch editor
+├── docs/
+│   └── api-docs.ts     # The documentation's generated parts: tables, schema, index
 └── core/
     ├── types.ts        # Shared data model (sketches, layers, strokes)
     ├── nib.ts          # Copic broad-nib geometry (canvas, SVG, and PDF share it)
@@ -1703,8 +2006,46 @@ src/
     ├── settings.ts     # Application settings: defaults, limits, validation
     ├── serialize.ts    # Browser-safe .skbk (de)serialization + validation
     ├── sketchbook.ts   # .skbk file I/O (atomic writes)
+    ├── script-files.ts # Node-only: scripts read from files, drawings written to files
     ├── pdf.ts          # Dependency-free vector PDF writer (browser-safe)
+    ├── illustrator.ts  # An Illustrator script that rebuilds a drawing (browser-safe)
     ├── pdf-import.ts   # Best-effort PDF vector importer (Node-only)
+    ├── path-data.ts    # Path data and basic shapes to Bézier anchors, and sampling; no DOM
+    ├── svg-path.ts     # Compact SVG path data: the writer every export shares
+    ├── bounds.ts       # The box each kind of mark covers, with no DOM
+    ├── sketch-svg.ts   # A sketch as SVG, with no DOM: the app's SVG export
+    ├── sketch-composition.ts  # A sketch lowered into the composition model, for PNG
+    ├── link.ts         # Linked files: their names, placeholders, and the paths a host follows
+    ├── script/         # napkin script: read, check, run and write the language
+    │   ├── instructions.ts  # The object form every front end lowers to
+    │   ├── verbs.json       # Verb table: grammar, summaries, examples, codes
+    │   ├── tokenize.ts      # Text to tokens, with lines and columns
+    │   ├── parse.ts         # Tokens to instructions, walking the verb table
+    │   ├── validate.ts      # A script built as JSON, checked the same way
+    │   ├── format.ts        # Instructions back to canonical text
+    │   ├── evaluate.ts      # Instructions to a sketch book: the evaluator
+    │   ├── sink.ts          # Where a run's pages, layers and marks go
+    │   ├── state.ts         # The paint, transform and units a run carries
+    │   ├── shapes.ts        # The shape verbs' outlines and fillets, as Bezier anchors
+    │   ├── through.ts       # The curve `through` draws, an anchor at every point
+    │   ├── library.ts       # The shape library `shape` draws from
+    │   ├── library-build.ts # Reads the library's SVG assets, with no DOM
+    │   ├── shape-library.json  # The library itself, written by npm run shape-library
+    │   ├── expr.ts          # Expressions: reading and running them
+    │   ├── values.ts        # Lengths, colors, names: the shared vocabulary
+    │   ├── grammar.ts       # Helpers that read the verb table's forms
+    │   ├── diagnostics.ts   # Building, printing and suggesting
+    │   ├── version.ts       # The `napkin <version>` rule
+    │   ├── reference.ts     # The verb table as documentation tables
+    │   ├── schema.ts        # The object form as a JSON Schema
+    │   ├── rough.ts         # The hand-drawn pass and its measured constants
+    │   ├── text.ts          # Text measured with the built-in face, and drawn as marks
+    │   ├── media.ts         # Image sizes, upright boxes, and copying documents for `use`
+    │   ├── render.ts        # One call, every format: SVG, PNG, PDF, .skbk, .jsx, and the box
+    │   ├── draw.ts          # drawSvg: a script straight to SVG
+    │   ├── ai-bridge.ts     # A script from a sentence: the form, the check, one more try
+    │   ├── animation.ts     # Animation frames from a measured cycle, as a script
+    │   └── index.ts         # The language's barrel
     ├── graphic-design/ # Graphic-design API: elements in, SVG or PNG out
     │   ├── types.ts    #   Composition data model (page, elements, masks)
     │   ├── compose.ts  #   Authoring surface: createComposition and friends
@@ -1715,6 +2056,7 @@ src/
     │   ├── font.ts     #   Built-in stroke font + the layout both back ends share
     │   ├── geometry.ts #   Transforms, flattening, path data, dashing, stroking
     │   ├── color.ts    #   CSS color parsing for the rasterizer
+    │   ├── gradient.ts #   Gradient paint: where it runs, and its color along the way
     │   ├── canvas.ts   #   Canvas 2D painter (the GUI-canvas target)
     │   └── files.ts    #   Node-only file helpers (data URLs, paired export)
     ├── paths.ts        # Dependency-free path helpers
@@ -1726,6 +2068,17 @@ src/
     └── ipc.ts          # IPC channel + bridge types
 ```
 
+```text
+docs/api/               # The API documentation; API.md at the root maps it
+├── INDEX.json          # Every page: its kind, first paragraph and size
+├── schema/             # The object form as a JSON Schema, generated
+├── cli/examples/       # Callers in sh, cmd, Node, Python and C, run by the tests
+└── <category>/         # language, drawing, compose, output, cli, node, interop, ai
+    ├── README.md       #   The reference
+    ├── QUICKSTART.md   #   A path that runs as written
+    └── CHEATSHEET.md   #   Tables and one-line reminders
+```
+
 ## Development
 
 ```bash
@@ -1735,12 +2088,22 @@ npm run build:types  # Emit .d.ts declarations for the embeddable API
 npm run typecheck    # Type-check without emitting
 npm test             # Run the unit test suites
 npm run gui-check    # Drive the built app and check what it shows (build first)
+npm run pack-check   # Pack, install the tarball with no Electron, and draw from it
 npm run start        # Build, then launch a new sketch
 npm run clean        # Remove dist/
 
 # Print the layer tree an SVG would import as (runs the real importer in a
 # hidden Electron window; no GUI needed)
 npm run import-tree -- test/imports/applied_layer_names.svg
+
+# Rebuild the napkin script shape library from its SVG assets; with -- --check
+# it only compares, and fails when the committed library is out of date
+npm run shape-library
+
+# Rewrite the API documentation's generated parts - the verb, command and
+# exit code tables, the object form's schema and docs/api/INDEX.json; with
+# -- --check it only compares, and fails when any is out of date
+npm run api-docs
 
 # Archive checked TODO.md items into its "## Complete" section (kept at the
 # bottom of the file), noting which section each came from; safe to re-run

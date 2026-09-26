@@ -6,6 +6,8 @@
  * list of sampled Points and belongs to one layer (via its `layer` id).
  */
 
+import type { Effect } from './effects.js';
+
 /** A single sampled point along a stroke. */
 export interface Point {
   /** X position in canvas pixels. */
@@ -76,6 +78,12 @@ export interface Layer {
   group?: boolean;
   /** Id of the parent group layer. Absent = top level. */
   parent?: string;
+  /**
+   * CSS filter effects drawn over the layer's finished picture - a group's,
+   * everything it holds - before its opacity: see `core/effects.ts`. Lengths
+   * are in page pixels.
+   */
+  effects?: Effect[];
 }
 
 /**
@@ -230,6 +238,30 @@ export interface Stroke {
   imageWidth?: number;
   /** Rendered image height in pixels (image items). */
   imageHeight?: number;
+  /**
+   * A linked file (image items only): the item stands for the file at `href`
+   * rather than holding its contents. `image` then holds a placeholder, a
+   * dashed box with the file's name, which is what the canvas draws and what
+   * a build that does not know this field shows; an output that can read the
+   * file draws the file. See `core/link.ts`.
+   */
+  link?: StrokeLink;
+  /**
+   * CSS filter effects - a blur, a shadow, a color shift - drawn over the
+   * mark's finished picture, in order: see `core/effects.ts`. Lengths are in
+   * page pixels. A build that does not know this field draws the mark plain.
+   */
+  effects?: Effect[];
+}
+
+/** The kinds of file a link names, read from its extension. */
+export type LinkKind = 'svg' | 'png' | 'jpeg' | 'gif' | 'pdf' | 'unknown';
+
+/** A linked file: where it is, and what kind of file it is. */
+export interface StrokeLink {
+  /** The file's path or address as written, relative to wherever the host resolves links. */
+  href: string;
+  kind: LinkKind;
 }
 
 /** A single drawing surface (one "napkin"). */

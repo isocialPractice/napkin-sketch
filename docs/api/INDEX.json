@@ -1,0 +1,300 @@
+{
+  "description": "Every page of the napkin-sketch API documentation. Read a cheatsheet or a quickstart first, and a reference page when they do not answer. Written by npm run api-docs.",
+  "language": 1,
+  "categories": [
+    {
+      "id": "language",
+      "title": "The napkin script language",
+      "summary": "The syntax, values and expressions, the object form, every verb, and every diagnostic code."
+    },
+    {
+      "id": "drawing",
+      "title": "Drawing with napkin script",
+      "summary": "What each instruction draws: pages, layers, paint, shapes, paths, the shape library, the hand-drawn pass, text, images, links and effects."
+    },
+    {
+      "id": "compose",
+      "title": "The graphic design API",
+      "summary": "Compositions built in code - shapes, text, media, masks, gradients, effects - rendered to SVG or PNG."
+    },
+    {
+      "id": "output",
+      "title": "Writing a drawing out",
+      "summary": "SVG, PNG, PDF, .skbk and an Illustrator script from one call, the box every format is cut to, and what each format keeps."
+    },
+    {
+      "id": "cli",
+      "title": "The napkin-sketch command line",
+      "summary": "draw, check, render and verbs from a shell or any language, with --json and exit codes."
+    },
+    {
+      "id": "node",
+      "title": "Using napkin-sketch from code",
+      "summary": "The two entries, ES modules and CommonJS, types, the result object, and what throws."
+    },
+    {
+      "id": "interop",
+      "title": "Working with other programs",
+      "summary": "Illustrator and Inkscape through SVG, an Illustrator script that rebuilds a drawing, files linked from elsewhere, and what survives a round trip."
+    },
+    {
+      "id": "ai",
+      "title": "The AI helpers",
+      "summary": "The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages."
+    }
+  ],
+  "pages": [
+    {
+      "path": "API.md",
+      "category": null,
+      "kind": "hub",
+      "title": "The napkin-sketch API",
+      "summary": "Draw without a pointer. napkin-sketch has a language, napkin script, that says what to draw one instruction a line, and a composition API that builds a graphic in code. Both write SVG and PNG, and a drawing also PDF, the app's own `.skbk` and an Illustrator script, with no window, no browser and no native library, from a shell, from Node, or from any language that can start a process.",
+      "lines": 133,
+      "tokens": 2334
+    },
+    {
+      "path": "API-QUICKSTART.md",
+      "category": null,
+      "kind": "quickstart",
+      "title": "API quickstart",
+      "summary": "The whole API in five steps: build, draw a script from the command line, draw it from Node, build a graphic in code, and link a logo.",
+      "lines": 83,
+      "tokens": 684
+    },
+    {
+      "path": "API-CHEATSHEET.md",
+      "category": null,
+      "kind": "cheatsheet",
+      "title": "API cheatsheet",
+      "summary": "The whole API on one page: every verb, the command line, the two imports, the render options and the exit codes.",
+      "lines": 130,
+      "tokens": 3421
+    },
+    {
+      "path": "docs/api/language/README.md",
+      "category": "language",
+      "kind": "verbose",
+      "title": "The napkin script language",
+      "summary": "Napkin script says what to draw without a pointer. A person or an AI helper writes it as text, one instruction to a line; a program in any language builds the same thing as JSON. Both become one list of instructions, the object form, which is what the rest of the API runs.",
+      "lines": 607,
+      "tokens": 8634
+    },
+    {
+      "path": "docs/api/language/QUICKSTART.md",
+      "category": "language",
+      "kind": "quickstart",
+      "title": "The napkin script language: quickstart",
+      "summary": "Napkin script says what to draw in words, one instruction a line, and a program in any language builds the same script as JSON; this is the path from nothing to a script that checks clean in both forms.",
+      "lines": 113,
+      "tokens": 832
+    },
+    {
+      "path": "docs/api/language/CHEATSHEET.md",
+      "category": "language",
+      "kind": "cheatsheet",
+      "title": "The napkin script language: cheatsheet",
+      "summary": "Reminders for the language: syntax, values, the verbs that shape a script, functions, the budget and every diagnostic code.",
+      "lines": 150,
+      "tokens": 2633
+    },
+    {
+      "path": "docs/api/drawing/README.md",
+      "category": "drawing",
+      "kind": "verbose",
+      "title": "Drawing with napkin script",
+      "summary": "`evaluate` runs a napkin script and gives back a drawing: a sketch book of pages, each with a layer tree and the marks on it. This page is the reference for what each instruction draws and how state carries through a script. How a script is written - its syntax, values, expressions and diagnostics - is in [The napkin script language](../language/README.md).",
+      "lines": 753,
+      "tokens": 8749
+    },
+    {
+      "path": "docs/api/drawing/QUICKSTART.md",
+      "category": "drawing",
+      "kind": "quickstart",
+      "title": "Drawing with napkin script: quickstart",
+      "summary": "A napkin script runs into a sketch book of pages, layers and marks - the same drawing the app makes by hand - and this is the path from a script to the picture it draws, from a shell and from code.",
+      "lines": 108,
+      "tokens": 806
+    },
+    {
+      "path": "docs/api/drawing/CHEATSHEET.md",
+      "category": "drawing",
+      "kind": "cheatsheet",
+      "title": "Drawing with napkin script: cheatsheet",
+      "summary": "Reminders for what each instruction draws: the drawing verbs, the shape library, the hand-drawn pass and `evaluate`.",
+      "lines": 144,
+      "tokens": 2795
+    },
+    {
+      "path": "docs/api/compose/README.md",
+      "category": "compose",
+      "kind": "verbose",
+      "title": "The graphic design API",
+      "summary": "Build a graphic design composition out of simple elements - rectangles, circles, ellipses, triangles, polygons, lines, paths, text, placed media and clipping masks, painted in flat colors or gradients - and render it to **SVG** or **PNG**.",
+      "lines": 884,
+      "tokens": 9091
+    },
+    {
+      "path": "docs/api/compose/QUICKSTART.md",
+      "category": "compose",
+      "kind": "quickstart",
+      "title": "The graphic design API: quickstart",
+      "summary": "The graphic design API builds a graphic in code - shapes, text, images, masks and gradients on a page - and renders the one document to SVG and PNG; this is the path from a clone to both files.",
+      "lines": 86,
+      "tokens": 811
+    },
+    {
+      "path": "docs/api/compose/CHEATSHEET.md",
+      "category": "compose",
+      "kind": "cheatsheet",
+      "title": "The graphic design API: cheatsheet",
+      "summary": "Reminders for compositions: the page, every element, paint, masks, rendering, and the Node and brand helpers.",
+      "lines": 105,
+      "tokens": 1548
+    },
+    {
+      "path": "docs/api/output/README.md",
+      "category": "output",
+      "kind": "verbose",
+      "title": "Writing a drawing out",
+      "summary": "`renderSketch` writes a page and `renderBook` writes a book, as SVG, PNG, PDF, a `.skbk` the app opens, or an Illustrator script that rebuilds it. Both run with no DOM, in a browser or in plain Node, and add no dependency. This page is the reference for the formats, the box every format is cut to, and what a format says when it leaves something out. How a drawing is made is in [Drawing with napkin script](../drawing/README.md).",
+      "lines": 421,
+      "tokens": 5080
+    },
+    {
+      "path": "docs/api/output/QUICKSTART.md",
+      "category": "output",
+      "kind": "quickstart",
+      "title": "Writing a drawing out: quickstart",
+      "summary": "One call writes a drawing as SVG, PNG, PDF, a `.skbk` the app opens or an Illustrator script, cut to the page, to the ink or to a box you name; this is the path from a script to all five files.",
+      "lines": 97,
+      "tokens": 861
+    },
+    {
+      "path": "docs/api/output/CHEATSHEET.md",
+      "category": "output",
+      "kind": "cheatsheet",
+      "title": "Writing a drawing out: cheatsheet",
+      "summary": "Reminders for writing a drawing out: the two calls, their options, the box, and what each format keeps.",
+      "lines": 74,
+      "tokens": 1058
+    },
+    {
+      "path": "docs/api/cli/README.md",
+      "category": "cli",
+      "kind": "verbose",
+      "title": "The napkin-sketch command line",
+      "summary": "`napkin-sketch draw` turns a napkin script into files - SVG, PNG, PDF, a `.skbk` the app opens, or an Illustrator script - with no window, and without loading Electron at all. `check` reads and runs a script and writes nothing, `render` writes a sketch book the app saved, and `verbs` lists the language. This page is the reference for the four commands, their exit codes and their JSON report, and for calling them from other languages.",
+      "lines": 323,
+      "tokens": 4122
+    },
+    {
+      "path": "docs/api/cli/QUICKSTART.md",
+      "category": "cli",
+      "kind": "quickstart",
+      "title": "The napkin-sketch command line: quickstart",
+      "summary": "Four commands draw, check and write napkin scripts from a shell, or from any language that can start a process, without opening a window; this is the path from a clone to files drawn on the command line.",
+      "lines": 106,
+      "tokens": 767
+    },
+    {
+      "path": "docs/api/cli/CHEATSHEET.md",
+      "category": "cli",
+      "kind": "cheatsheet",
+      "title": "The napkin-sketch command line: cheatsheet",
+      "summary": "Reminders for the four commands: their flags, exit codes, the JSON report and the calls from other languages.",
+      "lines": 106,
+      "tokens": 1596
+    },
+    {
+      "path": "docs/api/node/README.md",
+      "category": "node",
+      "kind": "verbose",
+      "title": "Using napkin-sketch from code",
+      "summary": "The package has two entries. `napkin-sketch` holds everything that runs anywhere - the editor, the data model, the composition API and the napkin script language - and reads no file. `napkin-sketch/node` holds what reads and writes files, for Node. This page is the reference for both as a program uses them: importing them, drawing a script, writing files, the result object, and what is an error value and what throws.",
+      "lines": 360,
+      "tokens": 4277
+    },
+    {
+      "path": "docs/api/node/QUICKSTART.md",
+      "category": "node",
+      "kind": "quickstart",
+      "title": "Using napkin-sketch from code: quickstart",
+      "summary": "The package has two entries - `napkin-sketch`, which runs anywhere, and `napkin-sketch/node`, which reads and writes files - and this is the path from a clone to a Node program that draws a script to files.",
+      "lines": 100,
+      "tokens": 830
+    },
+    {
+      "path": "docs/api/node/CHEATSHEET.md",
+      "category": "node",
+      "kind": "cheatsheet",
+      "title": "Using napkin-sketch from code: cheatsheet",
+      "summary": "Reminders for the package as a dependency: the two entries, the calls, their options, the result and what throws.",
+      "lines": 89,
+      "tokens": 1101
+    },
+    {
+      "path": "docs/api/interop/README.md",
+      "category": "interop",
+      "kind": "verbose",
+      "title": "Working with other programs",
+      "summary": "napkin-sketch trades drawings with Illustrator, Inkscape and other vector editors through SVG, which all of them read and write, writes an Illustrator script that rebuilds a drawing in Illustrator's own objects, and places files made elsewhere by reference with `link`. This page is the reference for what an export writes for another editor, what an import makes of another editor's file, what the Illustrator script builds, what survives the trip each way, and how a linked file differs from an imported or an embedded one.",
+      "lines": 486,
+      "tokens": 6788
+    },
+    {
+      "path": "docs/api/interop/QUICKSTART.md",
+      "category": "interop",
+      "kind": "quickstart",
+      "title": "Working with other programs: quickstart",
+      "summary": "SVG carries a napkin drawing into Illustrator or Inkscape and back with its layers named, an Illustrator script rebuilds one in Illustrator's own objects, and `link` places a file made elsewhere by reference; this is the path through all three.",
+      "lines": 120,
+      "tokens": 924
+    },
+    {
+      "path": "docs/api/interop/CHEATSHEET.md",
+      "category": "interop",
+      "kind": "cheatsheet",
+      "title": "Working with other programs: cheatsheet",
+      "summary": "Reminders for trading drawings with other editors: what the SVG carries, how an import names things, what the Illustrator script builds, what survives, and links.",
+      "lines": 100,
+      "tokens": 1328
+    },
+    {
+      "path": "docs/api/ai/README.md",
+      "category": "ai",
+      "kind": "verbose",
+      "title": "The AI helpers",
+      "summary": "The `graphic-designer` helper reads a graphic you already have into a written design language, and generates a skill that draws new work in it through the [graphic design API](../compose/README.md); the `scripting` helper writes a napkin script from a sentence. This page is the reference for plugging them in, capturing a language, using the skill it hands you, giving it your brand and drawing from a request - and for how an agent should read these pages and write the napkin scripts they describe.",
+      "lines": 647,
+      "tokens": 7802
+    },
+    {
+      "path": "docs/api/ai/QUICKSTART.md",
+      "category": "ai",
+      "kind": "quickstart",
+      "title": "The AI helpers: quickstart",
+      "summary": "The `graphic-designer` helper reads a graphic you already have into a design language and hands you a skill that draws new work in it; this is the shortest path from a clone to a branded graphic, using the asset and the brand files this repository ships.",
+      "lines": 112,
+      "tokens": 1089
+    },
+    {
+      "path": "docs/api/ai/CHEATSHEET.md",
+      "category": "ai",
+      "kind": "cheatsheet",
+      "title": "The AI helpers: cheatsheet",
+      "summary": "Reminders for the helpers and for an agent reading these pages: the commands, the files, the brand keys, and what a diagnostic asks of you.",
+      "lines": 98,
+      "tokens": 1243
+    },
+    {
+      "path": "docs/api/schema/instructions.schema.json",
+      "category": "language",
+      "kind": "schema",
+      "title": "The object form as a JSON Schema",
+      "summary": "A JSON Schema, draft-07, for a script built as JSON: check one against it before handing it over. validateScript is the full check.",
+      "lines": 3466,
+      "tokens": 22556
+    }
+  ]
+}

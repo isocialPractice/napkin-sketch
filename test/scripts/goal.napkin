@@ -1,0 +1,10 @@
+napkin 1
+page 400 300
+background #fcfaf5
+layer "Card"
+color #1f2328  width 3  fill #ffe08a
+rect 20 20 360 80 r 12
+text "Acme Corp" at 200 70 size 28 align center
+link "assets/logo.svg" at 20 120 size 120 120 name "Logo"
+rough 0.5
+circle 300 200 48

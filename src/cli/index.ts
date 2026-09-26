@@ -2,9 +2,12 @@
  * napkin-sketch command-line interface.
  *
  * Parses the documented flags, then either prints help/version, runs a headless
- * auto-sharpen pass, or launches the Electron drawing GUI.
+ * auto-sharpen pass, or launches the Electron drawing GUI. A first argument that
+ * names a command - `draw`, `check`, `render`, `verbs` - runs that command
+ * instead, with no window and without ever reaching Electron.
  *
  *   napkin-sketch [option] [target]
+ *   napkin-sketch <command> [arguments]
  *
  *   -h, --help          Show help.
  *   -v, --version       Show version.
@@ -32,7 +35,8 @@ import {
   writeSketchBook,
 } from '../core/sketchbook.js';
 import { sharpenStrokes } from '../sharpen/sharpen.js';
-import { parseArgs } from './args.js';
+import { COMMAND_SUMMARIES, COMMANDS, parseArgs } from './args.js';
+import { runCommand } from './draw.js';
 
 // Bundled as CommonJS; __dirname points at dist/cli at runtime.
 const HERE = __dirname;
@@ -58,6 +62,11 @@ napkin-sketch — quick pen-and-napkin style sketching with auto-sharpen.
 
 Usage:
   napkin-sketch [option] [target]
+  napkin-sketch <command> [arguments]
+
+Commands (no window, and no Electron needed):
+${COMMANDS.map((command) => `  ${COMMAND_SUMMARIES[command].usage.padEnd(22)}${COMMAND_SUMMARIES[command].summary}`).join('\n')}
+  Run "napkin-sketch <command> --help" for a command's options.
 
 Options:
   -h, --help            Show this help and exit.
@@ -88,6 +97,13 @@ Examples:
   napkin-sketch --import logo.svg     New sketch with logo.svg imported.
   napkin-sketch -m a.svg,b.png,"two words.svg"
                                       New sketch with three files in a grid.
+  napkin-sketch draw card.napkin --to svg,png
+                                      Draw a script to card.svg and card.png.
+  napkin-sketch draw - --json < card.napkin
+                                      Draw from standard input; report in JSON.
+  napkin-sketch draw --prompt "a three-box flowchart with arrows" --to svg
+                                      Have an AI tool write the script, then
+                                      draw it; the script is kept beside.
 `;
 
 /** File extensions the import pipeline understands. */
@@ -178,6 +194,21 @@ async function runSharpen(target: string): Promise<void> {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+
+  // The drawing commands run before anything can reach Electron, so they work
+  // on an install where the GUI cannot start.
+  if (args.command) {
+    process.exitCode = await runCommand({
+      argv: process.argv.slice(2),
+      stdin: process.stdin,
+      stdout: process.stdout,
+      stderr: process.stderr,
+      cwd: process.cwd(),
+      version: readVersion(),
+      env: process.env,
+    });
+    return;
+  }
 
   if (args.unknown.length > 0) {
     console.error(`napkin-sketch: unknown option(s): ${args.unknown.join(', ')}`);

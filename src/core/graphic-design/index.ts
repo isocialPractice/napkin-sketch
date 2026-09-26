@@ -9,7 +9,7 @@
  * Everything exported here is browser-safe. The Node-only file helpers live in
  * `./files.js`, and the canvas painter the GUI uses lives in `./canvas.js`.
  *
- * See `API.md` for the reference and worked examples.
+ * See `docs/api/compose/README.md` for the reference and worked examples.
  */
 
 export {
@@ -32,6 +32,8 @@ export {
   type RasterOptions,
   type RasterResult,
 } from './raster.js';
+
+export type { LinkResolver } from '../link.js';
 
 export { decodePng, encodePng, isPng, type RgbaImage } from './png.js';
 
@@ -107,6 +109,8 @@ export {
   type Element,
   type EllipseElement,
   type FillRule,
+  type GradientPaint,
+  type GradientStop,
   type GroupElement,
   type ImageElement,
   type ImageFit,
@@ -115,6 +119,7 @@ export {
   type LineJoin,
   type PageOptions,
   type ParagraphStyle,
+  type Paint,
   type PathElement,
   type Point,
   type PolygonElement,

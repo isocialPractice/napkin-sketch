@@ -427,6 +427,9 @@ agree, and one of them is read by the AI helper rather than by a person.
   `Shift+V` / `D`), restacking (`Ctrl+]` / `[`), and the Shift drag
   constraint. Today a reader has to find each one in the prose that introduced
   it.
+  - Planned for 1.0.0-alpha.4.5.0: generated from `src/core/menu/shortcuts.json`
+    by `npm run menu-docs` in Phase K under **Menus, shortcuts and generated
+    scripts**, so the README, the CHEATSHEET and the app agree.
 - [ ] **An "Editing gestures" section**: the clipboard, Alt-drag, the Shift
   constraint, and Shift-click selection are documented as four separate
   bullets in the feature list even though they interact - Shift means one
@@ -745,6 +748,72 @@ than any single feature below and would be worth it exactly once.
   negative factor through `mirrorStroke` - which waits on whether it is wanted
   (open question 6 in the plan).
 
+## Menus, shortcuts and generated scripts (1.0.0-alpha.4.5.0)
+
+Planned 2026-09-25 in `.claude/prompts/feature-generateScripts-v1.0.0-alpha.4.5.0.md`
+(gitignored, like the earlier plans) from `.claude/prompt.md` and the two
+mockups in `.support/feature-generateScripts/`. Fourteen entries, one per
+phase, built in this order and one phase per run; the plan holds each
+phase's spec, files, tests and decisions, and its twelve open questions. The
+documentation site's own plan is `.claude/website.plan.md`.
+
+- [ ] **Phase 0 - the registry**: `src/core/menu/tool-types.json` and
+  `shortcuts.json` hold every command's tool type and chord, and a pure
+  `registry.ts` generates the top bar, each right-click context and the
+  Help rows from them. A characterization test reproduces today's three
+  menus and three context lists exactly, and the final top bar of the brief
+  is a test from here on.
+- [ ] **M - menus from the registry**: the native bar and the context menus
+  are generated; `MenuAction` becomes `CommandId` and one command table;
+  Transform, Sketch, Layers, Pages, Automate and Help appear; Rotate and
+  Mirror leave Edit; the layers panel shows the clipboard rows and **Move**
+  where the top bar shows **Move Layer**. GUI check for the context menus.
+- [ ] **K - shortcuts from the registry**: the forty-odd branches of the key chain become
+  one lookup; button titles take their chord from the registry; `npm run
+  menu-docs` generates the README and CHEATSHEET shortcut tables.
+- [ ] **D - the configuration popup**: `src/renderer/config-dialog.ts`, one
+  reusable form popup with search, radio filters, a bordered table (text,
+  select, key-capture and check cells) and Accept/Cancel, registered with
+  the popup manager.
+- [ ] **E - Edit Keyboard Shortcuts**: the popup over every command; a chord
+  another tool holds warns amber and a free one reads green; Accept writes
+  only the differences to `userData/shortcuts.json` and the shipped file is
+  never written; Reset removes the override.
+- [ ] **Y - Edit Tool Types**: the same popup with a type select per row
+  (an optgroup per main type); fixed rows (the editors, role rows, Undo and
+  Redo, the settings rows, the Help rows, a panel's own close row) are
+  listed but disabled; Accept writes `userData/tool-types.json` and every
+  menu regenerates.
+- [ ] **W - the script writer**: `src/core/script/writer.ts` turns a sketch,
+  or a subtree of its layers, into instructions that evaluate back to the
+  same marks; round-tripped on the simple and the complex fixtures through
+  the SVG export.
+- [ ] **G - Generate Script from a media file and the selected layers**: the
+  Automate menu's first two sources (SVG and PDF through the writer, a
+  raster as a `link` or an embedded `image`) and the Generated script
+  dialog with Copy, Save As, Open as New Page and Cancel. Tests per method
+  on simple and complex graphics; a GUI check.
+- [ ] **T - Track History and History Limit**: the store fires one step per
+  history boundary, a pure diff names what the step added, removed and
+  changed, and a bounded tracker keeps the steps; `trackHistory` and
+  `historyLimit` settings in a new Automate section of Verbose Settings.
+- [ ] **S - Generate Script from the session history**: the mockup's popup
+  over the tracked steps, one comment block per checked step in the script,
+  an unchecked step's marks left out.
+- [ ] **P - the GitHub Pages site**: built from `.claude/website.plan.md` per
+  `.claude/instructions/create-and-deploy-github-pages.instructions.md`,
+  assembled by `npm run site` from the split-readme-into-site skill, deployed
+  by `.github/workflows/pages.yml`, with the verification item filed under
+  Current when it is pushed.
+- [ ] **H - the Help menu**: Verbose and Tool Types open the shipped pages in
+  a docs window; Source Code opens the repository; Source Docs appears once
+  the site is verified.
+- [ ] **V - validation and the release**: every check green, README,
+  CHEATSHEET, CHANGELOG and this file updated, version 1.0.0-alpha.4.5.0 in
+  `package.json` and both plugin manifests.
+- [ ] **B - the banner**: `assets/screenshot.svg` redrawn to show the menu
+  bar, the Automate menu open and the toolbar as it is; the last step.
+
 ## Chores
 
 Housekeeping with no user-visible result: dead code left by a replacement,
@@ -824,6 +893,9 @@ without a technical shape yet.
     order at a chosen frame rate.
   - [ ] **Help-menu reference**: an in-app page documenting the required
     assemblies and the frame layer-naming rules.
+    - Planned for 1.0.0-alpha.4.5.0: the Help menu of Phase H under **Menus,
+      shortcuts and generated scripts** opens the docs page for Automate,
+      where the assemblies and the frame naming are documented.
 - [ ] **GUI Redesign**: update GUI overall design.
   - Initial sketches
   - Polish and apply
@@ -970,6 +1042,8 @@ come apart are drawn in `object-animations.svg` instead.
 - [ ] **Grid & guides**: dot/line grid, snapping, and a ruler overlay.
 - [ ] **Per-page background**: choose napkin, graph, dotted, or blank per page.
 - [ ] **Configurable shortcuts**: user-editable keybindings.
+  - Planned for 1.0.0-alpha.4.5.0 as **Edit Keyboard Shortcuts**: Phase E under
+    **Menus, shortcuts and generated scripts**.
 - [ ] **Auto-save & recovery**: periodic snapshots and crash recovery of `.skbk`.
 - [ ] **Export options dialog**: DPI/scale and transparent-vs-paper background
   choices for raster export.
@@ -1707,6 +1781,16 @@ file's own definition of a major.
 Thirty-three entries: the recorder, the replay path, the Animation Mode
 helper scripts, the rule-driven layer organizer, then what the four share.
 
+1.0.0-alpha.4.5.0 builds the tracker and the script generators under
+**Menus, shortcuts and generated scripts**: Track History records at the
+store's history boundary by diffing the snapshots around a step and naming
+the command that ran, which is the coalescing boundary the third entry
+points at, and Generate Script writes a media file, the selected layers or
+the tracked steps as a script that is shown before it is saved. The command
+layer, the store sink for replay, the Animation Mode helper scripts and the
+layer organizer stay here, and the entries below that the release answers
+are stamped when it ships.
+
 - [ ] **The recorder needs a command layer, and that is the breaking change**:
   `SketchStore` exposes roughly fifty mutating methods and the renderer calls
   them from 9,605 lines of handlers. To record a session, every one of those
@@ -1871,6 +1955,8 @@ helper scripts, the rule-driven layer organizer, then what the four share.
   Mode generator are four new entries in a GUI that already has a menu bar,
   three panels, and a mode. Deciding this alongside the **GUI Redesign** entry
   under **Major** is cheaper than deciding it twice.
+  - Answered for the generators in 1.0.0-alpha.4.5.0: an **Automate** top-bar
+    menu, drawn in `.support/feature-generateScripts/menuItem-Tools.png`.
 - [ ] **Tests**: a recorder round trip, a replay determinism test, a rule
   engine with fixture documents and expected trees, and a form test that the
   generated helper script names the right skills for each delivery -

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Import and export - napkin-sketch</title>
+<meta name="description" content="What SVG, PDF and pictures arrive as, and what PNG, JPEG, SVG and PDF exports keep.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html" aria-current="page">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Import and export</span></nav>
+<h1 id="import-and-export">Import and export<a class="anchor" href="#import-and-export" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#import">Import</a></li><li><a href="#imported-svgs-keep-their-layer-tree">Imported SVGs keep their layer tree</a></li><li><a href="#imported-svgs-keep-their-curves">Imported SVGs keep their curves</a></li><li><a href="#imported-svgs-keep-their-gradients">Imported SVGs keep their gradients</a></li><li><a href="#export">Export</a></li><li><a href="#exported-svgs-are-written-small">Exported SVGs are written small</a></li><li><a href="#exported-svgs-keep-their-layer-names">Exported SVGs keep their layer names</a></li></ul></details>
+<h2 id="import">Import<a class="anchor" href="#import" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Import</strong> (<code>Ctrl + I</code>) of <strong>SVG</strong> (vector shapes become editable strokes,
+<strong>groups become nested, collapsible layer groups, and every named object
+becomes its own layer</strong>, so an Illustrator or Inkscape file lands with the
+same layer tree it left with — napkin-sketch's own exports round-trip
+losslessly), <strong>PDF</strong> (each page's vector content becomes a new sketch page,
+best effort), and <strong>PNG / JPEG / GIF / WebP</strong> (placed as a movable image
+on the active layer). <strong>What arrives lands folded</strong>: an illustrated figure is a group of
+assemblies, each a group of parts, each a group of outlines, and expanded
+that is sixty-odd rows for one drawing. Whatever was imported is one thing,
+so the panel gains one row for it and the caret opens it; the groups inside
+are folded too, so opening one shows its assemblies rather than its whole
+tree. The same goes for an SVG pasted from another editor, a sheet of
+graphics placed together, and a frame drawn by Animation Mode. A flat import
+with no groups in it has nothing to fold and still fills the panel.</li>
+</ul>
+<h2 id="imported-svgs-keep-their-layer-tree">Imported SVGs keep their layer tree<a class="anchor" href="#imported-svgs-keep-their-layer-tree" aria-label="Link to this section">#</a></h2>
+<p><strong>Imported SVGs keep their layer tree.</strong> Nested <code>&lt;g&gt;</code> elements become nested
+layer groups, and every <em>named</em> object becomes its own layer in its original
+z-order position — Illustrator writes an object's name into <code>id</code>, so a
+<code>&lt;path id=&quot;outline&quot;&gt;</code> sitting between two groups imports as an <code>outline</code> layer
+between them rather than being flattened onto the parent. Names shed the <code>-2</code>,
+<code>-3</code>, … suffix editors add to keep XML ids unique, so rows read <code>strokes</code> and
+<code>outline</code>, not <code>strokes-10</code> and <code>outline-5</code>. <em>Unnamed</em> geometry inside a group
+gets a layer of its own too, named after its tag (<code>path</code>, <code>line</code>, <code>rect</code>, …),
+so every element in the source file has a row in the panel — only
+napkin-sketch's own exported marks merge back onto their layer, keeping
+napkin's exports round-tripping as clean single layers rather than one row
+per stroke. Every top-level group imports as a layer group — a named one
+(such as <code>&lt;g id=&quot;circles&quot;&gt;</code> around the whole drawing) under its name, an
+anonymous one as <code>&lt;Group&gt;</code> — so no wrapper is ever flattened away. A document
+with no groups at all arrives as one top group named after the imported file,
+holding a tag-named layer per element.</p>
+<h2 id="imported-svgs-keep-their-curves">Imported SVGs keep their curves<a class="anchor" href="#imported-svgs-keep-their-curves" aria-label="Link to this section">#</a></h2>
+<p><strong>Imported SVGs keep their curves.</strong> Path data is read command by command
+(<code>M L H V C S Q T A Z</code>, absolute or relative) into the same Bézier anchors the
+Vector Path tool edits: quadratics are degree-elevated to the identical cubic,
+arcs become the standard quarter-turn cubic approximation, and <code>&lt;circle&gt;</code>,
+<code>&lt;ellipse&gt;</code>, <code>&lt;rect&gt;</code> (rounded corners included), <code>&lt;line&gt;</code>, <code>&lt;polyline&gt;</code>, and
+<code>&lt;polygon&gt;</code> are built from their attributes. A curve that arrived as four
+numbers is exported as four numbers, at two-decimal precision, instead of a
+polyline through hundreds of samples, so a file imported and exported without
+edits keeps its geometry - and a <code>fill</code>-only source shape stays fill-only
+rather than gaining an outline in its fill color. A compound path (an outlined
+stroke with its inner contour, a ring, a letter with a counter) stays one
+stroke whose contours are separate subpaths, so its holes fill as holes and
+export as <code>… Z M …</code>. Path data the parser cannot read is sampled along its
+length as before.</p>
+<h2 id="imported-svgs-keep-their-gradients">Imported SVGs keep their gradients<a class="anchor" href="#imported-svgs-keep-their-gradients" aria-label="Link to this section">#</a></h2>
+<p><strong>Imported SVGs keep their gradients.</strong> A shape painted with another editor's
+<code>&lt;linearGradient&gt;</code> or <code>&lt;radialGradient&gt;</code> arrives with that gradient's stops,
+and a linear one with the direction of its axis. A gradient that borrows its
+stops from another through <code>href</code> is followed to them. The paint server's own
+coordinate system (<code>gradientUnits</code>, <code>gradientTransform</code>, focal points) is not
+carried, so an unusual gradient lands approximately rather than not at all.
+A paint that resolves to no gradient still arrives painted: a one-stop
+gradient as that stop's color, a reference to a gradient the file never
+defines as the fallback color written after it, and with no fallback as the
+default ink, so it shows up where it can be fixed. A gradient-painted outline
+takes the middle color of its ramp.</p>
+<h2 id="export">Export<a class="anchor" href="#export" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Export</strong> to PNG (transparent), JPEG (flattened), <strong>SVG</strong> (lossless vector,
+layers preserved as named groups that Inkscape and Illustrator both read;
+vector-tool strokes write exact cubic Béziers and
+freehand strokes shed sub-pixel-redundant samples, keeping files compact), or
+<strong>PDF</strong> (vector, no extra dependencies) —
+from the File menu or the top toolbar's <strong>Export</strong> button beside Import. Each
+format offers <strong>Export current page</strong> or <strong>Export all pages</strong> — raster and
+SVG save <code>name_1.ext</code>, <code>name_2.ext</code>, …, while PDF writes all pages into one
+document.
+The dropdown's <strong>Selection</strong> row opens the same four formats one level in and
+exports <strong>only what is selected, on a document cut to its own dimensions</strong> —
+no page-sized margin of empty space around the graphic. PNG and SVG come out
+transparent, since a graphic cropped to its ink is one about to be dropped
+into a composition; JPEG and PDF keep the page background, having no usable
+transparency of their own. With nothing selected but layer rows lit in the
+Layers panel, those layers and their descendants are what gets exported.</li>
+</ul>
+<h2 id="exported-svgs-are-written-small">Exported SVGs are written small<a class="anchor" href="#exported-svgs-are-written-small" aria-label="Link to this section">#</a></h2>
+<p><strong>Exported SVGs are written small.</strong> An import followed by an export used to
+come back larger than the file that went in; it now comes back smaller, with
+the geometry unchanged to the coordinate. Four reductions do it, none of which
+moves a curve:</p>
+<ul>
+<li><strong>Path data takes its shortest exact spelling.</strong> Every command is offered in
+both its absolute and its relative form and the shorter one wins, a repeated
+command letter is dropped (readers carry it over), an axis-aligned line
+collapses onto <code>H</code>/<code>V</code>, and a cubic whose incoming handle mirrors the
+outgoing handle before it collapses onto <code>S</code> — the identical curve in two
+numbers instead of four. Relative deltas are measured from the <em>rounded</em>
+current point, so a reader reconstructs the absolute coordinate exactly and
+nothing drifts along a long path.</li>
+<li><strong>Numbers drop what nobody needs to read.</strong> Two decimals, no trailing zeros,
+no leading zero on a fraction (<code>.5</code>, not <code>0.5</code>), and no separator where the
+next number already delimits itself.</li>
+<li><strong>Shared paint is stated once, on the root element.</strong> <code>fill=&quot;none&quot;</code>, round
+caps and round joins, and whichever <code>stroke-width</code> most marks happen to
+share ride on the <code>&lt;svg&gt;</code> and inherit; only the odd mark out names its own.</li>
+<li><strong>Defaults go unwritten.</strong> A fully opaque mark says nothing about <code>opacity</code>,
+and a width of 1 is what SVG already assumes.</li>
+</ul>
+<p>Measured on the test fixtures and the vector-graphics skill's own assets, a
+round trip lands between <strong>0.27x and 1.05x</strong> of the source file, against
+<strong>1.14x to 1.49x</strong> before — and all 77 paths across those files parse back to
+byte-identical anchors and handles. The importer reads every one of these
+spellings, so napkin's own exports still round-trip losslessly.</p>
+<h2 id="exported-svgs-keep-their-layer-names">Exported SVGs keep their layer names<a class="anchor" href="#exported-svgs-keep-their-layer-names" aria-label="Link to this section">#</a></h2>
+<p><strong>Exported SVGs keep their layer names.</strong> Each layer's group carries its name
+three ways — <code>data-name</code> (napkin's own), <code>inkscape:label</code> with
+<code>inkscape:groupmode=&quot;layer&quot;</code> (what Inkscape's layers panel reads), and the
+group <code>id</code> (what Illustrator reads) — so a sketch exported from napkin opens
+with its layer names intact wherever it lands, and re-imports under the same
+names. Characters an XML id may not hold are escaped as <code>_xHH_</code> and repeated
+names take the <code>-2</code>, <code>-3</code>, … suffix editors expect; the importer undoes both.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="pages.html" rel="prev"><span>Previous</span>Pages</a><a href="sharpen.html" rel="next"><span>Next</span>Sharpening</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/import-export.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

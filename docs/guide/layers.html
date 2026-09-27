@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layers and the Properties panel - napkin-sketch</title>
+<meta name="description" content="The Layers panel, groups, restacking, and editing a selection in the Properties panel.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html" aria-current="page">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Layers</span></nav>
+<h1 id="layers-and-the-properties-panel">Layers and the Properties panel<a class="anchor" href="#layers-and-the-properties-panel" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#the-layers-panel">The Layers panel</a></li><li><a href="#layer-groups">Layer groups</a></li><li><a href="#the-properties-panel">The Properties panel</a></li></ul></details>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Layers</strong> — every page has a layer stack with per-layer <strong>opacity</strong>,
+<strong>visibility</strong>, <strong>lock</strong>, <strong>rename</strong>, and <strong>reordering</strong> (<code>Ctrl + L</code> opens
+the panel), managed like a common vector editor: every <strong>new element gets
+its own layer</strong>, <code>Shift</code>-click <strong>multi-selects</strong> rows, canvas selection and
+panel selection <strong>highlight each other</strong>, group rows <strong>expand/collapse</strong>,
+rows <strong>drag-and-drop</strong> to reposition or to nest inside a group, and
+deleting an element deletes its emptied layer (deleting a layer deletes its
+elements). Renaming a layer is <code>F2</code> or a <strong>double-click</strong> on its row, and
+the name arrives <strong>highlighted</strong> so a new one can be typed straight over
+it. Drawing, erasing, and selection respect the active layer, and
+the eraser only cuts holes in its own layer. The panel is <strong>in view by
+default</strong>, <strong>resizable</strong> (drag its inner edge), and offers a <strong>right-click
+menu</strong> with the menu bar's <strong>Layers</strong> rows (Add Layer, Group Layer, Ungroup,
+Rename, Delete Layer, a <strong>Move</strong> submenu of Layer Up and Layer Down, Hide
+Layers Panel) and the clipboard rows between them.</li>
+<li><strong>Layer groups</strong> — <code>Ctrl+G</code> groups the active layer (nesting allowed);
+group visibility, lock, and opacity apply to every layer inside, and
+<code>Ctrl+Shift+G</code> ungroups.</li>
+<li><strong>Layer restacking moves the whole selection.</strong> The panel's move buttons
+(and <code>Ctrl+]</code> / <code>Ctrl+[</code>) shift every selected row one step, not just the
+active one; the selection keeps its own order, unselected rows keep theirs,
+and a row that has reached the end of the stack holds the ones behind it
+rather than letting them pile through. A <strong>selected group travels as a
+block</strong>, carrying everything nested inside it, and a layer only moves among
+its own siblings, so it never leaks out of the group it lives in.</li>
+<li><strong>Properties panel</strong> (<code>Ctrl + P</code>) - element-level editing for whatever is
+selected on the canvas or highlighted in the Layers panel: <strong>Position</strong>
+(X / Y in <code>px</code>, <code>in</code>, <code>mm</code>, or <code>pt</code>), <strong>Appearance</strong> (fill color, no
+fill, or a <strong>gradient</strong> with a draggable stop ramp; stroke width, dash
+style, or no stroke at all), and <strong>Scale</strong> (X / Y as a <code>%</code> factor or an
+exact <code>px</code>/<code>in</code>/<code>mm</code>/<code>pt</code> size, uniform by default). Because selecting a
+layer row selects its elements, it doubles as the layer's own property
+sheet.</li>
+</ul>
+<h2 id="the-layers-panel">The Layers panel<a class="anchor" href="#the-layers-panel" aria-label="Link to this section">#</a></h2>
+<p><strong>Layers panel:</strong> every <strong>new drawn element gets its own layer</strong> named after
+the tool (an empty active layer is reused; eraser strokes stay on the active
+layer so they keep cutting its content). <em>Click</em> a row to make it active and
+highlight its elements on the canvas; <em><code>Shift</code>-click</em> to multi-select rows;
+<em>drag</em> a row to reposition it in the stack, or drop it onto a group row to
+nest it inside. <strong>Rename</strong> the active layer with <code>F2</code>, or <em>double-click</em> any
+row (the right-click menu's Rename does the same) - the row's name turns into
+a text box with the current name <strong>already highlighted</strong>, so typing replaces
+it; <code>Enter</code> or clicking away commits, <code>Esc</code> cancels. <code>F2</code> opens the panel
+if it is hidden and unfolds any group the layer is buried in. Deleting an
+element deletes its layer once the layer is empty, and the Delete button - or
+the <code>Delete</code> key while no element is selected - removes every selected layer
+together with its elements.</p>
+<h2 id="layer-groups">Layer groups<a class="anchor" href="#layer-groups" aria-label="Link to this section">#</a></h2>
+<p><strong>Layer groups:</strong> <code>Ctrl+G</code> (or the Group button in the Layers panel) groups
+the selected layers (or the active layer) into one group; press it again on a
+group to nest. Starting to draw while a group row is selected adds a fresh
+layer inside that group and puts the stroke there (a toast names the layer),
+since a group holds no marks of its own. A group's
+visibility, lock, and opacity apply to every layer inside it, the panel
+indents grouped layers under a collapsible header (click the caret to
+expand/collapse), and <code>Ctrl+Shift+G</code> dissolves the active group while
+keeping its layers. Deleting a group deletes the layers inside it.</p>
+<h2 id="the-properties-panel">The Properties panel<a class="anchor" href="#the-properties-panel" aria-label="Link to this section">#</a></h2>
+<p><strong>Properties panel (<code>Ctrl+P</code>):</strong> edits the current selection, element by
+element. Selecting a layer row selects that layer's elements, so the panel is
+also where a whole layer's stroke width is changed. <strong><code>Ctrl/Cmd</code>-click</strong> picks
+rows out one at a time (clicking a selected row again takes it back out) and
+<strong><code>Shift</code>-click</strong> takes every row between the last one selected and this one —
+the two modifiers every layer panel uses, and the one place they differ. A
+<code>Shift</code> range covers the rows the panel is <em>showing</em>: rows folded away inside a
+collapsed group are not swept up with them.</p>
+<ul>
+<li><strong>Position</strong> - the X and Y of the selection's top-left corner. Each axis has
+its own unit: <code>px</code> (default), <code>in</code>, <code>mm</code>, or <code>pt</code>. Typing a value moves the
+selection there; it never resizes anything.</li>
+<li><strong>Appearance / Fill</strong> - a color well recolors the fill (for a text item, its
+ink), <strong>No fill</strong> clears it, and <strong>Gradient</strong> opens the ramp editor: drag a
+handle to move a stop, <strong>double-click a stop to recolor it</strong> in the color
+picker, double-click the empty ramp to add a stop where you clicked,
+<code>+</code> and <code>−</code> add and remove stops (two is the minimum), and the type picker
+switches between <strong>Linear</strong> (with an angle slider) and <strong>Radial</strong>. The flat
+fill is kept underneath, so <strong>Remove</strong> brings it back.</li>
+<li><strong>Appearance / Stroke</strong> - width in pixels, a <strong>Solid / Dashed / Dotted</strong>
+style whose dash pattern scales with the width, and <strong>No stroke</strong> for a
+fill-only shape (the color and width are kept, so the button turns back into
+<strong>Add stroke</strong>).</li>
+<li><strong>Scale</strong> - with the default <code>%</code> unit each field is a factor to apply (<code>150</code>
+enlarges by half); with <code>px</code>, <code>in</code>, <code>mm</code>, or <code>pt</code> it is the size the
+selection should end up. <strong>Uniform scaling</strong> (on by default) applies one
+factor to both axes; unchecked, each field scales its own axis. Scaling is
+anchored at the selection's top-left corner, so the Position values above
+stay put, and line weight scales with the shape.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="transform.html" rel="prev"><span>Previous</span>Transform, Rotate, Mirror and Mesh Warp</a><a href="pages.html" rel="next"><span>Next</span>Pages</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/layers.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

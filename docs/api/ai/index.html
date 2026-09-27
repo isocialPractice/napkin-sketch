@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The AI helpers - napkin-sketch</title>
+<meta name="description" content="The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>The AI helpers</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Reference</span></nav>
+<h1 id="the-ai-helpers">The AI helpers<a class="anchor" href="#the-ai-helpers" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>The <code>graphic-designer</code> helper reads a graphic you already have into a written
+design language, and generates a skill that draws new work in it through the
+<a href="../compose/index.html">graphic design API</a>; the <code>scripting</code> helper writes a
+napkin script from a sentence. This page is the reference for plugging them
+in, capturing a language, using the skill it hands you, giving it your brand
+and drawing from a request - and for how an agent should read these pages and
+write the napkin scripts they describe.</p>
+<p><strong>Contents</strong></p>
+<ul>
+<li><a href="#what-this-is">What this is</a></li>
+<li><a href="#the-mental-model">The mental model</a></li>
+<li><a href="#reference">Reference</a>
+<ul>
+<li><a href="#plug-in-the-helper">Plug in the helper</a></li>
+<li><a href="#capture-a-design-language">Capture a design language</a></li>
+<li><a href="#use-the-skill-you-were-handed">Use the skill you were handed</a></li>
+<li><a href="#give-it-your-brand">Give it your brand</a></li>
+<li><a href="#reading-these-pages-as-an-agent">Reading these pages as an agent</a></li>
+<li><a href="#writing-napkin-scripts-that-read-clean">Writing napkin scripts that read clean</a></li>
+<li><a href="#drawing-from-a-request">Drawing from a request</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ul></li>
+<li><a href="#worked-examples">Worked examples</a></li>
+<li><a href="#limits">Limits</a></li>
+<li><a href="#for-agents">For agents</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+<h2 id="what-this-is">What this is<a class="anchor" href="#what-this-is" aria-label="Link to this section">#</a></h2>
+<p>The helper is two skills and a command. <code>design-language</code> measures an asset
+and writes what it found as a <code>DESIGN_LANGUAGE.md</code>, then generates a skill
+named after the asset that carries the language, your brand's
+<code>resources.md</code>, and a script that composes new work in it; <code>graphic-design-api</code>
+carries the visual judgment that makes such work good. Everything the helper
+reports is measured from the file, and what a format cannot say, it says so.</p>
+<p>The other half of this category is the reader. These pages are written for
+people and for agents alike: <code>docs/api/INDEX.json</code> maps every page with its
+size, each category has a cheatsheet and a quickstart that are shorter than its
+reference, and the command line hands the whole language over as JSON.</p>
+<p>The <code>scripting</code> helper closes the loop from a sentence. Its <code>napkin-script</code>
+skill teaches an AI tool the language from the verb table, so
+<code>napkin-sketch draw --prompt &quot;a three-box flowchart with arrows&quot;</code> gets back a
+script the parser accepts; napkin-sketch checks it, sends it back once with its
+errors if it has any, keeps it beside the files, and draws it.</p>
+<h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-text"> a graphic you have --design-language--&gt; DESIGN_LANGUAGE.md + a skill named after the graphic
+                                                 |
+ references/resources.md: your brand ------------+--&gt; make-&lt;stem&gt;.mjs --&gt; card.svg, card.png, ...
+                                                 |
+ references/graphic-design-api.json -------------+--&gt; &quot;/graphic-design-api &lt;request&gt;&quot; picks a mode and draws</code></pre>
+<p>The helper measures and generates; the generated script draws with the
+composition API; the two files in <code>references/</code> say what your brand is and
+which script a bare request runs.</p>
+<pre><code class="language-text"> &quot;a three-box flowchart with arrows&quot; --draw --prompt--&gt; _temp/script-form.txt
+                                                               |
+                         an AI tool, with the napkin-script skill
+                                                               |
+ checked as check checks it &lt;----------------- _temp/script-out.napkin
+     | errors: sent back once, with the script and its diagnostics
+     v
+ flowchart.napkin, kept, and drawn: flowchart.svg, flowchart.png, ...</code></pre>
+<h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
+<h3 id="plug-in-the-helper">Plug in the helper<a class="anchor" href="#plug-in-the-helper" aria-label="Link to this section">#</a></h3>
+<p>The <code>graphic-designer</code> helper is what makes
+<code>/graphic-designer:design-language</code> a command you can type. There are two ways
+to get it, and they differ in more than convenience.</p>
+<h4 id="as-a-plugin-claude-code">As a plugin (Claude Code)<a class="anchor" href="#as-a-plugin-claude-code" aria-label="Link to this section">#</a></h4>
+<pre><code class="language-text">/plugin marketplace add .                              # from a clone
+/plugin marketplace add isocialPractice/napkin-sketch  # without one
+/plugin install graphic-designer@napkin-sketch</code></pre>
+<p>This is the delivery the plugin was designed for: the command, both skills, and
+the contract arrive as one addressable unit, and the skills answer to
+<code>graphic-designer:design-language</code> and <code>graphic-designer:graphic-design-api</code>.</p>
+<h4 id="as-files-in-your-ai-tools-folder">As files in your AI tool's folder<a class="anchor" href="#as-files-in-your-ai-tools-folder" aria-label="Link to this section">#</a></h4>
+<pre><code class="language-bash">npm run ai-helper -- --helper graphic-designer          # -&gt; .claude
+npm run ai-helper -- --helper graphic-designer --to github   # -&gt; .github
+npm run ai-helper -- --list                             # every target and helper</code></pre>
+<p>This copies the skills, the contract, <strong>and the command</strong> into that folder:</p>
+<pre><code class="language-text">.claude/
+├── commands/graphic-designer/design-language.md   -&gt;  /graphic-designer:design-language
+├── instructions/design-language.instructions.md
+└── skills/
+    ├── design-language/
+    └── graphic-design-api/</code></pre>
+<p>The command lands in a folder named for the helper, so it answers to the same
+<code>/graphic-designer:design-language</code> either way. Paths inside it are rewritten
+on copy from the plugin-only <code>${CLAUDE_PLUGIN_ROOT}</code> to the repository-relative
+folder, so the command's own instructions can be followed as written.</p>
+<p><strong>Which to choose.</strong> The plugin if your tool loads plugins; the files install
+for a tool that only reads a dot-folder, or when you want the skills visible in
+the working tree. Running both is fine but pointless - you get two copies of
+the same four files.</p>
+<h3 id="capture-a-design-language">Capture a design language<a class="anchor" href="#capture-a-design-language" aria-label="Link to this section">#</a></h3>
+<p>Point it at a graphic you already have. Anything the helper reports is
+measured from the file; what a format cannot say, it says so rather than
+guessing.</p>
+<pre><code class="language-text">/graphic-designer:design-language test/graphic-design-api/reference-graphics/created-svg_graphic-api.svg</code></pre>
+<p>Add a destination when the file should land somewhere specific:</p>
+<pre><code class="language-text">/graphic-designer:design-language path/to/asset.svg docs/design/</code></pre>
+<p>or in plain words - &quot;write <code>DESIGN_LANGUAGE.md</code> to <code>docs/design/</code>&quot; means the
+same thing.</p>
+<p>That run does five things:</p>
+<ol>
+<li><strong>Measures the asset.</strong> Palette, and for a vector also type, stroke widths,
+corner radii, and an element census.</li>
+<li><strong>Finds where the brand sits.</strong> A vector whose layers are named <code>logo</code>,
+<code>linkedMedia</code>, <code>tagline</code> or <code>brandName</code> has marked its own slots; failing a
+name, the media is scanned a quarter of the page at a time, top first. The
+report says which of the two it was, because a name is exact and a scan is a
+guess.</li>
+<li><strong>Writes a <code>DESIGN_LANGUAGE.md</code></strong> into the destination - or
+<code>DESIGN_LANGUAGE-&lt;stem&gt;.md</code> when that directory already holds one, so a
+second asset never overwrites the first.</li>
+<li><strong>Generates a skill named after the asset</strong> in your AI tool's skills folder,
+carrying that language, a <code>references/resources.md</code> for your brand, and a
+script that composes new work in it.</li>
+<li><strong>Checks itself</strong> by analyzing what the generated script drew and comparing
+the palette against the source's.</li>
+</ol>
+<p>Steps 1 to 4 are arithmetic, so they are also a plain CLI:</p>
+<pre><code class="language-bash">node ai-helper/graphic-designer/skills/design-language/scripts/generate-skill.mjs asset.svg --to .claude/skills</code></pre>
+<p>It asks before overwriting a skill that already exists, and it never overwrites
+a design language file - a reader's corrections are the most valuable thing in
+one.</p>
+<h4 id="without-an-ai-tool">Without an AI tool<a class="anchor" href="#without-an-ai-tool" aria-label="Link to this section">#</a></h4>
+<p>The measuring half is a plain CLI. Nothing about it needs a model:</p>
+<pre><code class="language-bash">node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs asset.svg --colors 12
+node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs asset.svg --markdown</code></pre>
+<p><code>--markdown</code> prints the body of a <code>DESIGN_LANGUAGE.md</code>: page size, palette with
+shares and guessed roles, type, strokes, corners, and the element census.</p>
+<h4 id="what-each-format-can-tell-you">What each format can tell you<a class="anchor" href="#what-each-format-can-tell-you" aria-label="Link to this section">#</a></h4>
+<div class="table-wrap"><table>
+<thead><tr><th>Format</th><th>Palette</th><th>Type</th><th>Strokes, radii, structure</th></tr></thead>
+<tbody>
+<tr><td>SVG</td><td>yes, weighted by how often each class is referenced</td><td>yes</td><td>yes</td></tr>
+<tr><td>PNG</td><td>yes, decoded and quantized from the pixels</td><td>no</td><td>no</td></tr>
+<tr><td>JPEG, GIF, WebP</td><td>no decoder</td><td>no</td><td>no</td></tr>
+</tbody></table></div>
+<p>Two things follow that are worth knowing before you read a report:</p>
+<ul>
+<li><strong>Prefer the vector.</strong> When both exist, measure the SVG. The PNG agrees about
+colour and is silent about everything else.</li>
+<li><strong>The two weigh colour differently, and will sometimes disagree about rank.</strong>
+A vector palette counts how often a colour is <em>referenced</em>; a raster palette
+how much area it <em>covers</em>. On the sample graphic the SVG ranks white first
+(hundreds of small text elements reference it) and the PNG ranks the navy
+first (it covers the page). Both are correct measurements of different
+things. <strong>For deciding which colour is the ground, trust the raster.</strong></li>
+</ul>
+<p>An empty palette always means &quot;not measured&quot;, never &quot;no colours&quot; - and the
+report's <code>notes</code> say which.</p>
+<h3 id="use-the-skill-you-were-handed">Use the skill you were handed<a class="anchor" href="#use-the-skill-you-were-handed" aria-label="Link to this section">#</a></h3>
+<p>The helper generated a skill named after your asset. It is not documentation -
+it is a tool with a script in it. Here is the whole loop, using the asset this
+repository ships.</p>
+<p><strong>See what you got.</strong> <code>.claude/skills/&lt;stem&gt;/</code> holds four things:</p>
+<pre><code class="language-text">.claude/skills/&lt;stem&gt;/
+├── SKILL.md                  when to reach for it, and the language in brief
+├── DESIGN_LANGUAGE.md        every measurement, and every reading
+├── references/
+│   └── resources.md          your brand - see step 5
+└── scripts/
+    ├── make-&lt;stem&gt;.mjs       draws new work in that language
+    └── brand-resources.mjs   resolves resources.md into placeable assets</code></pre>
+<p>Read <code>DESIGN_LANGUAGE.md</code> first, and specifically the parts that say which
+values were <strong>measured</strong> and which were <strong>read</strong>. The readings are the ones you
+may disagree with, and disagreeing with them is the point - in the shipped
+example the analyzer's guess about which colour was the ground was wrong, and
+the file says so and corrects it.</p>
+<p><strong>Draw the default.</strong></p>
+<pre><code class="language-bash">node .claude/skills/&lt;stem&gt;/scripts/make-&lt;stem&gt;.mjs --out ./out</code></pre>
+<p>Look at <code>out/card.png</code>. It is deliberately plain. The point is not that it is
+interesting; the point is that it is in the language.</p>
+<p><strong>Change the content, not the language.</strong></p>
+<pre><code class="language-bash">node .claude/skills/&lt;stem&gt;/scripts/make-&lt;stem&gt;.mjs \
+  --title &quot;Acme Corp&quot; --heading &quot;Quarterly Summary&quot; --out ./out</code></pre>
+<p>The constants at the top of the script <em>are</em> the language - palette, type
+scale, page, spacing. Everything below them is layout. Changing a colour means
+editing one constant, and if you find yourself editing a colour further down,
+the script has drifted.</p>
+<p><strong>Draw something structurally different.</strong> A design language is not a template,
+and the way to prove that to yourself is to make it carry something the source
+never carried:</p>
+<pre><code class="language-bash">node .claude/skills/&lt;stem&gt;/scripts/make-&lt;stem&gt;.mjs --cheatsheet --out ./out</code></pre>
+<p>The worked example is
+<code>test/graphic-design-api/generated-graphics/cheatsheet.png</code>: an HTML reference
+in the language of a card that had no code in it at all.</p>
+<p><strong>Check yourself.</strong> This is the habit worth keeping:</p>
+<pre><code class="language-bash">node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs out/card.png --colors 6</code></pre>
+<p>Compare the shares against the source's. Agreement on ground, paper and accent
+means you are still in the language. A right palette with a wrong <em>ratio</em> is
+the most common way a generated graphic goes subtly wrong, and the shares say
+so immediately where the eye does not.</p>
+<h3 id="give-it-your-brand">Give it your brand<a class="anchor" href="#give-it-your-brand" aria-label="Link to this section">#</a></h3>
+<p>The skill knows <em>where</em> a logo goes, because it measured that off the source
+asset's own layer names. It cannot know <em>which</em> logo, because that is not a
+property of the file it measured. One file closes the gap:</p>
+<pre><code class="language-text">references/resources.md            the project's, and the one a request uses
+.claude/skills/&lt;stem&gt;/references/resources.md   the skill's own snapshot</code></pre>
+<p>The project's is the one to edit. The skill carries a copy made when it was
+generated so it runs anywhere on its own, but a registered request always reads
+the project's.</p>
+<pre><code class="language-md">- logo: assets/logo.svg
+- GLOBAL_ASSETS: assets/brand/
+- brand name: Acme Corp.
+- domain: example.com
+- tag line: This or That</code></pre>
+<p>A value with a folder separator or a media extension is a <strong>path</strong>; anything
+else is <strong>text to draw</strong>. That single rule is why <code>example.com</code> prints as a
+domain and <code>assets/logo.svg</code> is drawn as a file.</p>
+<p><strong>In a <code>GLOBAL_ASSETS</code> folder the file name is the slot it fills.</strong> <code>logo.svg</code>
+fills the logo, <code>footer.png</code> fills the footer, <code>logo-mark.svg</code> fills <code>logoMark</code>.
+There is no manifest, so adding an asset to the folder is the whole of adding it
+to the brand.</p>
+<p>Check what resolved before wondering why a graphic looks wrong:</p>
+<pre><code class="language-bash">node .claude/skills/&lt;stem&gt;/scripts/brand-resources.mjs --print</code></pre>
+<pre><code class="language-text">resources: .claude/skills/&lt;stem&gt;/references/resources.md
+  logo           assets/logo.svg -&gt; /abs/path/assets/logo.svg
+  footer         assets/footer.png -&gt; /abs/path/assets/footer.png
+  brandName      &quot;Acme Corp.&quot;
+configured: true</code></pre>
+<h4 id="being-wired-up">Being wired up<a class="anchor" href="#being-wired-up" aria-label="Link to this section">#</a></h4>
+<p><code>generate-skill.mjs</code> writes one more file as its last act:</p>
+<pre><code class="language-text">references/
+├── resources.md              what your brand is
+└── graphic-design-api.json   which skill draws it, and what to draw by default</code></pre>
+<p>The second is the difference between a skill that exists and a skill that is
+usable without a manual. It records the script, the project's <code>resources.md</code>,
+the output folder, the modes the script can draw, and a <code>defaultRequest</code> - so a
+request can become a command with nothing else supplied:</p>
+<pre><code class="language-bash">node ai-helper/graphic-designer/skills/design-language/scripts/brand-resources.mjs --registration</code></pre>
+<pre><code class="language-text">registration: references/graphic-design-api.json
+  skill:     created-svg_graphic-api
+  script:    .claude/skills/created-svg_graphic-api/scripts/make-created-svg_graphic-api.mjs
+  resources: references/resources.md
+  output:    test/graphic-design-api/generated-graphics
+  default:   &quot;make a html cheatsheet. ensure to include linked assets&quot;
+  mode cheatsheet   --cheatsheet
+  mode card
+  run:       node .claude/skills/.../make-created-svg_graphic-api.mjs --cheatsheet --resources ... --out ...</code></pre>
+<p>Matching a request to a mode is deliberately dumb string matching - the request
+is read for a mode's own keywords, and the default wins when none appear. That
+is why <code>/graphic-design-api generate</code> works: <code>generate</code> contains no mode
+keyword, so it falls through to whatever <code>defaultRequest</code> says. Anything
+cleverer would need a model, and the point of this file is to be the part that
+does not.</p>
+<p>Two flags worth knowing:</p>
+<ul>
+<li><code>--no-register</code> generates a skill without wiring anything up, for a project
+that manages its own paths.</li>
+<li><code>--default-request &quot;...&quot;</code> sets what a bare request means. The shipped example
+sets it to <code>make a html cheatsheet. ensure to include linked assets</code>, which is
+also a small joke at its own expense: the second sentence has never been
+necessary.</li>
+</ul>
+<h4 id="four-things-worth-knowing">Four things worth knowing<a class="anchor" href="#four-things-worth-knowing" aria-label="Link to this section">#</a></h4>
+<ul>
+<li><strong>You never ask for the assets.</strong> There is no &quot;include the linked assets&quot; to
+remember. If the paths resolve, every graphic carries them.</li>
+<li><strong>An SVG asset is inlined, not linked.</strong> The rasterizer decodes PNG and
+nothing else, so a vector logo placed as an image would be present in the SVG
+and a hole in the PNG. Its shapes are read into the composition instead, so
+both formats draw it and it stays vector. Gradients, filters, patterns and
+<code>&lt;use&gt;</code> do not survive that, and each is reported rather than approximated.</li>
+<li><strong>Nothing configured is a working state.</strong> Every brand slot falls back to a
+mark in the design language - a monogram on the accent, a set wordmark. A page
+with no brand is still a finished page.</li>
+<li><strong>A relative path is relative to <code>resources.md</code>.</strong> Move the file and rewrite
+the paths, or the assets stop resolving - quietly, because a missing asset
+falls back to a drawn mark rather than failing. The generator rewrites them
+for you when it copies one.</li>
+</ul>
+<h4 id="symlinked-asset-folders">Symlinked asset folders<a class="anchor" href="#symlinked-asset-folders" aria-label="Link to this section">#</a></h4>
+<p>A brand folder is often a link to somewhere else. That works, and the two
+fixtures in <code>test/graphic-design-api/test-assets/</code> are exactly that - git
+symlinks into <code>reference-graphics/links/</code>. One rule makes them portable: <strong>a
+symlink's target is resolved from the link's own directory</strong>, so it reads
+<code>../reference-graphics/links/logo.svg</code> and never
+<code>test/graphic-design-api/reference-graphics/links/logo.svg</code>. A repository-root
+path resolves on no clone at all, and because a missing asset falls back rather
+than failing, the graphics come out looking plausible and wrong.</p>
+<pre><code class="language-bash">git ls-files -s test/graphic-design-api/test-assets/
+# 120000 &lt;sha&gt; 0  test/graphic-design-api/test-assets/logo.svg</code></pre>
+<p>Mode <code>120000</code> and a forward-slash relative target is what makes a link resolve
+on a Linux clone and render as a link on GitHub.</p>
+<h4 id="two-things-about-the-raster">Two things about the raster<a class="anchor" href="#two-things-about-the-raster" aria-label="Link to this section">#</a></h4>
+<p>Both come from the same root - one set of coordinates, two renderers with
+different font metrics - and both are worth knowing before you are surprised by
+them:</p>
+<ul>
+<li><strong>Small text needs <code>--scale</code>.</strong> The built-in alphabet the rasterizer draws is
+made of strokes, and below about 10 units that stroke is thinner than a
+device pixel at 1x, so it anti-aliases into grey. The shipped script rasters
+at 3x by default for exactly this reason. The composition does not change;
+only the sampling does.</li>
+<li><strong>Do not position runs with <code>measureText</code> when you have named a font.</strong> It
+measures the built-in alphabet, not the family the SVG names. For text laid
+out token by token - a code panel, a legend, a table row - advance by the
+named font's own metric instead. Monospace makes that easy: Courier and
+Courier New are exactly <code>0.6 em</code> per character.</li>
+</ul>
+<h3 id="reading-these-pages-as-an-agent">Reading these pages as an agent<a class="anchor" href="#reading-these-pages-as-an-agent" aria-label="Link to this section">#</a></h3>
+<ul>
+<li><strong>Start at <code>docs/api/INDEX.json</code>.</strong> It lists every page with its category,
+its kind - reference, quickstart, cheatsheet, hub or schema - its first
+paragraph, and its length in lines and in rough tokens, so the smallest page
+that answers can be read first.</li>
+<li><strong>Read a cheatsheet before a reference.</strong> A cheatsheet is tables and one-line
+examples; a quickstart is a path that runs as written; a reference page is
+everything, and long.</li>
+<li><strong>Get the language from the program, not the prose.</strong>
+<code>napkin-sketch verbs --json</code> prints every verb's grammar, the categories, the
+shape names and every diagnostic code in one line, from the same table the
+parser reads.</li>
+<li><strong>Check a script built as JSON</strong> against
+<a href="../schema/instructions.schema.json"><code>docs/api/schema/instructions.schema.json</code></a>
+before handing it over; <code>napkin-sketch check</code> is the full check.</li>
+</ul>
+<h3 id="writing-napkin-scripts-that-read-clean">Writing napkin scripts that read clean<a class="anchor" href="#writing-napkin-scripts-that-read-clean" aria-label="Link to this section">#</a></h3>
+<p>Patterns that give scripts the parser accepts the first time:</p>
+<ul>
+<li><strong>Start with <code>napkin 1</code> and a <code>page</code>.</strong> Without the version line a script
+earns a warning, and <code>--strict</code> fails on it.</li>
+<li><strong>One instruction a line</strong>, the verb first. Paint chains on one line -
+<code>color #1f2328 width 3 fill #ffe08a</code> - and nothing else does.</li>
+<li><strong>Numbers are pixels unless a unit says otherwise</strong>: <code>10mm</code>, <code>0.5in</code>,
+<code>12pt</code>, and <code>50%</code> for a share of the page.</li>
+<li><strong>Wrap arithmetic in parentheses</strong>: <code>circle (i * 40) 50 10</code>, never
+<code>circle i*40 50 10</code>.</li>
+<li><strong>Name things from the verb table</strong>, not from another tool's vocabulary: a
+circle is <code>circle &lt;cx&gt; &lt;cy&gt; &lt;r&gt;</code>, a rounded box is <code>rect ... r 12</code>.</li>
+<li><strong>Run <code>napkin-sketch check - --json</code> and read the codes.</strong> An
+<code>unknown-verb</code> or <code>expected-*</code> code means rewrite that line; an
+<code>unknown-asset</code> or <code>unknown-document</code> means the host has to hand something
+over; a warning alone draws.</li>
+</ul>
+<pre><code class="language-napkin">napkin 1
+page 400 300
+background #ffffff
+layer &quot;Card&quot;
+color #1f2328 width 3 fill #ffe08a
+rect 20 20 360 260 r 16
+text &quot;Acme Corp&quot; at 200 130 size 32 align center</code></pre>
+<h3 id="drawing-from-a-request">Drawing from a request<a class="anchor" href="#drawing-from-a-request" aria-label="Link to this section">#</a></h3>
+<p><code>napkin-sketch draw --prompt &quot;&lt;request&gt;&quot;</code> asks an AI tool for the script
+instead of reading one, and draws it like any other:</p>
+<pre><code class="language-bash">napkin-sketch draw --prompt &quot;a three-box flowchart with arrows&quot; --to svg,png</code></pre>
+<p>It needs an agentic AI command-line tool on the PATH, and works best with the
+<code>scripting</code> helper plugged in, which is how the tool learns the language:
+<code>/plugin install scripting@napkin-sketch</code>, or
+<code>npm run ai-helper -- --helper scripting</code> for the files.</p>
+<ul>
+<li><strong>The form.</strong> napkin-sketch writes <code>_temp/script-form.txt</code> in the working
+folder: the request, the two rules the parser holds a script to - one
+instruction a line, names in double quotes - and the images and documents
+<code>--asset</code> and <code>--use</code> hand over. The working folder is where a project's
+installed skill is found.</li>
+<li><strong>The helper command</strong> runs there, through the shell. It is <code>--helper</code> when
+given, else <code>$NAPKIN_SCRIPT_HELPER</code>, else Claude Code:
+<code>claude -p --model sonnet --dangerously-skip-permissions &lt; _temp/script-form.txt</code>.
+Any tool that reads the form and saves a script works - the form goes to its
+standard input too - and one that prints the script instead of saving it is
+read from its reply.</li>
+<li><strong>The check, and one more try.</strong> The tool saves the script to
+<code>_temp/script-out.napkin</code>, and napkin-sketch checks it as <code>check</code> would,
+with the images and documents it will draw with. With errors, the tool runs
+once more, the form carrying the script and every diagnostic. A script still
+wrong after that is drawn as far as it goes, and the command exits <code>2</code>.</li>
+<li><strong>The script is kept.</strong> It is written beside the files as <code>&lt;name&gt;.napkin</code>,
+named as they are, so the drawing can be edited and drawn again without
+asking; with <code>--json</code> the report carries it too, as <code>script.text</code>, with
+<code>script.attempts</code> and <code>script.path</code>. The two <code>_temp</code> files are removed.</li>
+<li><strong>No script, exit <code>4</code>.</strong> A tool that is not on the PATH, is not signed in,
+or finishes without a script ends the command with exit code <code>4</code>, nothing
+written, and <code>error.reason</code> saying which: <code>missing-tool</code>, <code>auth</code>,
+<code>no-script</code> or <code>other</code>.</li>
+</ul>
+<p>Inside an AI tool, <code>/scripting:draw a three-box flowchart with arrows</code> writes
+the script as <code>flowchart.napkin</code> in the working folder, and the same command
+with no request answers a form napkin-sketch left.</p>
+<p><strong>Asking well.</strong> The tool reads the request and nothing else, so a request
+that says what matters draws it the first time:</p>
+<ul>
+<li><strong>Say what it is, and what it holds</strong>: &quot;a three-box flowchart - Plan, Build,
+Ship - with arrows between the boxes&quot;, not &quot;a process diagram&quot;.</li>
+<li><strong>Give the size or the shape</strong> when it matters: &quot;a 1200 by 630 banner&quot;, &quot;a
+square badge&quot;.</li>
+<li><strong>Name the colors or the look</strong>: &quot;navy on white&quot;, &quot;hand-drawn&quot;, &quot;Acme's
+yellow, #ffe08a&quot;.</li>
+<li><strong>Name what to call it</strong>: &quot;call it onboarding&quot; sets the page's name, and so
+the files'.</li>
+<li><strong>Hand over the images it should place</strong>, with <code>--asset logo=art/logo.png</code>,
+and say where they go: &quot;the logo top left&quot;.</li>
+<li><strong>One drawing a request.</strong> Several pages are a script to write, and a request
+that asks for five things gets a compromise of each.</li>
+</ul>
+<h3 id="troubleshooting">Troubleshooting<a class="anchor" href="#troubleshooting" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+<tbody>
+<tr><td><code>Unknown command: /graphic-designer:design-language</code></td><td>The helper is not plugged in</td><td><a href="#plug-in-the-helper">Step 2</a></td></tr>
+<tr><td>PNG palette empty, note mentions the API</td><td>The build output was not found</td><td><code>npm run build</code> in the clone</td></tr>
+<tr><td><code>graphic-design API not found</code> from a generated script</td><td>Same cause, from the other direction</td><td><code>npm run build</code>, or install <code>napkin-sketch</code></td></tr>
+<tr><td>The command runs but writes the file somewhere unexpected</td><td>No destination was given</td><td>Pass one, or name it in words</td></tr>
+<tr><td>A second run overwrote nothing and made <code>DESIGN_LANGUAGE-&lt;stem&gt;.md</code></td><td>Working as intended</td><td>That directory already had one</td></tr>
+<tr><td>Generated graphic does not look like the source</td><td>The script drifted from the language</td><td>Analyze the output, compare the shares, fix the script - not the design language file</td></tr>
+<tr><td>The graphic is mostly background</td><td>A paper element is missing</td><td>The shares say so at once; compare them against the source's</td></tr>
+<tr><td>The last line of a listing is missing</td><td>It rendered under the footer</td><td>Look at the PNG, not the SVG - the vector will not show you</td></tr>
+<tr><td>Text runs overlap in the SVG but look fine in the PNG</td><td>Runs were advanced by <code>measureText</code></td><td>Advance by the named font's metric: <code>0.6 em</code> per character for monospace</td></tr>
+<tr><td>Small text in the PNG is grey mush</td><td>The stroke is under a device pixel</td><td>Raster at <code>--scale 2</code> or <code>3</code></td></tr>
+<tr><td>Colours are right, the graphic still looks wrong</td><td>The palette is right and the ratio is not</td><td>Check the shares against the 60-30-10 the language declares</td></tr>
+<tr><td>Editing a colour changed nothing</td><td>It was edited in the composition, not in the constants</td><td>The constants at the top of the script are the language</td></tr>
+<tr><td>A monogram is drawn where the logo should be</td><td>The declared asset did not resolve</td><td><code>node scripts/brand-resources.mjs --print</code> names the path that failed</td></tr>
+<tr><td>The logo is in the SVG and missing from the PNG</td><td>It was placed as an image rather than inlined</td><td>Place it through <code>brand.place</code>, and read the <code>warnings</code></td></tr>
+<tr><td>A copied <code>resources.md</code> stopped finding anything</td><td>Its relative paths were not rewritten for the new location</td><td>Rewrite them, or copy with <code>generate-skill.mjs --resources</code></td></tr>
+<tr><td><code>/graphic-design-api generate</code> says nothing is wired up</td><td>No registration above the working directory</td><td>Run <code>generate-skill.mjs</code>, or <code>npm run test:graphic-design-api</code> for the shipped example</td></tr>
+<tr><td>A request draws the wrong thing</td><td>It matched a different mode's keyword</td><td><code>--registration</code> prints the modes and what each one answers to</td></tr>
+<tr><td>The registration names a script that is gone</td><td>The skill was deleted or regenerated elsewhere</td><td>Re-run <code>generate-skill.mjs</code>; <code>usable: false</code> is what the reader reports</td></tr>
+<tr><td>A symlinked asset resolves for you and nobody else</td><td>The link stores a repository-root path</td><td>Retarget it relative to the link's own directory</td></tr>
+<tr><td>The ground and the paper look swapped</td><td>Roles were read off the reference-weighted palette</td><td>Use the <code>Palette by area</code> table; area is what &quot;the ground&quot; means</td></tr>
+<tr><td><code>draw --prompt</code> exits 4, <code>missing-tool</code></td><td>The AI tool is not on the PATH</td><td>Install it, or name another with <code>--helper</code> or <code>NAPKIN_SCRIPT_HELPER</code></td></tr>
+<tr><td><code>draw --prompt</code> exits 4, <code>auth</code></td><td>The tool is installed and not signed in</td><td>Run the tool once in a terminal and sign in</td></tr>
+<tr><td><code>draw --prompt</code> exits 4, <code>no-script</code></td><td>The tool finished without saving or printing a script</td><td>Plug in the <code>scripting</code> helper; its skill says where to save</td></tr>
+<tr><td>The drawing is not what was meant</td><td>The request left it open</td><td>Say what it holds, its size and its colors; or edit the kept <code>.napkin</code></td></tr>
+</tbody></table></div>
+<h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
+<p><strong>A design language, measured and read.</strong> <code>test/graphic-design-api/design-language/DESIGN_LANGUAGE.md</code> is a real run of
+this against <code>test/graphic-design-api/reference-graphics/created-svg_graphic-api.svg</code>. It is worth
+reading for one reason: the analyzer's mechanical guess about the colour roles
+was <strong>wrong</strong>, and the file says so and corrects it from the raster
+cross-check. That is the intended division of labour - the tool measures, you
+read - and a design language that hides which half is which is not worth
+keeping.</p>
+<p>That particular correction is now made for you. The analyzer renders the vector
+and counts how much page each colour <em>covers</em>, reports it as a second table,
+and decides the roles from that rather than from how often each colour is
+<em>referenced</em> - because &quot;which colour is the ground&quot; is an area question. Both
+measurements stay in the file. The reading still belongs to you; there is just
+one fewer wrong default to catch.</p>
+<p><code>test/graphic-design-api/generated-graphics/</code> holds what
+<code>npm run test:graphic-design-api</code> draws: the same language as a card and as an
+HTML cheatsheet, both carrying the logo and footer that <code>resources.md</code> names.</p>
+<p><strong>A request, drawn and kept.</strong> With the <code>scripting</code> helper plugged in:</p>
+<pre><code class="language-bash">napkin-sketch draw --prompt &quot;a three-box flowchart - Plan, Build, Ship - with arrows, call it flowchart&quot; --to svg,png</code></pre>
+<p>prints <code>flowchart.napkin</code>, <code>flowchart.svg</code> and <code>flowchart.png</code>, and the script
+is one like the first of the <code>napkin-script</code> skill's three examples - boxes,
+labels and arrows each on a layer of their own. What a tool writes varies from
+run to run; what it saved does not, so <code>napkin-sketch draw flowchart.napkin</code>
+draws the same picture again with no AI at all.</p>
+<p><strong>A script an agent wrote, checked, then drawn.</strong> An agent hands a script over
+on standard input, reads the diagnostics as JSON, and draws once it checks
+clean:</p>
+<pre><code class="language-bash">napkin-sketch check - --json &lt; card.napkin      # {&quot;ok&quot;:true,...} or the diagnostics to fix
+napkin-sketch draw - --json --to svg,png &lt; card.napkin</code></pre>
+<h2 id="limits">Limits<a class="anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>A request draws what the tool reads into it.</strong> Two runs of one request
+can write two different scripts; the kept <code>.napkin</code> is what repeats.</li>
+<li><strong>One more try, not a conversation.</strong> A script with errors goes back once,
+with its diagnostics; after that it is drawn as far as it goes.</li>
+<li><strong><code>--prompt</code> is the command line's.</strong> The app has no box to type a request
+into yet, and <code>napkin-sketch/node</code> exports no call for it.</li>
+<li><strong>The helper is an AI tool the user runs.</strong> napkin-sketch starts it and reads
+what it saved; the tool's sign-in, its model and its cost are its own.</li>
+<li><strong>The analyzer reads SVG and PNG.</strong> JPEG, GIF and WebP have no decoder, so
+their palette comes back empty and the report says why.</li>
+<li><strong>A request is matched to a mode by its words.</strong> The registration matches a
+mode's own keywords and falls back to the default request; there is no model
+in that step, on purpose.</li>
+<li><strong>A missing asset is quiet.</strong> A brand path that does not resolve falls back
+to a drawn mark rather than failing, so check <code>--print</code> when a graphic looks
+wrong.</li>
+</ul>
+<h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Read <code>INDEX.json</code>, then a cheatsheet</strong>, and a reference page only when
+those do not answer.</li>
+<li><strong>Trust measurements over readings.</strong> A <code>DESIGN_LANGUAGE.md</code> marks which
+values were measured and which were read; question the readings.</li>
+<li><strong>Check the output against the source.</strong> <code>analyze-media.mjs out/card.png
+--colors 6</code> gives the shares to compare; a right palette at a wrong ratio is
+the usual way a generated graphic drifts.</li>
+<li><strong>Edit the constants, not the layout,</strong> when a generated script's colors are
+wrong: the constants at the top are the language.</li>
+<li><strong>For napkin scripts, check before you draw</strong>, and branch on the diagnostic
+<code>code</code>, never the message.</li>
+<li><strong>An agent that can write a script should write it</strong> and draw it with
+<code>draw -</code>: <code>--prompt</code> starts a second AI tool, which is the right call for a
+person or a program with no model of its own.</li>
+<li><strong>With <code>draw --prompt --json</code>, read <code>script.text</code></strong> for the script, and
+branch on <code>exitCode</code> <code>4</code> and <code>error.reason</code> when no script came back.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../compose/index.html">The graphic design API</a>: what the generated scripts
+call.</li>
+<li><a href="../cli/index.html">The napkin-sketch command line</a>: <code>check</code>, <code>draw</code> and
+<code>verbs --json</code>.</li>
+<li><a href="../language/index.html">The napkin script language</a>: what an agent writes.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/tree/main/ai-helper/graphic-designer"><code>ai-helper/graphic-designer/</code></a> and
+<a href="https://github.com/isocialPractice/napkin-sketch/tree/main/ai-helper/scripting"><code>ai-helper/scripting/</code></a>: the helpers
+themselves.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/ai-helper/scripting/skills/napkin-script/SKILL.md">The napkin-script skill</a>
+and <a href="https://github.com/isocialPractice/napkin-sketch/blob/main/ai-helper/scripting/skills/napkin-script/references/verbs.md">its verb reference</a>,
+generated from the verb table.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../interop/cheatsheet.html" rel="prev"><span>Previous</span>Working with other programs: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>The AI helpers: quickstart</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/ai/README.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

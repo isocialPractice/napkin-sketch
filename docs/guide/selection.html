@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Selecting and editing - napkin-sketch</title>
+<meta name="description" content="Selecting, filling, widening, the clipboard, and what a press on a selection does.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html" aria-current="page">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Selection and editing</span></nav>
+<h1 id="selecting-and-editing">Selecting and editing<a class="anchor" href="#selecting-and-editing" aria-label="Link to this section">#</a></h1>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Fill Shape</strong> — with the Select tool active and a shape selected, clicking
+a Quick Access Color fills the shape with it. The custom color well beside
+the swatches does the same: the selection follows the picker as it is
+dragged, and the whole drag undoes as one step. Selected open strokes take
+the color as their ink instead. Fills are honored by the canvas,
+thumbnails, and SVG/PDF export.</li>
+<li><strong>Stroke width on a selection</strong> - with the Select tool active and something
+selected, the <strong>Width</strong> slider widens or narrows the selected outlines as it
+moves, and the whole drag undoes as one step. A width typed with Quick Width
+(<code>W</code>, then a number) does the same. Text and images have no outline and are
+left alone; with a drawing tool in hand, the slider sets the width of the
+next mark only.</li>
+<li><strong>Show Selection Borders</strong> (<code>Ctrl/Cmd + H</code>) — a switch in the <strong>Move</strong> and
+<strong>Mirror</strong> palettes, beside their live preview, draws or drops the dashed blue outline
+around the selected elements. They stay selected and still move, copy and export the same way,
+and the layers panel still shows what is selected; only the outline on the
+canvas goes, so a drawing can be judged with something selected. On by
+default, and the same switch appears in both settings views.</li>
+<li><strong>Hold Shift while dragging to pin the movement</strong> to the nearest <strong>axis or
+45-degree diagonal</strong>. The direction is taken from the pointer's own travel
+since the drag began and re-chosen as it moves, so swinging around the start
+point swaps the drag onto the line it now points down; the movement is
+<em>projected</em> onto that line, so the thing being dragged keeps up with the
+pointer instead of lagging at its perpendicular foot. Letting Shift go hands
+the drag straight back to the pointer.
+It applies to <strong>moving a selection</strong> (and so to the Alt-drag copy), to
+<strong>Direct Select and Vector Path</strong> drags of an anchor, a handle, or a whole
+path, and to the <strong>Space + drag pan</strong>. Drags where Shift already means
+something else keep that meaning: the rubber-band marquee (Shift adds to the
+selection), drawing (Shift snaps to an endpoint), the quick curve (Shift
+swings the apex), and the shape tools.</li>
+<li><strong>Shift-click still toggles selection membership</strong> — but on an element that
+is <em>already</em> selected the removal now waits for the release, so the same
+press can start a Shift-constrained drag instead. A Shift-press that never
+moves is still a Shift-click.</li>
+<li><strong>A press inside a selection belongs to the selection.</strong> Hit-testing is
+forgiving by design — every mark is widened by a few screen pixels so a thin
+line can be clicked at all — and that forgiveness used to outrank the
+selection: pressing in the middle of several selected elements would land on
+whatever unselected mark happened to be nearby, replace the whole selection
+with it, and drag that one thing instead. The selection now keeps the press,
+so the drag moves what you were aiming at. The element under the pointer is
+not lost: release without moving and it is selected, exactly as a click on it
+always did.</li>
+<li><strong>Undo / redo</strong>, clear, custom ink colors, and keyboard shortcuts.</li>
+</ul>
+<h2 id="the-select-tool">The Select tool<a class="anchor" href="#the-select-tool" aria-label="Link to this section">#</a></h2>
+<p><strong>Select tool:</strong> the active tool when napkin-sketch opens. Shows the
+<strong>black arrow</strong> pointer. <em>Click</em> a stroke to
+select and drag it — a <strong>filled shape's interior counts as the shape</strong>, so
+clicking its color grabs it, while unfilled outlines stay click-through in
+the middle; <em><code>Shift</code>-click</em> to
+add it to (or remove it from) the current selection; <em>drag over empty space</em>
+to rubber-band-select multiple strokes at once; <code>Ctrl+A</code> selects everything
+and <code>Ctrl+Shift+A</code> deselects. Hold <code>Space</code> and drag to pan the canvas.
+Selecting elements highlights their rows in the Layers panel.</p>
+<h2 id="copy-and-paste">Copy and paste<a class="anchor" href="#copy-and-paste" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Copy and paste</strong> (<code>Ctrl+C</code> / <code>Ctrl+X</code> / <code>Ctrl+V</code>), from the Edit menu, a
+right-click on the canvas, or the keyboard:
+<ul>
+<li><strong>Paste lands under the pointer</strong> when the pointer is over the canvas, and
+steps down-right from the copied position when it is not, so a run of
+pastes stacks visibly instead of piling up in one spot.</li>
+<li><strong>Paste in Place</strong> (<code>Ctrl+Shift+V</code>) puts the elements back at the exact
+coordinates they were copied from — the way to move a graphic to another
+page without it drifting. The clipboard belongs to the app, not to a page,
+so a copy taken on one page pastes onto any other.</li>
+<li><strong>Duplicate</strong> (<code>Ctrl+D</code>) copies and pastes in one step without disturbing
+the clipboard, and keeps a group's layers the same way a paste does.</li>
+<li><strong>Alt-drag</strong> copies the selection and drags the copy, leaving the original
+where it was. While Alt is held over a selection - and for as long as the
+copy is being dragged - the pointer becomes <strong>two arrows</strong>: the usual one
+at the hotspot and a second stepped out beside it in the inverse fill,
+with a node square beside them, so the modifier shows its effect before
+the drag commits to it.</li>
+<li>Pasted elements become the selection and the Select tool takes over, so
+the new copy can be dragged straight away.</li>
+<li><strong>A copied group keeps its layers</strong>, however the group was reached.
+Clicking its row and rubber-banding its marks are the same gesture: a
+group joins the copy when every one of its mark-carrying layers is in the
+copy already. Pasting then rebuilds the tree rather than flattening it -
+every nested layer comes back with its own name, opacity, visibility, and
+lock, and the marks keep the paint order they had, so the graphic is
+identical to the one copied. This holds for <code>Ctrl+V</code>, <code>Ctrl+D</code>, and the
+Alt-drag copy alike. The copy lands as a <strong>sibling of
+the original</strong>, at the same nesting level rather than inside it, and only
+the pasted root takes a <strong>&quot; - Copy&quot;</strong> suffix; the layers under it keep the
+names the source file gave them. Pasted onto another page, where there is
+no original to sit beside, the tree goes in at the top level.</li>
+<li><strong>A plain canvas selection still pastes flat</strong>, onto one layer, the way
+any element lands - a few marks picked out with the rubber band are not a
+structure worth rebuilding.</li>
+<li><strong>A group row is a fine place to paste onto.</strong> Selecting an imported
+graphic by its group row and pasting a <em>flat</em> clipboard drops a new layer
+inside that group and carries on, the same way drawing on a group does.
+Only a genuinely locked or hidden layer refuses, and it says which.</li>
+<li><strong>The system clipboard comes too</strong>: a copy also goes out as SVG, so it can
+be pasted into Illustrator or Inkscape, and a graphic copied in one of
+those pastes in here (as layers, through the same importer the File &gt;
+Import path uses). An in-app copy wins over its own SVG echo; a newer
+outside copy wins over the in-app one.</li>
+</ul></li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="vector-paths.html" rel="prev"><span>Previous</span>Vector paths and stroke profiles</a><a href="transform.html" rel="next"><span>Next</span>Transform, Rotate, Mirror and Mesh Warp</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/selection.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

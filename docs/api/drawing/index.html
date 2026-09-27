@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drawing with napkin script - napkin-sketch</title>
+<meta name="description" content="What each instruction draws: pages, layers, paint, shapes, paths, the shape library, the hand-drawn pass, text, images, links and effects.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Drawing with napkin script</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Reference</span></nav>
+<h1 id="drawing-with-napkin-script">Drawing with napkin script<a class="anchor" href="#drawing-with-napkin-script" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p><code>evaluate</code> runs a napkin script and gives back a drawing: a sketch book of
+pages, each with a layer tree and the marks on it. This page is the reference
+for what each instruction draws and how state carries through a script. How a
+script is written - its syntax, values, expressions and diagnostics - is in
+<a href="../language/index.html">The napkin script language</a>.</p>
+<p><strong>Contents</strong></p>
+<ul>
+<li><a href="#what-this-is">What this is</a></li>
+<li><a href="#the-mental-model">The mental model</a></li>
+<li><a href="#reference">Reference</a>
+<ul>
+<li><a href="#running-a-script">Running a script</a></li>
+<li><a href="#pages">Pages</a></li>
+<li><a href="#layers-and-groups">Layers and groups</a></li>
+<li><a href="#paint">Paint</a></li>
+<li><a href="#transforms">Transforms</a></li>
+<li><a href="#blocks-names-and-definitions">Blocks, names and definitions</a></li>
+<li><a href="#shapes">Shapes</a></li>
+<li><a href="#the-shape-library">The shape library</a></li>
+<li><a href="#paths">Paths</a></li>
+<li><a href="#curves-through-points">Curves through points</a></li>
+<li><a href="#the-hand-drawn-pass">The hand-drawn pass</a></li>
+<li><a href="#text">Text</a></li>
+<li><a href="#images">Images</a></li>
+<li><a href="#copying-a-document-in">Copying a document in</a></li>
+<li><a href="#linked-graphics">Linked graphics</a></li>
+<li><a href="#effects">Effects</a></li>
+</ul></li>
+<li><a href="#worked-examples">Worked examples</a></li>
+<li><a href="#limits">Limits</a></li>
+<li><a href="#for-agents">For agents</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+<h2 id="what-this-is">What this is<a class="anchor" href="#what-this-is" aria-label="Link to this section">#</a></h2>
+<p>A generated drawing is made of the same things a drawn one is. Every mark is
+the <code>Stroke</code> the app commits when you draw: Bezier anchors in <code>vector</code>, the
+points the canvas paints sampled from them, and the paint fields - color,
+width, fill, gradient, dash, profile, nib. Layers and groups are the app's own
+layer rows. So a script's drawing opens in the app as editable work, with its
+layers and anchors intact, and is written out by the app's own SVG and PDF
+writers, and as a PNG, by <a href="../output/index.html">one call</a>.</p>
+<p>A run never throws for anything in the script. An instruction that cannot run
+is reported and skipped, and the run carries on; only the budget stops a run,
+and then it keeps what it drew. One script gives the same book every time it
+runs: ids are counted rather than random, and the time stamped on the book can
+be fixed.</p>
+<h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-text"> script (text or JSON) --evaluate--&gt; sketch book --renderSketch, renderBook--&gt; SVG, PNG, PDF, .skbk, .jsx</code></pre>
+<p>Three kinds of state carry from one instruction to the next - the paint, the
+transform and the units - along with the names <code>let</code> sets and the layer marks
+go to. Blocks decide how far a change reaches:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Block</th><th>What it keeps to itself</th></tr></thead>
+<tbody>
+<tr><td><code>group &quot;G&quot; { ... }</code></td><td>Everything: paint, transform, units and the current layer come back when it ends.</td></tr>
+<tr><td><code>place &quot;d&quot;</code></td><td>Everything, the same way; a definition is a drawing of its own.</td></tr>
+<tr><td><code>repeat n { ... }</code></td><td>Nothing: each pass starts where the last one ended, and what the last pass left stays.</td></tr>
+<tr><td><code>push</code> ... <code>pop</code></td><td>Paint, transform and units, between the two.</td></tr>
+</tbody></table></div>
+<p>So <code>translate</code> in a <code>repeat</code> walks across the page, and <code>push</code> and <code>pop</code> in the
+body keep a pass to itself.</p>
+<h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
+<h3 id="running-a-script">Running a script<a class="anchor" href="#running-a-script" aria-label="Link to this section">#</a></h3>
+<pre><code class="language-ts">import { evaluate, renderSketch } from 'napkin-sketch';
+
+const { ok, book, diagnostics, stats, output } = evaluate(text, { name: 'card' });
+const svg = renderSketch(book.sketches[0], output);</code></pre>
+<p><code>evaluate</code> takes a script as text, or as a JSON value in the object form, which
+it checks with <code>validateScript</code> first.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Option</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>name</code></td><td><code>drawing</code></td><td>The book's name and its first page's. Later pages are <code>drawing-2</code>, <code>drawing-3</code>, unless <code>newpage</code> names them.</td></tr>
+<tr><td><code>seed</code></td><td><code>0</code></td><td>The seed for <a href="#the-hand-drawn-pass">the hand-drawn pass</a> until a <code>seed</code> instruction names one: a whole number.</td></tr>
+<tr><td><code>limits</code></td><td>the defaults</td><td>Raises or lowers any limit of <a href="../language/index.html#the-budget">the budget</a>.</td></tr>
+<tr><td><code>assets</code></td><td>none</td><td><a href="#images">Images</a> a script places by name, as data URLs: <code>{ logo: 'data:image/png;base64,...' }</code>.</td></tr>
+<tr><td><code>documents</code></td><td>none</td><td>Pages or books a script <a href="#copying-a-document-in">copies in</a> by name with <code>use</code>.</td></tr>
+<tr><td><code>resolveLink</code></td><td>none</td><td>Reads a <a href="#linked-graphics">linked file</a>, so <code>link</code> can take its size from it; <code>resolveLinkFromDir(folder)</code> is one.</td></tr>
+<tr><td><code>timestamp</code></td><td>now</td><td>The time stamped on the book and its pages. Fix it for a book that is the same byte for byte on every run.</td></tr>
+<tr><td><code>fragment</code></td><td><code>false</code></td><td>Read a snippet: no <code>napkin</code> line is expected.</td></tr>
+</tbody></table></div>
+<div class="table-wrap"><table>
+<thead><tr><th>Result</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>ok</code></td><td>True when nothing was an error, reading or running.</td></tr>
+<tr><td><code>book</code></td><td>The drawing: always at least one page, however much of the script ran.</td></tr>
+<tr><td><code>diagnostics</code></td><td>Everything reported, reading and running together, in reading order.</td></tr>
+<tr><td><code>stats</code></td><td><code>instructions</code>, <code>marks</code>, <code>anchors</code>, <code>points</code> and <code>pages</code>: how much the run did.</td></tr>
+<tr><td><code>output</code></td><td>What <code>crop</code> and <code>registration</code> asked of the outputs, in pixels. Spread it into the <a href="../output/index.html#options">render options</a> to apply it.</td></tr>
+<tr><td><code>seed</code></td><td>The seed the run ended on.</td></tr>
+</tbody></table></div>
+<p>A script that names a language version newer than this build reads is not run
+at all, since it may mean something this build would draw differently.</p>
+<p><code>drawSvg(source, options)</code> runs a script and gives back its first page as SVG
+in one call, and in Node, <code>drawFile</code> and <code>drawToFiles</code> from
+<code>napkin-sketch/node</code> run one and write every format to files; see
+<a href="../node/index.html">Using napkin-sketch from code</a>.</p>
+<p><code>runScript(script, sink)</code> runs a checked script against any <code>ScriptSink</code>: an
+object that starts pages, makes layers current, opens and closes groups, and
+adds marks. <code>evaluate</code> uses a <code>SketchSink</code>, which builds the book; a sink that
+writes somewhere else gets exactly the same calls.</p>
+<h3 id="pages">Pages<a class="anchor" href="#pages" aria-label="Link to this section">#</a></h3>
+<p>A script starts on a page the size a new sketch opens at in the app, 1280 by
+800 pixels, on napkin paper, <code>#fcfaf5</code>. <code>page</code> sizes it: a named size, or a
+width and a height, turned <code>portrait</code> or <code>landscape</code>. <code>background</code> sets its
+color, <code>background none</code> makes it transparent, and <code>name</code> names it.</p>
+<p><code>newpage</code> starts another page the same size and color. The paint and the units
+carry across; the transform starts again from nothing, so each page draws from
+its own corner. A <code>newpage</code> belongs at the top of a script or in a <code>repeat</code>
+there, never inside a group or a definition.</p>
+<pre><code class="language-napkin">page a5 landscape
+background #ffffff
+name &quot;front&quot;
+circle 50% 50% 30%
+newpage &quot;back&quot;
+rect 10% 10% 80% 80% r 12</code></pre>
+<h3 id="layers-and-groups">Layers and groups<a class="anchor" href="#layers-and-groups" aria-label="Link to this section">#</a></h3>
+<p>Marks go to the current layer. A page starts with <code>Layer 1</code>, which is left out
+of the finished page when nothing was drawn on it and the script named layers
+of its own.</p>
+<ul>
+<li><code>layer &quot;Sky&quot;</code> makes <code>Sky</code> the current layer: the one of that name in the
+current group, or a new one when there is none. Naming a layer again goes
+back to it, and any <code>opacity</code>, <code>hidden</code> or <code>locked</code> given apply to it.</li>
+<li><code>group &quot;Figure&quot; { ... }</code> makes a new group layer; the layers named in its
+block are its children. A mark drawn straight into a group, before any
+<code>layer</code> in it, lands on a layer named after the group. When the block ends,
+marks go back to the layer that was current before it.</li>
+<li>Layers are stacked in the order the script makes them, so a later layer
+paints over an earlier one, as in the app's layers panel, and a group's row
+sits above the layers it holds, where the app keeps a group's row.</li>
+</ul>
+<pre><code class="language-napkin">layer &quot;Paper&quot;
+rect 0 0 100% 100%
+group &quot;Figure&quot; opacity 0.9 {
+  layer &quot;Body&quot;
+  ellipse 200 260 60 90
+  layer &quot;Head&quot;
+  circle 200 140 40
+}
+layer &quot;Paper&quot;
+line 0 400 400 400</code></pre>
+<h3 id="paint">Paint<a class="anchor" href="#paint" aria-label="Link to this section">#</a></h3>
+<p>Each paint instruction sets one field of every mark after it:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Instruction</th><th>Mark field</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>tool</code></td><td><code>tool</code></td><td><code>pen</code>; <code>marker</code>, translucent; <code>copic</code>, a broad angled nib.</td></tr>
+<tr><td><code>color</code></td><td><code>color</code></td><td>Any color the language accepts.</td></tr>
+<tr><td><code>width</code></td><td><code>width</code></td><td>Scaled by the transform's average scale.</td></tr>
+<tr><td><code>opacity</code></td><td><code>opacity</code></td><td>Left unset, the tool's own default applies, as in the app.</td></tr>
+<tr><td><code>fill</code></td><td><code>fill</code></td><td>Closed marks only.</td></tr>
+<tr><td><code>gradient</code></td><td><code>gradient</code></td><td>Closed marks only; a linear gradient's angle turns with the drawing.</td></tr>
+<tr><td><code>stroke off</code></td><td><code>noStroke</code></td><td>A closed shape drawn as its fill alone.</td></tr>
+<tr><td><code>style</code></td><td><code>strokeStyle</code></td><td><code>solid</code>, <code>dashed</code> or <code>dotted</code>.</td></tr>
+<tr><td><code>profile</code></td><td><code>profile</code></td><td>Pen and marker marks only.</td></tr>
+<tr><td><code>nib</code></td><td><code>nibAngle</code></td><td>Copic marks only; the angle turns with the drawing.</td></tr>
+<tr><td><code>rough</code></td><td>-</td><td>Draws the marks after it by hand; see <a href="#the-hand-drawn-pass">The hand-drawn pass</a>.</td></tr>
+<tr><td><code>font</code></td><td><code>fontFamily</code>, <code>fontSize</code></td><td>The family and size of <a href="#text">text</a> after it.</td></tr>
+</tbody></table></div>
+<p>Every mark is flagged <code>sharpened</code>, so the app's auto-sharpen leaves a generated
+shape as it is.</p>
+<h3 id="transforms">Transforms<a class="anchor" href="#transforms" aria-label="Link to this section">#</a></h3>
+<p><code>translate</code>, <code>rotate</code>, <code>scale</code> and <code>mirror</code> change where everything after them
+lands. Each applies on top of the ones before it, in the frame they left, the
+way a canvas transform does. Angles turn clockwise, and <code>rotate</code>, <code>scale</code> and
+<code>mirror</code> work about the origin unless given a point with <code>at</code>.</p>
+<p>A transform is baked into the anchors of each mark as it is drawn, never
+written out as a transform of its own. A transform is affine, so mapping a
+curve's anchors and both of their handles maps the curve itself exactly. A
+stroke's width scales with the transform, and a copic nib and a linear
+gradient's axis turn with it.</p>
+<p><code>push</code> saves the transform, the paint and the units, and <code>pop</code> puts them back.
+A <code>pop</code> with no <code>push</code> in its block is an error, and a <code>push</code> left open when
+its block ends is restored there, with a warning.</p>
+<pre><code class="language-napkin">repeat 12 as i {
+  push
+  rotate (i * 30) at 200 200
+  line 200 200 200 80
+  pop
+}</code></pre>
+<h3 id="blocks-names-and-definitions">Blocks, names and definitions<a class="anchor" href="#blocks-names-and-definitions" aria-label="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>let</code></strong> sets the nearest name already set, or makes a new one in the
+current block. Its value is a number in the current units; a length with a
+unit, <code>let margin 10mm</code>, is converted into them.</li>
+<li><strong><code>repeat</code></strong> runs its block a whole number of times, 0 or more, with the
+counter named by <code>as</code> running from 0. The counter ends with the repeat.</li>
+<li><strong><code>define</code></strong> records a block under a name without drawing it, and is hoisted:
+a <code>place</code> may come before its <code>define</code>.</li>
+<li><strong><code>place</code></strong> draws a definition with its origin at the point given by <code>at</code>,
+turned by <code>rotate</code> and scaled by <code>scale</code> about that origin. A definition
+reads the names in force where it is placed, so a name set just before a
+<code>place</code> works as a parameter. A definition that places itself, directly or
+through another, is refused.</li>
+</ul>
+<pre><code class="language-napkin">define &quot;petal&quot; {
+  ellipse 0 (0 - size) (size / 3) (size)
+}
+let size 40
+repeat 8 as i {
+  place &quot;petal&quot; at 200 200 rotate (i * 45)
+}
+let size 15
+place &quot;petal&quot; at 200 200</code></pre>
+<h3 id="shapes">Shapes<a class="anchor" href="#shapes" aria-label="Link to this section">#</a></h3>
+<p>Every shape is Bezier anchors, never a polygon of samples:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Shape</th><th>Outline</th></tr></thead>
+<tbody>
+<tr><td><code>rect</code></td><td>Four corners, or with <code>r</code> four quarter arcs between straight sides; the radius is held to half the shorter side.</td></tr>
+<tr><td><code>circle</code>, <code>ellipse</code></td><td>Four anchors on the axes, from three o'clock clockwise, with handles <code>4/3 (sqrt 2 - 1)</code> of the radius along the tangents.</td></tr>
+<tr><td><code>line</code>, <code>polyline</code></td><td>Straight segments.</td></tr>
+<tr><td><code>polygon</code></td><td>Straight sides, closed. With <code>r</code>, every corner is rounded by an arc of that radius that touches both of its sides, whatever the corner's angle; a corner's radius is held so its arc takes no more than half of either side.</td></tr>
+<tr><td><code>star</code></td><td>Twice as many corners as points, the first point straight up.</td></tr>
+<tr><td><code>arc</code></td><td>Open, in pieces of at most a quarter turn; clockwise when the end angle is greater, the other way when it is smaller, and no more than a full turn.</td></tr>
+<tr><td><code>spiral</code></td><td>Archimedean, winding clockwise from its centre, as cubic pieces of a quarter turn.</td></tr>
+<tr><td><code>shape</code></td><td>A shape from <a href="#the-shape-library">the library</a>, fitted to a box.</td></tr>
+</tbody></table></div>
+<p>The circle, the ellipse and the rounded rectangle are built with the same code
+the SVG importer builds those elements with, so a generated circle and an
+imported one are the same curve. Every arc and every rounded corner is pieces
+of at most a quarter turn with handles <code>4/3 tan(a/4)</code> of the radius long, <code>a</code>
+being the piece's angle, so a rounded <code>polygon</code> with square corners is the
+rounded <code>rect</code> of the same size, anchor for anchor.</p>
+<pre><code class="language-napkin">fill #ffe08a
+polygon 200 40, 360 260, 40 260 r 16
+polygon 400 60, 560 60, 560 220, 400 220 r 30
+star 700 160 100 45 5</code></pre>
+<h3 id="the-shape-library">The shape library<a class="anchor" href="#the-shape-library" aria-label="Link to this section">#</a></h3>
+<p><code>shape &quot;&lt;name&gt;&quot; at &lt;x&gt; &lt;y&gt; size &lt;size&gt;</code> draws a named shape from the built-in
+library, from <code>x</code>, <code>y</code> down and to the right. With one size, the shape's longer
+side is that long and it keeps its proportions; with a width and a height, it
+is stretched to fill them. Names are read in any case. A name the library does
+not have is reported as <code>unknown-shape</code>, with the names it most likely meant.</p>
+<pre><code class="language-napkin">shape &quot;cube-isometric&quot; at 40 40 size 160
+fill #ffe08a
+shape &quot;cylinder-perspective&quot; at 240 40 size 160
+shape &quot;star&quot; at 440 40 size 160 80</code></pre>
+<p>A shape is one mark or several, drawn in the current paint, and each mark
+shows only what the shape's source showed. An outline the source left
+unfilled stays unfilled when a <code>fill</code> is set. A backdrop - a part the source
+filled without an outline - is left out when nothing is filled, and drawn
+with the fill and no outline when something is. So with no fill the isometric
+and perspective objects are line drawings, and with one they are solid.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Shape</th><th>Natural size</th><th>Marks</th><th>Backdrops</th><th>Read from</th></tr></thead>
+<tbody>
+<tr><td><code>square</code></td><td>231.43 x 231.43</td><td>1</td><td>-</td><td><code>shapes.svg#square</code></td></tr>
+<tr><td><code>rectangle</code></td><td>482.09 x 231.43</td><td>1</td><td>-</td><td><code>shapes.svg#rectangle</code></td></tr>
+<tr><td><code>circle</code></td><td>272.06 x 272.06</td><td>1</td><td>-</td><td><code>shapes.svg#circle</code></td></tr>
+<tr><td><code>ellipse</code></td><td>514.62 x 212.94</td><td>1</td><td>-</td><td><code>shapes.svg#ellipse</code></td></tr>
+<tr><td><code>triangle</code></td><td>231.43 x 231.44</td><td>1</td><td>-</td><td><code>shapes.svg#triangle</code></td></tr>
+<tr><td><code>right-triangle</code></td><td>209.91 x 231.44</td><td>1</td><td>-</td><td><code>shapes.svg#right-triangle</code></td></tr>
+<tr><td><code>hexagon</code></td><td>164.76 x 142.68</td><td>1</td><td>-</td><td><code>shapes.svg#polygon</code></td></tr>
+<tr><td><code>star</code></td><td>233.42 x 222</td><td>1</td><td>-</td><td><code>shapes.svg#star</code></td></tr>
+<tr><td><code>horizontal</code></td><td>195.31 x 0</td><td>1</td><td>-</td><td><code>shapes.svg#horizontal</code></td></tr>
+<tr><td><code>vertical</code></td><td>0 x 195.31</td><td>1</td><td>-</td><td><code>shapes.svg#verticla</code></td></tr>
+<tr><td><code>45-degree</code></td><td>138.11 x 138.11</td><td>1</td><td>-</td><td><code>shapes.svg#_45-degree</code></td></tr>
+<tr><td><code>15-degree</code></td><td>188.66 x 50.55</td><td>1</td><td>-</td><td><code>shapes.svg#_15-degree</code></td></tr>
+<tr><td><code>arc</code></td><td>79.66 x 103.4</td><td>1</td><td>-</td><td><code>shapes.svg#curve</code></td></tr>
+<tr><td><code>spiral</code></td><td>147.292 x 130.561</td><td>1</td><td>-</td><td><code>shapes.svg#curve-2</code></td></tr>
+<tr><td><code>wheel-isometric</code></td><td>249.57 x 262.712</td><td>3</td><td>1</td><td><code>isometric-objects.svg#wheel-isometric</code></td></tr>
+<tr><td><code>sphere-isometric</code></td><td>275.74 x 275.74</td><td>1</td><td>-</td><td><code>isometric-objects.svg#sphere-isometric</code></td></tr>
+<tr><td><code>cube-isometric</code></td><td>296.23 x 264.39</td><td>7</td><td>-</td><td><code>isometric-objects.svg#cube-isometric</code></td></tr>
+<tr><td><code>cylinder-isometric</code></td><td>246.64 x 199.92</td><td>5</td><td>-</td><td><code>isometric-objects.svg#cylinder-isometric</code></td></tr>
+<tr><td><code>wheel-perspective</code></td><td>200.615 x 260.116</td><td>3</td><td>1</td><td><code>perspective-objects.svg#wheel-perspective</code></td></tr>
+<tr><td><code>sphere-perspective</code></td><td>262.48 x 275.74</td><td>1</td><td>-</td><td><code>perspective-objects.svg#sphere-perspective</code></td></tr>
+<tr><td><code>cube-perspective</code></td><td>267.9 x 223.06</td><td>7</td><td>1</td><td><code>perspective-objects.svg#cube-perspective</code></td></tr>
+<tr><td><code>cylinder-perspective</code></td><td>246.64 x 209.92</td><td>5</td><td>1</td><td><code>perspective-objects.svg#cylinder-perspective</code></td></tr>
+</tbody></table></div>
+<p>The natural size is the shape's extent in its source, in pixels, measured over
+its curves rather than its handles, and it gives the proportions that one size
+keeps. A line has no extent across itself, so <code>horizontal</code> and <code>vertical</code> sit
+in the middle of the box they are given.</p>
+<p>The shapes come from the SVG files in
+<code>ai-helper/vectors/skills/vector-graphics/assets</code>: every named group or element
+at the top of <code>shapes.svg</code>, <code>isometric-objects.svg</code> and
+<code>perspective-objects.svg</code> is one shape. <code>npm run shape-library</code> reads them into
+<code>src/core/script/shape-library.json</code> with the SVG importer's own code, so a
+library shape has the anchors importing its file would give it, and a test
+fails when the committed library and the files disagree. To add a shape, add a
+named group to one of those files and run it again.</p>
+<h3 id="paths">Paths<a class="anchor" href="#paths" aria-label="Link to this section">#</a></h3>
+<p>A <code>path</code> is one mark, however many subpaths it has.</p>
+<ul>
+<li><strong><code>path &quot;...&quot;</code></strong> reads SVG path data - every command, absolute or relative,
+arcs included - with its numbers in the current units.</li>
+<li><strong><code>path { ... }</code></strong> builds it step by step: <code>move</code> starts a subpath, <code>to</code> and
+<code>by</code> draw straight segments, <code>curve</code> draws a cubic, <code>smooth</code> draws a cubic
+whose first handle mirrors the last one, <code>through</code> draws a smooth curve
+through points (see <a href="#curves-through-points">Curves through points</a>), and
+<code>close</code> closes the subpath. A step after <code>close</code> carries on from where the
+closed subpath began.</li>
+<li>A mark closes all of its subpaths or none. When some close and some do not,
+the closed ones are drawn with an explicit segment back to their start and
+the mark stays open.</li>
+</ul>
+<pre><code class="language-napkin">path {
+  move 40 40
+  to 160 40
+  to 100 140
+  close
+  move 90 70
+  to 110 70
+  to 100 90
+  close
+}</code></pre>
+<h3 id="curves-through-points">Curves through points<a class="anchor" href="#curves-through-points" aria-label="Link to this section">#</a></h3>
+<p><code>through</code> draws a smooth curve through every point it is given, with an anchor
+at each one, so the curve can be reshaped point by point in the app. At a point
+inside the list the curve runs parallel to the line from the point before it to
+the point after it, and each handle reaches a third of the way along its own
+segment, so points spaced unevenly do not throw it into loops. The first and
+last segments are the parabolas that meet their neighbours. Two points make a
+straight line.</p>
+<p>Outside a path, <code>through</code> is an open mark of its own. Inside one, it carries on
+from the current point. After a <code>curve</code> or a <code>smooth</code> it sets off along the
+mirror of the last handle, so the join stays smooth, and a <code>smooth</code> after it
+mirrors its last handle in turn.</p>
+<pre><code class="language-napkin">color #c0392b
+through 40 200, 140 120, 240 200, 340 120, 440 200
+path {
+  move 40 300
+  curve 80 220 160 220 200 300
+  through 280 360, 360 300
+  smooth 460 220 500 300
+}</code></pre>
+<h3 id="the-hand-drawn-pass">The hand-drawn pass<a class="anchor" href="#the-hand-drawn-pass" aria-label="Link to this section">#</a></h3>
+<p><code>rough &lt;amount&gt;</code> draws every mark after it as a hand would: <code>rough 0.3</code> is
+barely there, <code>rough 1</code> is clearly drawn by hand, and <code>rough off</code> is exact
+again. It is paint, so it carries to the marks after it, and a <code>group</code>, a
+placed definition or a <code>push</code> and <code>pop</code> keep it to themselves.</p>
+<pre><code class="language-napkin">seed 7
+rough 0.6
+fill #ffe08a
+rect 40 40 160 120
+fill none
+circle 320 100 60
+line 420 60 560 160
+rough 1 passes 2
+polygon 40 240, 200 240, 120 360</code></pre>
+<p>The pass moves each mark's anchors on the page, after any transform, so a
+shape scaled up wobbles no more than one drawn at that size. What it draws is
+anchors like any other mark, editable in the app.</p>
+<ul>
+<li><strong>Straight segments bow.</strong> A longer segment bows further, but by the square
+root of its length, so a long side bows less for its size than a short one.</li>
+<li><strong>Anchors drift.</strong> Anchors close together drift together, and none drifts so
+far that a small shape loses its outline.</li>
+<li><strong>The curves a shape was drawn with turn and stretch</strong>, both handles of an
+anchor alike, so a smooth join stays smooth. A bowed straight segment is
+not turned again.</li>
+<li><strong>Lines run past their ends.</strong> An open line carries on at each end along
+its tangent. A closed line opens where it starts and carries on past it, so
+the join shows. <code>overshoot &lt;length&gt;</code> sets how far on the page, and
+<code>overshoot 0</code> keeps closed lines closed.</li>
+<li><strong>A filled shape is coloured in separately.</strong> A closed shape with a fill and
+a line comes out as two marks: the fill, roughened less, then the line. A
+fill with no line stays one mark, roughened fully.</li>
+<li><strong><code>passes 2</code> restates the line</strong> on a wobble of its own, thinner and
+lighter, the way a pencil goes over a line twice.</li>
+</ul>
+<p>Each part reaches this far at <code>rough 1</code>, and proportionally less at a smaller
+amount:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Part</th><th>At <code>rough 1</code></th></tr></thead>
+<tbody>
+<tr><td>Anchor drift</td><td>Up to 5 px, and no more than 15% of the way to a neighbouring anchor</td></tr>
+<tr><td>Bow of a straight segment</td><td>Up to 0.57 times the square root of its length: 5.7 px for a 100 px segment, 11.4 px for a 400 px one</td></tr>
+<tr><td>Turn of a curve's handles</td><td>Up to 6 degrees, both handles of an anchor alike</td></tr>
+<tr><td>Stretch of a curve's handles</td><td>Up to 20% longer or shorter</td></tr>
+<tr><td>Overshoot</td><td>1.5 line widths past each end, and no more than 25% of the segment it extends</td></tr>
+<tr><td>Join of a closed line</td><td>Up to 60% of the anchor drift from where the line began</td></tr>
+<tr><td>Fill under a line</td><td>Roughened 50% as much as the line</td></tr>
+<tr><td>Second pass</td><td>60% of the width and 55% of the opacity</td></tr>
+<tr><td>Wobble length</td><td>80 px: anchors closer together than this drift together</td></tr>
+</tbody></table></div>
+<p><strong>The wobble is seeded.</strong> The same script and the same seed draw the same
+bytes on every run. The seed is the last <code>seed</code> instruction's, or
+<code>options.seed</code>, or 0, and another seed draws the same drawing by another hand.
+Each mark's wobble comes from the seed and the mark itself, so adding, moving
+or removing one mark leaves every other mark's wobble as it was, and the same
+shape drawn twice wobbles differently each time.</p>
+<p><strong>It costs more.</strong> A bowed segment samples to as many as 24 points where a
+straight one took one, and a filled shape or a second pass adds marks. The
+budget counts all of it, and the marks of one shape are drawn together or not
+at all.</p>
+<h3 id="text">Text<a class="anchor" href="#text" aria-label="Link to this section">#</a></h3>
+<p><code>text &quot;&lt;words&gt;&quot; at &lt;x&gt; &lt;y&gt;</code> places a text item: live text the app sets in the
+current font and edits as it edits any text. <code>at</code> is the top of the first
+line: its left end, or with <code>align center</code> or <code>align right</code> its middle or its
+right end. <code>size</code> sets this text's size, and <code>font &quot;&lt;family&gt;&quot; &lt;size&gt;</code> sets both
+for all the text after it. <code>\n</code> in the string starts a new line, and
+<code>box &lt;width&gt;</code> wraps the text between words at that width, <code>align</code> then placing
+the box.</p>
+<pre><code class="language-napkin">font &quot;Georgia&quot; 28
+text &quot;Acme Corp&quot; at 320 40 align center
+text &quot;A caption that wraps inside a box of its own&quot; at 40 100 size 16 box 180</code></pre>
+<ul>
+<li><strong>Measured with the built-in face.</strong> With no DOM there is no font engine to
+ask how wide a font sets a word, so <code>align</code> places the text on the measure
+of the single-stroke face the composition renderers draw with. A real face
+sets a little wider or narrower, so centred text is centred on that measure
+rather than to the pixel.</li>
+<li><strong>Upright, as the app keeps text.</strong> A text item moves and scales with the
+drawing, but a turn or a mirror carries it to where the turned text would be
+and leaves it readable, the rule the app's Rotate and Mirror follow.</li>
+<li><strong>The paint it takes</strong> is the color and the opacity. The hand-drawn pass
+does not reach a text item.</li>
+</ul>
+<p><code>as marks</code> draws the letters instead, as the built-in face's pen strokes: one
+mark in the current paint, which turns and mirrors with the drawing and goes
+through the hand-drawn pass like any other.</p>
+<pre><code class="language-napkin">color #c0392b width 2
+rough 0.6
+text &quot;Drawn by hand&quot; at 40 40 size 32 as marks</code></pre>
+<p>The face draws every printable ASCII character. Anything else - an accented
+letter, an arrow - is left as a gap and reported as <code>glyph-missing</code>. Each line
+is aligned by itself, so a centred block is centred line by line.</p>
+<h3 id="images">Images<a class="anchor" href="#images" aria-label="Link to this section">#</a></h3>
+<p><code>image &quot;&lt;name&gt;&quot; at &lt;x&gt; &lt;y&gt;</code> places the image the host supplied under that name
+in <code>options.assets</code>, a data URL, and <code>image &quot;data:image/png;base64,...&quot;</code>
+places one written into the script. Nothing is read from disk: a path or a web
+address is reported as <code>unknown-asset</code>, with how to pass the image in instead.</p>
+<p>The examples on this page name <code>logo</code>, a 40 by 20 PNG, and <code>badge</code>, a small
+card. The documentation test hands both to every example, as a host would
+hand over its own.</p>
+<pre><code class="language-napkin">image &quot;logo&quot; at 40 40
+image &quot;logo&quot; at 120 40 size 120
+image &quot;logo&quot; at 280 40 size 60 60</code></pre>
+<ul>
+<li><strong>Its own size, or kept in proportion.</strong> With no size an image is its own
+size, and with one it keeps its proportions, both read from the image's
+header: a PNG, a JPEG, a GIF, a WebP or an SVG. With two it is stretched to
+fill them. An image whose size cannot be read is placed square, 100 by 100
+or the one size given, and reported as <code>image-size-unknown</code>.</li>
+<li><strong>Upright, as the app keeps images.</strong> It moves and stretches with the
+drawing, and a turn or a mirror carries it without turning it.</li>
+<li><strong>The paint it takes</strong> is the opacity.</li>
+</ul>
+<h3 id="copying-a-document-in">Copying a document in<a class="anchor" href="#copying-a-document-in" aria-label="Link to this section">#</a></h3>
+<p><code>use &quot;&lt;name&gt;&quot;</code> copies in a document the host supplied under that name in
+<code>options.documents</code> - a page, or a book, whose first page is used - as a group
+of its own, named after the document or after <code>layer &quot;&lt;name&gt;&quot;</code>.</p>
+<pre><code class="language-napkin">use &quot;badge&quot; at 40 40
+use &quot;badge&quot; at 300 40 scale 0.5 layer &quot;Small badge&quot;</code></pre>
+<ul>
+<li><strong>Everything, as it was.</strong> Every layer keeps its name, opacity, visibility
+and lock, groups stay groups, and every mark is copied, each with a new id.
+The document itself is left as it was.</li>
+<li><strong>Placed and scaled.</strong> The document's origin goes to <code>at</code> and it is scaled
+by <code>scale</code>, with the transform in force on top, as for any mark. Its text
+and images stay upright.</li>
+<li><strong>Not repainted.</strong> The paint and the hand-drawn pass do not apply: a copied
+mark is drawn as the document drew it.</li>
+<li><strong>Whole or not at all.</strong> The budget counts every mark of the document
+before any of them is drawn.</li>
+</ul>
+<h3 id="linked-graphics">Linked graphics<a class="anchor" href="#linked-graphics" aria-label="Link to this section">#</a></h3>
+<p><code>link &quot;&lt;path&gt;&quot; at &lt;x&gt; &lt;y&gt; size &lt;width&gt; &lt;height&gt;</code> places a file by reference:
+one image item, on a layer of its own named for the file or by
+<code>name &quot;&lt;layer name&gt;&quot;</code>, that stands for the file rather than holding it - what
+a design tool calls a linked file, as opposed to an embedded one. The file's
+contents are neither drawn into the drawing nor broken into layers, and
+nothing is read to place it.</p>
+<pre><code class="language-napkin">link &quot;assets/logo.svg&quot; at 40 40 size 160 80 name &quot;Logo&quot;</code></pre>
+<ul>
+<li><strong>Drawn as a placeholder.</strong> The app shows a dashed box with the file's
+name, and so does a build that does not know links. An SVG export writes
+the reference itself, <code>&lt;image href=&quot;assets/logo.svg&quot; data-link=&quot;true&quot;&gt;</code>,
+which a viewer that can reach the file draws and the importer reads back as
+a link. A PDF draws the placeholder, since embedding the file would make the
+PDF an import of it. A <a href="../output/index.html#png">PNG</a> draws the file when the
+render is given <code>resolveLink</code>, and the placeholder when it is not.</li>
+<li><strong>Read by the host, inside one folder.</strong> An output that has to draw the
+file asks the host for it through a resolver, and <code>resolveLinkFromDir(folder)</code>
+reads only inside that folder: no absolute path, <code>..</code> step or web address.
+A script names a file; only the host reads it.</li>
+<li><strong>Sized like an image.</strong> With a width and a height it fills them. With one
+or none, the size is read from the file when the run is given <code>resolveLink</code>,
+and otherwise it is placed square and reported as <code>image-size-unknown</code>.</li>
+<li><strong>Upright, and in the paint's opacity</strong>, like an image.</li>
+</ul>
+<h3 id="effects">Effects<a class="anchor" href="#effects" aria-label="Link to this section">#</a></h3>
+<p><code>effect &lt;name&gt; &lt;arguments&gt;</code> gives the next layer, group or mark the script makes
+an effect, as its CSS filter function works: a blur, a shadow, or a shift in its
+color. Several <code>effect</code> lines stack in the order they are written, and the next
+thing made takes them all; <code>effect none</code> lets go of any still waiting.</p>
+<pre><code class="language-napkin">effect drop-shadow 4 4 8 #00000066
+rect 40 40 200 120 r 12
+effect sepia
+effect blur 1
+image &quot;logo&quot; at 280 60 size 120
+effect grayscale
+layer &quot;Archive&quot;
+circle 400 200 40</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Effect</th><th>Written</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>blur</code></td><td><code>effect blur &lt;radius&gt;</code></td><td>A Gaussian blur. The radius is its standard deviation, as the length in CSS's <code>blur()</code> is.</td></tr>
+<tr><td><code>brightness</code></td><td><code>effect brightness &lt;amount&gt;</code></td><td>Multiplies every color: 1 leaves it as it is, 0 is black.</td></tr>
+<tr><td><code>contrast</code></td><td><code>effect contrast &lt;amount&gt;</code></td><td>Pushes colors away from middle gray, or below 1 toward it: 0 is gray.</td></tr>
+<tr><td><code>saturate</code></td><td><code>effect saturate &lt;amount&gt;</code></td><td>0 is gray, 1 is as it is, 2 twice as vivid.</td></tr>
+<tr><td><code>grayscale</code></td><td><code>effect grayscale [&lt;0-1&gt;]</code></td><td>Toward gray by the amount, all the way with none given.</td></tr>
+<tr><td><code>sepia</code></td><td><code>effect sepia [&lt;0-1&gt;]</code></td><td>Toward sepia by the amount, all the way with none given.</td></tr>
+<tr><td><code>invert</code></td><td><code>effect invert [&lt;0-1&gt;]</code></td><td>Toward the inverse by the amount, all the way with none given.</td></tr>
+<tr><td><code>hue-rotate</code></td><td><code>effect hue-rotate &lt;degrees&gt;</code></td><td>Turns every hue around the color wheel.</td></tr>
+<tr><td><code>opacity</code></td><td><code>effect opacity &lt;0-1&gt;</code></td><td>Fades what carries it, at its place in the list.</td></tr>
+<tr><td><code>drop-shadow</code></td><td><code>effect drop-shadow &lt;dx&gt; &lt;dy&gt; &lt;blur&gt; &lt;color&gt;</code></td><td>A shadow of its shape, moved across and down, blurred by CSS's blur radius, in the color.</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>What takes it.</strong> The next <code>layer</code> line takes it for that layer, the next
+<code>group</code> for the group, and the next mark for the mark: a shape, a path, a
+curve through points, a text item, an image or a link. <code>use</code> takes it for the
+group it copies in, and <code>place</code> draws its definition as a group of its own
+that takes it. A <code>repeat</code> is not a thing made: the first mark inside it takes
+the effect.</li>
+<li><strong>A mark takes it whole.</strong> A mark the hand-drawn pass draws as several strokes
+<ul>
+<li>a filled shape's fill and line, a second pass - and a library shape of
+several parts go on a layer of their own, named after the verb or the shape,
+and that layer takes the effect, so a shadow falls from the whole mark rather
+than from each stroke onto the others. The layer sits above the one the mark
+was drawn in, as a link's does.</li>
+</ul></li>
+<li><strong>Measured where it is written.</strong> A blur's radius and a shadow's offset and
+blur are lengths in the units in force on the <code>effect</code> line, and scale with
+the transform there, as a mark's width does; a shadow's offset turns with it.</li>
+<li><strong>Drawn over the finished picture</strong>, in order: a layer's or a group's as one
+picture, then its opacity. On a layer that also holds an eraser, the exports
+apply the effect first and cut the eraser after, as SVG masks after it
+filters; the app erases first.</li>
+<li><strong>Kept to its block.</strong> An effect still waiting when its group, its definition,
+its page or the script ends did nothing, and says so with <code>unused-effect</code>.</li>
+<li><strong>In every output but the PDF</strong>: an SVG <code>&lt;filter&gt;</code>, the PNG's own passes, and
+the app's canvas. A PDF prints what carries it plain, and says so. See
+<a href="../output/index.html#effects">Writing a drawing out</a>.</li>
+</ul>
+<h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
+<p><strong>A card.</strong> Layers for the paper, the art and the frame, a rounded plate, and
+a row of dots drawn with a repeat:</p>
+<pre><code class="language-napkin">napkin 1
+page 400 250
+background #ffffff
+layer &quot;Plate&quot;
+color #326478 fill #326478
+rect 20 20 360 210 r 16
+layer &quot;Dots&quot;
+stroke off fill #ffe08a
+repeat 5 as i {
+  circle (80 + i * 60) 125 18
+}
+layer &quot;Frame&quot;
+stroke on fill none color #1f2328 width 2
+rect 10 10 380 230 r 22</code></pre>
+<pre><code class="language-ts">import { evaluate, renderSketch } from 'napkin-sketch';
+
+const result = evaluate(card, { name: 'card' });
+if (!result.ok) throw new Error('the card has errors');
+const svg = renderSketch(result.book.sketches[0]);
+const png = renderSketch(result.book.sketches[0], { format: 'png' });</code></pre>
+<p><strong>A pattern.</strong> A definition placed around a circle, the placing angle and the
+size both worked out in expressions:</p>
+<pre><code class="language-napkin">napkin 1
+page 400 400
+define &quot;spoke&quot; {
+  line 0 0 0 (0 - length)
+  circle 0 (0 - length) 6
+}
+repeat 16 as i {
+  let length (80 + 40 * (i % 2))
+  place &quot;spoke&quot; at 200 200 rotate (i * 22.5)
+}</code></pre>
+<h2 id="limits">Limits<a class="anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>A link shows as its placeholder in the app.</strong> Drawing the linked file on
+the canvas, and a command that turns a link into an import, are still to
+come.</li>
+<li><strong>Text is measured with the built-in face</strong>, so text set in another font can
+end a little short of, or past, where <code>align</code> puts its end, and a text box
+written to SVG or PDF is broken into lines on that measure.</li>
+<li><strong>Text as marks draws printable ASCII only</strong>; other characters are gaps.</li>
+<li><strong>Effects are drawn in the app, not edited there.</strong> It has no control yet to
+add or change one, and Transform and Mirror move a mark without resizing its
+effects or turning a shadow's offset.</li>
+<li><strong>A rough filled shape is two marks.</strong> The app selects and edits its fill
+and its line apart, as it would two marks drawn by hand. Leave <code>rough</code> off
+for a shape that has to stay one mark.</li>
+<li><strong>A curve is sampled to its size.</strong> A curved segment gives about one point
+for each pixel along its handles, never fewer than 4 or more than 24, and a
+straight one gives its end. Points are what the points limit counts, so a
+drawing of many large curves reaches it sooner than its mark count suggests.
+Imported marks are sampled the same way.</li>
+</ul>
+<h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Check <code>ok</code> before using the book</strong>, and read <code>diagnostics</code> by <code>code</code>. An
+<code>unsupported-verb</code> means the host running the script does not draw that
+instruction; leave it out rather than rewording it.</li>
+<li><strong>Paint carries until it is changed.</strong> A <code>stroke off</code> or a <code>fill</code> set for one
+shape applies to every shape after it, so set it back, or draw that shape
+inside a <code>group</code> or between <code>push</code> and <code>pop</code>, which put the paint back.</li>
+<li><strong>Keep a <code>repeat</code> pass to itself with <code>push</code> and <code>pop</code></strong> when it turns or
+moves things. Without them, each pass starts where the last one ended.</li>
+<li><strong>Use a definition for anything drawn more than once</strong>, and set a name just
+before <code>place</code> to pass it a size or a count.</li>
+<li><strong>Set a <code>fill</code> before a library object that should look solid.</strong> Without
+one, its backdrop is left out and it is a line drawing.</li>
+<li><strong>Use <code>through</code> for a curve that must pass through given points</strong> rather
+than placing handles by hand; each point stays an anchor.</li>
+<li><strong>Fix <code>timestamp</code> when the book will be compared or committed.</strong> Ids are
+already counted, so nothing else changes between runs.</li>
+<li><strong>Hand images over as data URLs in <code>assets</code></strong>, never as paths: a script
+reads no files, and <code>unknown-asset</code> says so.</li>
+<li><strong>Draw lettering <code>as marks</code> when it should turn or look drawn by hand</strong>, and
+use a text item for words a person will want to edit as text.</li>
+<li><strong><code>link</code> a file that should stay a file</strong> - a logo someone else keeps up to
+date - and place an <code>image</code> for pixels that should travel with the drawing.</li>
+<li><strong>Set <code>seed</code> once, near the top, for a rough drawing</strong>, and change only the
+seed to redraw it by another hand. Leave <code>rough</code> off for a diagram whose
+sizes will be measured, since the pass moves anchors on purpose.</li>
+<li><strong>Put an <code>effect</code> line right before the line meant to take it.</strong> An effect
+waits for the next layer, group or mark, and <code>unused-effect</code> means nothing
+followed it in its block.</li>
+<li><strong>Raise a limit on purpose, and only as far as needed.</strong> The defaults keep a
+run to a couple of seconds.</li>
+<li><strong>Write the drawing with <code>renderSketch</code> or <code>renderBook</code></strong>, spreading <code>output</code>
+into the options so <code>crop</code> and <code>registration</code> apply. See
+<a href="../output/index.html">Writing a drawing out</a>.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../language/index.html">The napkin script language</a>: syntax, values,
+expressions, the object form and every diagnostic code.</li>
+<li><a href="../output/index.html">Writing a drawing out</a>: SVG, PNG, PDF, <code>.skbk</code> and an
+Illustrator script, and the box they are cut to.</li>
+<li><a href="../node/index.html">Using napkin-sketch from code</a>: the two entries, ES
+modules and CommonJS, types, and writing files from Node.</li>
+<li><a href="../cli/index.html">The napkin-sketch command line</a>: drawing a script from a
+shell, or from any language that can start a process.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/script/evaluate.ts"><code>src/core/script/evaluate.ts</code></a>: the
+evaluator.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/script/sink.ts"><code>src/core/script/sink.ts</code></a>: the sink
+interface and the sketch book it builds.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../language/cheatsheet.html" rel="prev"><span>Previous</span>The napkin script language: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>Drawing with napkin script: quickstart</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/drawing/README.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

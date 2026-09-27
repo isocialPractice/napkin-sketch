@@ -16,6 +16,13 @@ import { formatNumber, isExpr, quoteString } from './values.js';
 export interface FormatOptions {
   /** What one level of a block is indented by. Two spaces unless given. */
   indent?: string;
+  /**
+   * Comment lines to write before an instruction, at its indent, keyed by the
+   * instruction itself: a script written from the session history puts each
+   * step's comment before the first mark the step drew. A line is written as
+   * `# ` and the line, run onto one line.
+   */
+  comments?: ReadonlyMap<object, readonly string[]>;
 }
 
 function scalar(value: unknown): string {
@@ -40,8 +47,16 @@ function formatValue(slot: SlotPart, value: unknown): string {
   }
 }
 
-function write(list: readonly Instruction[], level: number, indent: string, lines: string[]): void {
+/** A comment as one line of script text. */
+function commentLine(pad: string, text: string): string {
+  const one = text.replace(/\s*\n\s*/g, ' ').trim();
+  return one === '' ? `${pad}#` : `${pad}# ${one}`;
+}
+
+function write(list: readonly Instruction[], level: number, indent: string, lines: string[], comments?: ReadonlyMap<object, readonly string[]>): void {
   for (const instruction of list) {
+    const said = comments?.get(instruction);
+    if (said) for (const line of said) lines.push(commentLine(indent.repeat(level), line));
     const record = instruction as unknown as Record<string, unknown>;
     const spec = verbSpec(String(record.verb));
     if (!spec) {
@@ -70,7 +85,7 @@ function write(list: readonly Instruction[], level: number, indent: string, line
     const block = formBlock(form);
     if (block) {
       lines.push(`${pad}${words.join(' ')} {`);
-      write(record[block.field] as Instruction[], level + 1, indent, lines);
+      write(record[block.field] as Instruction[], level + 1, indent, lines, comments);
       lines.push(`${pad}}`);
     } else {
       lines.push(`${pad}${words.join(' ')}`);
@@ -85,6 +100,6 @@ function write(list: readonly Instruction[], level: number, indent: string, line
  */
 export function formatScript(script: readonly Instruction[], options: FormatOptions = {}): string {
   const lines: string[] = [];
-  write(script, 0, options.indent ?? '  ', lines);
+  write(script, 0, options.indent ?? '  ', lines, options.comments);
   return lines.length > 0 ? `${lines.join('\n')}\n` : '';
 }

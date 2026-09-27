@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The AI helpers: quickstart - napkin-sketch</title>
+<meta name="description" content="The AI helpers, in numbered steps that run on a clone.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>The AI helpers</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html" aria-current="page">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">The AI helpers</a> <span class="sep">/</span> <span aria-current="page">Quickstart</span></nav>
+<h1 id="the-ai-helpers-quickstart">The AI helpers: quickstart<a class="anchor" href="#the-ai-helpers-quickstart" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#the-whole-thing-in-four-steps">The whole thing in four steps</a></li><li><a href="#a-worked-example">A worked example</a></li><li><a href="#a-script-from-a-sentence">A script from a sentence</a></li><li><a href="#where-to-go-next">Where to go next</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <strong>Quickstart</strong> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>The <code>graphic-designer</code> helper reads a graphic you already have into a design
+language and hands you a skill that draws new work in it; this is the shortest
+path from a clone to a branded graphic, using the asset and the brand files
+this repository ships.</p>
+<h2 id="the-whole-thing-in-four-steps">The whole thing in four steps<a class="anchor" href="#the-whole-thing-in-four-steps" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Build the clone:</li>
+</ol>
+<pre><code class="language-bash">npm install
+npm run build</code></pre>
+<ol start="2">
+<li>Run the tour. It <strong>leaves the tool installed and wired up</strong> rather than
+merely passing:</li>
+</ol>
+<pre><code class="language-bash">npm run test:graphic-design-api</code></pre>
+<p>It reads <code>test/graphic-design-api/reference-graphics/created-svg_graphic-api.svg</code>,
+writes a design language and a skill from it into your AI tool's skills
+folder, points that skill at the assets in
+<code>test/graphic-design-api/test-assets/</code> through a <code>resources.md</code>, records
+what a bare request means, and draws <code>card</code> and <code>cheatsheet</code> into
+<code>test/graphic-design-api/generated-graphics/</code>, carrying the linked logo and
+footer. Open the PNGs.</p>
+<ol start="3">
+<li>Ask your AI tool for a graphic. There is nothing to configure first, and
+both lines draw the same thing:</li>
+</ol>
+<pre><code class="language-text">/graphic-design-api make a html cheatsheet. ensure to include linked assets
+/graphic-design-api generate</code></pre>
+<p>The first matches <code>cheatsheet</code> to a drawing mode; the second matches nothing
+and falls through to the request the tour recorded. The second half of the
+first line is never needed: linked assets are included whenever
+<code>resources.md</code> names files that exist.</p>
+<ol start="4">
+<li>Make it your brand with one edit to <code>references/resources.md</code>:</li>
+</ol>
+<pre><code class="language-md">- GLOBAL_ASSETS: path/to/your/assets/
+- brand name: Acme Corp</code></pre>
+<h2 id="a-worked-example">A worked example<a class="anchor" href="#a-worked-example" aria-label="Link to this section">#</a></h2>
+<p>Every step the tour runs is a command you can run yourself, from the clone:</p>
+<pre><code class="language-bash"># 1. Capture the language, generate a skill, and register it. One command.
+node ai-helper/graphic-designer/skills/design-language/scripts/generate-skill.mjs test/graphic-design-api/reference-graphics/created-svg_graphic-api.svg --to .claude/skills
+
+# 2. See what the brand resolved to, after editing references/resources.md
+node ai-helper/graphic-designer/skills/design-language/scripts/brand-resources.mjs --print
+
+# 3. See what is wired up, and the exact command a request turns into
+node ai-helper/graphic-designer/skills/design-language/scripts/brand-resources.mjs --registration
+
+# 4. Draw
+node .claude/skills/created-svg_graphic-api/scripts/make-created-svg_graphic-api.mjs --cheatsheet --out ./out</code></pre>
+<p>Step 1 writes <code>references/graphic-design-api.json</code> as its last act. That file
+is what makes step 4 unnecessary in practice: it records which script draws,
+which <code>resources.md</code> it draws with, where output goes, and what to draw when a
+request does not say. Asking for a graphic is then the whole of using it.</p>
+<p>Check the result against the source the way the language was measured:</p>
+<pre><code class="language-bash">node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs out/cheatsheet.png --colors 6</code></pre>
+<p>A right palette at a wrong ratio is the usual way a generated graphic drifts,
+and the shares show it where the eye does not.</p>
+<h2 id="a-script-from-a-sentence">A script from a sentence<a class="anchor" href="#a-script-from-a-sentence" aria-label="Link to this section">#</a></h2>
+<p>The <code>scripting</code> helper, plugged in the same way
+(<code>/plugin install scripting@napkin-sketch</code>, or
+<code>npm run ai-helper -- --helper scripting</code>), turns a request into a napkin
+script, which napkin-sketch checks, keeps and draws:</p>
+<pre><code class="language-bash">napkin-sketch draw --prompt &quot;a three-box flowchart - Plan, Build, Ship - with arrows&quot; --to svg,png</code></pre>
+<p>The script comes back as a <code>.napkin</code> file beside the drawings, so drawing it
+again needs no AI.</p>
+<h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="index.html#plug-in-the-helper">Plug in the helper</a>: as a plugin, or as files
+in your AI tool's folder.</li>
+<li><a href="index.html#capture-a-design-language">Capture a design language</a>: from your
+own asset.</li>
+<li><a href="index.html#use-the-skill-you-were-handed">Use the skill you were handed</a> and
+<a href="index.html#give-it-your-brand">Give it your brand</a>.</li>
+<li><a href="index.html#reading-these-pages-as-an-agent">Reading these pages as an agent</a>
+and <a href="index.html#writing-napkin-scripts-that-read-clean">Writing napkin scripts that read clean</a>.</li>
+<li><a href="index.html#drawing-from-a-request">Drawing from a request</a>: the form, the
+helper command, the second try, and how to ask well.</li>
+<li><a href="index.html#troubleshooting">Troubleshooting</a>: symptom, cause and fix.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="index.html" rel="prev"><span>Previous</span>The AI helpers</a><a href="cheatsheet.html" rel="next"><span>Next</span>The AI helpers: cheatsheet</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/ai/QUICKSTART.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

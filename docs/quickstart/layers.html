@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quickstart: layers - napkin-sketch</title>
+<meta name="description" content="Name, group and restack layers, and edit a selection in the Properties panel.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="draw.html">Draw</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html" aria-current="page">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../guide/index.html">Overview</a></li><li><a href="../guide/tools.html">Tools</a></li><li><a href="../guide/gestures.html">Gestures</a></li><li><a href="../guide/vector-paths.html">Vector paths</a></li><li><a href="../guide/selection.html">Selection and editing</a></li><li><a href="../guide/transform.html">Transform</a></li><li><a href="../guide/layers.html">Layers</a></li><li><a href="../guide/pages.html">Pages</a></li><li><a href="../guide/import-export.html">Import and export</a></li><li><a href="../guide/sharpen.html">Sharpen</a></li><li><a href="../guide/settings.html">Settings</a></li><li><a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../guide/automate.html">Automate</a></li><li><a href="../guide/animation-mode.html">Animation Mode</a></li><li><a href="../guide/skbk-format.html">The .skbk format</a></li><li><a href="../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> Quickstarts <span class="sep">/</span> <span aria-current="page">Layers</span></nav>
+<h1 id="quickstart-layers">Quickstart: layers<a class="anchor" href="#quickstart-layers" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#1-show-the-layers-panel">1. Show the Layers panel</a></li><li><a href="#2-draw-and-watch-the-rows">2. Draw, and watch the rows</a></li><li><a href="#3-pick-rows">3. Pick rows</a></li><li><a href="#4-rename-a-layer">4. Rename a layer</a></li><li><a href="#5-group-and-ungroup">5. Group and ungroup</a></li><li><a href="#6-restack">6. Restack</a></li><li><a href="#7-hide-lock-and-fade">7. Hide, lock and fade</a></li><li><a href="#8-edit-in-the-properties-panel">8. Edit in the Properties panel</a></li><li><a href="#where-next">Where next</a></li></ul></details>
+<p>Keep what you drew in order: name layers, group them, restack them, and edit
+a selection in the Properties panel. <a href="../guide/layers.html">Layers and the Properties
+panel</a> has the full detail.</p>
+<h2 id="1-show-the-layers-panel">1. Show the Layers panel<a class="anchor" href="#1-show-the-layers-panel" aria-label="Link to this section">#</a></h2>
+<p><code>Ctrl + L</code> shows or hides it; so does <strong>Layers &gt; Hide Layers Panel</strong> and the
+toolbar button that opens it.</p>
+<h2 id="2-draw-and-watch-the-rows">2. Draw, and watch the rows<a class="anchor" href="#2-draw-and-watch-the-rows" aria-label="Link to this section">#</a></h2>
+<p>Draw two or three strokes. Every new element gets <strong>its own layer</strong>, named
+after the tool that drew it - <code>Pen 1</code>, <code>Pen 2</code> - and the panel lists the top
+of the stack first.</p>
+<h2 id="3-pick-rows">3. Pick rows<a class="anchor" href="#3-pick-rows" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Click a row to make it the active layer; its marks are selected on the
+canvas, and selecting on the canvas lights the rows the marks are on.</li>
+<li><code>Ctrl</code>-click adds a row or takes it out; <code>Shift</code>-click takes every row
+between the last one and this one.</li>
+</ol>
+<h2 id="4-rename-a-layer">4. Rename a layer<a class="anchor" href="#4-rename-a-layer" aria-label="Link to this section">#</a></h2>
+<p>Press <code>F2</code>, or double-click the row, type the name and press <code>Enter</code>.</p>
+<h2 id="5-group-and-ungroup">5. Group and ungroup<a class="anchor" href="#5-group-and-ungroup" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Light two or more rows and press <code>Ctrl + G</code>: they go into a new group,
+which folds and opens with the caret beside its name.</li>
+<li><code>Ctrl + Shift + G</code> ungroups the active group.</li>
+</ol>
+<h2 id="6-restack">6. Restack<a class="anchor" href="#6-restack" aria-label="Link to this section">#</a></h2>
+<ol>
+<li><code>Ctrl + ]</code> moves the lit rows up the stack, <code>Ctrl + [</code> down.</li>
+<li>Or drag a row: between two rows to move it there, onto a group row to
+put it inside.</li>
+</ol>
+<h2 id="7-hide-lock-and-fade">7. Hide, lock and fade<a class="anchor" href="#7-hide-lock-and-fade" aria-label="Link to this section">#</a></h2>
+<p>Each row has an eye to hide the layer and a lock to keep it from being drawn
+on or selected; the slider under the list sets the active layer's opacity.</p>
+<h2 id="8-edit-in-the-properties-panel">8. Edit in the Properties panel<a class="anchor" href="#8-edit-in-the-properties-panel" aria-label="Link to this section">#</a></h2>
+<p><code>Ctrl + P</code> opens the Properties panel for the selection: its position and
+size in any unit, its fill and gradient, and its outline's width and style.</p>
+<h2 id="where-next">Where next<a class="anchor" href="#where-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="pages.html">Quickstart: pages</a> - more than one page in a sketch book.</li>
+<li><a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a> - the Layers menu
+and the panel's right-click menu.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="transform.html" rel="prev"><span>Previous</span>Quickstart: transforming</a><a href="pages.html" rel="next"><span>Next</span>Quickstart: pages</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/quickstart/layers.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testing - napkin-sketch</title>
+<meta name="description" content="The test suites, the golden scripts, the GUI checks and the package check.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../guide/index.html">Overview</a></li><li><a href="../guide/tools.html">Tools</a></li><li><a href="../guide/gestures.html">Gestures</a></li><li><a href="../guide/vector-paths.html">Vector paths</a></li><li><a href="../guide/selection.html">Selection and editing</a></li><li><a href="../guide/transform.html">Transform</a></li><li><a href="../guide/layers.html">Layers</a></li><li><a href="../guide/pages.html">Pages</a></li><li><a href="../guide/import-export.html">Import and export</a></li><li><a href="../guide/sharpen.html">Sharpen</a></li><li><a href="../guide/settings.html">Settings</a></li><li><a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../guide/automate.html">Automate</a></li><li><a href="../guide/animation-mode.html">Animation Mode</a></li><li><a href="../guide/skbk-format.html">The .skbk format</a></li><li><a href="../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="building.html">Building</a></li><li><a href="testing.html" aria-current="page">Testing</a></li><li><a href="project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> Developing <span class="sep">/</span> <span aria-current="page">Testing</span></nav>
+<h1 id="testing">Testing<a class="anchor" href="#testing" aria-label="Link to this section">#</a></h1>
+<p>Unit tests use Node's built-in test runner. The TypeScript sources are bundled
+on the fly by esbuild, so no separate compile step is needed.</p>
+<pre><code class="language-bash">npm test
+npm run test:graphic-design-api   # the design-language pipeline, end to end</code></pre>
+<p>Suites cover the geometry utilities, the auto-sharpen classifier and transforms,
+<code>.skbk</code> serialization/normalization (including the version 1 → 2 layer
+migration), the layer-aware SVG exporter, the PDF writer and its import
+round-trip, the CLI argument parser, the launch contract, the animation cycle
+and form helpers, the measurement units, the rotate transforms, the mirror rules
+and the store's edit transaction, the stroke profiles - including a check that
+the outline an export writes covers exactly the pixels the canvas paints, on
+shapes chosen to break one - Mesh Warp's mesh, its as-rigid-as-possible solve and the
+map that carries art onto it, the graphic-design API, and a regression suite pinning the defects earlier source
+reviews found — so a fix that was hard to see cannot quietly come undone.</p>
+<p>Two suites hold contracts rather than behaviour. <code>test/headless.test.ts</code>
+installs a DOM that exists and throws on first touch, then runs every entry
+point documented as DOM-free under it: the SVG, PDF and Illustrator script
+writers, the <code>.skbk</code> round trip, the sharpen engine, the path-data parser, both composition
+renderers, a napkin script run end to end with its shape library, and the
+render calls writing a page to every format. A stray
+<code>document.</code> fails there by name, where elsewhere it would pass because Node
+has no document. <code>test/script-instructions.test.ts</code> holds the instruction
+language's verb table to its types, field by field.</p>
+<p>The language's own suites read scripts (<code>test/script-parse.test.ts</code>), run
+expressions (<code>test/script-expr.test.ts</code>), and write scripts back and check them
+as JSON (<code>test/script-format.test.ts</code>), including a round trip of every verb's
+example. <code>test/script-evaluate.test.ts</code> runs scripts into sketch books and
+checks the pages, the layer tree and each mark's anchors and paint, down to the
+budget stopping a run and one script giving the same book twice.
+<code>test/script-geometry.test.ts</code> holds the geometry to its rules: a circle's
+handles, an arc against the importer's reading of the same SVG arc, a rounded
+polygon's fillets, a curve through points, every library shape filling its
+box, and the committed shape library matching its assets.
+<code>test/script-rough.test.ts</code> holds the hand-drawn pass to its measurements:
+drift within reach, smooth joins kept smooth, bows growing with the square
+root of a segment's length, overshoot along the tangents, the fill drawn apart
+from its line, and one script and seed giving the same drawing every run.
+<code>test/script-text.test.ts</code> covers text and media: text items aligned on the
+built-in face's measure, lettering drawn as marks, images sized from their
+own headers, and documents copied in with <code>use</code>. The assets and documents
+those examples name come from <code>test/helpers/script-fixtures.ts</code>.
+<code>test/link.test.ts</code> covers linked files: the model keeps a link, the SVG
+writers keep the reference, the rasterizer draws the file only through the
+host's resolver and draws the placeholder otherwise, and a host reads only
+inside the folder it names.
+<code>test/sketch-composition.test.ts</code> covers the PNG's road from a sketch: each
+kind of mark lowered into the composition model, the gradients, erase shapes
+and one-picture groups the model gained for it, and, wherever <code>rsvg-convert</code>
+is installed, the PNG against the SVG as <code>rsvg-convert</code> draws it, agreeing on
+at least 99% of the ink of every fixture in <code>test/imports/</code>, which
+<code>test/helpers/fixture-sketch.ts</code> reads with no DOM.
+<code>test/script-render.test.ts</code> covers the render calls: every format from one
+call, the ink box and its pad, a registration box every page shares, the
+<code>.skbk</code> round trip, and the PDF's colors, outlines, dashes and text boxes.
+<code>test/script-files.test.ts</code> covers <code>napkin-sketch/node</code> on a real file
+system: scripts read from files, assets and documents loaded by name, links
+read beside the script and refused outside it, a file a format and a file a
+page, names that cannot leave the output folder, <code>strict</code>, and files written
+whole. <code>test/api-surface.test.ts</code> holds both entries to lists: every name the
+barrel exported before the language joined it is still there, and the
+language and the Node calls are exported where the package map says.
+<code>test/cli-draw.test.ts</code> runs the command line's <code>draw</code>, <code>check</code>, <code>render</code> and
+<code>verbs</code> in memory - files, standard input, the JSON report, every exit code -
+and then the built CLI as a process, with <code>electron</code> made impossible to load.
+<code>test/cli-examples.test.ts</code> runs the callers in <code>docs/api/cli/examples/</code>
+through <code>sh</code>, <code>cmd</code>, Node, Python and a C compiler, each where it is
+installed.
+<code>test/effects.test.ts</code> holds each effect to the pixels its matrix gives, to
+SVG's order of a filter, a mask, a clip and an opacity, and to what
+<code>rsvg-convert</code> draws from the SVG, and <code>test/script-effects.test.ts</code> holds
+the <code>effect</code> verb to what it attaches to; <code>test/gui/check-effects.mjs</code> finds
+them painted in the app, read back from napkin's own SVG, and drawn by the
+composition canvas painter.
+<code>test/illustrator.test.ts</code> runs each Illustrator script the writer makes
+against a stand-in for Illustrator's scripting objects, which holds it to
+Illustrator's rules - an item added goes on top, nothing is drawn on a hidden
+or locked layer, an SVG will not place - and reads back the layer tree, the
+anchors and handles, the paint, the text, the images and the links it built;
+it also holds the script to ES3 and ASCII, and the interop page's excerpt to
+the writer.
+<code>test/ai-bridge.test.ts</code> holds the form a script helper reads, the script read
+back from what it saved or printed, and the loop that sends a script with
+errors back once, against a stand-in for the helper; <code>test/cli-draw.test.ts</code>
+runs <code>draw --prompt</code> with a stand-in AI tool as a real process, through every
+way it ends; and <code>test/ai-helper.test.ts</code> checks the <code>napkin-script</code> skill's
+three scripts and the three registries.
+<code>test/script-animation.test.ts</code> draws the figure in <code>test/imports/walk.svg</code>,
+read with no DOM by <code>test/helpers/walk-figure.ts</code>, through the measured
+cycles: eight pages sharing one box, each limb turned about the joint it has
+in the source, a looping cycle closing on the source pose, the pacing and the
+mirroring, and what cannot be drawn said as much; <code>test/cli-draw.test.ts</code>
+runs <code>render --animate</code>, and <code>test/gui/check-measured-frames.mjs</code> presses
+<strong>Draw measured frames</strong> in the app, draws the frames and undoes them.
+<code>test/script-docs.test.ts</code> holds the pages under <code>docs/api/</code> and the three
+hubs at the root to the code: every script on a page must read, every error
+example must produce the codes it names, every JSON script must validate, and
+every generated table must be current. <code>test/api-docs.test.ts</code> holds their
+shape: every file <code>npm run api-docs</code> writes must be what it writes today,
+every category has its three pages, each kind of page keeps its headings and
+its length, every page links to its hub and its siblings in its first lines,
+every link to a heading reaches one, and the object form's schema accepts
+every verb's example and refuses what the object form refuses.</p>
+<p>The menus are held to the menus they replaced. <code>test/menu-registry.test.ts</code>
+writes out the File, Edit and View menus and the right-click lists as they
+stood before 1.0.0-alpha.4.5.0, applies each deliberate change in a named
+step, and requires what the registry generates to match exactly. It spells
+out the whole menu bar, all nine menus, row for row, and holds the two menu
+files to their own rules: every tool has a type a menu can place it by, every
+shortcut is written one way and held by one tool. <code>test/chords.test.ts</code> covers
+how a shortcut is read, shown and matched against a keypress on any layout,
+and <code>test/menu-overrides.test.ts</code> the user's two files: what they may change,
+what is refused with a sentence, and that the shipped files are never written.
+<code>test/menu-dispatch.test.ts</code> holds each place a row becomes an action - the
+native menu's clicks, the window's command table, the right-click items - to
+the id the row carries, and <code>npm run gui-check -- context-menus</code> reads the
+menu bar back from Electron and drives every right-click menu and dropdown in
+the built app. <code>test/keys.test.ts</code> sends every shipped shortcut through the
+key lookup, with the rules the old key handler kept - Shift and a letter
+still mean the letter when no shortcut uses the Shift form; a key a role row
+holds is left to Electron - and <code>test/menu-docs.test.ts</code> holds the menus
+table and the shortcut tables of the Menus and shortcuts page and the
+cheatsheet to what <code>npm run menu-docs</code> writes. <code>npm run gui-check --
+shortcuts</code> runs the app with a shortcuts file of its own, put in the
+user-data folder it hands the app (<code>NAPKIN_USER_DATA</code>), and presses the
+keys. <code>test/config-dialog.test.ts</code> covers the configuration popup the menu
+editors are built on: its search, its filters, what a shortcut cell says
+about a chord, and edits held apart from the rows until Accept. <code>npm run
+gui-check -- config-dialog</code> opens the popup in the built app with a spec of
+its own, through a <code>window.napkinCheck</code> hook the page puts up only when the
+app is started for a check (<code>NAPKIN_GUI_CHECK=1</code>, which <code>test/gui/cdp.mjs</code>
+sets), then searches, filters, captures chords and accepts with real keys
+and clicks. <code>test/menu-editors.test.ts</code> covers Edit Keyboard Shortcuts: the
+rows it lists, what a shortcut cell says about a chord, how Accept takes a
+chord from the tool that held it, and what that saves. <code>npm run gui-check
+-- shortcuts-dialog</code> starts the app on a shortcuts file that is not JSON,
+then saves a shortcut, sees it take effect, warns, refuses, resets to the
+defaults and cancels, reading the user's file after each step. The same
+file covers Edit Tool Types, and <code>test/menu-registry.test.ts</code> holds where
+the editor says a type is listed to where the menus show a tool of that
+type, for every tool. <code>npm run gui-check -- tool-types-dialog</code> moves Rotate
+to the clipboard's type, finds it in the menu bar's Edit menu and the
+layers panel's right-click menu, runs it from the canvas's, then resets
+it, puts a toolbar tool in the Transform menu and cancels a change.</p>
+<p><code>npm run test:graphic-design-api</code> is the second one, and it measures a
+different thing: not compositions but the road to them. It reads the reference
+asset, generates a skill from it into the AI tool's real skills folder, points
+that skill at the symlinked brand assets in
+<code>test/graphic-design-api/test-assets/</code> through a <code>resources.md</code>, registers what
+a bare request means, and draws graphics that carry them into
+<code>test/graphic-design-api/generated-graphics/</code>. Every step is a production entry
+point invoked as the documentation says to invoke it, so a pass means a clone
+following <a href="../api/ai/quickstart.html">the AI helpers' quickstart</a> works. It
+needs a file system, a symlinked folder and a generated script, none of which a
+bundled <code>node:test</code> suite can exercise honestly.</p>
+<p>It also <strong>leaves the tool wired up</strong>, which is the point of running it rather
+than only of passing it: afterwards <code>/graphic-design-api generate</code> draws, with
+nothing to configure. The one thing it does that interactive use does not is
+answer the overwrite prompt in advance - a script cannot be asked.</p>
+<p>The graphic-design suite draws real files: it renders a reference composition
+and several variations of it to both formats, writes them to <code>.tmp/</code>, and
+deletes them on the way out, so a run leaves the working tree as it found it.
+The one thing a graphics test cannot assert is whether the picture looks right,
+so there is a flag for looking:</p>
+<pre><code class="language-bash">npm test -- --keep-graphics   # keep the generated SVGs and PNGs, and print where</code></pre>
+<p>The golden scripts are the suite a person rewrites on purpose. Each script in
+<code>test/scripts/</code> is drawn to SVG and compared byte for byte with the file beside
+it, twice in one process and once in a fresh one, so a change to what the
+language draws fails until someone has looked at it and asked for it:</p>
+<pre><code class="language-bash">npm test -- --update-golden   # rewrite test/scripts/*.svg from what the scripts draw today</code></pre>
+<p>The script writer runs the other way and is held to the same bytes.
+<code>test/script-writer.test.ts</code> writes every SVG fixture and every page of every
+golden script as napkin script, draws that script back, and requires the same
+SVG, byte for byte. The one difference it allows is a filled shape the source
+left open, which the writer closes, since a script fills only a closed path.
+The formatted text of the triangle fixture is kept in
+<code>test/scripts/written/mirror-triangle.napkin</code>, which <code>--update-golden</code> also
+rewrites, so a change in the writer's style is a change someone looked at.</p>
+<p><code>test/script-generate.test.ts</code> covers Automate &gt; Generate Script with no
+window: a file read as a page has the tree File &gt; Import builds, since both
+use one routine; a PDF's pages, written as a book, draw back as they were
+read, the walking figure's to the same pixels; a picture's two scripts, the
+link and the embedded one, run; and the selected layers are written with the
+groups above them, on the page kept or fitted. <code>npm run gui-check --
+generate-script</code> picks two parts of an imported figure in the Layers panel,
+writes them, fits the page and opens it, then writes an SVG and a PNG from
+their files, embeds, copies, and closes the dialog with Escape and Cancel.</p>
+<p><code>test/history-diff.test.ts</code> covers what Track History records of a step,
+on pages built by hand: marks added, removed and changed, the paint order,
+and each thing that can happen to a layer row. <code>test/history-tracker.test.ts</code>
+drives the store's history hook - a drag is one step, a transaction is one
+on commit and none on rollback, undo and redo are steps of their own, a page
+change closes the step on its page, a new book starts again - then the names
+a step is given from the real menu files, and the limit. <code>npm run gui-check
+-- track-history</code> turns tracking on from the menu bar, draws two strokes
+with real pointer events, rotates one, undoes, reads the four steps back,
+and uses the Automate section of Verbose Settings, in its own window, to set
+the limit and turn tracking off. <code>test/history-script.test.ts</code> records
+sessions through the store and plays them back with steps left out: every
+step ticked draws the page as it is, a removal left out brings its mark
+back, an addition left out drops its mark and the changes to it, and a
+change left out takes back only what it changed. <code>npm run gui-check --
+history-script</code> draws two strokes, turns one, unticks the turn in the
+popup, and opens the page each script draws.</p>
+<p><code>test/site.test.ts</code> holds the documentation site to its sources: every page
+is what <code>npm run site</code> writes today; the top bar, menu and footer are one
+copy on every page once each link is read from its page's folder; every
+relative link reaches a file the site publishes and every <code>#anchor</code> a
+heading; the stylesheet's colors are those in <code>DESIGN_LANGUAGE.md</code>; and the
+Markdown converter renders what the pages use as GitHub does. It also runs
+the napkin examples in <code>docs/site-src/</code>. <code>test/docs-window.test.ts</code> covers
+the documentation window's decisions with no Electron: where the pages are
+read from, which names reach a page, what a Help row does when they are
+missing, where a link in them may go, and its keys. <code>npm run gui-check --
+help-menu</code> opens <strong>Help &gt; Verbose</strong>, follows a page link, goes back and
+forward with Alt and the arrows, sends a web link to the browser, shows each
+Tool Types quickstart in the same window, and closes it with Ctrl+W.</p>
+<p><code>npm run pack-check</code> is the install, checked: it packs the package, installs
+the tarball into an empty folder - where no Electron arrives, since it is a
+development dependency - and draws from it with <code>napkin-sketch draw -</code> and
+with both entries imported by name. Build and emit the types first; it packs
+what <code>dist/</code> holds.</p>
+<p>Some defects can only be seen in the running app: the SVG importer needs a
+DOM, the color picker is a native popup, and a paint that went missing shows up
+only as pixels. <code>npm run gui-check</code> drives the built app for those. It
+launches Electron with the DevTools protocol open, runs each <code>check-*.mjs</code> in
+<code>test/gui/</code> in turn, and asserts on what the page shows (canvas pixels, the
+toast, the layer rows) rather than on the code behind it:</p>
+<pre><code class="language-bash">npm run build                    # the checks drive dist/, so build first
+npm run gui-check                # every check, one app launch each
+npm run gui-check -- gradient    # only the checks whose names match</code></pre>
+<p>A check opens a new, unsaved sketch with a fixture from <code>test/imports/</code>
+imported, or a book it writes to a temporary folder, so it leaves the working
+tree as it found it. The measured-frames check needs Animation Mode installed
+and says so when it is not; it saves its frames to <code>animations/</code> under names
+no one else's frames have, and removes them after. The window does appear on
+screen while a check runs.</p>
+<p>Each launch gets a user-data folder of its own, made for it and removed after
+it, so a check starts from the default settings and leaves none behind - the
+app run from the checkout by hand keeps its own in <code>%APPDATA%/Electron</code>, and
+a check never touches it. A check that needs a file there first, such as a
+<code>shortcuts.json</code>, makes the folder itself and passes it. The app is launched
+with Chromium's occlusion tracking off, so a check window that opens behind
+another still draws, and a link a check sends to the browser is recorded
+rather than opened. One check runs alone with <code>node --experimental-websocket
+test/gui/check-&lt;name&gt;.mjs</code>, which Node 21 needs for <code>WebSocket</code>.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="building.html" rel="prev"><span>Previous</span>Building and packaging</a><a href="project-structure.html" rel="next"><span>Next</span>Project structure</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/develop/testing.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

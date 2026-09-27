@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The AI helpers: cheatsheet - napkin-sketch</title>
+<meta name="description" content="The AI helpers, as tables to look things up in.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>The AI helpers</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html" aria-current="page">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">The AI helpers</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
+<h1 id="the-ai-helpers-cheatsheet">The AI helpers: cheatsheet<a class="anchor" href="#the-ai-helpers-cheatsheet" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#getting-the-helper">Getting the helper</a></li><li><a href="#commands">Commands</a></li><li><a href="#drawing-from-a-request">Drawing from a request</a></li><li><a href="#the-files-a-skill-holds">The files a skill holds</a></li><li><a href="#resourcesmd"><code>resources.md</code></a></li><li><a href="#reading-these-pages-as-an-agent">Reading these pages as an agent</a></li><li><a href="#what-a-diagnostic-asks-of-you">What a diagnostic asks of you</a></li><li><a href="#common-mistakes">Common mistakes</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <a href="quickstart.html">Quickstart</a> · <strong>Cheatsheet</strong></p>
+<p>Reminders for the helpers and for an agent reading these pages: the commands, the files, the brand keys, and what a diagnostic asks of you.</p>
+<h2 id="getting-the-helper">Getting the helper<a class="anchor" href="#getting-the-helper" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Want</th><th>Run</th></tr></thead>
+<tbody>
+<tr><td>The plugin, from a clone</td><td><code>/plugin marketplace add .</code> then <code>/plugin install graphic-designer@napkin-sketch</code></td></tr>
+<tr><td>The files, into <code>.claude</code></td><td><code>npm run ai-helper -- --helper graphic-designer</code></td></tr>
+<tr><td>The files, into <code>.github</code></td><td><code>npm run ai-helper -- --helper graphic-designer --to github</code></td></tr>
+<tr><td>The scripting helper</td><td><code>/plugin install scripting@napkin-sketch</code>, or <code>npm run ai-helper -- --helper scripting</code></td></tr>
+<tr><td>Every target and helper</td><td><code>npm run ai-helper -- --list</code></td></tr>
+</tbody></table></div>
+<h2 id="commands">Commands<a class="anchor" href="#commands" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Want</th><th>Run</th></tr></thead>
+<tbody>
+<tr><td>A language and a skill from an asset</td><td><code>node ai-helper/graphic-designer/skills/design-language/scripts/generate-skill.mjs asset.svg --to .claude/skills</code></td></tr>
+<tr><td>An asset's palette and shares</td><td><code>node .../design-language/scripts/analyze-media.mjs asset.svg --colors 12</code></td></tr>
+<tr><td>The same, as Markdown</td><td><code>node .../design-language/scripts/analyze-media.mjs asset.svg --markdown</code></td></tr>
+<tr><td>The default drawing</td><td><code>node .claude/skills/&lt;stem&gt;/scripts/make-&lt;stem&gt;.mjs --out ./out</code></td></tr>
+<tr><td>New words, the same language</td><td><code>make-&lt;stem&gt;.mjs --title &quot;Acme Corp&quot; --heading &quot;Quarterly Summary&quot; --out ./out</code></td></tr>
+<tr><td>Something structurally new</td><td><code>make-&lt;stem&gt;.mjs --cheatsheet --out ./out</code></td></tr>
+<tr><td>What the brand resolved to</td><td><code>node .claude/skills/&lt;stem&gt;/scripts/brand-resources.mjs --print</code></td></tr>
+<tr><td>What a request turns into</td><td><code>node .../design-language/scripts/brand-resources.mjs --registration</code></td></tr>
+<tr><td>The whole tour</td><td><code>npm run test:graphic-design-api</code></td></tr>
+</tbody></table></div>
+<h2 id="drawing-from-a-request">Drawing from a request<a class="anchor" href="#drawing-from-a-request" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Want</th><th>Run</th></tr></thead>
+<tbody>
+<tr><td>A script from a sentence, drawn</td><td><code>napkin-sketch draw --prompt &quot;a three-box flowchart with arrows&quot; --to svg</code></td></tr>
+<tr><td>Another AI tool</td><td><code>--helper &quot;&lt;command&gt;&quot;</code>, or <code>NAPKIN_SCRIPT_HELPER</code></td></tr>
+<tr><td>The script in the report</td><td><code>--json</code>, then <code>script.text</code></td></tr>
+<tr><td>The script inside an AI tool</td><td><code>/scripting:draw a three-box flowchart with arrows</code></td></tr>
+<tr><td>The same drawing again</td><td><code>napkin-sketch draw &lt;name&gt;.napkin</code>: the script was kept</td></tr>
+</tbody></table></div>
+<div class="table-wrap"><table>
+<thead><tr><th>File or code</th><th>Is</th></tr></thead>
+<tbody>
+<tr><td><code>_temp/script-form.txt</code></td><td>The form the tool reads: the request, the rules, what is handed over</td></tr>
+<tr><td><code>_temp/script-out.napkin</code></td><td>Where the tool saves the script</td></tr>
+<tr><td><code>&lt;name&gt;.napkin</code></td><td>The script, kept beside the drawings</td></tr>
+<tr><td>Exit <code>4</code></td><td>No script came back: <code>error.reason</code> is <code>missing-tool</code>, <code>auth</code>, <code>no-script</code> or <code>other</code></td></tr>
+</tbody></table></div>
+<h2 id="the-files-a-skill-holds">The files a skill holds<a class="anchor" href="#the-files-a-skill-holds" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>File</th><th>Holds</th></tr></thead>
+<tbody>
+<tr><td><code>SKILL.md</code></td><td>When to reach for it, and the language in brief</td></tr>
+<tr><td><code>DESIGN_LANGUAGE.md</code></td><td>Every measurement, and every reading, marked which is which</td></tr>
+<tr><td><code>references/resources.md</code></td><td>The brand: paths to draw and text to print</td></tr>
+<tr><td><code>references/graphic-design-api.json</code></td><td>Which script a bare request runs, with what, and where to</td></tr>
+<tr><td><code>scripts/make-&lt;stem&gt;.mjs</code></td><td>Draws new work; the constants at its top are the language</td></tr>
+<tr><td><code>scripts/brand-resources.mjs</code></td><td>Resolves <code>resources.md</code> into placeable assets</td></tr>
+</tbody></table></div>
+<h2 id="resourcesmd"><code>resources.md</code><a class="anchor" href="#resourcesmd" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Line</th><th>Is</th></tr></thead>
+<tbody>
+<tr><td><code>- logo: assets/logo.svg</code></td><td>A path: it has a folder or a media extension</td></tr>
+<tr><td><code>- GLOBAL_ASSETS: assets/brand/</code></td><td>A folder whose file names are the slots they fill</td></tr>
+<tr><td><code>- brand name: Acme Corp.</code></td><td>Text to draw</td></tr>
+<tr><td><code>- domain: example.com</code></td><td>Text: no folder, no media extension</td></tr>
+<tr><td><code>- tag line: This or That</code></td><td>Text</td></tr>
+</tbody></table></div>
+<h2 id="reading-these-pages-as-an-agent">Reading these pages as an agent<a class="anchor" href="#reading-these-pages-as-an-agent" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Step</th><th>Read or run</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>docs/api/INDEX.json</code>: every page, its kind, its first paragraph and its size</td></tr>
+<tr><td>2</td><td>A cheatsheet, then a quickstart, then a reference page only if those do not answer</td></tr>
+<tr><td>3</td><td><code>napkin-sketch verbs --json</code>: every verb's grammar, the shapes and the codes</td></tr>
+<tr><td>4</td><td><code>docs/api/schema/instructions.schema.json</code>, for a script built as JSON</td></tr>
+<tr><td>5</td><td><code>napkin-sketch check - --json &lt; card.napkin</code> before drawing</td></tr>
+</tbody></table></div>
+<h2 id="what-a-diagnostic-asks-of-you">What a diagnostic asks of you<a class="anchor" href="#what-a-diagnostic-asks-of-you" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Code</th><th>Do</th></tr></thead>
+<tbody>
+<tr><td><code>unknown-verb</code>, <code>unexpected-token</code>, <code>expected-*</code>, <code>missing-argument</code></td><td>Rewrite the line</td></tr>
+<tr><td><code>unknown-variable</code></td><td>Set the name with <code>let</code> or <code>repeat ... as</code> first</td></tr>
+<tr><td><code>unknown-asset</code>, <code>unknown-document</code></td><td>Have the host pass it: <code>--asset</code>, <code>--use</code>, <code>assets</code>, <code>documents</code></td></tr>
+<tr><td><code>budget-exceeded</code></td><td>Draw less, or raise the limit deliberately</td></tr>
+<tr><td><code>version-unsupported</code></td><td>Write for the version the build names</td></tr>
+<tr><td>Any warning</td><td>It drew; <code>--strict</code> still fails it</td></tr>
+</tbody></table></div>
+<ul>
+<li>Branch on <code>code</code>, never on <code>message</code>.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes<a class="anchor" href="#common-mistakes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Wrong</th><th>Right</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Editing a color in the layout</td><td>Edit the constant at the top of <code>make-&lt;stem&gt;.mjs</code></td><td>The constants are the language.</td></tr>
+<tr><td>An SVG logo that is missing from the PNG</td><td>Place it through <code>placeBrand</code></td><td>An SVG placed as an image is a hole in the PNG.</td></tr>
+<tr><td>Trusting a reading in <code>DESIGN_LANGUAGE.md</code></td><td>Check what was measured</td><td>Readings are guesses the file marks as such.</td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="quickstart.html" rel="prev"><span>Previous</span>The AI helpers: quickstart</a><a href="../../embed.html" rel="next"><span>Next</span>Embedding the editor</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/ai/CHEATSHEET.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

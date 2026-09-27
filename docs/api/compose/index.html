@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The graphic design API - napkin-sketch</title>
+<meta name="description" content="Compositions built in code - shapes, text, media, masks, gradients, effects - rendered to SVG or PNG.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>The graphic design API</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Reference</span></nav>
+<h1 id="the-graphic-design-api">The graphic design API<a class="anchor" href="#the-graphic-design-api" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>Build a graphic design composition out of simple elements - rectangles,
+circles, ellipses, triangles, polygons, lines, paths, text, placed media and
+clipping masks, painted in flat colors or gradients - and render it to <strong>SVG</strong>
+or <strong>PNG</strong>.</p>
+<p><strong>Contents</strong></p>
+<ul>
+<li><a href="#what-this-is">What this is</a></li>
+<li><a href="#the-mental-model">The mental model</a></li>
+<li><a href="#reference">Reference</a>
+<ul>
+<li><a href="#getting-started">Getting started</a></li>
+<li><a href="#the-page">The page</a></li>
+<li><a href="#elements">Elements</a></li>
+<li><a href="#clipping-masks">Clipping masks</a></li>
+<li><a href="#gradients">Gradients</a></li>
+<li><a href="#effects">Effects</a></li>
+<li><a href="#transforms">Transforms</a></li>
+<li><a href="#rendering">Rendering</a></li>
+<li><a href="#node-file-helpers">Node file helpers</a></li>
+<li><a href="#brand-resources">Brand resources</a></li>
+<li><a href="#drawing-into-the-gui-canvas">Drawing into the GUI canvas</a></li>
+<li><a href="#what-the-two-formats-share-and-where-they-differ">What the two formats share, and where they differ</a></li>
+</ul></li>
+<li><a href="#worked-examples">Worked examples</a></li>
+<li><a href="#limits">Limits</a></li>
+<li><a href="#for-agents">For agents</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+<h2 id="what-this-is">What this is<a class="anchor" href="#what-this-is" aria-label="Link to this section">#</a></h2>
+<p>The API is headless. It needs no browser, no canvas, no Electron window and no
+native image library: a Node script can draw a card, a badge or a diagram and
+write both files with nothing installed but this package. It does not touch the
+sketch that happens to be open in the app unless it is explicitly handed the
+app's own canvas, which is what <code>useGuiCanvas</code> is for.</p>
+<p>The two renderers read one document. That is the whole design: the SVG and the
+PNG of a composition are the same graphic, and the only difference between them
+is the media export format.</p>
+<p><strong>Working with an AI tool?</strong> The <code>graphic-designer</code> helper in
+<a href="https://github.com/isocialPractice/napkin-sketch/tree/main/ai-helper/graphic-designer"><code>ai-helper/graphic-designer/</code></a> drives this API:
+its <code>design-language</code> skill reads an existing graphic into a written
+<code>DESIGN_LANGUAGE.md</code> and generates a per-asset skill whose scripts compose new
+work through the calls below, and its <code>graphic-design-api</code> skill carries the
+visual judgment to make the result good. Install it with
+<code>npm run ai-helper -- --helper graphic-designer</code>.</p>
+<p>A drawing made in the app or by a napkin script becomes a composition too:
+<code>sketchToComposition</code> lowers a page into this model, which is how a sketch is
+written to PNG with no DOM, and how code adds to a drawing before rendering it.
+<a href="../output/index.html#from-a-sketch-to-a-composition">Writing a drawing out</a>
+covers it.</p>
+<h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-text"> createComposition(page) --rect, circle, text, image, group, ...--&gt; elements, in drawing order
+         |
+    toDocument()  --&gt;  one document  --+--&gt; toSVG()  / compositionToSvg      --&gt;  SVG text
+                                       +--&gt; toPNG()  / rasterizeComposition  --&gt;  PNG bytes
+                                       +--&gt; paintComposition                 --&gt;  the app's canvas</code></pre>
+<p>Every call adds an element and returns it; nothing is drawn until a renderer
+reads the document, and a renderer never changes it. The three renderers read
+the same geometry, colors, transforms, masks and text layout, so what differs
+between an SVG and a PNG of one composition is only what the two formats are.</p>
+<h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
+<h3 id="getting-started">Getting started<a class="anchor" href="#getting-started" aria-label="Link to this section">#</a></h3>
+<pre><code class="language-ts">import { createComposition } from 'napkin-sketch';
+
+const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
+
+design.rect({ x: 24, y: 24, width: 312, height: 96, rx: 12, fill: '#326478' });
+design.text({
+  x: 180,
+  y: 78,
+  text: 'Acme Corp',
+  align: 'center',
+  fontSize: 28,
+  fill: '#ffffff',
+});
+design.circle({ cx: 180, cy: 220, r: 64, fill: '#4cae50' });
+
+const svg = design.toSVG();  // a string
+const png = design.toPNG();  // a Uint8Array of PNG file bytes</code></pre>
+<p>Every method takes one object of properties, appends an element in drawing
+order - later elements paint over earlier ones - and returns the element it
+created, so it can be kept and referenced later:</p>
+<pre><code class="language-ts">const plate = design.rect({ x: 0, y: 0, width: 360, height: 64, fill: '#ffffff' });
+plate.fill = '#fffff0';  // still just an object, right up until it renders</code></pre>
+<p>Nothing renders until <code>toSVG</code>, <code>toPNG</code> or <code>render</code> is called, and rendering
+never mutates the document. Rendering one composition twice, in either format,
+produces identical bytes.</p>
+<h3 id="the-page">The page<a class="anchor" href="#the-page" aria-label="Link to this section">#</a></h3>
+<p><code>createComposition(options)</code> takes:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Option</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>width</code></td><td><code>360</code></td><td>Page width, in <code>units</code></td></tr>
+<tr><td><code>height</code></td><td><code>360</code></td><td>Page height, in <code>units</code></td></tr>
+<tr><td><code>units</code></td><td><code>'px'</code></td><td><code>px</code>, <code>in</code>, <code>mm</code> or <code>pt</code> - the unit every coordinate in the composition is read in</td></tr>
+<tr><td><code>background</code></td><td><code>null</code></td><td>A CSS color, or <code>null</code> for a transparent page</td></tr>
+<tr><td><code>id</code></td><td>none</td><td>Written as the root <code>&lt;svg id&gt;</code></td></tr>
+<tr><td><code>title</code></td><td>none</td><td>Written as <code>&lt;title&gt;</code>, which is what a screen reader announces</td></tr>
+<tr><td><code>useGuiCanvas</code></td><td><code>false</code></td><td>See <a href="#drawing-into-the-gui-canvas">Drawing into the GUI canvas</a></td></tr>
+</tbody></table></div>
+<p>Sizes are explicit and a size left out defaults to 360 by 360 pixels:</p>
+<pre><code class="language-ts">createComposition();                                  // 360 x 360 px
+createComposition({ width: 1200, height: 630 });      // a social card
+createComposition({ width: 210, height: 297, units: 'mm' });  // A4</code></pre>
+<p>Print units convert through the CSS reference of 96 pixels to the inch, the
+same ratio the SVG and PDF exports assume. An A4 page therefore writes
+<code>width=&quot;210mm&quot;</code> with a <code>viewBox</code> in millimetres, and rasterizes to 794 by 1123
+pixels at <code>scale: 1</code>.</p>
+<h3 id="elements">Elements<a class="anchor" href="#elements" aria-label="Link to this section">#</a></h3>
+<h4 id="shared-properties">Shared properties<a class="anchor" href="#shared-properties" aria-label="Link to this section">#</a></h4>
+<p>Every element understands these. All are optional.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Property</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>id</code></td><td>A stable id, written to the SVG and referenced by masks</td></tr>
+<tr><td><code>name</code></td><td>A label, written as <code>data-name</code> - what a design tool's layers panel shows</td></tr>
+<tr><td><code>fill</code></td><td>Fill paint as a CSS color, a <a href="#gradients">gradient</a>, or <code>null</code> for no fill</td></tr>
+<tr><td><code>fillOpacity</code></td><td>Fill alpha, 0 to 1</td></tr>
+<tr><td><code>fillRule</code></td><td><code>nonzero</code> (default) or <code>evenodd</code>, for self-intersecting outlines</td></tr>
+<tr><td><code>stroke</code></td><td>Stroke paint as a CSS color, or <code>null</code> for no stroke</td></tr>
+<tr><td><code>strokeWidth</code></td><td>Stroke width in composition units (default 1)</td></tr>
+<tr><td><code>strokeOpacity</code></td><td>Stroke alpha, 0 to 1</td></tr>
+<tr><td><code>lineCap</code></td><td><code>butt</code> (default), <code>round</code> or <code>square</code></td></tr>
+<tr><td><code>lineJoin</code></td><td><code>miter</code> (default), <code>round</code> or <code>bevel</code></td></tr>
+<tr><td><code>dash</code></td><td>Dash pattern, e.g. <code>[6, 3]</code></td></tr>
+<tr><td><code>dashOffset</code></td><td>Offset into the dash pattern</td></tr>
+<tr><td><code>opacity</code></td><td>Element alpha, multiplied over fill and stroke alike</td></tr>
+<tr><td><code>rotate</code></td><td>Rotation in degrees, clockwise</td></tr>
+<tr><td><code>scale</code></td><td>A number, or <code>{ x, y }</code></td></tr>
+<tr><td><code>translate</code></td><td><code>{ x, y }</code>, applied after rotation and scale</td></tr>
+<tr><td><code>origin</code></td><td>Pivot for rotation and scale (default: the element's own centre)</td></tr>
+<tr><td><code>clip</code></td><td>A mask id, or an inline shape</td></tr>
+<tr><td><code>visible</code></td><td><code>false</code> keeps the element in the model and out of every render</td></tr>
+</tbody></table></div>
+<p>Colors accept hex in three, four, six and eight digits, <code>rgb()</code>, <code>rgba()</code>,
+<code>hsl()</code>, <code>hsla()</code>, <code>transparent</code>, and the usual color keywords. A color the
+parser does not recognise stops the PNG render with an error that names it -
+<code>graphic-design: unsupported color &quot;#32647&quot;</code> - rather than painting something
+black; the SVG writes it as given, for a viewer to ignore.</p>
+<h4 id="rectangles">Rectangles<a class="anchor" href="#rectangles" aria-label="Link to this section">#</a></h4>
+<pre><code class="language-ts">design.rect({ x: 20, y: 20, width: 120, height: 60, fill: '#326478' });
+design.rect({ x: 20, y: 100, width: 120, height: 60, rx: 12, fill: '#4cae50' });
+design.rect({ x: 20, y: 180, width: 120, height: 60, rx: 24, ry: 8, fill: '#fdc83a' });</code></pre>
+<p><code>rx</code> rounds the corners on x and, when <code>ry</code> is left out, on y as well.</p>
+<h4 id="circles-and-ellipses">Circles and ellipses<a class="anchor" href="#circles-and-ellipses" aria-label="Link to this section">#</a></h4>
+<pre><code class="language-ts">design.circle({ cx: 80, cy: 80, r: 40, fill: '#4cae50' });
+design.ellipse({ cx: 200, cy: 80, rx: 60, ry: 30, fill: 'none', stroke: '#326478', strokeWidth: 2 });</code></pre>
+<h4 id="triangles">Triangles<a class="anchor" href="#triangles" aria-label="Link to this section">#</a></h4>
+<p>Two forms. Three explicit points is what a drawing wants; a box and a direction
+is what a layout wants.</p>
+<pre><code class="language-ts">design.triangle({ x: 20, y: 20, width: 80, height: 70, variant: 'up', fill: '#dc143c' });
+design.triangle({
+  points: [
+    { x: 140, y: 90 },
+    { x: 200, y: 20 },
+    { x: 240, y: 90 },
+  ],
+  fill: '#4b0082',
+});</code></pre>
+<p><code>variant</code> is <code>up</code> (the default), <code>down</code>, <code>left</code> or <code>right</code>, naming the corner
+the apex points at.</p>
+<h4 id="polygons-polylines-and-lines">Polygons, polylines and lines<a class="anchor" href="#polygons-polylines-and-lines" aria-label="Link to this section">#</a></h4>
+<pre><code class="language-ts">design.polygon({ points: [ /* ... */ ], fill: '#b4bec8' });      // closed
+design.polyline({ points: [ /* ... */ ], fill: null, stroke: '#000133', strokeWidth: 3 });  // open
+design.line({ x1: 16, y1: 100, x2: 344, y2: 100, stroke: '#4cae50', strokeWidth: 2 });</code></pre>
+<p>A polygon closes itself and fills by default; a polyline does not close and is
+usually given <code>fill: null</code>.</p>
+<h4 id="paths">Paths<a class="anchor" href="#paths" aria-label="Link to this section">#</a></h4>
+<pre><code class="language-ts">design.path({
+  d: 'M 20 130 C 60 110, 100 170, 140 130',
+  fill: null,
+  stroke: '#dc143c',
+  strokeWidth: 3,
+  lineCap: 'round',
+});</code></pre>
+<p>The supported commands are <code>M L H V C S Q T Z</code>, upper and lower case.
+Elliptical arcs (<code>A</code>) are not supported - see <a href="#limits">Limits</a>.</p>
+<h4 id="text">Text<a class="anchor" href="#text" aria-label="Link to this section">#</a></h4>
+<p>Text carries character styling and paragraph styling on the same element.</p>
+<pre><code class="language-ts">design.text({
+  x: 180,
+  y: 60,
+  text: 'Quarterly report\nPrepared by Jane Doe',
+  fontFamily: &quot;Georgia, 'Times New Roman', serif&quot;,
+  fontSize: 18,
+  fontWeight: 'bold',
+  fontStyle: 'normal',
+  letterSpacing: 0.5,
+  transform: 'uppercase',
+  align: 'center',
+  lineHeight: 1.4,
+  maxWidth: 280,
+  baseline: 'top',
+  fill: '#414042',
+});</code></pre>
+<p><strong>Character styling</strong></p>
+<div class="table-wrap"><table>
+<thead><tr><th>Property</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>fontFamily</code></td><td>a sans stack</td><td>A CSS font family list</td></tr>
+<tr><td><code>fontSize</code></td><td><code>16</code></td><td>Size in composition units</td></tr>
+<tr><td><code>fontWeight</code></td><td><code>normal</code></td><td><code>normal</code>, <code>bold</code>, or a numeric CSS weight</td></tr>
+<tr><td><code>fontStyle</code></td><td><code>normal</code></td><td><code>normal</code> or <code>italic</code></td></tr>
+<tr><td><code>letterSpacing</code></td><td><code>0</code></td><td>Extra space between characters</td></tr>
+<tr><td><code>wordSpacing</code></td><td><code>0</code></td><td>Extra space added to each word gap</td></tr>
+<tr><td><code>decoration</code></td><td><code>none</code></td><td><code>underline</code> or <code>line-through</code></td></tr>
+<tr><td><code>transform</code></td><td><code>none</code></td><td><code>uppercase</code>, <code>lowercase</code> or <code>capitalize</code>, applied before wrapping</td></tr>
+</tbody></table></div>
+<p><strong>Paragraph styling</strong></p>
+<div class="table-wrap"><table>
+<thead><tr><th>Property</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>align</code></td><td><code>left</code></td><td><code>left</code>, <code>center</code>, <code>right</code> or <code>justify</code></td></tr>
+<tr><td><code>lineHeight</code></td><td><code>1.2</code></td><td>Baseline advance, as a multiple of the font size</td></tr>
+<tr><td><code>maxWidth</code></td><td>none</td><td>Wrap width; without one, text breaks only on newlines</td></tr>
+<tr><td><code>paragraphSpacing</code></td><td><code>0</code></td><td>Extra space before each paragraph after the first</td></tr>
+<tr><td><code>indent</code></td><td><code>0</code></td><td>First-line indent of each paragraph</td></tr>
+<tr><td><code>baseline</code></td><td><code>alphabetic</code></td><td>What <code>y</code> measures: <code>alphabetic</code>, <code>top</code>, <code>middle</code> or <code>bottom</code></td></tr>
+</tbody></table></div>
+<p><code>x</code> means different things under different alignments: the left edge under
+<code>left</code>, the centre under <code>center</code>, the right edge under <code>right</code>. A newline in
+<code>text</code> starts a new paragraph.</p>
+<p>Line breaking and alignment are computed once and used by both renderers, so a
+block of text occupies the same lines at the same baselines in the SVG and in
+the PNG. Measure it yourself with <code>measureText</code> and <code>layoutText</code> when a layout
+has to know how tall a block came out:</p>
+<pre><code class="language-ts">import { layoutText, measureText } from 'napkin-sketch';
+
+const width = measureText('Acme Corp', { fontSize: 18 });
+const block = layoutText(copy, {
+  x: 0, y: 0, fontSize: 12, lineHeight: 1.4,
+  align: 'left', baseline: 'alphabetic', maxWidth: 200,
+});
+console.log(block.lines.length, block.height);</code></pre>
+<h4 id="media-files">Media files<a class="anchor" href="#media-files" aria-label="Link to this section">#</a></h4>
+<p>JPEG, PNG, GIF and SVG are placed with <code>image</code>, given as a data URL.</p>
+<pre><code class="language-ts">design.image({
+  src: logoDataUrl,
+  x: 24,
+  y: 24,
+  width: 120,
+  height: 120,
+  fit: 'cover',
+  clip: 'badge',
+  alt: 'Acme Corp logo',
+});</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Property</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>src</code></td><td>A data URL. In Node, <code>imageDataUrl(path)</code> makes one from a file</td></tr>
+<tr><td><code>x</code>, <code>y</code>, <code>width</code>, <code>height</code></td><td>The box the image is placed in</td></tr>
+<tr><td><code>fit</code></td><td><code>fill</code> (default, stretch), <code>contain</code>, <code>cover</code> or <code>none</code></td></tr>
+<tr><td><code>alt</code></td><td>Alternative text, written as a <code>&lt;title&gt;</code> inside the <code>&lt;image&gt;</code></td></tr>
+</tbody></table></div>
+<p>Position is set by the box, and the shape a placement is cut to is set by
+<code>clip</code> - either a mask id or an inline shape, exactly as for any other element.</p>
+<p>The SVG writer embeds whatever <code>src</code> holds, so every format round-trips. The
+rasterizer decodes PNG itself; for JPEG, GIF or SVG it needs a decoder, and
+without one it skips the placement and says so in <code>warnings</code> rather than
+failing the whole render:</p>
+<pre><code class="language-ts">const { data, warnings } = design.rasterize({
+  decodeImage: (src) =&gt; myDecoder(src), // returns { width, height, data } or null
+});</code></pre>
+<h5 id="linked-files">Linked files<a class="anchor" href="#linked-files" aria-label="Link to this section">#</a></h5>
+<p><code>link: true</code> makes <code>src</code> the path of a file to link instead of data to embed,
+the way a design tool places a linked file. The SVG keeps the path as its
+<code>href</code> and marks it <code>data-link=&quot;true&quot;</code>, so the file stays a file and the
+document picks up every change made to it.</p>
+<pre><code class="language-ts">import { resolveLinkFromDir } from 'napkin-sketch/graphic-design/files';
+
+design.image({ src: 'assets/logo.svg', link: true, x: 24, y: 24, width: 120, height: 60, fit: 'contain' });
+const { data, warnings } = design.rasterize({ resolveLink: resolveLinkFromDir('./brand') });</code></pre>
+<p>The rasterizer follows a link only through <code>resolveLink</code>, a function the host
+passes that returns the file's bytes and media type, or <code>null</code>. An SVG is drawn
+from its shapes, fitted to the box and clipped to it, as <code>inlineSvg</code> reads
+them; a PNG is drawn from its pixels; anything else goes through
+<code>decodeImage</code>. Without a resolver, or when it returns <code>null</code>, the link's
+placeholder - a dashed box with the file's name - is drawn, and <code>warnings</code>
+says so.</p>
+<h4 id="groups">Groups<a class="anchor" href="#groups" aria-label="Link to this section">#</a></h4>
+<p>A group applies one transform, one opacity and one clip to several children.</p>
+<pre><code class="language-ts">design.group({ id: 'badge', translate: { x: 40, y: 0 }, opacity: 0.9 }, (badge) =&gt; {
+  badge.circle({ cx: 40, cy: 40, r: 32, fill: '#326478' });
+  badge.text({ x: 40, y: 48, text: 'A', align: 'center', fontSize: 28, fill: '#ffffff' });
+});</code></pre>
+<p>The builder callback gets the same methods the composition has, so a group is
+filled with exactly the calls a page is filled with. Passing <code>children</code>
+directly works too.</p>
+<p>A group's <code>opacity</code> belongs to the group, not to each child: the children are
+drawn together and the result is laid down once at that opacity, so where two
+of them overlap, neither shows through the other. That is how SVG draws a
+group, and the PNG draws it the same way. An element with both a fill and a
+stroke is one picture in the same sense, so a translucent outline does not
+show its own fill through it.</p>
+<p><code>erase</code> lists shapes that clear the group wherever they paint, down to
+whatever is under the group: an eraser for one group that leaves the rest of
+the page alone.</p>
+<pre><code class="language-ts">design.group({ erase: [{ type: 'circle', cx: 60, cy: 40, r: 14, fill: '#000000' }] }, (card) =&gt; {
+  card.rect({ x: 20, y: 20, width: 120, height: 40, rx: 8, fill: '#326478' });
+});</code></pre>
+<p>An erase shape clears all the way, whatever color or opacity it is given; it
+only has to paint, and its fill and its stroke both clear. Text and images do
+not erase. The SVG writes the shapes as a <code>&lt;mask&gt;</code> on the group, and the PNG
+clears them from the group's own layer before laying it down.</p>
+<h3 id="clipping-masks">Clipping masks<a class="anchor" href="#clipping-masks" aria-label="Link to this section">#</a></h3>
+<p>A mask can be defined once and shared, which is usually why it exists:</p>
+<pre><code class="language-ts">design.defineClip('badge', { type: 'circle', cx: 60, cy: 60, r: 40 });
+design.image({ src: photo, x: 20, y: 20, width: 80, height: 80, fit: 'cover', clip: 'badge' });
+design.rect({ x: 20, y: 20, width: 80, height: 80, fill: '#4cae50', clip: 'badge' });</code></pre>
+<p>A one-off mask can be written inline on the element instead, and the renderer
+gives it a <code>&lt;clipPath&gt;</code> of its own:</p>
+<pre><code class="language-ts">design.rect({
+  x: 0, y: 0, width: 120, height: 120,
+  fill: '#4cae50',
+  clip: { type: 'rect', x: 30, y: 30, width: 60, height: 60 },
+});</code></pre>
+<p>A mask is built from rectangles, circles, ellipses, triangles, polygons and
+paths. Several shapes in one mask are unioned; pass <code>'evenodd'</code> as the third
+argument to <code>defineClip</code> to punch them instead.</p>
+<h3 id="gradients">Gradients<a class="anchor" href="#gradients" aria-label="Link to this section">#</a></h3>
+<p>A fill can be a gradient instead of a color: linear, along an angle, or
+radial, out from the middle.</p>
+<pre><code class="language-ts">design.rect({
+  x: 20, y: 20, width: 320, height: 120, rx: 12,
+  fill: { type: 'linear', angle: 90, stops: [{ offset: 0, color: '#ffe08a' }, { offset: 1, color: '#ff8a65' }] },
+});
+design.circle({
+  cx: 180, cy: 80, r: 40,
+  fill: { type: 'radial', stops: [{ offset: 0, color: '#ffffff' }, { offset: 1, color: '#326478' }] },
+});</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>type</code></td><td><code>linear</code> or <code>radial</code></td></tr>
+<tr><td><code>angle</code></td><td>Linear only: the direction in degrees, clockwise from pointing right, so <code>0</code> runs left to right and <code>90</code> top to bottom. Default <code>0</code></td></tr>
+<tr><td><code>stops</code></td><td><code>{ offset, color }</code> pairs, offsets from 0 to 1, in any order</td></tr>
+</tbody></table></div>
+<p>A gradient is laid across the shape's own box. A linear one runs through the
+box's centre along its angle, from edge to edge; a radial one runs from the
+centre out to the corners. It is placed before the element's transform, so it
+turns and scales with the shape. The SVG writes it as a paint server in user
+space, which keeps its angle true on a box that is not square, and the PNG
+works out each pixel's color along it, mixing the stops with their alpha
+premultiplied, as a browser mixes a gradient. A stop whose color does not
+parse is left out. Text takes a gradient's first stop's color.</p>
+<h3 id="effects">Effects<a class="anchor" href="#effects" aria-label="Link to this section">#</a></h3>
+<p><code>effects</code> lays the CSS filter functions over an element's finished picture, in
+the order listed: a blur, a shadow, or a shift in its color. On a group they
+work on the group as one picture, so two children cast one shadow.</p>
+<pre><code class="language-ts">design.rect({
+  x: 40, y: 40, width: 200, height: 120, rx: 12, fill: '#ffe08a',
+  effects: [{ type: 'drop-shadow', dx: 4, dy: 4, blur: 8, color: 'rgba(0, 0, 0, 0.4)' }],
+});
+design.group({ effects: [{ type: 'sepia', amount: 0.8 }, { type: 'blur', radius: 1 }] }, (photo) =&gt; {
+  photo.image({ src: portrait, x: 260, y: 40, width: 120, height: 120, fit: 'cover' });
+});</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Effect</th><th>Fields</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>blur</code></td><td><code>radius</code></td><td>A Gaussian blur; <code>radius</code> is its standard deviation, as the length in CSS's <code>blur()</code> is</td></tr>
+<tr><td><code>brightness</code>, <code>contrast</code>, <code>saturate</code></td><td><code>amount</code>, from 0</td><td>1 leaves the color as it is</td></tr>
+<tr><td><code>grayscale</code>, <code>sepia</code>, <code>invert</code></td><td><code>amount</code>, 0 to 1</td><td>How far toward gray, sepia or the inverse; 1 is all the way</td></tr>
+<tr><td><code>hue-rotate</code></td><td><code>angle</code>, in degrees</td><td>Turns every hue around the color wheel</td></tr>
+<tr><td><code>opacity</code></td><td><code>amount</code>, 0 to 1</td><td>Fades the picture at its place in the list</td></tr>
+<tr><td><code>drop-shadow</code></td><td><code>dx</code>, <code>dy</code>, <code>blur</code>, <code>color</code></td><td>A shadow of the shape, moved, blurred by CSS's blur radius - twice the deviation - in <code>color</code></td></tr>
+</tbody></table></div>
+<p>Lengths are in composition units, and scale and turn with the element's
+transform, as its outline does. The SVG writes a <code>&lt;filter&gt;</code> in user space,
+its region the element's own box grown by as far as the effects reach, with
+<code>color-interpolation-filters=&quot;sRGB&quot;</code> so a viewer works the colors as the PNG
+does; elements with the same effects over the same box share one. The PNG
+draws the element on a layer of its own, runs the effects over it, and lays
+it down: against the SVG as <code>rsvg-convert</code> draws it, a blur, a shadow and the
+color effects differ by under one level in 255 on average, and the test holds
+them to one and a half. The canvas painter sets <code>ctx.filter</code>.</p>
+<p>The order is SVG's: the effects first, then a group's erase shapes, then the
+clip, then the opacity. An effect the renderer does not know, and a shadow
+color that is not a color, are left out and reported in <code>warnings</code>.</p>
+<h3 id="transforms">Transforms<a class="anchor" href="#transforms" aria-label="Link to this section">#</a></h3>
+<p><code>rotate</code>, <code>scale</code> and <code>translate</code> sit on the element and pivot about <code>origin</code>,
+which defaults to the element's own centre - so &quot;rotate 15 degrees&quot; turns a
+shape in place rather than swinging it around the page corner.</p>
+<pre><code class="language-ts">design.rect({ x: 40, y: 40, width: 120, height: 40, fill: '#fdc83a', rotate: -8 });
+design.group({ rotate: 90, origin: { x: 180, y: 180 } }, (g) =&gt; { /* ... */ });</code></pre>
+<p>Group transforms compose with their children's, and stroke widths scale with
+the transform they are drawn under.</p>
+<h3 id="rendering">Rendering<a class="anchor" href="#rendering" aria-label="Link to this section">#</a></h3>
+<pre><code class="language-ts">design.toSVG();                      // string
+design.toSVG({ pretty: false });     // one long line
+design.toPNG();                      // Uint8Array of PNG bytes
+design.toPNG({ scale: 2 });          // twice the pixels, the same graphic
+design.rasterize();                  // { width, height, data, warnings }</code></pre>
+<p>Or parameterise over the format:</p>
+<pre><code class="language-ts">import { renderComposition } from 'napkin-sketch';
+
+for (const format of ['svg', 'png'] as const) {
+  const output = renderComposition(design, { format });
+  // ...
+}</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Option</th><th>Applies to</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>pretty</code></td><td>SVG</td><td>Indent nested elements (default <code>true</code>)</td></tr>
+<tr><td><code>precision</code></td><td>SVG</td><td>Decimal places coordinates round to (default 3)</td></tr>
+<tr><td><code>scale</code></td><td>PNG</td><td>Device pixels per composition pixel (default 1)</td></tr>
+<tr><td><code>background</code></td><td>PNG</td><td>A colour painted under the page's own</td></tr>
+<tr><td><code>decodeImage</code></td><td>PNG</td><td>A decoder for image formats other than PNG</td></tr>
+<tr><td><code>resolveLink</code></td><td>PNG</td><td>Reads the file behind a linked image; see <a href="#linked-files">Linked files</a></td></tr>
+</tbody></table></div>
+<p><code>renderPng(document, options)</code> returns <code>{ data, width, height, warnings }</code> when
+the warnings matter.</p>
+<p>A sketch - a page drawn in the app, or one a script drew - becomes a
+composition with <code>sketchToComposition</code>, which is how a sketch is written to
+PNG with no DOM. <a href="../output/index.html">Writing a drawing out</a> covers it,
+with the one call that writes a sketch to every format.</p>
+<h3 id="node-file-helpers">Node file helpers<a class="anchor" href="#node-file-helpers" aria-label="Link to this section">#</a></h3>
+<p>The renderers import nothing from Node, so they run in a browser bundle
+untouched. The file helpers are a separate, Node-only module for the same
+reason the PDF importer is:</p>
+<pre><code class="language-ts">import { imageDataUrl, writeComposition } from 'napkin-sketch/graphic-design/files';
+
+const logo = await imageDataUrl('assets/logo.png');
+design.image({ src: logo, x: 24, y: 24, width: 64, height: 64 });
+
+const { svg, png, warnings } = await writeComposition(design, './out', 'card');
+// ./out/card.svg and ./out/card.png, written from one document in one call</code></pre>
+<p><code>napkin-sketch/node</code> exports the same helpers, beside the calls that draw a
+napkin script to files, so a Node program has one import for the disk; see
+<a href="../node/index.html">Using napkin-sketch from code</a>.</p>
+<p><code>resolveLinkFromDir(dir)</code> is the resolver a Node host usually wants for
+<a href="#linked-files">linked files</a>. It reads a link relative to <code>dir</code> and refuses
+anything that would leave it - an absolute path, a drive letter, a UNC share,
+a <code>..</code> step, a web address, or a symbolic link out of the folder - which then
+draws as its placeholder.</p>
+<h3 id="brand-resources">Brand resources<a class="anchor" href="#brand-resources" aria-label="Link to this section">#</a></h3>
+<p>A composition script that draws the same layout for every project needs one
+thing the layout cannot supply: which logo, which footer strip, which brand
+name. That belongs in a file the project owns rather than in the script, and
+this is the surface that reads it.</p>
+<pre><code class="language-ts">import { parseResources, inlineSvg, placeBrand, brandMark, detectBrandSlots } from 'napkin-sketch';</code></pre>
+<h4 id="reading-resourcesmd">Reading <code>resources.md</code><a class="anchor" href="#reading-resourcesmd" aria-label="Link to this section">#</a></h4>
+<pre><code class="language-ts">const brand = parseResources(await readFile('references/resources.md', 'utf-8'));
+// brand.paths       { logo: 'assets/logo.svg' }
+// brand.directories { globalAssets: 'assets/brand/' }
+// brand.text        { brandName: 'Acme Corp.', domain: 'example.com' }</code></pre>
+<p>The format is a markdown list of <code>- key: value</code> and nothing more, because the
+file is edited by whoever owns the brand rather than whoever owns the build.
+Headings, prose and <code>&gt;</code> notes are ignored, and so is anything in a fenced
+block - an example of the format in the file is not a declaration in it.</p>
+<p>A value is a <strong>path</strong> when it carries a folder separator or a media extension,
+and <strong>text</strong> otherwise: <code>example.com</code> is a domain to print, <code>assets/logo.svg</code> is
+a file to draw. Keys normalize, so <code>GLOBAL_ASSETS</code>, <code>Global Assets</code> and
+<code>global-assets</code> are one key. In a folder key the <strong>file name is the descriptor</strong>:
+<code>descriptorFromFilename('footer.png')</code> is <code>footer</code>, which is the slot it fills.</p>
+<p>Resolving paths, reading bytes and following symlinks are the caller's half -
+this module takes strings so it stays in the browser-safe bundle. The
+graphic-designer helper's <code>brand-resources.mjs</code> is the Node half, and a
+generated skill carries a copy of it.</p>
+<h4 id="placing-an-asset">Placing an asset<a class="anchor" href="#placing-an-asset" aria-label="Link to this section">#</a></h4>
+<pre><code class="language-ts">placeBrand(design, { x: 292, y: 13, width: 45, height: 24 }, { kind: 'vector', svg }, { fit: 'contain' });
+placeBrand(design, band, { kind: 'raster', dataUrl }, { fit: 'contain' });</code></pre>
+<p>A raster is placed as an <code>image</code>, which both renderers already agree on. A
+<strong>vector is inlined</strong>: its shapes are read into the composition rather than
+embedded as an image. That is not an optimization, it is the fix for a real
+defect - the rasterizer decodes PNG and nothing else, so an SVG logo placed as
+an image renders in the SVG export and is a hole in the PNG, silently, with the
+reason in <code>warnings</code> where nobody looking at the picture would find it.
+Inlining also keeps it vector, so it scales without going soft.</p>
+<p><code>inlineSvg</code> is that machinery on its own:</p>
+<pre><code class="language-ts">const { viewBox, elements, notes } = inlineSvg(markup);</code></pre>
+<p>It handles <code>rect</code>, <code>circle</code>, <code>ellipse</code>, <code>line</code>, <code>polygon</code>, <code>polyline</code>, <code>path</code>,
+<code>text</code> and data-URL <code>image</code>, painted by presentation attribute, by inline
+<code>style</code>, or by a class in a <code>&lt;style&gt;</code> block - which is what a design tool
+writes. Nested <code>&lt;g&gt;</code> transforms and opacities are composed and applied. A
+gradient is drawn as its first stop's color, and says so in <code>notes</code>; <code>&lt;use&gt;</code>
+references, patterns, filters, masks, clip paths, elliptical arcs and sheared
+transforms land in <code>notes</code> rather than being approximated.</p>
+<h4 id="when-nothing-is-configured">When nothing is configured<a class="anchor" href="#when-nothing-is-configured" aria-label="Link to this section">#</a></h4>
+<pre><code class="language-ts">brandMark(design, box, { label: 'Acme Corp', accent: '#4cae50', paper: '#ffffff' });</code></pre>
+<p>A slot with no asset behind it is filled with a mark in the design language - a
+monogram, a disc, or a set wordmark - rather than left as a hole. It is
+obviously a placeholder to anyone holding the real logo, which is the point: it
+completes the composition without pretending to be a brand it is not.</p>
+<h4 id="finding-where-the-brand-goes">Finding where the brand goes<a class="anchor" href="#finding-where-the-brand-goes" aria-label="Link to this section">#</a></h4>
+<pre><code class="language-ts">const { slots, notes } = detectBrandSlots(markup);
+const scan = scanBrandBands(decodePng(bytes));</code></pre>
+<p><code>detectBrandSlots</code> reads layer names - <code>id</code>, <code>data-name</code>, <code>inkscape:label</code>,
+<code>serif:id</code>, <code>aria-label</code> - and reports a box, a region, a page share and a
+confidence for each of <code>logo</code>, <code>icon</code>, <code>wordmark</code>, <code>linkedMedia</code>, <code>tagline</code>,
+<code>brandName</code>, <code>domain</code>, <code>badge</code> and <code>footer</code>. A name is a statement of intent,
+so these are exact.</p>
+<p><code>scanBrandBands</code> is the fallback for a raster, or for a vector whose layers are
+all called <code>Layer 1</code>. It reads a quarter of the page at a time, top first, and
+stops at the first band holding a compact mark - ink that covers a little of
+the band and is gathered rather than spread across it the way a line of text
+is. It is a heuristic with no idea what a logo looks like, it says so in
+<code>notes</code>, and its <code>confidence</code> never reaches a name's. <code>findBrandSlots</code> tries
+the names and falls back to the scan.</p>
+<h3 id="drawing-into-the-gui-canvas">Drawing into the GUI canvas<a class="anchor" href="#drawing-into-the-gui-canvas" aria-label="Link to this section">#</a></h3>
+<p><code>useGuiCanvas</code> is <code>false</code> by default: a composition is a document, and a script
+that renders one has nothing to do with whatever sketch is open. Inside the
+app's renderer, where a high-DPI 2D context already exists, <code>paintComposition</code>
+draws the composition into it instead:</p>
+<pre><code class="language-ts">import { paintComposition } from 'napkin-sketch/dist/core/graphic-design/canvas.js';
+
+paintComposition(ctx, design.toDocument(), { resolveImage });</code></pre>
+<p>The context is left exactly as it was found, and text is drawn with the host's
+real fonts, positioned by the same layout the other two renderers use.</p>
+<h3 id="what-the-two-formats-share-and-where-they-differ">What the two formats share, and where they differ<a class="anchor" href="#what-the-two-formats-share-and-where-they-differ" aria-label="Link to this section">#</a></h3>
+<p>Both renderers read one document, so the page size, the elements, their order,
+their geometry, their colors, their transforms, their masks and the text layout
+are the same by construction. What each does with that is what a vector file
+and a raster file are for:</p>
+<div class="table-wrap"><table>
+<thead><tr><th></th><th>SVG</th><th>PNG</th></tr></thead>
+<tbody>
+<tr><td>Shapes</td><td>Written as themselves - a <code>&lt;rect&gt;</code> stays a rect, editable in a design tool</td><td>Filled into pixels, anti-aliased</td></tr>
+<tr><td>Text</td><td>Live <code>&lt;text&gt;</code>, in the font family the element named</td><td>Drawn from a built-in single-stroke alphabet</td></tr>
+<tr><td>Placed media</td><td>Embedded verbatim, every format</td><td>PNG decoded here; other formats need a decoder</td></tr>
+<tr><td>Gradients</td><td>A <code>&lt;linearGradient&gt;</code> or <code>&lt;radialGradient&gt;</code> in user space</td><td>Each pixel's color worked out along it</td></tr>
+<tr><td>Erase shapes</td><td>A <code>&lt;mask&gt;</code> on the group</td><td>Cleared from the group's own layer</td></tr>
+<tr><td>Effects</td><td>A <code>&lt;filter&gt;</code> in sRGB, in user space</td><td>Each effect run over the element's own picture</td></tr>
+<tr><td>Size</td><td><code>viewBox</code> in composition units, width and height in the page's unit</td><td><code>width x height</code> pixels at <code>scale</code></td></tr>
+<tr><td>Determinism</td><td>Identical bytes for identical documents</td><td>Identical bytes for identical documents</td></tr>
+</tbody></table></div>
+<p>The text row is the honest one. A PNG has to come out of a font engine, and
+there is no font engine in Node and no way to read a licensed face from a
+script that has no operating system to ask. So the rasterizer draws a geometric
+single-stroke alphabet, while <strong>measuring with the same table the SVG writer
+measures with</strong> - which means the line breaks, the alignment and the block's
+extent match to the unit in both files, and only the glyph shapes are the
+renderer's own. A caller who needs the raster text set in a licensed face
+should render the SVG through a browser instead.</p>
+<h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
+<p><strong>A card.</strong> A 360 by 360 card with a title bar, a rule, a heading plate, a masked photo and
+a footer - the shape most of this API's work takes:</p>
+<pre><code class="language-ts">import { createComposition } from 'napkin-sketch';
+import { imageDataUrl, writeComposition } from 'napkin-sketch/graphic-design/files';
+
+const palette = {
+  page: '#000133',
+  paper: '#ffffff',
+  accent: '#4cae50',
+  ink: '#414042',
+};
+
+const design = createComposition({
+  width: 360,
+  height: 360,
+  background: palette.page,
+  id: 'AcmeCard',
+  title: 'Acme Corp quarterly summary',
+});
+
+design.text({
+  x: 24, y: 34,
+  text: 'Acme Corp',
+  fontSize: 22,
+  letterSpacing: 1.2,
+  transform: 'uppercase',
+  fill: palette.paper,
+});
+
+design.line({ x1: 16, y1: 46, x2: 344, y2: 46, stroke: palette.accent, strokeWidth: 2 });
+
+design.rect({ x: 16, y: 56, width: 328, height: 48, fill: palette.paper });
+design.text({
+  x: 180, y: 74,
+  text: 'Quarterly summary\nPrepared by Jane Doe',
+  fontSize: 11,
+  align: 'center',
+  lineHeight: 1.5,
+  fill: palette.ink,
+});
+
+design.defineClip('portrait', { type: 'circle', cx: 180, cy: 200, r: 64 });
+design.image({
+  src: await imageDataUrl('assets/portrait.png'),
+  x: 116, y: 136, width: 128, height: 128,
+  fit: 'cover',
+  clip: 'portrait',
+  alt: 'Jane Doe',
+});
+
+design.group({ id: 'footer' }, (footer) =&gt; {
+  footer.rect({ x: 0, y: 312, width: 360, height: 48, fill: palette.paper });
+  footer.triangle({ x: 24, y: 326, width: 18, height: 18, variant: 'right', fill: palette.accent });
+  footer.text({
+    x: 52, y: 342,
+    text: 'jane.doe@example.com',
+    fontSize: 12,
+    fill: palette.ink,
+  });
+});
+
+await writeComposition(design, './out', 'acme-card');</code></pre>
+<p>The result is <code>out/acme-card.svg</code> and <code>out/acme-card.png</code>: one graphic, two
+media export formats, off one document in one call.</p>
+<p><strong>A badge with a gradient and a hole.</strong> A radial gradient under a ring: the
+ring is a disk in a group whose <code>erase</code> shape clears its middle, so the
+gradient shows through the hole and nothing else is cut:</p>
+<pre><code class="language-ts">import { createComposition } from 'napkin-sketch';
+
+const design = createComposition({ width: 240, height: 240, background: '#ffffff' });
+
+design.circle({
+  cx: 120, cy: 120, r: 96,
+  fill: { type: 'radial', stops: [{ offset: 0, color: '#ffe08a' }, { offset: 1, color: '#ff8a65' }] },
+});
+design.group({ erase: [{ type: 'circle', cx: 120, cy: 120, r: 40, fill: '#000000' }] }, (ring) =&gt; {
+  ring.circle({ cx: 120, cy: 120, r: 70, fill: '#326478' });
+});
+design.text({ x: 120, y: 228, text: 'Acme Corp', align: 'center', fontSize: 16, fill: '#1f2328' });
+
+const svg = design.toSVG();   // the ring's hole is a &lt;mask&gt; on its group
+const png = design.toPNG();   // cleared from the group's own layer before it is laid down</code></pre>
+<p><strong>A drawing with a band added in code.</strong> A napkin script draws the picture,
+and the composition calls add to it before it is rendered:</p>
+<pre><code class="language-ts">import { compositionToSvg, evaluate, renderPng, sketchToComposition } from 'napkin-sketch';
+
+const { book } = evaluate('napkin 1\npage 400 300\nrough 0.6\ncircle 200 130 80', { seed: 7 });
+const doc = sketchToComposition(book.sketches[0]);
+doc.elements.push(
+  { type: 'rect', x: 0, y: 250, width: 400, height: 50, fill: '#326478' },
+  { type: 'text', x: 200, y: 282, text: 'Acme Corp', align: 'center', fontSize: 20, fill: '#ffffff' },
+);
+
+const svg = compositionToSvg(doc);
+const { data: png } = renderPng(doc);</code></pre>
+<h2 id="limits">Limits<a class="anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Elliptical arcs in path data.</strong> <code>A</code> is not supported. Every rounded corner
+the API draws is generated as Beziers, so nothing in the model needs arcs,
+and a path that carries one raises rather than quietly losing a corner.</li>
+<li><strong>Raster text uses the built-in alphabet.</strong> As above.</li>
+<li><strong><code>measureText</code> measures that built-in alphabet, not the family you named.</strong>
+Layout of a <em>block</em> is safe either way, because both renderers read the same
+table. Laying out <em>runs side by side</em> in a named family is not: the built-in
+font is narrower than most real faces, so a pen advanced by <code>measureText</code>
+falls short and the next run overprints the last in the SVG while looking
+fine in the PNG. Position such runs with the named font's own metric. A
+monospace family makes that easy - Courier and Courier New are exactly
+<code>0.6 em</code> per character - and a proportional family needs its real metrics or
+a single <code>text</code> element with <code>letterSpacing</code> instead of hand-placed runs.</li>
+<li><strong>Small raster text needs <code>scale</code>.</strong> The built-in alphabet is drawn as
+strokes, and below about 10 units the stroke is thinner than a device pixel
+at <code>scale: 1</code>, so it anti-aliases to grey. Raster at 2x or 3x when the design
+carries caption-sized type; the composition is unchanged, only the sampling.</li>
+<li><strong>JPEG, GIF and SVG placements need a decoder to rasterize.</strong> They embed in
+the SVG with no help at all. SVG has two ways around it that cost nothing:
+<code>placeBrand</code> and <code>inlineSvg</code> turn the asset into elements, which both
+renderers draw, and a linked SVG rasterizes through <code>resolveLink</code>.</li>
+<li><strong>An inlined vector keeps only what this API models.</strong> A gradient is drawn
+as its first stop's colour, and a group's opacity is folded into its shapes.
+Patterns, filters, masks, clip paths, <code>&lt;use&gt;</code> references, elliptical arcs
+and sheared transforms are reported in <code>notes</code> rather than approximated. A
+logo of solid shapes comes through exactly; a logo built on a mesh gradient
+should ship as a PNG.</li>
+<li><strong>Filters and patterns.</strong> Not modelled. Flat and gradient paint, opacity,
+clipping masks and erase shapes are the palette. A gradient runs along an
+angle or out from the middle of its shape's box; one placed by end points of
+its own, or repeated past its ends, is not modelled either.</li>
+<li><strong>Interlaced PNG placements.</strong> Not decoded; re-save the asset without
+interlacing.</li>
+</ul>
+<h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Every method takes one object and returns the element.</strong> Keep the element
+to change it before rendering; nothing is drawn until <code>toSVG</code>, <code>toPNG</code> or
+<code>render</code> is called, and rendering one document twice gives the same bytes.</li>
+<li><strong>Read <code>warnings</code></strong> from <code>renderPng</code> or <code>rasterize()</code>. An image the PNG
+could not decode, a link that drew as its placeholder and a clip that was
+never defined are reported there and not thrown.</li>
+<li><strong>A color that is not one fails the PNG</strong>, with an error that names it,
+rather than drawing black; the SVG writes it as given. Render the PNG, or
+check colors first, before trusting an SVG of a document built from input.</li>
+<li><strong>Raster small text at <code>scale: 2</code> or <code>3</code></strong>, and advance runs of text side by
+side by the named font's own metric, never by <code>measureText</code>.</li>
+<li><strong>Place a vector asset with <code>placeBrand</code> or <code>inlineSvg</code></strong>, so it is drawn in
+the PNG as well as the SVG.</li>
+<li><strong>Write both files with <code>writeComposition</code></strong>, from one document in one call,
+so the SVG and the PNG cannot come from two revisions.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../output/index.html">Writing a drawing out</a>: a sketch lowered into this
+model, and every format a sketch is written as.</li>
+<li><a href="../node/index.html">Using napkin-sketch from code</a>: the two entries, and
+the Node file helpers.</li>
+<li><a href="../ai/index.html">The AI helpers</a>: the <code>graphic-designer</code> helper, which
+drives this API from a design language.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/tree/main/src/core/graphic-design"><code>src/core/graphic-design/</code></a>: the model,
+the three renderers and the file helpers.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../drawing/cheatsheet.html" rel="prev"><span>Previous</span>Drawing with napkin script: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>The graphic design API: quickstart</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/compose/README.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

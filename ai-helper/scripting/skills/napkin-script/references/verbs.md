@@ -134,10 +134,10 @@ What every mark after it is drawn with: tool, color, width, opacity, fill, gradi
 ### `tool`
 
 ```text
-tool pen|marker|copic
+tool pen|marker|copic|eraser
 ```
 
-The kind of mark: pen, marker (translucent, so overlapping passes build up like ink) or copic (a broad, angled nib).
+The kind of mark: pen, marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib) or eraser (takes away what is under it, on its own layer only).
 
 ```napkin
 tool marker

@@ -8,6 +8,7 @@
  */
 
 import '../core/ipc.js';
+import type { HistoryStats } from '../core/ipc.js';
 import {
   defaultSettings,
   SETTINGS_LIMITS,
@@ -16,6 +17,7 @@ import {
   type MenuPlacement,
   type QuickModifier,
 } from '../core/settings.js';
+import { historyUsage } from './history-tracker.js';
 
 /** Looks up a required element by id, throwing a clear error if absent. */
 function el<T extends HTMLElement>(id: string): T {
@@ -27,6 +29,8 @@ function el<T extends HTMLElement>(id: string): T {
 class SettingsApp {
   private settings: AppSettings = defaultSettings();
   private toastTimer: number | null = null;
+  /** How much history the drawing window holds, as it last said. */
+  private historyStats: HistoryStats | null = null;
 
   async start(): Promise<void> {
     try {
@@ -48,6 +52,29 @@ class SettingsApp {
     } catch {
       // running outside Electron — live sync unavailable
     }
+
+    // Track History's figures come from the drawing window, through the main process.
+    try {
+      window.napkin.onHistoryStatsChanged((stats) => {
+        this.historyStats = stats;
+        this.renderHistoryUsage();
+      });
+      window.napkin.onShowSettingsSection((section) => this.showSection(section));
+      this.historyStats = await window.napkin.getHistoryStats();
+    } catch {
+      // running outside Electron — no drawing window to ask
+    }
+    this.renderHistoryUsage();
+    // Opened for a section - Automate > History Limit opens Automate - it starts there.
+    if (location.hash.length > 1) this.showSection(location.hash.slice(1));
+  }
+
+  /** Brings a section into view and puts the focus on its first control. */
+  private showSection(id: string): void {
+    const section = document.getElementById(id);
+    if (!section || !section.classList.contains('settings-section')) return;
+    section.scrollIntoView({ block: 'start' });
+    section.querySelector<HTMLElement>('input, select, button')?.focus({ preventScroll: true });
   }
 
   /** Applies min/max/step from the shared limits to each range input. */
@@ -69,6 +96,7 @@ class SettingsApp {
     this.setRange('copic-hold', lim.copicHoldSec);
     this.setRange('copic-speed', lim.copicRotateSpeedDeg);
     this.setRange('copic-width-mult', lim.copicWidthMultiplier);
+    this.setRange('history-limit', lim.historyLimit);
   }
 
   private setRange(id: string, lim: { min: number; max: number; step: number }): void {
@@ -195,6 +223,13 @@ class SettingsApp {
       this.patch({ copicRotateCcwKey: (e.target as HTMLSelectElement).value as QuickModifier }),
     );
 
+    el<HTMLInputElement>('track-history').addEventListener('change', (e) =>
+      this.patch({ trackHistory: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('history-limit').addEventListener('input', (e) =>
+      this.patch({ historyLimit: Number((e.target as HTMLInputElement).value) }),
+    );
+
     el('rearrange-btn').addEventListener('click', () => {
       try {
         window.napkin.toggleRearrange();
@@ -298,6 +333,15 @@ class SettingsApp {
     el<HTMLSelectElement>('copic-hold-key').value = s.copicHoldKey;
     el<HTMLSelectElement>('copic-cw-key').value = s.copicRotateCwKey;
     el<HTMLSelectElement>('copic-ccw-key').value = s.copicRotateCcwKey;
+
+    el<HTMLInputElement>('track-history').checked = s.trackHistory;
+    this.setValue('history-limit', s.historyLimit);
+    el('history-limit-value').textContent = `${s.historyLimit} steps`;
+  }
+
+  /** The line under the History Limit: the steps held and what they cost, or that tracking is off. */
+  private renderHistoryUsage(): void {
+    el('history-usage').textContent = historyUsage(this.historyStats);
   }
 
   private setValue(id: string, value: number): void {

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API quickstart - napkin-sketch</title>
+<meta name="description" content="The whole API in five steps.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../guide/index.html">Overview</a></li><li><a href="../guide/tools.html">Tools</a></li><li><a href="../guide/gestures.html">Gestures</a></li><li><a href="../guide/vector-paths.html">Vector paths</a></li><li><a href="../guide/selection.html">Selection and editing</a></li><li><a href="../guide/transform.html">Transform</a></li><li><a href="../guide/layers.html">Layers</a></li><li><a href="../guide/pages.html">Pages</a></li><li><a href="../guide/import-export.html">Import and export</a></li><li><a href="../guide/sharpen.html">Sharpen</a></li><li><a href="../guide/settings.html">Settings</a></li><li><a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../guide/automate.html">Automate</a></li><li><a href="../guide/animation-mode.html">Animation Mode</a></li><li><a href="../guide/skbk-format.html">The .skbk format</a></li><li><a href="../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="quickstart.html" aria-current="page">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="language/index.html">Reference</a></li><li><a href="language/quickstart.html">Quickstart</a></li><li><a href="language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="drawing/index.html">Reference</a></li><li><a href="drawing/quickstart.html">Quickstart</a></li><li><a href="drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="compose/index.html">Reference</a></li><li><a href="compose/quickstart.html">Quickstart</a></li><li><a href="compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="output/index.html">Reference</a></li><li><a href="output/quickstart.html">Quickstart</a></li><li><a href="output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="cli/index.html">Reference</a></li><li><a href="cli/quickstart.html">Quickstart</a></li><li><a href="cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="node/index.html">Reference</a></li><li><a href="node/quickstart.html">Quickstart</a></li><li><a href="node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="interop/index.html">Reference</a></li><li><a href="interop/quickstart.html">Quickstart</a></li><li><a href="interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="ai/index.html">Reference</a></li><li><a href="ai/quickstart.html">Quickstart</a></li><li><a href="ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Quickstart</span></nav>
+<h1 id="api-quickstart">API quickstart<a class="anchor" href="#api-quickstart" aria-label="Link to this section">#</a></h1>
+<p><a href="index.html">API hub</a> · <strong>Quickstart</strong> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>The whole API in five steps: build, draw a script from the command line, draw
+it from Node, build a graphic in code, and link a logo.</p>
+<h2 id="the-whole-thing-in-five-steps">The whole thing in five steps<a class="anchor" href="#the-whole-thing-in-five-steps" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Build the clone and put <code>napkin-sketch</code> on your PATH:</li>
+</ol>
+<pre><code class="language-bash">npm install
+npm run build
+npm link</code></pre>
+<ol start="2">
+<li>Save this as <code>card.napkin</code> in the clone, and draw it from the command line:</li>
+</ol>
+<pre><code class="language-napkin">napkin 1
+page 400 300
+name &quot;card&quot;
+layer &quot;Card&quot;
+color #1f2328 width 3 fill #ffe08a
+rect 20 20 360 260 r 16
+text &quot;Acme Corp&quot; at 200 120 size 32 align center</code></pre>
+<pre><code class="language-bash">napkin-sketch draw card.napkin --to svg,png,pdf --out out</code></pre>
+<ol start="3">
+<li>Draw the same script from Node. Save this as <code>draw.mjs</code> and run
+<code>node draw.mjs</code>:</li>
+</ol>
+<pre><code class="language-js">import { drawFile } from 'napkin-sketch/node';
+
+const { ok, files, diagnostics } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png'] });
+console.log(ok, files.map((file) =&gt; file.path), diagnostics);</code></pre>
+<ol start="4">
+<li>Build a graphic in code instead. Save this as <code>badge.mjs</code> and run
+<code>node badge.mjs</code>:</li>
+</ol>
+<pre><code class="language-js">import { writeFile } from 'node:fs/promises';
+import { createComposition } from 'napkin-sketch';
+
+const design = createComposition({ width: 240, height: 240, background: '#ffffff' });
+design.circle({ cx: 120, cy: 110, r: 80, fill: '#326478' });
+design.text({ x: 120, y: 216, text: 'Acme Corp', align: 'center', fontSize: 20, fill: '#1f2328' });
+await writeFile('badge.svg', design.toSVG());
+await writeFile('badge.png', design.toPNG());</code></pre>
+<ol start="5">
+<li>Link a logo rather than import it. Save any SVG as <code>logo.svg</code> beside the
+script, add this line to the end of <code>card.napkin</code>, and draw again. The SVG
+keeps <code>href=&quot;logo.svg&quot;</code>, and the PNG draws the file:</li>
+</ol>
+<pre><code class="language-napkin">link &quot;logo.svg&quot; at 290 220 size 80 40 name &quot;Logo&quot;</code></pre>
+<h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="language/quickstart.html">The napkin script language</a>: a script
+that checks clean, as text and as JSON.</li>
+<li><a href="drawing/quickstart.html">Drawing with napkin script</a>: shapes,
+paint, text and the hand-drawn pass.</li>
+<li><a href="compose/quickstart.html">The graphic design API</a>: gradients, masks
+and holes in code.</li>
+<li><a href="output/quickstart.html">Writing a drawing out</a>: five formats, cut to
+the ink or a box.</li>
+<li><a href="cli/quickstart.html">The napkin-sketch command line</a>: <code>check</code>,
+<code>render</code>, <code>verbs</code> and <code>--json</code>.</li>
+<li><a href="node/quickstart.html">Using napkin-sketch from code</a>: the two
+entries, and images passed in.</li>
+<li><a href="interop/quickstart.html">Working with other programs</a>: Illustrator,
+Inkscape, an Illustrator script, and linked files.</li>
+<li><a href="ai/quickstart.html">The AI helpers</a>: a design language and a skill
+from a graphic you have, and a script from a sentence.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="index.html" rel="prev"><span>Previous</span>Drawing from a script</a><a href="cheatsheet.html" rel="next"><span>Next</span>API cheatsheet</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/API-QUICKSTART.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

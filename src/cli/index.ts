@@ -76,7 +76,8 @@ Options:
   -f, --full-screen     Open the GUI window full screen, which hides the window
                         controls. Without it the window opens maximized, so the
                         minimize, restore-down, and close buttons stay in view.
-  -i, --import <file>   Import an SVG, PDF, PNG, or JPEG into the opening sketch.
+  -i, --import <file>   Import an SVG, PDF, PNG, JPEG, GIF or WebP file into the
+                        opening sketch.
   -m, --multiple-imports <file,file,…>
                         Import several files at once, laid out in a grid: files
                         fill a row left to right and wrap to a new row when the
@@ -107,7 +108,7 @@ Examples:
 `;
 
 /** File extensions the import pipeline understands. */
-const IMPORTABLE_EXTENSIONS = new Set(['.svg', '.pdf', '.png', '.jpg', '.jpeg']);
+const IMPORTABLE_EXTENSIONS = new Set(['.svg', '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp']);
 
 /**
  * Resolves import paths to absolute paths, exiting with a clear error when a
@@ -124,7 +125,7 @@ function resolveImportFiles(files: string[]): string[] {
     const ext = extname(path).toLowerCase();
     if (!IMPORTABLE_EXTENSIONS.has(ext)) {
       console.error(
-        `napkin-sketch: cannot import "${file}" — supported types are SVG, PDF, PNG, and JPEG.`,
+        `napkin-sketch: cannot import "${file}" — supported types are SVG, PDF, PNG, JPEG, GIF, and WebP.`,
       );
       process.exit(1);
     }

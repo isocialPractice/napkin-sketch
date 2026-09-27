@@ -18,7 +18,7 @@ The whole API on one page: every verb, the command line, the two imports, the re
 | Document | `newpage` | `newpage ["<name>"]` | Starts another page the same size, carrying the paint state across. |
 | Layers | `layer` | `layer "<name>" [opacity <0-1>] [hidden] [locked]` | A drawing layer. Marks after it go on it until the next layer. |
 | Layers | `group` | `group "<name>" [opacity <0-1>] [hidden] [locked] { ... }` | A group layer. The layer and group lines in its block become its children. |
-| Paint | `tool` | `tool pen\|marker\|copic` | The kind of mark: pen, marker (translucent, so overlapping passes build up like ink) or copic (a broad, angled nib). |
+| Paint | `tool` | `tool pen\|marker\|copic\|eraser` | The kind of mark: pen, marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib) or eraser (takes away what is under it, on its own layer only). |
 | Paint | `color` | `color <color>` | The ink color of every mark after it. |
 | Paint | `width` | `width <length>` | The stroke width of every mark after it. |
 | Paint | `opacity` | `opacity <0-1>` | The opacity of every mark after it, from 0 to 1. |

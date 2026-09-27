@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automate - napkin-sketch</title>
+<meta name="description" content="Generate Script from a file, the selected layers or the session history, and Track History.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html" aria-current="page">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Automate</span></nav>
+<h1 id="automate">Automate<a class="anchor" href="#automate" aria-label="Link to this section">#</a></h1>
+<h2 id="generating-a-script">Generating a script<a class="anchor" href="#generating-a-script" aria-label="Link to this section">#</a></h2>
+<p><strong>Automate &gt; Generate Script</strong> writes napkin script for you and shows it
+before anything uses it. It has three sources:</p>
+<ul>
+<li><strong>From Media File</strong> opens a file as File &gt; Import does. An SVG is read
+into the layer tree an import would add and written whole; a PDF's pages
+are written one after another, a <code>newpage</code> before each after the first.
+A picture - PNG, JPEG, GIF or WebP - is not traced: the script makes a
+page the picture's size and places the file on it with <code>link</code>, by its
+file name, so the script draws it wherever the picture sits beside it.
+Tick <strong>Embed the image data</strong> to put the picture itself in the script
+with <code>image</code>, and the script needs nothing beside it.</li>
+<li><strong>Selected Layers</strong> writes the rows lit in the Layers panel, or with none
+lit, the layers of the selected marks, with the groups above them so the
+tree still stands. <strong>Page: keep size</strong> writes the page as it is; <strong>fit to
+the selection</strong> writes a page the size of what was chosen, with it moved
+to the corner. The row is greyed while nothing is selected.</li>
+<li><strong>From Session History</strong> writes what you drew while <strong>Track History</strong> was
+on (see <a href="#tracking-history">Tracking history</a>). A popup lists the steps
+recorded on the page in view, each ticked, with its index, tool type and
+command, a search and a radio button for each main type, and the History
+Limit across the top. Untick a step to leave it out: the script is then
+the drawing as it would be had that step not happened. A removal left out
+brings its mark back, an addition left out drops its mark and every
+change to it, and a change left out takes back only what it changed. The
+script draws what the session drew, with each step's comment - its
+index, type, command and time - before the first mark it drew, and a line
+for what it did to other marks and to the layers.</li>
+</ul>
+<p>The <strong>Generated script</strong> dialog shows the whole script in a box you can
+scroll and select, with a line that counts its instructions, marks and
+layers, and a note for anything the language cannot say as the drawing
+does: pen pressure, for one, is written even. A picture's data is shortened
+in the box, and everything else takes all of it. <strong>Copy</strong> puts the script
+on the clipboard, <strong>Save As</strong> writes a <code>.napkin</code> file, <strong>Open as New Page</strong>
+runs the script into a page of its own after the one in view - the honest
+way to see what it draws - and <strong>Cancel</strong> or Escape closes the dialog.
+Every script starts with a comment saying what it was written from, and the
+notes follow as comments, so a saved script carries both, and <code>napkin-sketch
+draw</code> runs it like any other (see <a href="../scripting.html#drawing-from-a-script">Drawing from a script</a>).</p>
+<h2 id="tracking-history">Tracking history<a class="anchor" href="#tracking-history" aria-label="Link to this section">#</a></h2>
+<p><strong>Automate &gt; Track History</strong> records the drawing's history as you work:
+every step you could undo - a stroke, a command, a change in the Layers
+panel - and every undo and redo, each with what it changed. It is off until
+you turn it on, and the row shows a check mark while it is on. A step is
+named for what made it: the command that ran (&quot;Rotate&quot;), the tool whose
+press on the canvas made it (&quot;Pen stroke&quot;), or, when nothing named it, what
+it changed (&quot;Changed 2 marks&quot;). A drag is one step, as it is one undo. Only
+the document is recorded: zoom, pan, the panels, the tool in hand and the
+colour are not, except as the marks they paint. The steps are what
+<strong>Generate Script &gt; From Session History</strong> writes from, and that row is
+greyed while nothing is recorded.</p>
+<p><strong>Automate &gt; History Limit</strong> opens <strong>Verbose Settings</strong> at its <strong>Automate</strong>
+section, which holds the same Track History switch and the limit: how many
+steps are kept, from 50 to 5,000 in steps of 50, and 500 unless you change
+it. Past the limit the oldest step goes first. Under the limit the section
+says how many steps there are and roughly how much memory they hold. The
+steps last as long as the document is open: a new or opened document starts
+a new history, and turning Track History off clears it, since a step
+recorded later could change a mark drawn while nothing was recording.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="menus-and-shortcuts.html" rel="prev"><span>Previous</span>Menus and shortcuts</a><a href="animation-mode.html" rel="next"><span>Next</span>Animation Mode</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/automate.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

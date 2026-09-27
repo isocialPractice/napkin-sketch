@@ -547,9 +547,12 @@ class Evaluator {
     const anchorCount = pieces.reduce((sum, piece) => sum + piece.anchors.length, 0);
     const pointCount = sampled.reduce((sum, points) => sum + points.length, 0);
     this.afford(pieces.length, anchorCount, pointCount, where, verb);
+    // An eraser takes away what is under it and nothing more: no fill, no
+    // outline style, and no effects, which wait for the next mark that shows.
+    const erasing = paint.tool === 'eraser';
     // A mark the hand-drawn pass draws as several strokes goes on a layer of
     // its own when it takes effects, so they work on the whole mark at once.
-    const effects = this.takeEffects();
+    const effects = erasing ? undefined : this.takeEffects();
     const ownLayer = effects !== undefined && pieces.length > 1;
     const cursor = ownLayer ? this.sink.cursor() : null;
     if (ownLayer) this.sink.newLayer(verb, { effects });
@@ -565,10 +568,12 @@ class Evaluator {
       };
       if (piece.restate) stroke.opacity = round6((paint.opacity ?? 1) * ROUGH_SECOND_PASS_OPACITY);
       else if (paint.opacity !== undefined) stroke.opacity = paint.opacity;
-      if (piece.fill && paint.fill) stroke.fill = paint.fill;
-      if (piece.fill && paint.gradient) stroke.gradient = transformGradient(paint.gradient, m);
-      if (!piece.stroke) stroke.noStroke = true;
-      if (paint.style !== 'solid') stroke.strokeStyle = paint.style;
+      if (!erasing) {
+        if (piece.fill && paint.fill) stroke.fill = paint.fill;
+        if (piece.fill && paint.gradient) stroke.gradient = transformGradient(paint.gradient, m);
+        if (!piece.stroke) stroke.noStroke = true;
+        if (paint.style !== 'solid') stroke.strokeStyle = paint.style;
+      }
       if ((paint.tool === 'pen' || paint.tool === 'marker') && paint.profile !== 'uniform') stroke.profile = paint.profile;
       if (paint.tool === 'copic') stroke.nibAngle = transformAngle(paint.nib, m);
       if (effects && !ownLayer) stroke.effects = effects;

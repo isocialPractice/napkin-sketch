@@ -6,7 +6,8 @@
  * strokes for the active page. Emits a change event so the UI re-renders.
  */
 
-import type { Effect } from '../core/effects.js';
+import { diffSnapshots, isEmptyDiff, sameData, type SnapshotDiff } from '../core/history-diff.js';
+import { buildImportedLayers, type ImportedTreeNode } from '../core/imported-sketch.js';
 import { basename } from '../core/paths.js';
 import {
   createGroupLayer,
@@ -91,15 +92,8 @@ export interface LayerTreeNode {
   children: LayerTreeNode[];
 }
 
-/** One layer parsed from an imported file; may nest (SVG group layers). */
-export interface ImportedLayerNode {
-  name: string;
-  opacity: number;
-  strokes: Stroke[];
-  children?: ImportedLayerNode[];
-  /** Effects the layer carried in the file, drawn over its picture. */
-  effects?: Effect[];
-}
+/** One layer parsed from an imported file; may nest (SVG group layers). See `core/imported-sketch.ts`. */
+export type ImportedLayerNode = ImportedTreeNode;
 
 type Listener = () => void;
 
@@ -117,25 +111,40 @@ interface Transaction {
   selectedIds: string[];
   selectedLayerIds: string[];
   onSettled?: () => void;
+  /** The command running when it began, and when that was: its step is recorded under them. */
+  command: string | null;
+  at: string;
 }
 
 /**
- * Structural equality for plain data - primitives, arrays and plain objects,
- * the only things a page is made of. A key holding `undefined` counts as
- * absent, since `setStrokeProps` deletes keys and spreads can leave them.
+ * One step of the history, as a history listener hears it: what kind of step
+ * it was, the page it happened on, when it began, the command that was
+ * running then, and what it changed.
  */
-function sameValue(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  if (Array.isArray(a) || Array.isArray(b)) {
-    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
-    return a.every((value, i) => sameValue(value, b[i]));
-  }
-  const left = a as Record<string, unknown>;
-  const right = b as Record<string, unknown>;
-  const keys = Object.keys(left).filter((k) => left[k] !== undefined);
-  if (keys.length !== Object.keys(right).filter((k) => right[k] !== undefined).length) return false;
-  return keys.every((k) => sameValue(left[k], right[k]));
+export interface HistoryStep {
+  readonly kind: 'edit' | 'undo' | 'redo';
+  /** The page it happened on, by index. */
+  readonly page: number;
+  /** When it began, as an ISO time. */
+  readonly at: string;
+  /**
+   * The command running when it began: a menu id, `tool:<tool>` for a press
+   * on the canvas, or null when nothing named one (see {@link Store.beginCommand}).
+   */
+  readonly command: string | null;
+  readonly diff: SnapshotDiff;
+}
+
+/** What a history listener hears: a step, or that the document was replaced and its history with it. */
+export type HistoryEvent = { readonly type: 'step'; readonly step: HistoryStep } | { readonly type: 'reset' };
+
+/** A step begun and not yet closed: the page before it, and what it is recorded under. */
+interface PendingStep {
+  kind: HistoryStep['kind'];
+  before: PageSnapshot;
+  page: number;
+  at: string;
+  command: string | null;
 }
 
 export class Store {
@@ -174,6 +183,13 @@ export class Store {
 
   // The edit being shown live, if one is open (see beginTransaction).
   private transaction: Transaction | null = null;
+
+  // Track History's hook (see onHistory). With no listener, none of it runs.
+  private historyListeners = new Set<(event: HistoryEvent) => void>();
+  private pendingStep: PendingStep | null = null;
+  // The commands running now, innermost last (see beginCommand).
+  private commandStack: { token: number; label: string }[] = [];
+  private nextCommandToken = 1;
 
   constructor(book: SketchBook, filePath: string | null = null) {
     this.book = book;
@@ -218,6 +234,7 @@ export class Store {
   /** Replaces the entire book (e.g. after opening a file) and resets history. */
   setBook(book: SketchBook, filePath: string | null): void {
     this.settleTransaction();
+    this.flushHistoryStep();
     this.book = book;
     this.filePath = filePath;
     if (filePath) this.book.name = basename(filePath).replace(/\.skbk$/i, '');
@@ -228,6 +245,8 @@ export class Store {
     this.selectedIds.clear();
     this.selectedLayerIds.clear();
     this.dirty = false;
+    // A new document is a new session: its history starts empty.
+    for (const listener of this.historyListeners) listener({ type: 'reset' });
     this.emit();
   }
 
@@ -236,9 +255,83 @@ export class Store {
     // An edit that keeps history is the end of any edit being previewed: the
     // preview is what is on the page, so it is kept, and this builds on it.
     this.settleTransaction();
-    this.undoStack.push(this.snapshot());
+    this.flushHistoryStep();
+    const before = this.snapshot();
+    this.undoStack.push(before);
     if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift();
     this.redoStack = [];
+    this.openHistoryStep('edit', before);
+  }
+
+  // ---- Track History ---------------------------------------------------------
+
+  /**
+   * Listens to the history: every step the undo stack gains - an edit, an
+   * undo, a redo - with what it changed on the page, and a `reset` when a new
+   * document replaces the book. Returns the function that stops listening.
+   *
+   * A step is heard when it is closed, and it closes at the next history
+   * boundary: the next edit that keeps history, an undo or redo, a
+   * transaction beginning, a page change, a new book - or
+   * {@link flushHistoryStep}. So a drag that saved the page at its first
+   * move and changed it on every move after is one step, holding where the
+   * drag ended, just as it is one undo. A step that changed nothing is not
+   * heard. With no listener the store keeps no steps at all.
+   */
+  onHistory(listener: (event: HistoryEvent) => void): () => void {
+    this.historyListeners.add(listener);
+    return () => {
+      this.historyListeners.delete(listener);
+      if (this.historyListeners.size === 0) this.pendingStep = null;
+    };
+  }
+
+  /**
+   * Names what the history steps begun from now on are part of, until the
+   * returned function is called: a menu command by its id, a press on the
+   * canvas as `tool:<tool>`. Names nest, the innermost wins, and ending one
+   * out of order ends that one alone - which is what an async command does
+   * when it finishes after a gesture began.
+   */
+  beginCommand(label: string): () => void {
+    const token = this.nextCommandToken++;
+    this.commandStack.push({ token, label });
+    return () => {
+      const index = this.commandStack.findIndex((entry) => entry.token === token);
+      if (index >= 0) this.commandStack.splice(index, 1);
+    };
+  }
+
+  /** The command running now, as {@link beginCommand} named it, or null. */
+  get currentCommand(): string | null {
+    return this.commandStack.length > 0 ? this.commandStack[this.commandStack.length - 1].label : null;
+  }
+
+  /**
+   * Closes the step in progress now rather than at the next boundary, and
+   * tells the listeners what it changed: for reading the history up to this
+   * moment, and at the end of a gesture or a command, when nothing more
+   * belongs to its step.
+   */
+  flushHistoryStep(): void {
+    const pending = this.pendingStep;
+    if (!pending) return;
+    this.pendingStep = null;
+    if (this.historyListeners.size === 0 || pending.page !== this.activeIndex) return;
+    const diff = diffSnapshots(pending.before, this.sketch);
+    if (isEmptyDiff(diff)) return;
+    const step: HistoryStep = { kind: pending.kind, page: pending.page, at: pending.at, command: pending.command, diff };
+    for (const listener of this.historyListeners) listener({ type: 'step', step });
+  }
+
+  /** Begins a step from the page as it was, when anyone is listening. */
+  private openHistoryStep(
+    kind: HistoryStep['kind'],
+    before: PageSnapshot,
+    named: { command: string | null; at: string } = { command: this.currentCommand, at: new Date().toISOString() },
+  ): void {
+    if (this.historyListeners.size === 0) return;
+    this.pendingStep = { kind, before, page: this.activeIndex, ...named };
   }
 
   // ---- Transactions ---------------------------------------------------------
@@ -263,12 +356,16 @@ export class Store {
    */
   beginTransaction(onSettled?: () => void): void {
     this.settleTransaction();
+    // The step before is over: what the transaction previews is not part of it.
+    this.flushHistoryStep();
     this.transaction = {
       before: this.snapshot(),
       dirty: this.dirty,
       selectedIds: [...this.selectedIds],
       selectedLayerIds: [...this.selectedLayerIds],
       onSettled,
+      command: this.currentCommand,
+      at: new Date().toISOString(),
     };
   }
 
@@ -295,6 +392,8 @@ export class Store {
     this.undoStack.push(open.before);
     if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift();
     this.redoStack = [];
+    this.flushHistoryStep();
+    this.openHistoryStep('edit', open.before, { command: open.command, at: open.at });
     this.touch();
   }
 
@@ -325,8 +424,8 @@ export class Store {
   private pageMatches(snapshot: PageSnapshot): boolean {
     return (
       snapshot.activeLayerId === this.activeLayerId &&
-      sameValue(snapshot.layers, this.sketch.layers) &&
-      sameValue(snapshot.strokes, this.sketch.strokes)
+      sameData(snapshot.layers, this.sketch.layers) &&
+      sameData(snapshot.strokes, this.sketch.strokes)
     );
   }
 
@@ -737,23 +836,29 @@ export class Store {
     // Undo while a preview is showing takes the preview back: settling makes
     // it the step this pops.
     this.settleTransaction();
+    this.flushHistoryStep();
     const prev = this.undoStack.pop();
     if (!prev) return;
-    this.redoStack.push(this.snapshot());
+    const current = this.snapshot();
+    this.redoStack.push(current);
     this.restore(prev);
     this.selectedIds.clear();
     this.selectedLayerIds.clear();
+    this.openHistoryStep('undo', current);
     this.touch();
   }
 
   redo(): void {
     this.settleTransaction();
+    this.flushHistoryStep();
     const next = this.redoStack.pop();
     if (!next) return;
-    this.undoStack.push(this.snapshot());
+    const current = this.snapshot();
+    this.undoStack.push(current);
     this.restore(next);
     this.selectedIds.clear();
     this.selectedLayerIds.clear();
+    this.openHistoryStep('redo', current);
     this.touch();
   }
 
@@ -771,6 +876,7 @@ export class Store {
   addPage(name = 'unnamed'): void {
     // A transaction belongs to the page it began on, and history is per page.
     this.settleTransaction();
+    this.flushHistoryStep();
     const sketch = createSketch(name);
     sketch.width = this.sketch.width;
     sketch.height = this.sketch.height;
@@ -785,6 +891,7 @@ export class Store {
   addImportedPages(pages: Sketch[]): void {
     if (pages.length === 0) return;
     this.settleTransaction();
+    this.flushHistoryStep();
     this.book.sketches.splice(this.activeIndex + 1, 0, ...pages);
     this.activeIndex += 1;
     this.resetPageState();
@@ -808,6 +915,7 @@ export class Store {
   removePage(): void {
     if (this.book.sketches.length <= 1) return;
     this.settleTransaction();
+    this.flushHistoryStep();
     this.book.sketches.splice(this.activeIndex, 1);
     this.activeIndex = Math.max(0, this.activeIndex - 1);
     this.resetPageState();
@@ -819,6 +927,7 @@ export class Store {
     const clamped = Math.max(0, Math.min(this.book.sketches.length - 1, index));
     if (clamped === this.activeIndex) return;
     this.settleTransaction();
+    this.flushHistoryStep();
     this.activeIndex = clamped;
     this.resetPageState();
     this.emit();
@@ -828,6 +937,7 @@ export class Store {
   private resetPageState(): void {
     this.undoStack = [];
     this.redoStack = [];
+    this.pendingStep = null;
     this.selectedIds.clear();
     this.selectedLayerIds.clear();
     this.activeLayerId = this.sketch.layers[0]?.id ?? '';
@@ -933,41 +1043,12 @@ export class Store {
   addImportedLayers(imported: ImportedLayerNode[]): void {
     if (imported.length === 0) return;
     this.pushHistory();
-    const appendLeaf = (
-      item: ImportedLayerNode,
-      parent?: string,
-      opacity = item.opacity,
-      name = item.name,
-      effects = item.effects,
-    ): void => {
-      const layer = createLayer(name);
-      layer.opacity = opacity;
-      layer.parent = parent;
-      if (effects) layer.effects = effects;
-      this.sketch.layers.push(layer);
-      for (const stroke of item.strokes) {
-        this.sketch.strokes.push({ ...stroke, id: createId('st'), layer: layer.id });
-      }
-      this.activeLayerId = layer.id;
-    };
-    const append = (item: ImportedLayerNode, parent?: string): void => {
-      if (item.children && item.children.length > 0) {
-        const group = createGroupLayer(item.name);
-        group.opacity = item.opacity;
-        group.parent = parent;
-        if (item.effects) group.effects = item.effects;
-        // Children push first: the group header renders above them in the panel.
-        for (const child of item.children) append(child, group.id);
-        // Marks the source kept on the group itself get a row of their own; it
-        // is named apart from the group so the panel shows no duplicate name.
-        // The group's effects stay on the group.
-        if (item.strokes.length > 0) appendLeaf(item, group.id, 1, `${item.name} contents`, undefined);
-        this.sketch.layers.push(group);
-      } else {
-        appendLeaf(item, parent);
-      }
-    };
-    for (const item of imported) append(item);
+    // One routine builds the rows for an import and for a script generated
+    // from a file, so the two cannot disagree about the tree a file makes.
+    const built = buildImportedLayers(imported);
+    this.sketch.layers.push(...built.layers);
+    this.sketch.strokes.push(...built.strokes);
+    if (built.active) this.activeLayerId = built.active;
     this.touch();
   }
 
@@ -1120,6 +1201,7 @@ export class Store {
       // Nothing shifted, so the history step just pushed would be a no-op the
       // user would have to undo twice past.
       this.undoStack.pop();
+      this.pendingStep = null;
       return false;
     }
     this.touch();

@@ -72,8 +72,12 @@ export interface StopArg {
   offset: NumberArg;
 }
 
-/** The marks a script can draw with. */
-export const SCRIPT_TOOLS = ['pen', 'marker', 'copic'] as const;
+/**
+ * The marks a script can draw with. `eraser` takes away what is under it on
+ * its own layer, as the app's eraser does, and takes no fill, outline style,
+ * profile or effect.
+ */
+export const SCRIPT_TOOLS = ['pen', 'marker', 'copic', 'eraser'] as const;
 
 /** A tool a script can draw with. */
 export type ScriptTool = (typeof SCRIPT_TOOLS)[number];

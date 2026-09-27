@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writing a drawing out: quickstart - napkin-sketch</title>
+<meta name="description" content="Writing a drawing out, in numbered steps that run on a clone.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Writing a drawing out</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html" aria-current="page">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">Writing a drawing out</a> <span class="sep">/</span> <span aria-current="page">Quickstart</span></nav>
+<h1 id="writing-a-drawing-out-quickstart">Writing a drawing out: quickstart<a class="anchor" href="#writing-a-drawing-out-quickstart" aria-label="Link to this section">#</a></h1>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <strong>Quickstart</strong> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>One call writes a drawing as SVG, PNG, PDF, a <code>.skbk</code> the app opens or an
+Illustrator script, cut to the page, to the ink or to a box you name; this is
+the path from a script to all five files.</p>
+<h2 id="the-whole-thing-in-four-steps">The whole thing in four steps<a class="anchor" href="#the-whole-thing-in-four-steps" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Build the clone:</li>
+</ol>
+<pre><code class="language-bash">npm install
+npm run build</code></pre>
+<ol start="2">
+<li>Save this as <code>sticker.napkin</code> in the clone. <code>crop auto pad 12</code> cuts every
+output to the ink, with 12 pixels of room around it:</li>
+</ol>
+<pre><code class="language-napkin">napkin 1
+page 400 300
+name &quot;sticker&quot;
+layer &quot;Sticker&quot;
+color #1f2328 width 3 fill #ffe08a
+circle 200 150 60
+crop auto pad 12</code></pre>
+<ol start="3">
+<li>Save this as <code>write.mjs</code> beside it. Spreading <code>output</code> into the options is
+what applies the script's <code>crop</code>:</li>
+</ol>
+<pre><code class="language-js">import { readFileSync, writeFileSync } from 'node:fs';
+import { evaluate, renderBook } from 'napkin-sketch';
+
+const { book, output } = evaluate(readFileSync('sticker.napkin', 'utf8'));
+const [svg] = renderBook(book, { format: 'svg', ...output });
+const [png] = renderBook(book, { format: 'png', scale: 2, transparent: true, ...output });
+writeFileSync('sticker.svg', svg);
+writeFileSync('sticker.png', png);
+writeFileSync('sticker.pdf', renderBook(book, { format: 'pdf', ...output }), 'latin1');
+writeFileSync('sticker.skbk', renderBook(book, { format: 'skbk' }));
+writeFileSync('sticker.jsx', renderBook(book, { format: 'jsx', ...output }));</code></pre>
+<ol start="4">
+<li>Run <code>node write.mjs</code>. The SVG is 147 by 147, the circle and its room; the
+PNG is the same box at twice the pixels, 294 by 294, with no paper behind
+it; the PDF is one page of that size; the <code>.skbk</code> is the whole page, for
+the app to open; and <code>sticker.jsx</code>, run in Illustrator with File &gt; Scripts
+<blockquote><p>Other Script, builds a document on a 147 by 147 point artboard with the</p></blockquote>
+<p><code>Sticker</code> layer on it. From a shell, one line writes the same five:</p></li>
+</ol>
+<pre><code class="language-bash">napkin-sketch draw sticker.napkin --to svg,png,pdf,skbk,jsx --scale 2</code></pre>
+<h2 id="a-worked-example">A worked example<a class="anchor" href="#a-worked-example" aria-label="Link to this section">#</a></h2>
+<p>Three frames of a bouncing ball, cut to one registration box so they line up
+when played in sequence. Each page cut to its own ink would start at a
+different corner; <code>registration</code> gives every page the same box:</p>
+<pre><code class="language-napkin">napkin 1
+page 400 300
+name &quot;bounce&quot;
+color #1f2328 width 3 fill #ff8a65
+circle 100 200 30
+newpage
+circle 200 120 30
+newpage
+circle 300 200 30
+registration 50 70 300 180</code></pre>
+<p><code>napkin-sketch draw bounce.napkin --to svg,png --out frames</code> writes
+<code>bounce-1.svg</code> to <code>bounce-3.svg</code> and <code>bounce-1.png</code> to <code>bounce-3.png</code>. Every
+SVG has <code>viewBox=&quot;50 70 300 180&quot;</code> and every PNG is 300 by 180, so the ball
+moves and the frame does not.</p>
+<h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="index.html#writing-a-page-and-a-book">Writing a page and a book</a>: what each
+call gives for each format.</li>
+<li><a href="index.html#options">Options</a>: <code>crop</code>, <code>registration</code>, <code>transparent</code>,
+<code>scale</code>, <code>resolveLink</code> and <code>onWarning</code>.</li>
+<li><a href="index.html#svg">SVG</a>, <a href="index.html#png">PNG</a>, <a href="index.html#pdf">PDF</a>,
+<a href="index.html#the-skbk-file">the .skbk file</a> and
+<a href="index.html#the-illustrator-script">the Illustrator script</a>: what each format
+keeps.</li>
+<li><a href="index.html#the-box-crop-and-registration">The box</a>: how the ink is measured.</li>
+<li><a href="index.html#from-a-sketch-to-a-composition">From a sketch to a composition</a>:
+adding to a drawing in code before it is written.</li>
+<li><a href="../node/quickstart.html">Using napkin-sketch from code</a>: <code>drawFile</code>, which
+names and writes the files for you.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="index.html" rel="prev"><span>Previous</span>Writing a drawing out</a><a href="cheatsheet.html" rel="next"><span>Next</span>Writing a drawing out: cheatsheet</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/output/QUICKSTART.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

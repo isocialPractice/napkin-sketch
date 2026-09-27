@@ -12,6 +12,15 @@ export { parseScript, type ParseOptions, type ParseResult } from './parse.js';
 export { validateScript } from './validate.js';
 export { formatScript, type FormatOptions } from './format.js';
 export {
+  bookToInstructions,
+  scriptComments,
+  sketchToInstructions,
+  type WriteOptions,
+  type WriteStats,
+  type WrittenScript,
+} from './writer.js';
+export { historyScript, type HistoryScript, type HistoryScriptOptions, type HistoryScriptStep } from './history-script.js';
+export {
   evaluate,
   runScript,
   type Box,

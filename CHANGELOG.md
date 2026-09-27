@@ -4,6 +4,375 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-alpha.4.5.0] - 2026-09-26
+
+Menus made from the tools' own types, and scripts made from the drawing,
+make this a minor release. Every command the app has is a row in two files -
+its tool type and its key - and the menu bar, the right-click menus, the
+tooltips and the shortcut tables are all made from them: nine menus now,
+with Transform, Sketch, Layers, Pages, Automate and Help joining File, Edit
+and View. **Edit > Edit Keyboard Shortcuts** and **Edit > Edit Tool Types**
+change any tool's keys and the menus that list it, in files of your own.
+**Automate** writes napkin script from a file, from the selected layers, or
+from the steps **Track History** recorded, leaving out any step you untick.
+The manual moved to a documentation site in `docs/`, which **Help** opens
+with no network, and the README became its front door. The `.skbk` format
+stays at version 3, and everything the API exported is still there.
+
+### Added
+
+- **The menus, as data.** Every command the app has is now a row in
+  `src/core/menu/tool-types.json` with a *tool type* that says what kind of
+  tool it is - `Composition:edit:mixed` for the clipboard rows,
+  `Draw:Modify:element` for Rotate - and `src/core/menu/shortcuts.json` gives
+  each one its keyboard shortcut. A menu lists the types it accepts, and a
+  tool is in every menu that accepts its type, so the clipboard reaches Edit,
+  the canvas and the layers panel from one type, and a new command appears in
+  the right menus by saying what it is. `src/core/menu/registry.ts` builds the
+  menu bar, the three right-click menus and the three toolbar dropdowns from
+  the two files with no DOM, and merges the user's own copies of them, which
+  hold only what differs and never overwrite the shipped ones. The menu bar,
+  the right-click menus and the toolbar dropdowns are all built from it.
+  - **One spelling for a shortcut.** `src/core/menu/chords.ts` reads a
+    shortcut as a person types it (`ctrl+shift+z`, `Cmd+O`, `Ctrl++`), writes
+    it one way, turns it into an Electron accelerator, and matches a keypress
+    both by the character it made and by the key that made it, so
+    `Ctrl+Shift+]` matches on any keyboard layout and `Shift+C` matches
+    whatever Caps Lock did to the letter.
+  - **Held to the menus it replaces.** `test/menu-registry.test.ts` writes out
+    the old File, Edit and View menus and the old right-click lists verbatim,
+    applies each change this release makes in a named step, and requires the
+    generated menus to match exactly. It also spells out the new menu bar,
+    all nine menus, row for row. `test/chords.test.ts` and
+    `test/menu-overrides.test.ts` cover the shortcuts and the user's files,
+    and the headless contract now builds every menu with the DOM poisoned.
+    `test/menu-dispatch.test.ts` holds each place a row becomes an action -
+    the native menu's clicks, the drawing window's command table, the
+    right-click items - to the id the row carries, and
+    `test/gui/check-context-menus.mjs` reads the menu bar back from Electron
+    and drives every right-click menu and dropdown in the built app.
+- **Tooltips and tables that name the real keys.** The 45 toolbar and panel
+  buttons and switches that run a command say which one, and each tooltip
+  takes its shortcut from the menu files when the app starts: a key changed
+  in the user's `shortcuts.json` shows in the tooltip, and a command with no
+  key shows none. The layer rows' rename hint and the grouping toasts do the
+  same. The README's In-app controls opens with a table of every command
+  that has a shortcut - its menu, its keys, a note - and the cheatsheet's
+  Tools table lists every tool; `npm run menu-docs` writes both from the
+  registry, and `test/menu-docs.test.ts` fails while either is stale. The
+  held keys and gestures the registry does not know stay in a hand-written
+  table beside it. `test/keys.test.ts` sends every shipped shortcut through
+  the key lookup, and `test/gui/check-shortcuts.mjs` runs the app with a
+  shortcuts file of its own - in a user-data folder the check makes and
+  removes, through the new `NAPKIN_USER_DATA` - and presses the keys.
+- **The configuration popup the menu editors are built on.**
+  `src/renderer/config-dialog.ts` draws one form for editing a list: a
+  search box that keeps the rows containing what is typed, radio buttons
+  that keep one type of row, a bordered table that scrolls under headings
+  that stay put, a line that says what the last edit did, and Accept and
+  Cancel. A cell is words, a text box, a drop-down, a check box, or a
+  shortcut box that takes the next keypress as its chord. The box turns
+  green for a free chord, amber for one another row holds, and red for a
+  key the app keeps for itself, such as Space or Tab, which it refuses.
+  Each theme has its own green, amber and red, at 4.5:1 or better. A row
+  that the search or a filter hides keeps its edits, and Accept gets every
+  row back. While the popup is up it keeps its keys: a letter typed in it
+  picks no tool, Ctrl+Z does not undo the drawing behind it, and Tab goes
+  round its own controls. Escape cancels, and Enter in a field accepts.
+  Nothing in the menus opens it yet; Edit Keyboard Shortcuts and Edit Tool
+  Types are built on it next. `test/config-dialog.test.ts` covers the
+  search, the filters, the verdicts and the edits, and
+  `test/gui/check-config-dialog.mjs` opens the popup in the built app with
+  a spec of its own, through a `window.napkinCheck` hook the page puts up
+  only when the app is started for a check (`NAPKIN_GUI_CHECK=1`).
+- **Edit > Edit Keyboard Shortcuts.** The configuration popup lists every
+  tool, toolbar-only ones too, as Tool, Type and Keyboard Shortcut, with
+  the search, a radio for each main type, and the tool's place in the
+  menus as its tooltip. Click a shortcut and press the keys: the box turns
+  green for a shortcut no tool has, and amber for one another tool has,
+  which Accept takes from that tool; the other row turns amber too, saying
+  it will be left with none. Space, Escape and Tab, Enter for anything but
+  Move, and the keys of the rows Electron draws (Zoom In, Zoom Out, Toggle
+  Full Screen, Toggle Developer Tools) are refused in place with the
+  reason, and those rows' own shortcuts are shown greyed. Accept saves only
+  what differs from the app's own shortcuts, in a `shortcuts.json` of your
+  own in the app's settings folder, and the menus, the tooltips and the
+  keys change at once. The shipped `src/core/menu/shortcuts.json` is never
+  written. **Reset to defaults** puts the app's own shortcuts in the
+  table, and accepting them removes your file. A file of yours that cannot
+  be read is ignored, and the app says so once it has opened, after
+  anything else it says as it opens. The main process checks what it is
+  sent before writing (`planUserFiles` in `src/core/menu/overrides.ts`) and
+  writes nothing the menus would refuse or quietly change.
+  `test/menu-editors.test.ts` and four new cases in
+  `test/menu-overrides.test.ts` cover the rows, the checks, the settling
+  and the saving, and `test/gui/check-shortcuts-dialog.mjs` starts the
+  app on a broken file, then saves, warns, refuses, resets and cancels in
+  the built app.
+- **Edit > Edit Tool Types.** The same popup lists every tool with its
+  type in a drop-down: a group for each main type holding the sub-types
+  the menus take, and **Not in a menu** first. The shortcut is shown
+  greyed beside it. A type decides which menus list a tool and nothing
+  else, and the drop-down says where a choice would list it before
+  anything is kept: "Rotate will be listed in Edit, Layers panel, Canvas".
+  Taking a tool out of every menu turns the cell amber, with the key that
+  still runs it, and a toolbar-only tool can be put in a menu. The rows
+  that cannot move are listed with the drop-down greyed and the reason as
+  its tooltip: the two editors, which stay in the Edit menu where they can
+  always be found, a menu's own rows, Electron's rows, a submenu's rows and
+  the tools kept on the keyboard. Accept saves only what differs from the
+  app's own types, in a `tool-types.json` of your own beside your
+  shortcuts, and every menu is made again from it at once; the shipped
+  `src/core/menu/tool-types.json` is never written. **Reset to defaults**
+  puts the app's own types in the table, and accepting them removes your
+  file. `test/menu-editors.test.ts` covers the rows, the choices and the
+  saving, `test/menu-registry.test.ts` holds where a type is listed to
+  where the menus show a tool of it, and
+  `test/gui/check-tool-types-dialog.mjs` moves Rotate to the clipboard's
+  type, finds it in the layers panel's right-click menu and runs it from
+  the canvas's, then resets it, places a toolbar tool and cancels.
+- **A drawing written as napkin script.** `src/core/script/writer.ts` writes
+  a page, a part of one or a whole book as the script that draws it back:
+  its layer tree, its marks as `path` steps from their Bezier anchors, text,
+  images and linked files, their effects, and their paint written only
+  where it changes, so a drawing in one color says `color` once. A
+  freehand line is written through its points, pruned to a tenth of a
+  pixel as the SVG export prunes it, and an opacity of its own is scoped
+  with `push` and `pop`. Marks keep their paint order wherever the layer
+  tree allows. Coordinates are written to two decimals unless every digit
+  is asked for, and then the script draws the page back exactly. What the
+  language cannot say - pen pressure, a mirrored Wave profile, a layer
+  name used twice in one group - is written as near as it goes and said
+  in a note. Asked to fit the page, it writes a page the size of the ink,
+  with every mark moved so the ink starts at the corner. Automate >
+  Generate Script is built on it.
+  `test/script-writer.test.ts` writes every SVG fixture and every page of
+  every golden script, draws the script back, and requires the same SVG
+  byte for byte. The only difference it allows is a filled shape the source
+  left open, which is closed, since a script fills only a closed path. At
+  two decimals the same pixels are required instead. The headless test
+  writes its page of every kind of mark with the DOM poisoned and gets the
+  same PNG back.
+- **`tool eraser` in napkin script.** Marks after it take away what is
+  under them on their own layer, as the app's eraser does. An eraser takes
+  no fill, outline style or effect; an `effect` before one waits for the
+  next mark that shows. It is an addition to version 1, and the language
+  reference, the schema and the helper skill list it.
+- **Automate > Generate Script.** Two rows of the Automate menu write a
+  drawing as napkin script and show it before anything uses it. **From
+  Media File** picks a file as File > Import does: an SVG is read into the
+  layer tree an import would add and written whole, and a PDF's pages are
+  written one after another, a `newpage` before each after the first. A
+  picture - PNG, JPEG, GIF or WebP - is not traced: the script makes a page
+  the picture's size and places the file with `link`, by its file name,
+  or with **Embed the image data** ticked, carries the picture itself.
+  **Selected Layers** writes the rows lit in the Layers panel, or the
+  layers of the selected marks, with the groups above them, on the page as
+  it is or on one fitted to the selection. The **Generated script** dialog
+  shows the whole script in a box that scrolls and can be selected, a line
+  counting its instructions, marks and layers, and the writer's notes on
+  anything the language cannot say as the drawing does; a picture's data is
+  shortened in the box, and everything else takes all of it. **Copy**,
+  **Save As** (a `.napkin` file), **Open as New Page** (the script run into
+  pages of their own, after the page in view) and **Cancel**. Every script
+  opens with a comment saying what it was written from, and the notes
+  follow as comments, so a saved script carries both. While the dialog is
+  up it keeps its keys, as the configuration popup does.
+  `src/core/script/generate.ts` writes the scripts with no DOM, and
+  `src/core/imported-sketch.ts` builds an imported file's layers for both
+  File > Import and the generator, so the two cannot disagree about the
+  tree a file makes. `test/script-generate.test.ts` holds a generated page
+  to the tree the import builds, runs a PDF's pages back (the walking
+  figure's to the same pixels), runs a picture's linked and embedded
+  scripts, and writes a selection kept and fitted.
+  `test/gui/check-generate-script.mjs` picks two parts of an imported
+  figure in the Layers panel, writes them, fits the page and opens it,
+  then writes an SVG and a PNG from their files, embeds, copies, and
+  closes the dialog with Escape and Cancel in the built app.
+- **Automate > Track History and History Limit.** With Track History on,
+  every step of the drawing's history is recorded: each edit that can be
+  undone, and each undo and redo, with the marks it added, removed and
+  changed, the paint order when it moved, and what happened to the layers.
+  A step is named for what made it - the command that ran ("Rotate"), the
+  tool whose press on the canvas made it ("Pen stroke"), or, when nothing
+  named it, what it changed ("Changed 2 marks") - with the type the menu
+  files give it. A drag is one step, holding where it ended, as it is one
+  undo. It is off by default and shows a check mark when on. **History
+  Limit** opens Verbose Settings at a new **Automate** section, which holds
+  the same switch, the limit (50 to 5,000 steps in steps of 50, 500 unless
+  changed, the oldest going first) and how many steps are kept and roughly
+  what they hold. The steps last as long as the document: a new or opened
+  document starts a new history, and turning tracking off clears it. Zoom,
+  pan, the panels and the tool in hand are not recorded. From Session
+  History writes the steps as a script, and is greyed while there are none.
+  The store closes each step at the next history boundary
+  (`Store.onHistory`) and does nothing when no one listens;
+  `src/core/history-diff.ts` compares the pages, and
+  `src/renderer/history-tracker.ts` names and keeps the steps.
+  `test/history-diff.test.ts` and `test/history-tracker.test.ts` cover
+  the comparison, the store's hook, the names and the limit, and
+  `test/gui/check-track-history.mjs` turns tracking on from the menu, draws
+  two strokes, rotates one and undoes, reads the four steps back, and uses
+  the Automate section's slider and switch in the built app.
+- **Automate > Generate Script > From Session History.** The configuration
+  popup lists the steps Track History recorded on the page in view, as the
+  mockup draws it: "History Limit" across the top of the table, a row per
+  step with its index, tool type and command, every one ticked, a search
+  over the type and the command, and a radio button for each main type.
+  Untick a step and the script is the drawing as it would be had that step
+  not happened: a removal left out brings its mark back, an addition left
+  out drops its mark and every change to it, and a change left out takes
+  back only the properties it changed, so a later step keeps its own. The
+  script draws what the session drew - a mark from before the history began
+  only when a ticked step changed it - with each step's comment before the
+  first mark it drew, `# 7  Draw:Add:mark  Pen stroke  (2026-09-26 14:03)`,
+  and a line for what it did to other marks and to the layers ("modified
+  mark from step 1", "removed in step 12"). Its first line names the app's
+  version, the page and the time, and the steps left out. Accept shows the
+  script in the Generated script dialog. `src/core/script/history-script.ts`
+  replays the steps with no DOM; Track History's diff now keeps what each
+  changed property was, so a change can be taken back alone. `formatScript`
+  takes `comments`, lines to write before given instructions, and the
+  script writer can trace each mark's first instruction.
+  `test/history-script.test.ts` records sessions through the store and
+  plays them back with steps left out, and
+  `test/gui/check-history-script.mjs` draws, turns a stroke, unticks the
+  turn in the popup, and opens the pages both scripts draw in the built app.
+- **A documentation site.** `docs/` is a static site of 61 pages for GitHub
+  Pages, at https://isocialpractice.github.io/napkin-sketch/ once it is
+  published: a landing page, install, five task quickstarts (draw,
+  transform, layers, pages, automate), sixteen pages on using the app, the
+  27 napkin script and API pages, embedding, the helpers, building and
+  testing, the changelog and the license. `npm run site` writes every page
+  from Markdown - the manual's own sources in `docs/site-src/`, and
+  `docs/api/`, `QUICKSTART.md`, `CHEATSHEET.md`, `CHANGELOG.md` and
+  `ai-helper/README.md` where they are - with one top bar, menu and footer
+  stamped into each, a light and a dark theme, a menu that slides in on a
+  phone, and only relative links, so the pages open from a folder as well.
+  `src/docs/site.ts` renders the Markdown these pages use with no
+  dependency, and the tables in them come from the code: the settings, the
+  npm scripts, the page lists, and the shortcuts `npm run menu-docs` writes.
+  `npm run site -- --check` and `test/site.test.ts` fail when a page is
+  behind its source, when the chrome differs between pages, or when a link
+  or `#anchor` reaches nothing, and the test runs the napkin examples the
+  pages hold. `.github/workflows/pages.yml` deploys `docs/` on a push to
+  `main`. `DESIGN_LANGUAGE.md` records the site's colors, drawn from the
+  icon and the app's own, with each one's contrast against its background.
+- **Help opens the documentation.** **Help > Verbose** opens the site's
+  pages in a window of their own, at *Using the app*, and each **Help >
+  Tool Types** row opens its quickstart there: Transform, Draw, Pages,
+  Layers or Automate. The pages are the app's own copy - the installer
+  carries them, and a checkout reads `docs/` - so they need no network. A
+  link to another page stays in the window, a web link opens in the
+  browser, and nothing else is followed; the window has no menu bar and no
+  way into the app. `Alt + Left` and `Alt + Right` go back and forward, as a
+  mouse's side buttons do, and `Ctrl + W` closes it. **Help > Source Docs**,
+  the published site, stays out of the menu until its deployment has been
+  checked. `src/main/docs.ts` makes the window's decisions without Electron
+  (`test/docs-window.test.ts`), and `test/gui/check-help-menu.mjs` drives
+  the menu and the window in the built app.
+- **Animation Mode's frame names, in one place.** The Animation Mode page
+  gains a table of how a frame is named from the one it is drawn from, and
+  the Automate quickstart that **Help > Tool Types > Automate** opens leads
+  to it and to the six assemblies.
+- **Transform > Transform Box and Sketch > Stroke Profile.** Checking the
+  changelog against the new menus found two tools they had left out. The
+  Transform box (`Ctrl+T`, from 1.0.0-alpha.4.2.2) had the Transform menu's
+  own type but was filed with the toolbar-only tools, though it has no
+  toolbar button; it now heads the Transform menu's second block, with a
+  check mark while the box is up. Stroke Profile (from 1.0.0-alpha.4.3.0)
+  was not in the menu files at all, so no menu listed it and no key could be
+  given to it; it now opens its picker from the Sketch menu, and **Edit >
+  Edit Keyboard Shortcuts** can give it a key, which its toolbar control's
+  tooltip then shows.
+
+### Changed
+
+- **The keyboard runs through the menu files.** One lookup in
+  `src/renderer/keys.ts` replaces the key handler's forty-odd branches, so
+  a shortcut in the user's `shortcuts.json` changes what the key does, not
+  only what the menus show. The modes still come first - Escape backing out,
+  Enter finishing a path, digits feeding a quick entry - and Enter and
+  Delete still stand aside when there is nothing to move or delete.
+  Ctrl+R, Ctrl+Shift+R and F5 are still swallowed wherever the focus is,
+  since Chromium reloads on them; outside a text field they run what the
+  shortcuts give them, and a reload key with nothing to run still explains
+  itself. Shift with a letter or a named key still means the key when no
+  shortcut uses the Shift form, so Shift+P picks the pen as it always has;
+  Alt with a letter no longer does. The keys only the menu bar answered
+  before (Ctrl+N, Ctrl+O, Ctrl+0, Ctrl+, and Ctrl+Alt+,) are answered by
+  the window too, with the same commands.
+- **Nine menus in the menu bar.** File, Edit and View are joined by
+  **Transform** (Vector Path, Transform Box, Move, Rotate, Join, Close Shape
+  with its Sharp and Smooth joins, Mirror, Sharpen, Mesh Warp), **Sketch**
+  (Pen, Marker, Eraser, Text, Copic, Direct, Stroke Profile), **Layers**,
+  **Pages**, **Automate** and
+  **Help**. Rotate and Mirror moved from Edit to Transform, and File > Export
+  lists PNG, SVG, JPEG, PDF. Every Automate row works: Generate Script's
+  From Media File, Selected Layers and From Session History, Track History
+  and History Limit. Help's rows open the documentation, and **Help >
+  Source Code** opens the project's page.
+- **The menu bar greys what there is nothing to act on**, as the right-click
+  menus always have: Cut, Copy, Duplicate and Delete with nothing selected,
+  Paste in Place with nothing copied, Undo and Redo with nothing to undo or
+  redo, Ungroup when the active layer is not a group, Delete Page with one
+  page, and Hide Layers Panel or Hide Pages Panel when that panel is already
+  hidden. The drawing window tells the menu bar when an answer changes, and
+  the rows are updated where they stand rather than the menu rebuilt.
+- **Every right-click row shows its shortcut** at its right edge, and each
+  right-click menu holds what its menu in the menu bar holds. The layers
+  panel's Delete Layer(s) is **Delete Layer**, and its two restack rows are a
+  **Move** submenu of Layer Up and Layer Down; the pages panel's Add Page
+  opens **Default New Page**, **Custom New Page** and **From Selection**, the
+  order the page menu under the hamburger now takes too; the Export button
+  lists its formats in the new File > Export order.
+- **One command, however it is reached.** A menu bar row, a right-click row
+  and a toolbar button run the same command by the same id, through one
+  table in the drawing window (`src/renderer/commands.ts`) whose type is
+  every command it owns, so a command added to the menu files without a
+  handler does not compile. The main process runs the few it owns itself:
+  Verbose Settings and the Help rows. `MenuAction`, the list of actions the
+  menu bar used to send the drawing window, is gone: the bridge's
+  `onMenuAction` now hands the window a command's id from the menu files
+  (`new-sketch` where it was `new`).
+- **File > Import takes GIF and WebP pictures**, and so does `-i` on the
+  command line; each is placed as a PNG or JPEG is.
+- **The README is a front door.** It keeps a paragraph for each feature,
+  the install commands and the license, and each heading links to the page
+  on the site that now holds the full text; the link under the title opens
+  the documentation. The shortcut table `npm run menu-docs` writes moved
+  with its section to `docs/site-src/guide/menus-and-shortcuts.md`.
+- **The banner is a picture.** The README shows `assets/bannerImage.png` -
+  the logo beside the app - which replaces the hand-drawn
+  `assets/screenshot.svg`, and the site's home page opens on
+  `docs/assets/banner.gif`, which plays once and holds its last frame as
+  the page's hero. `test/site.test.ts` fails if the GIF is given a loop
+  block again, or the banner leaves its place under the title.
+- **The npm package ships `docs/api` without the site's pages beside it.**
+  `files` leaves out `docs/api/**/*.html`, and `npm run pack-check` fails if
+  one slips into the tarball. The desktop installer carries the whole site,
+  for the app to open without a connection.
+- **Every GUI check runs in a user-data folder of its own**, made when it
+  launches the app and removed when it stops it, unless the check brings
+  its own. Twelve checks used to share `%APPDATA%/Electron` with each other
+  and with the app run from the checkout by hand, so a setting one of them
+  saved was the next one's starting point. The app is launched with
+  Chromium's occlusion tracking off, too: a check window Windows opened
+  behind another stopped drawing, and a check could wait on it for ever.
+
+### Fixed
+
+- **A right-click on the canvas acted like a left click first.** The
+  pointer handler never looked at which button was pressed, so a right press
+  drew a dot with the pen, sampled a colour with the eyedropper, or dropped
+  the selection with the Select tool before the canvas menu opened - which
+  left that menu's Cut, Copy and Delete greyed with a selection in hand.
+  Only the primary button draws, selects and edits now.
+- **The `.skbk` format's documentation showed version 2**, while the app
+  writes version 3. The page now says what version 3 adds (group rows,
+  `parent`, a stroke's `fill`) and that older files open unchanged, and the
+  project structure lists the source files it had left out.
+
 ## [1.0.0-alpha.4.4.0] - 2026-09-25
 
 Drawing from written instructions, with no pointer and no window, makes this a

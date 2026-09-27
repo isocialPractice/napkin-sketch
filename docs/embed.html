@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Embedding the editor - napkin-sketch</title>
+<meta name="description" content="The editor in your own page, the pure engine, and the graphic-design API.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="index.html"><img src="assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="index.html">Home</a></li><li><a href="install.html">Install</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="quickstart/draw.html">Draw</a></li><li><a href="quickstart/transform.html">Transform</a></li><li><a href="quickstart/layers.html">Layers</a></li><li><a href="quickstart/pages.html">Pages</a></li><li><a href="quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="guide/index.html">Overview</a></li><li><a href="guide/tools.html">Tools</a></li><li><a href="guide/gestures.html">Gestures</a></li><li><a href="guide/vector-paths.html">Vector paths</a></li><li><a href="guide/selection.html">Selection and editing</a></li><li><a href="guide/transform.html">Transform</a></li><li><a href="guide/layers.html">Layers</a></li><li><a href="guide/pages.html">Pages</a></li><li><a href="guide/import-export.html">Import and export</a></li><li><a href="guide/sharpen.html">Sharpen</a></li><li><a href="guide/settings.html">Settings</a></li><li><a href="guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="guide/automate.html">Automate</a></li><li><a href="guide/animation-mode.html">Animation Mode</a></li><li><a href="guide/skbk-format.html">The .skbk format</a></li><li><a href="guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="api/index.html">Overview</a></li><li><a href="api/quickstart.html">Quickstart</a></li><li><a href="api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="api/language/index.html">Reference</a></li><li><a href="api/language/quickstart.html">Quickstart</a></li><li><a href="api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="api/drawing/index.html">Reference</a></li><li><a href="api/drawing/quickstart.html">Quickstart</a></li><li><a href="api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="api/compose/index.html">Reference</a></li><li><a href="api/compose/quickstart.html">Quickstart</a></li><li><a href="api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="api/output/index.html">Reference</a></li><li><a href="api/output/quickstart.html">Quickstart</a></li><li><a href="api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="api/cli/index.html">Reference</a></li><li><a href="api/cli/quickstart.html">Quickstart</a></li><li><a href="api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="api/node/index.html">Reference</a></li><li><a href="api/node/quickstart.html">Quickstart</a></li><li><a href="api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="api/interop/index.html">Reference</a></li><li><a href="api/interop/quickstart.html">Quickstart</a></li><li><a href="api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="api/ai/index.html">Reference</a></li><li><a href="api/ai/quickstart.html">Quickstart</a></li><li><a href="api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="embed.html" aria-current="page">Embedding</a></li><li><a href="scripting.html">Scripting</a></li><li><a href="ai-helpers.html">AI helpers</a></li><li><a href="ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="develop/building.html">Building</a></li><li><a href="develop/testing.html">Testing</a></li><li><a href="develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="changelog.html">Changelog</a></li><li><a href="about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Docs</a> <span class="sep">/</span> Building on it <span class="sep">/</span> <span aria-current="page">Embedding</span></nav>
+<h1 id="embedding-the-editor">Embedding the editor<a class="anchor" href="#embedding-the-editor" aria-label="Link to this section">#</a></h1>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Embeddable API</strong> — drop the same editor into a website, WordPress block, or
+VS Code webview (see <a href="#embedding-the-editor">Embedding</a>).</li>
+<li><strong>Graphic-design API</strong> — build a composition from rectangles, circles,
+ellipses, triangles, polygons, clipping masks, styled text and placed media,
+with CSS filter effects - a blur, a drop shadow, a color shift - on any of
+them, then render it to SVG or PNG from a plain Node script, with no browser and no
+image dependency. Both formats come off one document, so they are the same
+graphic (see <a href="api/compose/index.html">the graphic design API</a>).</li>
+</ul>
+<p>The same drawing engine ships as a <strong>framework-agnostic, browser-safe</strong> package
+with no Electron or Node dependencies. Use it on a website, in a WordPress
+block, or inside a VS Code webview.</p>
+<p>With a bundler (ESM):</p>
+<pre><code class="language-ts">import { NapkinSketch } from 'napkin-sketch';
+import 'napkin-sketch/styles.css';
+
+const editor = new NapkinSketch(document.getElementById('host')!, {
+  liveSharpen: false, // off by default, like the desktop app
+  onChange: (e) =&gt; console.log(e.toJSON()),
+});
+
+editor.setTool('pen');
+editor.sharpenAll();
+const png = editor.toDataURL('image/png');
+const svg = editor.toSVG();  // lossless vector export
+const pdf = editor.toPDF();  // latin1-safe byte string; save with binary encoding</code></pre>
+<p>Via a plain <code>&lt;script&gt;</code> tag (the IIFE build exposes a global <code>napkin</code>):</p>
+<pre><code class="language-html">&lt;div id=&quot;host&quot; style=&quot;width: 640px; height: 420px&quot;&gt;&lt;/div&gt;
+&lt;script src=&quot;node_modules/napkin-sketch/dist/embed/napkin-sketch.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+  const editor = new napkin.NapkinSketch(document.getElementById('host'));
+&lt;/script&gt;</code></pre>
+<p>You can also import just the pure engine (no DOM) to sharpen strokes yourself,
+generate PDFs, or parse an SVG into layered strokes (browser only):</p>
+<pre><code class="language-ts">import { sharpenStrokes, parseSketchBook, sketchesToPdf, importSvg } from 'napkin-sketch';
+
+// Nested groups and named objects come back as a nested layer tree. Pass
+// `unnamedElements: 'split'` to also give every unnamed element its own
+// `&lt;Path&gt;` layer, mirroring an Illustrator layers panel exactly.
+const { width, height, layers } = importSvg(svgText, { unnamedElements: 'split' });</code></pre>
+<p>Or draw from written instructions, a napkin script, with no pointer and no
+DOM. The language is in the same browser-safe entry; reading and writing
+files is in <code>napkin-sketch/node</code>:</p>
+<pre><code class="language-ts">import { drawSvg } from 'napkin-sketch';
+import { drawFile } from 'napkin-sketch/node';
+
+const { svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60');
+const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png', 'pdf'] });</code></pre>
+<p><a href="api/node/index.html">Using napkin-sketch from code</a> covers both entries,
+ES modules and CommonJS, the types and the result object.</p>
+<h2 id="drawing-with-the-graphic-design-api">Drawing with the graphic-design API<a class="anchor" href="#drawing-with-the-graphic-design-api" aria-label="Link to this section">#</a></h2>
+<p>Compositions are the other way to make a graphic here: instead of a pointer, a
+script. Build a page out of simple elements - rectangles, circles, ellipses,
+triangles, polygons, lines, paths, text, placed media and clipping masks, with
+CSS filter effects on any of them - then render it to <strong>SVG</strong> or <strong>PNG</strong>.</p>
+<pre><code class="language-ts">import { createComposition } from 'napkin-sketch';
+
+const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
+
+design.rect({ x: 24, y: 24, width: 312, height: 96, rx: 12, fill: '#326478' });
+design.text({ x: 180, y: 78, text: 'Acme Corp', align: 'center', fontSize: 28, fill: '#ffffff' });
+design.defineClip('badge', { type: 'circle', cx: 180, cy: 220, r: 64 });
+design.image({ src: logo, x: 116, y: 156, width: 128, height: 128, fit: 'cover', clip: 'badge' });
+
+const svg = design.toSVG();  // a string
+const png = design.toPNG();  // PNG file bytes, rasterized in pure TypeScript</code></pre>
+<p>Headless by default and dependency-free in both directions: no browser, no
+canvas, no Electron window, and no native image library. Pages default to 360
+by 360 pixels, coordinates are pixels unless the page names another unit, and
+the app's own canvas is drawn into only when it is explicitly handed over.</p>
+<p>Both renderers read one document, so the SVG and the PNG of a composition are
+the same graphic and differ only in the media export format. The full
+reference, every element's properties, and worked examples are in
+<a href="api/compose/index.html">the graphic design API</a>. The AI helper that drives it is
+<a href="ai-helpers.html#the-graphic-designer-helper">graphic-designer</a>, which reads an existing
+graphic into a design language and generates scripts that compose more like it.</p>
+<p>A composition can also place a brand's own files. <code>placeBrand</code> puts a resolved
+asset into a slot, and for a vector it <strong>inlines the asset's shapes</strong> rather
+than placing it as an image - the rasterizer decodes PNG and nothing else, so an
+SVG logo placed as an image would render in the SVG and be a hole in the PNG,
+silently. A slot with no
+asset behind it is filled by <code>brandMark</code> with a monogram in the design
+language's own palette, so a page is never left with a gap where a logo should
+be. <a href="api/ai/quickstart.html">The AI helpers' quickstart</a> is the short
+version, from a clone to a branded graphic, and
+<a href="api/ai/index.html#give-it-your-brand">Give it your brand</a> the long one.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="api/ai/cheatsheet.html" rel="prev"><span>Previous</span>The AI helpers: cheatsheet</a><a href="scripting.html" rel="next"><span>Next</span>Drawing from a script</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/embed.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

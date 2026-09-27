@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestures and input - napkin-sketch</title>
+<meta name="description" content="Pen, touch and mouse; pan and zoom; the straight line, the quick curve, endpoint snap and the held keys.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html" aria-current="page">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Gestures</span></nav>
+<h1 id="gestures-and-input">Gestures and input<a class="anchor" href="#gestures-and-input" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#held-keys-and-gestures">Held keys and gestures</a></li><li><a href="#straight-line">Straight line</a></li><li><a href="#quick-curve">Quick curve</a></li><li><a href="#endpoint-snap">Endpoint snap</a></li><li><a href="#capslock-cursor">CapsLock cursor</a></li></ul></details>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Touchscreen + mouse + stylus</strong> input via Pointer Events (with coalesced
+sampling for smooth, high-frequency capture).</li>
+<li><strong>Pan and zoom</strong> with a two-finger gesture (pan within a small threshold, zoom
+beyond it), the <strong>mouse wheel</strong> (<code>Alt</code> + wheel zooms, plain wheel pans,
+<code>Ctrl+Shift</code> + wheel pans across — all directions configurable), or the
+<strong>Select tool with <code>Space</code> + drag</strong>, plus <strong>straight-line drawing</strong> (hold
+<code>Space</code> and drag with a drawing tool; <code>Shift</code> mid-drag locks the line
+strictly horizontal or vertical until released).</li>
+<li><strong>Quick curve</strong> — hold <code>Ctrl + Space</code> and drag to sweep a quarter ellipse
+with the active drawing tool, or add <code>Alt</code> for a quarter circle; the arc
+follows the drag and the release places its far end. <code>Alt</code> can be pressed or
+let go mid-drag to switch between the two, and each <code>Shift</code> tap swings the
+arc's apex a further 90° clockwise while both ends stay put.</li>
+<li><strong>Quick features</strong> — press <code>W</code> then a number for stroke width, <code>Q</code> then a
+number for opacity, <code>Z</code> then a digit to zoom (<code>9</code> = 90%, <code>0</code> = 100%), or
+<code>C</code> / <code>Shift + C</code> to cycle the <strong>Quick Access Colors</strong>.</li>
+<li><strong>Endpoint snap</strong> — hold <code>Shift</code> while drawing to snap the stroke's start and
+end to the nearest endpoint of an existing stroke (a ring marks the target).
+Works for freehand and curve drawing (the quick straight line and quick
+curve snap their start on press); the snap sensitivity (1–20px, default
+10px) and an on/off switch live in the settings. The optional <strong>Join
+stroke</strong> setting (off by default) merges a snapped stroke with the stroke
+it touches into one continuous stroke.</li>
+<li><strong>CapsLock cursor</strong> — crosshair while CapsLock is on; a circle matching the
+current stroke width when off. The eraser carries a dashed circle the size of
+the area it will clear.</li>
+</ul>
+<h2 id="held-keys-and-gestures">Held keys and gestures<a class="anchor" href="#held-keys-and-gestures" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">How</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Rotate Copic nib</td><td style="text-align:left">Hold <code>Ctrl</code> 1s, then <code>Alt</code> / <code>Shift</code></td></tr>
+<tr><td style="text-align:left">Zoom (mouse)</td><td style="text-align:left">Hold <code>Alt</code> and scroll the wheel</td></tr>
+<tr><td style="text-align:left">Pan (mouse)</td><td style="text-align:left">Scroll to pan; <code>Ctrl+Shift</code> + scroll pans across</td></tr>
+<tr><td style="text-align:left">Pan (Select / Direct)</td><td style="text-align:left">Hold <code>Space</code> and drag</td></tr>
+<tr><td style="text-align:left">Straight line</td><td style="text-align:left">Hold <code>Space</code> and drag</td></tr>
+<tr><td style="text-align:left">Lock line to 90°</td><td style="text-align:left"><code>Shift</code> while dragging (release to free)</td></tr>
+<tr><td style="text-align:left">Quick curve (ellipse)</td><td style="text-align:left">Hold <code>Ctrl + Space</code> and drag</td></tr>
+<tr><td style="text-align:left">Quick curve (circle)</td><td style="text-align:left">Hold <code>Ctrl + Space + Alt</code> and drag</td></tr>
+<tr><td style="text-align:left">Swing a quick curve apex</td><td style="text-align:left"><code>Shift</code> (90° clockwise per press)</td></tr>
+<tr><td style="text-align:left">Endpoint snap</td><td style="text-align:left">Hold <code>Shift</code> while drawing</td></tr>
+<tr><td style="text-align:left">Edit a vector path</td><td style="text-align:left">Vector Path tool, click a committed path</td></tr>
+<tr><td style="text-align:left">Move point / round corner</td><td style="text-align:left"><code>Ctrl</code> (drag point, handle, or target)</td></tr>
+<tr><td style="text-align:left">Toggle anchor handles</td><td style="text-align:left"><code>Alt</code> + click the anchor</td></tr>
+<tr><td style="text-align:left">Step a Move field</td><td style="text-align:left">Arrow keys; hold <code>Shift</code> for a coarse step</td></tr>
+<tr><td style="text-align:left">Keep the shape</td><td style="text-align:left">Hold <code>Shift</code> while dragging a handle</td></tr>
+<tr><td style="text-align:left">Scale from the centre</td><td style="text-align:left">Hold <code>Alt</code> while dragging a handle</td></tr>
+<tr><td style="text-align:left">Turn by hand</td><td style="text-align:left">Drag on the canvas while Rotate is open</td></tr>
+<tr><td style="text-align:left">Dock / undock a panel</td><td style="text-align:left">The button in the panel's title bar</td></tr>
+<tr><td style="text-align:left">Move the rotation centre</td><td style="text-align:left">Click the canvas, drag the crosshair, the grid, or Centre x / y</td></tr>
+<tr><td style="text-align:left">Snap a rotation to 15°</td><td style="text-align:left">Hold <code>Shift</code> while dragging, or the Snap toggle</td></tr>
+<tr><td style="text-align:left">Close shape</td><td style="text-align:left">Close Shape button, then Sharp or Smooth</td></tr>
+<tr><td style="text-align:left">Drag-copy selection</td><td style="text-align:left">Hold <code>Alt</code> and drag the selection</td></tr>
+<tr><td style="text-align:left">Add / remove a layer row</td><td style="text-align:left"><code>Ctrl/Cmd</code> + click the row</td></tr>
+<tr><td style="text-align:left">Select a run of layers</td><td style="text-align:left"><code>Shift</code> + click the far row</td></tr>
+</tbody></table></div>
+<h2 id="straight-line">Straight line<a class="anchor" href="#straight-line" aria-label="Link to this section">#</a></h2>
+<p><strong>Straight line:</strong> hold <code>Space</code> and drag with any drawing tool for a clean
+two-point line. Hold <code>Shift</code> during the drag to lock the line <strong>strictly
+horizontal or vertical</strong> — whichever axis the drag favours — and release
+<code>Shift</code> to free it again; the lock follows the key live, so you can toggle it
+as often as you like mid-drag, and it engages without waiting for the pointer
+to move.</p>
+<h2 id="quick-curve">Quick curve<a class="anchor" href="#quick-curve" aria-label="Link to this section">#</a></h2>
+<p><strong>Quick curve:</strong> hold <code>Ctrl + Space</code> and drag to sweep a <strong>quarter ellipse</strong>
+with whichever drawing tool is active — one gesture, no bend step. The arc
+leaves the point you pressed at flat and arrives at the pointer turning
+straight up, bowing through the corner of the drag, and it reshapes live as
+you move; <strong>releasing places the far end</strong>. Hold <code>Alt</code> for a <strong>quarter
+circle</strong> instead: the shorter side of the drag sets the radius, the same way
+<code>Shift</code> constrains the Ellipse tool. <code>Alt</code> is read continuously, so pressing
+or releasing it mid-drag flips the arc between circle and ellipse as often as
+you like.</p>
+<p>Tap <code>Shift</code> to <strong>swing the apex 90° clockwise</strong>, once per press. The apex is
+the arc's bowed-out belly, and only it moves: <strong>both ends stay exactly where
+the drag put them</strong>, so a curve begun on an existing stroke stays joined to it
+and its far end stays under the pointer while you choose which way the curve
+bellies out. Two taps mirror the sweep across its chord — the same arc bowed
+the other way — and four bring it back around. Holding <code>Shift</code> down does not
+spin the apex; it parks at one angle. Note that on an <code>Alt</code> quarter circle
+(or a square drag) the odd stops put the apex on the chord itself, flattening
+the arc into a straight segment — with both ends pinned, a quarter circle can
+only bow two ways — so mirroring a circle is two taps, not one.</p>
+<p><code>Esc</code> cancels. The committed stroke is one cubic Bézier — <strong>two anchors and
+two control points</strong>, not a chain of dozens — so picking it up with the
+Vector Path tool shows just those four, ready to rework. For a curve you can
+bow by hand instead, use the <strong>Curve</strong> tool (<code>V</code>) below.</p>
+<h2 id="endpoint-snap">Endpoint snap<a class="anchor" href="#endpoint-snap" aria-label="Link to this section">#</a></h2>
+<p><strong>Endpoint snap:</strong> hold <code>Shift</code> while drawing with the pen, marker, or Copic
+marker and the stroke snaps to the nearest <strong>endpoint</strong> of an existing stroke —
+the start point snaps on pen-down and the end point on pen-up (the Curve
+tool's chord snaps both ends live). The quick straight line and quick curve
+snap only their <strong>start</strong>, taken as you press down, because mid-drag <code>Shift</code>
+is the axis lock for one and the apex key for the other. A small ring shows the
+endpoint you will snap to whenever one is within the <strong>snap sensitivity</strong> (a
+screen-pixel radius, so zooming in gives finer control). The sensitivity
+(1–20px, default 10px) and the feature's on/off switch live under <strong>Quick
+Features</strong> in the Verbose Settings window, alongside <strong>Join stroke</strong> (off by
+default): when on, a snapped stroke merges with the stroke it touched (same
+tool and color) into one continuous stroke.</p>
+<h2 id="capslock-cursor">CapsLock cursor<a class="anchor" href="#capslock-cursor" aria-label="Link to this section">#</a></h2>
+<p><strong>CapsLock cursor:</strong> while any drawing tool is active, <strong>CapsLock on</strong> shows a
+precision crosshair; <strong>CapsLock off</strong> shows a circle preview matching the
+current stroke width. The <strong>eraser</strong> shows a dashed circle the size of its
+footprint, so the area about to be cleared is visible before pressing.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="tools.html" rel="prev"><span>Previous</span>Tools</a><a href="vector-paths.html" rel="next"><span>Next</span>Vector paths and stroke profiles</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/gestures.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

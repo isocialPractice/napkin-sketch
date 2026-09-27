@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The graphic design API: cheatsheet - napkin-sketch</title>
+<meta name="description" content="The graphic design API, as tables to look things up in.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>The graphic design API</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html" aria-current="page">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">The graphic design API</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
+<h1 id="the-graphic-design-api-cheatsheet">The graphic design API: cheatsheet<a class="anchor" href="#the-graphic-design-api-cheatsheet" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#the-page">The page</a></li><li><a href="#elements">Elements</a></li><li><a href="#every-element-also-takes">Every element also takes</a></li><li><a href="#text">Text</a></li><li><a href="#paint-masks-and-holes">Paint, masks and holes</a></li><li><a href="#rendering">Rendering</a></li><li><a href="#node-and-brand-helpers">Node and brand helpers</a></li><li><a href="#common-mistakes">Common mistakes</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <a href="quickstart.html">Quickstart</a> · <strong>Cheatsheet</strong></p>
+<p>Reminders for compositions: the page, every element, paint, masks, rendering, and the Node and brand helpers.</p>
+<h2 id="the-page">The page<a class="anchor" href="#the-page" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th><code>createComposition({ ... })</code></th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>width</code>, <code>height</code></td><td><code>360</code></td><td>Page size, in <code>units</code></td></tr>
+<tr><td><code>units</code></td><td><code>'px'</code></td><td><code>px</code>, <code>in</code>, <code>mm</code> or <code>pt</code>, at 96 pixels to the inch</td></tr>
+<tr><td><code>background</code></td><td><code>null</code></td><td>A CSS color, or <code>null</code> for transparent</td></tr>
+<tr><td><code>id</code>, <code>title</code></td><td>none</td><td>The root <code>&lt;svg id&gt;</code>, and a <code>&lt;title&gt;</code> for screen readers</td></tr>
+<tr><td><code>useGuiCanvas</code></td><td><code>false</code></td><td><code>true</code> only inside the app, where <code>paintComposition</code> draws into its canvas</td></tr>
+</tbody></table></div>
+<h2 id="elements">Elements<a class="anchor" href="#elements" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Method</th><th>Needs</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>rect</code></td><td><code>x, y, width, height</code>; <code>rx</code>, <code>ry</code></td><td><code>design.rect({ x: 20, y: 20, width: 120, height: 60, rx: 12, fill: '#326478' })</code></td></tr>
+<tr><td><code>circle</code></td><td><code>cx, cy, r</code></td><td><code>design.circle({ cx: 80, cy: 80, r: 40, fill: '#4cae50' })</code></td></tr>
+<tr><td><code>ellipse</code></td><td><code>cx, cy, rx, ry</code></td><td><code>design.ellipse({ cx: 200, cy: 80, rx: 60, ry: 30, fill: '#fdc83a' })</code></td></tr>
+<tr><td><code>triangle</code></td><td><code>x, y, width, height, variant</code>, or <code>points</code></td><td><code>design.triangle({ x: 20, y: 20, width: 80, height: 70, variant: 'up' })</code></td></tr>
+<tr><td><code>polygon</code></td><td><code>points</code>, closed</td><td><code>design.polygon({ points: [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 20, y: 30 }] })</code></td></tr>
+<tr><td><code>polyline</code></td><td><code>points</code>, open</td><td><code>design.polyline({ points, fill: null, stroke: '#1f2328' })</code></td></tr>
+<tr><td><code>line</code></td><td><code>x1, y1, x2, y2</code></td><td><code>design.line({ x1: 16, y1: 100, x2: 344, y2: 100, stroke: '#4cae50' })</code></td></tr>
+<tr><td><code>path</code></td><td><code>d</code>: <code>M L H V C S Q T Z</code></td><td><code>design.path({ d: 'M 20 130 C 60 110, 100 170, 140 130', fill: null, stroke: '#dc143c' })</code></td></tr>
+<tr><td><code>text</code></td><td><code>x, y, text</code></td><td><code>design.text({ x: 180, y: 78, text: 'Acme Corp', align: 'center', fontSize: 28 })</code></td></tr>
+<tr><td><code>image</code></td><td><code>src, x, y, width, height</code>; <code>fit</code></td><td><code>design.image({ src: logo, x: 24, y: 24, width: 64, height: 64, fit: 'contain' })</code></td></tr>
+<tr><td><code>image</code>, linked</td><td><code>link: true</code>; <code>src</code> is a path</td><td><code>design.image({ src: 'assets/logo.svg', link: true, x: 24, y: 24, width: 120, height: 60 })</code></td></tr>
+<tr><td><code>group</code></td><td>a builder callback, or <code>children</code></td><td><code>design.group({ translate: { x: 40, y: 0 } }, (g) =&gt; g.circle({ cx: 40, cy: 40, r: 32 }))</code></td></tr>
+</tbody></table></div>
+<h2 id="every-element-also-takes">Every element also takes<a class="anchor" href="#every-element-also-takes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Property</th><th>Values</th></tr></thead>
+<tbody>
+<tr><td><code>fill</code></td><td>A CSS color, a gradient, or <code>null</code></td></tr>
+<tr><td><code>stroke</code>, <code>strokeWidth</code></td><td>A CSS color or <code>null</code>; a width, default 1</td></tr>
+<tr><td><code>fillOpacity</code>, <code>strokeOpacity</code>, <code>opacity</code></td><td>0 to 1</td></tr>
+<tr><td><code>fillRule</code></td><td><code>nonzero</code> or <code>evenodd</code></td></tr>
+<tr><td><code>lineCap</code>, <code>lineJoin</code></td><td><code>butt</code>, <code>round</code>, <code>square</code>; <code>miter</code>, <code>round</code>, <code>bevel</code></td></tr>
+<tr><td><code>dash</code>, <code>dashOffset</code></td><td><code>[6, 3]</code>; a number</td></tr>
+<tr><td><code>rotate</code>, <code>scale</code>, <code>translate</code>, <code>origin</code></td><td>Degrees clockwise; a number or <code>{ x, y }</code>; <code>{ x, y }</code>; the pivot, default the centre</td></tr>
+<tr><td><code>clip</code></td><td>A mask id, or an inline shape</td></tr>
+<tr><td><code>effects</code></td><td><code>[{ type: 'blur', radius: 4 }, { type: 'sepia', amount: 0.8 }]</code>, drawn in order</td></tr>
+<tr><td><code>id</code>, <code>name</code>, <code>visible</code></td><td>An SVG id; <code>data-name</code>; <code>false</code> keeps it out of every render</td></tr>
+</tbody></table></div>
+<h2 id="text">Text<a class="anchor" href="#text" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Property</th><th>Default</th><th>Values</th></tr></thead>
+<tbody>
+<tr><td><code>fontFamily</code>, <code>fontSize</code></td><td>a sans stack, <code>16</code></td><td>A CSS family list; a size</td></tr>
+<tr><td><code>fontWeight</code>, <code>fontStyle</code></td><td><code>normal</code></td><td><code>bold</code> or a weight; <code>italic</code></td></tr>
+<tr><td><code>align</code></td><td><code>left</code></td><td><code>left</code>, <code>center</code>, <code>right</code>, <code>justify</code></td></tr>
+<tr><td><code>baseline</code></td><td><code>alphabetic</code></td><td><code>alphabetic</code>, <code>top</code>, <code>middle</code>, <code>bottom</code></td></tr>
+<tr><td><code>maxWidth</code>, <code>lineHeight</code></td><td>none, <code>1.2</code></td><td>The wrap width; the line advance in font sizes</td></tr>
+<tr><td><code>letterSpacing</code>, <code>wordSpacing</code>, <code>indent</code>, <code>paragraphSpacing</code></td><td><code>0</code></td><td>Extra space</td></tr>
+<tr><td><code>decoration</code>, <code>transform</code></td><td><code>none</code></td><td><code>underline</code>, <code>line-through</code>; <code>uppercase</code>, <code>lowercase</code>, <code>capitalize</code></td></tr>
+</tbody></table></div>
+<h2 id="paint-masks-and-holes">Paint, masks and holes<a class="anchor" href="#paint-masks-and-holes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Want</th><th>Write</th></tr></thead>
+<tbody>
+<tr><td>A linear gradient</td><td><code>fill: { type: 'linear', angle: 90, stops: [{ offset: 0, color: '#ffe08a' }, { offset: 1, color: '#ff8a65' }] }</code></td></tr>
+<tr><td>A radial gradient</td><td><code>fill: { type: 'radial', stops: [...] }</code></td></tr>
+<tr><td>A shared mask</td><td><code>design.defineClip('badge', { type: 'circle', cx: 60, cy: 60, r: 40 })</code>, then <code>clip: 'badge'</code></td></tr>
+<tr><td>A one-off mask</td><td><code>clip: { type: 'rect', x: 30, y: 30, width: 60, height: 60 }</code></td></tr>
+<tr><td>A hole in a group</td><td><code>design.group({ erase: [{ type: 'circle', cx: 60, cy: 40, r: 14 }] }, (g) =&gt; { ... })</code></td></tr>
+<tr><td>A shadow</td><td><code>effects: [{ type: 'drop-shadow', dx: 4, dy: 4, blur: 8, color: 'rgba(0, 0, 0, 0.4)' }]</code></td></tr>
+<tr><td>One shadow for a group</td><td><code>design.group({ effects: [{ type: 'drop-shadow', dx: 0, dy: 6, blur: 6, color: '#0006' }] }, (g) =&gt; { ... })</code></td></tr>
+</tbody></table></div>
+<h2 id="rendering">Rendering<a class="anchor" href="#rendering" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>design.toSVG({ pretty, precision })</code></td><td>SVG text</td></tr>
+<tr><td><code>design.toPNG({ scale })</code></td><td>PNG bytes, a <code>Uint8Array</code></td></tr>
+<tr><td><code>design.rasterize({ scale, decodeImage, resolveLink })</code></td><td><code>{ width, height, data, warnings }</code></td></tr>
+<tr><td><code>renderComposition(design, { format })</code></td><td>Either, by <code>format</code></td></tr>
+<tr><td><code>renderPng(doc, options)</code></td><td><code>{ data, width, height, warnings }</code></td></tr>
+<tr><td><code>compositionToSvg(doc)</code></td><td>SVG text, from a document</td></tr>
+</tbody></table></div>
+<h2 id="node-and-brand-helpers">Node and brand helpers<a class="anchor" href="#node-and-brand-helpers" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>imageDataUrl('assets/logo.png')</code></td><td>A file as a data URL, for <code>src</code></td></tr>
+<tr><td><code>writeComposition(design, 'out', 'card')</code></td><td><code>out/card.svg</code> and <code>out/card.png</code>, from one document</td></tr>
+<tr><td><code>resolveLinkFromDir('./brand')</code></td><td>A resolver that reads links inside one folder</td></tr>
+<tr><td><code>parseResources(markdown)</code></td><td>A brand's <code>resources.md</code>: <code>{ paths, directories, text }</code></td></tr>
+<tr><td><code>placeBrand(design, box, asset, { fit })</code></td><td>A logo into a slot; a vector is inlined</td></tr>
+<tr><td><code>inlineSvg(markup)</code></td><td>An SVG's shapes as elements: <code>{ viewBox, elements, notes }</code></td></tr>
+<tr><td><code>brandMark(design, box, { label })</code></td><td>A monogram where no asset is configured</td></tr>
+</tbody></table></div>
+<ul>
+<li>The Node helpers come from <code>napkin-sketch/node</code>; everything else from <code>napkin-sketch</code>.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes<a class="anchor" href="#common-mistakes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Wrong</th><th>Right</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>An SVG logo placed with <code>image</code></td><td><code>placeBrand</code> or <code>inlineSvg</code></td><td>The PNG decodes only PNG itself: an SVG image is a hole in it.</td></tr>
+<tr><td>Runs of text advanced by <code>measureText</code></td><td>The font's own metric: <code>0.6 em</code> a character for monospace</td><td>Runs overlap in the SVG otherwise.</td></tr>
+<tr><td>Small text at <code>scale: 1</code></td><td><code>toPNG({ scale: 2 })</code> or <code>3</code></td><td>A stroke under a device pixel is grey mush.</td></tr>
+<tr><td><code>fill: '#32647'</code></td><td><code>fill: '#326478'</code></td><td>The PNG render throws on a color it cannot read; the SVG writes it as given.</td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="quickstart.html" rel="prev"><span>Previous</span>The graphic design API: quickstart</a><a href="../output/index.html" rel="next"><span>Next</span>Writing a drawing out</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/compose/CHEATSHEET.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

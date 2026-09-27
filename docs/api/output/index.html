@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writing a drawing out - napkin-sketch</title>
+<meta name="description" content="SVG, PNG, PDF, .skbk and an Illustrator script from one call, the box every format is cut to, and what each format keeps.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Writing a drawing out</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Reference</span></nav>
+<h1 id="writing-a-drawing-out">Writing a drawing out<a class="anchor" href="#writing-a-drawing-out" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p><code>renderSketch</code> writes a page and <code>renderBook</code> writes a book, as SVG, PNG, PDF,
+a <code>.skbk</code> the app opens, or an Illustrator script that rebuilds it. Both run
+with no DOM, in a browser or in plain Node, and add no dependency. This page
+is the reference for the formats, the box every format is cut to, and what a
+format says when it leaves something out. How a drawing is made is in
+<a href="../drawing/index.html">Drawing with napkin script</a>.</p>
+<p><strong>Contents</strong></p>
+<ul>
+<li><a href="#what-this-is">What this is</a></li>
+<li><a href="#the-mental-model">The mental model</a></li>
+<li><a href="#reference">Reference</a>
+<ul>
+<li><a href="#writing-a-page-and-a-book">Writing a page and a book</a></li>
+<li><a href="#options">Options</a></li>
+<li><a href="#svg">SVG</a></li>
+<li><a href="#png">PNG</a></li>
+<li><a href="#pdf">PDF</a></li>
+<li><a href="#the-skbk-file">The .skbk file</a></li>
+<li><a href="#the-illustrator-script">The Illustrator script</a></li>
+<li><a href="#effects">Effects</a></li>
+<li><a href="#the-box-crop-and-registration">The box: crop and registration</a></li>
+<li><a href="#warnings">Warnings</a></li>
+<li><a href="#from-a-sketch-to-a-composition">From a sketch to a composition</a></li>
+</ul></li>
+<li><a href="#worked-examples">Worked examples</a></li>
+<li><a href="#limits">Limits</a></li>
+<li><a href="#for-agents">For agents</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+<h2 id="what-this-is">What this is<a class="anchor" href="#what-this-is" aria-label="Link to this section">#</a></h2>
+<p>One call, every format. A drawing from a script and a drawing from the app are
+the same kind of thing - a sketch book of pages, each a layer tree of marks -
+so both are written out the same way:</p>
+<ul>
+<li><strong>SVG</strong> is the app's own export writer, so a generated page exports exactly
+as a drawn one does.</li>
+<li><strong>PNG</strong> is drawn with no canvas, by the composition rasterizer the graphic
+design API already renders with. The page is lowered into a composition mark
+for mark as the SVG writes it, so the PNG is the picture the SVG draws.</li>
+<li><strong>PDF</strong> is the app's PDF writer: one page a sketch, in vector.</li>
+<li><strong><code>.skbk</code></strong> is the book as the app saves it, which opens in the app with its
+layers and anchors, ready to edit.</li>
+<li><strong><code>.jsx</code></strong> is an ExtendScript file that, run in Adobe Illustrator, rebuilds
+the book there: a document a page, its layers as layers, its marks as paths
+on their own anchors, and its links placed by link.</li>
+</ul>
+<p>Every format is cut to one box, from one option: the ink, a box given
+outright, or a registration box every page shares.</p>
+<h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-text"> page ---renderSketch---&gt; svg | png | pdf | skbk | jsx
+ book ---renderBook-----&gt; svg per page | png per page | one pdf | one skbk | one jsx
+
+ PNG:  page --sketchToComposition--&gt; composition --renderPng--&gt; bytes</code></pre>
+<p>A script's <code>crop</code> and <code>registration</code> come back from <code>evaluate</code> in <code>output</code>,
+and spreading <code>output</code> into the options is what applies them:</p>
+<pre><code class="language-ts">const result = evaluate(text);
+const pngs = renderBook(result.book, { format: 'png', ...result.output });</code></pre>
+<h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
+<h3 id="writing-a-page-and-a-book">Writing a page and a book<a class="anchor" href="#writing-a-page-and-a-book" aria-label="Link to this section">#</a></h3>
+<pre><code class="language-ts">import { writeFileSync } from 'node:fs';
+import { evaluate, renderBook, renderSketch } from 'napkin-sketch';
+
+const result = evaluate(text, { name: 'card', timestamp: '2026-09-25T00:00:00.000Z' });
+const page = result.book.sketches[0];
+
+writeFileSync('card.svg', renderSketch(page));
+writeFileSync('card.png', renderSketch(page, { format: 'png', scale: 2 }));
+writeFileSync('card.pdf', renderBook(result.book, { format: 'pdf' }), 'latin1');
+writeFileSync('card.skbk', renderBook(result.book, { format: 'skbk' }));
+writeFileSync('card.jsx', renderBook(result.book, { format: 'jsx' }));</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Format</th><th><code>renderSketch</code> gives</th><th><code>renderBook</code> gives</th><th>Write it as</th></tr></thead>
+<tbody>
+<tr><td><code>svg</code></td><td>a string</td><td>a string a page, in page order</td><td>UTF-8 text</td></tr>
+<tr><td><code>png</code></td><td>a <code>Uint8Array</code></td><td>a <code>Uint8Array</code> a page, in page order</td><td>bytes</td></tr>
+<tr><td><code>pdf</code></td><td>a string</td><td>one string, a PDF page a sketch</td><td><code>latin1</code>, which keeps an embedded image's bytes</td></tr>
+<tr><td><code>skbk</code></td><td>a string: a book of that one page</td><td>one string for the book</td><td>UTF-8 text</td></tr>
+<tr><td><code>jsx</code></td><td>a string: a script for that one page</td><td>one string, a document a page</td><td>UTF-8 text; it is all ASCII</td></tr>
+</tbody></table></div>
+<p>An unknown format throws, naming the five: that is a mistake in the calling
+code, not in a drawing.</p>
+<p>In Node, <code>writeBook</code> and <code>drawToFiles</code> from <code>napkin-sketch/node</code> write these
+as files, named and numbered - <code>card.svg</code>, or <code>card-1.svg</code> and on for a book
+of several pages - so a caller does not have to; see
+<a href="../node/index.html#writing-files">Using napkin-sketch from code</a>. From a
+shell, <code>napkin-sketch draw</code> and <code>render</code> do the same; see
+<a href="../cli/index.html">The napkin-sketch command line</a>.</p>
+<h3 id="options">Options<a class="anchor" href="#options" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Option</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>format</code></td><td><code>'svg'</code></td><td><code>svg</code>, <code>png</code>, <code>pdf</code>, <code>skbk</code> or <code>jsx</code>.</td></tr>
+<tr><td><code>crop</code></td><td>the whole page</td><td><code>'auto'</code> for the ink, <code>'none'</code>, a box <code>{ x, y, width, height }</code>, or a script's <code>crop</code> as <code>output.crop</code> gives it. See <a href="#the-box-crop-and-registration">the box</a>.</td></tr>
+<tr><td><code>registration</code></td><td>none</td><td>One box every page is cut to. It wins over <code>crop</code>.</td></tr>
+<tr><td><code>transparent</code></td><td><code>false</code></td><td>Leaves the paper out of an SVG, a PNG or an Illustrator script. A PDF keeps its paper, as the app's exports do.</td></tr>
+<tr><td><code>scale</code></td><td><code>1</code></td><td>PNG pixels a page pixel: <code>2</code> for a retina asset.</td></tr>
+<tr><td><code>resolveLink</code></td><td>none</td><td>Reads a <a href="../drawing/index.html#linked-graphics">linked file</a> so the PNG can draw it. <code>resolveLinkFromDir(folder)</code> is one.</td></tr>
+<tr><td><code>decodeImage</code></td><td>none</td><td>Decodes a placed image the PNG cannot open itself: anything but a PNG.</td></tr>
+<tr><td><code>linkFolder</code></td><td>the script's own folder</td><td>Where an Illustrator script looks for a linked file: a folder relative to the script, or absolute. <code>writeBook</code> and <code>drawToFiles</code> set it to the folder the links are read in.</td></tr>
+<tr><td><code>onWarning</code></td><td>none</td><td>Told what a format left out or drew as a stand-in. See <a href="#warnings">Warnings</a>.</td></tr>
+</tbody></table></div>
+<p>A <code>.skbk</code> is the whole document, so <code>crop</code>, <code>registration</code> and <code>transparent</code>
+do not apply to it, <code>scale</code>, <code>resolveLink</code> and <code>decodeImage</code> are the PNG's
+alone, and <code>linkFolder</code> is the Illustrator script's.</p>
+<h3 id="svg">SVG<a class="anchor" href="#svg" aria-label="Link to this section">#</a></h3>
+<p>The app's export writer, <code>sketchToSvg</code>, which the app's own SVG export calls:</p>
+<ul>
+<li><strong>The layer tree, named three ways.</strong> A layer is a <code>&lt;g&gt;</code> with its name as
+<code>data-name</code> (napkin's), <code>inkscape:label</code> (Inkscape's layers panel) and <code>id</code>
+(Illustrator's), a group layer is a <code>&lt;g&gt;</code> holding its children, and a hidden
+layer is left out.</li>
+<li><strong>Marks as path data</strong> at two decimals, from the mark's Bezier anchors, with
+round caps and joins, dashes, fills and gradients. A profiled mark is the
+outline its profile makes, and a Copic mark its nib's footprint, each with
+the stroke riding along as data so napkin's importer rebuilds it.</li>
+<li><strong>An eraser is a <code>&lt;mask&gt;</code></strong> on its layer's group, so it cuts that layer only.</li>
+<li><strong>Text is live <code>&lt;text&gt;</code>.</strong> A text box is broken into lines where the
+built-in face breaks it, since SVG text does not wrap, and the text as typed
+and the box's width ride along as <code>data-text</code> and <code>data-box</code>, so napkin's
+importer reads back the box rather than the lines.</li>
+<li><strong>A link is its reference</strong>: <code>&lt;image href=&quot;assets/logo.svg&quot; data-link=&quot;true&quot;&gt;</code>.</li>
+<li><strong>Cut to the box</strong> by its view box: the marks keep their page coordinates
+and the window moves.</li>
+</ul>
+<h3 id="png">PNG<a class="anchor" href="#png" aria-label="Link to this section">#</a></h3>
+<p>Drawn by the composition rasterizer: scanline coverage at four samples a
+pixel row, anti-aliased, with no canvas, no font engine and no dependency,
+and the same bytes for the same page every time.</p>
+<ul>
+<li><strong>The SVG's picture.</strong> The page is lowered into the composition model the
+way the SVG writer writes it: the same path data from the same writer, round
+caps and joins, the same dashes, a gradient placed where the SVG places it,
+a profiled or Copic mark as the outline it fills. A layer is a group drawn
+as one picture and laid down at the layer's opacity, as the app composites
+one, and an eraser clears its own layer only. Against the SVG as
+<code>rsvg-convert</code> draws it at four times the size, at least 99.78% of the ink
+agrees on every fixture in <code>test/imports/</code>, with colors within 0.3 of 255 on
+average; the test holds it to 99%.</li>
+<li><strong>Text in the built-in face.</strong> With no font engine, text is drawn from the
+single-stroke alphabet the composition renderers share, measured with the
+same table the SVG's line breaks were made with, so a text box breaks at the
+same words in both.</li>
+<li><strong>Images.</strong> A PNG is decoded here. A JPEG, GIF or WebP needs <code>decodeImage</code>;
+without it the image is left out and a warning says so.</li>
+<li><strong>Links.</strong> Given <code>resolveLink</code>, a linked SVG is drawn from its shapes and a
+linked PNG from its pixels. Without one, or when the file cannot be read,
+the link's placeholder is drawn and a warning says why.</li>
+<li><strong><code>scale</code></strong> multiplies the pixels and leaves the picture alone.</li>
+</ul>
+<h3 id="pdf">PDF<a class="anchor" href="#pdf" aria-label="Link to this section">#</a></h3>
+<p>The app's PDF writer, <code>sketchesToPdf</code>: a PDF page a sketch, marks in vector
+with round caps and joins, and text in Helvetica.</p>
+<ul>
+<li><strong>Every color the PNG reads</strong>: hex of three to eight digits, <code>rgb()</code>,
+<code>hsl()</code>, a named color and <code>transparent</code>. A color's own alpha is its
+opacity, and a transparent page prints no paper.</li>
+<li><strong>Outlines as the SVG draws them.</strong> A dashed or dotted line is dashed, and a
+shape whose outline is switched off prints its fill alone.</li>
+<li><strong>A text box</strong> breaks at the same words as in the SVG.</li>
+<li><strong>Stand-ins.</strong> Images are embedded when they are JPEG and left out
+otherwise. A gradient prints as its shape's flat fill. An eraser paints the
+paper back, so it covers layers under its own too, and on a transparent page
+there is nothing to paint it in. A link prints as its placeholder, since
+embedding the file would make the PDF an import of it. The first three are
+reported through <code>onWarning</code>.</li>
+<li><strong>Cut to the box</strong> by its media box, in page pixels as PDF points.</li>
+</ul>
+<h3 id="the-skbk-file">The .skbk file<a class="anchor" href="#the-skbk-file" aria-label="Link to this section">#</a></h3>
+<p>The book as the app saves it, which opens in the app with every layer, group
+and Bezier anchor where the script put them. It keeps the book's own
+timestamps rather than stamping the moment it was written, so with
+<code>timestamp</code> fixed, one script writes the same bytes on every run. A page
+written with <code>renderSketch</code> is a book of that one page, named after it.</p>
+<h3 id="the-illustrator-script">The Illustrator script<a class="anchor" href="#the-illustrator-script" aria-label="Link to this section">#</a></h3>
+<p><code>sketchesToJsx</code>: one ExtendScript file that, run in Adobe Illustrator with
+<strong>File &gt; Scripts &gt; Other Script</strong>, builds the book out of Illustrator's own
+objects. <a href="../interop/index.html#rebuilding-a-drawing-in-illustrator">Rebuilding a drawing in Illustrator</a>
+has what becomes what, where a link is found, and what a run reports; in
+short:</p>
+<ul>
+<li><strong>A page is a document</strong>, its artboard the page and a page pixel a point,
+the unit the PDF is written in. Its paper is a locked <code>Background</code> layer,
+which <code>transparent</code> leaves out.</li>
+<li><strong>Layers are layers</strong>, and the layers in a group are named groups inside
+one; a hidden or a locked layer arrives hidden or locked, where the SVG
+leaves a hidden layer out.</li>
+<li><strong>Marks are paths on their own anchors and handles.</strong> A profiled or Copic
+mark is the outline it fills, text is a text frame, an image is embedded,
+and a link is placed by link, found from the script's own folder.</li>
+<li><strong>Stand-ins.</strong> An effect is left off, and an eraser is drawn in the paper's
+color, as the PDF draws one; the writer reports both through <code>onWarning</code>.
+What the script cannot find or place when it runs, it draws as a
+placeholder and names at the end.</li>
+<li><strong>Cut to the box</strong> by its artboard.</li>
+</ul>
+<p>It is one self-contained file, the images it embeds riding in it as base64,
+and the same page writes the same bytes on every run.</p>
+<h3 id="effects">Effects<a class="anchor" href="#effects" aria-label="Link to this section">#</a></h3>
+<p>A mark's, a layer's or a group's effects - see
+<a href="../drawing/index.html#effects">Drawing with napkin script</a> - are drawn by
+every format that can draw them:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Format</th><th>Effects</th></tr></thead>
+<tbody>
+<tr><td>SVG</td><td>A <code>&lt;filter&gt;</code> on the mark's outermost element or the layer's group, in sRGB and in user space, and the list itself as <code>data-effects</code>, which napkin's importer reads back</td></tr>
+<tr><td>PNG</td><td>Run over the mark's or the layer's own picture before it is laid down, as the SVG draws them</td></tr>
+<tr><td>PDF</td><td>Not drawn: what carries them prints plain, and <code>onWarning</code> says so</td></tr>
+<tr><td><code>.skbk</code></td><td>Kept, and drawn by the app</td></tr>
+<tr><td><code>.jsx</code></td><td>Not written: what carries them is drawn plain in Illustrator, and <code>onWarning</code> says so</td></tr>
+</tbody></table></div>
+<p>On a layer with an eraser, the SVG and the PNG apply the effect before the
+eraser cuts, the order SVG gives a filter and a mask.</p>
+<h3 id="the-box-crop-and-registration">The box: crop and registration<a class="anchor" href="#the-box-crop-and-registration" aria-label="Link to this section">#</a></h3>
+<p>One box cuts every format: the SVG's view box, the PNG's page, the PDF's
+media box and the Illustrator script's artboard.</p>
+<ul>
+<li><strong><code>crop: 'auto'</code> is the ink</strong>: the bounds of every mark on a visible layer,
+text measured with the built-in face, grown by half the widest line, since a
+line's bounds follow its centre and its outer edge lies half its width
+beyond. It is the box the app's Selection export cuts to. An eraser adds no
+ink and so adds nothing, and a page with nothing drawn on it is written
+whole.</li>
+<li><strong>A pad</strong> is room around the ink: <code>crop auto pad 12</code> in a script, or
+<code>{ mode: 'auto', pad: 12 }</code> in the options.</li>
+<li><strong>A box</strong> <code>{ x, y, width, height }</code> is used as given, in page pixels.</li>
+<li><strong><code>registration</code></strong> is one box for every page, and wins over <code>crop</code>. Frames
+cut to their own ink each start at a different corner and jump when played
+in sequence; frames cut to one box land on one origin.</li>
+<li><strong>Two decimals.</strong> Every box is rounded to hundredths of a pixel, the
+precision every writer uses, so the formats read the same numbers.</li>
+</ul>
+<pre><code class="language-napkin">crop auto pad 12</code></pre>
+<p><code>inkBox(page)</code> gives the ink's box, and <code>renderBox(page, options)</code> the box a
+page will be written in, or <code>null</code> for the whole page, for a caller that lays
+things out around the drawing.</p>
+<h3 id="warnings">Warnings<a class="anchor" href="#warnings" aria-label="Link to this section">#</a></h3>
+<p><code>onWarning</code> is told what a format left out or drew as a stand-in, each
+message once a page, starting with the page's name:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Format</th><th>Says so when</th></tr></thead>
+<tbody>
+<tr><td>PNG</td><td>an image needs <code>decodeImage</code>; a link drew as its placeholder, and why; a color is not one it can paint; a shadow color is not one</td></tr>
+<tr><td>PDF</td><td>an image is not a JPEG; a gradient printed flat; a color is not a color; an effect printed plain</td></tr>
+<tr><td><code>.jsx</code></td><td>an effect left off; an eraser drawn in the paper's color, or left out on a page with no paper; a color is not a color</td></tr>
+<tr><td>SVG</td><td>nothing: the SVG writes every mark</td></tr>
+</tbody></table></div>
+<p>A warning never stops a render. The rest of the page is drawn, which is what
+a caller writing a hundred files wants.</p>
+<h3 id="from-a-sketch-to-a-composition">From a sketch to a composition<a class="anchor" href="#from-a-sketch-to-a-composition" aria-label="Link to this section">#</a></h3>
+<p><code>sketchToComposition(page, { crop, transparent, onWarning })</code> is the lowering
+behind the PNG. It gives back a composition the
+<a href="../compose/index.html">graphic design API</a> renders and edits, for a caller that
+wants to add to a drawing with the composition calls - a title band, a
+watermark - before rendering it, or to write it with <code>compositionToSvg</code>.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Mark</th><th>Composition element</th></tr></thead>
+<tbody>
+<tr><td>A line (pen or marker)</td><td><code>path</code>: <code>stroke</code>, <code>strokeWidth</code>, round <code>lineCap</code> and <code>lineJoin</code>, <code>dash</code>, and <code>opacity</code>, the tool's own when the mark sets none: a marker's is 0.38, a Copic's 0.5</td></tr>
+<tr><td>A one-point mark</td><td><code>circle</code>, its radius half the mark's width</td></tr>
+<tr><td>A filled shape</td><td><code>fill</code> as a color or a <a href="../compose/index.html#gradients">gradient</a>; <code>stroke: null</code> when its outline is off</td></tr>
+<tr><td>A profiled mark</td><td>a filled <code>path</code> of its outline; with a fill as well, a group of the fill under the outline, the opacity on the group</td></tr>
+<tr><td>A Copic mark</td><td>a filled <code>path</code> of its nib's footprint</td></tr>
+<tr><td>A text item</td><td><code>text</code> set from its top, a line and a quarter apart, <code>maxWidth</code> its box</td></tr>
+<tr><td>An image</td><td><code>image</code> stretched to its box (<code>fit: 'fill'</code>)</td></tr>
+<tr><td>A link</td><td><code>image</code> with <code>link: true</code> and its path as <code>src</code></td></tr>
+<tr><td>A layer</td><td><code>group</code> with the layer's name and opacity; a hidden layer is left out</td></tr>
+<tr><td>An eraser</td><td>one of its layer group's <a href="../compose/index.html#groups"><code>erase</code></a> shapes</td></tr>
+</tbody></table></div>
+<h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
+<p><strong>Frames that line up.</strong> A square turned a little further on each page, all
+written in one box, so the frames can be played in sequence without shifting:</p>
+<pre><code class="language-napkin">napkin 1
+page 400 300
+name &quot;spin&quot;
+registration 100 50 200 200
+color #1f2328 width 3 fill #ffe08a
+rect 170 120 60 60
+repeat 3 as i {
+  newpage
+  rotate ((i + 1) * 22.5) at 200 150
+  rect 170 120 60 60
+}</code></pre>
+<pre><code class="language-ts">const result = evaluate(spin, { timestamp: '2026-09-25T00:00:00.000Z' });
+renderBook(result.book, { format: 'png', ...result.output }).forEach((png, i) =&gt; {
+  writeFileSync(`spin-${i + 1}.png`, png);
+});</code></pre>
+<p>Each frame is 200 by 200 pixels, cut from the same place on its page.</p>
+<p><strong>A sprite on nothing.</strong> A badge cut to its ink with room to spare, on no
+paper, at twice the size for a sharp screen:</p>
+<pre><code class="language-napkin">napkin 1
+page 400 400
+crop auto pad 8
+color #326478 width 4 fill #ffe08a
+circle 200 200 60
+text &quot;A&quot; at 200 172 size 48 align center</code></pre>
+<pre><code class="language-ts">const result = evaluate(badge);
+const png = renderSketch(result.book.sketches[0], { format: 'png', scale: 2, transparent: true, ...result.output });</code></pre>
+<p><strong>Everything a run left out, in one list.</strong> A caller writing many drawings
+collects the warnings beside the diagnostics:</p>
+<pre><code class="language-ts">const warnings: string[] = [];
+const pdf = renderBook(result.book, { format: 'pdf', onWarning: (message) =&gt; warnings.push(message) });
+if (warnings.length &gt; 0) console.warn(warnings.join('\n'));</code></pre>
+<h2 id="limits">Limits<a class="anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>PNG text is the built-in face</strong>, a single-stroke alphabet, whatever font
+the text names. The SVG and the PDF name the font; render the SVG in a
+browser for raster text in a licensed face.</li>
+<li><strong>A text box is broken into lines by the built-in face's measure</strong> in the
+SVG and the PDF, which have no font engine to wrap with, so the lines a real
+font sets can end a little short of, or past, the box.</li>
+<li><strong>The PNG draws PNG images by itself.</strong> A JPEG, GIF or WebP needs
+<code>decodeImage</code>, which a browser can build on a canvas and a Node caller on
+whichever image library it already has.</li>
+<li><strong>The PDF embeds JPEG images only, prints gradients flat, leaves effects
+out, and erases by painting the paper back.</strong> Each is reported when it
+happens.</li>
+<li><strong>The Illustrator script leaves effects out and erases by painting the
+paper back</strong>, as the PDF does, and has been run against a stand-in for
+Illustrator's scripting objects rather than in Illustrator itself; see
+<a href="../interop/index.html#limits">Working with other programs</a>.</li>
+<li><strong>The PNG is the SVG's picture, not the canvas's</strong>, where the two already
+differ: a Default outline the app draws at 0.7 of its width is drawn at its
+full width in both exports.</li>
+<li><strong>These calls write no files.</strong> They give back strings and bytes, in a
+browser as in Node; <code>napkin-sketch/node</code> is what writes them to disk.</li>
+</ul>
+<h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Spread <code>result.output</code> into the options.</strong> It carries what the script's
+<code>crop</code> and <code>registration</code> asked for; leaving it out writes whole pages.</li>
+<li><strong>Use <code>registration</code> for frames and <code>crop auto</code> for a single graphic.</strong>
+Frames cut to their own ink do not line up.</li>
+<li><strong>Pass <code>onWarning</code> and report what it says.</strong> A PDF without an image, or a
+PNG with a placeholder where a link should be, is otherwise silent.</li>
+<li><strong>Write a PDF with <code>latin1</code> encoding</strong>, never UTF-8, or an embedded JPEG is
+corrupted.</li>
+<li><strong>Set <code>transparent: true</code> for a graphic that goes onto something else</strong>, and
+<code>scale: 2</code> for a screen.</li>
+<li><strong>Place PNG images when the output is a PNG</strong>, or pass <code>decodeImage</code>; a JPEG
+is left out without one.</li>
+<li><strong>Fix <code>timestamp</code> when a <code>.skbk</code> will be compared or committed</strong>; the file
+keeps the book's own time.</li>
+<li><strong>Write a <code>.jsx</code> with <code>writeBook</code> or <code>drawToFiles</code></strong> when the drawing links
+files: they point it at the folder the links are read in. <code>renderBook</code>
+alone leaves it looking beside itself.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../drawing/index.html">Drawing with napkin script</a>: what each instruction
+draws, and <code>evaluate</code>.</li>
+<li><a href="../node/index.html">Using napkin-sketch from code</a>: the two entries, and
+the calls that write every format to files.</li>
+<li><a href="../cli/index.html">The napkin-sketch command line</a>: <code>draw</code>, <code>check</code>, <code>render</code>
+and <code>verbs</code>, from a shell or any language.</li>
+<li><a href="../language/index.html">The napkin script language</a>: syntax, the object form
+and every diagnostic, including <code>crop</code> and <code>registration</code>.</li>
+<li><a href="../compose/index.html">The graphic design API</a>: the composition model the PNG is
+drawn from, its gradients and its erase shapes.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/script/render.ts"><code>src/core/script/render.ts</code></a>: the
+render calls and the box.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/sketch-composition.ts"><code>src/core/sketch-composition.ts</code></a>:
+the lowering behind the PNG.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/illustrator.ts"><code>src/core/illustrator.ts</code></a>: the
+Illustrator script writer.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../compose/cheatsheet.html" rel="prev"><span>Previous</span>The graphic design API: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>Writing a drawing out: quickstart</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/output/README.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

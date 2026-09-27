@@ -2,7 +2,7 @@
   "name": "scripting",
   "displayName": "napkin-sketch scripting",
   "description": "Napkin scripts for napkin-sketch, as a plugin: the /scripting:draw command that writes one script from the form `napkin-sketch draw --prompt` leaves in _temp/script-form.txt, or from a request typed after it, and the napkin-script skill behind it - the language, a verb reference generated from the verb table, three complete example scripts, and the rules the parser holds a script to.",
-  "version": "1.0.0-alpha.4.4.0",
+  "version": "1.0.0-alpha.4.5.0",
   "author": {
     "name": "John Haugabook"
   },

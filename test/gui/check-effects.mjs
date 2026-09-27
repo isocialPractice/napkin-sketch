@@ -49,23 +49,37 @@ function bookOf(name, text) {
   return { path, result };
 }
 
-/** How many canvas pixels are within `tolerance` of a color, and where their middle is, in client pixels. */
-const pixelsOf = (r, g, b, tolerance = 3) => `
+/**
+ * How many canvas pixels are within `tolerance` of a color, where their
+ * middle is, in client pixels, and the box they span, in canvas pixels.
+ * `area`, a box in canvas pixels, keeps the count inside it.
+ */
+const pixelsOf = (r, g, b, tolerance = 3, area = null) => `
   const cv = document.getElementById('canvas');
   const rect = cv.getBoundingClientRect();
   const k = cv.width / rect.width;
   const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+  const area = ${JSON.stringify(area)};
+  const left = area ? Math.max(0, Math.ceil(area.x0)) : 0;
+  const top = area ? Math.max(0, Math.ceil(area.y0)) : 0;
+  const right = area ? Math.min(cv.width - 1, Math.floor(area.x1)) : cv.width - 1;
+  const bottom = area ? Math.min(cv.height - 1, Math.floor(area.y1)) : cv.height - 1;
   let n = 0, sx = 0, sy = 0;
-  for (let y = 0; y < cv.height; y++) {
-    for (let x = 0; x < cv.width; x++) {
+  const box = { x0: cv.width, y0: cv.height, x1: -1, y1: -1 };
+  for (let y = top; y <= bottom; y++) {
+    for (let x = left; x <= right; x++) {
       const i = (y * cv.width + x) * 4;
       if (Math.abs(d[i] - ${r}) > ${tolerance} || Math.abs(d[i + 1] - ${g}) > ${tolerance} || Math.abs(d[i + 2] - ${b}) > ${tolerance}) continue;
       n++;
       sx += rect.left + x / k;
       sy += rect.top + y / k;
+      box.x0 = Math.min(box.x0, x);
+      box.y0 = Math.min(box.y0, y);
+      box.x1 = Math.max(box.x1, x);
+      box.y1 = Math.max(box.y1, y);
     }
   }
-  return n ? { n, x: sx / n, y: sy / n } : { n };
+  return n ? { n, x: sx / n, y: sy / n, box } : { n };
 `;
 
 /** How many canvas pixels are a gray strictly between paper white and ink black. */
@@ -120,9 +134,29 @@ try {
   const gray = await page.evalIn(pixelsOf(182, 182, 182, 4));
   c.ok("a layer's grayscale turns its green to the gray of green", gray.n > 1000 && green.n < 50, `${gray.n} gray, ${green.n} green`);
 
-  const one = await page.evalIn(pixelsOf(128, 128, 128, 4));
-  const two = await page.evalIn(pixelsOf(64, 64, 64, 6));
-  c.ok("a group's shadow is one picture: no darker where its children's shadows overlap", one.n > 1000 && two.n < 50, `${one.n} half-dark, ${two.n} doubled`);
+  // The shadow is looked for where it falls and nowhere else: across the
+  // whole canvas, an outline's antialiased edge passes through the same
+  // grays, and how many such pixels there are depends on the zoom the
+  // window's size gives. The card's fill, inside its outline, is the page's
+  // 201 to 399 across and 151 to 349 down, a ruler from page to canvas. The
+  // pair's shadow falls 80 below it, 200 to 460 across and 560 to 620 down,
+  // and the children's shadows overlap from 300 to 360 across.
+  const unit = (card.box.x1 - card.box.x0 + 1) / 198;
+  const area = (x0, y0, x1, y1) => ({
+    x0: card.box.x0 + (x0 - 201) * unit,
+    y0: card.box.y0 + (y0 - 151) * unit,
+    x1: card.box.x0 + (x1 - 201) * unit,
+    y1: card.box.y0 + (y1 - 151) * unit,
+  });
+  const shadowArea = area(204, 564, 456, 616);
+  const one = await page.evalIn(pixelsOf(128, 128, 128, 4, shadowArea));
+  const overlap = await page.evalIn(pixelsOf(128, 128, 128, 4, area(304, 564, 356, 616)));
+  const two = await page.evalIn(pixelsOf(64, 64, 64, 6, shadowArea));
+  c.ok(
+    "a group's shadow is one picture: no darker where its children's shadows overlap",
+    one.n > 1000 && overlap.n > 300 && two.n < 50,
+    `${one.n} half-dark, ${overlap.n} of them where the children's shadows overlap, ${two.n} doubled`,
+  );
 } catch (err) {
   console.error('check failed:', err);
   process.exitCode = 1;

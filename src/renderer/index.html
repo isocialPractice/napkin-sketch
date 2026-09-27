@@ -14,65 +14,65 @@
     <div id="app" class="app">
       <header id="toolbar" class="toolbar" role="toolbar" aria-label="Sketch tools">
         <section id="tool-group" class="group" aria-label="Tools">
-          <button id="tool-pen" class="tool" type="button" title="Pen (P)" aria-label="Pen">
+          <button id="tool-pen" class="tool" type="button" data-command="tool-pen" title="Pen ({key})" aria-label="Pen">
             <span class="icon" aria-hidden="true">✎</span><span class="label">Pen</span>
           </button>
-          <button id="tool-marker" class="tool" type="button" title="Marker (M)" aria-label="Marker">
+          <button id="tool-marker" class="tool" type="button" data-command="tool-marker" title="Marker ({key})" aria-label="Marker">
             <span class="icon" aria-hidden="true">▰</span><span class="label">Marker</span>
           </button>
-          <button id="tool-copic" class="tool" type="button" title="Copic marker (K)" aria-label="Copic marker">
+          <button id="tool-copic" class="tool" type="button" data-command="tool-copic" title="Copic marker ({key})" aria-label="Copic marker">
             <span class="icon" aria-hidden="true">◪</span><span class="label">Copic</span>
           </button>
-          <button id="tool-eraser" class="tool" type="button" title="Eraser (E)" aria-label="Eraser">
+          <button id="tool-eraser" class="tool" type="button" data-command="tool-eraser" title="Eraser ({key})" aria-label="Eraser">
             <span class="icon" aria-hidden="true">⌫</span><span class="label">Eraser</span>
           </button>
-          <button id="tool-select" class="tool" type="button" title="Select (S)" aria-label="Select">
+          <button id="tool-select" class="tool" type="button" data-command="tool-select" title="Select ({key})" aria-label="Select">
             <span class="icon" aria-hidden="true">⤢</span><span class="label">Select</span>
           </button>
-          <button id="tool-point" class="tool" type="button" title="Direct Select (A) — select and move anchor points" aria-label="Direct Select">
+          <button id="tool-point" class="tool" type="button" data-command="tool-point" title="Direct Select ({key}) - select and move anchor points" aria-label="Direct Select">
             <span class="icon" aria-hidden="true">▷</span><span class="label">Direct</span>
           </button>
-          <button id="tool-text" class="tool" type="button" title="Text (T)" aria-label="Text">
+          <button id="tool-text" class="tool" type="button" data-command="tool-text" title="Text ({key})" aria-label="Text">
             <span class="icon" aria-hidden="true">T</span><span class="label">Text</span>
           </button>
         </section>
 
         <section id="warp-group" class="group warp-group" aria-label="Warp">
           <span class="warp-rule" aria-hidden="true"></span>
-          <button id="tool-warp" class="tool" type="button" title="Mesh Warp - click art to mesh it, then drag its pins to bend it. Click the mesh to add a pin, Delete takes the selected pins out, Enter keeps the warp and Esc throws it away" aria-label="Mesh Warp">
+          <button id="tool-warp" class="tool" type="button" data-command="tool-warp" title="Mesh Warp ({key}) - click art to mesh it, then drag its pins to bend it. Click the mesh to add a pin, Delete takes the selected pins out, Enter keeps the warp and Esc throws it away" aria-label="Mesh Warp">
             <span class="icon" aria-hidden="true"><svg class="warp-glyph" viewBox="0 0 16 16"><path d="M1.5 12.5 8 2.5l6.5 10ZM4.75 7.5h6.5M8 2.5l-3.25 10M8 2.5l3.25 10" /><circle cx="8" cy="7.5" r="1.7" /></svg></span><span class="label">Mesh Warp</span>
           </button>
         </section>
 
         <section id="sketch-group" class="group" aria-label="Sketch support">
-          <button id="tool-rect" class="tool" type="button" title="Rectangle (R) — hold Shift for a square" aria-label="Rectangle">
+          <button id="tool-rect" class="tool" type="button" data-command="tool-rect" title="Rectangle ({key}) - hold Shift for a square" aria-label="Rectangle">
             <span class="icon" aria-hidden="true">▭</span><span class="label">Rect</span>
           </button>
-          <button id="tool-ellipse" class="tool" type="button" title="Ellipse (L) — hold Shift for a circle" aria-label="Ellipse">
+          <button id="tool-ellipse" class="tool" type="button" data-command="tool-ellipse" title="Ellipse ({key}) - hold Shift for a circle" aria-label="Ellipse">
             <span class="icon" aria-hidden="true">◯</span><span class="label">Ellipse</span>
           </button>
-          <button id="tool-curve" class="tool has-flyout" type="button" title="Curve (V) — drag a chord (ends snap to stroke endpoints), then bend and click. Click and hold for curve options" aria-label="Curve">
+          <button id="tool-curve" class="tool has-flyout" type="button" data-command="tool-curve" title="Curve ({key}) - drag a chord (ends snap to stroke endpoints), then bend and click. Click and hold for curve options" aria-label="Curve">
             <span class="icon" aria-hidden="true">⌒</span><span class="label">Curve</span>
           </button>
-          <button id="tool-vector" class="tool" type="button" title="Vector Path (B) — click for corner points, drag for smooth curves; click the first point to close, Enter or double-click to finish, Esc cancels" aria-label="Vector Path">
+          <button id="tool-vector" class="tool" type="button" data-command="tool-vector" title="Vector Path ({key}) - click for corner points, drag for smooth curves; click the first point to close, Enter or double-click to finish, Esc cancels" aria-label="Vector Path">
             <span class="icon" aria-hidden="true">✒</span><span class="label">Vector Path</span>
           </button>
-          <button id="tool-bucket" class="tool" type="button" title="Paint Bucket (G) — fill an enclosed shape" aria-label="Paint Bucket">
+          <button id="tool-bucket" class="tool" type="button" data-command="tool-bucket" title="Paint Bucket ({key}) - fill an enclosed shape" aria-label="Paint Bucket">
             <span class="icon" aria-hidden="true">🪣</span><span class="label">Paint Bucket</span>
           </button>
-          <button id="tool-fill" class="tool" type="button" title="Fill Color — fill the selected element with the selected color" aria-label="Fill Color">
+          <button id="tool-fill" class="tool" type="button" data-command="tool-fill" title="Fill Color ({key}) - fill the selected element with the selected color" aria-label="Fill Color">
             <span class="icon" aria-hidden="true">◧</span><span class="label">Fill Color</span>
           </button>
-          <button id="tool-eyedrop" class="tool" type="button" title="Eyedropper (I) — pick a color; fills the selected shape" aria-label="Eyedropper">
+          <button id="tool-eyedrop" class="tool" type="button" data-command="tool-eyedrop" title="Eyedropper ({key}) - pick a color; fills the selected shape" aria-label="Eyedropper">
             <span class="icon" aria-hidden="true">💧</span><span class="label">Pick</span>
           </button>
-          <button id="move-selection" class="btn" type="button" title="Move the selection by an exact distance (Enter)">
+          <button id="move-selection" class="btn" type="button" data-command="move-selection" title="Move the selection by an exact distance ({key})">
             Move
           </button>
-          <button id="rotate-selection" class="btn" type="button" title="Rotate the selection around a movable centre (Ctrl+R) - drag on the canvas to turn it">
+          <button id="rotate-selection" class="btn" type="button" data-command="rotate" title="Rotate the selection around a movable centre ({key}) - drag on the canvas to turn it">
             Rotate
           </button>
-          <button id="join-strokes" class="btn" type="button" title="Join selected strokes (Ctrl+J)">
+          <button id="join-strokes" class="btn" type="button" data-command="join-strokes" title="Join selected strokes ({key})">
             Join
           </button>
           <button id="close-shape" class="btn" type="button" title="Close Shape - join the selected stroke's two end points (press for Sharp or Smooth)">
@@ -92,7 +92,7 @@
         </section>
 
         <section class="group group-stack" aria-label="Stroke width">
-          <button id="stroke-profile" class="btn btn-profile" type="button" aria-haspopup="dialog" aria-label="Stroke profile: Default" title="Stroke Profile - how the width runs along new pen and marker strokes">
+          <button id="stroke-profile" class="btn btn-profile" type="button" data-command="stroke-profile" aria-haspopup="dialog" aria-label="Stroke profile: Default" title="Stroke Profile - how the width runs along new pen and marker strokes ({key})">
             <span>Stroke Profile</span>
             <span class="profile-pill" aria-hidden="true">
               <svg id="stroke-profile-picture" viewBox="0 0 48 10"><path d="" /></svg>
@@ -106,25 +106,25 @@
         </section>
 
         <section class="group" aria-label="Auto sharpen">
-          <button id="sharpen-all" class="btn btn-accent" type="button" title="Sharpen every stroke (H)">
+          <button id="sharpen-all" class="btn btn-accent" type="button" data-command="sharpen-all" title="Sharpen every stroke ({key})">
             Sharpen all
           </button>
-          <button id="sharpen-selection" class="btn" type="button" title="Sharpen Selection — smooth and simplify the selected strokes with a live preview">
+          <button id="sharpen-selection" class="btn" type="button" data-command="sharpen-selection" title="Sharpen Selection ({key}) - smooth and simplify the selected strokes with a live preview">
             Sharpen Selection
           </button>
-          <button id="settings-toggle" class="btn" type="button" title="Quick Settings (Ctrl+,)">
+          <button id="settings-toggle" class="btn" type="button" data-command="toggle-settings" title="Quick Settings ({key})">
             Quick Settings
           </button>
         </section>
 
         <section class="group" aria-label="History">
-          <button id="undo" class="btn" type="button" title="Undo (Ctrl+Z)">Undo</button>
-          <button id="redo" class="btn" type="button" title="Redo (Ctrl+Y)">Redo</button>
-          <button id="clear" class="btn" type="button" title="Clear page">Clear</button>
+          <button id="undo" class="btn" type="button" data-command="undo" title="Undo ({key})">Undo</button>
+          <button id="redo" class="btn" type="button" data-command="redo" title="Redo ({key})">Redo</button>
+          <button id="clear" class="btn" type="button" data-command="clear-page" title="Clear page ({key})">Clear</button>
         </section>
 
         <section id="mirror-group" class="group" aria-label="Mirror">
-          <button id="mirror-selection" class="btn btn-with-glyph" type="button" title="Mirror the selection horizontally or vertically, in place or as a copy (O)">
+          <button id="mirror-selection" class="btn btn-with-glyph" type="button" data-command="mirror" title="Mirror the selection horizontally or vertically, in place or as a copy ({key})">
             <svg class="btn-glyph mirror-glyph" viewBox="0 0 48 26" aria-hidden="true">
               <polygon points="3,3 19,13 3,23" />
               <polygon points="45,3 29,13 45,23" />
@@ -135,17 +135,17 @@
         </section>
 
         <section class="group group-right" aria-label="File">
-          <button id="pages-toggle" class="btn btn-panel" type="button" title="Toggle pages panel (Ctrl+B)">Pages</button>
-          <button id="layers-toggle" class="btn btn-panel" type="button" title="Toggle layers panel (Ctrl+L)">Layers</button>
-          <button id="properties-toggle" class="btn btn-panel" type="button" title="Toggle properties panel (Ctrl+P)">Properties</button>
+          <button id="pages-toggle" class="btn btn-panel" type="button" data-command="toggle-pages" title="Toggle pages panel ({key})">Pages</button>
+          <button id="layers-toggle" class="btn btn-panel" type="button" data-command="toggle-layers" title="Toggle layers panel ({key})">Layers</button>
+          <button id="properties-toggle" class="btn btn-panel" type="button" data-command="toggle-properties" title="Toggle properties panel ({key})">Properties</button>
           <span class="toolbar-sep" role="separator" aria-orientation="vertical"></span>
-          <button id="new-sketch" class="btn" type="button" title="New sketch">New</button>
-          <button id="open" class="btn" type="button" title="Open sketch book">Open</button>
-          <button id="import" class="btn" type="button" title="Import SVG, PDF, PNG, or JPEG (Ctrl+I)">Import</button>
-          <button id="export" class="btn" type="button" title="Export the page, the book, or just the selection as PNG, JPEG, SVG, or PDF">Export</button>
-          <button id="save" class="btn btn-strong" type="button" title="Save (Ctrl+S)">Save</button>
-          <button id="save-as" class="btn" type="button" title="Save as (Ctrl+Shift+S)">Save As</button>
-          <button id="app-settings" class="btn btn-ghost" type="button" title="Verbose Settings" aria-label="Open verbose settings">
+          <button id="new-sketch" class="btn" type="button" data-command="new-sketch" title="New sketch ({key})">New</button>
+          <button id="open" class="btn" type="button" data-command="open" title="Open sketch book ({key})">Open</button>
+          <button id="import" class="btn" type="button" data-command="import" title="Import SVG, PDF, PNG, or JPEG ({key})">Import</button>
+          <button id="export" class="btn" type="button" title="Export the page, the book, or just the selection as PNG, SVG, JPEG or PDF">Export</button>
+          <button id="save" class="btn btn-strong" type="button" data-command="save" title="Save ({key})">Save</button>
+          <button id="save-as" class="btn" type="button" data-command="save-as" title="Save as ({key})">Save As</button>
+          <button id="app-settings" class="btn btn-ghost" type="button" data-command="verbose-settings" title="Verbose Settings ({key})" aria-label="Open verbose settings">
             <span class="icon" aria-hidden="true">⚙</span>
           </button>
         </section>
@@ -159,11 +159,11 @@
           <div class="pages-panel-head">
             <span>Pages</span>
             <div class="pages-panel-actions">
-              <button id="pages-menu" class="btn btn-ghost btn-hamburger" type="button" title="Page menu — new page from the selection, at the default size, or at a size you type" aria-label="Page menu" aria-haspopup="menu">
+              <button id="pages-menu" class="btn btn-ghost btn-hamburger" type="button" title="Page menu - a new page at the default size, at a size you type, or from the selection" aria-label="Page menu" aria-haspopup="menu">
                 <span class="hamburger" aria-hidden="true"></span>
               </button>
-              <button id="new-page" class="btn btn-ghost" type="button" title="Add page">+ Page</button>
-              <button id="delete-page" class="btn btn-ghost" type="button" title="Delete page">Delete</button>
+              <button id="new-page" class="btn btn-ghost" type="button" data-command="add-page-default" title="Add page ({key})">+ Page</button>
+              <button id="delete-page" class="btn btn-ghost" type="button" data-command="delete-page" title="Delete page ({key})">Delete</button>
             </div>
           </div>
           <div id="thumbs" class="thumbs"></div>
@@ -175,7 +175,7 @@
             <span class="animation-banner-title">Animation Mode</span>
             <span id="animation-status" class="animation-status"></span>
             <button id="animation-generate" class="btn btn-primary" type="button" title="Generate animation frames with the configured AI helper">Generate…</button>
-            <button id="animation-exit" class="btn btn-ghost" type="button" title="Exit Animation Mode (Ctrl+Shift+N)">Exit</button>
+            <button id="animation-exit" class="btn btn-ghost" type="button" data-command="toggle-animation" title="Exit Animation Mode ({key})">Exit</button>
           </div>
           <div id="canvas-wrap" class="canvas-wrap">
             <canvas id="canvas" aria-label="Drawing surface"></canvas>
@@ -187,16 +187,16 @@
           <div class="pages-panel-head">
             <span>Layers</span>
             <div class="pages-panel-actions">
-              <button id="add-layer" class="btn btn-ghost" type="button" title="Add layer">+ Layer</button>
-              <button id="group-layer" class="btn btn-ghost" type="button" title="Group the active layer (Ctrl+G)">Group</button>
-              <button id="delete-layer" class="btn btn-ghost" type="button" title="Delete selected layers">Delete</button>
+              <button id="add-layer" class="btn btn-ghost" type="button" data-command="add-layer" title="Add layer ({key})">+ Layer</button>
+              <button id="group-layer" class="btn btn-ghost" type="button" data-command="group-layer" title="Group the active layer ({key})">Group</button>
+              <button id="delete-layer" class="btn btn-ghost" type="button" data-command="delete-layer" title="Delete selected layers ({key})">Delete</button>
             </div>
           </div>
           <div id="layers-list" class="layers-list" role="listbox" aria-label="Layer stack"></div>
           <div class="layers-foot">
             <div class="layers-move">
-              <button id="layer-up" class="btn btn-ghost" type="button" title="Move layer up">▲</button>
-              <button id="layer-down" class="btn btn-ghost" type="button" title="Move layer down">▼</button>
+              <button id="layer-up" class="btn btn-ghost" type="button" data-command="layer-up" title="Move layer up ({key})">▲</button>
+              <button id="layer-down" class="btn btn-ghost" type="button" data-command="layer-down" title="Move layer down ({key})">▼</button>
             </div>
             <label class="layers-opacity" for="layer-opacity">
               <span>Opacity</span>
@@ -325,7 +325,7 @@
             <span class="switch-text">Live sharpen</span>
           </label>
 
-          <label class="switch settings-row" title="Draw the dashed outline around selected elements (Ctrl+H). The same switch as the one in the Move palette.">
+          <label class="switch settings-row" data-command="toggle-selection-borders" title="Draw the dashed outline around selected elements ({key}). The same switch as the one in the Move palette.">
             <input id="qs-show-selection-borders" type="checkbox" checked />
             <span class="switch-track" aria-hidden="true"></span>
             <span class="switch-text">Show selection borders</span>
@@ -613,7 +613,7 @@
             <input id="move-preview" type="checkbox" />
             <span>Live preview</span>
           </label>
-          <label class="settings-field move-preview-field" title="Draw the dashed outline around selected elements (Ctrl+H). Off, the selection still moves and exports the same way - only the outline goes, so the drawing can be judged while something is selected.">
+          <label class="settings-field move-preview-field" data-command="toggle-selection-borders" title="Draw the dashed outline around selected elements ({key}). Off, the selection still moves and exports the same way - only the outline goes, so the drawing can be judged while something is selected.">
             <input id="show-selection-borders" type="checkbox" checked />
             <span>Show Selection Borders</span>
           </label>
@@ -733,7 +733,7 @@
             <input id="mirror-preview" type="checkbox" checked />
             <span>Live preview</span>
           </label>
-          <label class="settings-field move-preview-field" title="Draw the dashed outline around selected elements (Ctrl+H). The same switch as the one in the Move palette.">
+          <label class="settings-field move-preview-field" data-command="toggle-selection-borders" title="Draw the dashed outline around selected elements ({key}). The same switch as the one in the Move palette.">
             <input id="mirror-show-selection-borders" type="checkbox" checked />
             <span>Show Selection Borders</span>
           </label>
@@ -754,6 +754,63 @@
           <div class="export-dialog-actions profile-actions">
             <button id="profile-cancel" class="btn btn-ghost" type="button">Cancel</button>
             <button id="profile-apply" class="btn btn-primary" type="button">Select</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- The configuration popup: the one form Edit Keyboard Shortcuts, Edit
+           Tool Types and the session-history script are drawn in. Empty
+           here; config-dialog.ts fills it from each editor's spec. -->
+      <div id="config-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-labelledby="config-title" tabindex="-1">
+        <div class="export-dialog-inner config-dialog-inner" tabindex="-1">
+          <p id="config-title" class="export-dialog-title config-title"></p>
+          <p class="config-hint is-hidden"></p>
+          <div class="config-find">
+            <input class="config-search" type="search" autocomplete="off" spellcheck="false" />
+            <div class="config-filters" role="radiogroup" aria-label="Show"></div>
+          </div>
+          <div class="config-frame">
+            <p class="config-header is-hidden"></p>
+            <div class="config-table">
+              <table class="config-grid">
+                <thead><tr></tr></thead>
+                <tbody></tbody>
+              </table>
+              <p class="config-empty is-hidden"></p>
+            </div>
+          </div>
+          <p class="config-status" role="status" aria-live="polite"></p>
+          <div class="config-actions">
+            <div class="config-extra"></div>
+            <button class="btn btn-primary config-accept" type="button">Accept</button>
+            <button class="btn config-cancel" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Automate > Generate Script: the script, shown whole before anything
+           uses it. script-dialog.ts fills it. -->
+      <div id="script-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-labelledby="script-title" tabindex="-1">
+        <div class="export-dialog-inner script-dialog-inner" tabindex="-1">
+          <p id="script-title" class="export-dialog-title script-title">Generated script</p>
+          <p id="script-stats" class="script-stats"></p>
+          <label id="script-embed-row" class="script-choice is-hidden">
+            <input id="script-embed" type="checkbox" />
+            <span>Embed the image data</span>
+          </label>
+          <div id="script-fit-row" class="script-choice is-hidden" role="radiogroup" aria-label="Page">
+            <span>Page:</span>
+            <label><input type="radio" name="script-page" value="keep" checked /> keep size</label>
+            <label><input type="radio" name="script-page" value="fit" /> fit to the selection</label>
+          </div>
+          <ul id="script-notes" class="script-notes is-hidden"></ul>
+          <pre id="script-text" class="anim-script script-text" tabindex="0" aria-label="The generated script"></pre>
+          <p id="script-shortened" class="anim-dialog-note script-shortened is-hidden">Image data is shortened here; Copy, Save As and Open as New Page take all of it.</p>
+          <div class="script-actions">
+            <button id="script-copy" class="btn" type="button" title="Put the script on the clipboard">Copy</button>
+            <button id="script-save" class="btn" type="button" title="Save the script as a .napkin file">Save As&hellip;</button>
+            <button id="script-open" class="btn btn-primary" type="button" title="Run the script into a page of its own">Open as New Page</button>
+            <button id="script-cancel" class="btn btn-ghost" type="button">Cancel</button>
           </div>
         </div>
       </div>

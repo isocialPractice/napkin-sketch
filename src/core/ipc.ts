@@ -10,6 +10,8 @@ import type { AnimationFrameJob } from './animation.js';
 import type { AnimationModeStatus } from './animation-install.js';
 import type { HelperFailure } from './ai-tool.js';
 import type { LaunchOptions } from './launch.js';
+import type { HelpTopicId, MainCommandId, MenuCommand, MenuState } from './menu/ids.js';
+import type { MenuConfigUpdate } from './menu/overrides.js';
 import type { ImportedPdfPage } from './pdf-import.js';
 import type { AppSettings } from './settings.js';
 import type { SketchBook } from './types.js';
@@ -44,8 +46,47 @@ export const IPC = {
   setDirty: 'napkin:set-dirty',
   /** Main → renderer: the window is closing; save before it does. */
   saveBeforeClose: 'napkin:save-before-close',
-  /** Main → renderer: a native menu item was activated. */
+  /**
+   * Main → renderer: run this command - a row of the native menu was chosen.
+   * The id is one of `src/core/menu/tool-types.json`, or a Help > Tool Types
+   * row.
+   */
   menuAction: 'napkin:menu-action',
+  /** Renderer → main: the user's two menu files, as the main process read them. */
+  getMenuConfig: 'napkin:get-menu-config',
+  /**
+   * Renderer → main: save what a menu editor accepted in the user's menu
+   * files, rebuild the menu bar, and send the files back to every window.
+   */
+  updateMenuConfig: 'napkin:update-menu-config',
+  /** Main → renderer: the user's menu files changed; build the menus again from these. */
+  menuConfigChanged: 'napkin:menu-config-changed',
+  /**
+   * Renderer → main: the drawing window's answers to the menus' questions
+   * (is anything selected, can it undo), sent when they change, so the menu
+   * bar greys and checks the rows the right-click menus do.
+   */
+  setMenuState: 'napkin:set-menu-state',
+  /** Renderer → main: run a command the main process owns (Verbose Settings, a Help row). */
+  runMainCommand: 'napkin:run-main-command',
+  /** Main → renderer: a sentence to show the user as a toast. */
+  notice: 'napkin:notice',
+  /**
+   * Renderer → main, for the GUI checks only: the live menu bar as data, and a
+   * click on one of its rows. The main process answers them only when it was
+   * started with `NAPKIN_GUI_CHECK=1`.
+   */
+  getAppMenu: 'napkin:get-app-menu',
+  clickAppMenuItem: 'napkin:click-app-menu-item',
+  /**
+   * Renderer → main, for the GUI checks only: the links the app would have
+   * opened in the system browser. A check run opens none.
+   */
+  openedLinks: 'napkin:opened-links',
+  /** Renderer → main: save text to a file the user picks, such as a generated script. */
+  saveText: 'napkin:save-text',
+  /** Renderer → main: put plain text on the system clipboard. */
+  writeClipboardText: 'napkin:write-clipboard-text',
   /** Renderer → main: fetch the current application settings. */
   getSettings: 'napkin:get-settings',
   /** Renderer → main: merge a settings patch, persist, and broadcast it. */
@@ -58,6 +99,16 @@ export const IPC = {
   openSettings: 'napkin:open-settings',
   /** Main → renderer: settings changed; renderers should re-apply them. */
   settingsChanged: 'napkin:settings-changed',
+  /** Drawing window → main: how much history Track History holds now, for the settings window. */
+  reportHistoryStats: 'napkin:report-history-stats',
+  /** Settings window → main: the history figures the drawing window last reported. */
+  getHistoryStats: 'napkin:get-history-stats',
+  /** Main → settings window: the drawing window reported new history figures. */
+  historyStatsChanged: 'napkin:history-stats-changed',
+  /** Main → settings window: bring a section into view, as Automate > History Limit asks for its own. */
+  showSettingsSection: 'napkin:show-settings-section',
+  /** Renderer → main: the app's version, as its package.json gives it. */
+  getAppVersion: 'napkin:get-app-version',
   /**
    * Renderer → main → main-renderer: toggle toolbar rearrange mode. The
    * settings window sends it, and main relays it to the drawing window as the
@@ -85,35 +136,32 @@ export const IPC = {
   readClipboardSvg: 'napkin:read-clipboard-svg',
 } as const;
 
-/** Actions the native application menu can trigger in the renderer. */
-export type MenuAction =
-  | 'new'
-  | 'open'
-  | 'import'
-  | 'save'
-  | 'save-as'
-  | 'export-png'
-  | 'export-jpeg'
-  | 'export-svg'
-  | 'export-pdf'
-  | 'undo'
-  | 'redo'
-  | 'cut'
-  | 'copy'
-  | 'paste'
-  | 'paste-in-place'
-  | 'duplicate'
-  | 'delete-selection'
-  | 'select-all'
-  | 'fit-view'
-  | 'toggle-pages'
-  | 'toggle-layers'
-  | 'toggle-properties'
-  | 'toggle-settings'
-  | 'toggle-rearrange'
-  | 'toggle-animation'
-  | 'rotate'
-  | 'mirror';
+/** The user's two menu files, read by the main process for both processes to build the same menus from. */
+export interface MenuConfig {
+  /** The tool types file, parsed, or null when there is none. */
+  toolTypes: unknown;
+  /** The shortcuts file, parsed, or null when there is none. */
+  shortcuts: unknown;
+  /** Why a file that is there could not be read, as sentences. */
+  problems: string[];
+}
+
+/** What saving a menu editor's result came to: the files now in force, or why nothing was saved. */
+export type MenuConfigResult = { ok: true; config: MenuConfig } | { ok: false; error: string };
+
+/** One row of the live menu bar, as Electron holds it, for a GUI check to read back. */
+export interface AppMenuItemSnapshot {
+  id: string | null;
+  label: string;
+  role: string | null;
+  type: string;
+  enabled: boolean;
+  checked: boolean;
+  visible: boolean;
+  accelerator: string | null;
+  registerAccelerator: boolean;
+  submenu: AppMenuItemSnapshot[] | null;
+}
 
 /** Raster image export formats. */
 export type ImageFormat = 'png' | 'jpeg';
@@ -121,11 +169,14 @@ export type ImageFormat = 'png' | 'jpeg';
 /** All supported export formats (raster + vector). */
 export type ExportFormat = ImageFormat | 'svg' | 'pdf';
 
-/** Result of picking and reading an importable file. */
+/**
+ * Result of picking and reading an importable file. `name` is the file's name
+ * without its extension; `fileName` has it, as a script links the file by.
+ */
 export type ImportFileResult =
-  | { ok: true; kind: 'svg'; name: string; text: string }
-  | { ok: true; kind: 'raster'; name: string; dataUrl: string }
-  | { ok: true; kind: 'pdf'; name: string; pages: ImportedPdfPage[] }
+  | { ok: true; kind: 'svg'; name: string; fileName: string; text: string }
+  | { ok: true; kind: 'raster'; name: string; fileName: string; dataUrl: string }
+  | { ok: true; kind: 'pdf'; name: string; fileName: string; pages: ImportedPdfPage[] }
   | { ok: false; error?: string; cancelled?: boolean };
 
 /** Result of a multi-page export operation. */
@@ -188,6 +239,17 @@ export interface AnimationStatusUpdate {
   note: string;
 }
 
+/**
+ * How much history Track History holds: whether it is on, how many steps it
+ * keeps of how many it may, and their size written as JSON.
+ */
+export interface HistoryStats {
+  readonly tracking: boolean;
+  readonly steps: number;
+  readonly limit: number;
+  readonly bytes: number;
+}
+
 /** Result of a save operation. */
 export interface SaveResult {
   ok: boolean;
@@ -207,6 +269,13 @@ export interface NapkinBridge {
   saveImage(format: ImageFormat, dataUrl: string, suggestedName: string): Promise<SaveResult>;
   /** Saves raw SVG markup to a .svg file. */
   saveSvg(svgContent: string, suggestedName: string): Promise<SaveResult>;
+  /**
+   * Saves text to a file the user picks, offered as `<suggestedName>.<extension>`:
+   * a generated napkin script, with `napkin`.
+   */
+  saveText(text: string, suggestedName: string, extension: string): Promise<SaveResult>;
+  /** Puts plain text on the system clipboard. */
+  writeClipboardText(text: string): Promise<void>;
   /** Saves a latin1-safe PDF byte string to a .pdf file. */
   savePdf(pdfContent: string, suggestedName: string): Promise<SaveResult>;
   /** Opens a file picker and reads an importable SVG/PDF/PNG/JPEG file. */
@@ -230,8 +299,37 @@ export interface NapkinBridge {
    * resolves, and the window closes once it does.
    */
   onSaveBeforeClose(handler: () => Promise<boolean>): () => void;
-  /** Subscribes to native-menu actions; returns an unsubscribe function. */
-  onMenuAction(handler: (action: MenuAction) => void): () => void;
+  /** Subscribes to the commands native menu rows ask for; returns an unsubscribe function. */
+  onMenuAction(handler: (id: MenuCommand) => void): () => void;
+  /** The user's two menu files, for the drawing window to build the same menus as the menu bar. */
+  getMenuConfig(): Promise<MenuConfig>;
+  /**
+   * Saves what a menu editor accepted - the whole mapping it edited - as the
+   * user's menu files hold it: only what differs from the shipped files, and
+   * no file at all when nothing does. The menu bar is rebuilt and every
+   * window hears of the change through {@link onMenuConfigChanged}.
+   */
+  updateMenuConfig(update: MenuConfigUpdate): Promise<MenuConfigResult>;
+  /** Subscribes to the user's menu files changing; returns an unsubscribe function. */
+  onMenuConfigChanged(handler: (config: MenuConfig) => void): () => void;
+  /** Tells the main process how the menu bar should grey and check its rows. */
+  setMenuState(state: MenuState): void;
+  /** Asks the main process to run a command it owns. */
+  runMainCommand(id: MainCommandId | HelpTopicId): void;
+  /** Subscribes to sentences the main process has for the user; returns an unsubscribe function. */
+  onNotice(handler: (message: string) => void): () => void;
+  /** For the GUI checks: the live menu bar. Rejects unless the app was started for a check. */
+  getAppMenu(): Promise<AppMenuItemSnapshot[]>;
+  /** For the GUI checks: clicks the menu bar row with this id; false when there is none, or it is disabled. */
+  clickAppMenuItem(id: string): Promise<boolean>;
+  /** For the GUI checks: every link sent to the system browser so far, which a check run keeps rather than opens. */
+  openedLinks(): Promise<string[]>;
+  /**
+   * True when the app was started for a GUI check (`NAPKIN_GUI_CHECK=1`).
+   * The page then puts up `window.napkinCheck`, the hooks a check drives
+   * the page through that nothing else needs.
+   */
+  readonly guiCheck: boolean;
   /**
    * Puts `svgContent` on the system clipboard, so a selection copied here can
    * be pasted into another vector editor.
@@ -295,6 +393,19 @@ export interface NapkinBridge {
   toggleRearrange(): void;
   /** Subscribes to settings-changed broadcasts; returns an unsubscribe function. */
   onSettingsChanged(handler: (settings: AppSettings) => void): () => void;
+
+  // ---- Track History ----------------------------------------------------------
+
+  /** Tells the main process how much history Track History holds, for the settings window. */
+  reportHistoryStats(stats: HistoryStats): void;
+  /** The history figures the drawing window last reported, or null before it has. */
+  getHistoryStats(): Promise<HistoryStats | null>;
+  /** Subscribes to new history figures; returns an unsubscribe function. */
+  onHistoryStatsChanged(handler: (stats: HistoryStats) => void): () => void;
+  /** Subscribes to requests to show a section of the settings window; returns an unsubscribe function. */
+  onShowSettingsSection(handler: (section: string) => void): () => void;
+  /** The app's version, as its package.json gives it: `1.0.0-alpha.4.5.0`. */
+  getAppVersion(): Promise<string>;
 }
 
 declare global {

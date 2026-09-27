@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The command line - napkin-sketch</title>
+<meta name="description" content="Opening the app from a shell: every option, and the four commands that need no window.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html" aria-current="page">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Command line</span></nav>
+<h1 id="the-command-line">The command line<a class="anchor" href="#the-command-line" aria-label="Link to this section">#</a></h1>
+<h2 id="usage">Usage<a class="anchor" href="#usage" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-bash">napkin-sketch [option] [target]</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>-h, --help</code></td><td style="text-align:left">Show help for using the application from the command line.</td></tr>
+<tr><td style="text-align:left"><code>-v, --version</code></td><td style="text-align:left">Show the current version of the application.</td></tr>
+<tr><td style="text-align:left"><code>-b, --book</code></td><td style="text-align:left">Open a saved sketch book file, using the <code>.skbk</code> extension.</td></tr>
+<tr><td style="text-align:left"><code>-n, --new</code></td><td style="text-align:left">New sketch, using <code>unnamed</code> or the name passed as <code>[target]</code>.</td></tr>
+<tr><td style="text-align:left"><code>-f, --full-screen</code></td><td style="text-align:left">Open the GUI window full screen; the default window is maximized.</td></tr>
+<tr><td style="text-align:left"><code>-i, --import</code></td><td style="text-align:left">Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch.</td></tr>
+<tr><td style="text-align:left"><code>-m, --multiple-imports</code></td><td style="text-align:left">Import a comma-separated list of files, laid out in a grid.</td></tr>
+<tr><td style="text-align:left"><code>--sharpen</code></td><td style="text-align:left">Auto-sharpen a saved sketch so it appears more hand-drawn, then open.</td></tr>
+<tr><td style="text-align:left"><code>[target]</code></td><td style="text-align:left">A <code>.skbk</code> file to open, or a name for a new sketch file.</td></tr>
+</tbody></table></div>
+<p>The GUI window opens maximized by default, which is not the same as full
+screen: a maximized window fills the screen while keeping the title bar and its
+minimize, restore-down, and close buttons in view, and restore-down returns it
+to its 1280x860 size. Pass <code>-f, --full-screen</code> for true full screen, where
+those buttons are not in view.</p>
+<p>With <code>--multiple-imports</code>, each file's graphic size is measured against the
+page first, then the graphics fill a row left to right and wrap to a new row
+whenever the next graphic would overrun the page width; oversized graphics
+scale down to fit the page. Every imported file becomes its own named layer.
+Quote file names that contain spaces, for example
+<code>-m logo.svg,&quot;site map.svg&quot;,photo.png</code>.</p>
+<h3 id="commands">Commands<a class="anchor" href="#commands" aria-label="Link to this section">#</a></h3>
+<p>A first word that names a command runs it instead of opening the window. The
+commands never load Electron, so they work where the GUI cannot start:</p>
+<pre><code class="language-bash">napkin-sketch &lt;command&gt; [arguments]</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Command</th><th style="text-align:left">Description</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>draw &lt;script | -&gt;</code></td><td style="text-align:left">Draw a napkin script to <code>svg</code>, <code>png</code>, <code>pdf</code>, <code>skbk</code> or <code>jsx</code> files (<code>--to</code>).</td></tr>
+<tr><td style="text-align:left"><code>check &lt;script | -&gt;</code></td><td style="text-align:left">Read and run a script and report what is wrong; write nothing.</td></tr>
+<tr><td style="text-align:left"><code>render &lt;book.skbk&gt;</code></td><td style="text-align:left">Write a book as files (<code>--to</code>), or its figure as frames (<code>--animate</code>).</td></tr>
+<tr><td style="text-align:left"><code>verbs</code></td><td style="text-align:left">List napkin script's verbs by category, and the shape library.</td></tr>
+</tbody></table></div>
+<p><code>-</code> reads the script from standard input, and <code>--json</code> prints one line of JSON
+instead of the human report. The exit code is <code>0</code> drew, <code>1</code> the arguments were
+wrong, <code>2</code> the script had errors, <code>3</code> a file could not be read or written, <code>4</code>
+the AI helper gave back no script.
+<a href="../api/cli/index.html">The napkin-sketch command line</a> has every option,
+and callers in five languages.</p>
+<h3 id="examples">Examples<a class="anchor" href="#examples" aria-label="Link to this section">#</a></h3>
+<pre><code class="language-bash"># Open a new, blank sketch
+napkin-sketch
+
+# New sketch named &quot;ideas&quot;
+napkin-sketch --new ideas
+
+# Open an existing sketch book
+napkin-sketch --book ./notes.skbk
+
+# Auto-sharpen a saved book on disk, then open it
+napkin-sketch --sharpen ./notes
+
+# Open a new sketch full screen (the default window opens maximized)
+napkin-sketch --new -f
+
+# Open a new sketch with logo.svg imported
+napkin-sketch --import logo.svg
+
+# Open a new sketch with three files laid out in a grid
+napkin-sketch -m logo.svg,&quot;site map.svg&quot;,photo.png
+
+# Draw a napkin script to SVG and PNG, with no window
+napkin-sketch draw card.napkin --to svg,png --out out
+
+# Check a script handed over on standard input, and report in JSON
+napkin-sketch check - --json &lt; card.napkin</code></pre>
+<p>A bare path is treated as a sketch book to open:</p>
+<pre><code class="language-bash">napkin-sketch ./notes.skbk</code></pre>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="skbk-format.html" rel="prev"><span>Previous</span>The .skbk file format</a><a href="../api/index.html" rel="next"><span>Next</span>Drawing from a script</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/command-line.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

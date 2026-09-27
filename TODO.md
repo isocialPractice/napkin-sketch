@@ -10,9 +10,11 @@ the inbox into a roadmap section once it is scheduled.
 
 ## Current
 
-The active queue. Five entries, all patch-sized and carried over from earlier
+The active queue. Five entries are patch-sized and carried over from earlier
 releases; each names the group it came from, so an item that grows can be moved
-back without losing where it started.
+back without losing where it started. The last is the documentation site's
+deployment check, which the agent note below it carries to the run that can
+make it.
 
 - [ ] **Text editor UX**: commit on `Esc`, keep caret styling in sync with the
   selected font size, and reposition on window resize.
@@ -36,14 +38,49 @@ back without losing where it started.
   not cover yet** is most of the original list - menus, panel toggles and page
   flows. The scaffolding was the expensive half and it is done; each further
   check is a file.
+  - 1.0.0-alpha.4.5.0 added nine: the menus (the menu bar and every
+    right-click menu, which drives the View menu's panel toggles), the
+    shortcuts, the configuration popup, both menu editors, Generate Script,
+    Track History, From Session History and the Help menu. There are twenty
+    now, each run in a user-data folder of its own; page flows are still not
+    covered.
   - From: Patch
 - [ ] **Docs**: API reference for the embeddable package and a WordPress block
   example.
   - From: Patch
+- [ ] **Verify the documentation site deployment**: `.github/workflows/pages.yml`
+  deploys `docs/` to https://isocialpractice.github.io/napkin-sketch/ once it
+  is pushed and Pages is set to deploy from GitHub Actions. Ask the workflow
+  run for the pushed commit whether it succeeded; see the agent note below.
+  - From: 1.0.0-alpha.4.5.0, Phase P
+
+## Agent Notes
+
+### Verify the documentation site deployment
+
+For the **Verify the documentation site deployment** item under Current.
+
+- **Commit**: `HEAD at close` on `main`, the newest commit on `main` that
+  touches `docs/`. Nothing had been pushed on 2026-09-26: the site, its
+  workflow and the rest of 1.0.0-alpha.4.5.0 were uncommitted, and pushing
+  is the owner's call.
+- **Workflow**: `.github/workflows/pages.yml`, "Deploy the documentation
+  site". The global gitignore on the machine that built it ignores `.github/`
+  and dotfiles, so commit the workflow and `docs/.nojekyll` with `git add -f`.
+- **Pages**: not switched on; `gh api repos/isocialPractice/napkin-sketch/pages`
+  answered 404 on 2026-09-26. The account has admin on the repository, so
+  `gh api -X POST repos/isocialPractice/napkin-sketch/pages -f build_type=workflow`
+  turns it on.
+- **URL**: https://isocialpractice.github.io/napkin-sketch/
+- **Attempts**: 0
+- **When it succeeds**: set `DOCS_SITE_URL` in `src/core/menu/links.ts` to
+  `DOCS_SITE_ADDRESS`, which makes **Help > Source Docs** appear; then tick
+  the item and drop this note.
 
 ## Found Issues
 
-Defects noticed while working and not yet scheduled. Eighteen sit here: six
+Defects noticed while working and not yet scheduled. Twenty-six sit here,
+and each later entry says where it was found; the first eighteen came six
 from 1.0.0-alpha.4.1.0, four from the Animation Mode work, two the 1.0.0-alpha.4.1.2 source
 review turned up, one the popup pass found, four from surveying the transform
 and export code for the 1.0.0-alpha.4.3.0 feature plan, and one from building its
@@ -55,7 +92,7 @@ and a panel positioned against the wrong box reads the same either way - and
 the four in the middle came out of generating frames, where the failures show
 up in the artifacts rather than in the code.
 
-Eleven are open. The seven that have been resolved are stamped rather than
+Fifteen are open. The eleven that have been resolved are stamped rather than
 deleted, so the record of what was found stays with the record of what fixed
 it; the 1.0.0-alpha.4.1.2 source review, including the reasoning behind the calls it
 made, is in `reviews/source-code-09-01-2026.log`.
@@ -285,6 +322,26 @@ made, is in `reviews/source-code-09-01-2026.log`.
   that follows the link draws the file the right way round. A link has
   nowhere to record a mirror. Either Mirror leaves a link's picture alone and
   moves its box only, or a link gains a transform the outputs apply.
+- [ ] **The Rotate dialog runs off the bottom of a short window**: in an
+  837-pixel-tall window the panel opens 72 pixels down and is 805 tall, so
+  its last 40 pixels are below the window's edge, and the Rotate and Cancel
+  buttons with them (the Rotate button's middle measured 944). The panel
+  scrolls its own content, but the part of it that scrolls is cut off too.
+  Enter in the angle field still applies the turn. (Found writing the Track
+  History GUI check in 1.0.0-alpha.4.5.0, whose click on Rotate landed on
+  nothing; the check presses Enter instead.)
+- [ ] **A group's drop shadow leaves a dark line on the canvas's bottom
+  edge**: with `test/gui/check-effects.mjs`'s script open at 1.475 canvas
+  pixels a unit in a 1903 by 927 canvas, the canvas's last row is 75 percent
+  black - the group's 50 percent shadow twice - for exactly the group's width
+  (page 198 to 463 across), though the shadow itself ends 6 pixels above that
+  row. At the zoom **Fit All in View** gives, the line is not there. It is
+  likely where `layDown` in `src/renderer/surface.ts` draws the device-sized
+  group picture through `ctx.filter` and the filter's output meets the
+  canvas's edge. (Found in 1.0.0-alpha.4.5.0 when the GUI checks began
+  launching with default settings: the check counted every near-black-gray
+  pixel on the canvas and failed on this row. It now looks inside the
+  shadow, where the row is not.)
 
 ## Things to Improve
 
@@ -307,6 +364,11 @@ which is the shape the rest should follow.
     replaced are gone from `renderer.ts`. It is worth reading as the pattern -
     the module reads the `is-hidden` class the app already toggles rather than
     demanding new calls, which is why nine call sites needed no edit.
+  - 1.0.0-alpha.4.5.0 lifted seven more out: `commands.ts`, `menus.ts`,
+    `keys.ts`, `config-dialog.ts`, `editors.ts`, `script-dialog.ts` and
+    `history-tracker.ts`, 2,146 lines in all. The features it added still
+    left `renderer.ts` at 12,107 lines, up from 11,626, so the clipboard and
+    the layers panel are still the next seams.
 - [ ] **A decoded image outlives the mark that placed it** *(1.0.0-alpha.4.1.2 source
   review, residual - needs measuring)*: `Surface.imageCache` is now emptied
   whenever the whole document is replaced, and by the throwaway surface Export
@@ -422,14 +484,15 @@ thirty times without ever listing them in one place. The last two entries are
 a different problem: Animation Mode is documented in three files that have to
 agree, and one of them is read by the AI helper rather than by a person.
 
-- [ ] **A keyboard-shortcut table**: one table in the README covering the
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **A keyboard-shortcut table**: one table in the README covering the
   tools, the quick features, the clipboard (`Ctrl+C` / `X` / `V` /
   `Shift+V` / `D`), restacking (`Ctrl+]` / `[`), and the Shift drag
   constraint. Today a reader has to find each one in the prose that introduced
   it.
-  - Planned for 1.0.0-alpha.4.5.0: generated from `src/core/menu/shortcuts.json`
-    by `npm run menu-docs` in Phase K under **Menus, shortcuts and generated
-    scripts**, so the README, the CHEATSHEET and the app agree.
+  - Built in 1.0.0-alpha.4.5.0: the README's In-app controls opens with a
+    table of every command with a shortcut, and the cheatsheet's Tools table
+    beside it, both written from `src/core/menu/shortcuts.json` by `npm run
+    menu-docs`; held keys and gestures are a hand-written table after it.
 - [ ] **An "Editing gestures" section**: the clipboard, Alt-drag, the Shift
   constraint, and Shift-click selection are documented as four separate
   bullets in the feature list even though they interact - Shift means one
@@ -752,67 +815,179 @@ than any single feature below and would be worth it exactly once.
 
 Planned 2026-09-25 in `.claude/prompts/feature-generateScripts-v1.0.0-alpha.4.5.0.md`
 (gitignored, like the earlier plans) from `.claude/prompt.md` and the two
-mockups in `.support/feature-generateScripts/`. Fourteen entries, one per
-phase, built in this order and one phase per run; the plan holds each
-phase's spec, files, tests and decisions, and its twelve open questions. The
+mockups in `.support/feature-generateScripts/`. Fifteen entries, one per
+phase - X was added during V - built in this order and one phase per run;
+the plan holds each phase's spec, files, tests and decisions, and its
+twelve open questions. The
 documentation site's own plan is `.claude/website.plan.md`.
 
-- [ ] **Phase 0 - the registry**: `src/core/menu/tool-types.json` and
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **Phase 0 - the registry**: `src/core/menu/tool-types.json` and
   `shortcuts.json` hold every command's tool type and chord, and a pure
   `registry.ts` generates the top bar, each right-click context and the
   Help rows from them. A characterization test reproduces today's three
   menus and three context lists exactly, and the final top bar of the brief
   is a test from here on.
-- [ ] **M - menus from the registry**: the native bar and the context menus
+  - Built 2026-09-25: 99 commands and 13 menus, 9 in the menu bar and 4
+    drawn only in the window. The old menus are matched with three changes
+    to the menu bar and five to the in-window menus, each a named step in the
+    test. Delete got a type of its own, `Subtract:element`, so the canvas
+    keeps its separator; Close Shape opens Sharp and Smooth, as its toolbar
+    button does. Nothing in the app reads the registry until Phase M.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **M - menus from the registry**: the native bar and the context menus
   are generated; `MenuAction` becomes `CommandId` and one command table;
   Transform, Sketch, Layers, Pages, Automate and Help appear; Rotate and
   Mirror leave Edit; the layers panel shows the clipboard rows and **Move**
   where the top bar shows **Move Layer**. GUI check for the context menus.
-- [ ] **K - shortcuts from the registry**: the forty-odd branches of the key chain become
+  - Built 2026-09-26: `src/main/menu.ts` binds the registry's rows to clicks,
+    and the main process updates enabled and checked rows in place as the
+    window's answers change; `src/renderer/commands.ts` is the one command
+    table, and every toolbar button runs through it. The canvas no longer acts
+    on a right press before its menu opens. The user files are read at
+    startup; writing them is Phase E's.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **K - shortcuts from the registry**: the forty-odd branches of the key chain become
   one lookup; button titles take their chord from the registry; `npm run
   menu-docs` generates the README and CHEATSHEET shortcut tables.
-- [ ] **D - the configuration popup**: `src/renderer/config-dialog.ts`, one
+  - Built 2026-09-26: `src/renderer/keys.ts` answers every key the modes
+    let go; 45 tooltips take their key from the registry; `npm run
+    menu-docs` writes the README's shortcut table and the cheatsheet's
+    Tools table. Shift and a letter still mean the letter; Alt and a letter
+    no longer do.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **D - the configuration popup**: `src/renderer/config-dialog.ts`, one
   reusable form popup with search, radio filters, a bordered table (text,
   select, key-capture and check cells) and Accept/Cancel, registered with
   the popup manager.
-- [ ] **E - Edit Keyboard Shortcuts**: the popup over every command; a chord
+  - Built 2026-09-26: `ConfigDialog.open(spec)` fills a `#config-dialog`
+    skeleton. The search, the filters, the shortcut verdicts and the held
+    edits are pure and unit-tested, and a GUI check drives the popup
+    through a check-only `window.napkinCheck` hook. While it is up it keeps
+    its keys, so nothing behind it runs. No menu row opens it until Phase E.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **E - Edit Keyboard Shortcuts**: the popup over every command; a chord
   another tool holds warns amber and a free one reads green; Accept writes
   only the differences to `userData/shortcuts.json` and the shipped file is
   never written; Reset removes the override.
-- [ ] **Y - Edit Tool Types**: the same popup with a type select per row
+  - Built 2026-09-26: `src/renderer/editors.ts` describes the editor, and
+    `planUserFiles` in `src/core/menu/overrides.ts` plans the file, which
+    the main process writes (or deletes) before rebuilding the menu bar
+    and sending the files back. Reset to defaults puts the app's own
+    shortcuts in the table as edits, so Accept removes the file. A warning
+    about the user's files at startup now follows the window's other
+    opening messages instead of being replaced by them.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **Y - Edit Tool Types**: the same popup with a type select per row
   (an optgroup per main type); fixed rows (the editors, role rows, Undo and
   Redo, the settings rows, the Help rows, a panel's own close row) are
   listed but disabled; Accept writes `userData/tool-types.json` and every
   menu regenerates.
-- [ ] **W - the script writer**: `src/core/script/writer.ts` turns a sketch,
+  - Built 2026-09-26: the drop-down has **Not in a menu** first, since a
+    toolbar tool can be put in a menu and any movable tool taken out of
+    all of them, and it says where a choice would list the tool before
+    Accept. The two editors carry their own reason for staying put.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **W - the script writer**: `src/core/script/writer.ts` turns a sketch,
   or a subtree of its layers, into instructions that evaluate back to the
   same marks; round-tripped on the simple and the complex fixtures through
   the SVG export.
-- [ ] **G - Generate Script from a media file and the selected layers**: the
+  - Built 2026-09-26: exact SVG round trips for all eight fixtures and every
+    golden page, with every digit kept; the same pixels at two decimals.
+    The language gained `tool eraser`, which the writer needed. What a
+    script cannot say is written as near as it goes and reported in
+    `notes`.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **G - Generate Script from a media file and the selected layers**: the
   Automate menu's first two sources (SVG and PDF through the writer, a
   raster as a `link` or an embedded `image`) and the Generated script
   dialog with Copy, Save As, Open as New Page and Cancel. Tests per method
   on simple and complex graphics; a GUI check.
-- [ ] **T - Track History and History Limit**: the store fires one step per
+  - Built 2026-09-26: an SVG goes through the importer and the one routine
+    that builds an import's layers (`src/core/imported-sketch.ts`, which the
+    store's import now calls too), a PDF's pages are written as a book, and
+    a picture is linked by its file name or embedded. Selected Layers keeps
+    the page or fits it to the selection, which the writer now does by
+    moving the marks to the corner. The dialog shows the whole script, its
+    counts and the writer's notes, and shortens image data in the view only.
+    File > Import and `-i` take GIF and WebP too.
+    `test/script-generate.test.ts` and `test/gui/check-generate-script.mjs`.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **T - Track History and History Limit**: the store fires one step per
   history boundary, a pure diff names what the step added, removed and
   changed, and a bounded tracker keeps the steps; `trackHistory` and
   `historyLimit` settings in a new Automate section of Verbose Settings.
-- [ ] **S - Generate Script from the session history**: the mockup's popup
+  - Built 2026-09-26: a step closes at the next history boundary rather than
+    at the next change, so a drag is one step, as it is one undo; the store
+    does nothing while no one listens. Steps are named by the command that
+    ran, by the tool whose press made them, or by what they changed.
+    Turning tracking off clears the steps, and History Limit opens Verbose
+    Settings at its Automate section, which shows the steps and what they
+    hold. `test/history-diff.test.ts`, `test/history-tracker.test.ts` and
+    `test/gui/check-track-history.mjs`.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **S - Generate Script from the session history**: the mockup's popup
   over the tracked steps, one comment block per checked step in the script,
   an unchecked step's marks left out.
-- [ ] **P - the GitHub Pages site**: built from `.claude/website.plan.md` per
+  - Built 2026-09-26: the ticked steps are replayed from the page as it was
+    before the history began, found by walking the steps back from the page
+    as it is, so an unticked step is left out as if it had not happened - a
+    change property by property, which Track History's diff now allows.
+    The replay is written in paint order, since a group cannot be opened
+    twice, with each step's comment before the first mark it drew.
+    `test/history-script.test.ts` and `test/gui/check-history-script.mjs`.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **P - the GitHub Pages site**: built from `.claude/website.plan.md` per
   `.claude/instructions/create-and-deploy-github-pages.instructions.md`,
   assembled by `npm run site` from the split-readme-into-site skill, deployed
   by `.github/workflows/pages.yml`, with the verification item filed under
   Current when it is pushed.
-- [ ] **H - the Help menu**: Verbose and Tool Types open the shipped pages in
+  - Built 2026-09-26: 61 pages in `docs/`, which `src/docs/site.ts` writes
+    from Markdown with one chrome stamped into each: 30 sources in
+    `docs/site-src/` (the README's manual, moved there, and five new
+    quickstarts), the 27 API pages, and `QUICKSTART.md`, `CHEATSHEET.md`,
+    `CHANGELOG.md` and `ai-helper/README.md`. `npm run site -- --check` and
+    `test/site.test.ts` fail while a page is behind its source or a link
+    reaches nothing. The README is a front door of linked headings, and
+    `DESIGN_LANGUAGE.md` holds the site's colors and their contrast. Nothing
+    is pushed and Pages is not switched on yet; the verification item under
+    Current says what is left.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **H - the Help menu**: Verbose and Tool Types open the shipped pages in
   a docs window; Source Code opens the repository; Source Docs appears once
   the site is verified.
-- [ ] **V - validation and the release**: every check green, README,
+  - Built 2026-09-26: `src/main/docs.ts` decides where the pages are (the
+    installed app's resources, or the checkout's `docs/`), what a row does
+    without them (the published site once it is up, else a toast), where a
+    link goes (a page stays, the web goes to the browser, the rest nowhere)
+    and the window's keys (Alt and an arrow, the mouse's side buttons,
+    Ctrl+W). The window is sandboxed, with no menu bar and no preload, and
+    one is reused for every row. The Automate quickstart leads to the
+    Animation Mode page's new Frame names. `test/docs-window.test.ts` and
+    `test/gui/check-help-menu.mjs`; every GUI check now gets a user-data
+    folder of its own.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **V - validation and the release**: every check green, README,
   CHEATSHEET, CHANGELOG and this file updated, version 1.0.0-alpha.4.5.0 in
   `package.json` and both plugin manifests.
-- [ ] **B - the banner**: `assets/screenshot.svg` redrawn to show the menu
+  - Built 2026-09-26: version 1.0.0-alpha.4.5.0 in `package.json`, the three
+    plugin manifests and the CLI reference's example; the CHANGELOG's
+    release heading and intro; a menus table on the site made from the
+    registry, the testing and project-structure pages brought up to date,
+    and Menus and Automate on the cheatsheet. An audit of the CHANGELOG
+    against the menus, asked for in `.claude/prompt.md`, found two tools
+    the menus miss, planned as X below.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **X - the tools the CHANGELOG adds to the menus**: Transform
+  (`Ctrl+T`) joins the Transform menu, the menu of its own type, and
+  Stroke Profile, which the menu files do not list at all, joins Sketch.
+  Added to the plan in V.
+  - Built 2026-09-26: **Transform > Transform Box** heads the menu's second
+    block, checked while the box is up (a `transformBox` answer from the
+    drawing window). **Sketch > Stroke Profile…** opens the picker; its
+    type names the Sketch menu, so Edit Tool Types lists it greyed there, as
+    it does the quick features, and its key can be changed. The context
+    menus check runs both from the menu bar.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **B - the banner**: `assets/screenshot.svg` redrawn to show the menu
   bar, the Automate menu open and the toolbar as it is; the last step.
+  - Done 2026-09-26 by the owner, as a picture rather than a redrawn SVG:
+    `assets/screenshot.svg` became `assets/bannerImage.png` (by `git mv`,
+    so its history follows it), and the site's home page opens on
+    `docs/assets/banner.gif`, played once and held on its last frame.
+- [ ] **The design language and the new icon**: `assets/icon.svg` was
+  redrawn on 2026-09-26, with a new `assets/logo.svg`, after
+  `DESIGN_LANGUAGE.md` and the site's palette had been measured from the old
+  blue tile - its blues, its paper, and the orange underline the site draws
+  under every page title. The site's brand mark follows the icon already.
+  Re-measure the palette and the title stroke from the new icon, or keep
+  them and say in `DESIGN_LANGUAGE.md` where they come from now.
+  - Found in Phase H, when the site test failed on the copied mark.
 
 ## Chores
 
@@ -891,11 +1066,15 @@ without a technical shape yet.
     frame layer is active.
   - [ ] **Sequence playback**: play a page's `<type>_<n>` frame layers in
     order at a chosen frame rate.
-  - [ ] **Help-menu reference**: an in-app page documenting the required
+  - [x] **DONE (1.0.0-alpha.4.5.0)** - **Help-menu reference**: an in-app page documenting the required
     assemblies and the frame layer-naming rules.
     - Planned for 1.0.0-alpha.4.5.0: the Help menu of Phase H under **Menus,
       shortcuts and generated scripts** opens the docs page for Automate,
       where the assemblies and the frame naming are documented.
+    - Built 2026-09-26: **Help > Tool Types > Automate** opens the Automate
+      quickstart in the docs window, which leads to the Animation Mode page:
+      the six assemblies, and a new **Frame names** table of how a frame is
+      named from the one it is drawn from.
 - [ ] **GUI Redesign**: update GUI overall design.
   - Initial sketches
   - Polish and apply
@@ -1041,9 +1220,10 @@ come apart are drawn in `object-animations.svg` instead.
 - [ ] **Color palettes**: savable swatch sets and a recent-colors strip.
 - [ ] **Grid & guides**: dot/line grid, snapping, and a ruler overlay.
 - [ ] **Per-page background**: choose napkin, graph, dotted, or blank per page.
-- [ ] **Configurable shortcuts**: user-editable keybindings.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **Configurable shortcuts**: user-editable keybindings.
   - Planned for 1.0.0-alpha.4.5.0 as **Edit Keyboard Shortcuts**: Phase E under
     **Menus, shortcuts and generated scripts**.
+  - Built as Edit > Edit Keyboard Shortcuts (Phase E), 2026-09-26.
 - [ ] **Auto-save & recovery**: periodic snapshots and crash recovery of `.skbk`.
 - [ ] **Export options dialog**: DPI/scale and transparent-vs-paper background
   choices for raster export.
@@ -1789,7 +1969,7 @@ points at, and Generate Script writes a media file, the selected layers or
 the tracked steps as a script that is shown before it is saved. The command
 layer, the store sink for replay, the Animation Mode helper scripts and the
 layer organizer stay here, and the entries below that the release answers
-are stamped when it ships.
+are stamped with what it built and what it left.
 
 - [ ] **The recorder needs a command layer, and that is the breaking change**:
   `SketchStore` exposes roughly fifty mutating methods and the renderer calls
@@ -1806,32 +1986,54 @@ are stamped when it ships.
   `HISTORY_LIMIT` besides. The command layer above is separate work, and this
   entry exists so the shortcut is refused once rather than reconsidered every
   time somebody notices the resemblance.
-- [ ] **Record intent, not pointer events**: a recorded drag is one
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **Record intent, not pointer events**: a recorded drag is one
   instruction, not the sixty pointer moves it was made of. The boundary
   already exists in the store, which is the encouraging part - `moveStrokes`,
   `setStrokeProps`, and `setLayerProps` all take a `history` flag precisely to
   separate the intermediate calls from the committed one. The recorder should
   coalesce on the same boundary rather than invent a second one.
-- [ ] **A recording is a script somebody can read**: the output should be the
+  - Built 2026-09-26: Track History closes a step at the store's history
+    boundary - the next `pushHistory`, transaction, undo, redo or page
+    change - so a drag is one step, as it is one undo.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **A recording is a script somebody can read**: the output should be the
   instruction language a person would have written by hand, with names and
   round numbers, not a trace of internal ids. A recording nobody can edit
   afterwards is worth about as much as an undo stack, and the whole point of
   recording into a language is that the result is source.
-- [ ] **Start and Stop Recording, and what the buttons promise**: where they
+  - Built 2026-09-26: **Generate Script > From Session History** writes
+    napkin script through the script writer - layer names, numbers to two
+    places, no ids - with a comment before each step's first mark giving its
+    index, tool type, command and time.
+- [x] **PARTLY DONE (1.0.0-alpha.4.5.0)** - **Start and Stop Recording, and what the buttons promise**: where they
   live, what shows while a recording runs, and what happens to one in progress
   when the window closes or the page changes. The close prompt already exists
   for unsaved work and is the pattern to follow.
-- [ ] **Decide what is in scope before writing any of it**: document mutations
+  - Built 2026-09-26: **Automate > Track History** starts and stops it,
+    its row checked while it records, and **History Limit** sets how many
+    steps are kept. A page change keeps each step with its page; a new or
+    opened document starts again, and turning it off clears the steps. Left:
+    closing the window asks nothing about the steps recorded, and nothing in
+    the window itself shows that recording is on.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **Decide what is in scope before writing any of it**: document mutations
   belong in a recording; zoom, pan, panel toggles, and which tool is selected
   are view state and mostly do not. Mostly, because the tool, the color, the
   width, and the sharpen options *are* what a drawing instruction needs. The
   line runs between "changes the document" and "changes the view", and it
   wants drawing once, in writing, rather than per method.
-- [ ] **A recording carries its preamble**: page size, background, and the
+  - Built 2026-09-26: only the document is recorded; zoom, pan, the panels,
+    the tool in hand and the colour are not, except as the marks they paint,
+    which carry their tool, colour and width. Written down once, under
+    *Tracking history* on the site's Automate page.
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **A recording carries its preamble**: page size, background, and the
   sharpen settings in force. Live-sharpen makes this sharp - a session
   recorded with `liveSharpen` on and replayed with it off draws different
   marks - so the settings that shaped the strokes belong in the script's head,
   not in the environment it happens to be replayed in.
+  - Built 2026-09-26: the script opens with the version, the page and the
+    time it was written from, then `page` and `background`. The sharpen
+    settings need no line of their own: the script draws each mark as it
+    came out of the sharpen pass, so running it draws the same marks
+    whatever the settings are.
 - [ ] **Replay runs the same evaluator against a different sink**: the
   headless path builds a `Sketch` from nothing; replay applies the same
   instructions to the live document through the store. One evaluator with two
@@ -1935,38 +2137,57 @@ are stamped when it ships.
   into it needs one rule about who writes, who reads, and who deletes, decided
   before the third one is written rather than after a run deletes another
   run's file.
-- [ ] **A generated script is code the user did not write**: the app writing a
+- [x] **DONE (1.0.0-alpha.4.5.0)** - **A generated script is code the user did not write**: the app writing a
   script and running it without showing it is the shape of the thing people
   are right to distrust, and it is also how a bug becomes invisible. Show it,
   default to confirming, and let the setting for skipping the confirmation be
   the user's own decision rather than the default.
-- [ ] **Recording, replay, and generation all read the same limits**: the
+  - Built 2026-09-26: every generated script opens in the **Generated
+    script** dialog before anything uses it, and **Open as New Page** runs it
+    into a page of its own, never over the page in view. No setting skips
+    the dialog.
+- [x] **PARTLY DONE (1.0.0-alpha.4.5.0)** - **Recording, replay, and generation all read the same limits**: the
   instruction budget the API section calls for is the same budget a generated
   script needs, and a recording of a long session is exactly the case that
   finds it. One cap, named once.
+  - Built 2026-09-26: **Open as New Page** runs a generated script through
+    the evaluator `napkin-sketch draw` uses, under its budget. Track History
+    has a limit of its own, **History Limit**, which counts steps rather than
+    instructions, so the two are not one cap yet.
 - [ ] **Scripts are a compatibility surface once anybody saves one**: a
   recording kept for six months has to still replay. That means the language
   gets a version marker, replay refuses what it cannot read instead of
   guessing, and the `.skbk` precedent applies - `SKETCHBOOK_VERSION` and
   `normalizeSketchBook` are how the document format already handles this and
   the pattern is worth copying rather than reinventing.
-- [ ] **Where the buttons live is a real question, not a detail**: recording
+- [x] **PARTLY DONE (1.0.0-alpha.4.5.0)** - **Where the buttons live is a real question, not a detail**: recording
   controls, a Run Script row, an Organize Layers action, and the Animation
   Mode generator are four new entries in a GUI that already has a menu bar,
   three panels, and a mode. Deciding this alongside the **GUI Redesign** entry
   under **Major** is cheaper than deciding it twice.
   - Answered for the generators in 1.0.0-alpha.4.5.0: an **Automate** top-bar
     menu, drawn in `.support/feature-generateScripts/menuItem-Tools.png`.
-- [ ] **Tests**: a recorder round trip, a replay determinism test, a rule
+  - Built 2026-09-26: the Automate menu holds the generators and the
+    recording controls, Track History and History Limit. A Run Script row,
+    Organize Layers and the Animation Mode generator wait for their features.
+- [x] **PARTLY DONE (1.0.0-alpha.4.5.0)** - **Tests**: a recorder round trip, a replay determinism test, a rule
   engine with fixture documents and expected trees, and a form test that the
   generated helper script names the right skills for each delivery -
   `test/animation.test.ts` already covers the form and is where the last one
   belongs.
-- [ ] **Documentation**: what a recording captures and what it deliberately
+  - Built 2026-09-26: `test/history-script.test.ts` records sessions
+    through the store and plays them back, every step ticked drawing the page
+    as it is, and `test/script-writer.test.ts` writes every fixture as a
+    script and draws it back to the same SVG, byte for byte. The rule
+    engine's and the helper script's tests wait for those features.
+- [x] **PARTLY DONE (1.0.0-alpha.4.5.0)** - **Documentation**: what a recording captures and what it deliberately
   does not, the rule format, and the Animation Mode reference-pose workflow.
   The last of these lands in the three places the animation tables already
   live, which is the duplication filed under **Documentation Update Ideas** -
   worth solving there before adding a fourth.
+  - Built 2026-09-26: what Track History records and what it does not is
+    on the site's Automate page. The rule format and the reference-pose
+    workflow wait for their features.
 
 ## Patch (fixes, polish, internal → next `x.y.++`)
 

@@ -1,0 +1,631 @@
+/* napkin-sketch documentation.
+   Written from DESIGN_LANGUAGE.md, whose tables hold every value here: the
+   app icon's blues and paper, the app's own neutrals, spacing and radii.
+   Light and dark, following the reader's system unless the theme button
+   has been used. Nothing is fetched: every page works from file:// too. */
+
+:root {
+  --bg: #eef1f4;
+  --paper: #fcfaf5;
+  --surface: #ffffff;
+  --surface-2: #f5f7fa;
+  --ink: #1f2328;
+  --ink-soft: #586069;
+  --link: #1b3fae;
+  --heading: #27496d;
+  --focus: #2f6fed;
+  --accent: #f08c2e;
+  --accent-text: #b3541e;
+  --border: #d7dee6;
+
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+
+  --shadow-1: 0 1px 2px rgba(31, 35, 40, 0.08);
+  --shadow-2: 0 4px 14px rgba(31, 35, 40, 0.1);
+  --motion: 160ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
+  --topbar: 56px;
+  --menu: 272px;
+  --measure: 820px;
+
+  color-scheme: light;
+}
+
+/* The dark palette, for a system that asks for it and a reader who chose it. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1f24;
+    --paper: #24292f;
+    --surface: #1f242a;
+    --surface-2: #2d333b;
+    --ink: #e6edf3;
+    --ink-soft: #9aa5b1;
+    --link: #8ab4f8;
+    --heading: #9cc1ea;
+    --focus: #5b8ef2;
+    --accent: #f08c2e;
+    --accent-text: #f0a35e;
+    --border: #3a414a;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #1b1f24;
+  --paper: #24292f;
+  --surface: #1f242a;
+  --surface-2: #2d333b;
+  --ink: #e6edf3;
+  --ink-soft: #9aa5b1;
+  --link: #8ab4f8;
+  --heading: #9cc1ea;
+  --focus: #5b8ef2;
+  --accent: #f08c2e;
+  --accent-text: #f0a35e;
+  --border: #3a414a;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+/* ---- The page ------------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-padding-top: calc(var(--topbar) + var(--s4));
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.6 var(--font);
+  -webkit-text-size-adjust: 100%;
+}
+
+a {
+  color: var(--link);
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--s4);
+  top: -48px;
+  z-index: 30;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+
+.skip-link:focus {
+  top: var(--s2);
+}
+
+/* ---- The bar across the top ---------------------------------------------- */
+
+.topbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  height: var(--topbar);
+  padding: 0 var(--s4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 18px;
+  text-decoration: none;
+}
+
+/* The app icon at the bar's height, whatever its proportions. */
+.brand img {
+  display: block;
+  width: auto;
+  height: 28px;
+  border-radius: 0;
+}
+
+.brand-sub {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+.version {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.topbar-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.topbar-button:hover {
+  background: var(--surface-2);
+}
+
+.menu-toggle {
+  display: none;
+}
+
+/* ---- The menu down the side ------------------------------------------------ */
+
+.sidebar {
+  position: fixed;
+  top: var(--topbar);
+  bottom: 0;
+  left: 0;
+  z-index: 15;
+  width: var(--menu);
+  overflow-y: auto;
+  padding: var(--s4) var(--s3) var(--s7);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.nav-section {
+  margin: var(--s4) var(--s2) var(--s1);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nav-section:first-child {
+  margin-top: 0;
+}
+
+.sidebar ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sidebar a {
+  display: block;
+  padding: 3px var(--s2);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.sidebar a:hover {
+  background: var(--surface-2);
+}
+
+.sidebar a[aria-current="page"] {
+  background: var(--surface-2);
+  color: var(--link);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--link);
+}
+
+.nav-group summary {
+  padding: 3px var(--s2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.nav-group summary:hover {
+  background: var(--surface-2);
+}
+
+.nav-group ul {
+  margin-left: var(--s3);
+  padding-left: var(--s2);
+  border-left: 1px solid var(--border);
+}
+
+.scrim {
+  display: none;
+}
+
+/* ---- The page itself ------------------------------------------------------- */
+
+.page {
+  margin-left: var(--menu);
+  padding: calc(var(--topbar) + var(--s5)) var(--s5) var(--s7);
+}
+
+.content {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: var(--s6) var(--s6) var(--s5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--shadow-1);
+}
+
+.breadcrumb {
+  margin-bottom: var(--s4);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.breadcrumb .sep {
+  margin: 0 var(--s1);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  position: relative;
+  margin: var(--s6) 0 var(--s3);
+  color: var(--heading);
+  line-height: 1.25;
+}
+
+h1 {
+  margin-top: 0;
+  padding-bottom: 40px;
+  font-size: 30px;
+}
+
+/* The one decorative stroke: the icon's orange underline, under the title. */
+h1::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 6px;
+  width: 150px;
+  height: 28px;
+  background: no-repeat left center / contain
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='140 314 170 50'%3E%3Cpath d='M150 348 C 196 320, 250 368, 300 340' fill='none' stroke='%23f08c2e' stroke-width='14' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+h2 {
+  font-size: 22px;
+  padding-bottom: var(--s1);
+  border-bottom: 1px solid var(--border);
+}
+
+h3 {
+  font-size: 18px;
+}
+
+h4,
+h5,
+h6 {
+  font-size: 16px;
+}
+
+.anchor {
+  margin-left: var(--s2);
+  color: var(--ink-soft);
+  font-weight: 400;
+  text-decoration: none;
+  opacity: 0;
+}
+
+h1:hover .anchor,
+h2:hover .anchor,
+h3:hover .anchor,
+h4:hover .anchor,
+.anchor:focus {
+  opacity: 1;
+}
+
+p,
+ul,
+ol,
+blockquote,
+pre,
+.table-wrap {
+  margin: 0 0 var(--s4);
+}
+
+ul,
+ol {
+  padding-left: var(--s5);
+}
+
+li + li,
+li > ul,
+li > ol {
+  margin-top: var(--s1);
+}
+
+li > p {
+  margin-bottom: var(--s2);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--r-md);
+}
+
+code {
+  padding: 1px 5px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font: 0.9em var(--mono);
+}
+
+pre {
+  overflow-x: auto;
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  line-height: 1.45;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+  font-size: 13px;
+}
+
+blockquote {
+  padding: var(--s2) var(--s4);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--surface-2);
+}
+
+blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: var(--s5) 0;
+}
+
+/* The contents of a long page, under its title. */
+.toc {
+  margin: 0 0 var(--s5);
+  padding: var(--s2) var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 14px;
+}
+
+.toc summary {
+  color: var(--ink-soft);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toc ul {
+  columns: 2 220px;
+  margin: var(--s2) 0 var(--s1);
+  padding-left: var(--s4);
+}
+
+/* Previous and next. */
+.page-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin-top: var(--s6);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--border);
+}
+
+.page-nav a {
+  display: flex;
+  flex-direction: column;
+  max-width: 48%;
+  text-decoration: none;
+}
+
+.page-nav a[rel="next"] {
+  margin-left: auto;
+  text-align: right;
+}
+
+.page-nav a span {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.site-footer {
+  margin-left: var(--menu);
+  padding: 0 var(--s5) var(--s6);
+  color: var(--ink-soft);
+  font-size: 13px;
+  text-align: center;
+}
+
+.site-footer p {
+  max-width: var(--measure);
+  margin: 0 auto var(--s2);
+}
+
+.site-footer a {
+  color: var(--ink-soft);
+}
+
+/* ---- A narrow screen: the menu slides in -------------------------------------- */
+
+@media (max-width: 900px) {
+  .menu-toggle {
+    display: inline-flex;
+  }
+
+  .version {
+    display: none;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform var(--motion);
+    box-shadow: var(--shadow-2);
+  }
+
+  body.menu-open .sidebar {
+    transform: none;
+  }
+
+  body.menu-open .scrim {
+    display: block;
+    position: fixed;
+    inset: var(--topbar) 0 0 0;
+    z-index: 14;
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .page,
+  .site-footer {
+    margin-left: 0;
+  }
+
+  .page {
+    padding: calc(var(--topbar) + var(--s3)) var(--s3) var(--s6);
+  }
+
+  .content {
+    padding: var(--s5) var(--s4);
+  }
+
+  h1 {
+    font-size: 26px;
+  }
+}
+
+/* A phone: the bar keeps the name on one line and drops what it can spare. */
+@media (max-width: 560px) {
+  .topbar {
+    gap: var(--s2);
+    padding: 0 var(--s3);
+  }
+
+  .brand {
+    white-space: nowrap;
+    font-size: 16px;
+  }
+
+  .brand-sub {
+    display: none;
+  }
+
+  .topbar-button {
+    padding: 0 var(--s2);
+  }
+}
+
+/* The narrowest phones: the repository link is in every page's footer too. */
+@media (max-width: 420px) {
+  .topbar a.topbar-button {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}
+
+@media print {
+  .topbar,
+  .sidebar,
+  .scrim,
+  .page-nav,
+  .site-footer,
+  .toc {
+    display: none;
+  }
+
+  .page {
+    margin: 0;
+    padding: 0;
+  }
+
+  .content {
+    border: 0;
+    box-shadow: none;
+  }
+}

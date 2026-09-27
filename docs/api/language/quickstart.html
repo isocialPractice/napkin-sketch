@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The napkin script language: quickstart - napkin-sketch</title>
+<meta name="description" content="The napkin script language, in numbered steps that run on a clone.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group" open><summary>The napkin script language</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html" aria-current="page">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">The napkin script language</a> <span class="sep">/</span> <span aria-current="page">Quickstart</span></nav>
+<h1 id="the-napkin-script-language-quickstart">The napkin script language: quickstart<a class="anchor" href="#the-napkin-script-language-quickstart" aria-label="Link to this section">#</a></h1>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <strong>Quickstart</strong> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>Napkin script says what to draw in words, one instruction a line, and a program
+in any language builds the same script as JSON; this is the path from nothing
+to a script that checks clean in both forms.</p>
+<h2 id="the-whole-thing-in-five-steps">The whole thing in five steps<a class="anchor" href="#the-whole-thing-in-five-steps" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Build the clone and put <code>napkin-sketch</code> on your PATH:</li>
+</ol>
+<pre><code class="language-bash">npm install
+npm run build
+npm link</code></pre>
+<ol start="2">
+<li>Save this as <code>card.napkin</code>:</li>
+</ol>
+<pre><code class="language-napkin">napkin 1
+page 400 300
+name &quot;card&quot;
+background #fcfaf5
+layer &quot;Card&quot;
+color #1f2328 width 3 fill #ffe08a
+rect 20 20 360 260 r 16
+text &quot;Acme Corp&quot; at 200 120 size 32 align center</code></pre>
+<ol start="3">
+<li>Check it. It prints <code>card.napkin: no problems</code> and exits with code 0:</li>
+</ol>
+<pre><code class="language-bash">napkin-sketch check card.napkin</code></pre>
+<ol start="4">
+<li>Misspell <code>rect</code> as <code>rct</code> on line 7 and check again. The report names the
+line and column, the code and the fix, and the exit code is 2:</li>
+</ol>
+<pre><code class="language-text">card.napkin:7:1: error unknown-verb: `rct` is not a verb. Did you mean `rect`?
+card.napkin: 1 error, 0 warnings</code></pre>
+<ol start="5">
+<li>Put <code>rect</code> back, and save the same script as JSON in <code>card.json</code>, the form a
+program builds instead of text. <code>napkin-sketch check card.json</code> reads it the
+same way:</li>
+</ol>
+<pre><code class="language-json">[
+  { &quot;verb&quot;: &quot;napkin&quot;, &quot;version&quot;: 1 },
+  { &quot;verb&quot;: &quot;page&quot;, &quot;width&quot;: 400, &quot;height&quot;: 300 },
+  { &quot;verb&quot;: &quot;name&quot;, &quot;name&quot;: &quot;card&quot; },
+  { &quot;verb&quot;: &quot;background&quot;, &quot;color&quot;: &quot;#fcfaf5&quot; },
+  { &quot;verb&quot;: &quot;layer&quot;, &quot;name&quot;: &quot;Card&quot; },
+  { &quot;verb&quot;: &quot;color&quot;, &quot;color&quot;: &quot;#1f2328&quot; },
+  { &quot;verb&quot;: &quot;width&quot;, &quot;width&quot;: 3 },
+  { &quot;verb&quot;: &quot;fill&quot;, &quot;fill&quot;: &quot;#ffe08a&quot; },
+  { &quot;verb&quot;: &quot;rect&quot;, &quot;x&quot;: 20, &quot;y&quot;: 20, &quot;width&quot;: 360, &quot;height&quot;: 260, &quot;radius&quot;: 16 },
+  { &quot;verb&quot;: &quot;text&quot;, &quot;text&quot;: &quot;Acme Corp&quot;, &quot;x&quot;: 200, &quot;y&quot;: 120, &quot;size&quot;: 32, &quot;align&quot;: &quot;center&quot; }
+]</code></pre>
+<h2 id="a-worked-example">A worked example<a class="anchor" href="#a-worked-example" aria-label="Link to this section">#</a></h2>
+<p>Four tiles spaced by a <code>let</code>, laid out by a <code>repeat</code>, and a dot centred with
+the page's own <code>width</code>. Anything computed goes in parentheses, and so does a
+name used where a number goes:</p>
+<pre><code class="language-napkin">napkin 1
+page 400 200
+name &quot;tiles&quot;
+let gap 20
+let size ((width - 5 * gap) / 4)
+color #1f2328 width 2 fill #ffe08a
+repeat 4 as i {
+  rect (gap + i * (size + gap)) 40 (size) (size) r 8
+}
+fill #326478
+circle (width / 2) 170 (gap / 2)</code></pre>
+<p>In JSON, an expression is <code>{ &quot;expr&quot;: &quot;...&quot; }</code> and a block is <code>body</code>:</p>
+<pre><code class="language-json">[
+  { &quot;verb&quot;: &quot;napkin&quot;, &quot;version&quot;: 1 },
+  { &quot;verb&quot;: &quot;page&quot;, &quot;width&quot;: 400, &quot;height&quot;: 200 },
+  { &quot;verb&quot;: &quot;let&quot;, &quot;name&quot;: &quot;gap&quot;, &quot;value&quot;: 20 },
+  {
+    &quot;verb&quot;: &quot;repeat&quot;,
+    &quot;count&quot;: 4,
+    &quot;as&quot;: &quot;i&quot;,
+    &quot;body&quot;: [{ &quot;verb&quot;: &quot;rect&quot;, &quot;x&quot;: { &quot;expr&quot;: &quot;gap + i * 80&quot; }, &quot;y&quot;: 40, &quot;width&quot;: 60, &quot;height&quot;: 60, &quot;radius&quot;: 8 }]
+  }
+]</code></pre>
+<p><code>napkin-sketch draw tiles.napkin --to png</code> draws it.</p>
+<h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="index.html#a-script-line-by-line">A script, line by line</a>: lines, blocks,
+comments, and which verbs share a line.</li>
+<li><a href="index.html#values">Values</a> and <a href="index.html#expressions">Expressions</a>: units,
+shares of the page, colors, and the functions.</li>
+<li><a href="index.html#the-object-form">The object form</a>: the JSON a program builds, and
+<a href="../schema/instructions.schema.json">the schema</a> to check it against.</li>
+<li><a href="index.html#diagnostics">Diagnostics</a>: every code, and what it means.</li>
+<li><a href="../drawing/quickstart.html">Drawing with napkin script</a>: what the verbs draw.</li>
+<li><a href="cheatsheet.html">The cheatsheet</a>: every verb on one line.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="index.html" rel="prev"><span>Previous</span>The napkin script language</a><a href="cheatsheet.html" rel="next"><span>Next</span>The napkin script language: cheatsheet</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/language/QUICKSTART.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

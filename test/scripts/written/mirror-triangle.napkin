@@ -1,0 +1,14 @@
+napkin 1
+page 120 100
+background #ffffff
+name "mirror-triangle"
+color #000000
+width 1
+fill #1f2328
+stroke off
+path {
+  move 20 20
+  to 100 50
+  to 20 80
+  close
+}

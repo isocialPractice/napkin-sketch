@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The AI helper plugins - napkin-sketch</title>
+<meta name="description" content="The three plugins, and installing them where an AI tool looks.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="index.html"><img src="assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="index.html">Home</a></li><li><a href="install.html">Install</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="quickstart/draw.html">Draw</a></li><li><a href="quickstart/transform.html">Transform</a></li><li><a href="quickstart/layers.html">Layers</a></li><li><a href="quickstart/pages.html">Pages</a></li><li><a href="quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="guide/index.html">Overview</a></li><li><a href="guide/tools.html">Tools</a></li><li><a href="guide/gestures.html">Gestures</a></li><li><a href="guide/vector-paths.html">Vector paths</a></li><li><a href="guide/selection.html">Selection and editing</a></li><li><a href="guide/transform.html">Transform</a></li><li><a href="guide/layers.html">Layers</a></li><li><a href="guide/pages.html">Pages</a></li><li><a href="guide/import-export.html">Import and export</a></li><li><a href="guide/sharpen.html">Sharpen</a></li><li><a href="guide/settings.html">Settings</a></li><li><a href="guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="guide/automate.html">Automate</a></li><li><a href="guide/animation-mode.html">Animation Mode</a></li><li><a href="guide/skbk-format.html">The .skbk format</a></li><li><a href="guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="api/index.html">Overview</a></li><li><a href="api/quickstart.html">Quickstart</a></li><li><a href="api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="api/language/index.html">Reference</a></li><li><a href="api/language/quickstart.html">Quickstart</a></li><li><a href="api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="api/drawing/index.html">Reference</a></li><li><a href="api/drawing/quickstart.html">Quickstart</a></li><li><a href="api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="api/compose/index.html">Reference</a></li><li><a href="api/compose/quickstart.html">Quickstart</a></li><li><a href="api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="api/output/index.html">Reference</a></li><li><a href="api/output/quickstart.html">Quickstart</a></li><li><a href="api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="api/cli/index.html">Reference</a></li><li><a href="api/cli/quickstart.html">Quickstart</a></li><li><a href="api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="api/node/index.html">Reference</a></li><li><a href="api/node/quickstart.html">Quickstart</a></li><li><a href="api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="api/interop/index.html">Reference</a></li><li><a href="api/interop/quickstart.html">Quickstart</a></li><li><a href="api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="api/ai/index.html">Reference</a></li><li><a href="api/ai/quickstart.html">Quickstart</a></li><li><a href="api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="embed.html">Embedding</a></li><li><a href="scripting.html">Scripting</a></li><li><a href="ai-helpers.html">AI helpers</a></li><li><a href="ai-helper.html" aria-current="page">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="develop/building.html">Building</a></li><li><a href="develop/testing.html">Testing</a></li><li><a href="develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="changelog.html">Changelog</a></li><li><a href="about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Docs</a> <span class="sep">/</span> Building on it <span class="sep">/</span> <span aria-current="page">Helper plugins</span></nav>
+<h1 id="ai-helpers">AI helpers<a class="anchor" href="#ai-helpers" aria-label="Link to this section">#</a></h1>
+<p>The AI-facing half of napkin-sketch, in three plugins. Each one owns a folder
+here, and a folder is the whole plugin: the manifest, the commands, any
+subagents, the skills, and the contract the tool reads before it edits
+anything. The marketplace that lists them is
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/.claude-plugin/marketplace.json"><code>.claude-plugin/marketplace.json</code></a> at the
+repository root.</p>
+<pre><code class="language-text">ai-helper/
+├── vectors/            Animation Mode: pose one SVG frame into the next
+├── graphic-designer/   Design language: read an asset, then draw more like it
+└── scripting/          Napkin scripts: write one from a request</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Plugin</th><th>What it does</th><th>Command</th></tr></thead>
+<tbody>
+<tr><td><a href="https://github.com/isocialPractice/napkin-sketch/tree/main/ai-helper/vectors"><code>vectors</code></a></td><td>Draws the next Animation Mode frame from the form the app writes, and carries the Bezier and layer-structure knowledge behind it</td><td><code>/vectors:animation-mode</code></td></tr>
+<tr><td><a href="https://github.com/isocialPractice/napkin-sketch/tree/main/ai-helper/graphic-designer"><code>graphic-designer</code></a></td><td>Reads a media file into a <code>DESIGN_LANGUAGE.md</code>, then generates a per-asset skill and scripts that compose new work in that language</td><td><code>/graphic-designer:design-language</code></td></tr>
+<tr><td><a href="https://github.com/isocialPractice/napkin-sketch/tree/main/ai-helper/scripting"><code>scripting</code></a></td><td>Writes a napkin script from a request, for <code>napkin-sketch draw --prompt</code> or by itself, with a skill that teaches the language from the verb table</td><td><code>/scripting:draw</code></td></tr>
+</tbody></table></div>
+<h2 id="installing">Installing<a class="anchor" href="#installing" aria-label="Link to this section">#</a></h2>
+<p>All three plugins are tracked source, so a clone already has them. What installing
+does is put them where an AI tool looks.</p>
+<pre><code class="language-bash">npm run ai-helper -- --list                     # targets and helpers
+npm run ai-helper                               # every helper -&gt; .claude
+npm run ai-helper -- --to github                # -&gt; .github
+npm run ai-helper -- --helper graphic-designer  # narrow to one helper
+npm run ai-helper -- --to plugin                # check the plugins, print /plugin</code></pre>
+<p>A dot-folder target copies each helper's skills and instructions into it. The
+<code>plugin</code> target copies nothing, because the folder already is the plugin; it
+checks the tree, syncs the manifest version to <code>package.json</code>, and prints the
+commands that load it:</p>
+<pre><code class="language-text">/plugin marketplace add .
+/plugin install vectors@napkin-sketch
+/plugin install graphic-designer@napkin-sketch
+/plugin install scripting@napkin-sketch</code></pre>
+<p>Without a clone, <code>/plugin marketplace add isocialPractice/napkin-sketch</code>
+reaches the same three.</p>
+<h2 id="animation-mode-is-a-feature-switch-not-a-file-copy">Animation Mode is a feature switch, not a file copy<a class="anchor" href="#animation-mode-is-a-feature-switch-not-a-file-copy" aria-label="Link to this section">#</a></h2>
+<p>Animation Mode is the one part of the app gated on an install record. Turning
+it on and off is its own script, which only ever touches the <code>vectors</code> helper:</p>
+<pre><code class="language-bash">npm run animation-mode -- --status
+npm run animation-mode -- --install --to plugin
+npm run animation-mode -- --uninstall</code></pre>
+<p>It writes <code>ai-helper/installed.json</code> (gitignored), and the app reads that one
+file to decide whether the mode exists. <code>graphic-designer</code> and <code>scripting</code> have
+no such switch: nothing in the GUI runs them, so there is nothing to gate.
+<code>scripting</code> is run by the command line's <code>draw --prompt</code>, which needs only the
+AI tool on the PATH.</p>
+<h2 id="adding-a-helper">Adding a helper<a class="anchor" href="#adding-a-helper" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Make <code>ai-helper/&lt;name&gt;/</code> with a <code>.claude-plugin/plugin.json</code>, and whichever
+of <code>commands/</code>, <code>agents/</code>, <code>instructions/</code> and <code>skills/</code> it needs.</li>
+<li>Add an entry to <code>HELPERS</code> in
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/scripts/install-ai-helper.mjs"><code>scripts/install-ai-helper.mjs</code></a> - the
+installer derives everything else from it.</li>
+<li>Add the matching constant in
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/ai-tool.ts"><code>src/core/ai-tool.ts</code></a>. A test fails if the two
+registries disagree, because the script cannot import the TypeScript.</li>
+<li>Add a plugin entry to the root marketplace manifest.</li>
+</ol>
+<p>Skill names are global once a tool loads them, so every <code>SKILL.md</code> in the
+tracked tree must declare a name no other one does. <code>test/ai-helper.test.ts</code>
+enforces that across all the helpers at once.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="ai-helpers.html" rel="prev"><span>Previous</span>The AI helpers</a><a href="develop/building.html" rel="next"><span>Next</span>Building and packaging</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/ai-helper/README.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

@@ -146,6 +146,14 @@ export interface AppSettings {
    * helper's working directory. An empty string disables the log.
    */
   animationLogFile: string;
+  /**
+   * Automate > Track History: keep every step of the drawing's history - an
+   * edit, an undo, a redo - for Generate Script to write from. Off by
+   * default, and the steps last only as long as the document is open.
+   */
+  trackHistory: boolean;
+  /** How many tracked steps are kept, the oldest going first (50-5000, in steps of 50). */
+  historyLimit: number;
 }
 
 /** Canonical default quick-access colors (the project ink palette). */
@@ -193,6 +201,7 @@ export const SETTINGS_LIMITS = {
   copicHoldSec: { min: 0.5, max: 2, step: 0.1 },
   copicRotateSpeedDeg: { min: 15, max: 360, step: 15 },
   copicWidthMultiplier: { min: 1, max: 4, step: 0.25 },
+  historyLimit: { min: 50, max: 5000, step: 50 },
 } as const;
 
 /** Factory for a fresh, valid settings object. */
@@ -235,6 +244,8 @@ export function defaultSettings(): AppSettings {
     copicWidthMultiplier: 2,
     animationHelperCommand: DEFAULT_ANIMATION_HELPER_COMMAND,
     animationLogFile: DEFAULT_ANIMATION_LOG_FILE,
+    trackHistory: false,
+    historyLimit: 500,
   };
 }
 
@@ -345,6 +356,11 @@ export function normalizeSettings(input: unknown): AppSettings {
     ),
     animationHelperCommand: normalizeAnimationCommand(raw.animationHelperCommand, base),
     animationLogFile: normalizeRelativePath(raw.animationLogFile, base.animationLogFile),
+    trackHistory: typeof raw.trackHistory === 'boolean' ? raw.trackHistory : base.trackHistory,
+    historyLimit:
+      Math.round(
+        clampNumber(raw.historyLimit, lim.historyLimit.min, lim.historyLimit.max, base.historyLimit) / lim.historyLimit.step,
+      ) * lim.historyLimit.step,
   };
 
   result.quickColors = normalizeQuickColors(raw.quickColors, result.quickColorCount);

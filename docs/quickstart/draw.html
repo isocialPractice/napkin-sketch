@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quickstart: drawing - napkin-sketch</title>
+<meta name="description" content="Pick a tool, draw, use the quick gestures and sharpen: the Sketch menu in one sitting.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="draw.html" aria-current="page">Draw</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../guide/index.html">Overview</a></li><li><a href="../guide/tools.html">Tools</a></li><li><a href="../guide/gestures.html">Gestures</a></li><li><a href="../guide/vector-paths.html">Vector paths</a></li><li><a href="../guide/selection.html">Selection and editing</a></li><li><a href="../guide/transform.html">Transform</a></li><li><a href="../guide/layers.html">Layers</a></li><li><a href="../guide/pages.html">Pages</a></li><li><a href="../guide/import-export.html">Import and export</a></li><li><a href="../guide/sharpen.html">Sharpen</a></li><li><a href="../guide/settings.html">Settings</a></li><li><a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../guide/automate.html">Automate</a></li><li><a href="../guide/animation-mode.html">Animation Mode</a></li><li><a href="../guide/skbk-format.html">The .skbk format</a></li><li><a href="../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> Quickstarts <span class="sep">/</span> <span aria-current="page">Draw</span></nav>
+<h1 id="quickstart-drawing">Quickstart: drawing<a class="anchor" href="#quickstart-drawing" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#1-open-a-blank-sketch">1. Open a blank sketch</a></li><li><a href="#2-draw-with-the-pen-the-marker-and-the-copic">2. Draw with the pen, the marker and the Copic</a></li><li><a href="#3-set-the-width-the-opacity-and-the-color">3. Set the width, the opacity and the color</a></li><li><a href="#4-draw-straight-lines-and-curves-by-hand">4. Draw straight lines and curves by hand</a></li><li><a href="#5-draw-shapes-and-paths">5. Draw shapes and paths</a></li><li><a href="#6-sharpen-it">6. Sharpen it</a></li><li><a href="#7-undo-save-and-export">7. Undo, save and export</a></li><li><a href="#where-next">Where next</a></li></ul></details>
+<p>Draw something, make it quick, and sharpen it: the tools of the <strong>Sketch</strong>
+menu and the toolbar in one sitting. Every key here is the app's own
+default; <a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a> lists them all
+and says how to change them.</p>
+<h2 id="1-open-a-blank-sketch">1. Open a blank sketch<a class="anchor" href="#1-open-a-blank-sketch" aria-label="Link to this section">#</a></h2>
+<p>From a clone, <code>npm start</code> builds the app and opens a new, blank sketch; an
+installed app opens one from its icon, and <code>napkin-sketch</code> does from a shell
+once <code>npm link</code> has been run. See <a href="../install.html">Installation</a>.</p>
+<p>The <strong>Select</strong> tool is in hand when the app opens, so press <code>P</code> for the pen
+before drawing.</p>
+<h2 id="2-draw-with-the-pen-the-marker-and-the-copic">2. Draw with the pen, the marker and the Copic<a class="anchor" href="#2-draw-with-the-pen-the-marker-and-the-copic" aria-label="Link to this section">#</a></h2>
+<ol>
+<li><code>P</code> - the pen. Draw a wobbly box and a lopsided circle; pressure from a
+pen or a touchscreen widens the line.</li>
+<li><code>M</code> - the marker, a broad, even line.</li>
+<li><code>K</code> - the Copic marker, a flat nib: thick across, thin along. Hold <code>Ctrl</code>
+for a second to show the nib, then <code>Alt</code> or <code>Shift</code> to turn it.</li>
+<li><code>E</code> - the eraser. It takes away what is under it on its own layer, and
+the paper shows through.</li>
+</ol>
+<h2 id="3-set-the-width-the-opacity-and-the-color">3. Set the width, the opacity and the color<a class="anchor" href="#3-set-the-width-the-opacity-and-the-color" aria-label="Link to this section">#</a></h2>
+<ol>
+<li><code>W</code> then <code>5</code> - a stroke width of 5. <code>Q</code> then <code>50</code> - an opacity of 50%.</li>
+<li><code>C</code> - the next Quick Access Color; <code>Shift + C</code> goes back.</li>
+<li>With the Select tool and something selected, a width typed after <code>W</code>
+widens or narrows the selected outlines instead of the next stroke.</li>
+</ol>
+<h2 id="4-draw-straight-lines-and-curves-by-hand">4. Draw straight lines and curves by hand<a class="anchor" href="#4-draw-straight-lines-and-curves-by-hand" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Hold <code>Space</code> and drag - a clean straight line. Add <code>Shift</code> mid-drag to lock
+it horizontal or vertical.</li>
+<li>Hold <code>Ctrl + Space</code> and drag - a quarter ellipse. Add <code>Alt</code> for a quarter
+circle; tap <code>Shift</code> to swing the arc's apex 90 degrees.</li>
+<li>Hold <code>Shift</code> while drawing to snap the stroke's ends onto the nearest end
+of another stroke; a ring marks the target.</li>
+</ol>
+<h2 id="5-draw-shapes-and-paths">5. Draw shapes and paths<a class="anchor" href="#5-draw-shapes-and-paths" aria-label="Link to this section">#</a></h2>
+<ol>
+<li><code>R</code> - a rectangle; <code>L</code> - an ellipse. Hold <code>Shift</code> for a square or a
+circle.</li>
+<li><code>V</code> - a curve: drag a chord, bend it, click to place it.</li>
+<li><code>B</code> - a vector path: click for corners, drag for smooth points, <code>Enter</code> to
+finish it open or click the first point to close it.</li>
+<li><code>T</code> - text: click for a box that grows as you type, or drag a box of a
+fixed width.</li>
+</ol>
+<h2 id="6-sharpen-it">6. Sharpen it<a class="anchor" href="#6-sharpen-it" aria-label="Link to this section">#</a></h2>
+<p>Press <code>H</code> (<strong>Sharpen all</strong>): the box squares up and the circle rounds out,
+with a little wobble left in so it still reads as drawn by hand. To sharpen
+each stroke as you lift the pen, turn on <strong>Live sharpen</strong> in Quick Settings
+(<code>Ctrl + ,</code>). <a href="../guide/sharpen.html">Sharpening</a> says how the engine decides
+what a stroke meant.</p>
+<h2 id="7-undo-save-and-export">7. Undo, save and export<a class="anchor" href="#7-undo-save-and-export" aria-label="Link to this section">#</a></h2>
+<ol>
+<li><code>Ctrl + Z</code> undoes, <code>Ctrl + Shift + Z</code> redoes.</li>
+<li><code>Ctrl + S</code> saves a <code>.skbk</code> sketch book.</li>
+<li><strong>File &gt; Export</strong> writes PNG, JPEG, SVG or PDF.</li>
+</ol>
+<h2 id="where-next">Where next<a class="anchor" href="#where-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../guide/tools.html">Tools</a> and <a href="../guide/gestures.html">Gestures and input</a> -
+everything the tools and the held keys do.</li>
+<li><a href="transform.html">Quickstart: transforming</a> - move, turn, mirror and bend
+what you drew.</li>
+<li><a href="../cheatsheet.html">Cheatsheet</a> - every key on one page.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../cheatsheet.html" rel="prev"><span>Previous</span>Cheatsheet</a><a href="transform.html" rel="next"><span>Next</span>Quickstart: transforming</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/quickstart/draw.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

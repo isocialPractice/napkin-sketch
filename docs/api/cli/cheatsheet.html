@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The napkin-sketch command line: cheatsheet - napkin-sketch</title>
+<meta name="description" content="The napkin-sketch command line, as tables to look things up in.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>The napkin-sketch command line</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html" aria-current="page">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">The napkin-sketch command line</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
+<h1 id="the-napkin-sketch-command-line-cheatsheet">The napkin-sketch command line: cheatsheet<a class="anchor" href="#the-napkin-sketch-command-line-cheatsheet" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#commands">Commands</a></li><li><a href="#flags">Flags</a></li><li><a href="#exit-codes">Exit codes</a></li><li><a href="#the-json-report">The JSON report</a></li><li><a href="#one-line-each">One line each</a></li><li><a href="#from-other-languages">From other languages</a></li><li><a href="#common-mistakes">Common mistakes</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <a href="quickstart.html">Quickstart</a> · <strong>Cheatsheet</strong></p>
+<p>Reminders for the four commands: their flags, exit codes, the JSON report and the calls from other languages.</p>
+<h2 id="commands">Commands<a class="anchor" href="#commands" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Command</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>napkin-sketch draw &lt;script | -&gt;</code></td><td>Draw a napkin script to svg, png, pdf, skbk or jsx files.</td></tr>
+<tr><td><code>napkin-sketch check &lt;script | -&gt;</code></td><td>Read and run a script, report what is wrong, write nothing.</td></tr>
+<tr><td><code>napkin-sketch render &lt;book.skbk&gt;</code></td><td>Write a sketch book as svg, png, pdf, skbk or jsx files, or its figure as animation frames.</td></tr>
+<tr><td><code>napkin-sketch verbs</code></td><td>List napkin script's verbs and the shape library.</td></tr>
+</tbody></table></div>
+<h2 id="flags">Flags<a class="anchor" href="#flags" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Flag</th><th style="text-align:center">draw</th><th style="text-align:center">check</th><th style="text-align:center">render</th><th style="text-align:center">verbs</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>--to &lt;formats&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>The formats to write: svg, png, pdf, skbk, jsx, comma-separated.</td></tr>
+<tr><td><code>--out &lt;dir&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>The folder to write into, made when it is missing.</td></tr>
+<tr><td><code>--name &lt;stem&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>The name the files are written under.</td></tr>
+<tr><td><code>--base &lt;dir&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>The folder linked files are read inside.</td></tr>
+<tr><td><code>--asset &lt;name&gt;=&lt;file&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td>An image the script places by name; repeatable.</td></tr>
+<tr><td><code>--use &lt;name&gt;=&lt;book.skbk&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td>A book the script copies in with use; repeatable.</td></tr>
+<tr><td><code>--seed &lt;n&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td>The seed for the hand-drawn pass.</td></tr>
+<tr><td><code>--scale &lt;n&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>PNG pixels a page pixel.</td></tr>
+<tr><td><code>--crop auto|none|&lt;x,y,w,h&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>What every file is cut to.</td></tr>
+<tr><td><code>--limit &lt;n&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td>The most instructions a run may execute.</td></tr>
+<tr><td><code>--prompt &lt;request&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center"></td><td>Ask the AI helper for a script that draws this, and draw it; the script is kept as &lt;name&gt;.napkin.</td></tr>
+<tr><td><code>--helper &lt;command&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center"></td><td>The AI helper command --prompt runs: $NAPKIN_SCRIPT_HELPER unless given, else Claude Code.</td></tr>
+<tr><td><code>--page &lt;n&gt;</code></td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>Only this page of the book, counting from 1.</td></tr>
+<tr><td><code>--animate &lt;type&gt;</code></td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>Draw the page's figure through a measured cycle, a frame a page: walk, run, ideal, knocked-down.</td></tr>
+<tr><td><code>--frames &lt;n&gt;</code></td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>How many frames --animate spreads the cycle across: 2 to 60, the cycle's own length unless given.</td></tr>
+<tr><td><code>--facing left|right</code></td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>Which way the --animate figure travels, when its feet do not say.</td></tr>
+<tr><td><code>--category &lt;name&gt;</code></td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center">yes</td><td>Only this category of verbs.</td></tr>
+<tr><td><code>--json</code></td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td>One line of JSON on standard output, and nothing else.</td></tr>
+<tr><td><code>--strict</code></td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>Anything reported at all is a failure, and nothing is written.</td></tr>
+<tr><td><code>--quiet</code></td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>Print errors and nothing else.</td></tr>
+</tbody></table></div>
+<ul>
+<li><code>--to svg,png</code> and <code>--to=svg,png</code> both work.</li>
+<li><code>-</code> in place of a script reads standard input.</li>
+</ul>
+<h2 id="exit-codes">Exit codes<a class="anchor" href="#exit-codes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>0</code></td><td>It drew, the script checked clean, or the book was written.</td></tr>
+<tr><td><code>1</code></td><td>The arguments were wrong: an unknown option, a bad value, no script. Nothing is written.</td></tr>
+<tr><td><code>2</code></td><td>The script had errors, render was given a file that is not a book, or --animate found no figure on its page; with --strict, anything reported at all. What could be drawn is written, unless --strict.</td></tr>
+<tr><td><code>3</code></td><td>A file could not be read or written. A linked file that could not be read is drawn as its placeholder and the files are written; for anything else, nothing is.</td></tr>
+<tr><td><code>4</code></td><td>draw --prompt got no script back: the AI helper is not installed, is not signed in, or failed. Nothing is written.</td></tr>
+</tbody></table></div>
+<h2 id="the-json-report">The JSON report<a class="anchor" href="#the-json-report" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Field</th><th>Holds</th></tr></thead>
+<tbody>
+<tr><td><code>ok</code>, <code>exitCode</code></td><td><code>ok</code> is true exactly when <code>exitCode</code> is 0</td></tr>
+<tr><td><code>files</code></td><td><code>{ path, format, page }</code> for each file written</td></tr>
+<tr><td><code>diagnostics</code></td><td><code>{ level, code, message, line, column }</code>; <code>index</code> for JSON scripts</td></tr>
+<tr><td><code>warnings</code></td><td>What a format left out or drew as a stand-in</td></tr>
+<tr><td><code>stats</code></td><td><code>instructions</code>, <code>marks</code>, <code>anchors</code>, <code>points</code>, <code>pages</code>; <code>null</code> when nothing ran</td></tr>
+<tr><td><code>error</code></td><td><code>{ kind: 'usage' | 'io' | 'input', message }</code> when a command stopped</td></tr>
+<tr><td><code>version</code>, <code>language</code></td><td>The package version, and the language version it reads</td></tr>
+</tbody></table></div>
+<h2 id="one-line-each">One line each<a class="anchor" href="#one-line-each" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Want</th><th>Run</th></tr></thead>
+<tbody>
+<tr><td>SVG and PNG into a folder</td><td><code>napkin-sketch draw card.napkin --to svg,png --out out</code></td></tr>
+<tr><td>A retina PNG cut to the ink</td><td><code>napkin-sketch draw card.napkin --to png --scale 2 --crop auto</code></td></tr>
+<tr><td>A script from a pipe, JSON back</td><td><code>napkin-sketch draw - --json &lt; card.napkin</code></td></tr>
+<tr><td>An image the script places</td><td><code>napkin-sketch draw card.napkin --asset logo=art/logo.png</code></td></tr>
+<tr><td>A book the script copies in</td><td><code>napkin-sketch draw card.napkin --use badge=badge.skbk</code></td></tr>
+<tr><td>Links read from another folder</td><td><code>napkin-sketch draw card.napkin --base brand</code></td></tr>
+<tr><td>A check that fails on warnings</td><td><code>napkin-sketch check card.napkin --strict</code></td></tr>
+<tr><td>Page 2 of a saved book</td><td><code>napkin-sketch render deck.skbk --page 2 --to png</code></td></tr>
+<tr><td>A figure's walk, a file a frame, no AI</td><td><code>napkin-sketch render hero.skbk --animate walk</code></td></tr>
+<tr><td>Every verb's grammar as JSON</td><td><code>napkin-sketch verbs --json</code></td></tr>
+</tbody></table></div>
+<h2 id="from-other-languages">From other languages<a class="anchor" href="#from-other-languages" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Caller</th><th>The call</th></tr></thead>
+<tbody>
+<tr><td>sh, bash</td><td><code>napkin-sketch draw card.napkin --to svg,png --out out; echo $?</code></td></tr>
+<tr><td>Windows batch</td><td><code>call napkin-sketch draw card.napkin --to &quot;svg,pdf&quot; --out out</code></td></tr>
+<tr><td>PowerShell</td><td><code>napkin-sketch draw card.napkin --to svg,png --out out; $LASTEXITCODE</code></td></tr>
+<tr><td>Node</td><td><code>spawnSync('napkin-sketch', ['draw', '-', '--json'], { input, encoding: 'utf8', shell: process.platform === 'win32' })</code></td></tr>
+<tr><td>Python</td><td><code>subprocess.run([shutil.which(&quot;napkin-sketch&quot;), &quot;draw&quot;, &quot;-&quot;, &quot;--json&quot;], input=script, capture_output=True, encoding=&quot;utf-8&quot;)</code></td></tr>
+<tr><td>C</td><td><code>popen(&quot;napkin-sketch draw card.napkin --json --to svg --out out&quot;, &quot;r&quot;)</code></td></tr>
+</tbody></table></div>
+<ul>
+<li>Each is a whole program in <a href="https://github.com/isocialPractice/napkin-sketch/tree/main/docs/api/cli/examples">examples/</a>.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes<a class="anchor" href="#common-mistakes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Wrong</th><th>Right</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><code>napkin-sketch draw ...</code> in a <code>.bat</code></td><td><code>call napkin-sketch draw ...</code></td><td>npm installs a <code>.cmd</code>; without <code>call</code> the batch file never comes back.</td></tr>
+<tr><td><code>image &quot;art/logo.png&quot;</code> in the script</td><td><code>image &quot;logo&quot;</code> and <code>--asset logo=art/logo.png</code></td><td>A script reads no files: a path is <code>unknown-asset</code>.</td></tr>
+<tr><td>Parsing the human report</td><td><code>--json</code>, and branch on <code>exitCode</code> and <code>code</code></td><td>Messages are for people and may change.</td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="quickstart.html" rel="prev"><span>Previous</span>The napkin-sketch command line: quickstart</a><a href="../node/index.html" rel="next"><span>Next</span>Using napkin-sketch from code</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/cli/CHEATSHEET.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sharpening - napkin-sketch</title>
+<meta name="description" content="Live sharpen, Sharpen all, and how the auto-sharpen engine decides what a stroke meant.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html" aria-current="page">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Sharpen</span></nav>
+<h1 id="sharpening">Sharpening<a class="anchor" href="#sharpening" aria-label="Link to this section">#</a></h1>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Auto-sharpen engine</strong> that recognizes intent (straight line, circle/ellipse,
+polygon, or freeform) and rebuilds an idealized, hand-drawn version.
+<ul>
+<li><strong>Live sharpen</strong> (off by default) — beautify each stroke the moment you lift
+the pen.</li>
+<li><strong>Sharpen all</strong> — clean up an entire page (or a saved file) at once.</li>
+<li><strong>Sharpen settings panel</strong> — tune wobble, smoothing, circle snap, end taper,
+rotational <strong>symmetry</strong> (mandala mode), and text size.</li>
+</ul></li>
+</ul>
+<h2 id="live-sharpen-and-sharpen-all">Live sharpen and Sharpen all<a class="anchor" href="#live-sharpen-and-sharpen-all" aria-label="Link to this section">#</a></h2>
+<p><strong>Live sharpen is off by default.</strong> Toggle it in the <strong>Quick Settings</strong> panel
+to beautify strokes automatically as you draw, or leave it off and use
+<strong>Sharpen all</strong> when you are ready. The Quick Settings panel also exposes
+wobble, smoothing, circle snap, end taper, rotational symmetry, and text size.
+Raising rotational symmetry above 1 fades the mandala guide axes in, and
+dropping it back to 1 fades them out.</p>
+<h2 id="how-auto-sharpen-works">How auto-sharpen works<a class="anchor" href="#how-auto-sharpen-works" aria-label="Link to this section">#</a></h2>
+<p>Each stroke runs through a four-stage pipeline:</p>
+<ol>
+<li><strong>Resample + denoise</strong> — even out the raw pointer samples and remove jitter
+(uniform resampling + Ramer–Douglas–Peucker simplification).</li>
+<li><strong>Recognize intent</strong> — classify the stroke as a line, circle/ellipse,
+polygon, or freeform curve (least-squares circle fit, corner detection,
+straightness test).</li>
+<li><strong>Rebuild</strong> — regenerate an idealized version of the detected shape while
+preserving its size, position, and winding direction.</li>
+<li><strong>Humanize</strong> — re-apply subtle, deterministic value-noise <em>wobble</em>, taper the
+stroke ends, and anchor endpoints so the result looks hand-drawn rather than
+mechanically perfect.</li>
+</ol>
+<p>The engine is pure and deterministic (seeded from each stroke's id), so the same
+stroke sharpens identically whether it is processed live in the GUI or headless
+via <code>napkin-sketch --sharpen</code>.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="import-export.html" rel="prev"><span>Previous</span>Import and export</a><a href="settings.html" rel="next"><span>Next</span>Settings</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/sharpen.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

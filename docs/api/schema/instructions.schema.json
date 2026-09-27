@@ -641,7 +641,7 @@
       "tool": {
         "type": "object",
         "title": "tool",
-        "description": "The kind of mark: pen, marker (translucent, so overlapping passes build up like ink) or copic (a broad, angled nib).",
+        "description": "The kind of mark: pen, marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib) or eraser (takes away what is under it, on its own layer only).",
         "properties": {
           "verb": {
             "const": "tool"
@@ -654,7 +654,8 @@
             "enum": [
               "pen",
               "marker",
-              "copic"
+              "copic",
+              "eraser"
             ]
           }
         },

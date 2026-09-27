@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drawing from a script - napkin-sketch</title>
+<meta name="description" content="napkin script and its API: what it is, the eight categories of pages, and where to start.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../guide/index.html">Overview</a></li><li><a href="../guide/tools.html">Tools</a></li><li><a href="../guide/gestures.html">Gestures</a></li><li><a href="../guide/vector-paths.html">Vector paths</a></li><li><a href="../guide/selection.html">Selection and editing</a></li><li><a href="../guide/transform.html">Transform</a></li><li><a href="../guide/layers.html">Layers</a></li><li><a href="../guide/pages.html">Pages</a></li><li><a href="../guide/import-export.html">Import and export</a></li><li><a href="../guide/sharpen.html">Sharpen</a></li><li><a href="../guide/settings.html">Settings</a></li><li><a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../guide/automate.html">Automate</a></li><li><a href="../guide/animation-mode.html">Animation Mode</a></li><li><a href="../guide/skbk-format.html">The .skbk format</a></li><li><a href="../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="index.html" aria-current="page">Overview</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="language/index.html">Reference</a></li><li><a href="language/quickstart.html">Quickstart</a></li><li><a href="language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="drawing/index.html">Reference</a></li><li><a href="drawing/quickstart.html">Quickstart</a></li><li><a href="drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="compose/index.html">Reference</a></li><li><a href="compose/quickstart.html">Quickstart</a></li><li><a href="compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="output/index.html">Reference</a></li><li><a href="output/quickstart.html">Quickstart</a></li><li><a href="output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="cli/index.html">Reference</a></li><li><a href="cli/quickstart.html">Quickstart</a></li><li><a href="cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="node/index.html">Reference</a></li><li><a href="node/quickstart.html">Quickstart</a></li><li><a href="node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="interop/index.html">Reference</a></li><li><a href="interop/quickstart.html">Quickstart</a></li><li><a href="interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="ai/index.html">Reference</a></li><li><a href="ai/quickstart.html">Quickstart</a></li><li><a href="ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <span aria-current="page">Overview</span></nav>
+<h1 id="the-napkin-sketch-api">The napkin-sketch API<a class="anchor" href="#the-napkin-sketch-api" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#what-it-is">What it is</a></li><li><a href="#what-it-is-not">What it is not</a></li><li><a href="#the-categories">The categories</a></li><li><a href="#how-it-fits-together">How it fits together</a></li><li><a href="#the-ways-in">The ways in</a></li><li><a href="#who-these-pages-are-for">Who these pages are for</a></li><li><a href="#the-languages-version">The language's version</a></li><li><a href="#how-these-pages-are-kept-true">How these pages are kept true</a></li></ul></details>
+<p><strong>API hub</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>Draw without a pointer. napkin-sketch has a language, napkin script, that says
+what to draw one instruction a line, and a composition API that builds a
+graphic in code. Both write SVG and PNG, and a drawing also PDF, the app's own
+<code>.skbk</code> and an Illustrator script, with no window, no browser and no native
+library, from a shell, from Node, or from any language that can start a
+process.</p>
+<p><strong>Where to start.</strong> A person: <a href="quickstart.html">API-QUICKSTART.md</a>, then the
+quickstart of the category you need. An agent:
+<a href="INDEX.json">docs/api/INDEX.json</a>, which lists every page with its
+kind, its first paragraph and its size, and then a cheatsheet. Every verb, flag
+and exit code on one page: <a href="cheatsheet.html">API-CHEATSHEET.md</a>.</p>
+<h2 id="what-it-is">What it is<a class="anchor" href="#what-it-is" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>A drawing language.</strong> A napkin script is a list of instructions such as
+<code>page</code>, <code>layer</code>, <code>color</code>, <code>rect</code>, <code>text</code> and <code>repeat</code>, written as text by a
+person or an AI tool, or built as JSON by a program. It runs into a sketch
+book: the same pages, layers and Bezier anchors the app draws by hand, so a
+script's drawing opens in the app as editable work.</li>
+<li><strong>A composition API.</strong> <code>createComposition</code> builds a page out of shapes,
+text, images, masks and gradients in code, and renders the one document to
+SVG and PNG.</li>
+<li><strong>Four commands.</strong> <code>napkin-sketch draw</code>, <code>check</code>, <code>render</code> and <code>verbs</code> run
+scripts from a shell or a batch file, and from Python, C or anything else
+through standard input and one line of JSON back.</li>
+<li><strong>Two package entries.</strong> <code>napkin-sketch</code> runs anywhere and reads no file;
+<code>napkin-sketch/node</code> reads scripts, images and books and writes files.</li>
+</ul>
+<h2 id="what-it-is-not">What it is not<a class="anchor" href="#what-it-is-not" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Not a way to open files from a script.</strong> A script names an image, a book
+or a linked file; the program running it reads them, and links are read
+only inside one folder.</li>
+<li><strong>Not a font engine.</strong> The PNG sets text in a built-in single-stroke face,
+and the SVG and the PDF name the font for the reader to set.</li>
+<li><strong>Not a general SVG renderer.</strong> It reads the SVG other editors write -
+layers, curves, gradients' stops - and says what it leaves out rather than
+drawing it wrong.</li>
+<li><strong>Not a model.</strong> The AI helpers are skills and scripts an AI tool runs;
+nothing in the package calls one.</li>
+</ul>
+<h2 id="the-categories">The categories<a class="anchor" href="#the-categories" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Category</th><th>What it covers</th><th>Pages</th></tr></thead>
+<tbody>
+<tr><td><a href="language/index.html">The napkin script language</a></td><td>The syntax, values and expressions, the object form, every verb, and every diagnostic code.</td><td><a href="language/index.html">reference</a>, <a href="language/quickstart.html">quickstart</a>, <a href="language/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="drawing/index.html">Drawing with napkin script</a></td><td>What each instruction draws: pages, layers, paint, shapes, paths, the shape library, the hand-drawn pass, text, images, links and effects.</td><td><a href="drawing/index.html">reference</a>, <a href="drawing/quickstart.html">quickstart</a>, <a href="drawing/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="compose/index.html">The graphic design API</a></td><td>Compositions built in code - shapes, text, media, masks, gradients, effects - rendered to SVG or PNG.</td><td><a href="compose/index.html">reference</a>, <a href="compose/quickstart.html">quickstart</a>, <a href="compose/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="output/index.html">Writing a drawing out</a></td><td>SVG, PNG, PDF, .skbk and an Illustrator script from one call, the box every format is cut to, and what each format keeps.</td><td><a href="output/index.html">reference</a>, <a href="output/quickstart.html">quickstart</a>, <a href="output/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="cli/index.html">The napkin-sketch command line</a></td><td>draw, check, render and verbs from a shell or any language, with --json and exit codes.</td><td><a href="cli/index.html">reference</a>, <a href="cli/quickstart.html">quickstart</a>, <a href="cli/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="node/index.html">Using napkin-sketch from code</a></td><td>The two entries, ES modules and CommonJS, types, the result object, and what throws.</td><td><a href="node/index.html">reference</a>, <a href="node/quickstart.html">quickstart</a>, <a href="node/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="interop/index.html">Working with other programs</a></td><td>Illustrator and Inkscape through SVG, an Illustrator script that rebuilds a drawing, files linked from elsewhere, and what survives a round trip.</td><td><a href="interop/index.html">reference</a>, <a href="interop/quickstart.html">quickstart</a>, <a href="interop/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="ai/index.html">The AI helpers</a></td><td>The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages.</td><td><a href="ai/index.html">reference</a>, <a href="ai/quickstart.html">quickstart</a>, <a href="ai/cheatsheet.html">cheatsheet</a></td></tr>
+</tbody></table></div>
+<h2 id="how-it-fits-together">How it fits together<a class="anchor" href="#how-it-fits-together" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-text"> text script (.napkin) --parseScript--+
+                                      +--&gt; instructions: the object form (.napkin.json)
+ a program (Node, Python, C) ---------+          |
+                                              evaluate
+                                                 |
+                              sketch book: pages, layers, Bezier marks
+                                                 |
+          +---------------+-------------+--------+----------+-------------------+
+     sketchToSvg    sketchesToPdf     .skbk           sketchesToJsx    sketchToComposition
+          |               |             |                   |                   |
+         SVG             PDF    the app opens it   Illustrator runs it     composition &lt;-- createComposition
+                                                                                |
+                                                                            rasterize --&gt; PNG</code></pre>
+<ul>
+<li><strong>The object form is the contract.</strong> Text lowers to it, and a program in
+another language builds it directly as JSON, checked against
+<a href="schema/instructions.schema.json">the schema</a>.</li>
+<li><strong>Geometry is Bezier anchors, never samples</strong>, so every output has something
+exact to write and the app has something to edit.</li>
+<li><strong>The outputs are the app's own writers.</strong> A script's SVG is the SVG the app
+exports, and its PNG goes through the composition rasterizer, the one new
+road, with no canvas.</li>
+<li><strong>Errors are values.</strong> A script that goes wrong is reported, line and code,
+and whatever could be drawn still is; only the disk throws.</li>
+</ul>
+<h2 id="the-ways-in">The ways in<a class="anchor" href="#the-ways-in" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>From</th><th>Call</th><th>Start at</th></tr></thead>
+<tbody>
+<tr><td>A shell, a batch file, CI</td><td><code>napkin-sketch draw card.napkin --to svg,png</code></td><td><a href="cli/quickstart.html">The command line</a></td></tr>
+<tr><td>Python, C, any language</td><td><code>napkin-sketch draw - --json</code>, the script on standard input</td><td><a href="cli/index.html#worked-examples">The callers</a></td></tr>
+<tr><td>Node</td><td><code>drawFile('card.napkin', { formats: ['svg', 'png'] })</code></td><td><a href="node/quickstart.html">Using it from code</a></td></tr>
+<tr><td>A browser or a bundler</td><td><code>drawSvg(text)</code>, <code>evaluate(text)</code></td><td><a href="node/index.html#the-two-entries">The two entries</a></td></tr>
+<tr><td>Code that lays out a graphic</td><td><code>createComposition({ width, height })</code></td><td><a href="compose/quickstart.html">The graphic design API</a></td></tr>
+<tr><td>An AI tool</td><td>the <code>graphic-designer</code> and <code>scripting</code> helpers</td><td><a href="ai/quickstart.html">The AI helpers</a></td></tr>
+<tr><td>A sentence</td><td><code>napkin-sketch draw --prompt &quot;a three-box flowchart with arrows&quot;</code></td><td><a href="ai/index.html#drawing-from-a-request">Drawing from a request</a></td></tr>
+<tr><td>Illustrator, Inkscape</td><td>SVG both ways, <code>link</code>, and <code>--to jsx</code> to rebuild a drawing in Illustrator</td><td><a href="interop/quickstart.html">Working with other programs</a></td></tr>
+</tbody></table></div>
+<h2 id="who-these-pages-are-for">Who these pages are for<a class="anchor" href="#who-these-pages-are-for" aria-label="Link to this section">#</a></h2>
+<p>People and agents alike. Every category has three pages: a reference for the
+reader with time, a quickstart that runs as written on a fresh clone, and a
+cheatsheet of tables, and each links to the other two and back here in its
+first lines. The reference pages close with a section for agents: the strings
+to match, the flags that make a run repeatable, and which diagnostics mean
+retry and which mean rewrite. An agent gets the grammar from the program
+rather than the prose: <code>napkin-sketch verbs --json</code> prints every verb, shape
+and diagnostic code, from the table the parser reads.</p>
+<h2 id="the-languages-version">The language's version<a class="anchor" href="#the-languages-version" aria-label="Link to this section">#</a></h2>
+<p>A script's first line names the language version it was written for:
+<code>napkin 1</code>. A version changes only when a script that ran under the old one
+would draw differently under the new one; a new verb or a new optional field
+is an addition, and keeps the version. A build refuses a script newer than it
+reads with <code>version-unsupported</code>, naming the newest it does, and reads a
+script with no version line as version 1, with a <code>version-missing</code> warning.
+The language's version and the package's are separate: <code>SCRIPT_VERSION</code> is the
+first, and the command line's JSON report carries both, as <code>language</code> and
+<code>version</code>.</p>
+<h2 id="how-these-pages-are-kept-true">How these pages are kept true<a class="anchor" href="#how-these-pages-are-kept-true" aria-label="Link to this section">#</a></h2>
+<p>The verb tables, the command tables, the exit codes, the schema and
+<code>docs/api/INDEX.json</code> are written by <code>npm run api-docs</code> from the tables the
+code itself reads, and the test suite fails when one is out of date. Every
+<code>napkin</code> block on these pages is run by the tests, every JSON script is
+checked, and every relative link is followed to a file.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../guide/command-line.html" rel="prev"><span>Previous</span>The command line</a><a href="quickstart.html" rel="next"><span>Next</span>API quickstart</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/API.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

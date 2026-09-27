@@ -324,7 +324,7 @@ What every mark after it is drawn with: tool, color, width, opacity, fill, gradi
 
 | Verb | Written | Fields in JSON | What it does |
 | --- | --- | --- | --- |
-| `tool` | `tool pen\|marker\|copic` | `tool` | The kind of mark: pen, marker (translucent, so overlapping passes build up like ink) or copic (a broad, angled nib). |
+| `tool` | `tool pen\|marker\|copic\|eraser` | `tool` | The kind of mark: pen, marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib) or eraser (takes away what is under it, on its own layer only). |
 | `color` | `color <color>` | `color` | The ink color of every mark after it. |
 | `width` | `width <length>` | `width` | The stroke width of every mark after it. |
 | `opacity` | `opacity <0-1>` | `opacity` | The opacity of every mark after it, from 0 to 1. |
@@ -489,7 +489,7 @@ the source is `src/core/script/index.ts`.
 ```ts
 parseScript(text: string, options?: { fragment?: boolean }): ParseResult
 validateScript(value: unknown, options?: { fragment?: boolean }): ParseResult
-formatScript(script: Instruction[], options?: { indent?: string }): string
+formatScript(script: Instruction[], options?: { indent?: string; comments?: Map<object, string[]> }): string
 
 interface ParseResult {
   ok: boolean;               // no errors: every instruction is in `script`
@@ -504,7 +504,9 @@ formatDiagnostic(diagnostic: Diagnostic, file?: string): string
 
 `formatScript` throws on an instruction it cannot write, which only an
 unchecked script can contain; check a script built by hand with
-`validateScript` first. The verb table itself is exported as `VERBS`, with
+`validateScript` first. `comments` puts `#` lines before chosen
+instructions, keyed by the instruction object itself and written at its
+indent, inside a block too; the parser skips them, as it skips every comment. The verb table itself is exported as `VERBS`, with
 `verbSpec(name)` to look one verb up.
 
 ## Worked examples

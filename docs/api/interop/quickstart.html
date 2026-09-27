@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Working with other programs: quickstart - napkin-sketch</title>
+<meta name="description" content="Working with other programs, in numbered steps that run on a clone.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Working with other programs</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html" aria-current="page">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">Working with other programs</a> <span class="sep">/</span> <span aria-current="page">Quickstart</span></nav>
+<h1 id="working-with-other-programs-quickstart">Working with other programs: quickstart<a class="anchor" href="#working-with-other-programs-quickstart" aria-label="Link to this section">#</a></h1>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <strong>Quickstart</strong> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>SVG carries a napkin drawing into Illustrator or Inkscape and back with its
+layers named, an Illustrator script rebuilds one in Illustrator's own objects,
+and <code>link</code> places a file made elsewhere by reference; this is the path through
+all three.</p>
+<h2 id="the-whole-thing-in-five-steps">The whole thing in five steps<a class="anchor" href="#the-whole-thing-in-five-steps" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Build the clone and put <code>napkin-sketch</code> on your PATH:</li>
+</ol>
+<pre><code class="language-bash">npm install
+npm run build
+npm link</code></pre>
+<ol start="2">
+<li>Save this as <code>sign.napkin</code>: two groups, a name with a space and an
+ampersand in it, and a name used twice.</li>
+</ol>
+<pre><code class="language-napkin">napkin 1
+page 320 200
+name &quot;sign&quot;
+group &quot;Front&quot; {
+  layer &quot;Board&quot;
+  color #1f2328 width 3 fill #ffe08a
+  rect 20 20 280 120 r 12
+  layer &quot;Sun &amp; Moon&quot;
+  fill #ff8a65
+  circle 80 80 30
+}
+group &quot;Back&quot; {
+  layer &quot;Board&quot;
+  fill #326478
+  rect 20 150 280 40 r 8
+}</code></pre>
+<ol start="3">
+<li>Write it as SVG, and open <code>sign.svg</code> in Inkscape: its Layers panel lists
+<code>Front</code>, holding <code>Board</code> and <code>Sun &amp; Moon</code>, and <code>Back</code>, holding <code>Board</code>.</li>
+</ol>
+<pre><code class="language-bash">napkin-sketch draw sign.napkin --to svg</code></pre>
+<ol start="4">
+<li>Bring it back. This opens the app with <code>sign.svg</code> imported as the same five
+layer rows:</li>
+</ol>
+<pre><code class="language-bash">napkin-sketch --import sign.svg</code></pre>
+<ol start="5">
+<li>Or rebuild it in Illustrator itself. This writes <code>sign.jsx</code>; in
+Illustrator, choose <strong>File &gt; Scripts &gt; Other Script</strong> and pick it, and it
+builds a document with the layers <code>Front</code> and <code>Back</code>, the nested layers as
+named groups inside them, and every mark as a path on its own anchors:</li>
+</ol>
+<pre><code class="language-bash">napkin-sketch draw sign.napkin --to jsx</code></pre>
+<h2 id="a-worked-example">A worked example<a class="anchor" href="#a-worked-example" aria-label="Link to this section">#</a></h2>
+<p>A letterhead that links its logo rather than importing it. Save this as
+<code>logo.svg</code>:</p>
+<pre><code class="language-xml">&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;160&quot; height=&quot;80&quot; viewBox=&quot;0 0 160 80&quot;&gt;
+  &lt;rect width=&quot;160&quot; height=&quot;80&quot; rx=&quot;12&quot; fill=&quot;#326478&quot;/&gt;
+  &lt;circle cx=&quot;40&quot; cy=&quot;40&quot; r=&quot;22&quot; fill=&quot;#ffe08a&quot;/&gt;
+&lt;/svg&gt;</code></pre>
+<p>and this as <code>letterhead.napkin</code> beside it:</p>
+<pre><code class="language-napkin">napkin 1
+page 400 240
+name &quot;letterhead&quot;
+background #ffffff
+link &quot;logo.svg&quot; at 20 20 size 160 80 name &quot;Logo&quot;
+layer &quot;Rule&quot;
+color #326478 width 2
+line 20 120 380 120</code></pre>
+<p>Then draw both formats:</p>
+<pre><code class="language-bash">napkin-sketch draw letterhead.napkin --to svg,png</code></pre>
+<p><code>letterhead.svg</code> holds the reference, <code>&lt;image ... href=&quot;logo.svg&quot;
+data-link=&quot;true&quot; data-name=&quot;logo.svg&quot;&gt;</code>, and nothing of the logo, so a change
+to <code>logo.svg</code> shows up wherever the SVG is opened. <code>letterhead.png</code> has the
+logo drawn in, read from the script's folder. Rename <code>logo.svg</code> and draw
+again: both files are still written, the PNG with a dashed placeholder where
+the logo was, and the command warns and exits with code 3.</p>
+<p>For Illustrator, link a PNG or a PDF: <code>--to jsx</code> places a linked file as
+Illustrator's own linked item, found from the <code>.jsx</code>'s folder, and
+Illustrator's scripting does not place an SVG that way, so a linked SVG
+arrives as its placeholder, and the script says so when it ends.</p>
+<h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="index.html#exporting-svg-for-another-editor">Exporting SVG for another editor</a>:
+every attribute the writer adds, and why.</li>
+<li><a href="index.html#importing-svg-from-another-editor">Importing SVG from another editor</a>:
+how names, groups, curves and gradients are read.</li>
+<li><a href="index.html#what-survives-a-round-trip">What survives a round trip</a>: each way,
+row by row.</li>
+<li><a href="index.html#rebuilding-a-drawing-in-illustrator">Rebuilding a drawing in Illustrator</a>:
+what the <code>.jsx</code> builds, where it finds a link, and what it reports.</li>
+<li><a href="index.html#linking-files-made-elsewhere">Linking files made elsewhere</a> and
+<a href="index.html#link-import-or-embed">Link, import or embed</a>.</li>
+<li><a href="cheatsheet.html">The cheatsheet</a>: the attributes and the table on one page.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="index.html" rel="prev"><span>Previous</span>Working with other programs</a><a href="cheatsheet.html" rel="next"><span>Next</span>Working with other programs: cheatsheet</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/interop/QUICKSTART.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

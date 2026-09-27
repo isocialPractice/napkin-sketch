@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Working with other programs - napkin-sketch</title>
+<meta name="description" content="Illustrator and Inkscape through SVG, an Illustrator script that rebuilds a drawing, files linked from elsewhere, and what survives a round trip.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Working with other programs</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Reference</span></nav>
+<h1 id="working-with-other-programs">Working with other programs<a class="anchor" href="#working-with-other-programs" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>napkin-sketch trades drawings with Illustrator, Inkscape and other vector
+editors through SVG, which all of them read and write, writes an Illustrator
+script that rebuilds a drawing in Illustrator's own objects, and places files
+made elsewhere by reference with <code>link</code>. This page is the reference for what
+an export writes for another editor, what an import makes of another editor's
+file, what the Illustrator script builds, what survives the trip each way, and
+how a linked file differs from an imported or an embedded one.</p>
+<p><strong>Contents</strong></p>
+<ul>
+<li><a href="#what-this-is">What this is</a></li>
+<li><a href="#the-mental-model">The mental model</a></li>
+<li><a href="#reference">Reference</a>
+<ul>
+<li><a href="#exporting-svg-for-another-editor">Exporting SVG for another editor</a></li>
+<li><a href="#importing-svg-from-another-editor">Importing SVG from another editor</a></li>
+<li><a href="#what-survives-a-round-trip">What survives a round trip</a></li>
+<li><a href="#rebuilding-a-drawing-in-illustrator">Rebuilding a drawing in Illustrator</a></li>
+<li><a href="#linking-files-made-elsewhere">Linking files made elsewhere</a></li>
+<li><a href="#link-import-or-embed">Link, import or embed</a></li>
+<li><a href="#pdf">PDF</a></li>
+<li><a href="#the-clipboard">The clipboard</a></li>
+</ul></li>
+<li><a href="#worked-examples">Worked examples</a></li>
+<li><a href="#limits">Limits</a></li>
+<li><a href="#for-agents">For agents</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+<h2 id="what-this-is">What this is<a class="anchor" href="#what-this-is" aria-label="Link to this section">#</a></h2>
+<p>SVG is the common ground. An SVG napkin-sketch writes opens in Illustrator and
+Inkscape with its layer tree and its layer names, its curves as the same Bezier
+anchors, and its gradients and dashes as the SVG paint those editors show. An
+SVG either of them writes opens in napkin-sketch the same way round: named
+groups become named layers, curves stay curves, and gradients keep their stops.
+What only napkin-sketch knows about a mark - a pen's width profile, a Copic
+nib, the width of a text box - rides along in <code>data-*</code> attributes that other
+editors ignore, so napkin's own files come back as they left.</p>
+<p>For Illustrator there is a second way across. <code>--to jsx</code> writes an
+ExtendScript file that, run in Illustrator, builds the drawing there out of
+Illustrator's own objects - layers, named groups, paths on the drawing's own
+anchors, text frames, an embedded image, and a linked file placed by link -
+rather than handing Illustrator an SVG to interpret.</p>
+<p>A linked file is the other half. <code>link</code> places a file by reference: the drawing
+holds the file's path, one item on one layer stands for it, and the file is
+read only when an output has to draw it. That is what Illustrator calls a
+linked file, as opposed to an embedded one, and it is not an import, which
+breaks a file's contents into layers of the drawing.</p>
+<h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-text"> napkin-sketch --SVG: layer names three ways, data-* for napkin's own marks--&gt; Illustrator, Inkscape
+ napkin-sketch &lt;--SVG: named groups become layers, curves stay curves--------- Illustrator, Inkscape
+ napkin-sketch --.jsx: layers, named groups, paths on their anchors, links placed--&gt; Illustrator
+ napkin-sketch --link &quot;assets/logo.svg&quot;--&gt; &lt;image href=&quot;assets/logo.svg&quot; data-link=&quot;true&quot;&gt;
+                                           the file is read only to draw it in a PNG</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Direction</th><th>Through</th><th>What arrives</th></tr></thead>
+<tbody>
+<tr><td>napkin-sketch to another editor</td><td>an SVG export, or a copy</td><td>The visible layer tree under its names; every mark as a path; gradients, dashes, text and images</td></tr>
+<tr><td>Another editor to napkin-sketch</td><td>an SVG import, or a paste</td><td>Named groups as layer groups, named objects as layers, curves as Bezier anchors, gradients by their stops</td></tr>
+<tr><td>napkin-sketch to Illustrator</td><td>an Illustrator script, <code>--to jsx</code></td><td>Every layer, hidden and locked ones too, as layers and named groups; marks as paths on their anchors; text frames; images embedded and links placed</td></tr>
+<tr><td>napkin-sketch to napkin-sketch</td><td>an SVG export, then an import</td><td>Every visible layer and mark as it was, through the <code>data-*</code> attributes</td></tr>
+<tr><td>A file made elsewhere into a drawing</td><td><code>link</code></td><td>One item that stands for the file; the SVG keeps the reference</td></tr>
+</tbody></table></div>
+<h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
+<h3 id="exporting-svg-for-another-editor">Exporting SVG for another editor<a class="anchor" href="#exporting-svg-for-another-editor" aria-label="Link to this section">#</a></h3>
+<p>The app's <strong>File &gt; Export &gt; SVG</strong>, <code>renderSketch(sketch, { format: 'svg' })</code>
+in code, and <code>napkin-sketch draw card.napkin --to svg</code> from a shell all run one
+writer, so they write the same file.</p>
+<ul>
+<li><strong>Layers are groups, named three ways.</strong> Each layer is a <code>&lt;g&gt;</code> that carries
+its name as <code>data-name</code> (napkin's own), as <code>inkscape:label</code> with
+<code>inkscape:groupmode=&quot;layer&quot;</code> (what Inkscape's Layers panel reads), and as its
+<code>id</code> (what Illustrator's Layers panel reads). A group layer is a <code>&lt;g&gt;</code> around
+its children's groups, so the tree nests as it does in the app.</li>
+<li><strong>An id is escaped and kept unique.</strong> A character an XML id may not hold is
+written <code>_xHH_</code>, its code in hex, the way Illustrator writes one, so
+<code>Sun &amp; Moon</code> becomes <code>Sun_x20__x26__x20_Moon</code>. A name used twice takes <code>-2</code>,
+<code>-3</code> and on. <code>data-name</code> keeps the name as it was typed, and the importer
+undoes both.</li>
+<li><strong>A layer's opacity is its group's <code>opacity</code></strong>, which SVG multiplies down the
+tree as the app does.</li>
+<li><strong>Marks are paths of exact cubic Beziers</strong>, at two decimals and in the
+shortest spelling of their path data. A pen or marker stroke with a width
+profile, and a Copic stroke, is written as the filled outline it draws, since
+an SVG stroke has one width along its length; its centreline, width and nib
+ride along in <code>data-d</code>, <code>data-width</code>, <code>data-profile</code>, <code>data-nib</code> and
+<code>data-pts</code>.</li>
+<li><strong>Paint is SVG paint.</strong> A gradient is a <code>&lt;linearGradient&gt;</code> or
+<code>&lt;radialGradient&gt;</code> in <code>&lt;defs&gt;</code>, and a dash is a <code>stroke-dasharray</code>; napkin's
+own spelling of each rides along as <code>data-gradient</code> and <code>data-dash</code>.</li>
+<li><strong>Text is text.</strong> A text item is a <code>&lt;text&gt;</code> with a <code>&lt;tspan&gt;</code> a line, in its
+font family and size. A wrapped text box's width and its words ride along as
+<code>data-box</code> and <code>data-text</code>, since SVG 1.1 has no box to wrap in.</li>
+<li><strong>An image is embedded and a link is not.</strong> A placed image is written as its
+data URL, and a linked file as its path:
+<code>&lt;image href=&quot;assets/logo.svg&quot; data-link=&quot;true&quot; data-name=&quot;logo.svg&quot;&gt;</code>.</li>
+<li><strong>Erasing is a mask</strong> on the erased layer's group, black on white, so it
+cuts that layer and nothing under it, in any viewer.</li>
+<li><strong>Effects are filters.</strong> A mark's or a layer's effects are a <code>&lt;filter&gt;</code> of
+SVG 1.1 primitives - a Gaussian blur, a color matrix, and for a shadow the
+blur, offset, flood, composite and merge - in sRGB, so Inkscape and a
+browser draw them, and the list rides along as <code>data-effects</code>.</li>
+<li><strong>The root says who wrote it</strong>, <code>data-generator=&quot;napkin-sketch&quot;</code>, and states
+paint most marks share - <code>fill=&quot;none&quot;</code>, round caps and joins, the most common
+stroke width - once, for the marks to inherit.</li>
+<li><strong>Left out:</strong> a hidden layer and an empty one. A layer's lock is not written.</li>
+</ul>
+<h3 id="importing-svg-from-another-editor">Importing SVG from another editor<a class="anchor" href="#importing-svg-from-another-editor" aria-label="Link to this section">#</a></h3>
+<p>In the app, <strong>File &gt; Import</strong> (<code>Ctrl + I</code>) or a paste; from a shell,
+<code>napkin-sketch --import art.svg</code> opens the app with the file imported. In code,
+<code>importSvg</code> from <code>napkin-sketch</code> does the same in a browser, where it measures
+the document with the DOM:</p>
+<pre><code class="language-ts">import { importSvg } from 'napkin-sketch';
+
+const imported = importSvg(svgText, { unnamedRootName: 'logo' });
+// { width, height, background?, layers: [{ name, opacity, strokes, children? }] }</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Option</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>unnamedRootName</code></td><td><code>Imported</code></td><td>The name of the group a document with no groups arrives in. The app passes the file's name.</td></tr>
+<tr><td><code>unnamedElements</code></td><td><code>merge</code></td><td><code>split</code> gives napkin's own exported marks a layer each, instead of merging them back onto their layer.</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>Names.</strong> An element's name is its <code>data-name</code>, else its <code>inkscape:label</code>,
+else its <code>id</code>. An id loses its <code>_xHH_</code> escapes and its <code>-2</code>, <code>-3</code> suffix, so
+rows read <code>outline</code>, not <code>outline-5</code>, and an id an editor made up, a tag name
+and digits such as <code>path4521</code>, names nothing.</li>
+<li><strong>Groups become layer groups.</strong> Every <code>&lt;g&gt;</code> becomes a group row: a named one
+under its name, an anonymous one as <code>&lt;Group&gt;</code>. No wrapper is flattened away.</li>
+<li><strong>Every named object becomes a layer</strong>, in its place in the stacking order,
+so a <code>&lt;path id=&quot;outline&quot;&gt;</code> between two groups is an <code>outline</code> layer between
+them. Illustrator writes an object's name into its <code>id</code>, so its Layers panel
+comes across row for row.</li>
+<li><strong>Unnamed geometry gets a layer too</strong>, named after its tag - <code>path</code>, <code>rect</code>,
+<code>circle</code> - so every element of the file has a row. A document with no groups
+at all arrives as one group, named by <code>unnamedRootName</code>, holding them.</li>
+<li><strong>Curves stay curves.</strong> Path data is read command by command, absolute or
+relative, into Bezier anchors: a quadratic becomes the identical cubic, an
+arc becomes quarter-turn cubics, and <code>&lt;circle&gt;</code>, <code>&lt;ellipse&gt;</code>, <code>&lt;rect&gt;</code> with
+its rounded corners, <code>&lt;line&gt;</code>, <code>&lt;polyline&gt;</code> and <code>&lt;polygon&gt;</code> are built from
+their attributes. A compound path stays one mark with its holes.</li>
+<li><strong>Gradients keep their stops</strong>, and a linear one the direction of its axis;
+a gradient that borrows stops through <code>href</code> is followed to them. A paint
+that names no gradient the file defines falls back to the color written
+after it, or to the default ink, so it arrives where it can be seen and fixed.</li>
+<li><strong>A background is the page's.</strong> A first <code>&lt;rect&gt;</code> that covers the whole
+canvas is read as the background color, not as a mark.</li>
+<li><strong>napkin's own marks come back whole.</strong> A mark with <code>data-tool</code> returns with
+its tool, its paint order (<code>data-i</code>), and whatever its <code>data-*</code> attributes
+carry, and merges back onto its layer instead of taking a row of its own.
+Its effects, and a layer's, come back from <code>data-effects</code>.</li>
+</ul>
+<p><code>importSvg</code> throws <code>Not a valid SVG document.</code> for text that is not SVG, and
+<code>No importable content found in the SVG.</code> for a file with nothing to draw.</p>
+<h3 id="what-survives-a-round-trip">What survives a round trip<a class="anchor" href="#what-survives-a-round-trip" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>What</th><th>napkin-sketch, out and back in</th><th>Into Illustrator or Inkscape</th><th>Into Illustrator by its script</th></tr></thead>
+<tbody>
+<tr><td>Layer names</td><td>Yes, from <code>data-name</code></td><td>Yes, from <code>id</code> and <code>inkscape:label</code></td><td>Yes</td></tr>
+<tr><td>Layer tree</td><td>Yes</td><td>Yes, as nested groups or sublayers</td><td>Yes, as layers and named groups</td></tr>
+<tr><td>Layer opacity</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Hidden layers</td><td>No: they are not written</td><td>No</td><td>Yes, hidden</td></tr>
+<tr><td>Layer lock</td><td>No</td><td>No</td><td>Yes</td></tr>
+<tr><td>Curves</td><td>Yes, anchor for anchor at two decimals</td><td>Yes, as the same Beziers</td><td>Yes, anchor for anchor, smooth points marked smooth</td></tr>
+<tr><td>Width profiles and Copic nibs</td><td>Yes, from <code>data-d</code>, <code>data-profile</code>, <code>data-nib</code></td><td>As the filled outline they draw</td><td>As the filled outline they draw</td></tr>
+<tr><td>Gradients</td><td>Yes, from <code>data-gradient</code></td><td>Yes, as SVG gradients</td><td>Yes, as gradients with the same stops</td></tr>
+<tr><td>Dashes</td><td>Yes, from <code>data-dash</code></td><td>Yes, as <code>stroke-dasharray</code></td><td>Yes, as <code>strokeDashes</code></td></tr>
+<tr><td>Text</td><td>Yes, with a wrapped box's width</td><td>As text, a <code>&lt;tspan&gt;</code> a line, in the reader's copy of the font</td><td>As text frames, a box as area text</td></tr>
+<tr><td>Placed images</td><td>Yes, embedded</td><td>Yes, embedded</td><td>Yes, embedded</td></tr>
+<tr><td>Linked files</td><td>Yes, as links</td><td>As a linked image, drawn when the editor can reach the file</td><td>Yes, as placed items linked to the file</td></tr>
+<tr><td>Erased areas</td><td>Yes, as eraser marks on their layer</td><td>As a mask</td><td>As strokes in the paper's color</td></tr>
+<tr><td>Effects</td><td>Yes, from <code>data-effects</code></td><td>As SVG filters</td><td>No: drawn plain</td></tr>
+</tbody></table></div>
+<p>The SVG writer's reductions - shortest path spellings, shared paint on the
+root, defaults left unwritten - change no coordinate: a napkin export read back
+gives the same anchors and handles.</p>
+<h3 id="rebuilding-a-drawing-in-illustrator">Rebuilding a drawing in Illustrator<a class="anchor" href="#rebuilding-a-drawing-in-illustrator" aria-label="Link to this section">#</a></h3>
+<p><code>napkin-sketch draw card.napkin --to jsx</code> - or <code>--to jsx</code> on <code>render</code>, or
+<code>renderSketch(page, { format: 'jsx' })</code> and <code>sketchesToJsx(pages)</code> in code -
+writes an ExtendScript file. Run it in Illustrator with <strong>File &gt; Scripts &gt;
+Other Script</strong>, and it builds the drawing out of the objects Illustrator
+would have made of it:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>napkin-sketch</th><th>Illustrator</th></tr></thead>
+<tbody>
+<tr><td>A page</td><td>A document of its own, its artboard the page, or the box the page is cut to, named after the page, a page pixel a point</td></tr>
+<tr><td>The paper</td><td>A locked <code>Background</code> layer holding one rectangle the artboard's size; none for a transparent page</td></tr>
+<tr><td>A top-level layer</td><td>A <code>Layer</code> under its name, with its opacity, hidden or locked when it is</td></tr>
+<tr><td>A layer inside a group</td><td>A named <code>GroupItem</code>, nested as the tree nests: what Illustrator itself makes of napkin's SVG</td></tr>
+<tr><td>A mark</td><td>A <code>PathItem</code> on the mark's own anchors: <code>leftDirection</code> is an anchor's incoming handle and <code>rightDirection</code> its outgoing one, and a point is <code>SMOOTH</code> when its handles are in line, <code>CORNER</code> otherwise. A freehand line is its samples, pruned as the SVG export prunes them</td></tr>
+<tr><td>A mark of several contours</td><td>A <code>CompoundPathItem</code>, filled nonzero, so a hole stays a hole</td></tr>
+<tr><td>A dot</td><td>A filled circle its width across</td></tr>
+<tr><td>A profiled or Copic mark</td><td>The outline it fills, as the SVG export writes it</td></tr>
+<tr><td>Paint</td><td><code>RGBColor</code>s, round caps and joins, <code>strokeDashes</code>, and <code>opacity</code>, with a color's own alpha folded in; a fill and an outline of different alphas are a group of two paths</td></tr>
+<tr><td>A gradient</td><td>A <code>GradientColor</code> over a gradient with the same stops, a stop's alpha its opacity, laid on the axis the SVG draws it on</td></tr>
+<tr><td>Text</td><td>Point text from the item's top-left, or area text for a box of fixed width, set in the first family of the item's font list that Illustrator has</td></tr>
+<tr><td>An image</td><td>Embedded: its bytes ride in the script, which writes them to a scratch file, places it, embeds it as a <code>RasterItem</code> and deletes the file</td></tr>
+<tr><td>A link</td><td>A <code>PlacedItem</code> whose <code>file</code> is the linked file: a linked file, in Illustrator's own sense</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>A link is found from the script's own folder.</strong> The script names each
+linked file by its path from where the script is, so the script and the
+files it links can move together. <code>writeBook</code> and <code>drawToFiles</code> - and so
+<code>draw</code> and <code>render</code> from a shell - write that path through the folder the
+links are read in, <code>base</code> or <code>--base</code>: drawn with <code>--out build</code> from a
+script beside <code>assets/</code>, the script looks for <code>../assets/logo.png</code>.
+<code>linkFolder</code> in the render options says it outright.</li>
+<li><strong>What cannot be made is drawn as a stand-in, and named.</strong> A linked file the
+script cannot find, or that Illustrator will not place - an SVG, which
+Illustrator's scripting does not place by link - is drawn as napkin's
+placeholder, a dashed box crossed from corner to corner with the file's
+name, and so is an embedded image Illustrator will not place. A font list
+with no family Illustrator has is set in Illustrator's default face. The
+script lists all of these when it ends.</li>
+<li><strong>What the writer cannot make, it says</strong> through <code>onWarning</code>: an effect is
+left off, and an eraser is drawn in the paper's color, as the PDF draws one,
+so it covers what lies under it on other layers too. On a transparent page
+an eraser is left out.</li>
+<li><strong>A run reports.</strong> While it builds, the script works in the document's
+coordinates and keeps Illustrator's dialogs down, and it puts both settings
+back after. It ends quietly when everything was built as asked, and alerts
+the list when something was not, or where it stopped - the page, the layer,
+the mark and the script's line - when something failed. The same message is
+the script's result and goes to <code>$.writeln</code>, for a caller that runs it
+with no window. Set <code>QUIET</code> at the top of the script to <code>true</code> to skip the
+alert.</li>
+<li><strong>ES3 and ASCII.</strong> The script uses nothing ExtendScript lacks, and every
+character outside printable ASCII is escaped, so a name reads the same
+whatever encoding Illustrator reads the file in.</li>
+</ul>
+<h3 id="linking-files-made-elsewhere">Linking files made elsewhere<a class="anchor" href="#linking-files-made-elsewhere" aria-label="Link to this section">#</a></h3>
+<p>A linked file is placed, not read. In a napkin script:</p>
+<pre><code class="language-napkin">link &quot;assets/logo.svg&quot; at 20 20 size 160 80 name &quot;Logo&quot;</code></pre>
+<p>In a composition, an image element with <code>link: true</code>, whose <code>src</code> is then a
+path rather than data:</p>
+<pre><code class="language-ts">design.image({ x: 20, y: 20, width: 160, height: 80, src: 'assets/logo.svg', link: true, name: 'Logo' });</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Output</th><th>What it draws for a link</th></tr></thead>
+<tbody>
+<tr><td>The app's canvas</td><td>A placeholder: a dashed box with the file's name</td></tr>
+<tr><td>SVG</td><td>The reference, <code>&lt;image href=&quot;assets/logo.svg&quot; data-link=&quot;true&quot;&gt;</code>, which a viewer that can reach the file draws</td></tr>
+<tr><td>PNG</td><td>The file, when the render is given <code>resolveLink</code>; the placeholder and a warning when it is not, or the file cannot be read</td></tr>
+<tr><td>PDF</td><td>The placeholder, since writing the file into the PDF would import it</td></tr>
+<tr><td>Illustrator script</td><td>The file, placed by link and found from the script's folder; the placeholder when it is not there or Illustrator will not place it</td></tr>
+<tr><td><code>.skbk</code></td><td>The reference, with the placeholder beside it</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>Only the host reads a file.</strong> A script or a composition names a file; the
+program running it passes a resolver, and <code>resolveLinkFromDir(folder)</code> from
+<code>napkin-sketch/node</code> reads only inside that folder: no absolute path, no <code>..</code>
+step, no web address, and no symbolic link that leads out of it. The command
+line builds one from <code>--base</code>, which defaults to the script's folder.</li>
+<li><strong>An import reads a link back as a link.</strong> An <code>&lt;image&gt;</code> whose <code>href</code> is a
+path rather than a <code>data:</code> URL is imported as a linked item, so a file
+another editor saved with a linked image keeps it linked.</li>
+<li><strong><code>napkin-sketch draw</code> exits with code 3</strong> when a linked file cannot be read,
+and names it. The files are still written, with the placeholder where the
+file would be, so a caller that checks the code knows the PNG is not final.</li>
+</ul>
+<h3 id="link-import-or-embed">Link, import or embed<a class="anchor" href="#link-import-or-embed" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th></th><th>Link</th><th>Import</th><th>Embed</th></tr></thead>
+<tbody>
+<tr><td>What the drawing holds</td><td>The file's path</td><td>The file's contents, as layers and marks</td><td>The file's bytes, as a data URL</td></tr>
+<tr><td>Rows in the Layers panel</td><td>One</td><td>One for each group and named object</td><td>One</td></tr>
+<tr><td>Editable in napkin-sketch</td><td>Moved and sized, as one item</td><td>Mark by mark</td><td>Moved and sized, as one item</td></tr>
+<tr><td>A change to the file</td><td>Shows up the next time an output reads it</td><td>Does not reach the drawing</td><td>Does not reach the drawing</td></tr>
+<tr><td>Made with</td><td><code>link</code>, or <code>{ link: true }</code></td><td>File &gt; Import, a paste, <code>importSvg</code></td><td><code>image</code> with an asset, File &gt; Import of a PNG, JPEG, GIF or WebP</td></tr>
+</tbody></table></div>
+<h3 id="pdf">PDF<a class="anchor" href="#pdf" aria-label="Link to this section">#</a></h3>
+<ul>
+<li><strong>Export</strong> is vector: every page of a book in one document, marks as paths,
+dashes and wrapped text kept, a gradient printed as the shape's flat fill
+with a warning, and a link as its placeholder with the file's name. See
+<a href="../output/index.html#pdf">Writing a drawing out</a>.</li>
+<li><strong>Import</strong> is best effort, in the app: each page's vector content becomes a
+new sketch page. Curves arrive as polylines, filled shapes as thin outlines,
+and text as text items at the standard font's size. napkin-sketch's own PDFs
+use exactly what the reader reads, so they come back; a scanned PDF, or one
+compressed in a way the reader does not follow, gives little or nothing.</li>
+</ul>
+<h3 id="the-clipboard">The clipboard<a class="anchor" href="#the-clipboard" aria-label="Link to this section">#</a></h3>
+<p>A copy in the app also goes to the system clipboard as SVG text, so it pastes
+into Illustrator or Inkscape, and a graphic copied in either of those pastes
+into the app as layers, through the same importer as File &gt; Import. An in-app
+copy wins over its own SVG echo; a newer copy from outside wins over the
+in-app one.</p>
+<h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
+<p><strong>A layer tree that opens named everywhere.</strong> Two groups, a layer name with a
+space and an ampersand in it, and a layer name used twice:</p>
+<pre><code class="language-napkin">napkin 1
+page 320 200
+name &quot;sign&quot;
+group &quot;Front&quot; {
+  layer &quot;Board&quot;
+  color #1f2328 width 3 fill #ffe08a
+  rect 20 20 280 120 r 12
+  layer &quot;Sun &amp; Moon&quot;
+  fill #ff8a65
+  circle 80 80 30
+}
+group &quot;Back&quot; {
+  layer &quot;Board&quot;
+  fill #326478
+  rect 20 150 280 40 r 8
+}</code></pre>
+<p><code>napkin-sketch draw sign.napkin --to svg</code> writes <code>sign.svg</code>, whose groups read:</p>
+<pre><code class="language-text">&lt;g id=&quot;Front&quot; data-name=&quot;Front&quot; inkscape:label=&quot;Front&quot; inkscape:groupmode=&quot;layer&quot;&gt;
+&lt;g id=&quot;Board&quot; data-name=&quot;Board&quot; inkscape:label=&quot;Board&quot; inkscape:groupmode=&quot;layer&quot;&gt;
+&lt;g id=&quot;Sun_x20__x26__x20_Moon&quot; data-name=&quot;Sun &amp;amp; Moon&quot; inkscape:label=&quot;Sun &amp;amp; Moon&quot; inkscape:groupmode=&quot;layer&quot;&gt;
+&lt;g id=&quot;Back&quot; data-name=&quot;Back&quot; inkscape:label=&quot;Back&quot; inkscape:groupmode=&quot;layer&quot;&gt;
+&lt;g id=&quot;Board-2&quot; data-name=&quot;Board&quot; inkscape:label=&quot;Board&quot; inkscape:groupmode=&quot;layer&quot;&gt;</code></pre>
+<p>Inkscape's Layers panel reads the labels, and napkin's importer reads
+<code>data-name</code>, so the file comes back to napkin-sketch with the same five rows:
+<code>Front</code> holding <code>Board</code> and <code>Sun &amp; Moon</code>, and <code>Back</code> holding <code>Board</code>. An
+editor that reads only the <code>id</code> gets the same names once it undoes the escapes
+and the suffix, as napkin's importer does for a file with no <code>data-name</code>.</p>
+<p><strong>The sign in Illustrator.</strong> The same script, drawn as an Illustrator script:</p>
+<pre><code class="language-bash">napkin-sketch draw sign.napkin --to jsx</code></pre>
+<p><code>sign.jsx</code> builds the page one call a layer and a mark, in paint order, each
+nested layer inside its group. The circle's four points are smooth, each with
+its two handles:</p>
+<pre><code class="language-text">    page(&quot;sign&quot;, 0, 0, 320, 200);
+    paper([252, 250, 245], 100);
+    open(&quot;Front&quot;, 100);
+      open(&quot;Board&quot;, 100);
+        path([[[32, 20, 25.37, 20, 32, 20, 0], ... ]], true, {stroke: [31, 35, 40], width: 3, fill: [255, 224, 138]});
+      close(true, false);
+      open(&quot;Sun &amp; Moon&quot;, 100);
+        path([[[110, 80, 110, 63.43, 110, 96.57, 1], [80, 110, 96.57, 110, 63.43, 110, 1], [50, 80, 50, 96.57, 50, 63.43, 1], [80, 50, 63.43, 50, 96.57, 50, 1]]], true, {stroke: [31, 35, 40], width: 3, fill: [255, 138, 101]});
+      close(true, false);
+    close(true, false);
+    open(&quot;Back&quot;, 100);</code></pre>
+<p>The document it builds has one 320 by 200 point artboard named <code>sign</code>, and
+its layers, top first as Illustrator's Layers panel lists them, are <code>Back</code>
+holding a group <code>Board</code>, <code>Front</code> holding the groups <code>Sun &amp; Moon</code> and
+<code>Board</code>, and the locked <code>Background</code>. The names are the names as typed, with
+no escapes, since a layer's name in Illustrator is free text.</p>
+<p><strong>A logo linked, not imported.</strong> A letterhead that places <code>assets/logo.svg</code> by
+reference and draws a rule under it:</p>
+<pre><code class="language-napkin">napkin 1
+page 400 240
+name &quot;letterhead&quot;
+background #ffffff
+link &quot;assets/logo.svg&quot; at 20 20 size 160 80 name &quot;Logo&quot;
+layer &quot;Rule&quot;
+color #326478 width 2
+line 20 120 380 120</code></pre>
+<pre><code class="language-bash">napkin-sketch draw letterhead.napkin --to svg,png</code></pre>
+<p>The SVG holds the reference and nothing of the logo:</p>
+<pre><code class="language-text">&lt;image x=&quot;20&quot; y=&quot;20&quot; width=&quot;160&quot; height=&quot;80&quot; preserveAspectRatio=&quot;none&quot; href=&quot;assets/logo.svg&quot; data-link=&quot;true&quot; data-name=&quot;logo.svg&quot; data-tool=&quot;image&quot; data-i=&quot;0&quot;/&gt;</code></pre>
+<p>The PNG has the logo drawn in it, read from <code>assets/logo.svg</code> beside the
+script, because the command line hands the render a resolver for the script's
+folder. Edit the logo and draw again, and both files carry the new one. Move
+the logo away, and <code>draw</code> still writes both, with the placeholder in the PNG,
+warns that <code>assets/logo.svg</code> could not be read, and exits with code 3.</p>
+<h2 id="limits">Limits<a class="anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Importing SVG needs a DOM.</strong> <code>importSvg</code> measures the document in a
+browser, so it runs in the app and in a page, not in plain Node.</li>
+<li><strong>Another editor's gradient lands approximately.</strong> Its stops and a linear
+axis's direction are read; <code>gradientUnits</code>, <code>gradientTransform</code> and focal
+points are not.</li>
+<li><strong>Some SVG is not followed.</strong> A <code>&lt;use&gt;</code> is not expanded, and clip paths,
+filters, patterns and masks from other editors are not carried: a shape
+arrives without them. A napkin eraser mask is the one mask that is read, and
+napkin's own <code>data-effects</code> the one filter.</li>
+<li><strong>Hidden layers and locks do not travel by SVG.</strong> A hidden layer is left out
+of the SVG, and no editor's lock is written or read. The Illustrator script
+carries both.</li>
+<li><strong>Fonts are named, not embedded.</strong> Text is set in the reader's copy of the
+family, so it can set a little wider or narrower than it did here.</li>
+<li><strong>PDF import is best effort</strong>, flattening curves to polylines, and it runs in
+the app, not from the package.</li>
+<li><strong>The canvas shows a link as its placeholder.</strong> Drawing the linked file on
+the canvas, and a command that turns a link into an import, are not built.</li>
+<li><strong>The Illustrator script has been run against a stand-in, not in
+Illustrator.</strong> The tests run each script against an imitation of
+Illustrator's scripting objects that holds it to Illustrator's rules, and
+read back what it built; no run in Illustrator itself is recorded yet. A
+gradient's direction and length go through <code>GradientColor</code>'s <code>origin</code>,
+<code>angle</code> and <code>length</code>, which is where Illustrator versions have differed.</li>
+<li><strong>The Illustrator script leaves effects off, and paints erasers.</strong> Illustrator
+keeps its effects as live effects, which a script cannot set, and a mask a
+script cannot cut, so an effect is left off and an eraser is drawn in the
+paper's color; the writer says so for each.</li>
+<li><strong>An SVG link is a placeholder in Illustrator.</strong> Illustrator's scripting
+places raster images, PDFs and Illustrator files by link, not an SVG; place
+it with File &gt; Place, or link a PNG or a PDF.</li>
+<li><strong>Nothing reads an Illustrator document back.</strong> The way back is Illustrator's
+own SVG export. A script that walks an open Illustrator document and writes a
+<code>.napkin</code> is filed in TODO as a follow-on.</li>
+</ul>
+<h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Read a layer's name from <code>data-name</code></strong>, not from <code>id</code>: the id is escaped
+and made unique, and <code>data-name</code> is the name as typed.</li>
+<li><strong><code>data-generator=&quot;napkin-sketch&quot;</code></strong> on the root marks napkin's own export,
+and <code>data-tool</code> marks each of its marks; a file without them came from
+another editor and imports by its names and tags.</li>
+<li><strong>To keep a file linked, use <code>link</code></strong>, never <code>image</code> with a path: <code>image</code>
+takes only an asset the host passes in or a data URL, and reports a path as
+<code>unknown-asset</code>.</li>
+<li><strong>Pass <code>--base &lt;folder&gt;</code></strong> when a script's links are relative to somewhere
+other than the script's folder, and branch on exit code 3, which means a
+file could not be read: for a link, the files were written with its
+placeholder in them.</li>
+<li><strong>Draw with a fixed <code>seed</code></strong> when a file is compared across runs; the SVG of
+one script and one seed is the same bytes every time, and so is the <code>.jsx</code>.</li>
+<li><strong>Hand over a <code>.jsx</code> with the files it links</strong>, keeping their places
+relative to it; or write it where it will be run, with <code>--base</code> pointing at
+the links, so the path it holds is right from there.</li>
+<li><strong>Run a <code>.jsx</code> without a window by reading its result.</strong> The script's last
+value is its report - <code>napkin-sketch rebuilt 1 page in Illustrator.</code>, then
+anything it could not build as asked - and <code>napkin-sketch stopped at ...</code>
+when it failed. Set <code>QUIET</code> to <code>true</code> first so no alert waits for a click.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../drawing/index.html#linked-graphics">Drawing with napkin script</a>: the <code>link</code>
+verb.</li>
+<li><a href="../output/index.html">Writing a drawing out</a>: what each format keeps, and how
+a link resolves in each.</li>
+<li><a href="../compose/index.html">The graphic design API</a>: image elements and <code>link</code>
+in a composition.</li>
+<li><a href="../cli/index.html">The napkin-sketch command line</a>: <code>--base</code>, <code>--to jsx</code> and
+the exit codes.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/illustrator.ts"><code>src/core/illustrator.ts</code></a>: the
+Illustrator script writer, and the script it runs.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/test/imports/linked-logo.svg"><code>test/imports/linked-logo.svg</code></a>: an
+SVG with a linked image, as the tests import it.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../node/cheatsheet.html" rel="prev"><span>Previous</span>Using napkin-sketch from code: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>Working with other programs: quickstart</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/interop/README.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quickstart: automating - napkin-sketch</title>
+<meta name="description" content="Write a script from a drawing, record a session, and draw with no window at all.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="draw.html">Draw</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="automate.html" aria-current="page">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../guide/index.html">Overview</a></li><li><a href="../guide/tools.html">Tools</a></li><li><a href="../guide/gestures.html">Gestures</a></li><li><a href="../guide/vector-paths.html">Vector paths</a></li><li><a href="../guide/selection.html">Selection and editing</a></li><li><a href="../guide/transform.html">Transform</a></li><li><a href="../guide/layers.html">Layers</a></li><li><a href="../guide/pages.html">Pages</a></li><li><a href="../guide/import-export.html">Import and export</a></li><li><a href="../guide/sharpen.html">Sharpen</a></li><li><a href="../guide/settings.html">Settings</a></li><li><a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../guide/automate.html">Automate</a></li><li><a href="../guide/animation-mode.html">Animation Mode</a></li><li><a href="../guide/skbk-format.html">The .skbk format</a></li><li><a href="../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> Quickstarts <span class="sep">/</span> <span aria-current="page">Automate</span></nav>
+<h1 id="quickstart-automating">Quickstart: automating<a class="anchor" href="#quickstart-automating" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#1-write-a-script-from-a-file">1. Write a script from a file</a></li><li><a href="#2-write-a-script-from-the-selected-layers">2. Write a script from the selected layers</a></li><li><a href="#3-record-a-session">3. Record a session</a></li><li><a href="#4-write-the-session-as-a-script">4. Write the session as a script</a></li><li><a href="#5-draw-a-script-with-no-window">5. Draw a script with no window</a></li><li><a href="#where-next">Where next</a></li></ul></details>
+<p>Turn a drawing into a script, record a session, and draw with no window at
+all. The <strong>Automate</strong> menu writes napkin script from what is on the page;
+the <code>napkin-sketch</code> command draws napkin script without opening the app.
+<a href="../guide/automate.html">Automate</a> and <a href="../scripting.html">Drawing from a
+script</a> have the full detail.</p>
+<h2 id="1-write-a-script-from-a-file">1. Write a script from a file<a class="anchor" href="#1-write-a-script-from-a-file" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Choose <strong>Automate &gt; Generate Script &gt; From Media File</strong> and pick an SVG,
+a PDF or a picture.</li>
+<li>The <strong>Generated script</strong> dialog shows the whole script, a line counting
+its instructions, marks and layers, and a note for anything the language
+cannot say as the file does.</li>
+<li><strong>Copy</strong> puts it on the clipboard, <strong>Save As</strong> writes a <code>.napkin</code> file, and
+<strong>Open as New Page</strong> runs it into a page of its own - the honest way to see
+what it draws.</li>
+</ol>
+<p>A picture is placed, not traced: its script links the file by name, or with
+<strong>Embed the image data</strong> ticked, carries the picture itself.</p>
+<h2 id="2-write-a-script-from-the-selected-layers">2. Write a script from the selected layers<a class="anchor" href="#2-write-a-script-from-the-selected-layers" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Light one or more rows in the Layers panel.</li>
+<li>Choose <strong>Automate &gt; Generate Script &gt; Selected Layers</strong>.</li>
+<li>Choose <strong>Page: fit to the selection</strong> to write a page the size of what you
+chose, moved to its corner, or keep the page as it is.</li>
+</ol>
+<h2 id="3-record-a-session">3. Record a session<a class="anchor" href="#3-record-a-session" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Choose <strong>Automate &gt; Track History</strong>; the row shows a check mark while it
+records.</li>
+<li>Draw a couple of strokes and turn one with <code>Ctrl + R</code>. Each is a step, named
+for what made it: &quot;Pen stroke&quot;, &quot;Rotate&quot;.</li>
+<li><strong>Automate &gt; History Limit</strong> opens Verbose Settings at its Automate
+section, where the limit is set and the steps are counted.</li>
+</ol>
+<h2 id="4-write-the-session-as-a-script">4. Write the session as a script<a class="anchor" href="#4-write-the-session-as-a-script" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Choose <strong>Automate &gt; Generate Script &gt; From Session History</strong>.</li>
+<li>Every step recorded on the page is listed, ticked. Untick a step to leave
+it out: the script is then the drawing as it would be had that step not
+happened.</li>
+<li>Press <strong>Accept</strong> to see the script in the Generated script dialog.</li>
+</ol>
+<h2 id="5-draw-a-script-with-no-window">5. Draw a script with no window<a class="anchor" href="#5-draw-a-script-with-no-window" aria-label="Link to this section">#</a></h2>
+<p>Save this as <code>card.napkin</code>:</p>
+<pre><code class="language-napkin">napkin 1
+page 400 240
+layer &quot;Card&quot;
+color #1f2328 width 3 fill #ffe08a
+rect 20 20 360 200 r 12
+text &quot;Hello&quot; at 200 130 size 32 align center</code></pre>
+<p>Then, from the folder it is in:</p>
+<pre><code class="language-bash">napkin-sketch draw card.napkin --to svg,png --out out   # writes out/card.svg and out/card.png
+napkin-sketch check card.napkin                          # reports mistakes, draws nothing
+napkin-sketch verbs                                      # every verb the language has</code></pre>
+<p>None of the three loads Electron, so they run in a shell, a batch file or CI.</p>
+<h2 id="where-next">Where next<a class="anchor" href="#where-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../api/quickstart.html">API quickstart</a> - the whole drawing language
+in five steps.</li>
+<li><a href="../guide/command-line.html">The command line</a> - every option the app itself
+takes.</li>
+<li><a href="../guide/animation-mode.html">Animation Mode</a> - the optional add-on that
+draws a character a frame at a time: the six assemblies a character needs,
+and the <a href="../guide/animation-mode.html#frame-names">names its frames take</a>.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="pages.html" rel="prev"><span>Previous</span>Quickstart: pages</a><a href="../guide/index.html" rel="next"><span>Next</span>Using the app</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/quickstart/automate.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quickstart - napkin-sketch</title>
+<meta name="description" content="From a fresh clone to a sharpened sketch in five minutes.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="index.html"><img src="assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="index.html">Home</a></li><li><a href="install.html">Install</a></li><li><a href="quickstart.html" aria-current="page">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="quickstart/draw.html">Draw</a></li><li><a href="quickstart/transform.html">Transform</a></li><li><a href="quickstart/layers.html">Layers</a></li><li><a href="quickstart/pages.html">Pages</a></li><li><a href="quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="guide/index.html">Overview</a></li><li><a href="guide/tools.html">Tools</a></li><li><a href="guide/gestures.html">Gestures</a></li><li><a href="guide/vector-paths.html">Vector paths</a></li><li><a href="guide/selection.html">Selection and editing</a></li><li><a href="guide/transform.html">Transform</a></li><li><a href="guide/layers.html">Layers</a></li><li><a href="guide/pages.html">Pages</a></li><li><a href="guide/import-export.html">Import and export</a></li><li><a href="guide/sharpen.html">Sharpen</a></li><li><a href="guide/settings.html">Settings</a></li><li><a href="guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="guide/automate.html">Automate</a></li><li><a href="guide/animation-mode.html">Animation Mode</a></li><li><a href="guide/skbk-format.html">The .skbk format</a></li><li><a href="guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="api/index.html">Overview</a></li><li><a href="api/quickstart.html">Quickstart</a></li><li><a href="api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="api/language/index.html">Reference</a></li><li><a href="api/language/quickstart.html">Quickstart</a></li><li><a href="api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="api/drawing/index.html">Reference</a></li><li><a href="api/drawing/quickstart.html">Quickstart</a></li><li><a href="api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="api/compose/index.html">Reference</a></li><li><a href="api/compose/quickstart.html">Quickstart</a></li><li><a href="api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="api/output/index.html">Reference</a></li><li><a href="api/output/quickstart.html">Quickstart</a></li><li><a href="api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="api/cli/index.html">Reference</a></li><li><a href="api/cli/quickstart.html">Quickstart</a></li><li><a href="api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="api/node/index.html">Reference</a></li><li><a href="api/node/quickstart.html">Quickstart</a></li><li><a href="api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="api/interop/index.html">Reference</a></li><li><a href="api/interop/quickstart.html">Quickstart</a></li><li><a href="api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="api/ai/index.html">Reference</a></li><li><a href="api/ai/quickstart.html">Quickstart</a></li><li><a href="api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="embed.html">Embedding</a></li><li><a href="scripting.html">Scripting</a></li><li><a href="ai-helpers.html">AI helpers</a></li><li><a href="ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="develop/building.html">Building</a></li><li><a href="develop/testing.html">Testing</a></li><li><a href="develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="changelog.html">Changelog</a></li><li><a href="about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Start</a> <span class="sep">/</span> <span aria-current="page">Quickstart</span></nav>
+<h1 id="quickstart">Quickstart<a class="anchor" href="#quickstart" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#1-install">1. Install</a></li><li><a href="#2-draw-something">2. Draw something</a></li><li><a href="#3-sharpen-it">3. Sharpen it</a></li><li><a href="#4-work-with-layers">4. Work with layers</a></li><li><a href="#5-save-and-export">5. Save and export</a></li><li><a href="#6-drive-it-from-the-command-line">6. Drive it from the command line</a></li><li><a href="#7-where-to-go-next">7. Where to go next</a></li><li><a href="#troubleshooting">Troubleshooting</a></li></ul></details>
+<p>Get from a fresh clone to a sharpened sketch in about five minutes. For the
+full reference see <a href="index.html">README.md</a>; for the shortcut tables see
+<a href="cheatsheet.html">CHEATSHEET.md</a>.</p>
+<h2 id="1-install">1. Install<a class="anchor" href="#1-install" aria-label="Link to this section">#</a></h2>
+<p>Requires <strong>Node.js 18+</strong>.</p>
+<pre><code class="language-bash">npm install
+npm run build
+npm start          # builds, then opens a new blank sketch</code></pre>
+<p><code>npm start</code> is the fastest way to see the app. Two other ways to run it:</p>
+<pre><code class="language-bash"># Use the CLI from anywhere (local checkout)
+npm link
+napkin-sketch
+
+# Build a native installer into release/
+npm run dist:win     # or dist:mac, dist:linux</code></pre>
+<p>The window opens <strong>maximized</strong>, which still shows the title bar. Pass
+<code>-f</code> / <code>--full-screen</code> for true full screen.</p>
+<h2 id="2-draw-something">2. Draw something<a class="anchor" href="#2-draw-something" aria-label="Link to this section">#</a></h2>
+<p>The <strong>Select</strong> tool is active on launch, so press <code>P</code> first to pick up the pen.</p>
+<ol>
+<li><code>P</code> - pen. Draw a wobbly box and a lopsided circle.</li>
+<li><code>W</code> then <code>5</code> - set the stroke width to 5.</li>
+<li><code>C</code> - cycle to the next Quick Access Color; <code>Shift + C</code> goes back.</li>
+<li>Hold <code>Space</code> and drag - a clean straight line. Add <code>Shift</code> mid-drag to lock
+it horizontal or vertical.</li>
+<li>Hold <code>Ctrl + Space</code> and drag - a quarter-ellipse curve. Add <code>Alt</code> for a
+quarter circle, tap <code>Shift</code> to swing the apex 90 degrees.</li>
+</ol>
+<h2 id="3-sharpen-it">3. Sharpen it<a class="anchor" href="#3-sharpen-it" aria-label="Link to this section">#</a></h2>
+<p>Press <code>H</code> (<strong>Sharpen all</strong>) and watch the box square up and the circle round
+out, with a subtle wobble left in so it still reads as hand-drawn.</p>
+<p>Two ways to run the engine:</p>
+<ul>
+<li><strong>Sharpen all</strong> (<code>H</code>) - clean up the whole page when you are ready.</li>
+<li><strong>Live sharpen</strong> - beautify each stroke the moment you lift the pen. It is
+<strong>off by default</strong>; turn it on in Quick Settings (<code>Ctrl + ,</code>).</li>
+</ul>
+<p>Tune the result in Quick Settings: wobble, smoothing, circle snap, end taper,
+rotational symmetry (raise it above 1 for mandala mode), and text size.</p>
+<h2 id="4-work-with-layers">4. Work with layers<a class="anchor" href="#4-work-with-layers" aria-label="Link to this section">#</a></h2>
+<p>Every new element gets <strong>its own layer</strong>, named after the tool that drew it.</p>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Do this</th><th style="text-align:left">Press</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Show / hide the Layers panel</td><td style="text-align:left"><code>Ctrl + L</code></td></tr>
+<tr><td style="text-align:left">Rename the active layer</td><td style="text-align:left"><code>F2</code> (or double-click the row)</td></tr>
+<tr><td style="text-align:left">Group the selected layers</td><td style="text-align:left"><code>Ctrl + G</code></td></tr>
+<tr><td style="text-align:left">Ungroup</td><td style="text-align:left"><code>Ctrl + Shift + G</code></td></tr>
+<tr><td style="text-align:left">Move a layer up / down</td><td style="text-align:left"><code>Ctrl + ]</code> / <code>Ctrl + [</code></td></tr>
+</tbody></table></div>
+<p>Click a row to make it active; <code>Shift</code>-click to multi-select; drag a row to
+restack it, or drop it onto a group row to nest it inside. Selecting on the
+canvas highlights the matching rows, and the other way round.</p>
+<p>Press <code>S</code> for the Select tool, click a stroke, then click a Quick Access Color
+to <strong>fill</strong> it. Press <code>A</code> for Direct Select and drag an anchor point to reshape
+a path.</p>
+<h2 id="5-save-and-export">5. Save and export<a class="anchor" href="#5-save-and-export" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Shortcut</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Save</td><td style="text-align:left"><code>Ctrl + S</code></td></tr>
+<tr><td style="text-align:left">Save As</td><td style="text-align:left"><code>Ctrl + Shift + S</code></td></tr>
+<tr><td style="text-align:left">Import a file</td><td style="text-align:left"><code>Ctrl + I</code></td></tr>
+<tr><td style="text-align:left">Export</td><td style="text-align:left">File &gt; Export &gt; PNG / JPEG / SVG / PDF</td></tr>
+</tbody></table></div>
+<p>Sketch books save as <code>.skbk</code>, a human-readable JSON document written
+atomically, so an interrupted save cannot corrupt the file you already had.
+SVG export is lossless and keeps layer names, gradients, and dash styles, so
+the file round-trips back into napkin-sketch unchanged.</p>
+<h2 id="6-drive-it-from-the-command-line">6. Drive it from the command line<a class="anchor" href="#6-drive-it-from-the-command-line" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-bash"># New sketch named &quot;ideas&quot;
+napkin-sketch --new ideas
+
+# Open an existing sketch book
+napkin-sketch --book ./notes.skbk
+
+# Sharpen a saved book headlessly, then open it
+napkin-sketch --sharpen ./notes
+
+# Open a new sketch with a file imported
+napkin-sketch --import logo.svg
+
+# Import several files, laid out in a grid
+napkin-sketch -m logo.svg,&quot;site map.svg&quot;,photo.png</code></pre>
+<p>The sharpen engine is pure and deterministic (seeded from each stroke's id),
+so <code>--sharpen</code> produces the same result on disk as the GUI does on screen.</p>
+<h2 id="7-where-to-go-next">7. Where to go next<a class="anchor" href="#7-where-to-go-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong><a href="cheatsheet.html">CHEATSHEET.md</a></strong> - every shortcut, CLI flag, and npm
+script on one page.</li>
+<li><strong>Sketch Support tools</strong> - Rectangle (<code>R</code>), Ellipse (<code>L</code>), Curve (<code>V</code>),
+Vector Path (<code>B</code>), Paint Bucket (<code>G</code>), Eyedropper (<code>I</code>), Rotate
+(<code>Ctrl + R</code>), Join strokes (<code>Ctrl + J</code>).</li>
+<li><strong>Verbose Settings</strong> (<code>Ctrl + Alt + ,</code>) - everything in Quick Settings plus
+zoom and pan sensitivity, endpoint snap, toolbar placement and rearrange
+mode, theme, Quick Access Colors, and auto-save. Settings persist across
+launches and export to a JSON file.</li>
+<li><strong>Embedding</strong> - the drawing engine ships as a browser-safe package with no
+Electron or Node dependency. See
+<a href="embed.html#embedding-the-editor">Embedding the editor</a>.</li>
+<li><strong>Animation Mode</strong> (<code>Ctrl + Shift + N</code>) - an <strong>optional add-on</strong>, left out of
+a default install because it needs an agentic AI command-line tool you
+install and sign in to yourself. Add it with
+<code>npm run animation-mode -- --install</code>, then restart the app.</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting<a class="anchor" href="#troubleshooting" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Symptom</th><th style="text-align:left">Fix</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>napkin-sketch</code> is not found</td><td style="text-align:left">Run <code>npm run build</code> then <code>npm link</code>, or use <code>npm start</code></td></tr>
+<tr><td style="text-align:left">Strokes are not being cleaned up as you draw</td><td style="text-align:left">Live sharpen is off by default; enable it in <code>Ctrl + ,</code> or press <code>H</code></td></tr>
+<tr><td style="text-align:left">Nothing draws</td><td style="text-align:left">The Select tool is active at launch; press <code>P</code> for the pen</td></tr>
+<tr><td style="text-align:left"><code>Ctrl + Shift + N</code> does nothing</td><td style="text-align:left">Animation Mode is not installed; run <code>npm run animation-mode -- --status</code></td></tr>
+<tr><td style="text-align:left">The cursor is a crosshair, not a circle</td><td style="text-align:left">CapsLock is on; that is the precision cursor</td></tr>
+<tr><td style="text-align:left">A change to the source is not showing</td><td style="text-align:left">Rebuild with <code>npm run build</code>, or leave <code>npm run build:watch</code> running</td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="install.html" rel="prev"><span>Previous</span>Installation</a><a href="cheatsheet.html" rel="next"><span>Next</span>Cheatsheet</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/QUICKSTART.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

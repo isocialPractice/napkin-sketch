@@ -41,6 +41,13 @@ const REQUIRED = [
 /** Files that are one machine's state, never the package's. */
 const FORBIDDEN = ['ai-helper/installed.json'];
 
+/**
+ * Files the package must never hold, by pattern: the documentation site
+ * writes its API pages as HTML beside the Markdown in docs/api, which ships,
+ * and `package.json` `files` leaves the HTML out.
+ */
+const FORBIDDEN_PATTERNS = [{ pattern: /^docs\/api\/.*\.html$/, why: 'the documentation site, which the package does not ship' }];
+
 /** Stops the check; the folder is still removed. */
 function fail(message) {
   throw new Error(message);
@@ -75,6 +82,10 @@ function check(dir) {
   if (missing.length > 0) fail(`the tarball lacks ${missing.join(', ')}: run npm run build and npm run build:types`);
   const leaked = FORBIDDEN.filter((path) => paths.has(path));
   if (leaked.length > 0) fail(`the tarball holds ${leaked.join(', ')}, which is this machine's state`);
+  for (const { pattern, why } of FORBIDDEN_PATTERNS) {
+    const found = [...paths].filter((path) => pattern.test(path));
+    if (found.length > 0) fail(`the tarball holds ${found.slice(0, 3).join(', ')}${found.length > 3 ? ` and ${found.length - 3} more` : ''}: ${why}`);
+  }
 
   // 2. Install it into an empty project, as a user would, asking the helper
   //    installer for nothing.

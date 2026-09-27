@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transform, Rotate, Mirror and Mesh Warp - napkin-sketch</title>
+<meta name="description" content="The Transform box, Rotate, Mirror, Mesh Warp, and docking their panels.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html" aria-current="page">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Transform</span></nav>
+<h1 id="transform-rotate-mirror-and-mesh-warp">Transform, Rotate, Mirror and Mesh Warp<a class="anchor" href="#transform-rotate-mirror-and-mesh-warp" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#the-transform-box">The Transform box</a></li><li><a href="#rotate">Rotate</a></li><li><a href="#mirror">Mirror</a></li><li><a href="#mesh-warp">Mesh Warp</a></li><li><a href="#docking-the-editing-panels">Docking the editing panels</a></li></ul></details>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Mesh Warp</strong> - below the tools in the side rail: click art to mesh it, then
+drag its pins to bend it, as Illustrator's Puppet Warp does. <code>Enter</code> bakes the
+bend into the art as one undo step, and <code>Escape</code> throws it away.</li>
+</ul>
+<h2 id="the-transform-box">The Transform box<a class="anchor" href="#the-transform-box" aria-label="Link to this section">#</a></h2>
+<p><strong>Transform (<code>Ctrl+T</code>, or Transform &gt; Transform Box, checked while the box is
+up):</strong> puts one box around everything selected, with a
+handle on each corner and the middle of each side, and scales it by dragging
+one. The box stays up while it is in use — press <code>Ctrl+T</code> again or <code>Escape</code> to
+put it away — and a press anywhere off a handle still belongs to the tool
+underneath, so the selection can be changed without dismissing the box first.</p>
+<ul>
+<li><strong>The handle decides which axes move.</strong> A left or right handle scales across,
+a top or bottom handle scales down, and a corner scales both — each axis by
+its own amount, following the pointer. The handle opposite the one in hand
+stays exactly where it is, so a drag reads as pulling that edge of the box.</li>
+<li><strong><code>Shift</code> keeps the shape.</strong> Both axes take one factor, so the selection
+grows or shrinks without being reshaped. On a corner the factor is whichever
+axis the pointer committed to; on a side it is the one axis that handle can
+measure, which is how a side handle scales the whole selection rather than
+stretching it.</li>
+<li><strong><code>Alt</code> works from the centre.</strong> The middle of the box stays put instead of
+the opposite handle, so both sides move together and the selection grows in
+place. <code>Alt</code> moves the point the scale is measured from and nothing else:
+each axis still scales on its own, so a corner under <code>Alt</code> alone still
+follows the pointer in both directions independently.</li>
+<li><strong><code>Shift + Alt</code></strong> is the two together: uniform, about the centre.</li>
+<li>Either modifier can be pressed or let go <strong>during</strong> a drag, and the gesture is
+re-read from where it started rather than bent from where it had got to.</li>
+<li>A whole drag is <strong>one undo step</strong>, and a press that grabs a handle and lets go
+without moving costs none at all.</li>
+<li><strong>Dragging a handle through its anchor stops at 1%</strong> rather than flipping the
+selection inside out. Flipping is what <strong>Mirror</strong> (<code>O</code>) is for; letting a
+handle do it too is in <code>TODO.md</code>, along with skew, distort, perspective, and
+puppet warp, which is the list this one box is meant to grow into.</li>
+</ul>
+<h2 id="rotate">Rotate<a class="anchor" href="#rotate" aria-label="Link to this section">#</a></h2>
+<p><strong>Rotate (<code>Ctrl+R</code>, Transform &gt; Rotate…, or the Rotate button beside Move):</strong> turns the selection
+about a centre point, in a palette that opens in the top-right rather than
+centred - the canvas under the selection is where the rotation is dragged, so
+a centred panel would be sitting on the pixels the gesture needs.</p>
+<ul>
+<li><strong>Drag on the canvas to turn it by hand.</strong> Clockwise counts up in positive
+degrees, counterclockwise down in negative ones, and the field shows what the
+drag has measured. Swinging past half a turn keeps counting the same way
+round, and a second lap counts as a second lap. Releasing commits the turn as
+a single undo step and puts the field back to zero.</li>
+<li><strong>The tool stays in hand.</strong> Letting go of a drag commits the turn and leaves
+the palette up, and so does <strong>Apply</strong>: an angle is rarely the last one, and
+closing on the first answer threw away the pivot that had just been placed
+and the snap that had just been set along with it. <code>Ctrl+R</code> and the <strong>Rotate</strong>
+button now behave the same way; either is dismissed with <strong>Rotate</strong>,
+<strong>Cancel</strong>, or <code>Escape</code>. Move is the other kind of panel — it asks one
+question and goes once it is answered — and which of the two a panel is is
+declared in one place rather than decided in each Apply handler.</li>
+<li><strong>The centre of rotation moves four ways</strong>: <strong>click anywhere on the canvas</strong>
+to put it there, drag the crosshair (the pointer offers a grab where it can
+be picked up), pick one of the nine handles of the selection's box from the
+preset grid, or type an exact <strong>Centre x / y</strong> in <code>px</code>, <code>in</code>, <code>mm</code>, or <code>pt</code>.
+The presets are the quick way to the corners and the middle of the box; a
+click is the loose way to everywhere else — a shoulder, a heel, a point off
+the shape entirely. Click and drag are told apart by the same few pixels that
+separate a click from a drag everywhere else, so a press that turns is still
+a turn. A centre that has been clicked, dragged, or typed lights no preset,
+which is how the panel says it is custom.</li>
+<li><strong>Angle, direction, and snapping</strong>: the angle field is signed, and the
+<strong>CW / CCW</strong> pair re-signs whatever magnitude is in it rather than clearing
+it - so <code>90</code> and a press of CCW gives <code>-90</code>. <strong>Snap to 15°</strong> rounds typed and
+dragged angles alike; <code>Shift</code> does the same for one gesture. Arrow keys step
+a degree, or 15 with <code>Shift</code>.</li>
+<li><strong>Live preview</strong> (off by default) shows the typed angle on the canvas before
+it is committed, taking no history step, exactly as the Move dialog's does. A
+canvas drag always previews, whatever the checkbox says.</li>
+<li>Vector anchors and their tangent handles turn with the path, and a Copic
+stroke's broad nib keeps its bearing relative to the mark. Text and images
+have no orientation to turn, so they orbit the centre upright - an image by
+its middle rather than by its top-left anchor.</li>
+</ul>
+<h2 id="mirror">Mirror<a class="anchor" href="#mirror" aria-label="Link to this section">#</a></h2>
+<p><strong>Mirror (<code>O</code>, Transform &gt; Mirror…, or the Mirror button after Clear):</strong> reflects the
+selection, in a palette that opens in the top-right like Rotate's.</p>
+<ul>
+<li><strong>Orientation</strong>: <strong>Horizontal</strong> swaps left and right, so a figure facing
+right faces left; <strong>Vertical</strong> swaps top and bottom. Both together turn the
+selection half a turn. With neither ticked, <strong>Mirror</strong> has nothing to do and
+says so.</li>
+<li><strong>Create Copy</strong> keeps the selection and mirrors a copy of it, reflected about
+the selection's trailing edge - the right edge for Horizontal, the bottom
+edge for Vertical - so the copy lands beside the original as its mirror image
+and the two meet at that edge: draw half of something symmetric, mirror a
+copy, and it is whole. The copy is left selected. Without <strong>Create Copy</strong> the
+selection flips where it stands, about the middle of its box.</li>
+<li><strong>Live preview</strong> (on by default) shows the result on the canvas as the
+choices change, copy and all. <strong>Cancel</strong> or <code>Escape</code> takes it back and leaves
+no trace - not even an undo step - and <strong>Mirror</strong> or <code>Enter</code> keeps it as one
+undo step and closes the palette. Starting another edit on the preview, such
+as dragging the previewed copy, keeps the mirror and builds on it.</li>
+<li><strong>Show Selection Borders</strong> is the same switch as the Move palette's.</li>
+<li>A reflection is exact on vector geometry: anchors and both of their handles
+are reflected, so a curve keeps its control points rather than being
+resampled. A Copic stroke's broad nib and a linear gradient's direction turn
+with the drawing, and a Wave-profiled stroke - the one profile that leans -
+swaps its sides, so its mirror image leans the mirrored way. Text stays readable - its box moves to where its mirror
+image would be - and a placed image's pixels are flipped.</li>
+</ul>
+<h2 id="mesh-warp">Mesh Warp<a class="anchor" href="#mesh-warp" aria-label="Link to this section">#</a></h2>
+<p><strong>Mesh Warp (below the tools in the side rail):</strong> bends art by pins, as
+Illustrator's Puppet Warp does. It has no key, as in Illustrator.</p>
+<ul>
+<li><strong>Picking the art.</strong> Hovering outlines in green the art a click would pick,
+with &quot;(click to select art)&quot; beside the pointer. A click picks the group one
+level below the top of the mark's layer tree - a figure's leg assembly,
+rather than the whole figure or one of the leg's paths - or, for a mark in no
+group, its own layer; the layers panel highlights that row. Chosen with
+something already selected, the tool meshes the selection at once.</li>
+<li><strong>The mesh.</strong> The art's silhouette, grown by 3 px, is filled with grey
+triangles - about a thousand, whatever the art's size - and outlined in
+green. <strong>Show mesh</strong> in Quick Settings (and in the Settings window) hides the
+triangles and leaves the pins. Two pins go in along the art's long axis, a
+fifth of the way in from each end, and one goes in every separate piece.</li>
+<li><strong>Pins.</strong> Click in the mesh to add a pin, and drag straight away to move it.
+Click a pin to select it, <code>Shift</code>+click to add one to the selection or take
+it out, and drag to move every selected pin: the art bends between them as
+rigidly as it can while the others hold. <code>Delete</code> or <code>Backspace</code> takes the
+selected pins out - never the art. A piece with one pin follows it rigidly,
+and a piece with none stays put.</li>
+<li><strong>Ending.</strong> <code>Enter</code>, choosing another tool, or a click on empty canvas keeps
+the warp; a click on other art keeps it and meshes the new art. <code>Escape</code>
+throws it away, putting the art back exactly. While a warp is open, <code>Ctrl+Z</code>
+steps back through the pin moves; once it is kept, one <code>Ctrl+Z</code> takes the
+whole warp back.</li>
+<li><strong>What moves.</strong> A freehand mark moves point by point. A Vector Path keeps its
+Bézier structure: its anchors and handles move, and a curve is split only
+where one piece could no longer follow the bend to within a fifth of a pixel.
+Text and images move with the point that anchors them, unbent, and a Copic
+nib turns with the art. No width is stretched.</li>
+</ul>
+<p>Gradients and dash styles are written into exported SVGs as real
+<code>&lt;linearGradient&gt;</code> / <code>&lt;radialGradient&gt;</code> paint servers and <code>stroke-dasharray</code>
+values, so other editors see them, and they round-trip back into napkin
+unchanged.</p>
+<h2 id="docking-the-editing-panels">Docking the editing panels<a class="anchor" href="#docking-the-editing-panels" aria-label="Link to this section">#</a></h2>
+<p><strong>Docking the editing panels:</strong> <strong>Move</strong>, <strong>Rotate</strong>, <strong>Mirror</strong>, <strong>Page
+Settings</strong>, and <strong>Sharpen Selection</strong> are floating palettes - dragged by their title or by the
+narrow band at their border, resized from their corner, and kept on screen if
+the window shrinks. Each also carries a small button in its title bar that
+<strong>docks</strong> it: the panel leaves the drawing and becomes a column beside the
+layers and properties panels, so the canvas gives up the width rather than
+being covered. The same button <strong>undocks</strong> it, back to the exact position it
+was floating at. A docked panel that is closed stays docked, and the dock takes
+no space at all while it is empty.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="selection.html" rel="prev"><span>Previous</span>Selecting and editing</a><a href="layers.html" rel="next"><span>Next</span>Layers and the Properties panel</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/transform.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

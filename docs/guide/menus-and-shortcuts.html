@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menus and shortcuts - napkin-sketch</title>
+<meta name="description" content="The menu bar, the right-click menus, every keyboard shortcut, and changing them.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html" aria-current="page">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Menus and shortcuts</span></nav>
+<h1 id="menus-and-shortcuts">Menus and shortcuts<a class="anchor" href="#menus-and-shortcuts" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#the-menus">The menus</a></li><li><a href="#keyboard-shortcuts">Keyboard shortcuts</a></li><li><a href="#changing-a-shortcut">Changing a shortcut</a></li><li><a href="#moving-a-tool-to-another-menu">Moving a tool to another menu</a></li><li><a href="#the-help-menu">The Help menu</a></li></ul></details>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Nine menus in the menu bar</strong>: <strong>File</strong>, <strong>Edit</strong>, <strong>View</strong>, <strong>Transform</strong>
+(Vector Path, Transform Box, Move, Rotate, Join, Close Shape, Mirror,
+Sharpen, Mesh Warp), <strong>Sketch</strong> (Pen, Marker, Eraser, Text, Copic, Direct,
+Stroke Profile), <strong>Layers</strong>,
+<strong>Pages</strong>, <strong>Automate</strong> and <strong>Help</strong>. They are generated from
+<code>src/core/menu/tool-types.json</code>, which gives every command a <em>tool type</em> -
+a tool is in every menu that accepts its type, which is how the clipboard
+rows reach Edit, the canvas and the layers panel from one entry - and a
+row greys when there is nothing for it to act on: Cut with nothing
+selected, Undo with nothing to undo, Delete Page with one page.
+<strong>Edit &gt; Edit Keyboard Shortcuts</strong> changes any tool's keys, and <strong>Edit &gt;
+Edit Tool Types</strong> changes which menus list it, each saved in a file of
+your own; see <a href="#changing-a-shortcut">Changing a shortcut</a> and <a href="#moving-a-tool-to-another-menu">Moving a
+tool to another menu</a>. <strong>Automate &gt;
+Generate Script</strong> writes the napkin script for a file or for the selected
+layers and shows it before anything uses it; see <a href="automate.html#generating-a-script">Generating a
+script</a>. <strong>Automate &gt; Track History</strong> records every
+step of the drawing's history, and <strong>History Limit</strong> sets how many are
+kept; see <a href="automate.html#tracking-history">Tracking history</a>. <strong>Help</strong>
+opens this documentation in a window of its own, with no network needed;
+see <a href="#the-help-menu">The Help menu</a>.</li>
+<li><strong>Native application menus</strong> — <em>File</em> (New Sketch, Open, Import, Save,
+Save As, Export PNG / SVG / JPEG / PDF, Exit), <em>Edit</em> (Undo, Redo, <strong>Cut /
+Copy / Paste / Paste in Place / Duplicate</strong>, Delete, Select All, Verbose
+Settings, Rearrange Toolbar, <strong>Edit Keyboard Shortcuts</strong>, <strong>Edit Tool
+Types</strong>, and <strong>Animation Mode</strong> once it is installed), and <em>View</em> (the
+Pages, Layers and Properties panels, Quick Settings, Developer Tools,
+<strong>Fit All in View</strong> (<code>Ctrl+0</code>) to bring every graphic on the page into view
+at once, Zoom In, Zoom Out and Full Screen).</li>
+<li><strong>Right-click the canvas</strong> for Cut, Copy, Paste, Paste in Place, Duplicate,
+Delete, Select All, and Deselect All. Right-clicking an element that is not
+selected picks it first, so <em>Copy</em> means the thing just clicked, and a
+right-click on empty paper keeps the selection. The layers panel's own menu
+carries the same clipboard rows, since a lit layer row is a selection. Every
+row shows its shortcut at its right edge, and greys when there is nothing
+for it to act on.</li>
+<li><strong>Menu buttons toggle</strong> — a button that drops a menu (Export, the pages
+panel's hamburger, Close Shape) reads as pressed while its menu is out, and
+pressing it again puts the menu away. A menu row with nested entries opens
+them beside itself on hover, and that panel stays put long enough to be
+reached across the rows in between.</li>
+<li><strong>Panel state at a glance</strong> — the toolbar's Pages and Layers buttons fill
+in (&quot;Panel in View&quot;) while their panel is open and sit flat when it is
+hidden.</li>
+</ul>
+<p><code>Ctrl</code> is <code>Cmd</code> on macOS. The keys are the app's own, from
+<code>src/core/menu/shortcuts.json</code>, so the menus, the tooltips and the
+<a href="#keyboard-shortcuts">shortcut table</a> all show the same ones; <code>npm run
+menu-docs</code> writes that table and the one of the menus below. <strong>Edit &gt; Edit
+Keyboard Shortcuts</strong> changes the keys for you alone; see <a href="#changing-a-shortcut">Changing a
+shortcut</a>.</p>
+<h2 id="the-menus">The menus<a class="anchor" href="#the-menus" aria-label="Link to this section">#</a></h2>
+<p>Every command has a <em>tool type</em>, <code>Main:sub</code>, such as <code>Draw:Modify:element</code>
+for Rotate. A menu lists each tool whose sub-type is the menu's own name,
+as <code>App:file</code> is in File, or is one the menu takes, as Transform takes
+<code>Modify:element</code>. A tool whose type fits two places is in both, which is
+how the clipboard rows reach Edit, the canvas and the layers panel from one
+entry; the right-click menus follow the same rule. The menu bar, with what
+each menu takes and holds:</p>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Menu</th><th style="text-align:left">Takes</th><th style="text-align:left">Holds</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">File</td><td style="text-align:left"><code>file</code></td><td style="text-align:left">New Sketch; Open…; Import…; Save; Save As…; Export: PNG Image…, SVG Vector…, JPEG Image…, PDF Document…; Exit</td></tr>
+<tr><td style="text-align:left">Edit</td><td style="text-align:left"><code>edit</code>, <code>edit:mixed</code>, <code>Subtract:element</code>, <code>edit:selection</code></td><td style="text-align:left">Undo; Redo; Cut; Copy; Paste; Paste in Place; Duplicate; Delete; Select All; Verbose Settings…; Rearrange Toolbar; Edit Keyboard Shortcuts…; Edit Tool Types…; Animation Mode (once installed)</td></tr>
+<tr><td style="text-align:left">View</td><td style="text-align:left"><code>view</code></td><td style="text-align:left">Toggle Pages Panel; Toggle Layers Panel; Toggle Properties Panel; Quick Settings; Toggle Developer Tools; Fit All in View; Zoom In; Zoom Out; Toggle Full Screen</td></tr>
+<tr><td style="text-align:left">Transform</td><td style="text-align:left"><code>transform</code>, <code>Add:vector</code>, <code>Modify:element</code>, <code>Subtract:vector</code></td><td style="text-align:left">Vector Path; Transform Box; Move…; Rotate…; Join; Close Shape: Sharp, Smooth; Mirror…; Sharpen: Sharpen Selection…, Sharpen All; Mesh Warp</td></tr>
+<tr><td style="text-align:left">Sketch</td><td style="text-align:left"><code>sketch</code>, <code>Add:mark</code>, <code>Modify:vector</code>, <code>Subtract:mark</code></td><td style="text-align:left">Pen; Marker; Eraser; Text; Copic; Direct; Stroke Profile…</td></tr>
+<tr><td style="text-align:left">Layers</td><td style="text-align:left"><code>layers</code>, <code>Add:layer</code>, <code>Modify:layer</code>, <code>Subtract:layer</code></td><td style="text-align:left">Add Layer; Group Layer; Ungroup; Rename; Delete Layer; Move Layer: Layer Up, Layer Down; Hide Layers Panel</td></tr>
+<tr><td style="text-align:left">Pages</td><td style="text-align:left"><code>pages</code></td><td style="text-align:left">Add Page: Default New Page, Custom New Page…, From Selection; Delete Page; Page Settings…; Hide Pages Panel</td></tr>
+<tr><td style="text-align:left">Automate</td><td style="text-align:left"><code>automate</code>, <code>automate:mixed</code></td><td style="text-align:left">Generate Script: From Media File…, Selected Layers…, From Session History…; Track History; History Limit…</td></tr>
+<tr><td style="text-align:left">Help</td><td style="text-align:left"><code>help</code></td><td style="text-align:left">Verbose; Tool Types: Transform, Draw, Pages, Layers, Automate; Source Code; Source Docs (once the site is published)</td></tr>
+</tbody></table></div>
+<p>A toolbar tool such as Rectangle, and a key such as Quick Width, is in no
+menu. <a href="#moving-a-tool-to-another-menu">Moving a tool to another menu</a>
+changes a tool's type, and so the menus that list it.</p>
+<h2 id="keyboard-shortcuts">Keyboard shortcuts<a class="anchor" href="#keyboard-shortcuts" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Command</th><th style="text-align:left">Menu</th><th style="text-align:left">Shortcut</th><th style="text-align:left">Notes</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">New Sketch</td><td style="text-align:left">File</td><td style="text-align:left"><code>Ctrl+N</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Open</td><td style="text-align:left">File</td><td style="text-align:left"><code>Ctrl+O</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Import</td><td style="text-align:left">File</td><td style="text-align:left"><code>Ctrl+I</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Save</td><td style="text-align:left">File</td><td style="text-align:left"><code>Ctrl+S</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Save As</td><td style="text-align:left">File</td><td style="text-align:left"><code>Ctrl+Shift+S</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Undo</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Ctrl+Z</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Redo</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Ctrl+Shift+Z</code> or <code>Ctrl+Y</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Cut</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Ctrl+X</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Copy</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Ctrl+C</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Paste</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Ctrl+V</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Paste in Place</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Ctrl+Shift+V</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Duplicate</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Ctrl+D</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Delete</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Delete</code> or <code>Backspace</code></td><td style="text-align:left">Elements first; else the selected layer rows</td></tr>
+<tr><td style="text-align:left">Select All</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Ctrl+A</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Deselect All</td><td style="text-align:left">Canvas right-click menu</td><td style="text-align:left"><code>Ctrl+Shift+A</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Verbose Settings</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Ctrl+Alt+,</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Animation Mode</td><td style="text-align:left">Edit</td><td style="text-align:left"><code>Ctrl+Shift+N</code></td><td style="text-align:left">An optional add-on</td></tr>
+<tr><td style="text-align:left">Toggle Pages Panel</td><td style="text-align:left">View</td><td style="text-align:left"><code>Ctrl+B</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Toggle Layers Panel</td><td style="text-align:left">View</td><td style="text-align:left"><code>Ctrl+L</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Toggle Properties Panel</td><td style="text-align:left">View</td><td style="text-align:left"><code>Ctrl+P</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Quick Settings</td><td style="text-align:left">View</td><td style="text-align:left"><code>Ctrl+,</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Toggle Developer Tools</td><td style="text-align:left">View</td><td style="text-align:left"><code>Ctrl+Shift+I</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Fit All in View</td><td style="text-align:left">View</td><td style="text-align:left"><code>Ctrl+0</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Zoom In</td><td style="text-align:left">View</td><td style="text-align:left"><code>Ctrl++</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Zoom Out</td><td style="text-align:left">View</td><td style="text-align:left"><code>Ctrl+-</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Toggle Full Screen</td><td style="text-align:left">View</td><td style="text-align:left"><code>F11</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Vector Path</td><td style="text-align:left">Transform</td><td style="text-align:left"><code>B</code></td><td style="text-align:left">Click = corner, drag = smooth Bezier point</td></tr>
+<tr><td style="text-align:left">Transform Box</td><td style="text-align:left">Transform</td><td style="text-align:left"><code>Ctrl+T</code></td><td style="text-align:left">Again, or <code>Esc</code>, to put it away</td></tr>
+<tr><td style="text-align:left">Move</td><td style="text-align:left">Transform</td><td style="text-align:left"><code>Enter</code></td><td style="text-align:left">By an exact x and y, in any unit</td></tr>
+<tr><td style="text-align:left">Rotate</td><td style="text-align:left">Transform</td><td style="text-align:left"><code>Ctrl+R</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Join</td><td style="text-align:left">Transform</td><td style="text-align:left"><code>Ctrl+J</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Mirror</td><td style="text-align:left">Transform</td><td style="text-align:left"><code>O</code></td><td style="text-align:left">Horizontally or vertically, in place or as a copy</td></tr>
+<tr><td style="text-align:left">Sharpen All</td><td style="text-align:left">Transform &gt; Sharpen</td><td style="text-align:left"><code>H</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Pen</td><td style="text-align:left">Sketch</td><td style="text-align:left"><code>P</code></td><td style="text-align:left">Pressure-aware variable width</td></tr>
+<tr><td style="text-align:left">Marker</td><td style="text-align:left">Sketch</td><td style="text-align:left"><code>M</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Eraser</td><td style="text-align:left">Sketch</td><td style="text-align:left"><code>E</code></td><td style="text-align:left">Reveals the paper beneath; cuts only its own layer</td></tr>
+<tr><td style="text-align:left">Text</td><td style="text-align:left">Sketch</td><td style="text-align:left"><code>T</code></td><td style="text-align:left">Click = auto-sizing box, drag = fixed width with wrap</td></tr>
+<tr><td style="text-align:left">Copic marker</td><td style="text-align:left">Sketch</td><td style="text-align:left"><code>K</code></td><td style="text-align:left">Flat broad nib, rotatable</td></tr>
+<tr><td style="text-align:left">Direct Select</td><td style="text-align:left">Sketch</td><td style="text-align:left"><code>A</code></td><td style="text-align:left">White arrow; drags anchor points</td></tr>
+<tr><td style="text-align:left">Group Layer</td><td style="text-align:left">Layers</td><td style="text-align:left"><code>Ctrl+G</code></td><td style="text-align:left">Groups the selected layers</td></tr>
+<tr><td style="text-align:left">Ungroup Layer</td><td style="text-align:left">Layers</td><td style="text-align:left"><code>Ctrl+Shift+G</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Rename Layer</td><td style="text-align:left">Layers</td><td style="text-align:left"><code>F2</code></td><td style="text-align:left">Or double-click the layer row</td></tr>
+<tr><td style="text-align:left">Layer Up</td><td style="text-align:left">Layers &gt; Move Layer</td><td style="text-align:left"><code>Ctrl+]</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Layer Down</td><td style="text-align:left">Layers &gt; Move Layer</td><td style="text-align:left"><code>Ctrl+[</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Select</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>S</code></td><td style="text-align:left">Black arrow; active at launch</td></tr>
+<tr><td style="text-align:left">Rectangle</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>R</code></td><td style="text-align:left">Hold <code>Shift</code> for a square</td></tr>
+<tr><td style="text-align:left">Ellipse</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>L</code></td><td style="text-align:left">Hold <code>Shift</code> for a circle</td></tr>
+<tr><td style="text-align:left">Curve</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>V</code></td><td style="text-align:left">Click and hold the button for the free-ends variant</td></tr>
+<tr><td style="text-align:left">Paint Bucket</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>G</code></td><td style="text-align:left">Fills the enclosed shape under the click</td></tr>
+<tr><td style="text-align:left">Eyedropper</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>I</code></td><td style="text-align:left">Hold <code>Ctrl</code> to pick a shape instead</td></tr>
+<tr><td style="text-align:left">Show Selection Borders</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>Ctrl+H</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Quick Width</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>W</code></td><td style="text-align:left">Then type a number</td></tr>
+<tr><td style="text-align:left">Quick Opacity</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>Q</code></td><td style="text-align:left">Then type a number</td></tr>
+<tr><td style="text-align:left">Quick Zoom</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>Z</code></td><td style="text-align:left">Then a digit: <code>9</code> is 90%, <code>0</code> is 100%</td></tr>
+<tr><td style="text-align:left">Next Color</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>C</code></td><td style="text-align:left">Steps through the Quick Access colors</td></tr>
+<tr><td style="text-align:left">Previous Color</td><td style="text-align:left">Not in a menu</td><td style="text-align:left"><code>Shift+C</code></td><td style="text-align:left">Steps back through them</td></tr>
+</tbody></table></div>
+<h2 id="changing-a-shortcut">Changing a shortcut<a class="anchor" href="#changing-a-shortcut" aria-label="Link to this section">#</a></h2>
+<p><strong>Edit &gt; Edit Keyboard Shortcuts</strong> lists every tool, toolbar-only ones
+too, as Tool, Type and Keyboard Shortcut. Type in the search box to keep
+the rows whose name, type or shortcut contains what you typed, or pick a
+type with the radio buttons. A tool's tooltip says where it is in the menus.</p>
+<p>Click a tool's shortcut box and press the keys you want. The box turns
+green for a shortcut no tool has, and amber for one another tool has,
+which Accept takes from that tool; that row turns amber too, saying it will
+be left with none. Some keys are refused in the box, with the reason:
+Space, Escape and Tab, which the app keeps for itself; Enter, which only
+Move can have; and the keys of the rows Electron draws, such as Zoom In's
+<code>Ctrl++</code>, whose own boxes are greyed. Escape in a box puts back what it held
+and leaves it, and the button beside a box takes its shortcut away.</p>
+<p><strong>Accept</strong> saves your changes, and the menus, the tooltips and the keys
+follow at once. The app's own shortcuts stay in
+<code>src/core/menu/shortcuts.json</code>, which is never written. Yours go in a
+<code>shortcuts.json</code> of your own, in the app's settings folder, and it holds
+only the shortcuts that differ from the app's. The folder is
+<code>%APPDATA%\napkin-sketch</code> on Windows,
+<code>~/Library/Application Support/napkin-sketch</code> on macOS, and
+<code>~/.config/napkin-sketch</code> on Linux. <strong>Reset to defaults</strong> puts the app's
+own shortcuts back in the table, and accepting them removes your file. A
+file of yours that cannot be read is ignored, and the app says so when it
+opens.</p>
+<h2 id="moving-a-tool-to-another-menu">Moving a tool to another menu<a class="anchor" href="#moving-a-tool-to-another-menu" aria-label="Link to this section">#</a></h2>
+<p>Every tool has a <em>type</em>, such as <code>Draw:Modify:element</code> for Rotate, and a
+tool is listed in every menu that takes its type. <strong>Edit &gt; Edit Tool
+Types</strong> lists every tool with its type in a drop-down: a group for each
+main type holding the types the menus take, and <strong>Not in a menu</strong> first.
+Choosing a type changes only which menus list the tool, never what the
+tool does or its shortcut, which is shown greyed beside it.</p>
+<p>The drop-down says where a choice would list the tool before anything is
+kept, such as &quot;Rotate will be listed in Edit, Layers panel, Canvas&quot;, and
+turns green. Taking a tool out of every menu turns it amber and names the
+key that still runs it. A toolbar tool starts in no menu and can be put
+in one. Some rows cannot move, and their drop-downs are greyed with the
+reason as the tooltip: the two editors, which stay in the Edit menu where
+they can always be found; a menu's own rows, such as Undo or the Help
+rows; the rows Electron draws; a submenu's rows, which move with it; and
+the tools kept on the keyboard, such as Quick Width.</p>
+<p><strong>Accept</strong> saves your changes, and every menu is made again from them at
+once. The app's own types stay in <code>src/core/menu/tool-types.json</code>, which
+is never written. Yours go in a <code>tool-types.json</code> of your own, beside
+your <code>shortcuts.json</code>, holding only the tools you moved. <strong>Reset to
+defaults</strong> puts the app's own types back in the table, and accepting them
+removes your file.</p>
+<h2 id="the-help-menu">The Help menu<a class="anchor" href="#the-help-menu" aria-label="Link to this section">#</a></h2>
+<p><strong>Help &gt; Verbose</strong> opens this documentation in a window of its own, at
+<a href="index.html">Using the app</a>. The pages are the app's own copy of this site,
+so they open with no network. <strong>Help &gt; Tool Types</strong> opens a quickstart in
+the same window: <a href="../quickstart/transform.html">Transform</a>,
+<a href="../quickstart/draw.html">Draw</a>, <a href="../quickstart/pages.html">Pages</a>,
+<a href="../quickstart/layers.html">Layers</a> or <a href="../quickstart/automate.html">Automate</a>,
+which leads on to <a href="animation-mode.html">Animation Mode</a>, its assemblies and
+its frame names.</p>
+<p>In the documentation window, a link to another page opens it there and a
+link to the web opens in your browser. <code>Alt + Left</code> and <code>Alt + Right</code> go back
+and forward (<code>Cmd + [</code> and <code>Cmd + ]</code> on macOS), as a mouse's back and
+forward buttons do on Windows and Linux, and <code>Ctrl + W</code> (<code>Cmd + W</code>) closes
+the window.
+Choosing another Help row shows its page in the window already open.</p>
+<p><strong>Help &gt; Source Code</strong> opens the project's page in your browser. <strong>Help &gt;
+Source Docs</strong> opens the published site there, and is left out of the menu
+until the site's deployment has been checked.</p>
+<p>A copy of the app built from the repository reads the pages from its
+<code>docs/</code> folder, which <code>npm run site</code> writes; a Help row says so when they
+are missing.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="settings.html" rel="prev"><span>Previous</span>Settings</a><a href="automate.html" rel="next"><span>Next</span>Automate</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/menus-and-shortcuts.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

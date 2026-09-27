@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Using napkin-sketch from code: cheatsheet - napkin-sketch</title>
+<meta name="description" content="Using napkin-sketch from code, as tables to look things up in.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Using napkin-sketch from code</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html" aria-current="page">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">Using napkin-sketch from code</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
+<h1 id="using-napkin-sketch-from-code-cheatsheet">Using napkin-sketch from code: cheatsheet<a class="anchor" href="#using-napkin-sketch-from-code-cheatsheet" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#the-two-entries">The two entries</a></li><li><a href="#napkin-sketch-the-language"><code>napkin-sketch</code>: the language</a></li><li><a href="#napkin-sketchnode-files"><code>napkin-sketch/node</code>: files</a></li><li><a href="#drawfile-and-drawtofiles-options"><code>drawFile</code> and <code>drawToFiles</code> options</a></li><li><a href="#the-result">The result</a></li><li><a href="#file-names">File names</a></li><li><a href="#what-throws">What throws</a></li><li><a href="#common-mistakes">Common mistakes</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <a href="quickstart.html">Quickstart</a> · <strong>Cheatsheet</strong></p>
+<p>Reminders for the package as a dependency: the two entries, the calls, their options, the result and what throws.</p>
+<h2 id="the-two-entries">The two entries<a class="anchor" href="#the-two-entries" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Import</th><th>Runs in</th><th>For</th></tr></thead>
+<tbody>
+<tr><td><code>import { ... } from 'napkin-sketch'</code></td><td>A browser, Node, any bundler</td><td>The editor, the model, compositions, and the language</td></tr>
+<tr><td><code>import { ... } from 'napkin-sketch/node'</code></td><td>Node 18 and later</td><td>Reading and writing files</td></tr>
+<tr><td><code>const { ... } = await import('napkin-sketch/node')</code></td><td>CommonJS</td><td>The same, where <code>require</code> cannot load an ES module</td></tr>
+</tbody></table></div>
+<h2 id="napkin-sketch-the-language"><code>napkin-sketch</code>: the language<a class="anchor" href="#napkin-sketch-the-language" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>parseScript(text)</code>, <code>validateScript(json)</code></td><td><code>{ ok, script, diagnostics }</code></td></tr>
+<tr><td><code>formatScript(script)</code></td><td>Canonical text</td></tr>
+<tr><td><code>evaluate(source, options)</code></td><td><code>{ ok, book, diagnostics, stats, output, seed }</code></td></tr>
+<tr><td><code>drawSvg(source, options)</code></td><td><code>{ ok, svg, diagnostics }</code>: the first page, in one call</td></tr>
+<tr><td><code>renderSketch(page, options)</code>, <code>renderBook(book, options)</code></td><td>Strings and bytes, by <code>format</code></td></tr>
+<tr><td><code>inkBox(page)</code>, <code>renderBox(page, options)</code></td><td>The box the output is cut to</td></tr>
+<tr><td><code>sketchToComposition(page)</code></td><td>The page as a composition, to add to in code</td></tr>
+<tr><td><code>formatDiagnostic(d, 'card.napkin')</code></td><td><code>card.napkin:3:1: error unknown-verb: ...</code></td></tr>
+<tr><td><code>SCRIPT_VERSION</code>, <code>SCRIPT_LIMITS</code>, <code>VERBS</code>, <code>DIAGNOSTICS</code></td><td>The language's version, budget and tables</td></tr>
+</tbody></table></div>
+<h2 id="napkin-sketchnode-files"><code>napkin-sketch/node</code>: files<a class="anchor" href="#napkin-sketchnode-files" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>drawFile('card.napkin', options)</code></td><td>Reads a script file and writes every format asked for</td></tr>
+<tr><td><code>drawToFiles(source, options)</code></td><td>The same, for a script in hand: text or JSON</td></tr>
+<tr><td><code>writeBook(book, options)</code></td><td>Writes a book already in hand</td></tr>
+<tr><td><code>readScript('card.napkin')</code></td><td>Text, or the JSON value of a <code>.json</code> file</td></tr>
+<tr><td><code>loadAssets({ logo: 'art/logo.png' }, from)</code></td><td><code>{ logo: 'data:image/png;base64,...' }</code></td></tr>
+<tr><td><code>loadDocuments({ badge: 'badge.skbk' }, from)</code></td><td>The books, for <code>use</code></td></tr>
+<tr><td><code>resolveLinkFromDir('brand')</code></td><td>A link resolver jailed to one folder</td></tr>
+<tr><td><code>imageDataUrl</code>, <code>writeComposition</code>, <code>mediaTypeOf</code></td><td>The composition file helpers</td></tr>
+</tbody></table></div>
+<h2 id="drawfile-and-drawtofiles-options"><code>drawFile</code> and <code>drawToFiles</code> options<a class="anchor" href="#drawfile-and-drawtofiles-options" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Option</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>out</code></td><td>the working folder</td><td>Where the files go; made when missing</td></tr>
+<tr><td><code>formats</code></td><td><code>['svg']</code></td><td>Any of <code>svg</code>, <code>png</code>, <code>pdf</code>, <code>skbk</code>, <code>jsx</code></td></tr>
+<tr><td><code>name</code></td><td>the first page's</td><td>The files' name</td></tr>
+<tr><td><code>assets</code>, <code>documents</code></td><td>none</td><td>Data URLs and books, or paths read with the loaders</td></tr>
+<tr><td><code>base</code></td><td>the script's folder for <code>drawFile</code></td><td>The folder links are read inside, and a <code>.jsx</code> places them from</td></tr>
+<tr><td><code>strict</code></td><td><code>false</code></td><td>Write nothing unless nothing at all was reported</td></tr>
+<tr><td><code>crop</code>, <code>registration</code>, <code>transparent</code>, <code>scale</code></td><td>the script's own</td><td>As the render calls take them</td></tr>
+<tr><td><code>seed</code>, <code>timestamp</code>, <code>limits</code></td><td></td><td>As <code>evaluate</code> takes them</td></tr>
+</tbody></table></div>
+<h2 id="the-result">The result<a class="anchor" href="#the-result" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Field</th><th>Holds</th></tr></thead>
+<tbody>
+<tr><td><code>ok</code></td><td>No errors; with <code>strict</code>, nothing reported at all</td></tr>
+<tr><td><code>files</code></td><td><code>{ path, format, page }</code>, <code>page</code> from 1 for SVG and PNG</td></tr>
+<tr><td><code>diagnostics</code></td><td>Everything the script reported, in reading order</td></tr>
+<tr><td><code>stats</code></td><td><code>instructions</code>, <code>marks</code>, <code>anchors</code>, <code>points</code>, <code>pages</code></td></tr>
+<tr><td><code>warnings</code></td><td>What a format left out or drew as a stand-in</td></tr>
+</tbody></table></div>
+<h2 id="file-names">File names<a class="anchor" href="#file-names" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Book</th><th>SVG, PNG</th><th>PDF, <code>.skbk</code>, <code>.jsx</code></th></tr></thead>
+<tbody>
+<tr><td>One page</td><td><code>card.svg</code></td><td><code>card.pdf</code></td></tr>
+<tr><td>Three pages</td><td><code>card-1.svg</code>, <code>card-2.svg</code>, <code>card-3.svg</code></td><td><code>card.pdf</code>, all three pages</td></tr>
+</tbody></table></div>
+<h2 id="what-throws">What throws<a class="anchor" href="#what-throws" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Throws</th><th>When</th></tr></thead>
+<tbody>
+<tr><td><code>readScript</code>, <code>drawFile</code></td><td>The file cannot be read; a <code>.json</code> file is not a JSON array</td></tr>
+<tr><td><code>loadAssets</code>, <code>loadDocuments</code>, and the draws given them</td><td>A file cannot be read, or a document is not a book</td></tr>
+<tr><td><code>drawFile</code>, <code>drawToFiles</code>, <code>writeBook</code></td><td><code>out</code> cannot be made or written to</td></tr>
+<tr><td>The render calls</td><td>An unknown format</td></tr>
+</tbody></table></div>
+<ul>
+<li>Nothing in a script throws: a mistake is a diagnostic, and the rest is drawn.</li>
+</ul>
+<h2 id="common-mistakes">Common mistakes<a class="anchor" href="#common-mistakes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Wrong</th><th>Right</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><code>import { drawFile } from 'napkin-sketch'</code></td><td><code>from 'napkin-sketch/node'</code></td><td>The first entry reads no files.</td></tr>
+<tr><td><code>require('napkin-sketch/node')</code></td><td><code>await import('napkin-sketch/node')</code></td><td>Both entries are ES modules, which <code>require</code> loads only on a Node that can.</td></tr>
+<tr><td><code>try { await drawFile(...) } catch</code> for script errors</td><td>Check <code>ok</code> and <code>diagnostics</code></td><td>Script errors are values, not exceptions.</td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="quickstart.html" rel="prev"><span>Previous</span>Using napkin-sketch from code: quickstart</a><a href="../interop/index.html" rel="next"><span>Next</span>Working with other programs</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/node/CHEATSHEET.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

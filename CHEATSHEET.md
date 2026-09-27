@@ -1,30 +1,35 @@
 # Cheatsheet
 
 Every shortcut, flag, and script on one page. New here? Start with
-[QUICKSTART.md](QUICKSTART.md). Full prose reference: [README.md](README.md).
-The API on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
+[QUICKSTART.md](QUICKSTART.md). Full prose reference: [Using the
+app](docs/site-src/guide/index.md), which the documentation site publishes
+and **Help > Verbose** opens. The API on one page:
+[API-CHEATSHEET.md](API-CHEATSHEET.md).
 
-`Ctrl` is `Cmd` on macOS throughout.
+`Ctrl` is `Cmd` on macOS throughout. The keys are the app's own; **Edit >
+Edit Keyboard Shortcuts** changes them for you alone.
 
 ## Tools
 
-| Tool              | Key     | Notes                                                 |
-| :---------------- | :------ | :---------------------------------------------------- |
-| Pen               | `P`     | Pressure-aware variable width                         |
-| Marker            | `M`     |                                                       |
-| Copic marker      | `K`     | Flat broad nib, rotatable                             |
-| Eraser            | `E`     | Reveals the paper beneath; cuts only its own layer    |
-| Select            | `S`     | Black arrow; active at launch                         |
-| Direct Select     | `A`     | White arrow; drags anchor points                      |
-| Text              | `T`     | Click = auto-sizing box, drag = fixed width with wrap |
-| Rectangle         | `R`     | `Shift` = square                                      |
-| Ellipse           | `L`     | `Shift` = circle                                      |
-| Curve             | `V`     | Click and hold the button for the free-ends variant   |
-| Vector Path       | `B`     | Click = corner, drag = smooth Bezier point            |
-| Paint Bucket      | `G`     | Fills the enclosed shape under the click              |
-| Eyedropper        | `I`     | Hold `Ctrl` to pick a shape instead                   |
-| Fill Color        | toolbar | Fills the element under the click, else the selection |
-| Sharpen Selection | toolbar | Smooth / Simplify sliders with live preview           |
+<!-- shortcut-tools:start -->
+| Tool | Key | Notes |
+| :--- | :-- | :---- |
+| Pen | `P` | Pressure-aware variable width |
+| Marker | `M` |  |
+| Copic marker | `K` | Flat broad nib, rotatable |
+| Eraser | `E` | Reveals the paper beneath; cuts only its own layer |
+| Select | `S` | Black arrow; active at launch |
+| Direct Select | `A` | White arrow; drags anchor points |
+| Text | `T` | Click = auto-sizing box, drag = fixed width with wrap |
+| Rectangle | `R` | Hold `Shift` for a square |
+| Ellipse | `L` | Hold `Shift` for a circle |
+| Curve | `V` | Click and hold the button for the free-ends variant |
+| Paint Bucket | `G` | Fills the enclosed shape under the click |
+| Fill Color | toolbar | Fills the element under the click, else the selection |
+| Eyedropper | `I` | Hold `Ctrl` to pick a shape instead |
+| Vector Path | `B` | Click = corner, drag = smooth Bezier point |
+| Mesh Warp | toolbar | Click art to mesh it, then drag its pins to bend it |
+<!-- shortcut-tools:end -->
 
 ## Drawing
 
@@ -39,6 +44,7 @@ The API on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 | Rotate the Copic nib          | Hold `Ctrl` 1s, then `Alt` (CW) / `Shift` (CCW) |
 | Cancel the stroke in progress | `Esc`                                           |
 | Sharpen all                   | `H`                                             |
+| Sharpen Selection             | Transform > Sharpen, or the toolbar button      |
 
 ## Quick features
 
@@ -80,7 +86,7 @@ The API on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 | Delete selection or layer      | `Delete` or `Backspace`                    |
 | Move by a distance             | `Enter`, or the Move button                |
 | Step a Move field              | Arrow keys, `Shift` for a coarse step      |
-| Rotate                         | `Ctrl + R`, or the Rotate button           |
+| Rotate                         | `Ctrl + R`, Transform > Rotate, or the Rotate button |
 | Snap a rotation to 15 degrees  | `Shift` while dragging, or the Snap toggle |
 | Join strokes                   | `Ctrl + J`                                 |
 | Undo                           | `Ctrl + Z`                                 |
@@ -124,7 +130,32 @@ With the Vector Path tool active, click a committed path to open its anchors.
 | Import     | `Ctrl + I`                             |
 | Save       | `Ctrl + S`                             |
 | Save As    | `Ctrl + Shift + S`                     |
-| Export     | File > Export > PNG / JPEG / SVG / PDF |
+| Export     | File > Export > PNG / SVG / JPEG / PDF |
+
+## Menus
+
+Nine menus: File, Edit, View, Transform, Sketch, Layers, Pages, Automate and
+Help. What each one holds is in the [menus
+table](docs/site-src/guide/menus-and-shortcuts.md#the-menus).
+
+| Action                         | Where                           |
+| :----------------------------- | :------------------------------ |
+| Change a tool's keys           | Edit > Edit Keyboard Shortcuts  |
+| List a tool in another menu    | Edit > Edit Tool Types          |
+| Read this documentation        | Help > Verbose                  |
+| A menu's quickstart            | Help > Tool Types               |
+| The project's page             | Help > Source Code              |
+| Back / forward in the docs     | `Alt + Left` / `Alt + Right`    |
+
+## Automate
+
+| Action                                  | Where                                             |
+| :-------------------------------------- | :------------------------------------------------ |
+| Script an SVG, PDF or picture           | Automate > Generate Script > From Media File      |
+| Script the lit layers                   | Automate > Generate Script > Selected Layers      |
+| Record every step                       | Automate > Track History                          |
+| Keep more or fewer steps (500; 50-5000) | Automate > History Limit                          |
+| Script the steps, leaving some out      | Automate > Generate Script > From Session History |
 
 ## CLI
 
@@ -139,7 +170,7 @@ napkin-sketch [option] [target]
 | `-b, --book`             | Open a saved `.skbk` sketch book                         |
 | `-n, --new`              | New sketch, named `unnamed` or `[target]`                |
 | `-f, --full-screen`      | Open full screen (the default window is maximized)       |
-| `-i, --import`           | Import an SVG, PDF, PNG, or JPEG into the opening sketch |
+| `-i, --import`           | Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch |
 | `-m, --multiple-imports` | Import a comma-separated list, laid out in a grid        |
 | `--sharpen`              | Auto-sharpen a saved sketch on disk, then open it        |
 | `[target]`               | A `.skbk` file to open, or a name for a new sketch       |
@@ -212,6 +243,8 @@ napkin-sketch verbs --category shapes                # one category
 | `npm run shape-library -- --check`             | Fail when the committed shape library is out of date              |
 | `npm run api-docs`                             | Rewrite the API docs' generated tables, schema and index          |
 | `npm run api-docs -- --check`                  | Fail when any of them is out of date                              |
+| `npm run menu-docs`                            | Rewrite the shortcut tables from the menu registry                |
+| `npm run menu-docs -- --check`                 | Fail when either is out of date                                   |
 | `npm run pack-check`                           | Pack, install the tarball with no Electron, and draw              |
 | `npm run dist`                                 | Build an installer for the current OS                             |
 | `npm run dist:win` / `dist:mac` / `dist:linux` | NSIS / DMG / AppImage                                             |

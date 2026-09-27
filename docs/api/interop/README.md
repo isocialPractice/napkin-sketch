@@ -287,7 +287,7 @@ design.image({ x: 20, y: 20, width: 160, height: 80, src: 'assets/logo.svg', lin
 | Rows in the Layers panel | One | One for each group and named object | One |
 | Editable in napkin-sketch | Moved and sized, as one item | Mark by mark | Moved and sized, as one item |
 | A change to the file | Shows up the next time an output reads it | Does not reach the drawing | Does not reach the drawing |
-| Made with | `link`, or `{ link: true }` | File > Import, a paste, `importSvg` | `image` with an asset, File > Import of a PNG or JPEG |
+| Made with | `link`, or `{ link: true }` | File > Import, a paste, `importSvg` | `image` with an asset, File > Import of a PNG, JPEG, GIF or WebP |
 
 ### PDF
 

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Using napkin-sketch from code - napkin-sketch</title>
+<meta name="description" content="The two entries, ES modules and CommonJS, types, the result object, and what throws.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Using napkin-sketch from code</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Reference</span></nav>
+<h1 id="using-napkin-sketch-from-code">Using napkin-sketch from code<a class="anchor" href="#using-napkin-sketch-from-code" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>The package has two entries. <code>napkin-sketch</code> holds everything that runs
+anywhere - the editor, the data model, the composition API and the napkin
+script language - and reads no file. <code>napkin-sketch/node</code> holds what reads
+and writes files, for Node. This page is the reference for both as a program
+uses them: importing them, drawing a script, writing files, the result object,
+and what is an error value and what throws.</p>
+<p><strong>Contents</strong></p>
+<ul>
+<li><a href="#what-this-is">What this is</a></li>
+<li><a href="#the-mental-model">The mental model</a></li>
+<li><a href="#reference">Reference</a>
+<ul>
+<li><a href="#the-two-entries">The two entries</a></li>
+<li><a href="#getting-the-package">Getting the package</a></li>
+<li><a href="#es-modules-commonjs-and-typescript">ES modules, CommonJS and TypeScript</a></li>
+<li><a href="#drawing-a-script">Drawing a script</a></li>
+<li><a href="#writing-files">Writing files</a></li>
+<li><a href="#options">Options</a></li>
+<li><a href="#the-result">The result</a></li>
+<li><a href="#what-a-script-names-scripts-assets-documents-links">What a script names: scripts, assets, documents, links</a></li>
+<li><a href="#errors-are-values-the-disk-throws">Errors are values; the disk throws</a></li>
+<li><a href="#the-language-in-the-barrel">The language in the barrel</a></li>
+</ul></li>
+<li><a href="#worked-examples">Worked examples</a></li>
+<li><a href="#limits">Limits</a></li>
+<li><a href="#for-agents">For agents</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+<h2 id="what-this-is">What this is<a class="anchor" href="#what-this-is" aria-label="Link to this section">#</a></h2>
+<p>A drawing is made the same way in a browser and in Node: a script goes to
+<code>evaluate</code>, a sketch book comes back, and <code>renderSketch</code> or <code>renderBook</code>
+writes it as SVG, PNG, PDF, <code>.skbk</code> or an Illustrator script. None of that
+touches a DOM or a disk,
+so it all lives in the browser-safe <code>napkin-sketch</code> entry, beside the editor
+and the composition API that were already there.</p>
+<p>The disk is the host's business. A script names an image, a document or a
+linked file, and the host hands it over; the host writes what was drawn. In
+Node that host is <code>napkin-sketch/node</code>: one call reads a script file, loads
+what it names, runs it, and writes a file for each format asked for, and
+the result it gives back is the object a command line prints.</p>
+<h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-text"> napkin-sketch                                  napkin-sketch/node
+ -------------                                  ------------------
+ parseScript, validateScript, formatScript      readScript            (a file in)
+ evaluate --&gt; book                              loadAssets, loadDocuments, resolveLinkFromDir
+ renderSketch, renderBook --&gt; strings, bytes    writeBook             (files out)
+ drawSvg: a script straight to SVG              drawFile, drawToFiles (all of it, one call)</code></pre>
+<h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
+<h3 id="the-two-entries">The two entries<a class="anchor" href="#the-two-entries" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Import</th><th>Runs in</th><th>Holds</th></tr></thead>
+<tbody>
+<tr><td><code>napkin-sketch</code></td><td>a browser, Node, any bundler</td><td>The editor, the data model, the sharpen engine, the composition API, and the language: reading, checking and writing scripts, <code>evaluate</code>, <code>drawSvg</code>, the render calls, and the verb and diagnostic tables.</td></tr>
+<tr><td><code>napkin-sketch/node</code></td><td>Node 18 and later</td><td>Files: <code>drawFile</code>, <code>drawToFiles</code>, <code>writeBook</code>, <code>readScript</code>, <code>loadAssets</code> and <code>loadDocuments</code>, and the composition API's file helpers, <code>imageDataUrl</code>, <code>writeComposition</code>, <code>resolveLinkFromDir</code> and <code>mediaTypeOf</code>.</td></tr>
+</tbody></table></div>
+<p><code>napkin-sketch/graphic-design/files</code>, the composition helpers' own entry,
+keeps working; <code>napkin-sketch/node</code> gives the same functions, so a Node
+program has one import for files.</p>
+<h3 id="getting-the-package">Getting the package<a class="anchor" href="#getting-the-package" aria-label="Link to this section">#</a></h3>
+<p>The package is built from a checkout until it is published to npm:</p>
+<pre><code class="language-bash">npm install
+npm run build        # dist/, including dist/node/
+npm run build:types  # the .d.ts files the exports map points at</code></pre>
+<p>A project then depends on the folder - <code>npm install ../napkin-sketch</code> - or
+links it with <code>npm link</code>, and imports it by name.</p>
+<h3 id="es-modules-commonjs-and-typescript">ES modules, CommonJS and TypeScript<a class="anchor" href="#es-modules-commonjs-and-typescript" aria-label="Link to this section">#</a></h3>
+<p>Both entries are ES modules:</p>
+<pre><code class="language-ts">import { evaluate, renderSketch } from 'napkin-sketch';
+import { drawFile } from 'napkin-sketch/node';</code></pre>
+<p>CommonJS code loads them with <code>import()</code>, which works on every Node the
+package supports. <code>require</code> works only where Node can require an ES module,
+and elsewhere fails with <code>ERR_REQUIRE_ESM</code>:</p>
+<pre><code class="language-js">const { drawFile } = await import('napkin-sketch/node');</code></pre>
+<p>Type declarations ship with both, found through the package's exports map
+under <code>moduleResolution</code> <code>bundler</code>, <code>node16</code> or <code>nodenext</code>. Every option and
+result on this page is a named type: <code>DrawToFilesOptions</code>, <code>DrawResult</code>,
+<code>WrittenFile</code> and <code>WriteBookOptions</code> from <code>napkin-sketch/node</code>, and
+<code>EvaluateOptions</code>, <code>ScriptResult</code>, <code>Diagnostic</code>, <code>RenderSketchOptions</code> and the
+rest from <code>napkin-sketch</code>.</p>
+<p>A browser build imports <code>napkin-sketch</code> only. <code>napkin-sketch/node</code> reads
+files with <code>node:fs</code>, which a browser does not have.</p>
+<h3 id="drawing-a-script">Drawing a script<a class="anchor" href="#drawing-a-script" aria-label="Link to this section">#</a></h3>
+<p><code>evaluate(source, options)</code> runs a script and returns <code>{ ok, book,
+diagnostics, stats, output, seed }</code>, and <code>renderSketch</code> and <code>renderBook</code> write
+the book; <a href="../drawing/index.html#running-a-script">Drawing with napkin script</a>
+and <a href="../output/index.html">Writing a drawing out</a> are their references. A
+script is text, or the object form as a JSON value.</p>
+<p><code>drawSvg(source, options)</code> is the three in one call, for the caller that
+wants a picture: it runs the script and gives back its first page as SVG,
+cut as the script's <code>crop</code> and <code>registration</code> ask.</p>
+<pre><code class="language-ts">import { drawSvg } from 'napkin-sketch';
+
+const { ok, svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60');</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th><code>drawSvg</code> option</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>everything <code>evaluate</code> takes</td><td></td><td><code>seed</code>, <code>timestamp</code>, <code>assets</code>, <code>documents</code>, <code>resolveLink</code>, <code>limits</code>, <code>name</code>, <code>fragment</code>.</td></tr>
+<tr><td><code>crop</code></td><td>the script's own</td><td>What to cut the page to: <code>'auto'</code>, <code>'none'</code>, or a box.</td></tr>
+<tr><td><code>registration</code></td><td>the script's own</td><td>One box, over any crop.</td></tr>
+<tr><td><code>transparent</code></td><td><code>false</code></td><td>Leave the paper out.</td></tr>
+</tbody></table></div>
+<p>It returns <code>{ ok, svg, diagnostics }</code>. For every page, or another format,
+run <code>evaluate</code> and hand the book to <code>renderBook</code>.</p>
+<h3 id="writing-files">Writing files<a class="anchor" href="#writing-files" aria-label="Link to this section">#</a></h3>
+<p><code>drawFile(path, options)</code> reads a script file and writes what it drew, and
+<code>drawToFiles(source, options)</code> does the same from a script in hand. Both
+return a promise of <a href="#the-result">the result</a>.</p>
+<pre><code class="language-ts">import { drawFile } from 'napkin-sketch/node';
+
+const { ok, files, diagnostics } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png'] });</code></pre>
+<ul>
+<li><strong>One file a format.</strong> SVG and PNG are a file a page: <code>card.svg</code> for a book
+of one page, and <code>card-1.svg</code>, <code>card-2.svg</code> and on for several. PDF,
+<code>.skbk</code> and <code>.jsx</code> are one file for the whole book: <code>card.pdf</code>,
+<code>card.skbk</code>, <code>card.jsx</code>.</li>
+<li><strong>Named after the drawing.</strong> The files take the first page's name, which a
+script's <code>name</code> sets; without one it is the book's name, which <code>drawFile</code>
+takes from the file - <code>card</code> for <code>card.napkin</code> - and <code>drawToFiles</code> leaves at
+<code>drawing</code>. <code>name</code> in the options names them outright.</li>
+<li><strong>Never outside <code>out</code>.</strong> A script names its own pages, so the name is made
+safe first: every character a file name cannot hold on Windows, macOS or
+Linux becomes <code>-</code>, including both slashes, dots and spaces at the ends go,
+and a Windows device name such as <code>con</code> gains <code>-drawing</code>. <code>name &quot;../x&quot;</code>
+writes <code>-x.svg</code> inside <code>out</code>.</li>
+<li><strong>Whole or not at all.</strong> Every file is rendered before any is written, and
+each is written to a scratch file beside it and then renamed over it, so a
+failure part way leaves the file that was there rather than half of a new
+one.</li>
+</ul>
+<p><code>writeBook(book, options)</code> is the writing half alone, for a book already in
+hand - one <code>evaluate</code> made, or one read from a <code>.skbk</code> - and returns the
+<a href="#the-result">written files</a>. It takes <code>out</code>, <code>name</code>, <code>formats</code>, <code>base</code> and
+<code>strict</code> as below, and the render options.</p>
+<h3 id="options">Options<a class="anchor" href="#options" aria-label="Link to this section">#</a></h3>
+<p><code>drawFile</code> and <code>drawToFiles</code> take everything <code>evaluate</code> does and everything
+<code>renderBook</code> does, and these:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Option</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>out</code></td><td>the working folder</td><td>The folder the files go in. It is made when it is missing.</td></tr>
+<tr><td><code>formats</code></td><td><code>['svg']</code></td><td>Any of <code>svg</code>, <code>png</code>, <code>pdf</code>, <code>skbk</code>, <code>jsx</code>, each written once.</td></tr>
+<tr><td><code>name</code></td><td>the first page's</td><td>The name the files are written under, and the book's.</td></tr>
+<tr><td><code>assets</code></td><td>none</td><td>Images the script places by name: data URLs, or paths read with <code>loadAssets</code>.</td></tr>
+<tr><td><code>documents</code></td><td>none</td><td>Pages or books the script copies in with <code>use</code>: objects, or <code>.skbk</code> paths read with <code>loadDocuments</code>.</td></tr>
+<tr><td><code>base</code></td><td>the working folder; the script's folder for <code>drawFile</code></td><td>The folder the script's links are read inside, for their size and for the PNG, and which a <code>.jsx</code> written to <code>out</code> places them from.</td></tr>
+<tr><td><code>strict</code></td><td><code>false</code></td><td>Write nothing unless nothing at all was reported, warnings included.</td></tr>
+<tr><td><code>crop</code>, <code>registration</code></td><td>the script's own</td><td>The box every file is cut to.</td></tr>
+<tr><td><code>transparent</code>, <code>scale</code>, <code>decodeImage</code>, <code>onWarning</code></td><td></td><td>As <a href="../output/index.html#options"><code>renderBook</code></a> takes them.</td></tr>
+<tr><td><code>seed</code>, <code>timestamp</code>, <code>limits</code>, <code>resolveLink</code>, <code>fragment</code></td><td></td><td>As <a href="../drawing/index.html#running-a-script"><code>evaluate</code></a> takes them. <code>resolveLink</code> wins over <code>base</code>.</td></tr>
+</tbody></table></div>
+<p><code>writeBook</code> takes <code>out</code>, <code>formats</code>, <code>name</code> and the render options.</p>
+<h3 id="the-result">The result<a class="anchor" href="#the-result" aria-label="Link to this section">#</a></h3>
+<p><code>drawFile</code> and <code>drawToFiles</code> give back a <code>DrawResult</code>:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>ok</code></td><td>True when nothing was an error. With <code>strict</code>, true only when nothing was reported at all.</td></tr>
+<tr><td><code>files</code></td><td>What was written, in the order the formats were asked for and then page by page: <code>{ path, format, page }</code>, where <code>path</code> is <code>out</code> joined with the file's name and <code>page</code>, counting from 1, is there for SVG and PNG.</td></tr>
+<tr><td><code>diagnostics</code></td><td>Everything the script reported, reading and running together, in reading order.</td></tr>
+<tr><td><code>stats</code></td><td><code>instructions</code>, <code>marks</code>, <code>anchors</code>, <code>points</code> and <code>pages</code>: how much the run did.</td></tr>
+<tr><td><code>warnings</code></td><td>What a format left out or drew as a stand-in, each starting with its page's name.</td></tr>
+</tbody></table></div>
+<p><code>formatDiagnostic(diagnostic, 'card.napkin')</code> from <code>napkin-sketch</code> prints a
+diagnostic the way editors and CI read one:
+<code>card.napkin:3:1: error unknown-verb: ...</code>.</p>
+<h3 id="what-a-script-names-scripts-assets-documents-links">What a script names: scripts, assets, documents, links<a class="anchor" href="#what-a-script-names-scripts-assets-documents-links" aria-label="Link to this section">#</a></h3>
+<ul>
+<li><strong><code>readScript(path)</code></strong> reads a script file: a <code>.json</code> file is the object
+form and comes back as its JSON value, and anything else is napkin script
+text, with a byte-order mark left off.</li>
+<li><strong><code>loadAssets(assets, from)</code></strong> turns <code>{ logo: 'art/logo.png' }</code> into
+<code>{ logo: 'data:image/png;base64,...' }</code>, reading each path relative to
+<code>from</code>, the working folder unless given. A value that is already a data URL
+is kept. An SVG becomes a UTF-8 data URL and anything else base64.</li>
+<li><strong><code>loadDocuments(documents, from)</code></strong> reads each path as a <code>.skbk</code> book and
+keeps a page or a book given as an object.</li>
+<li><strong><code>resolveLinkFromDir(folder)</code></strong> is the resolver <code>base</code> builds: it reads a
+linked file only inside <code>folder</code> - no absolute path, drive letter, UNC
+share, <code>..</code> step, web address, or symbolic link out of it - and anything
+else draws as the link's placeholder, with a warning.</li>
+</ul>
+<p>Assets and documents are named by the host, so no folder guard applies to
+them. Links are named by the script, so one does.</p>
+<h3 id="errors-are-values-the-disk-throws">Errors are values; the disk throws<a class="anchor" href="#errors-are-values-the-disk-throws" aria-label="Link to this section">#</a></h3>
+<p>Nothing in a script throws. An instruction that cannot run is a diagnostic,
+the run goes on, and the files are written with what was drawn, <code>ok</code> false and
+the diagnostics saying why - so a program writing a hundred drawings gets the
+ninety-nine that worked. <code>strict</code> turns that off: any diagnostic, or any
+format warning, and nothing is written.</p>
+<p>The disk throws, as Node's own calls do, and the message names what failed:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Throws</th><th>When</th></tr></thead>
+<tbody>
+<tr><td><code>readScript</code>, <code>drawFile</code></td><td>The file cannot be read; a <code>.json</code> file is not JSON, or not an array.</td></tr>
+<tr><td><code>loadAssets</code>, and <code>drawToFiles</code> given <code>assets</code></td><td>An asset's file cannot be read: <code>asset &quot;logo&quot; could not be read from ...</code>.</td></tr>
+<tr><td><code>loadDocuments</code>, and <code>drawToFiles</code> given <code>documents</code></td><td>A document's file cannot be read, or is not <code>.skbk</code> JSON.</td></tr>
+<tr><td><code>drawFile</code>, <code>drawToFiles</code>, <code>writeBook</code></td><td><code>out</code> cannot be made or written to.</td></tr>
+<tr><td>every render call</td><td>An unknown format, which is a mistake in the calling code.</td></tr>
+</tbody></table></div>
+<h3 id="the-language-in-the-barrel">The language in the barrel<a class="anchor" href="#the-language-in-the-barrel" aria-label="Link to this section">#</a></h3>
+<p>What <code>napkin-sketch</code> exports for scripts:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Export</th><th>What it is</th></tr></thead>
+<tbody>
+<tr><td><code>parseScript</code>, <code>validateScript</code>, <code>formatScript</code></td><td>Read text, check the object form, and write either back as canonical text.</td></tr>
+<tr><td><code>evaluate</code>, <code>drawSvg</code></td><td>Run a script to a book; run it straight to SVG.</td></tr>
+<tr><td><code>renderSketch</code>, <code>renderBook</code>, <code>inkBox</code>, <code>renderBox</code>, <code>RENDER_FORMATS</code></td><td>Write a page or a book; the boxes the output is cut to.</td></tr>
+<tr><td><code>sketchToComposition</code></td><td>The lowering behind the PNG, for a caller that adds to a drawing with the composition API.</td></tr>
+<tr><td><code>sketchesToJsx</code></td><td>The Illustrator script writer behind <code>format: 'jsx'</code>, beside <code>sketchesToPdf</code>.</td></tr>
+<tr><td><code>formatDiagnostic</code></td><td>Print a diagnostic as <code>file:line:column: level code: message</code>.</td></tr>
+<tr><td><code>SCRIPT_VERSION</code>, <code>SCRIPT_LIMITS</code>, <code>VERBS</code>, <code>DIAGNOSTICS</code></td><td>The language version, the budget, and the verb and diagnostic tables every listing is made from.</td></tr>
+</tbody></table></div>
+<h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
+<p><strong>A folder of scripts, drawn to files.</strong> Each script's problems are printed
+where it failed, and the rest are drawn:</p>
+<pre><code class="language-ts">import { readdirSync } from 'node:fs';
+import { formatDiagnostic } from 'napkin-sketch';
+import { drawFile } from 'napkin-sketch/node';
+
+for (const file of readdirSync('scripts').filter((name) =&gt; name.endsWith('.napkin'))) {
+  const result = await drawFile(`scripts/${file}`, { out: 'out', formats: ['svg', 'png'], timestamp: '2026-09-25T00:00:00.000Z' });
+  for (const d of result.diagnostics) console.error(formatDiagnostic(d, file));
+  for (const w of result.warnings) console.error(`${file}: ${w}`);
+  console.log(result.ok ? 'drew' : 'drew, with errors', result.files.map((f) =&gt; f.path).join(', '));
+}</code></pre>
+<p><strong>A script built as JSON.</strong> A program in any language can build the object
+form; this one is a card with a named layer:</p>
+<pre><code class="language-json">[
+  { &quot;verb&quot;: &quot;napkin&quot;, &quot;version&quot;: 1 },
+  { &quot;verb&quot;: &quot;page&quot;, &quot;width&quot;: 400, &quot;height&quot;: 300 },
+  { &quot;verb&quot;: &quot;name&quot;, &quot;name&quot;: &quot;badge&quot; },
+  { &quot;verb&quot;: &quot;layer&quot;, &quot;name&quot;: &quot;Badge&quot; },
+  { &quot;verb&quot;: &quot;fill&quot;, &quot;fill&quot;: &quot;#ffe08a&quot; },
+  { &quot;verb&quot;: &quot;circle&quot;, &quot;cx&quot;: 200, &quot;cy&quot;: 150, &quot;r&quot;: 80 }
+]</code></pre>
+<pre><code class="language-ts">import { drawToFiles } from 'napkin-sketch/node';
+
+const { ok, files } = await drawToFiles(script, { out: 'out', formats: ['png'], scale: 2, strict: true });
+// out/badge.png, twice the size; nothing written if anything was reported</code></pre>
+<p><strong>A live preview in a browser.</strong> The barrel alone, redrawing as someone
+types:</p>
+<pre><code class="language-ts">import { drawSvg } from 'napkin-sketch';
+
+editor.addEventListener('input', () =&gt; {
+  const { svg, diagnostics } = drawSvg(editor.value);
+  preview.innerHTML = svg;
+  problems.textContent = diagnostics.map((d) =&gt; d.message).join('\n');
+});</code></pre>
+<h2 id="limits">Limits<a class="anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>ES modules only.</strong> <code>require</code> loads the entries only on a Node that can
+require an ES module; <code>import()</code> works everywhere the package runs.</li>
+<li><strong>Built from a checkout</strong> until the package is published to npm.</li>
+<li><strong>The language costs the browser entry about 38 kB</strong>, minified and
+gzipped: <code>napkin-sketch</code> went from about 53 kB to 91 kB when it joined. A
+bundler that shakes unused exports out of a build takes back what a page
+does not import.</li>
+<li><strong>Every page is written under one name.</strong> SVG and PNG pages are numbered,
+<code>card-1.svg</code> and on, rather than named after each page.</li>
+<li><strong><code>drawSvg</code> writes page one.</strong> Everything else goes through <code>evaluate</code> and
+<code>renderBook</code>, or the Node calls.</li>
+</ul>
+<h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Draw with <code>drawFile</code> or <code>drawToFiles</code></strong>, not by chaining the steps: they
+load what the script names, apply its <code>crop</code> and <code>registration</code>, and write
+every file whole.</li>
+<li><strong>Check <code>ok</code>, then read <code>diagnostics</code> by <code>code</code></strong>, and <code>warnings</code> for what a
+format left out. <code>ok</code> false with files written means the script had errors
+and the files hold what it could draw.</li>
+<li><strong>Set <code>strict: true</code> when a half-right drawing is worse than none</strong>, in CI
+above all.</li>
+<li><strong>Fix <code>timestamp</code>, and <code>seed</code> for a rough drawing</strong>, when files will be
+compared or committed; the same script then writes the same bytes.</li>
+<li><strong>Hand images over in <code>assets</code></strong> by name, never as paths in the script: a
+script reads no files, and <code>unknown-asset</code> says so.</li>
+<li><strong>Expect links to resolve inside <code>base</code> only.</strong> A link the resolver refuses
+draws as its placeholder and adds a warning; it is not an error.</li>
+<li><strong>Import <code>napkin-sketch/node</code> only in Node</strong>, and <code>napkin-sketch</code> everywhere
+else.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../output/index.html">Writing a drawing out</a>: the formats, the box, and
+what each format keeps.</li>
+<li><a href="../cli/index.html">The napkin-sketch command line</a>: the same drawing from a
+shell, or from any language that can start a process.</li>
+<li><a href="../drawing/index.html">Drawing with napkin script</a>: <code>evaluate</code>, and what
+each instruction draws.</li>
+<li><a href="../language/index.html">The napkin script language</a>: the syntax, the object
+form and every diagnostic code.</li>
+<li><a href="../compose/index.html">The graphic design API</a>: compositions, and their own file
+helpers.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/api/node.ts"><code>src/api/node.ts</code></a> and
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/script-files.ts"><code>src/core/script-files.ts</code></a>: the Node
+entry and what it runs.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../cli/cheatsheet.html" rel="prev"><span>Previous</span>The napkin-sketch command line: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>Using napkin-sketch from code: quickstart</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/node/README.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

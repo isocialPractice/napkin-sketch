@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quickstart: transforming - napkin-sketch</title>
+<meta name="description" content="Move, rotate, mirror, scale and bend a selection: the Transform menu in one sitting.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="draw.html">Draw</a></li><li><a href="transform.html" aria-current="page">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../guide/index.html">Overview</a></li><li><a href="../guide/tools.html">Tools</a></li><li><a href="../guide/gestures.html">Gestures</a></li><li><a href="../guide/vector-paths.html">Vector paths</a></li><li><a href="../guide/selection.html">Selection and editing</a></li><li><a href="../guide/transform.html">Transform</a></li><li><a href="../guide/layers.html">Layers</a></li><li><a href="../guide/pages.html">Pages</a></li><li><a href="../guide/import-export.html">Import and export</a></li><li><a href="../guide/sharpen.html">Sharpen</a></li><li><a href="../guide/settings.html">Settings</a></li><li><a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../guide/automate.html">Automate</a></li><li><a href="../guide/animation-mode.html">Animation Mode</a></li><li><a href="../guide/skbk-format.html">The .skbk format</a></li><li><a href="../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> Quickstarts <span class="sep">/</span> <span aria-current="page">Transform</span></nav>
+<h1 id="quickstart-transforming">Quickstart: transforming<a class="anchor" href="#quickstart-transforming" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#1-select-something">1. Select something</a></li><li><a href="#2-move-it">2. Move it</a></li><li><a href="#3-scale-it">3. Scale it</a></li><li><a href="#4-turn-it">4. Turn it</a></li><li><a href="#5-mirror-it">5. Mirror it</a></li><li><a href="#6-bend-it">6. Bend it</a></li><li><a href="#7-join-and-close-strokes">7. Join and close strokes</a></li><li><a href="#where-next">Where next</a></li></ul></details>
+<p>Move, scale, turn, mirror and bend what you drew: the <strong>Transform</strong> menu in
+one sitting. Each change is one undo step, so <code>Ctrl + Z</code> takes any of them
+back whole. <a href="../guide/transform.html">Transform, Rotate, Mirror and Mesh Warp</a>
+has the full detail of each.</p>
+<h2 id="1-select-something">1. Select something<a class="anchor" href="#1-select-something" aria-label="Link to this section">#</a></h2>
+<ol>
+<li><code>S</code> - the Select tool. Click a stroke, or drag a box round several.</li>
+<li><code>Shift</code>-click adds a stroke to the selection or takes it out; <code>Ctrl + A</code>
+selects everything on the page.</li>
+</ol>
+<h2 id="2-move-it">2. Move it<a class="anchor" href="#2-move-it" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Drag the selection. Hold <code>Shift</code> while dragging to pin the movement to
+one axis.</li>
+<li><code>Enter</code> opens <strong>Move</strong> to type an exact distance, in any unit, with a live
+preview; the <strong>Move</strong> button applies it.</li>
+</ol>
+<h2 id="3-scale-it">3. Scale it<a class="anchor" href="#3-scale-it" aria-label="Link to this section">#</a></h2>
+<ol>
+<li><code>Ctrl + T</code>, or <strong>Transform &gt; Transform Box</strong>, puts the <strong>Transform box</strong>
+round the selection.</li>
+<li>Drag a corner to scale both ways, or a side to scale one. Hold <code>Shift</code> to
+keep the shape, <code>Alt</code> to scale from the centre.</li>
+<li><code>Ctrl + T</code> again, or <code>Escape</code>, puts the box away.</li>
+</ol>
+<h2 id="4-turn-it">4. Turn it<a class="anchor" href="#4-turn-it" aria-label="Link to this section">#</a></h2>
+<ol>
+<li><code>Ctrl + R</code> opens <strong>Rotate</strong>.</li>
+<li>Type an angle and press <code>Enter</code>; the panel stays up for the next turn.</li>
+<li>Or drag on the canvas while the panel is open to turn the selection by
+hand. <code>Escape</code> closes the panel.</li>
+</ol>
+<h2 id="5-mirror-it">5. Mirror it<a class="anchor" href="#5-mirror-it" aria-label="Link to this section">#</a></h2>
+<ol>
+<li><code>O</code> opens <strong>Mirror</strong>.</li>
+<li>Pick <strong>Horizontal</strong>, <strong>Vertical</strong> or both, and tick <strong>Create Copy</strong> to leave
+the original where it is.</li>
+<li>Press <strong>Mirror</strong>, or <code>Enter</code>.</li>
+</ol>
+<h2 id="6-bend-it">6. Bend it<a class="anchor" href="#6-bend-it" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Pick <strong>Mesh Warp</strong> from below the tools in the side rail, and click the art
+to put a mesh of pins on it.</li>
+<li>Drag a pin to bend the art round the others.</li>
+<li><code>Enter</code> keeps the bend as one undo step; <code>Escape</code> throws it away.</li>
+</ol>
+<h2 id="7-join-and-close-strokes">7. Join and close strokes<a class="anchor" href="#7-join-and-close-strokes" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Select two strokes and press <code>Ctrl + J</code> to <strong>Join</strong> them end to end into
+one stroke, on the first stroke's layer.</li>
+<li><strong>Close Shape</strong> in the toolbar joins a selected stroke's two ends: <strong>Sharp</strong>
+with a straight line, <strong>Smooth</strong> with a curve that carries the drawn
+directions through the seam.</li>
+</ol>
+<h2 id="where-next">Where next<a class="anchor" href="#where-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="layers.html">Quickstart: layers</a> - keep what you drew in order.</li>
+<li><a href="../guide/selection.html">Selecting and editing</a> - the clipboard, filling,
+and what a press on a selection does.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="draw.html" rel="prev"><span>Previous</span>Quickstart: drawing</a><a href="layers.html" rel="next"><span>Next</span>Quickstart: layers</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/quickstart/transform.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

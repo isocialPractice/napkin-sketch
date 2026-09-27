@@ -133,3 +133,29 @@ test('Mesh Warp shows its mesh unless a saved setting hides it', () => {
   assert.equal(normalizeSettings({ warpShowMesh: 'off' }).warpShowMesh, true);
   assert.equal(normalizeSettings({}).warpShowMesh, true);
 });
+
+test('Track History is off, and keeps 500 steps, unless a saved setting says otherwise', () => {
+  const s = defaultSettings();
+  assert.equal(s.trackHistory, false);
+  assert.equal(s.historyLimit, 500);
+  assert.deepEqual(SETTINGS_LIMITS.historyLimit, { min: 50, max: 5000, step: 50 });
+  assert.equal(normalizeSettings({ trackHistory: true }).trackHistory, true);
+  // Only a boolean is an answer.
+  assert.equal(normalizeSettings({ trackHistory: 'yes' }).trackHistory, false);
+});
+
+test('the History Limit is held to 50 to 5000, in steps of 50', () => {
+  const limit = (value: unknown): number => normalizeSettings({ historyLimit: value }).historyLimit;
+  assert.equal(limit(49), 50);
+  assert.equal(limit(-10), 50);
+  assert.equal(limit(5001), 5000);
+  assert.equal(limit(1e9), 5000);
+  assert.equal(limit(123), 100, 'the nearest step down');
+  assert.equal(limit(175), 200, 'the nearest step up');
+  assert.equal(limit(1250), 1250);
+  assert.equal(limit('800'), 800, 'a number written as text is still the number');
+  assert.equal(limit('many'), 500, 'anything else leaves the default');
+  assert.equal(limit(Number.NaN), 500);
+  const kept = parseSettings(serializeSettings({ ...defaultSettings(), trackHistory: true, historyLimit: 2500 }));
+  assert.deepEqual([kept.trackHistory, kept.historyLimit], [true, 2500], 'both survive a save and a load');
+});

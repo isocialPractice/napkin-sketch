@@ -142,10 +142,10 @@
       "name": "tool",
       "category": "paint",
       "context": "document",
-      "summary": "The kind of mark: pen, marker (translucent, so overlapping passes build up like ink) or copic (a broad, angled nib).",
+      "summary": "The kind of mark: pen, marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib) or eraser (takes away what is under it, on its own layer only).",
       "example": "tool marker",
       "forms": [
-        { "signature": "tool pen|marker|copic", "parts": [{ "slot": "tool", "type": "choice", "choices": ["pen", "marker", "copic"] }] }
+        { "signature": "tool pen|marker|copic|eraser", "parts": [{ "slot": "tool", "type": "choice", "choices": ["pen", "marker", "copic", "eraser"] }] }
       ]
     },
     {

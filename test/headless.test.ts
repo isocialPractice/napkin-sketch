@@ -4,9 +4,10 @@
  *
  * `Surface.toSVG`, the PDF writer, the Illustrator script writer, the `.skbk`
  * serializer, the sharpen engine, the path-data parser, both composition
- * renderers, the render entry point that writes a sketch to every format, and
- * the public barrel itself promise to run without a browser, and the script
- * language and the CLI's drawing commands are built on that promise. A single
+ * renderers, the render entry point that writes a sketch to every format, the
+ * menu registry the main process builds the menu bar from, and the public
+ * barrel itself promise to run without a browser, and the script language and
+ * the CLI's drawing commands are built on that promise. A single
  * `document.` added inside any of them would pass every other suite, because
  * Node simply has no document. Here the DOM exists and throws on first touch,
  * so the same change fails and names the global it reached for.
@@ -35,7 +36,9 @@ import { sharpenStrokes } from '../src/sharpen/sharpen.js';
 import { Surface } from '../src/renderer/surface.js';
 import { compositionToSvg, createComposition, renderPng } from '../src/core/graphic-design/index.js';
 import { decodePng, encodePng, isPng } from '../src/core/graphic-design/png.js';
-import { evaluate, formatScript, parseScript, renderBook, renderSketch, validateScript } from '../src/core/script/index.js';
+import { evaluate, formatScript, parseScript, renderBook, renderSketch, sketchToInstructions, validateScript } from '../src/core/script/index.js';
+import { contextItems, loadRegistry, menuTree, nativeMenus, validateMenuData } from '../src/core/menu/registry.js';
+import { eventChords } from '../src/core/menu/chords.js';
 import { repoRoot } from './helpers/repo-root.js';
 import { BADGE, pngDataUrl as fixturePng } from './helpers/script-fixtures.js';
 import * as napkin from '../src/api/index.js';
@@ -294,10 +297,34 @@ test('a sketch lowers into a composition that code adds to and renders, without 
   assert.deepEqual(at(200, 290), [0x32, 0x64, 0x78], 'and drawn');
 });
 
+test('a page of every kind of mark writes to a script that draws it back, without a DOM', () => {
+  const sketch = everyMark();
+  const written = sketchToInstructions(sketch, { decimals: null });
+  assert.deepEqual(written.notes, []);
+  const result = evaluate(formatScript(written.script), { timestamp: '2026-09-25T00:00:00.000Z', name: sketch.name });
+  assert.deepEqual(result.diagnostics, []);
+  const back = result.book.sketches[0];
+  assert.equal(back.strokes.length, sketch.strokes.length, 'every mark, the eraser and the hidden one among them');
+  assert.deepEqual(renderSketch(back, { format: 'png' }), renderSketch(sketch, { format: 'png' }), 'the same picture, byte for byte');
+});
+
+test('the menu registry loads the user files and builds every menu without a DOM', () => {
+  assert.deepEqual(validateMenuData(), []);
+  const registry = loadRegistry({ shortcuts: { version: 1, shortcuts: { mirror: 'Ctrl+M' } } });
+  assert.equal(registry.tool('mirror')?.chord, 'Ctrl+M');
+  assert.equal(menuTree(registry).length, 9, 'the nine menus of the menu bar');
+  assert.equal(nativeMenus(registry, { animationNotInstalled: true }).length, 9);
+  for (const id of ['layers', 'pages', 'canvas', 'export-button', 'pages-button', 'close-shape-button']) {
+    assert.ok(contextItems(registry, id).length > 0, id);
+  }
+  assert.deepEqual(eventChords({ key: 'm', code: 'KeyM', ctrlKey: true, altKey: false, shiftKey: false }), ['Ctrl+M']);
+});
+
 test('the DOM-free core imports nothing from the renderer, the main process or Node', () => {
   const root = repoRoot();
   const scriptDir = join(root, 'src', 'core', 'script');
   const designDir = join(root, 'src', 'core', 'graphic-design');
+  const menuDir = join(root, 'src', 'core', 'menu');
   const listed = (dir: string, skip: string[] = []): string[] =>
     existsSync(dir)
       ? readdirSync(dir)
@@ -310,6 +337,8 @@ test('the DOM-free core imports nothing from the renderer, the main process or N
       join(root, 'src', 'core', `${name}.ts`),
     ),
     ...listed(scriptDir),
+    // The menu registry: the main process and the renderer both build from it.
+    ...listed(menuDir),
     // `files.ts` is the composition's Node-only half, kept apart for exactly this reason.
     ...listed(designDir, ['files.ts']),
   ];

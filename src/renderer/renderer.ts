@@ -10,7 +10,6 @@
 import {
   createGradient,
   createId,
-  createSketch,
   createSketchBook,
   DEFAULT_FONT_FAMILY,
   defaultOpacityFor,
@@ -85,9 +84,10 @@ import {
 import type {
   AnimationFrameOutput,
   ExportFormat,
+  HistoryStats,
   ImageFormat,
   ImportFileResult,
-  MenuAction,
+  MenuConfig,
 } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
 import { scaleEffects } from '../core/effects.js';
@@ -107,6 +107,31 @@ import {
   splitCubicBezier,
 } from '../sharpen/geometry.js';
 import { PopupManager } from './popup.js';
+import { importedToSketch, pdfPagesToSketches, withNewIds } from '../core/imported-sketch.js';
+import { basename } from '../core/paths.js';
+import { rasterScript, scriptFromHistory, scriptFromPages, type GeneratedScript } from '../core/script/generate.js';
+import { inkBox } from '../core/script/render.js';
+import { ScriptDialog } from './script-dialog.js';
+import { Commands, type CommandHandlers } from './commands.js';
+import { describeStep, HistoryTracker, localMinute, type CommandInfo } from './history-tracker.js';
+import { contextMenuItems, type ContextMenuItem } from './menus.js';
+import { contextItems, defaultRegistry, loadRegistry, type MenuRegistry } from '../core/menu/registry.js';
+import type { MenuCommand, MenuState } from '../core/menu/ids.js';
+import { displayChord } from '../core/menu/chords.js';
+import { commandForEvent, isNewTabKey, isReloadKey } from './keys.js';
+import { ConfigDialog, type ConfigDialogSpec } from './config-dialog.js';
+import {
+  defaultShortcutRows,
+  defaultToolTypeRows,
+  resolveShortcuts,
+  resolveToolTypes,
+  shortcutEditorSpec,
+  shortcutRows,
+  toolTypeEditorSpec,
+  toolTypeRows,
+  type ShortcutRow,
+  type ToolTypeRow,
+} from './editors.js';
 import { sharpenStroke } from '../sharpen/sharpen.js';
 import { Surface, strokeBounds, type LiveStroke, type WarpOverlay } from './surface.js';
 import {
@@ -122,7 +147,7 @@ import {
   type Vec as WarpVec,
   type WarpPin,
 } from '../core/mesh-warp.js';
-import { Store, type ImportedLayerNode, type LayerTreeNode, type ToolState } from './store.js';
+import { Store, type HistoryEvent, type ImportedLayerNode, type LayerTreeNode, type ToolState } from './store.js';
 import { MEASURED_ANIMATION_TYPES, MeasuredFramesError, measuredFramesScript, type MeasuredFrames } from '../core/script/animation.js';
 import { evaluate } from '../core/script/evaluate.js';
 import { layerTree, type LayerNode } from '../core/script/media.js';
@@ -407,6 +432,12 @@ const TOOL_IDS = [
   'tool-warp',
 ] as const;
 
+/** How long a toast stays up. */
+const TOAST_MS = 2400;
+
+/** Shortcuts read the Mac way on a Mac: `Cmd` and `Option`. */
+const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
+
 /** An endpoint-snap hit: the endpoint position plus the stroke it ends. */
 interface SnapHit {
   x: number;
@@ -425,6 +456,54 @@ class App {
    * the width of the workspace, so the surface is re-measured when it does.
    */
   private readonly popups = new PopupManager(() => this.resizeSurface());
+
+  /**
+   * The shipped menu files with the user's merged in, as the main process
+   * read them. The right-click menus and the toolbar dropdowns are generated
+   * from it, as the menu bar is, so the two cannot disagree.
+   */
+  private menuRegistry: MenuRegistry = defaultRegistry();
+
+  /**
+   * The configuration popup the menu editors fill: a search, type radios,
+   * a table of rows to edit, and Accept or Cancel. See config-dialog.ts.
+   */
+  private readonly configDialog: ConfigDialog;
+
+  /** Automate > Generate Script's dialog: the script shown whole, before anything uses it. See script-dialog.ts. */
+  private readonly scriptDialog: ScriptDialog;
+
+  /**
+   * Every command, by the id the menu files give it. The menu bar, the
+   * right-click menus and the toolbar buttons all run through it; see
+   * {@link commandHandlers}. A command the main process owns is handed to it.
+   */
+  private readonly commands = new Commands(this.commandHandlers(), (id) => {
+    try {
+      window.napkin.runMainCommand(id);
+    } catch {
+      this.toast('That is only available in the desktop app.');
+    }
+  });
+
+  /** The menu state last sent to the menu bar, so an unchanged one is not sent again. */
+  private sentMenuState = '';
+
+  /**
+   * Automate > Track History: the steps recorded while it is on. The store
+   * says when a step closes (`Store.onHistory`); see history-tracker.ts.
+   */
+  private readonly tracker = new HistoryTracker(500);
+  /** Stops listening to the store's history; null while Track History is off. */
+  private stopTracking: (() => void) | null = null;
+  /** False until the setting has been applied once, so the app starting with it on says nothing. */
+  private trackingKnown = false;
+  /** The pending report of the history figures to the main process. */
+  private historyStatsTimer: number | null = null;
+  /** Ends the name the press on the canvas records its steps under; null between presses. */
+  private pressEnd: (() => void) | null = null;
+  /** The app's version, for the first line of a script written from the history; null until the main process says. */
+  private appVersion: string | null = null;
 
   private live: LiveStroke | null = null;
   private activePointerId: number | null = null;
@@ -776,6 +855,12 @@ class App {
     this.surface = new Surface(this.canvas);
     this.surface.onImageLoad = () => this.scheduleRender();
     this.store = new Store(createSketchBook('untitled'));
+    this.configDialog = new ConfigDialog(el('config-dialog'), { mac: IS_MAC });
+    this.scriptDialog = new ScriptDialog(el('script-dialog'), {
+      copy: (script) => this.copyScript(script),
+      save: (script, name) => this.saveScript(script, name),
+      open: (script) => this.openScriptAsPages(script),
+    });
 
     this.store.subscribe(() => this.scheduleRender());
     this.store.subscribe(() => this.scheduleSyncUi());
@@ -815,6 +900,11 @@ class App {
     }
     this.applySettings();
     try {
+      this.appVersion = await window.napkin.getAppVersion();
+    } catch {
+      // Outside Electron the script names no version.
+    }
+    try {
       window.napkin.onSettingsChanged((settings) => {
         this.settings = settings;
         this.applySettings();
@@ -825,6 +915,25 @@ class App {
     } catch {
       // running outside Electron — settings sync unavailable
     }
+
+    // The user's menu files, as the main process read them, so the right-click
+    // menus come from the same registry as the menu bar.
+    let menuWarning: string | null = null;
+    try {
+      menuWarning = this.applyMenuConfig(await window.napkin.getMenuConfig());
+      window.napkin.onNotice((message) => this.toast(message));
+      // An editor's Accept has the main process write the user's files and send
+      // them back: the registry, the tooltips and the keys follow at once.
+      window.napkin.onMenuConfigChanged((config) => {
+        const warning = this.applyMenuConfig(config);
+        this.applyShortcutTitles();
+        if (warning !== null) this.toast(warning);
+      });
+    } catch {
+      // Outside Electron the shipped menus are all there is.
+    }
+    this.applyShortcutTitles();
+    this.installCheckHooks();
 
     try {
       const mode = await window.napkin.getAnimationMode();
@@ -871,6 +980,12 @@ class App {
 
     this.syncUi();
     this.scheduleRender();
+
+    // Said last, and after whatever opening the window said: a toast holds one
+    // sentence at a time, and an import's "Imported 1 layer" used to replace
+    // the warning that the user's menu files were ignored before anyone could
+    // read it.
+    if (menuWarning !== null) this.toastAfterCurrent(menuWarning);
   }
 
   // ---- Rendering -----------------------------------------------------------
@@ -1136,12 +1251,29 @@ class App {
 
   private bindPointer(): void {
     const c = this.canvas;
-    c.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+    c.addEventListener('pointerdown', (e) => {
+      // Track History records what a press commits under the tool that made
+      // it, or the dialog it turns or sizes the selection for.
+      if (e.button === 0) {
+        this.endPress();
+        this.pressEnd = this.store.beginCommand(this.pressCommand());
+      }
+      this.onPointerDown(e);
+    });
     c.addEventListener('pointermove', (e) => this.onPointerMove(e));
-    c.addEventListener('pointerup', (e) => this.onPointerUp(e));
-    c.addEventListener('pointercancel', (e) => this.onPointerUp(e));
+    c.addEventListener('pointerup', (e) => {
+      this.onPointerUp(e);
+      this.endPress();
+    });
+    c.addEventListener('pointercancel', (e) => {
+      this.onPointerUp(e);
+      this.endPress();
+    });
     c.addEventListener('pointerleave', (e) => {
-      if (this.activePointerId !== null) this.onPointerUp(e);
+      if (this.activePointerId !== null) {
+        this.onPointerUp(e);
+        this.endPress();
+      }
       // Paste aims at the pointer only while there is one on the page.
       this.pointerOverCanvas = false;
       this.showWarpHint(null);
@@ -1192,7 +1324,49 @@ class App {
     this.scheduleRender();
   }
 
+  /**
+   * What a press on the canvas is part of, as Track History names it: the
+   * Rotate dialog or the Transform box it turns or sizes the selection for,
+   * or else the tool in hand.
+   */
+  private pressCommand(): string {
+    if (this.rotateDialogOpen) return 'rotate';
+    if (this.transformActive) return 'toggle-transform';
+    return `tool:${this.store.tool.tool}`;
+  }
+
+  /** Ends the press's name, and with it the press's step. */
+  private endPress(): void {
+    const end = this.pressEnd;
+    if (!end) return;
+    this.pressEnd = null;
+    end();
+    this.store.flushHistoryStep();
+  }
+
+  /**
+   * Runs an edit a dialog or a mode commits - Move's, Rotate's, Mirror's,
+   * Sharpen's, a finished Vector Path or text box - under the command it
+   * belongs to, which has long returned by the time the dialog's button is
+   * pressed, and closes its step.
+   */
+  private recordAs<T>(command: string, edit: () => T): T {
+    const end = this.store.beginCommand(command);
+    try {
+      return edit();
+    } finally {
+      end();
+      this.store.flushHistoryStep();
+    }
+  }
+
   private onPointerDown(e: PointerEvent): void {
+    // Only the primary button draws, selects and edits. A right press is the
+    // canvas menu's: before this, it drew a dot with the pen, or dropped the
+    // selection with the Select tool, before the menu meant to act on that
+    // selection opened.
+    if (e.button !== 0) return;
+
     // Track every pointer for two-finger pan/zoom detection.
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (this.pointers.size >= 2) {
@@ -2309,7 +2483,8 @@ class App {
     };
     this.cancelVectorPath();
     const extras = this.symmetryCopies(finished);
-    this.store.addStrokes([finished, ...extras]);
+    // Enter, a double-click or a change of tool finishes a path, well after the press that began it.
+    this.recordAs('tool:vector', () => this.store.addStrokes([finished, ...extras]));
   }
 
   /** Abandons the pending vector path (Esc, blur, gesture, or tool switch). */
@@ -2606,7 +2781,7 @@ class App {
   }
 
   private bindSharpenSelection(): void {
-    el('sharpen-selection').addEventListener('click', () => this.openSharpenDialog());
+    el('sharpen-selection').addEventListener('click', () => this.runCommand('sharpen-selection'));
     el('sharpen-apply-btn').addEventListener('click', () => this.closeSharpenDialog(true));
     el('sharpen-cancel-btn').addEventListener('click', () => this.closeSharpenDialog(false));
     const update = (): void => this.updateSharpenPreview();
@@ -2660,12 +2835,14 @@ class App {
       this.store.setStrokeGeometry(id, original.points, original.vector);
     }
     if (apply) {
-      this.store.pushHistory();
-      for (const [id, original] of preview) {
-        const pts = this.sharpenedPoints(original.points);
-        // Reshaped points no longer match any stored anchor structure.
-        if (pts.length >= 2) this.store.setStrokeGeometry(id, pts);
-      }
+      this.recordAs('sharpen-selection', () => {
+        this.store.pushHistory();
+        for (const [id, original] of preview) {
+          const pts = this.sharpenedPoints(original.points);
+          // Reshaped points no longer match any stored anchor structure.
+          if (pts.length >= 2) this.store.setStrokeGeometry(id, pts);
+        }
+      });
     }
     el('sharpen-dialog').classList.add('is-hidden');
   }
@@ -3820,12 +3997,15 @@ class App {
         textBoxWidth: boxWidth > 0 ? boxWidth : undefined,
         sharpened: true,
       };
-      if (this.editingId) {
-        this.store.pushHistory();
-        this.store.replaceStroke(this.editingId, item);
-      } else {
-        this.store.addStroke(item);
-      }
+      // A text box is committed when it loses the focus, after the press that opened it.
+      this.recordAs('tool:text', () => {
+        if (this.editingId) {
+          this.store.pushHistory();
+          this.store.replaceStroke(this.editingId, item);
+        } else {
+          this.store.addStroke(item);
+        }
+      });
       this.editingId = null;
     };
 
@@ -3968,16 +4148,15 @@ class App {
 
     for (const id of TOOL_IDS) {
       el(id).addEventListener('click', () => {
+        // A press while the toolbar is being rearranged is a drag, not a pick.
         if (this.rearranging) return;
-        this.store.setTool({ tool: id.replace('tool-', '') as Tool });
-        this.updateCursor();
-        if (id === 'tool-warp') this.beginWarpTool();
+        this.runCommand(id);
       });
     }
 
     this.bindCurveFlyout();
 
-    el('join-strokes').addEventListener('click', () => this.joinSelectedStrokes());
+    el('join-strokes').addEventListener('click', () => this.runCommand('join-strokes'));
     // Close Shape offers its two joins as a submenu on press (mousedown),
     // reusing the shared context menu the panels already build. The press
     // must not reach the window listener that dismisses that menu on any
@@ -3986,10 +4165,7 @@ class App {
     el('close-shape').addEventListener('pointerdown', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.toggleMenuUnder(el('close-shape'), [
-        { label: 'Sharp - straight line between the end points', action: () => this.closeSelectedShapes('sharp') },
-        { label: 'Smooth - curve on through the end points', action: () => this.closeSelectedShapes('smooth') },
-      ]);
+      this.toggleMenuUnder(el('close-shape'), this.windowMenu('close-shape-button'));
     });
 
     this.rebuildSwatches();
@@ -4033,18 +4209,11 @@ class App {
       this.widthPick = null;
     });
 
-    el('sharpen-all').addEventListener('click', () => this.sharpenAll());
-    el('undo').addEventListener('click', () => this.undo());
-    el('redo').addEventListener('click', () => this.redo());
-    el('clear').addEventListener('click', () => this.store.clear());
-
-    el('app-settings').addEventListener('click', () => {
-      try {
-        window.napkin.openSettings();
-      } catch {
-        this.toast('Settings are only available in the desktop app.');
-      }
-    });
+    el('sharpen-all').addEventListener('click', () => this.runCommand('sharpen-all'));
+    el('undo').addEventListener('click', () => this.runCommand('undo'));
+    el('redo').addEventListener('click', () => this.runCommand('redo'));
+    el('clear').addEventListener('click', () => this.runCommand('clear-page'));
+    el('app-settings').addEventListener('click', () => this.runCommand('verbose-settings'));
   }
 
   /**
@@ -4127,10 +4296,12 @@ class App {
 
   /** Reflects the active curve variant in the Curve button's hover text. */
   private updateCurveTitle(): void {
-    el('tool-curve').title =
+    const curve = el('tool-curve');
+    curve.dataset.titleTemplate =
       this.curveVariant === 'endpoints'
-        ? 'Curve (V) — drag a chord (ends snap to stroke endpoints), then bend and click. Click and hold for curve options'
-        : 'Curve (V) — drag a chord, then bend and click. Click and hold for curve options';
+        ? 'Curve ({key}) - drag a chord (ends snap to stroke endpoints), then bend and click. Click and hold for curve options'
+        : 'Curve ({key}) - drag a chord, then bend and click. Click and hold for curve options';
+    this.applyShortcutTitle(curve);
   }
 
   /** (Re)builds the quick-access color swatches from the current settings. */
@@ -4230,6 +4401,7 @@ class App {
     this.applyToolOrder();
     this.applyTheme();
     this.restartAutoSave();
+    this.applyHistoryTracking();
     this.syncUi();
   }
 
@@ -4648,7 +4820,7 @@ class App {
   // ---- Sharpen settings panel ---------------------------------------------
 
   private bindSettings(): void {
-    el('settings-toggle').addEventListener('click', () => this.toggleSettings());
+    el('settings-toggle').addEventListener('click', () => this.runCommand('toggle-settings'));
     el('settings-close').addEventListener('click', () => this.toggleSettings(false));
 
     // Each Quick Setting applies immediately AND persists via the shared
@@ -4713,35 +4885,15 @@ class App {
   // ---- File actions --------------------------------------------------------
 
   private bindFileActions(): void {
-    el('new-sketch').addEventListener('click', () => this.newSketch());
-    el('open').addEventListener('click', () => this.openBook());
-    el('import').addEventListener('click', () => this.importFile());
-    // Export offers the same four formats as File > Export, dropped down
-    // beneath the button via the shared context menu.
-    el('export').addEventListener('click', () => {
-      // "Selection" holds the same four formats one level in, and exports
-      // only what is selected, on a page cut to fit it.
-      const selection = this.exportSelectionStrokes();
-      this.toggleMenuUnder(el('export'), [
-        { label: 'PNG Image…', action: () => void this.exportRaster('png') },
-        { label: 'JPEG Image…', action: () => void this.exportRaster('jpeg') },
-        { label: 'SVG Vector…', action: () => void this.exportSvg() },
-        { label: 'PDF Document…', action: () => void this.exportPdf() },
-        { separator: true },
-        {
-          label: 'Selection',
-          disabled: selection.length === 0,
-          items: [
-            { label: 'PNG Image…', action: () => void this.exportSelection('png') },
-            { label: 'JPEG Image…', action: () => void this.exportSelection('jpeg') },
-            { label: 'SVG Vector…', action: () => void this.exportSelection('svg') },
-            { label: 'PDF Document…', action: () => void this.exportSelection('pdf') },
-          ],
-        },
-      ]);
-    });
-    el('save').addEventListener('click', () => this.saveBook(false));
-    el('save-as').addEventListener('click', () => this.saveBook(true));
+    el('new-sketch').addEventListener('click', () => this.runCommand('new-sketch'));
+    el('open').addEventListener('click', () => this.runCommand('open'));
+    el('import').addEventListener('click', () => this.runCommand('import'));
+    // Export drops File > Export's rows down beneath the button, with the
+    // Selection row the menu bar leaves out: the same four formats one level
+    // in, exporting only what is selected, on a page cut to fit it.
+    el('export').addEventListener('click', () => this.toggleMenuUnder(el('export'), this.windowMenu('export-button')));
+    el('save').addEventListener('click', () => this.runCommand('save'));
+    el('save-as').addEventListener('click', () => this.runCommand('save-as'));
   }
 
   private newSketch(): void {
@@ -4893,6 +5045,8 @@ class App {
     };
     this.pasteCascade = 0;
     void this.publishClipboardSvg(strokes);
+    // Copying changes nothing the store knows, so the menus hear of it here.
+    this.publishMenuState();
     return true;
   }
 
@@ -5233,26 +5387,6 @@ class App {
     return added.length;
   }
 
-  /** The clipboard rows, shared by the canvas menu and the layers-panel menu. */
-  private clipboardMenuItems(): ContextMenuItem[] {
-    const hasSelection = this.exportSelectionStrokes().length > 0;
-    const hasClipboard = clipboardMarkCount(this.clipboard) > 0;
-    return [
-      { label: 'Cut', disabled: !hasSelection, action: () => this.cutSelection() },
-      { label: 'Copy', disabled: !hasSelection, action: () => this.copySelectionWithToast() },
-      // Paste stays enabled with an empty in-app clipboard: the system
-      // clipboard may hold a graphic from another editor, and only reading it
-      // (which the action does) can tell.
-      { label: 'Paste', action: () => void this.pasteClipboard(false) },
-      {
-        label: 'Paste in Place',
-        disabled: !hasClipboard,
-        action: () => void this.pasteClipboard(true),
-      },
-      { label: 'Duplicate', disabled: !hasSelection, action: () => this.duplicateSelection() },
-    ];
-  }
-
   // ---- Export > Selection --------------------------------------------------
 
   /**
@@ -5404,16 +5538,7 @@ class App {
     }
 
     if (result.kind === 'pdf') {
-      const pages = result.pages.map((page, index) => {
-        const sketch = createSketch(
-          result.pages.length === 1 ? result.name : `${result.name}-${index + 1}`,
-        );
-        sketch.width = Math.round(page.width);
-        sketch.height = Math.round(page.height);
-        if (page.background) sketch.background = page.background;
-        sketch.strokes = page.strokes.map((s) => ({ ...s, layer: sketch.layers[0].id }));
-        return sketch;
-      });
+      const pages = pdfPagesToSketches(result.pages, result.name);
       this.store.addImportedPages(pages);
       this.renderThumbnails();
       this.toast(`Imported ${pages.length} page${pages.length === 1 ? '' : 's'} from ${result.name}.pdf.`);
@@ -5538,28 +5663,11 @@ class App {
   private bindPages(): void {
     el('prev-page').addEventListener('click', () => this.turnPage(this.store.activeIndex - 1));
     el('next-page').addEventListener('click', () => this.turnPage(this.store.activeIndex + 1));
-    el('new-page').addEventListener('click', () => this.addDefaultPage());
-    el('pages-menu').addEventListener('click', () =>
-      this.toggleMenuUnder(el('pages-menu'), this.pageMenuItems()),
-    );
-    el('pages-toggle').addEventListener('click', () => this.togglePages());
-    el('delete-page').addEventListener('click', () => {
-      this.store.removePage();
-      this.renderThumbnails();
-    });
-  }
-
-  /** The three ways to start a page, behind the pages panel's hamburger. */
-  private pageMenuItems(): ContextMenuItem[] {
-    return [
-      {
-        label: 'From Selection',
-        disabled: this.exportSelectionStrokes().length === 0,
-        action: () => this.addPageFromSelection(),
-      },
-      { label: 'Default New Page', action: () => this.addDefaultPage() },
-      { label: 'Custom New Page…', action: () => this.openPageSettings({ forNewPage: true }) },
-    ];
+    el('new-page').addEventListener('click', () => this.runCommand('add-page-default'));
+    // The hamburger drops down Pages > Add Page's three ways to start a page.
+    el('pages-menu').addEventListener('click', () => this.toggleMenuUnder(el('pages-menu'), this.windowMenu('pages-button')));
+    el('pages-toggle').addEventListener('click', () => this.runCommand('toggle-pages'));
+    el('delete-page').addEventListener('click', () => this.runCommand('delete-page'));
   }
 
   /** A new page the size of the one in view - what "+ Page" has always done. */
@@ -5619,20 +5727,18 @@ class App {
     el('pages-toggle').classList.toggle('is-open', this.pagesOpen);
     if (this.pagesOpen) this.renderThumbnails();
     requestAnimationFrame(() => this.resizeSurface());
+    this.publishMenuState();
   }
 
   // ---- Layers ----------------------------------------------------------------
 
   private bindLayers(): void {
-    el('layers-toggle').addEventListener('click', () => this.toggleLayers());
-    el('add-layer').addEventListener('click', () => {
-      this.store.addLayer();
-      this.toast(`Added layer "${this.store.activeLayer.name}".`);
-    });
-    el('group-layer').addEventListener('click', () => this.groupActiveLayer());
-    el('delete-layer').addEventListener('click', () => this.deleteSelectedLayers());
-    el('layer-up').addEventListener('click', () => this.moveSelectedLayers(1));
-    el('layer-down').addEventListener('click', () => this.moveSelectedLayers(-1));
+    el('layers-toggle').addEventListener('click', () => this.runCommand('toggle-layers'));
+    el('add-layer').addEventListener('click', () => this.runCommand('add-layer'));
+    el('group-layer').addEventListener('click', () => this.runCommand('group-layer'));
+    el('delete-layer').addEventListener('click', () => this.runCommand('delete-layer'));
+    el('layer-up').addEventListener('click', () => this.runCommand('layer-up'));
+    el('layer-down').addEventListener('click', () => this.runCommand('layer-down'));
 
     // Opacity drags collapse into one history step (pushed on the first tick).
     const opacity = el<HTMLInputElement>('layer-opacity');
@@ -5655,38 +5761,20 @@ class App {
     el('layers-toggle').classList.toggle('is-open', this.layersOpen);
     if (this.layersOpen) this.renderLayers();
     requestAnimationFrame(() => this.resizeSurface());
+    this.publishMenuState();
   }
 
   // ---- Panel context menus & resize ----------------------------------------
 
-  /** Right-click menus on the pages and layers panels, scoped to each panel. */
+  /**
+   * The right-click menus of the layers panel, the canvas and the pages panel.
+   * Their rows are generated from the menu registry, so each holds what the
+   * menu bar's Layers, Edit and Pages menus hold, in the panel's own form.
+   */
   private bindContextMenus(): void {
     el('layers-panel').addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      this.showContextMenu(e.clientX, e.clientY, [
-        {
-          label: 'Add Layer',
-          action: () => {
-            this.store.addLayer();
-            this.toast(`Added layer "${this.store.activeLayer.name}".`);
-          },
-        },
-        { label: 'Group Layer', action: () => this.groupActiveLayer() },
-        {
-          label: 'Ungroup',
-          disabled: this.store.activeLayer.group !== true,
-          action: () => this.ungroupActiveLayer(),
-        },
-        { label: 'Rename', action: () => this.renameActiveLayer() },
-        { label: 'Delete Layer(s)', action: () => this.deleteSelectedLayers() },
-        { separator: true },
-        ...this.clipboardMenuItems(),
-        { separator: true },
-        { label: 'Move Layer(s) Up', action: () => this.moveSelectedLayers(1) },
-        { label: 'Move Layer(s) Down', action: () => this.moveSelectedLayers(-1) },
-        { separator: true },
-        { label: 'Hide Layers Panel', action: () => this.toggleLayers(false) },
-      ]);
+      this.showContextMenu(e.clientX, e.clientY, this.windowMenu('layers'));
     });
 
     // The canvas menu is where the clipboard lives for the pointer: right-click
@@ -5702,49 +5790,12 @@ class App {
       // pointer drifts to while the menu is open.
       this.lastCanvasPoint = pt;
       this.pointerOverCanvas = true;
-      const hasSelection = this.exportSelectionStrokes().length > 0;
-      this.showContextMenu(e.clientX, e.clientY, [
-        ...this.clipboardMenuItems(),
-        { separator: true },
-        {
-          label: 'Delete',
-          disabled: !hasSelection,
-          action: () => this.deleteSelectionOrLayers(),
-        },
-        { separator: true },
-        { label: 'Select All', action: () => this.selectAll() },
-        {
-          label: 'Deselect All',
-          disabled: this.store.selectedIds.size === 0,
-          action: () => this.store.clearSelection(),
-        },
-      ]);
+      this.showContextMenu(e.clientX, e.clientY, this.windowMenu('canvas'));
     });
 
     el('pages-panel').addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      this.showContextMenu(e.clientX, e.clientY, [
-        {
-          label: 'Add Page',
-          action: () => {
-            this.store.addPage('unnamed');
-            this.renderThumbnails();
-            this.toast('Added a new page.');
-          },
-        },
-        {
-          label: 'Delete Page',
-          disabled: this.store.book.sketches.length <= 1,
-          action: () => {
-            this.store.removePage();
-            this.renderThumbnails();
-          },
-        },
-        { separator: true },
-        { label: 'Page Settings…', action: () => this.openPageSettings() },
-        { separator: true },
-        { label: 'Hide Pages Panel', action: () => this.togglePages(false) },
-      ]);
+      this.showContextMenu(e.clientX, e.clientY, this.windowMenu('pages'));
     });
 
     // Reaching the nested panel keeps it: the pointer got there, whatever
@@ -5822,7 +5873,16 @@ class App {
       }
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = item.label ?? '';
+      const label = document.createElement('span');
+      label.className = 'context-menu-label';
+      label.textContent = item.label ?? '';
+      btn.appendChild(label);
+      if (item.chord) {
+        const chord = document.createElement('span');
+        chord.className = 'context-menu-chord';
+        chord.textContent = item.chord;
+        btn.appendChild(chord);
+      }
       btn.disabled = item.disabled === true;
       const children = item.items;
       if (children && children.length > 0) {
@@ -6169,18 +6229,19 @@ class App {
         ? [...this.store.selectedLayerIds]
         : [this.store.activeLayer.id];
     const group = this.store.groupLayers(ids);
-    this.toast(
-      ids.length > 1
-        ? `Grouped ${ids.length} layers into "${group.name}" (Ctrl+Shift+G ungroups).`
-        : `Grouped "${group.name}" (Ctrl+Shift+G ungroups).`,
-    );
+    const ungroup = this.keyOf('ungroup-layer');
+    const hint = ungroup ? ` (${ungroup} ungroups)` : '';
+    this.toast(ids.length > 1 ? `Grouped ${ids.length} layers into "${group.name}"${hint}.` : `Grouped "${group.name}"${hint}.`);
   }
 
   /** Dissolves the active group, keeping its layers and strokes. */
   private ungroupActiveLayer(): void {
     const layer = this.store.activeLayer;
     if (this.store.ungroupActiveLayer()) this.toast(`Ungrouped "${layer.name}".`);
-    else this.toast('Select a group row to ungroup (Ctrl+Shift+G).');
+    else {
+      const ungroup = this.keyOf('ungroup-layer');
+      this.toast(`Select a group row to ungroup${ungroup ? ` (${ungroup})` : ''}.`);
+    }
   }
 
   /**
@@ -6318,7 +6379,8 @@ class App {
       const name = document.createElement('span');
       name.className = 'layer-name';
       name.textContent = layer.name;
-      name.title = `${layer.name} (double-click or F2 to rename)`;
+      const renameKey = this.keyOf('rename-layer');
+      name.title = `${layer.name} (double-click${renameKey ? ` or ${renameKey}` : ''} to rename)`;
 
       const badge = document.createElement('span');
       badge.className = 'layer-opacity-badge';
@@ -6555,96 +6617,580 @@ class App {
 
   private bindMenu(): void {
     try {
-      window.napkin.onMenuAction((action: MenuAction) => this.handleMenu(action));
+      window.napkin.onMenuAction((id) => this.runCommand(id));
     } catch {
       // running outside Electron — menus unavailable
     }
   }
 
-  private handleMenu(action: MenuAction): void {
-    switch (action) {
-      case 'new':
-        this.newSketch();
-        break;
-      case 'open':
-        void this.openBook();
-        break;
-      case 'import':
-        void this.importFile();
-        break;
-      case 'save':
-        void this.saveBook(false);
-        break;
-      case 'save-as':
-        void this.saveBook(true);
-        break;
-      case 'export-png':
-        void this.exportRaster('png');
-        break;
-      case 'export-jpeg':
-        void this.exportRaster('jpeg');
-        break;
-      case 'export-svg':
-        void this.exportSvg();
-        break;
-      case 'export-pdf':
-        void this.exportPdf();
-        break;
-      case 'undo':
-        this.undo();
-        break;
-      case 'redo':
-        this.redo();
-        break;
-      case 'cut':
-        this.cutSelection();
-        break;
-      case 'copy':
-        this.copySelectionWithToast();
-        break;
-      case 'paste':
-        void this.pasteClipboard(false);
-        break;
-      case 'paste-in-place':
-        void this.pasteClipboard(true);
-        break;
-      case 'duplicate':
-        this.duplicateSelection();
-        break;
-      case 'delete-selection':
-        this.deleteSelectionOrLayers();
-        break;
-      case 'select-all':
-        this.selectAll();
-        break;
-      case 'fit-view':
-        this.fitAllInView();
-        break;
-      case 'toggle-pages':
-        this.togglePages();
-        break;
-      case 'toggle-layers':
-        this.toggleLayers();
-        break;
-      case 'toggle-properties':
-        this.toggleProperties();
-        break;
-      case 'toggle-settings':
-        this.toggleSettings();
-        break;
-      case 'rotate':
-        this.openRotateDialog();
-        break;
-      case 'mirror':
-        this.openMirrorDialog();
-        break;
-      case 'toggle-rearrange':
-        this.toggleRearrange();
-        break;
-      case 'toggle-animation':
-        this.toggleAnimationMode();
-        break;
+  /**
+   * Runs a command by the id the menu files give it. An id that names no
+   * command can only come from a mistake in the app, so it is logged rather
+   * than shown.
+   */
+  private runCommand(id: string): void {
+    // Track History records each step under the command that made it, and a
+    // command's steps are over when it is - for Import, once the file is in.
+    const end = this.store.beginCommand(id);
+    const finish = (): void => {
+      end();
+      this.store.flushHistoryStep();
+    };
+    if (!this.commands.run(id, finish)) {
+      finish();
+      console.error(`napkin-sketch: no command "${id}"`);
     }
+  }
+
+  /**
+   * What every command the drawing window owns does, by its id in the menu
+   * files. The menu bar, the right-click menus and the toolbar buttons all
+   * come here, so a command does one thing however it is reached. The type
+   * is every such id: a command added to the menu files without a row here
+   * does not compile.
+   */
+  private commandHandlers(): CommandHandlers {
+    return {
+      'new-sketch': () => this.newSketch(),
+      open: () => void this.openBook(),
+      // Import and Paste return their promises: their steps come after an await.
+      import: () => this.importFile(),
+      save: () => void this.saveBook(false),
+      'save-as': () => void this.saveBook(true),
+      'export-png': () => void this.exportRaster('png'),
+      'export-svg': () => void this.exportSvg(),
+      'export-jpeg': () => void this.exportRaster('jpeg'),
+      'export-pdf': () => void this.exportPdf(),
+      'export-selection-png': () => void this.exportSelection('png'),
+      'export-selection-svg': () => void this.exportSelection('svg'),
+      'export-selection-jpeg': () => void this.exportSelection('jpeg'),
+      'export-selection-pdf': () => void this.exportSelection('pdf'),
+      undo: () => this.undo(),
+      redo: () => this.redo(),
+      cut: () => this.cutSelection(),
+      copy: () => this.copySelectionWithToast(),
+      paste: () => this.pasteClipboard(false),
+      'paste-in-place': () => this.pasteClipboard(true),
+      duplicate: () => this.duplicateSelection(),
+      'delete-selection': () => this.deleteSelectionOrLayers(),
+      'select-all': () => this.selectAll(),
+      'deselect-all': () => this.store.clearSelection(),
+      'toggle-rearrange': () => this.toggleRearrange(),
+      'edit-shortcuts': () => this.openShortcutEditor(),
+      'edit-tool-types': () => this.openToolTypeEditor(),
+      'toggle-animation': () => this.toggleAnimationMode(),
+      'toggle-pages': () => this.togglePages(),
+      'toggle-layers': () => this.toggleLayers(),
+      'toggle-properties': () => this.toggleProperties(),
+      'toggle-settings': () => this.toggleSettings(),
+      'fit-view': () => this.fitAllInView(),
+      'tool-vector': () => this.selectTool('vector'),
+      'move-selection': () => this.openMoveDialog(),
+      rotate: () => this.openRotateDialog(),
+      'join-strokes': () => this.joinSelectedStrokes(),
+      'close-shape-sharp': () => this.closeSelectedShapes('sharp'),
+      'close-shape-smooth': () => this.closeSelectedShapes('smooth'),
+      mirror: () => this.openMirrorDialog(),
+      'sharpen-selection': () => this.openSharpenDialog(),
+      'sharpen-all': () => this.sharpenAll(),
+      'tool-warp': () => this.selectTool('warp'),
+      'tool-pen': () => this.selectTool('pen'),
+      'tool-marker': () => this.selectTool('marker'),
+      'tool-eraser': () => this.selectTool('eraser'),
+      'tool-text': () => this.selectTool('text'),
+      'tool-copic': () => this.selectTool('copic'),
+      'tool-point': () => this.selectTool('point'),
+      'add-layer': () => this.addLayer(),
+      'group-layer': () => this.groupActiveLayer(),
+      'ungroup-layer': () => this.ungroupActiveLayer(),
+      'rename-layer': () => this.renameActiveLayer(),
+      'delete-layer': () => this.deleteSelectedLayers(),
+      'layer-up': () => this.moveSelectedLayers(1),
+      'layer-down': () => this.moveSelectedLayers(-1),
+      'hide-layers': () => this.toggleLayers(false),
+      'add-page-default': () => this.addDefaultPage(),
+      'add-page-custom': () => this.openPageSettings({ forNewPage: true }),
+      'add-page-from-selection': () => this.addPageFromSelection(),
+      'delete-page': () => this.deletePage(),
+      'page-settings': () => this.openPageSettings(),
+      'hide-pages': () => this.togglePages(false),
+      'script-from-media': () => void this.generateFromMediaFile(),
+      'script-from-layers': () => this.generateFromLayers(),
+      'script-from-history': () => this.openHistoryScript(),
+      'track-history': () => this.toggleTrackHistory(),
+      'tool-select': () => this.selectTool('select'),
+      'tool-rect': () => this.selectTool('rect'),
+      'tool-ellipse': () => this.selectTool('ellipse'),
+      'tool-curve': () => this.selectTool('curve'),
+      'tool-bucket': () => this.selectTool('bucket'),
+      'tool-fill': () => this.selectTool('fill'),
+      'tool-eyedrop': () => this.selectTool('eyedrop'),
+      'toggle-transform': () => this.toggleTransformTool(),
+      'stroke-profile': () => this.openProfileDialog(),
+      'clear-page': () => this.store.clear(),
+      'toggle-selection-borders': () => this.toggleSelectionBorders(),
+      'quick-width': () => this.startQuickEntry('width'),
+      'quick-opacity': () => this.startQuickEntry('opacity'),
+      'quick-zoom': () => this.startQuickZoom(),
+      'cycle-color': () => this.cycleColor(1),
+      'cycle-color-back': () => this.cycleColor(-1),
+    };
+  }
+
+  /** Makes a tool current: its toolbar button, its menu row and its key all come here. */
+  private selectTool(tool: Tool): void {
+    this.store.setTool({ tool });
+    this.updateCursor();
+    if (tool === 'warp') this.beginWarpTool();
+  }
+
+  /** Adds a layer and names it in a toast. */
+  private addLayer(): void {
+    this.store.addLayer();
+    this.toast(`Added layer "${this.store.activeLayer.name}".`);
+  }
+
+  /** Deletes the page in view. */
+  private deletePage(): void {
+    this.store.removePage();
+    this.renderThumbnails();
+  }
+
+  /**
+   * The answers to the menus' questions as the app stands: what a right-click
+   * menu greys when it opens, and what the menu bar greys and checks.
+   */
+  private menuState(): MenuState {
+    return {
+      noSelection: this.exportSelectionStrokes().length === 0,
+      noMarksSelected: this.store.selectedIds.size === 0,
+      noClipboard: clipboardMarkCount(this.clipboard) === 0,
+      cannotUndo: !this.store.canUndo,
+      cannotRedo: !this.store.canRedo,
+      notGroup: this.store.activeLayer.group !== true,
+      onePage: this.store.book.sketches.length <= 1,
+      layersHidden: !this.layersOpen,
+      pagesHidden: !this.pagesOpen,
+      historyTracking: this.settings.trackHistory,
+      noHistory: !this.settings.trackHistory || this.tracker.count === 0,
+      transformBox: this.transformActive,
+    };
+  }
+
+  /** Tells the menu bar the answers, when they differ from the ones it has. */
+  private publishMenuState(): void {
+    const state = this.menuState();
+    const key = JSON.stringify(state);
+    if (key === this.sentMenuState) return;
+    this.sentMenuState = key;
+    try {
+      window.napkin.setMenuState(state);
+    } catch {
+      // Outside Electron there is no menu bar to tell.
+    }
+  }
+
+  /**
+   * Runs the command a key asked for. Two keys stand aside when there is
+   * nothing for them to do, so the keypress goes on to whatever else wants
+   * it, as they always have: Move's key while nothing can be moved, and
+   * Delete's while nothing is selected. Rotate from the keyboard opens its
+   * quick form, which says the canvas can be dragged to turn the selection.
+   */
+  private runKey(id: MenuCommand, e?: KeyboardEvent): void {
+    if (id === 'move-selection' && !this.canOpenMoveDialog()) return;
+    if (id === 'delete-selection' && this.store.selectedIds.size === 0 && this.store.selectedLayerIds.size === 0) return;
+    e?.preventDefault();
+    if (id === 'rotate') this.openRotateDialog(true);
+    else this.runCommand(id);
+  }
+
+  /** What a reload key says when no command has it. */
+  private reloadRefusal(): string {
+    const save = this.keyOf('save');
+    return this.store.dirty
+      ? `Reload is off here - it would discard unsaved changes.${save ? ` Save with ${save}.` : ''}`
+      : 'Reload is off here - it would discard the sketch.';
+  }
+
+  /**
+   * Builds the registry the window draws its menus and reads its keys from,
+   * out of the user's menu files as the main process read them. What in them
+   * could not be used is logged, and comes back as one sentence for the
+   * caller to show, or null when there is nothing to say.
+   */
+  private applyMenuConfig(config: MenuConfig): string | null {
+    this.menuRegistry = loadRegistry({ toolTypes: config.toolTypes, shortcuts: config.shortcuts });
+    const problems = [...config.problems, ...this.menuRegistry.problems];
+    for (const problem of problems) console.warn(`napkin-sketch menus: ${problem}`);
+    if (problems.length === 0) return null;
+    return problems.length === 1 ? problems[0] : `${problems[0]} (and ${problems.length - 1} more)`;
+  }
+
+  /**
+   * Edit > Edit Keyboard Shortcuts: every tool and its shortcut in the
+   * configuration popup (see editors.ts). Accept saves the changes through the
+   * main process, which keeps only what differs from the app's own shortcuts
+   * in the user's file; Reset to defaults puts the app's own in the table for
+   * Accept to keep.
+   */
+  private openShortcutEditor(): void {
+    const registry = this.menuRegistry;
+    const rows = shortcutRows(registry);
+    const spec = shortcutEditorSpec(registry, rows, {
+      mac: IS_MAC,
+      onAccept: (accepted) => this.saveShortcuts(registry, accepted),
+      onReset: () => {
+        this.configDialog.setRows(defaultShortcutRows(rows), { asEdits: true });
+        this.configDialog.say("The app's own shortcuts are in the table. Accept keeps them; Cancel keeps yours.", 'ok');
+      },
+    });
+    if (!this.configDialog.open(spec)) this.toast('Another editor is open. Accept or cancel it first.');
+  }
+
+  /**
+   * Saves what Edit Keyboard Shortcuts accepted. A throw keeps the popup open
+   * with the reason under the table; the new shortcuts arrive back through
+   * `onMenuConfigChanged`, as they do for any change to the user's files.
+   */
+  private async saveShortcuts(registry: MenuRegistry, rows: ShortcutRow[]): Promise<void> {
+    const mapping = resolveShortcuts(rows);
+    const changed = Object.entries(mapping).filter(([id, chord]) => (registry.tool(id)?.chord ?? null) !== chord).length;
+    if (changed === 0) {
+      this.toast('No shortcuts changed.');
+      return;
+    }
+    const result = await window.napkin.updateMenuConfig({ shortcuts: mapping });
+    if (!result.ok) throw new Error(result.error);
+    const defaults = Object.entries(mapping).every(([id, chord]) => (registry.tool(id)?.shippedChord ?? null) === chord);
+    this.toast(defaults ? "The keyboard shortcuts are the app's own again." : `Saved ${changed} shortcut ${changed === 1 ? 'change' : 'changes'}.`);
+  }
+
+  /**
+   * Edit > Edit Tool Types: every tool and the type the menus list it by, in
+   * the configuration popup (see editors.ts). A type decides where a tool is
+   * listed and nothing else. Accept saves the changes through the main
+   * process, which keeps only what differs from the app's own types in the
+   * user's file and sends the files back, so every menu is made again from
+   * them; Reset to defaults puts the app's own types in the table for Accept
+   * to keep.
+   */
+  private openToolTypeEditor(): void {
+    const registry = this.menuRegistry;
+    const rows = toolTypeRows(registry);
+    const spec = toolTypeEditorSpec(registry, rows, {
+      mac: IS_MAC,
+      onAccept: (accepted) => this.saveToolTypes(registry, accepted),
+      onReset: () => {
+        this.configDialog.setRows(defaultToolTypeRows(rows), { asEdits: true });
+        this.configDialog.say("The app's own types are in the table. Accept keeps them; Cancel keeps yours.", 'ok');
+      },
+    });
+    if (!this.configDialog.open(spec)) this.toast('Another editor is open. Accept or cancel it first.');
+  }
+
+  /** Saves what Edit Tool Types accepted; a throw keeps the popup open with the reason under the table. */
+  private async saveToolTypes(registry: MenuRegistry, rows: ToolTypeRow[]): Promise<void> {
+    const mapping = resolveToolTypes(rows);
+    const changed = Object.entries(mapping).filter(([id, type]) => (registry.tool(id)?.placement ?? null) !== type).length;
+    if (changed === 0) {
+      this.toast('No tool types changed.');
+      return;
+    }
+    const result = await window.napkin.updateMenuConfig({ toolTypes: mapping });
+    if (!result.ok) throw new Error(result.error);
+    const defaults = Object.entries(mapping).every(([id, type]) => (registry.tool(id)?.shippedPlacement ?? null) === type);
+    this.toast(
+      defaults
+        ? 'Every tool is listed where the app puts it again.'
+        : `Saved ${changed} tool type ${changed === 1 ? 'change' : 'changes'}. The menus list them there now.`,
+    );
+  }
+
+  // ---- Automate > Generate Script -----------------------------------------------------------
+
+  /** Generate Script > From Media File: a file picked as for File > Import, written as a script. */
+  private async generateFromMediaFile(): Promise<void> {
+    const result = await window.napkin.importFile();
+    if (!result.ok) {
+      if (!result.cancelled) this.toast(result.error ?? 'Could not read the file.');
+      return;
+    }
+    this.showMediaScript(result);
+  }
+
+  /**
+   * Writes a read file as a script and shows it: an SVG through the importer
+   * (which needs this window's DOM) into a page of its own, a PDF's pages, or
+   * a picture placed at its size. True when the dialog opened.
+   */
+  private showMediaScript(result: ImportFileSuccess): boolean {
+    const kind = 'From Media File';
+    try {
+      if (result.kind === 'svg') {
+        const imported = importSvg(result.text, { unnamedRootName: result.name });
+        this.scriptDialog.open({ kind, script: scriptFromPages([importedToSketch(imported, result.name)], result.fileName) });
+      } else if (result.kind === 'pdf') {
+        this.scriptDialog.open({ kind, script: scriptFromPages(pdfPagesToSketches(result.pages, result.name), result.fileName) });
+      } else {
+        const picture = { name: result.name, fileName: result.fileName, dataUrl: result.dataUrl };
+        this.scriptDialog.open({
+          kind,
+          script: rasterScript(picture, { embed: false }),
+          embed: (on) => rasterScript(picture, { embed: on }),
+        });
+      }
+      return true;
+    } catch (err) {
+      this.toast(`Could not write a script from ${result.fileName}: ${(err as Error).message}`);
+      return false;
+    }
+  }
+
+  /**
+   * The layers Selected Layers writes: the lit rows of the Layers panel, or
+   * with none lit, the layers the selected marks are on.
+   */
+  private scriptLayerIds(): string[] {
+    if (this.store.selectedLayerIds.size > 0) return [...this.store.selectedLayerIds];
+    const first = this.store.sketch.layers.find((layer) => !layer.group)?.id;
+    const ids = this.propertyStrokes()
+      .map((stroke) => stroke.layer ?? first)
+      .filter((id): id is string => id !== undefined);
+    return [...new Set(ids)];
+  }
+
+  /** Generate Script > Selected Layers: the chosen layers written as a script, the page kept or fitted to them. */
+  private generateFromLayers(): void {
+    const ids = this.scriptLayerIds();
+    if (ids.length === 0) {
+      this.toast('Select a layer, or a mark on one, to write a script from.');
+      return;
+    }
+    const page = { ...this.store.sketch, name: `${this.store.sketch.name}-selection` };
+    const source = `${ids.length} ${ids.length === 1 ? 'layer' : 'layers'}`;
+    const write = (fit: boolean): GeneratedScript => scriptFromPages([page], source, { layers: ids, page: fit ? 'fit' : 'keep' });
+    this.scriptDialog.open({ kind: 'Selected Layers', script: write(false), fit: write });
+  }
+
+  private async copyScript(text: string): Promise<void> {
+    try {
+      await window.napkin.writeClipboardText(text);
+      const lines = text.trimEnd().split('\n').length;
+      this.toast(`Copied the script, ${lines} ${lines === 1 ? 'line' : 'lines'}.`);
+    } catch {
+      this.toast('Could not copy the script.');
+    }
+  }
+
+  private async saveScript(text: string, name: string): Promise<void> {
+    try {
+      const result = await window.napkin.saveText(text, name, 'napkin');
+      if (result.ok) this.toast(`Saved the script as ${basename(result.filePath ?? `${name}.napkin`)}.`);
+      else if (!result.cancelled) this.toast(result.error ?? 'Could not save the script.');
+    } catch {
+      this.toast('Could not save the script.');
+    }
+  }
+
+  /**
+   * Open as New Page: the script run into pages of its own, after the page in
+   * view. The script is the one the dialog showed, run as written; a script
+   * that reports an error opens nothing. True when the pages were added.
+   */
+  private openScriptAsPages(script: GeneratedScript): boolean {
+    const result = evaluate(script.text, { timestamp: new Date().toISOString(), name: script.name });
+    const error = result.diagnostics.find((diagnostic) => diagnostic.level === 'error');
+    if (error) {
+      this.toast(`The script did not run: ${error.message}`);
+      return false;
+    }
+    const pages = result.book.sketches.map(withNewIds);
+    this.store.addImportedPages(pages);
+    this.renderThumbnails();
+    this.toast(pages.length === 1 ? `Opened "${pages[0].name}" as a new page.` : `Opened ${pages.length} new pages.`);
+    return true;
+  }
+
+  // ---- Automate > Track History --------------------------------------------------------------
+
+  /** Automate > Track History: turns the recording on or off, as the switch in Verbose Settings does. */
+  private toggleTrackHistory(): void {
+    void this.saveSettings({ trackHistory: !this.settings.trackHistory });
+  }
+
+  /**
+   * Listens to the store's history while Track History is on, and keeps the
+   * steps to the History Limit. Turning it off clears the steps: a later
+   * step could change a mark drawn while nothing was recorded, and a script
+   * written from such a history could not draw it.
+   */
+  private applyHistoryTracking(): void {
+    const on = this.settings.trackHistory;
+    const was = this.stopTracking !== null;
+    this.tracker.setLimit(this.settings.historyLimit);
+    if (on && !was) {
+      this.stopTracking = this.store.onHistory((event) => this.onHistoryEvent(event));
+    } else if (!on && was) {
+      this.stopTracking?.();
+      this.stopTracking = null;
+    }
+    if (this.trackingKnown && on !== was) {
+      const cleared = this.tracker.count;
+      if (on) {
+        this.toast(`Track History is on: every step of the drawing is recorded, and the last ${this.tracker.limit} are kept.`);
+      } else {
+        this.toast(
+          cleared > 0
+            ? `Track History is off, and the ${cleared} recorded ${cleared === 1 ? 'step is' : 'steps are'} cleared.`
+            : 'Track History is off.',
+        );
+      }
+    }
+    if (!on) this.tracker.clear();
+    this.trackingKnown = true;
+    this.reportHistoryStats();
+  }
+
+  /** A step closed, or a new document started a new history. */
+  private onHistoryEvent(event: HistoryEvent): void {
+    if (event.type === 'reset') {
+      const cleared = this.tracker.count;
+      this.tracker.clear();
+      if (cleared > 0) {
+        this.toastAfterCurrent(
+          `A new document starts a new history: the ${cleared} recorded ${cleared === 1 ? 'step was' : 'steps were'} cleared.`,
+        );
+      }
+    } else {
+      this.tracker.pushStep(event.step, describeStep(event.step, (id) => this.commandInfo(id)));
+    }
+    this.reportHistoryStats();
+    this.publishMenuState();
+  }
+
+  /**
+   * Generate Script > From Session History: the steps recorded on this page,
+   * each ticked, in the configuration popup the mockup draws - the History
+   * Limit across the top, a row per step with its index, tool type and
+   * command, a search over the type and the command, a radio button for each
+   * main type. Accept writes the ticked steps as a script and shows it in the
+   * Generated script dialog; an unticked step is left out of the drawing as
+   * if it had not happened.
+   */
+  private openHistoryScript(): void {
+    if (!this.settings.trackHistory) {
+      this.toast('Turn on Automate > Track History first: the steps it records are what this script is written from.');
+      return;
+    }
+    this.store.flushHistoryStep();
+    const page = this.store.activeIndex;
+    const steps = this.tracker.steps.filter((step) => step.page === page);
+    if (steps.length === 0) {
+      this.toast(
+        this.tracker.count > 0
+          ? 'Nothing is recorded on this page: the steps recorded so far are on other pages.'
+          : 'Nothing is recorded yet. Draw with Track History on, then write the script.',
+      );
+      return;
+    }
+    type Row = { include: boolean; index: number; type: string; label: string; at: string };
+    const rows: Row[] = steps.map((step) => ({ include: true, index: step.index, type: step.type, label: step.label, at: step.at }));
+    const mains = [...new Set(steps.map((step) => step.type.split(':')[0]))];
+    const opened = this.configDialog.open<Row>({
+      title: 'Generate Script: From Session History',
+      hint: 'Uncheck history items to exclude from script.',
+      header: `History Limit : ${this.tracker.limit}  (${this.tracker.count} of ${this.tracker.limit} steps recorded)`,
+      search: { placeholder: 'Search the tool types and commands', text: (row) => `${row.type} ${row.label}` },
+      filters: mains.map((main) => ({ label: main, test: (row: Row) => row.type === main || row.type.startsWith(`${main}:`) })),
+      columns: [
+        { kind: 'check', heading: '', field: 'include', width: '2.5rem', title: (row) => (row.include ? 'Written in the script' : 'Left out of the script') },
+        { kind: 'text', heading: 'Index', field: 'index', width: '4.5rem' },
+        { kind: 'text', heading: 'Tool type', field: 'type', width: '42%' },
+        { kind: 'text', heading: 'Command', field: 'label', title: (row) => localMinute(row.at) },
+      ],
+      rows,
+      rowLabel: (row) => `Step ${row.index}, ${row.label}`,
+      empty: 'No step matches the search.',
+      accept: {
+        onAccept: (edited) => {
+          const include = new Set(edited.filter((row) => row.include).map((row) => row.index));
+          if (include.size === 0) throw new Error('Tick at least one step to write.');
+          const script = scriptFromHistory(steps, this.store.sketch, {
+            page,
+            include,
+            version: this.appVersion ?? undefined,
+            now: new Date().toISOString(),
+            time: localMinute,
+          });
+          // The popup closes once this returns; the script's dialog opens after it.
+          window.setTimeout(() => this.scriptDialog.open({ kind: 'From Session History', script }), 0);
+        },
+      },
+    });
+    if (!opened) this.toast('Finish with the editor that is open first.');
+  }
+
+  /** A menu row's type and full name, which a recorded step is named by. */
+  private commandInfo(id: string): CommandInfo | null {
+    const tool = this.menuRegistry.tool(id);
+    return tool ? { type: tool.type, name: tool.name } : null;
+  }
+
+  /** The figures Verbose Settings shows under the History Limit. */
+  private historyStatsNow(): HistoryStats {
+    return {
+      tracking: this.settings.trackHistory,
+      steps: this.tracker.count,
+      limit: this.tracker.limit,
+      bytes: this.tracker.estimateBytes(),
+    };
+  }
+
+  /** Tells the main process the figures, at most five times a second, for a settings window that may be open. */
+  private reportHistoryStats(): void {
+    if (this.historyStatsTimer !== null) return;
+    this.historyStatsTimer = window.setTimeout(() => {
+      this.historyStatsTimer = null;
+      try {
+        window.napkin.reportHistoryStats(this.historyStatsNow());
+      } catch {
+        // Outside Electron there is no settings window to tell.
+      }
+    }, 200);
+  }
+
+  /** A command's shortcut as the user reads it, or null when it has none. */
+  private keyOf(id: string): string | null {
+    const chord = this.menuRegistry.tool(id)?.chord ?? null;
+    return chord === null ? null : displayChord(chord, { mac: IS_MAC });
+  }
+
+  /**
+   * Writes a command's shortcut into a tooltip: `{key}` in the element's
+   * title template becomes the chord, or ` ({key})` goes when the command
+   * has none. The template is the title the markup gave, kept aside the first
+   * time, so writing again after the shortcuts change starts from it.
+   */
+  private applyShortcutTitle(node: HTMLElement): void {
+    const id = node.dataset.command;
+    if (!id) return;
+    const template = node.dataset.titleTemplate ?? node.title;
+    node.dataset.titleTemplate = template;
+    const key = this.keyOf(id);
+    node.title = key === null ? template.replace(/ ?\(\{key\}\)/, '') : template.replace('{key}', key);
+  }
+
+  /** Every tooltip that names a command, with its shortcut as the menu registry gives it now. */
+  private applyShortcutTitles(): void {
+    for (const node of document.querySelectorAll<HTMLElement>('[data-command]')) this.applyShortcutTitle(node);
+  }
+
+  /** The rows of one of the menus drawn inside the window, as the app stands now. */
+  private windowMenu(contextId: string): ContextMenuItem[] {
+    return contextMenuItems(contextItems(this.menuRegistry, contextId, this.menuState()), (id) => this.runCommand(id), {
+      mac: IS_MAC,
+    });
   }
 
   // ---- Animation Mode ------------------------------------------------------
@@ -7800,7 +8346,7 @@ class App {
    * editable here too.
    */
   private bindProperties(): void {
-    el('properties-toggle').addEventListener('click', () => this.toggleProperties());
+    el('properties-toggle').addEventListener('click', () => this.runCommand('toggle-properties'));
     el('properties-close').addEventListener('click', () => this.toggleProperties(false));
 
     // The unit pickers are built from the shared unit tables, so the options
@@ -7995,7 +8541,7 @@ class App {
   private bindMove(): void {
     this.fillUnitSelect('move-x-unit', LENGTH_UNITS, this.propUnits.x);
     this.fillUnitSelect('move-y-unit', LENGTH_UNITS, this.propUnits.y);
-    el('move-selection').addEventListener('click', () => this.openMoveDialog());
+    el('move-selection').addEventListener('click', () => this.runCommand('move-selection'));
     el('move-cancel').addEventListener('click', () => this.closeMoveDialog());
     // Committing is the end of the move, from the button or from Enter alike:
     // the distance the preview was showing is made real and the palette goes.
@@ -8061,6 +8607,83 @@ class App {
     ]) {
       this.popups.register(id, { moveable: true, resize: true });
     }
+    // The configuration popup is a form with an answer, like a wizard step:
+    // it moves aside and resizes to show more rows, but a question parked
+    // in the dock with the drawing still in use would be one nobody answers.
+    this.popups.register('config-dialog', { moveable: true, resize: true });
+    // The Generated script dialog asks a question too - what to do with the
+    // script - so it moves and resizes but does not dock.
+    this.popups.register('script-dialog', { moveable: true, resize: true });
+  }
+
+  /**
+   * The hooks a GUI check drives the page through, put up only when the app
+   * was started for one (`NAPKIN_GUI_CHECK=1`): `openConfigDialog` opens the
+   * configuration popup with a spec of the check's own, so the popup is
+   * proved before an editor depends on it.
+   */
+  private installCheckHooks(): void {
+    let checking = false;
+    try {
+      checking = window.napkin.guiCheck === true;
+    } catch {
+      // Outside Electron there is no check to serve.
+    }
+    if (!checking) return;
+    const hooks = {
+      openConfigDialog: (spec: ConfigDialogSpec<object>): boolean => this.configDialog.open(spec),
+      configDialogOpen: (): boolean => this.configDialog.isOpen,
+      // Automate > Generate Script from a file, without the file dialog a check cannot answer.
+      generateScriptFromFile: async (path: string): Promise<boolean> => {
+        const result = await window.napkin.readImportFile(path);
+        return result.ok ? this.showMediaScript(result) : false;
+      },
+      scriptText: (): string | null => this.scriptDialog.script?.text ?? null,
+      pageCount: (): number => this.store.book.sketches.length,
+      // Turns to a page as a click on its thumbnail does.
+      goToPage: (index: number): number => {
+        this.turnPage(index);
+        return this.store.activeIndex;
+      },
+      activePage: (): number => this.store.activeIndex,
+      pageInfo: (index: number) => {
+        const page = this.store.book.sketches[index];
+        if (!page) return null;
+        return {
+          name: page.name,
+          width: page.width,
+          height: page.height,
+          layers: page.layers.map((layer) => layer.name),
+          marks: page.strokes.length,
+          ink: inkBox(page),
+        };
+      },
+      // Track History: the steps so far, the one in progress closed first.
+      trackedSteps: () => {
+        this.store.flushHistoryStep();
+        return this.tracker.steps.map((step) => ({
+          index: step.index,
+          page: step.page,
+          kind: step.kind,
+          command: step.command,
+          type: step.type,
+          label: step.label,
+          added: step.diff.added.length,
+          removed: step.diff.removed.length,
+          changed: step.diff.changed.length,
+          layers: step.diff.layers.map((change) => change.op),
+        }));
+      },
+      historyStats: (): HistoryStats => {
+        this.store.flushHistoryStep();
+        return this.historyStatsNow();
+      },
+      selectionInkBox: () => {
+        const ids = this.scriptLayerIds();
+        return ids.length > 0 ? inkBox({ ...this.store.sketch, strokes: this.strokesInLayerSubtree(ids) }) : null;
+      },
+    };
+    (window as unknown as { napkinCheck: typeof hooks }).napkinCheck = hooks;
   }
 
   /** Pulls the Move panel back on screen, after a resize or before opening. */
@@ -8314,7 +8937,7 @@ class App {
     // covering the whole distance, not a second one stacked on a shown move.
     this.revertMovePreview();
     if (delta.dx === 0 && delta.dy === 0) return true;
-    this.store.moveStrokes(targets, delta.dx, delta.dy);
+    this.recordAs('move-selection', () => this.store.moveStrokes(targets, delta.dx, delta.dy));
     const xUnit = el<HTMLSelectElement>('move-x-unit').value;
     const yUnit = el<HTMLSelectElement>('move-y-unit').value;
     this.toast(
@@ -8789,7 +9412,7 @@ class App {
       });
       list.appendChild(option);
     }
-    el('stroke-profile').addEventListener('click', () => this.openProfileDialog());
+    el('stroke-profile').addEventListener('click', () => this.runCommand('stroke-profile'));
     el('profile-cancel').addEventListener('click', () => this.closeProfileDialog());
     // The overlay does not dim, so a press beside the picker looks like a
     // press on the app: it cancels, as it would close any dropdown.
@@ -8808,7 +9431,9 @@ class App {
     const label = STROKE_PROFILE_LABELS[profile];
     const button = el('stroke-profile');
     button.setAttribute('aria-label', `Stroke profile: ${label}`);
-    button.title = `Stroke Profile: ${label} - how the width runs along new pen and marker strokes`;
+    // The title names the profile and, once one is given, the key.
+    button.dataset.titleTemplate = `Stroke Profile: ${label} - how the width runs along new pen and marker strokes ({key})`;
+    this.applyShortcutTitle(button);
     el('stroke-profile-picture')
       .querySelector('path')
       ?.setAttribute('d', profilePreviewPath(profile, 48, 10));
@@ -8903,7 +9528,7 @@ class App {
    * copy and still leave nothing behind when it is cancelled.
    */
   private bindMirror(): void {
-    el('mirror-selection').addEventListener('click', () => this.openMirrorDialog());
+    el('mirror-selection').addEventListener('click', () => this.runCommand('mirror'));
     el('mirror-cancel').addEventListener('click', () => this.closeMirrorDialog());
     el('mirror-apply').addEventListener('click', () => void this.applyMirror());
     const boxes: Array<[string, keyof MirrorOptions]> = [
@@ -9097,7 +9722,8 @@ class App {
     // A click may have changed the selection while an image was flipping.
     if (request !== this.mirrorRequest || !this.mirrorDialogOpen) return;
     if (!this.selectMirrorSource()) return;
-    this.store.beginTransaction(() => this.onMirrorPreviewKept());
+    // A preview kept by another edit becomes the mirror's own step.
+    this.recordAs('mirror', () => this.store.beginTransaction(() => this.onMirrorPreviewKept()));
     this.mirrorPreviewing = true;
     this.performMirror(m);
   }
@@ -9145,9 +9771,12 @@ class App {
     await this.prepareMirroredImages(m);
     if (request !== this.mirrorRequest || !this.mirrorDialogOpen) return;
     if (!this.selectMirrorSource()) return;
-    this.store.beginTransaction();
-    const count = this.performMirror(m);
-    this.store.commitTransaction();
+    const count = this.recordAs('mirror', () => {
+      this.store.beginTransaction();
+      const made = this.performMirror(m);
+      this.store.commitTransaction();
+      return made;
+    });
     const which = m.flipX && m.flipY ? 'both ways' : m.flipX ? 'horizontally' : 'vertically';
     const what = `${count} element${count === 1 ? '' : 's'}`;
     this.toast(
@@ -9219,6 +9848,8 @@ class App {
     this.toast('Transform: drag a handle. Shift keeps the shape, Alt works from the centre.');
     this.updateCursor();
     this.scheduleRender();
+    // Transform > Transform Box shows a check mark while the box is up.
+    this.publishMenuState();
   }
 
   /** Takes the box off the canvas, abandoning any drag still in hand. */
@@ -9229,6 +9860,7 @@ class App {
     this.transformDrag = null;
     this.updateCursor();
     this.scheduleRender();
+    this.publishMenuState();
   }
 
   /**
@@ -9449,7 +10081,7 @@ class App {
     this.fillUnitSelect('rotate-cx-unit', LENGTH_UNITS, this.propUnits.x);
     this.fillUnitSelect('rotate-cy-unit', LENGTH_UNITS, this.propUnits.y);
 
-    el('rotate-selection').addEventListener('click', () => this.openRotateDialog());
+    el('rotate-selection').addEventListener('click', () => this.runCommand('rotate'));
     el('rotate-cancel').addEventListener('click', () => this.closeRotateDialog(true));
     el('rotate-apply').addEventListener('click', () => {
       this.applyRotate();
@@ -9834,7 +10466,7 @@ class App {
     // step covering the whole angle, not a second one stacked on a shown turn.
     this.revertRotatePreview();
     if (degrees % 360 === 0) return;
-    this.store.rotateStrokes(targets, degrees, center.x, center.y);
+    this.recordAs('rotate', () => this.store.rotateStrokes(targets, degrees, center.x, center.y));
     this.toast(
       `Rotated ${targets.length} element${targets.length === 1 ? '' : 's'} ` +
         this.rotationWording(degrees),
@@ -10485,39 +11117,31 @@ class App {
         this.updateCursor();
       }
 
-      // Ctrl+T puts the Transform box on the selection, and takes it off
-      // again. Claimed explicitly because the chord is the browser's own
-      // (a new tab), and because it has to be swallowed inside a text field
-      // too - a stray Ctrl+T while renaming a layer must do nothing at all
-      // rather than something Chromium chose.
-      if ((e.ctrlKey || e.metaKey) && (e.key === 't' || e.key === 'T')) {
-        e.preventDefault();
-        if (!isTextEntry(document.activeElement)) this.toggleTransformTool();
+      // Chromium acts on some keys by itself whatever the menus hold: F5 and
+      // Ctrl+R reload, which would throw the sketch away without asking, and
+      // Ctrl+T is a browser's new tab. So they are swallowed here, ahead of
+      // the text-field guard below - a stray Ctrl+R while renaming a layer must
+      // do nothing at all - and outside a field each runs whatever the
+      // shortcuts give it: Rotate and the Transform box, as shipped. A reload
+      // key with nothing to run explains itself instead.
+      // The configuration popup keeps its own keys and never lets them get
+      // here. One that does had the focus outside the popup - on the page
+      // behind it - and runs nothing there while the popup is still asking.
+      if (this.configDialog.isOpen) {
+        this.configDialog.strayKey(e);
+        return;
+      }
+      if (this.scriptDialog.isOpen) {
+        this.scriptDialog.strayKey(e);
         return;
       }
 
-      // Reload throws the sketch away without asking, and Chromium still
-      // handles both of these keys on its own however the menu is built - so
-      // they are swallowed here, ahead of the text-field guard below. Inside
-      // a field is exactly where the old ordering let one through, and a
-      // reload triggered by a stray Ctrl+R while renaming a layer would take
-      // the whole drawing with it.
-      //
-      // Ctrl+R then has a job rather than only a refusal: it opens Rotate for
-      // the selection, the way Enter opens Move. F5 keeps the explanation,
-      // since nothing else has ever wanted that key.
-      const rotateKey = (e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R');
-      if (rotateKey || e.key === 'F5') {
+      if (isReloadKey(e) || isNewTabKey(e)) {
         e.preventDefault();
-        if (e.key === 'F5') {
-          this.toast(
-            this.store.dirty
-              ? 'Reload is off here - it would discard unsaved changes. Save with Ctrl+S.'
-              : 'Reload is off here - it would discard the sketch.',
-          );
-        } else if (!isTextEntry(document.activeElement)) {
-          this.openRotateDialog(true);
-        }
+        if (isTextEntry(document.activeElement)) return;
+        const id = commandForEvent(this.menuRegistry, e);
+        if (id !== null) this.runKey(id);
+        else if (isReloadKey(e)) this.toast(this.reloadRefusal());
         return;
       }
 
@@ -10642,14 +11266,6 @@ class App {
         }
       }
 
-      // Enter opens the Move dialog for whatever is selected. It comes after
-      // the Vector Path commit so an open path still finishes on Enter, and
-      // the dialog's own fields are text entry, which returned above.
-      if (e.key === 'Enter' && this.canOpenMoveDialog()) {
-        e.preventDefault();
-        this.openMoveDialog();
-        return;
-      }
       if (e.key === 'Escape' && this.moveDialogOpen) {
         e.preventDefault();
         this.closeMoveDialog();
@@ -10773,138 +11389,14 @@ class App {
         return;
       }
 
-      // F2 renames the active layer - the same inline edit a double-click on
-      // its row opens. The rename input stops its own keys short of this
-      // handler, so a second press cannot restart an edit mid-flight.
-      if (e.key === 'F2') {
-        e.preventDefault();
-        this.renameActiveLayer();
-        return;
-      }
-
-      const mod = e.ctrlKey || e.metaKey;
-      const key = e.key.toLowerCase();
-      if (mod && key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        this.undo();
-      } else if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) {
-        e.preventDefault();
-        this.redo();
-      } else if (mod && key === 'a' && e.shiftKey) {
-        // Deselect all (Ctrl/Cmd + Shift + A).
-        e.preventDefault();
-        this.store.clearSelection();
-      } else if (mod && key === 'a') {
-        // Select all editable strokes (Ctrl/Cmd + A).
-        e.preventDefault();
-        this.selectAll();
-      } else if (mod && key === 'c') {
-        e.preventDefault();
-        this.copySelectionWithToast();
-      } else if (mod && key === 'x') {
-        e.preventDefault();
-        this.cutSelection();
-      } else if (mod && key === 'v') {
-        // Shift pastes back at the copied coordinates instead of at the
-        // pointer - how a graphic moves between pages without drifting.
-        e.preventDefault();
-        void this.pasteClipboard(e.shiftKey);
-      } else if (mod && key === 'd') {
-        e.preventDefault();
-        this.duplicateSelection();
-      } else if (mod && key === 's') {
-        e.preventDefault();
-        void this.saveBook(e.shiftKey);
-      } else if (mod && key === 'b') {
-        e.preventDefault();
-        this.togglePages();
-      } else if (mod && key === 'l') {
-        e.preventDefault();
-        this.toggleLayers();
-      } else if (mod && key === 'i') {
-        e.preventDefault();
-        void this.importFile();
-      } else if (mod && key === 'j') {
-        e.preventDefault();
-        this.joinSelectedStrokes();
-      } else if (mod && key === 'g' && e.shiftKey) {
-        e.preventDefault();
-        this.ungroupActiveLayer();
-      } else if (mod && key === 'g') {
-        e.preventDefault();
-        this.groupActiveLayer();
-      } else if (mod && key === 'p') {
-        e.preventDefault();
-        this.toggleProperties();
-      } else if (mod && key === 'h') {
-        e.preventDefault();
-        this.toggleSelectionBorders();
-      } else if (mod && key === 'n' && e.shiftKey && this.animationInstalled) {
-        e.preventDefault();
-        this.toggleAnimationMode();
-      } else if (mod && (key === ']' || key === '[')) {
-        // Ctrl+] / Ctrl+[ restack the active layer, matching the panel's
-        // move buttons.
-        e.preventDefault();
-        this.moveSelectedLayers(key === ']' ? 1 : -1);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (this.store.selectedIds.size > 0 || this.store.selectedLayerIds.size > 0) {
-          e.preventDefault();
-          this.deleteSelectionOrLayers();
-        }
-      } else if (!mod && key === 'p') {
-        this.store.setTool({ tool: 'pen' });
-        this.updateCursor();
-      } else if (!mod && key === 'm') {
-        this.store.setTool({ tool: 'marker' });
-        this.updateCursor();
-      } else if (!mod && key === 'k') {
-        this.store.setTool({ tool: 'copic' });
-        this.updateCursor();
-      } else if (!mod && key === 'e') {
-        this.store.setTool({ tool: 'eraser' });
-        this.updateCursor();
-      } else if (!mod && key === 's') {
-        this.store.setTool({ tool: 'select' });
-        this.updateCursor();
-      } else if (!mod && key === 'a') {
-        this.store.setTool({ tool: 'point' });
-        this.updateCursor();
-      } else if (!mod && key === 't') {
-        this.store.setTool({ tool: 'text' });
-        this.updateCursor();
-      } else if (!mod && key === 'r') {
-        this.store.setTool({ tool: 'rect' });
-        this.updateCursor();
-      } else if (!mod && key === 'l') {
-        this.store.setTool({ tool: 'ellipse' });
-        this.updateCursor();
-      } else if (!mod && key === 'v') {
-        this.store.setTool({ tool: 'curve' });
-        this.updateCursor();
-      } else if (!mod && key === 'b') {
-        this.store.setTool({ tool: 'vector' });
-        this.updateCursor();
-      } else if (!mod && key === 'g') {
-        this.store.setTool({ tool: 'bucket' });
-        this.updateCursor();
-      } else if (!mod && key === 'i') {
-        this.store.setTool({ tool: 'eyedrop' });
-        this.updateCursor();
-      } else if (!mod && key === 'h') {
-        this.sharpenAll();
-      } else if (!mod && key === 'o') {
-        // Illustrator's Reflect key, and free here.
-        this.openMirrorDialog();
-      } else if (!mod && key === 'w') {
-        this.startQuickEntry('width');
-      } else if (!mod && key === 'q') {
-        this.startQuickEntry('opacity');
-      } else if (!mod && key === 'z') {
-        this.startQuickZoom();
-      } else if (!mod && key === 'c') {
-        this.cycleColor(e.shiftKey ? -1 : 1);
-      }
+      // Every other key is a shortcut if the menu registry says it is one.
+      // The modes above have all had their turn - an open Vector Path takes
+      // Enter before Move does, and the layer-rename box stops its own keys
+      // (F2 among them) short of this handler, so a second press cannot
+      // restart an edit mid-flight - and what reaches here is free to be a
+      // command.
+      const id = commandForEvent(this.menuRegistry, e);
+      if (id !== null) this.runKey(id, e);
     });
 
     window.addEventListener('keyup', (e) => {
@@ -11113,6 +11605,7 @@ class App {
     // would interrupt the pointer capture).
     if (this.layersOpen && !this.layerOpacityDragging) this.renderLayers();
     this.renderProperties();
+    this.publishMenuState();
   }
 
   private toast(message: string): void {
@@ -11120,7 +11613,17 @@ class App {
     toast.textContent = message;
     toast.classList.add('is-visible');
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
-    this.toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2400);
+    this.toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), TOAST_MS);
+  }
+
+  /**
+   * Shows a sentence once the one on screen has had its time, rather than on
+   * top of it: for a warning that something said a moment earlier must not
+   * hide.
+   */
+  private toastAfterCurrent(message: string): void {
+    if (!el('toast').classList.contains('is-visible')) this.toast(message);
+    else window.setTimeout(() => this.toast(message), TOAST_MS);
   }
 }
 
@@ -11312,21 +11815,6 @@ function translateStrokes(strokes: Stroke[], dx: number, dy: number): Stroke[] {
         }
       : {}),
   }));
-}
-
-/** One entry in the shared right-click context menu. */
-interface ContextMenuItem {
-  label?: string;
-  action?: () => void;
-  disabled?: boolean;
-  /** Renders a divider line instead of a button. */
-  separator?: boolean;
-  /**
-   * Nested entries. A row that carries them opens them in a panel beside
-   * itself on hover (or on focus, for the keyboard) rather than acting on a
-   * click of its own.
-   */
-  items?: ContextMenuItem[];
 }
 
 /** A successfully read import, before it is applied to the book. */

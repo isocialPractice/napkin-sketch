@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quickstart: pages - napkin-sketch</title>
+<meta name="description" content="Add pages three ways, size them, move between them, and export them all.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="draw.html">Draw</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html" aria-current="page">Pages</a></li><li><a href="automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../guide/index.html">Overview</a></li><li><a href="../guide/tools.html">Tools</a></li><li><a href="../guide/gestures.html">Gestures</a></li><li><a href="../guide/vector-paths.html">Vector paths</a></li><li><a href="../guide/selection.html">Selection and editing</a></li><li><a href="../guide/transform.html">Transform</a></li><li><a href="../guide/layers.html">Layers</a></li><li><a href="../guide/pages.html">Pages</a></li><li><a href="../guide/import-export.html">Import and export</a></li><li><a href="../guide/sharpen.html">Sharpen</a></li><li><a href="../guide/settings.html">Settings</a></li><li><a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../guide/automate.html">Automate</a></li><li><a href="../guide/animation-mode.html">Animation Mode</a></li><li><a href="../guide/skbk-format.html">The .skbk format</a></li><li><a href="../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> Quickstarts <span class="sep">/</span> <span aria-current="page">Pages</span></nav>
+<h1 id="quickstart-pages">Quickstart: pages<a class="anchor" href="#quickstart-pages" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#1-show-the-pages-panel">1. Show the pages panel</a></li><li><a href="#2-add-a-page-like-the-one-in-view">2. Add a page like the one in view</a></li><li><a href="#3-add-a-page-of-a-size-you-type">3. Add a page of a size you type</a></li><li><a href="#4-add-a-page-from-a-selection">4. Add a page from a selection</a></li><li><a href="#5-size-a-page">5. Size a page</a></li><li><a href="#6-move-between-pages">6. Move between pages</a></li><li><a href="#7-export-every-page">7. Export every page</a></li><li><a href="#where-next">Where next</a></li></ul></details>
+<p>A sketch book holds as many pages as you like. Add them three ways, size
+them, move between them, and export them all at once. <a href="../guide/pages.html">Pages</a>
+has the full detail.</p>
+<h2 id="1-show-the-pages-panel">1. Show the pages panel<a class="anchor" href="#1-show-the-pages-panel" aria-label="Link to this section">#</a></h2>
+<p><code>Ctrl + B</code> shows or hides the thumbnail panel down the side; drag its edge to
+make the thumbnails bigger.</p>
+<h2 id="2-add-a-page-like-the-one-in-view">2. Add a page like the one in view<a class="anchor" href="#2-add-a-page-like-the-one-in-view" aria-label="Link to this section">#</a></h2>
+<p>Press <strong>+ Page</strong> at the top of the panel, or choose <strong>Pages &gt; Add Page &gt;
+Default New Page</strong>: a blank page the same size as the one in view, turned to
+with a page-turn.</p>
+<h2 id="3-add-a-page-of-a-size-you-type">3. Add a page of a size you type<a class="anchor" href="#3-add-a-page-of-a-size-you-type" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Choose <strong>Pages &gt; Add Page &gt; Custom New Page…</strong> (the same row is in the
+panel's hamburger menu, beside <strong>+ Page</strong>).</li>
+<li>Page Settings opens with <strong>Sized page</strong> already chosen. Type the width and
+height.</li>
+<li>Press <strong>Add Page</strong>. Closing the dialog instead adds nothing.</li>
+</ol>
+<h2 id="4-add-a-page-from-a-selection">4. Add a page from a selection<a class="anchor" href="#4-add-a-page-from-a-selection" aria-label="Link to this section">#</a></h2>
+<ol>
+<li>Select something on the page (<code>S</code>, then drag round it).</li>
+<li>Choose <strong>Pages &gt; Add Page &gt; From Selection</strong>: the new page is the
+selection's size, and a copy of the selection comes with it, at its corner
+and selected. The originals stay where they were.</li>
+</ol>
+<h2 id="5-size-a-page">5. Size a page<a class="anchor" href="#5-size-a-page" aria-label="Link to this section">#</a></h2>
+<p>Right-click the panel, or choose <strong>Pages &gt; Page Settings…</strong>: an <strong>endless</strong>
+page fills the window, which is how a new sketch starts; a <strong>sized</strong> page
+keeps an exact width and height and shows a dashed outline.</p>
+<h2 id="6-move-between-pages">6. Move between pages<a class="anchor" href="#6-move-between-pages" aria-label="Link to this section">#</a></h2>
+<p>Click a thumbnail to turn to its page; everything you drew stays where you
+left it. <strong>Pages &gt; Delete Page</strong> removes the page in view, and is greyed while
+there is only one.</p>
+<h2 id="7-export-every-page">7. Export every page<a class="anchor" href="#7-export-every-page" aria-label="Link to this section">#</a></h2>
+<p>Under <strong>File &gt; Export</strong>, each format offers <strong>Export all pages</strong>: PNG, JPEG
+and SVG write <code>name_1</code>, <code>name_2</code> and on, one file a page, and PDF writes every
+page into one document.</p>
+<h2 id="where-next">Where next<a class="anchor" href="#where-next" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="automate.html">Quickstart: automating</a> - write a page as a script, or record
+what you drew.</li>
+<li><a href="../guide/import-export.html">Import and export</a> - what each format keeps.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="layers.html" rel="prev"><span>Previous</span>Quickstart: layers</a><a href="automate.html" rel="next"><span>Next</span>Quickstart: automating</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/quickstart/pages.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

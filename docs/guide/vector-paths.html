@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vector paths and stroke profiles - napkin-sketch</title>
+<meta name="description" content="Editing anchors and handles, rounding corners, Sharpen Selection, and the four stroke profiles.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html" aria-current="page">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Vector paths</span></nav>
+<h1 id="vector-paths-and-stroke-profiles">Vector paths and stroke profiles<a class="anchor" href="#vector-paths-and-stroke-profiles" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#editing-a-vector-path">Editing a vector path</a></li><li><a href="#direct-select">Direct Select</a></li><li><a href="#sharpen-selection">Sharpen Selection</a></li><li><a href="#stroke-profiles">Stroke Profiles</a></li></ul></details>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Stroke Profiles</strong> - the <strong>Stroke Profile</strong> control above the Width slider
+sets how the width runs along new pen and marker strokes: <strong>Default</strong>,
+<strong>Rounded</strong>, <strong>Tapered</strong> or <strong>Wave</strong>. With the Select tool it reshapes the
+selection too, and the Properties panel's <strong>Profile</strong> select sets one
+element's. A profiled stroke exports to SVG and PDF as the shape it is and
+comes back into napkin as the stroke it was.</li>
+</ul>
+<h2 id="editing-a-vector-path">Editing a vector path<a class="anchor" href="#editing-a-vector-path" aria-label="Link to this section">#</a></h2>
+<p><strong>Editing a vector path:</strong> strokes drawn by the Vector Path, Curve, and
+quick-curve tools keep their <strong>anchor points and Bézier control handles</strong>
+(a cubic segment is B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3, where
+P0/P3 are anchors and P1/P2 the control points). With the Vector Path tool
+active and no path in progress, <em>click such a stroke</em> to open it for editing
+— every anchor shows, Illustrator-style. Then:</p>
+<ul>
+<li><em>Click a segment</em> to <strong>add an anchor</strong> there (the segment splits without
+changing shape); <em>click an anchor</em> to <strong>remove it</strong>. The pointer telegraphs
+both: hovering an anchor shows a <strong>&quot;−&quot; badge</strong>, hovering the path between
+anchors a <strong>&quot;+&quot; badge</strong> (with <code>Ctrl</code> held too — <code>Ctrl</code>-clicking a bare
+segment also inserts an anchor).</li>
+<li>Hold <code>Ctrl</code> for direct-select edits: <em>drag an anchor</em> to move it (its
+handles ride along), or <em>drag one of the selected anchor's handles</em> to
+reshape the curve. A smooth point stays smooth: the opposite handle
+rotates to keep both collinear through the anchor (each keeps its own
+length), so the curve bends without creasing into a cusp.</li>
+<li>Hold <code>Ctrl</code> with an anchor selected and a <strong>target icon</strong> appears beside
+the corner: <em>drag the target</em> to <strong>round the corner</strong> into a circular
+fillet, growing with the drag — or type an exact radius into the
+<strong>Radius</strong> field that appears in the top toolbar while the Vector Path
+tool is active.</li>
+<li>Hold <code>Alt</code> and <em>click an anchor</em> to toggle its handles: a smooth point
+loses them and becomes a corner, a corner grows a smooth pair along its
+neighbour chord.</li>
+<li>The pointer follows the held modifier: <code>Ctrl</code> shows the <strong>black Select
+arrow</strong> (direct-select mode) over anything it can grab, and <code>Alt</code> a
+<strong>stemless arrowhead</strong> — an arrow reduced to just its head — for handle
+toggling.</li>
+<li>Clicking empty canvas or pressing <code>Esc</code> puts the path down; every change
+re-draws the stroke from its anchors immediately.</li>
+</ul>
+<h2 id="direct-select">Direct Select<a class="anchor" href="#direct-select" aria-label="Link to this section">#</a></h2>
+<p><strong>Direct Select tool (<code>A</code>):</strong> shows the <strong>white arrow</strong> pointer — the
+selection / direct-selection pairing of vector editors. <em>Click</em> an element
+to show its <strong>anchor points</strong>, then <em>drag</em> an anchor to reshape the path. A
+stroke drawn by the Vector Path, Curve, or quick-curve tools shows <strong>just
+its few Bézier anchors</strong> (a quick curve is two), and the selected anchor's
+<strong>curvature handles</strong> — drag a handle to bend the curve, with the opposite
+handle staying collinear so the bend is smooth; freehand strokes show their
+sampled points as before. Hold <code>Space</code> and drag
+to <strong>pan the canvas</strong>, exactly as with the Select tool, and the other quick
+keys (quick zoom, width, opacity, colors) work here too. <em><code>Shift</code>-click</em> selects
+multiple anchors to move together; <em>click the path</em> (not an anchor) to select
+and move the whole path. A single selected anchor grows two <strong>tangent
+handles</strong> — hollow circles on guide lines reaching out along the path each
+way, like a vector editor's direction handles. <em>Drag a handle</em> to bend the
+stroke around the anchor: the anchor stays pinned, the span between anchor
+and handle turns rigidly so the handle tracks the pointer exactly, and the
+bend fades smoothly into the rest of the stroke beyond it. Pulling a handle
+longer or shorter stretches that span too. Selected anchors and paths render
+blue, the grab sensitivity is configurable (Sketch Support, default 3px),
+and <code>Esc</code> drops the edit (<code>Ctrl+Z</code> restores the shape).</p>
+<h2 id="sharpen-selection">Sharpen Selection<a class="anchor" href="#sharpen-selection" aria-label="Link to this section">#</a></h2>
+<p><strong>Sharpen Selection</strong> (toolbar button): smooths and simplifies the selected
+strokes, like a vector editor's simplify command. A small dialog opens in the
+corner with <strong>Smooth</strong> and <strong>Simplify</strong> sliders and the strokes preview the
+result live on the canvas as the sliders move; <strong>Apply</strong> keeps the new shape
+(one undo step returns the originals) and <strong>Cancel</strong> or <code>Esc</code> restores them
+untouched. Distinct from <strong>Sharpen all</strong> (<code>H</code>), which runs the hand-drawn
+auto-sharpen engine over every stroke.</p>
+<h2 id="stroke-profiles">Stroke Profiles<a class="anchor" href="#stroke-profiles" aria-label="Link to this section">#</a></h2>
+<p><strong>Stroke Profile (the control above the Width slider, or Sketch &gt; Stroke
+Profile):</strong> sets how a stroke's
+width runs along its length, as a width profile does in Illustrator. The
+control shows a picture of the current profile, and clicking it opens the
+<strong>Stroke Profile</strong> picker beneath it.</p>
+<ul>
+<li><strong>Default</strong> is the constant width every stroke has always had. <strong>Rounded</strong>
+swells from a point to full width halfway along and back to a point.
+<strong>Tapered</strong> starts at full width with a round end and narrows to 0.3 of it.
+<strong>Wave</strong> is a band that snakes about the path as it swells, so its two sides
+differ. The three were measured from the design drawings rather than
+described by eye, and every picture of one - in the control and in the
+picker - is drawn by the code that draws the canvas.</li>
+<li><strong>Select</strong>, a double-click or <code>Enter</code> makes the highlighted profile the one
+new pen and marker strokes are drawn with. Like the width, it is tool state:
+it lasts while the app runs and is not saved as a setting. With the Select
+tool and a selection, the selected strokes take it too, as one undo step.
+The arrow keys, <code>Home</code> and <code>End</code> move through the list; <strong>Cancel</strong>,
+<code>Escape</code> or a press beside the picker closes it.</li>
+<li>The <strong>Properties</strong> panel's <strong>Profile</strong> select, under Stroke, changes the
+selected elements alone and leaves the tool's profile as it was.</li>
+<li>Pen and marker marks take a profile, and so does everything that commits as
+a pen stroke: Rectangle, Ellipse, Curve, straight lines and Vector Path. A
+Copic stroke's nib is its own width, and the eraser always cuts at full
+width.</li>
+<li>A profile runs once along each subpath from where it starts, so a closed
+shape is thin (Rounded) or full (Tapered) at the seam where its path begins.
+A dashed or dotted profiled stroke keeps the width the whole stroke has
+where each dash falls: a dashed Rounded line has thin dashes at its ends and
+fat ones in the middle. The pen's pressure still scales the width underneath
+the profile.</li>
+<li><strong>Export.</strong> SVG has no variable-width stroke, so a profiled stroke is written
+as the filled shape it is: the boundary of exactly what the canvas paints,
+however tightly the path bends back on itself. The stroke rides along as
+data (<code>data-profile</code>, with its centreline in <code>data-d</code>, and
+<code>data-profile-mirrored</code> on a mirrored Wave), so another editor
+sees the shape and napkin reads back the stroke, editable, with its profile.
+A profiled shape with a fill is a group of two paths, its fill and then its
+outline. PDF export fills the same outline.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="gestures.html" rel="prev"><span>Previous</span>Gestures and input</a><a href="selection.html" rel="next"><span>Next</span>Selecting and editing</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/vector-paths.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

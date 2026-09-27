@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Building and packaging - napkin-sketch</title>
+<meta name="description" content="Building, watching and packaging the app, and every npm script.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../guide/index.html">Overview</a></li><li><a href="../guide/tools.html">Tools</a></li><li><a href="../guide/gestures.html">Gestures</a></li><li><a href="../guide/vector-paths.html">Vector paths</a></li><li><a href="../guide/selection.html">Selection and editing</a></li><li><a href="../guide/transform.html">Transform</a></li><li><a href="../guide/layers.html">Layers</a></li><li><a href="../guide/pages.html">Pages</a></li><li><a href="../guide/import-export.html">Import and export</a></li><li><a href="../guide/sharpen.html">Sharpen</a></li><li><a href="../guide/settings.html">Settings</a></li><li><a href="../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../guide/automate.html">Automate</a></li><li><a href="../guide/animation-mode.html">Animation Mode</a></li><li><a href="../guide/skbk-format.html">The .skbk format</a></li><li><a href="../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="building.html" aria-current="page">Building</a></li><li><a href="testing.html">Testing</a></li><li><a href="project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> Developing <span class="sep">/</span> <span aria-current="page">Building</span></nav>
+<h1 id="building-and-packaging">Building and packaging<a class="anchor" href="#building-and-packaging" aria-label="Link to this section">#</a></h1>
+<h2 id="development">Development<a class="anchor" href="#development" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-bash">npm run build        # Bundle CLI, main, preload, renderer, and the embed API
+npm run build:watch  # Rebuild on change
+npm run build:types  # Emit .d.ts declarations for the embeddable API
+npm run typecheck    # Type-check without emitting
+npm test             # Run the unit test suites
+npm run gui-check    # Drive the built app and check what it shows (build first)
+npm run pack-check   # Pack, install the tarball with no Electron, and draw from it
+npm run start        # Build, then launch a new sketch
+npm run clean        # Remove dist/
+
+# Print the layer tree an SVG would import as (runs the real importer in a
+# hidden Electron window; no GUI needed)
+npm run import-tree -- test/imports/applied_layer_names.svg
+
+# Rebuild the napkin script shape library from its SVG assets; with -- --check
+# it only compares, and fails when the committed library is out of date
+npm run shape-library
+
+# Rewrite the API documentation's generated parts - the verb, command and
+# exit code tables, the object form's schema and docs/api/INDEX.json; with
+# -- --check it only compares, and fails when any is out of date
+npm run api-docs
+
+# Rewrite the shortcut tables - the Menus and shortcuts page's, and Tools in
+# the cheatsheet - from src/core/menu/; with -- --check it only compares
+npm run menu-docs
+
+# Rewrite the documentation site under docs/ from docs/site-src/ and the API
+# pages, and fill the tables in docs/site-src/; with -- --check it only compares
+npm run site
+
+# Archive checked TODO.md items into its &quot;## Complete&quot; section (kept at the
+# bottom of the file), noting which section each came from; safe to re-run
+npm run todo</code></pre>
+<p>The build uses <strong>esbuild</strong> to bundle the Node-side code (CommonJS), the renderer
+(browser IIFE), and the embeddable API (ESM + IIFE); <code>tsc</code> is used only for
+type-checking and for emitting the public type declarations.</p>
+<h2 id="packaging-a-desktop-installer">Packaging a desktop installer<a class="anchor" href="#packaging-a-desktop-installer" aria-label="Link to this section">#</a></h2>
+<p>napkin-sketch builds native installers with <strong>electron-builder</strong> (configured in
+<code>package.json</code>). The app icon is generated from <code>assets/icon.svg</code> at build time.</p>
+<pre><code class="language-bash">npm run build      # bundle into dist/ (also writes assets/icon.png)
+npm run dist       # build an installer for the current OS
+npm run dist:win   # Windows NSIS installer (Start-menu + desktop shortcut)</code></pre>
+<p>The Windows NSIS installer registers a Start-menu entry and desktop shortcut
+named <strong>Napkin Sketch</strong> and lets the user choose the install directory.</p>
+<h2 id="every-npm-script">Every npm script<a class="anchor" href="#every-npm-script" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Script</th><th>Runs</th></tr></thead>
+<tbody>
+<tr><td><code>npm run clean</code></td><td><code>node scripts/clean.mjs</code></td></tr>
+<tr><td><code>npm run build</code></td><td><code>node scripts/build.mjs</code></td></tr>
+<tr><td><code>npm run build:watch</code></td><td><code>node scripts/build.mjs --watch</code></td></tr>
+<tr><td><code>npm run build:types</code></td><td><code>tsc -p tsconfig.types.json</code></td></tr>
+<tr><td><code>npm run icon</code></td><td><code>node scripts/make-icon.mjs</code></td></tr>
+<tr><td><code>npm run typecheck</code></td><td><code>tsc --noEmit</code></td></tr>
+<tr><td><code>npm run test</code></td><td><code>node scripts/test.mjs</code></td></tr>
+<tr><td><code>npm run test:graphic-design-api</code></td><td><code>node scripts/test-graphic-design-api.mjs</code></td></tr>
+<tr><td><code>npm run import-tree</code></td><td><code>node scripts/import-tree.mjs</code></td></tr>
+<tr><td><code>npm run gui-check</code></td><td><code>node --experimental-websocket test/gui/run.mjs</code></td></tr>
+<tr><td><code>npm run todo</code></td><td><code>node scripts/todo.mjs</code></td></tr>
+<tr><td><code>npm run wireframe-cycles</code></td><td><code>node scripts/wireframe-cycles.mjs</code></td></tr>
+<tr><td><code>npm run shape-library</code></td><td><code>node scripts/shape-library.mjs</code></td></tr>
+<tr><td><code>npm run api-docs</code></td><td><code>node scripts/api-docs.mjs</code></td></tr>
+<tr><td><code>npm run menu-docs</code></td><td><code>node scripts/menu-docs.mjs</code></td></tr>
+<tr><td><code>npm run site</code></td><td><code>node scripts/site.mjs</code></td></tr>
+<tr><td><code>npm run pack-check</code></td><td><code>node scripts/pack-check.mjs</code></td></tr>
+<tr><td><code>npm run illustrated-frames</code></td><td><code>node scripts/illustrated-frames.mjs</code></td></tr>
+<tr><td><code>npm run frame-preview</code></td><td><code>node scripts/frame-preview.mjs</code></td></tr>
+<tr><td><code>npm run ai-helper</code></td><td><code>node scripts/install-ai-helper.mjs</code></td></tr>
+<tr><td><code>npm run animation-mode</code></td><td><code>node scripts/animation-mode.mjs</code></td></tr>
+<tr><td><code>npm run postinstall</code></td><td><code>node scripts/install-ai-helper.mjs --on-clone</code></td></tr>
+<tr><td><code>npm run start</code></td><td><code>npm run build &amp;&amp; node dist/cli/index.js --new</code></td></tr>
+<tr><td><code>npm run dist</code></td><td><code>npm run build &amp;&amp; electron-builder</code></td></tr>
+<tr><td><code>npm run dist:win</code></td><td><code>npm run build &amp;&amp; electron-builder --win nsis</code></td></tr>
+<tr><td><code>npm run dist:mac</code></td><td><code>npm run build &amp;&amp; electron-builder --mac dmg</code></td></tr>
+<tr><td><code>npm run dist:linux</code></td><td><code>npm run build &amp;&amp; electron-builder --linux AppImage</code></td></tr>
+<tr><td><code>npm run prepublishOnly</code></td><td><code>npm run build &amp;&amp; npm run build:types</code></td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../ai-helper.html" rel="prev"><span>Previous</span>The AI helper plugins</a><a href="testing.html" rel="next"><span>Next</span>Testing</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/develop/building.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

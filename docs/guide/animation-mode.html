@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Animation Mode - napkin-sketch</title>
+<meta name="description" content="The optional add-on that draws animation frames with an AI helper: installing it and using it.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html" aria-current="page">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Animation Mode</span></nav>
+<h1 id="animation-mode">Animation Mode<a class="anchor" href="#animation-mode" aria-label="Link to this section">#</a></h1>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Animation Mode</strong> (<code>Ctrl+Shift+N</code>, or Edit &gt; Animation Mode) — an
+<strong>optional add-on</strong> (<code>npm run animation-mode -- --install</code>; not part of a
+default install) that adds a frame-by-frame animation mode driven by an AI
+helper tool you install and sign in to yourself. The mode
+validates the page against the required character assemblies, then a
+wizard maps any missing assemblies onto existing layers, collects the
+animation type (<strong>character: walk</strong> ships ready-made), and draws the
+sequence <strong>one frame at a time</strong> through a configurable AI command. The app
+measures each joint and hands the helper finished SVG transforms, so a frame
+is a small file edit rather than a redrawn document. Each frame lands as a
+group layer continuing the <code>&lt;type&gt;_&lt;n&gt;</code> sequence and is offered for
+<strong>Redraw / Keep and draw next / Done</strong>. A frame count sets the pacing rather
+than a batch size: fewer frames move further each, more move less. For the
+four types with a measured cycle, <strong>Draw measured frames</strong> leaves the helper
+out and draws the whole sequence at once, with no AI. See
+<a href="#animation-mode">Animation Mode</a> for the workflow and requirements.</li>
+</ul>
+<blockquote><p><strong>Animation Mode is an optional add-on and is not part of a default
+install.</strong> It is the only feature that needs software napkin-sketch does not
+ship — an agentic AI command-line tool — so it is installed separately and
+can be removed again. See
+<a href="#installing-animation-mode">Installing Animation Mode</a> first; everything
+below assumes it is installed.</p></blockquote>
+<p><code>Ctrl + Shift + N</code> (or <strong>Edit &gt; Animation Mode</strong>) toggles a frame-by-frame
+animation mode. Entering it switches to the Select tool, opens the Layers
+panel, and shows a banner that validates the page live against the six
+required character assemblies:</p>
+<pre><code class="language-text">front-arm-assembly   body   front-leg-assembly
+back-leg-assembly    back-arm-assembly   Head</code></pre>
+<p>Names match case-insensitively and tolerate the <code>-2</code> / <code>_3</code> uniqueness
+suffixes editors append. Each assembly is normally a layer group holding its
+part groups (for example <code>front-arm</code> plus <code>front-glove</code> or <code>front-hand</code>,
+each with <code>strokes</code> and fill sub-groups).</p>
+<h2 id="frame-names">Frame names<a class="anchor" href="#frame-names" aria-label="Link to this section">#</a></h2>
+<p>A frame is a group layer named <code>&lt;base&gt;_&lt;n&gt;</code>: a name the whole sequence
+shares, then the frame's number. Each run draws the frame after the one it
+starts from, and names it from that frame's layer by whether the name holds
+the animation type, in any case:</p>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Drawn from</th><th style="text-align:left">Named</th><th style="text-align:left">Why</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>character-walk_1</code></td><td style="text-align:left"><code>character-walk_2</code></td><td style="text-align:left">The name holds the type and a number, so its sequence goes on.</td></tr>
+<tr><td style="text-align:left"><code>walk</code></td><td style="text-align:left"><code>walk_1</code></td><td style="text-align:left">The name holds the type but no number, so it counts as frame 0.</td></tr>
+<tr><td style="text-align:left"><code>hero</code></td><td style="text-align:left"><code>animationLayer-walk_1</code></td><td style="text-align:left">The name does not hold the type, so a new sequence starts, with it as frame 0.</td></tr>
+</tbody></table></div>
+<p>The helper saves each frame as <code>animations/&lt;base&gt;_&lt;n&gt;.svg</code>, under the name
+its layer takes when the app imports it.</p>
+<h2 id="installing-animation-mode">Installing Animation Mode<a class="anchor" href="#installing-animation-mode" aria-label="Link to this section">#</a></h2>
+<p>Every other feature of napkin-sketch runs on what the app ships. Animation
+Mode does not: it hands each frame to an <strong>agentic AI command-line tool that
+you install and sign in to yourself</strong> — Claude Code, GitHub Copilot CLI,
+Codex, Gemini, or another tool that can read a prompt file and edit an SVG.
+That is a real extra dependency, with its own installation, its own account,
+and in most cases its own cost, which is why the mode is opt-in rather than
+part of the app.</p>
+<p><strong>A default install leaves it out.</strong> <code>npm install</code> adds nothing: no Edit-menu
+entry, no <code>Ctrl + Shift + N</code>, no banner, and no AI tool required to run the
+app. Add the mode explicitly:</p>
+<pre><code class="language-bash">npm run animation-mode -- --status                 # is it installed?
+npm run animation-mode -- --install                # defaults to Claude Code
+npm run animation-mode -- --install --to copilot   # or codex, gemini, cursor…
+npm run animation-mode -- --install --to plugin    # as a Claude Code plugin
+npm run animation-mode -- --uninstall              # remove it again</code></pre>
+<p>Installing copies the <code>vector-animations</code> and <code>vector-graphics</code> skills plus the
+helper instructions into that tool's dot-folder (<code>.claude/</code>, <code>.github/</code>, …)
+and writes <code>ai-helper/installed.json</code>. (<code>--to plugin</code> copies nothing, because
+<code>ai-helper/vectors/</code> <strong>is</strong> the <code>vectors</code> plugin: that target checks the folder over
+and prints the two <code>/plugin</code> commands that load it, which are a step you have
+to run yourself - see the <code>plugin</code> target below.) Installing over an install
+that targeted somewhere else removes that one first, so switching delivery
+never leaves two copies of a skill loaded. That record is the only thing the app
+reads to decide whether the mode exists, so the feature is genuinely plugged
+in and out rather than merely hidden. <strong>Restart the app</strong> after either
+command.</p>
+<p>Before the first run, make sure the tool itself is ready:</p>
+<ol>
+<li><strong>Install the AI tool</strong> and check its command runs in a terminal
+(<code>claude</code>, <code>copilot</code>, <code>codex</code>, <code>gemini</code>, …).</li>
+<li><strong>Sign in to it.</strong> Start the tool in a terminal once and follow its own
+sign-in prompt.</li>
+<li><strong>Point napkin-sketch at it</strong> if it is not Claude Code: set
+<code>animationHelperCommand</code> in <strong>Verbose Settings</strong>.</li>
+</ol>
+<p>If a run cannot start the tool, or the tool reports that nobody is signed in,
+the app says so and offers <strong>Open sign-in</strong>, which starts that tool in a
+terminal of its own so it can run its own sign-in. <strong>napkin-sketch never
+asks for, reads, or stores a credential</strong> — your account stays between you
+and your AI tool, and the install record names only which tool was chosen.</p>
+<p><strong>Uninstalling keeps the rest of the app intact.</strong> It removes the two skills
+and the instructions file it installed (anything else in that dot-folder is
+left alone) and deletes the install record. A plugin install deletes nothing -
+what it installed is tracked source the repository needs either way - and
+prints the <code>/plugin</code> commands that unload it instead. Sketching, layers, export,
+import, pages, and every other feature are unaffected, and the app stops
+needing an AI tool at all.</p>
+<p>With the mode installed, the banner's <strong>Generate…</strong> button runs the wizard:</p>
+<ol>
+<li><p><strong>Animation setup</strong> — the category (<strong>Character</strong> or <strong>Object</strong>), the
+animation type, and how many <strong>frames the sequence runs to</strong>. The note
+names the frame the first run will draw (<code>walk_1</code>, or
+<code>animationLayer-walk_1</code> for an unnamed source).</p>
+<p><strong>The frame count is pacing, not a batch.</strong> Frames are still drawn one at a
+time and the sequence still runs for as long as you keep pressing Keep and
+draw next; the count sets how far each frame moves. A cycle's whole
+movement is spread across that many frames, so <strong>fewer frames move further
+each and more frames move less</strong>. It opens at the number of skeletons the
+cycle was drawn from — eight for a walk — and the note says which way a
+change moves the pose. A type with no measured cycle passes the number to
+the AI helper as context instead: this frame is worth about one Nth of the
+movement.</p>
+<p><strong>Every type is selectable.</strong> Four - walk, run, idle, knocked down - run off
+cycles <strong>measured from the drawn skeletons</strong> in
+<code>character-wireframes.svg</code>; the other ten are marked <strong>Work in Progress</strong>
+and are posed by the AI helper from a <strong>template</strong> carried in the prompt — one sentence describing
+what a single step of that movement does, and whether the sequence loops.
+That is what makes them usable now, and why their frames need a closer
+eye than a walk's:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Category</th><th>Types</th></tr></thead>
+<tbody>
+<tr><td>Character</td><td>walk · idle · run · attack · damage · taunt · talk · jump · fall down · knocked down</td></tr>
+<tr><td>Object</td><td>rotate · break · move · explode</td></tr>
+</tbody></table></div>
+<p>The list and the templates come from one table in the source, so an option
+can never appear without the prompt behind it.</p>
+<p><strong>Posing: Measure the joints, or Disable API.</strong> The app normally measures
+this figure's own geometry and hands the helper a finished angle per
+assembly. That only reaches a layer one of the six assemblies answers to,
+and a real illustrated character has more layers than that: a drawing with
+a skirt, a shirt, a glove and two jacket halves has layers with no slot at
+all, and a measured run leaves every one of them exactly where it was.
+Choosing <strong>Disable API</strong> hands over no angles at all. The helper poses every
+layer itself, from the drawing, your note and - for a type the drawn studies
+cover - that type's own measured travel band, printed in the form so there
+is something to aim at. The form also names the layers the rig could never
+have reached. The
+dialog counts them for the figure in front of you - <em>&quot;5 of 11 layers here
+match no assembly&quot;</em> - so the choice is made before a sequence is drawn
+rather than after eight frames of it. What the setting never changes is that
+a frame is <strong>posed rather than redrawn</strong>: the path data stays as it is
+either way.</p>
+<p><strong>Or draw every frame now, with no AI.</strong> For a character type with a
+measured cycle - walk, run, idle, knocked down - the dialog adds <strong>Draw
+measured frames</strong> beside Next. It leaves the helper out: once any missing
+assemblies are mapped, the app writes a napkin script that copies the
+figure's parts onto each frame and turns every part about its joint by the
+cycle's total up to that frame, and shows the script before anything is
+drawn. <strong>Draw frames</strong> runs it. The whole sequence lands at once - one row
+per frame, side by side, each saved to <code>animations/</code> as a helper's frame
+is - and one undo takes all of it back. A measured frame is the cycle's
+pose exactly, so it needs no sign-in, no waiting and no second look. What
+it cannot do is move a layer no assembly holds, so <strong>Disable API</strong> hides
+the button and leaves such a figure to the helper. <code>napkin-sketch render
+--animate walk</code> draws the same frames from a saved book (see
+<a href="../api/cli/index.html#render">the command line</a>).</p></li>
+<li><p><strong>Map missing layers</strong> (character animations only, and skipped when the
+page already validates) — for each missing assembly, a dialog asks which
+layers consist of it (Cancel / Back / Next); the chosen layers are grouped
+under a new group named for the assembly. <strong>Object animations skip this
+entirely</strong>: they move the graphic as a whole and have no arms or legs to
+map, so setup comes first and decides whether the assemblies are needed.</p></li>
+<li><p><strong>One frame at a time</strong> — the source frame is written to
+<code>_temp/animation-source.svg</code> and a short form (4 to 7 KB) to
+<code>_temp/animation-form.txt</code>. The form asks for exactly one read before the
+first edit - the <code>vector-animations</code> skill - and names the rest under a
+heading that says when they apply, because a helper told to read everything
+will. The helper applies that skill and <strong>edits the source file rather than
+redrawing it</strong>: it sets one <code>transform</code>
+per assembly and saves the result as <code>animations/&lt;type&gt;_&lt;n&gt;.svg</code> (the
+folder is created if missing). A source frame named <code>character-walk_1</code>
+produces <code>animations/character-walk_2.svg</code>; an unnamed source starts a
+0-based <code>animationLayer-&lt;type&gt;</code> sequence. The app ends the run the moment
+the file is complete — it never waits for the helper to finish talking —
+and imports the frame as a group layer mirroring the source's structure.</p>
+<p><strong>Frames stand side by side.</strong> A drawn frame is a copy of its source with
+the assemblies turned, so it would otherwise land exactly on top of it and
+hide the new pose. Each frame is placed one gap to the right of the frame
+it came from and the view fits the page afterwards, so the sequence builds
+left to right as an animation strip. Only the horizontal position moves;
+the cycle's vertical bob is part of the pose.</p>
+<p><strong>Which way the figure travels decides the sign of every angle.</strong> The
+measured cycles were read off wireframe skeletons that all walk to the
+right, and mirroring a figure negates every rotation in it - so the same
+table applied to a left-facing character is a walk with the legs swinging
+backwards. The setup dialog carries a <strong>Facing</strong> choice, <em>Travels right</em> or
+<em>Travels left</em>, preselected from the figure's own feet: a foot sticks out in
+front of the ankle, so two feet pointing the same way are a profile and two
+pointing opposite ways are a drawing with no facing to read, which the note
+under the choice says outright. Choosing <em>Travels left</em> mirrors the
+dictated transforms, and the form tells the helper which way it was read
+either way - including when the measuring is off and the helper is working
+from the skill's own right-facing tables, where flipping the signs is its
+job rather than the app's.</p>
+<p><strong>A frame arrives as one row</strong>, folded shut the way everything imported is
+(see <strong>Import</strong> in the feature list above). The panel gains one row per
+frame rather than the sixty-odd an illustrated pose is made of.</p>
+<p><strong>Frame files are sprites.</strong> The SVG kept in <code>animations/</code> is sized to the
+ink, not to the napkin-sketch page, and carries no background rect — so a
+frame drops into an animation composition as it stands, with no empty
+margin around it and nothing opaque behind it. The box is the frame's
+stroke bounds grown by half the widest stroke, and it is reached by
+offsetting the document's <code>viewBox</code> rather than moving the geometry. The
+app rewrites the file from the frame it imported, so the sizing is exact
+whatever the helper saved.</p>
+<p><strong>The app measures the pose itself.</strong> Each assembly's joint pivot comes
+from its own bounds (shoulder and hip at the top, neck at the bottom of the
+head; the body only bobs), and the form hands the helper finished
+<code>transform</code> values to copy. A group transform rotates every anchor <em>and its
+Bezier handles</em> together, which is the rigid joint rotation a frame needs,
+and the importer resolves it — so a transformed frame and a redrawn one
+import identically, but the transform costs one attribute instead of tens
+of thousands of tokens of SVG. <strong>character: walk</strong> ships with an eight-step
+cycle that closes and loops; a type without a cycle asks the helper to
+choose the angles using the same mechanics.</p>
+<p>Each frame is then offered for <strong>Redraw</strong> (discard it and draw the same
+index again), <strong>Keep and draw next</strong> (that frame becomes the source for
+the next one), or <strong>Done</strong> — so a sequence runs exactly as long as the
+cycle needs. There is <strong>no overall time limit</strong>, but a run with no frame
+and no output for 5 minutes is killed so it can never hang, and <strong>Cancel</strong>
+kills it immediately. The temp folder is cleared when the wizard ends.</p></li>
+</ol>
+<p>The helper command is the <code>animationHelperCommand</code> setting (default
+<code>claude -p --model sonnet --dangerously-skip-permissions &lt;
+_temp/animation-form.txt</code> — a Sonnet-class model is pinned because setting six
+attributes in a file is mechanical work that a mid-size model does quickly);
+any agentic CLI that reads the form and edits a file works — Claude Code,
+GitHub Copilot, Codex, or a plain LLM command-line tool. A tool that can only
+print falls back to printing the whole document, which the app recovers from
+stdout and saves itself. The AI-facing contract
+(<code>animation-mode.instructions.md</code>) and two supporting skills live canonically
+in the version-tracked <code>ai-helper/vectors/</code> folder: <code>vector-animations</code> (the assembly
+list, joint pivots, cycle tables, transform recipe, Bezier-curve and
+animation-essentials references, the character wireframe rig, and an object rig
+drawing what a break and a burst do to the pieces) and
+<code>vector-graphics</code> (a general Bezier-curve and SVG-structure skill -
+linear/quadratic/cubic references, layer-management conventions for naming,
+nesting, and compound paths, shape, object, and letterform assets, and a
+dependency-free script that derives SVG path data from control points). That
+folder is also the plugin itself, so the same files reach a tool that loads
+plugins and a tool that reads a dot-folder, and neither copy can go stale.
+<code>ai-helper/</code> above it is a container, holding one folder per helper -
+<code>vectors/</code>, the <a href="../ai-helpers.html#the-graphic-designer-helper">graphic-designer</a> beside it, and
+<a href="../ai-helpers.html#the-scripting-helper">scripting</a>.
+Every generated form names the <code>vector-animations</code> skill and tells the helper
+where to find both; a frame turns existing geometry, so <code>vector-graphics</code> only
+comes into play when something has to be drawn from scratch. Because AI tool
+dot-folders are commonly gitignored, a fresh clone installs them with:</p>
+<pre><code class="language-bash">npm run ai-helper -- --to claude        # .claude (default when no --to)
+npm run ai-helper -- --to github        # .github (Copilot)
+npm run ai-helper -- --to cursor        # any other tool dot-folder
+npm run ai-helper -- --to plugin        # check the plugins, print /plugin
+npm run ai-helper -- --helper vectors   # narrow to one helper (default: all)
+npm run ai-helper -- --list             # show every known target and helper
+NAPKIN_AI_HELPER=claude,github npm install   # or install on clone via env</code></pre>
+<p><strong>The <code>plugin</code> target is the odd one out</strong>, because there is nothing for it to
+copy. <code>ai-helper/vectors/</code> <strong>is</strong> the <code>vectors</code> plugin: the manifest, the
+command, the subagent, both skills, and the contract are the folder's own
+contents, and the marketplace that lists it is one manifest at the repository
+root.</p>
+<pre><code class="language-text">.claude-plugin/marketplace.json   lists vectors, source ./ai-helper/vectors
+ai-helper/
+  vectors/
+    .claude-plugin/plugin.json    the manifest, versioned from package.json
+    commands/animation-mode.md    /vectors:animation-mode - draw one frame
+    agents/animation-frame.md     the same job as a subagent, in its own context
+    skills/vector-animations/     assemblies, pivots, cycles, transform recipe
+    skills/vector-graphics/       Bezier formulas, layer structure, path scripting
+    instructions/                 the contract a helper follows
+  graphic-designer/               the second helper, below
+  scripting/                      the third, below that</code></pre>
+<p>So the target checks that tree, syncs the manifest version to <code>package.json</code>,
+and prints what actually loads the plugin - which readying it never did:</p>
+<pre><code class="language-text">/plugin marketplace add .                              # from a clone
+/plugin marketplace add isocialPractice/napkin-sketch  # without one
+/plugin install vectors@napkin-sketch</code></pre>
+<p><strong>A plugin is more than the two skills.</strong> Loaded, it namespaces what it
+carries: the skills answer to <code>vectors:vector-animations</code> and
+<code>vectors:vector-graphics</code>, <code>/vectors:animation-mode</code> runs a frame from the
+form the app wrote, and <code>vectors:animation-frame</code> is a subagent that does the
+same job in a context of its own so a frame's SVG never lands in the main
+conversation. The app knows the difference: an install recorded as <code>plugin</code>
+makes every generated form name the plugin's parts, because a bare skill name
+reaches nothing once the skill lives inside one.</p>
+<p><strong>Nothing here is generated</strong>, which is the point. The two deliveries read the
+same files, so a skill cannot be current in one and stale in the other, and a
+test fails if any skill ever appears twice in the tree.</p>
+<p><strong>Debugging a run</strong>: every helper invocation is logged to
+<code>logs/animation-helper.log</code> (the <code>animationLogFile</code> setting; the folder is
+created on first write, an empty value disables the log, and clearing the
+<code>_temp/</code> folder never touches it) with the command, the frame it asked for,
+the exit code, duration, stderr, and the start of stdout — check it when a
+frame does not appear. The path is <strong>relative to the helper's working
+directory</strong> and is held to that: an absolute path, a drive letter, or a <code>..</code>
+segment is refused and the default is used instead, so a log can never be
+written somewhere the setting did not name.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="automate.html" rel="prev"><span>Previous</span>Automate</a><a href="skbk-format.html" rel="next"><span>Next</span>The .skbk file format</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/animation-mode.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

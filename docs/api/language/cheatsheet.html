@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The napkin script language: cheatsheet - napkin-sketch</title>
+<meta name="description" content="The napkin script language, as tables to look things up in.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group" open><summary>The napkin script language</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html" aria-current="page">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">The napkin script language</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
+<h1 id="the-napkin-script-language-cheatsheet">The napkin script language: cheatsheet<a class="anchor" href="#the-napkin-script-language-cheatsheet" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#syntax">Syntax</a></li><li><a href="#values">Values</a></li><li><a href="#the-verbs-that-shape-a-script">The verbs that shape a script</a></li><li><a href="#functions">Functions</a></li><li><a href="#the-budget">The budget</a></li><li><a href="#in-code">In code</a></li><li><a href="#diagnostic-codes">Diagnostic codes</a></li><li><a href="#common-mistakes">Common mistakes</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <a href="quickstart.html">Quickstart</a> · <strong>Cheatsheet</strong></p>
+<p>Reminders for the language: syntax, values, the verbs that shape a script, functions, the budget and every diagnostic code.</p>
+<h2 id="syntax">Syntax<a class="anchor" href="#syntax" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Write</th><th>Means</th></tr></thead>
+<tbody>
+<tr><td><code>napkin 1</code></td><td>The first line: the language version. Without it, a <code>version-missing</code> warning.</td></tr>
+<tr><td><code>rect 20 20 100 50</code></td><td>One instruction a line: the verb, then its arguments.</td></tr>
+<tr><td><code>line 0 0 10 10; line 10 10 20 0</code></td><td><code>;</code> ends an instruction too.</td></tr>
+<tr><td><code>color #1f2328 width 3 fill #ffe08a</code></td><td>Paint verbs share a line; nothing else does.</td></tr>
+<tr><td><code>group &quot;Figure&quot; { ... }</code></td><td>A block, for <code>group</code>, <code>define</code>, <code>repeat</code> and <code>path</code>.</td></tr>
+<tr><td><code># a comment</code></td><td><code>#</code> and a space, to the end of the line.</td></tr>
+<tr><td><code>(i * 40 + 20)</code></td><td>An expression, anywhere a number or a length goes.</td></tr>
+<tr><td><code>Rect</code>, <code>RECT</code></td><td>Verbs, keywords and choices ignore case.</td></tr>
+</tbody></table></div>
+<h2 id="values">Values<a class="anchor" href="#values" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Kind</th><th>Text</th><th>JSON</th></tr></thead>
+<tbody>
+<tr><td>Number</td><td><code>12</code>, <code>-3.5</code>, <code>1e3</code></td><td><code>12</code></td></tr>
+<tr><td>Length</td><td><code>120</code>, <code>10mm</code>, <code>0.5in</code>, <code>12pt</code>, <code>4px</code>, <code>50%</code></td><td><code>120</code>, <code>&quot;10mm&quot;</code>, <code>&quot;50%&quot;</code></td></tr>
+<tr><td>Expression</td><td><code>(width / 2)</code></td><td><code>{ &quot;expr&quot;: &quot;width / 2&quot; }</code></td></tr>
+<tr><td>String</td><td><code>&quot;Acme Corp&quot;</code>, <code>&quot;one\ntwo&quot;</code></td><td><code>&quot;Acme Corp&quot;</code></td></tr>
+<tr><td>Color</td><td><code>#1f2328</code>, <code>steelblue</code>, <code>rgb(31, 35, 40)</code></td><td><code>&quot;#1f2328&quot;</code></td></tr>
+<tr><td>Switch</td><td><code>on</code>, <code>off</code></td><td><code>true</code>, <code>false</code></td></tr>
+<tr><td>Points</td><td><code>0 0, 10 0, 5 8</code></td><td><code>[{ &quot;x&quot;: 0, &quot;y&quot;: 0 }, ...]</code></td></tr>
+<tr><td>Stops</td><td><code>(#ffffff 0, #000000 1)</code></td><td><code>[{ &quot;color&quot;: &quot;#ffffff&quot;, &quot;offset&quot;: 0 }, ...]</code></td></tr>
+</tbody></table></div>
+<h2 id="the-verbs-that-shape-a-script">The verbs that shape a script<a class="anchor" href="#the-verbs-that-shape-a-script" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Category</th><th>Verb</th><th>Written</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td>Document</td><td><code>napkin</code></td><td><code>napkin &lt;version&gt;</code></td><td>The language version the script was written for. The first line of a script; without it version 1 is assumed, with a warning.</td></tr>
+<tr><td>Document</td><td><code>page</code></td><td><code>page &lt;paper&gt; [portrait|landscape]</code><br><code>page &lt;width&gt; &lt;height&gt; [portrait|landscape]</code></td><td>The page size: a named size (a3, a4, a5, letter, legal, tabloid, square, slide, napkin) or a width and a height, turned portrait or landscape.</td></tr>
+<tr><td>Document</td><td><code>background</code></td><td><code>background &lt;color&gt;</code><br><code>background none</code></td><td>The page color, or none for a transparent page.</td></tr>
+<tr><td>Document</td><td><code>name</code></td><td><code>name &quot;&lt;name&gt;&quot;</code></td><td>The page's name, and the file stem it is written under.</td></tr>
+<tr><td>Document</td><td><code>units</code></td><td><code>units px|in|mm|pt</code></td><td>The unit bare numbers are read in from here on: px, in, mm or pt. Pixels until changed.</td></tr>
+<tr><td>Document</td><td><code>seed</code></td><td><code>seed &lt;n&gt;</code></td><td>The seed for the hand-drawn pass. One script and one seed draw the same bytes every run.</td></tr>
+<tr><td>Document</td><td><code>newpage</code></td><td><code>newpage [&quot;&lt;name&gt;&quot;]</code></td><td>Starts another page the same size, carrying the paint state across.</td></tr>
+<tr><td>Transforms</td><td><code>push</code></td><td><code>push</code></td><td>Saves the transform, the paint state and the units, for the next pop to restore.</td></tr>
+<tr><td>Transforms</td><td><code>pop</code></td><td><code>pop</code></td><td>Restores the transform, the paint state and the units the last push saved.</td></tr>
+<tr><td>Transforms</td><td><code>translate</code></td><td><code>translate &lt;dx&gt; &lt;dy&gt;</code></td><td>Moves everything drawn after it.</td></tr>
+<tr><td>Transforms</td><td><code>rotate</code></td><td><code>rotate &lt;degrees&gt; [at &lt;x&gt; &lt;y&gt;]</code></td><td>Turns everything drawn after it, clockwise in degrees, about the origin or a point given with at.</td></tr>
+<tr><td>Transforms</td><td><code>scale</code></td><td><code>scale &lt;s&gt; [&lt;sy&gt;] [at &lt;x&gt; &lt;y&gt;]</code></td><td>Scales everything drawn after it, about the origin or a point given with at. One factor scales both ways.</td></tr>
+<tr><td>Transforms</td><td><code>mirror</code></td><td><code>mirror x|y [at &lt;position&gt;]</code></td><td>Reflects everything drawn after it: x swaps left and right across a vertical line, y swaps top and bottom across a horizontal one, at 0 unless given.</td></tr>
+<tr><td>Control</td><td><code>let</code></td><td><code>let &lt;name&gt; &lt;value&gt;</code></td><td>Names a number for the expressions after it, in the current units.</td></tr>
+<tr><td>Control</td><td><code>define</code></td><td><code>define &quot;&lt;name&gt;&quot; { ... }</code></td><td>Records a block of drawing under a name without drawing it, for place to draw.</td></tr>
+<tr><td>Control</td><td><code>place</code></td><td><code>place &quot;&lt;name&gt;&quot; [at &lt;x&gt; &lt;y&gt;] [scale &lt;s&gt;] [rotate &lt;degrees&gt;]</code></td><td>Draws a definition, moved, scaled or turned.</td></tr>
+<tr><td>Control</td><td><code>repeat</code></td><td><code>repeat &lt;count&gt; [as &lt;name&gt;] { ... }</code></td><td>Runs a block a number of times, counting from 0 in the name given with as.</td></tr>
+</tbody></table></div>
+<ul>
+<li>What the other verbs draw: <a href="../drawing/cheatsheet.html">the drawing cheatsheet</a>.</li>
+<li>Every verb on one line: <a href="../cheatsheet.html">API-CHEATSHEET.md</a>.</li>
+</ul>
+<h2 id="functions">Functions<a class="anchor" href="#functions" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Function</th><th>Takes</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>sin</code></td><td>a number</td><td>The sine of an angle in degrees.</td></tr>
+<tr><td><code>cos</code></td><td>a number</td><td>The cosine of an angle in degrees.</td></tr>
+<tr><td><code>tan</code></td><td>a number</td><td>The tangent of an angle in degrees.</td></tr>
+<tr><td><code>sqrt</code></td><td>a number</td><td>The square root.</td></tr>
+<tr><td><code>abs</code></td><td>a number</td><td>The value without its sign.</td></tr>
+<tr><td><code>round</code></td><td>a number</td><td>The nearest whole number.</td></tr>
+<tr><td><code>floor</code></td><td>a number</td><td>The whole number at or below.</td></tr>
+<tr><td><code>ceil</code></td><td>a number</td><td>The whole number at or above.</td></tr>
+<tr><td><code>min</code></td><td>2 or more numbers</td><td>The smallest of two or more values.</td></tr>
+<tr><td><code>max</code></td><td>2 or more numbers</td><td>The largest of two or more values.</td></tr>
+</tbody></table></div>
+<h2 id="the-budget">The budget<a class="anchor" href="#the-budget" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Limit</th><th>Default</th><th>Counts</th></tr></thead>
+<tbody>
+<tr><td><code>instructions</code></td><td>200,000</td><td>Instructions run, every pass through a <code>repeat</code> counted</td></tr>
+<tr><td><code>marks</code></td><td>50,000</td><td>Marks drawn</td></tr>
+<tr><td><code>anchors</code></td><td>250,000</td><td>Bezier anchors, across every mark</td></tr>
+<tr><td><code>points</code></td><td>1,000,000</td><td>Points sampled from those anchors for the canvas to paint</td></tr>
+<tr><td><code>depth</code></td><td>64</td><td>Blocks open at once: groups, placed definitions and repeats</td></tr>
+</tbody></table></div>
+<h2 id="in-code">In code<a class="anchor" href="#in-code" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>parseScript(text, { fragment })</code></td><td><code>{ ok, script, diagnostics }</code>; never throws</td></tr>
+<tr><td><code>validateScript(json, { fragment })</code></td><td>The same, for the object form</td></tr>
+<tr><td><code>formatScript(script)</code></td><td>The script as canonical text</td></tr>
+<tr><td><code>formatDiagnostic(d, 'card.napkin')</code></td><td><code>card.napkin:3:1: error unknown-verb: ...</code></td></tr>
+</tbody></table></div>
+<h2 id="diagnostic-codes">Diagnostic codes<a class="anchor" href="#diagnostic-codes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Code</th><th>Level</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>unknown-verb</code></td><td>error</td><td>A line starts with a word that is not a verb.</td></tr>
+<tr><td><code>misplaced-verb</code></td><td>error</td><td>A verb where it cannot appear: a path step outside a path block, a napkin line after the first, a layer inside a path, a newpage inside a group or a definition.</td></tr>
+<tr><td><code>unsupported-verb</code></td><td>error</td><td>The verb, or this way of writing it, is known but not drawn by this build or by the host running the script; the instruction is skipped.</td></tr>
+<tr><td><code>expected-number</code></td><td>error</td><td>A number, or an expression in parentheses, was expected.</td></tr>
+<tr><td><code>expected-length</code></td><td>error</td><td>A length was expected: a number, a number with a unit (10mm, 0.5in, 12pt, 4px), a percentage, or an expression.</td></tr>
+<tr><td><code>expected-string</code></td><td>error</td><td>A double-quoted string was expected.</td></tr>
+<tr><td><code>expected-identifier</code></td><td>error</td><td>A bare name was expected: letters, digits and underscores, starting with a letter.</td></tr>
+<tr><td><code>expected-color</code></td><td>error</td><td>A CSS color was expected, such as #1f2328, red or rgb(31, 35, 40).</td></tr>
+<tr><td><code>expected-choice</code></td><td>error</td><td>One word from a fixed list was expected; the message lists them.</td></tr>
+<tr><td><code>expected-points</code></td><td>error</td><td>A list of points was expected: x y pairs separated by commas.</td></tr>
+<tr><td><code>expected-stops</code></td><td>error</td><td>A list of gradient stops was expected: (color offset, color offset, ...).</td></tr>
+<tr><td><code>unexpected-token</code></td><td>error</td><td>Something is left on the line after the instruction was read, or a character that cannot start anything.</td></tr>
+<tr><td><code>missing-argument</code></td><td>error</td><td>A required argument is missing; the message names it and shows how the verb is written.</td></tr>
+<tr><td><code>expected-block</code></td><td>error</td><td>A block was expected: { at the end of the line, the instructions it holds, and } to close it.</td></tr>
+<tr><td><code>unclosed-block</code></td><td>error</td><td>A block opened with { is never closed with }.</td></tr>
+<tr><td><code>unexpected-close</code></td><td>error</td><td>A } closes a block that was never opened.</td></tr>
+<tr><td><code>unclosed-string</code></td><td>error</td><td>A string runs to the end of the line without its closing quote.</td></tr>
+<tr><td><code>invalid-expression</code></td><td>error</td><td>An expression could not be read: an unknown operator, a missing operand, or an unclosed parenthesis.</td></tr>
+<tr><td><code>unit-unknown</code></td><td>error</td><td>A number carries a unit the language does not know. The units are px, in, mm and pt, and % for a share of the page.</td></tr>
+<tr><td><code>invalid-value</code></td><td>error</td><td>A value is out of range: an opacity above 1, a negative radius, a star with fewer than 2 points, a percentage where the page cannot measure one.</td></tr>
+<tr><td><code>version-missing</code></td><td>warning</td><td>The script does not start with napkin &lt;version&gt;; version 1 is assumed.</td></tr>
+<tr><td><code>version-unsupported</code></td><td>error</td><td>The script names a version newer than this build reads; the message names the newest it does.</td></tr>
+<tr><td><code>unknown-variable</code></td><td>error</td><td>An expression uses a name no let or repeat has set.</td></tr>
+<tr><td><code>unknown-definition</code></td><td>error</td><td>place names something no define recorded.</td></tr>
+<tr><td><code>unknown-shape</code></td><td>error</td><td>shape names something the shape library does not have.</td></tr>
+<tr><td><code>unknown-asset</code></td><td>error</td><td>image names an asset the host did not supply.</td></tr>
+<tr><td><code>unknown-document</code></td><td>error</td><td>use names a document the host did not supply.</td></tr>
+<tr><td><code>image-size-unknown</code></td><td>warning</td><td>An image's size cannot be read from its data, so it is placed square: 100 by 100, or the one size given by itself.</td></tr>
+<tr><td><code>glyph-missing</code></td><td>warning</td><td>text as marks has a character the built-in face does not draw; it is left as a gap.</td></tr>
+<tr><td><code>unknown-field</code></td><td>warning</td><td>An instruction in a JSON script has a field its verb does not have; it is left out.</td></tr>
+<tr><td><code>recursive-definition</code></td><td>error</td><td>A definition places itself, directly or through another definition.</td></tr>
+<tr><td><code>division-by-zero</code></td><td>error</td><td>An expression divides by zero.</td></tr>
+<tr><td><code>budget-exceeded</code></td><td>error</td><td>The script ran more instructions, drew more marks, emitted more anchors or sampled points, or nested deeper than the limit allows; what it drew up to that point is kept.</td></tr>
+<tr><td><code>pop-without-push</code></td><td>error</td><td>pop with nothing saved to restore.</td></tr>
+<tr><td><code>unbalanced-push</code></td><td>warning</td><td>A push is never popped before its block ends; the saved state is restored there anyway.</td></tr>
+<tr><td><code>duplicate-definition</code></td><td>warning</td><td>A second define replaces an earlier one of the same name.</td></tr>
+<tr><td><code>link-unresolved</code></td><td>warning</td><td>A linked file could not be read for an output that has to draw it, so its placeholder was drawn instead.</td></tr>
+<tr><td><code>unused-effect</code></td><td>warning</td><td>An effect nothing took: no layer, group or mark followed it before its block, its page or the script ended.</td></tr>
+</tbody></table></div>
+<h2 id="common-mistakes">Common mistakes<a class="anchor" href="#common-mistakes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Wrong</th><th>Right</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><code>circle i*40 50 10</code></td><td><code>circle (i * 40) 50 10</code></td><td>Arithmetic goes in parentheses.</td></tr>
+<tr><td><code>rect 0 0 gap gap</code></td><td><code>rect 0 0 (gap) (gap)</code></td><td>So does a name where a number goes.</td></tr>
+<tr><td><code>rect 0 0 10 10 #note</code></td><td><code>rect 0 0 10 10 # note</code></td><td>A comment needs a space after <code>#</code>; <code>#note</code> is read as an argument.</td></tr>
+<tr><td>A script with no <code>napkin 1</code></td><td><code>napkin 1</code> first</td><td>A <code>version-missing</code> warning, which <code>--strict</code> fails.</td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="quickstart.html" rel="prev"><span>Previous</span>The napkin script language: quickstart</a><a href="../drawing/index.html" rel="next"><span>Next</span>Drawing with napkin script</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/language/CHEATSHEET.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

@@ -52,7 +52,9 @@ function workspace(): { dir: string; env: NodeJS.ProcessEnv; done(): void } {
   const env = { ...process.env };
   const key = Object.keys(env).find((name) => name.toLowerCase() === 'path') ?? 'PATH';
   env[key] = `${bin}${delimiter}${env[key] ?? ''}`;
-  return { dir, env, done: () => rmSync(root, { recursive: true, force: true }) };
+  // Windows can hold a program the C example compiled for a moment after it
+  // exits, so taking the folder away is retried rather than failing the test.
+  return { dir, env, done: () => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) };
 }
 
 /** Asserts a caller ran cleanly and wrote the files named. */

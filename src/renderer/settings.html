@@ -248,6 +248,27 @@
         </p>
       </section>
 
+      <section id="automate" class="settings-section" aria-label="Automate">
+        <h2>Automate</h2>
+        <label class="switch settings-row">
+          <input id="track-history" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Track History</span>
+        </label>
+        <label class="settings-field">
+          <span>History limit <em id="history-limit-value">500 steps</em></span>
+          <input id="history-limit" type="range" />
+        </label>
+        <p id="history-usage" class="settings-hint" role="status" aria-live="polite">Track History is off, so nothing is recorded.</p>
+        <p class="settings-hint">
+          While Track History is on, every step of the drawing's history - a
+          stroke, a command, an undo - is kept, up to the limit, and the
+          oldest goes first. Automate &gt; Generate Script &gt; From Session
+          History writes the steps as a script. A new or opened document
+          starts a new history, and turning tracking off clears it.
+        </p>
+      </section>
+
       <section class="settings-section" aria-label="Appearance and auto-save">
         <h2>Extras</h2>
         <label class="settings-field">

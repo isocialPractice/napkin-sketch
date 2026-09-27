@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writing a drawing out: cheatsheet - napkin-sketch</title>
+<meta name="description" content="Writing a drawing out, as tables to look things up in.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Writing a drawing out</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html" aria-current="page">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">Writing a drawing out</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
+<h1 id="writing-a-drawing-out-cheatsheet">Writing a drawing out: cheatsheet<a class="anchor" href="#writing-a-drawing-out-cheatsheet" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#the-calls">The calls</a></li><li><a href="#options">Options</a></li><li><a href="#the-output-verbs">The output verbs</a></li><li><a href="#what-each-format-keeps">What each format keeps</a></li><li><a href="#the-box">The box</a></li><li><a href="#common-mistakes">Common mistakes</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <a href="quickstart.html">Quickstart</a> · <strong>Cheatsheet</strong></p>
+<p>Reminders for writing a drawing out: the two calls, their options, the box, and what each format keeps.</p>
+<h2 id="the-calls">The calls<a class="anchor" href="#the-calls" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Format</th><th><code>renderSketch(page, options)</code></th><th><code>renderBook(book, options)</code></th><th>Write it as</th></tr></thead>
+<tbody>
+<tr><td><code>svg</code></td><td>a string</td><td>a string a page</td><td>UTF-8</td></tr>
+<tr><td><code>png</code></td><td>a <code>Uint8Array</code></td><td>a <code>Uint8Array</code> a page</td><td>bytes</td></tr>
+<tr><td><code>pdf</code></td><td>a string</td><td>one string, a PDF page a sketch</td><td><code>latin1</code></td></tr>
+<tr><td><code>skbk</code></td><td>a string: a book of that page</td><td>one string</td><td>UTF-8</td></tr>
+<tr><td><code>jsx</code></td><td>a string: a script for that page</td><td>one string, a document a page</td><td>UTF-8</td></tr>
+</tbody></table></div>
+<h2 id="options">Options<a class="anchor" href="#options" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Option</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>format</code></td><td><code>'svg'</code></td><td><code>svg</code>, <code>png</code>, <code>pdf</code>, <code>skbk</code> or <code>jsx</code></td></tr>
+<tr><td><code>crop</code></td><td>the whole page</td><td><code>'auto'</code>, <code>{ mode: 'auto', pad: 12 }</code>, <code>'none'</code>, or <code>{ x, y, width, height }</code></td></tr>
+<tr><td><code>registration</code></td><td>none</td><td>One box for every page; wins over <code>crop</code></td></tr>
+<tr><td><code>transparent</code></td><td><code>false</code></td><td>No paper in the SVG, the PNG or the <code>.jsx</code></td></tr>
+<tr><td><code>scale</code></td><td><code>1</code></td><td>PNG pixels a page pixel</td></tr>
+<tr><td><code>resolveLink</code></td><td>none</td><td>Reads linked files for the PNG: <code>resolveLinkFromDir(folder)</code></td></tr>
+<tr><td><code>decodeImage</code></td><td>none</td><td>Decodes images the PNG cannot: anything but PNG</td></tr>
+<tr><td><code>linkFolder</code></td><td>beside the script</td><td>Where a <code>.jsx</code> looks for linked files; <code>writeBook</code> and <code>drawToFiles</code> set it</td></tr>
+<tr><td><code>onWarning</code></td><td>none</td><td>Told what a format left out or drew as a stand-in</td></tr>
+</tbody></table></div>
+<ul>
+<li><code>...output</code> from <code>evaluate</code> applies the script's own <code>crop</code> and <code>registration</code>.</li>
+</ul>
+<h2 id="the-output-verbs">The output verbs<a class="anchor" href="#the-output-verbs" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Category</th><th>Verb</th><th>Written</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td>Output</td><td><code>crop</code></td><td><code>crop auto [pad &lt;length&gt;]</code><br><code>crop none</code><br><code>crop &lt;x&gt; &lt;y&gt; &lt;width&gt; &lt;height&gt;</code></td><td>The box every output is cut to: auto fits the ink with room to spare, none keeps the page, or a box given outright.</td></tr>
+<tr><td>Output</td><td><code>registration</code></td><td><code>registration &lt;x&gt; &lt;y&gt; &lt;width&gt; &lt;height&gt;</code></td><td>One box every page is written in, so frames drawn by one script line up when they are played in sequence.</td></tr>
+</tbody></table></div>
+<h2 id="what-each-format-keeps">What each format keeps<a class="anchor" href="#what-each-format-keeps" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th></th><th>SVG</th><th>PNG</th><th>PDF</th><th><code>.skbk</code></th><th><code>.jsx</code></th></tr></thead>
+<tbody>
+<tr><td>Layer tree and names</td><td>Yes, named three ways</td><td>Composited</td><td>Flattened</td><td>Yes</td><td>Layers and named groups, hidden and locked ones too</td></tr>
+<tr><td>Bezier anchors</td><td>Yes, two decimals</td><td>Drawn</td><td>Vector lines through the sampled points</td><td>Yes</td><td>Yes, two decimals</td></tr>
+<tr><td>Gradients</td><td>Yes</td><td>Yes</td><td>Flat fill, warned</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Dashes, profiles, Copic nibs</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Text</td><td>Live <code>&lt;text&gt;</code>, the named font</td><td>The built-in face</td><td>Helvetica</td><td>Yes</td><td>Text frames, the named font where Illustrator has it</td></tr>
+<tr><td>Images</td><td>Embedded</td><td>PNG; the rest with <code>decodeImage</code></td><td>JPEG only, warned</td><td>Yes</td><td>Embedded</td></tr>
+<tr><td>Links</td><td>The reference</td><td>The file with <code>resolveLink</code>, else the placeholder</td><td>The placeholder</td><td>The reference</td><td>Placed by link</td></tr>
+<tr><td>Erasers</td><td>A mask on the layer</td><td>Clear their own layer</td><td>Paint the paper back</td><td>Yes</td><td>Paint the paper back, warned</td></tr>
+<tr><td>Effects</td><td>A <code>&lt;filter&gt;</code>, and <code>data-effects</code></td><td>Drawn</td><td>Left out, warned</td><td>Yes</td><td>Left out, warned</td></tr>
+<tr><td>Transparency</td><td><code>transparent: true</code></td><td><code>transparent: true</code></td><td>A transparent page prints no paper</td><td>-</td><td><code>transparent: true</code></td></tr>
+</tbody></table></div>
+<h2 id="the-box">The box<a class="anchor" href="#the-box" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Want</th><th>Script</th><th>Options</th></tr></thead>
+<tbody>
+<tr><td>The whole page</td><td><code>crop none</code></td><td><code>crop: 'none'</code></td></tr>
+<tr><td>The ink</td><td><code>crop auto</code></td><td><code>crop: 'auto'</code></td></tr>
+<tr><td>The ink and room</td><td><code>crop auto pad 12</code></td><td><code>crop: { mode: 'auto', pad: 12 }</code></td></tr>
+<tr><td>A box</td><td><code>crop 40 40 200 100</code></td><td><code>crop: { x: 40, y: 40, width: 200, height: 100 }</code></td></tr>
+<tr><td>Frames that line up</td><td><code>registration 50 70 300 180</code></td><td><code>registration: { x: 50, y: 70, width: 300, height: 180 }</code></td></tr>
+<tr><td>The box before writing</td><td></td><td><code>inkBox(page)</code>, <code>renderBox(page, options)</code></td></tr>
+</tbody></table></div>
+<h2 id="common-mistakes">Common mistakes<a class="anchor" href="#common-mistakes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Wrong</th><th>Right</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><code>writeFileSync('card.pdf', pdf)</code></td><td><code>writeFileSync('card.pdf', pdf, 'latin1')</code></td><td>UTF-8 mangles an embedded image's bytes.</td></tr>
+<tr><td><code>renderBook(book, { format: 'png' })</code></td><td><code>renderBook(book, { format: 'png', ...output })</code></td><td>The script's <code>crop</code> rides in <code>output</code>, not in the book.</td></tr>
+<tr><td>A JPEG placed, a PNG rendered</td><td>Pass <code>decodeImage</code></td><td>The PNG decodes only PNG itself; the image is left out, with a warning.</td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="quickstart.html" rel="prev"><span>Previous</span>Writing a drawing out: quickstart</a><a href="../cli/index.html" rel="next"><span>Next</span>The napkin-sketch command line</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/output/CHEATSHEET.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

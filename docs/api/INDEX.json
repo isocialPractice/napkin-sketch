@@ -69,7 +69,7 @@
       "title": "API cheatsheet",
       "summary": "The whole API on one page: every verb, the command line, the two imports, the render options and the exit codes.",
       "lines": 130,
-      "tokens": 3421
+      "tokens": 3438
     },
     {
       "path": "docs/api/language/README.md",
@@ -77,8 +77,8 @@
       "kind": "verbose",
       "title": "The napkin script language",
       "summary": "Napkin script says what to draw without a pointer. A person or an AI helper writes it as text, one instruction to a line; a program in any language builds the same thing as JSON. Both become one list of instructions, the object form, which is what the rest of the API runs.",
-      "lines": 607,
-      "tokens": 8634
+      "lines": 609,
+      "tokens": 8707
     },
     {
       "path": "docs/api/language/QUICKSTART.md",
@@ -123,7 +123,7 @@
       "title": "Drawing with napkin script: cheatsheet",
       "summary": "Reminders for what each instruction draws: the drawing verbs, the shape library, the hand-drawn pass and `evaluate`.",
       "lines": 144,
-      "tokens": 2795
+      "tokens": 2813
     },
     {
       "path": "docs/api/compose/README.md",
@@ -240,7 +240,7 @@
       "title": "Working with other programs",
       "summary": "napkin-sketch trades drawings with Illustrator, Inkscape and other vector editors through SVG, which all of them read and write, writes an Illustrator script that rebuilds a drawing in Illustrator's own objects, and places files made elsewhere by reference with `link`. This page is the reference for what an export writes for another editor, what an import makes of another editor's file, what the Illustrator script builds, what survives the trip each way, and how a linked file differs from an imported or an embedded one.",
       "lines": 486,
-      "tokens": 6788
+      "tokens": 6791
     },
     {
       "path": "docs/api/interop/QUICKSTART.md",
@@ -293,8 +293,8 @@
       "kind": "schema",
       "title": "The object form as a JSON Schema",
       "summary": "A JSON Schema, draft-07, for a script built as JSON: check one against it before handing it over. validateScript is the full check.",
-      "lines": 3466,
-      "tokens": 22556
+      "lines": 3467,
+      "tokens": 22577
     }
   ]
 }

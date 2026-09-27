@@ -5,8 +5,9 @@
  * and reads the launch options the CLI passes via the environment.
  */
 
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, shell } from 'electron';
 import { spawn, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import {
@@ -30,8 +31,23 @@ import {
 } from '../core/animation-install.js';
 import { classifyHelperFailure, helperBinary, helperToolFor } from '../core/ai-tool.js';
 import { decodeLaunchOptions, LAUNCH_ENV_KEY, type LaunchOptions } from '../core/launch.js';
-import { IPC, type AnimationFrameOutput, type AnimationHelperResult, type ExportFormat, type ImageFormat, type ImportFileResult, type MenuAction, type OpenResult, type SaveImagesResult, type SaveResult } from '../core/ipc.js';
+import { IPC, type AnimationFrameOutput, type AnimationHelperResult, type ExportFormat, type HistoryStats, type ImageFormat, type ImportFileResult, type AppMenuItemSnapshot, type MenuConfig, type MenuConfigResult, type OpenResult, type SaveImagesResult, type SaveResult } from '../core/ipc.js';
+import {
+  isHelpTopic,
+  isMainCommand,
+  isMenuCommand,
+  MAIN_COMMAND_IDS,
+  menuStateFrom,
+  type MainCommandId,
+  type MenuCommand,
+  type MenuState,
+} from '../core/menu/ids.js';
+import { DOCS_INDEX_PAGE, DOCS_SITE_URL, REPO_URL } from '../core/menu/links.js';
+import { planUserFiles, readOverridesText, SHORTCUTS_FILE, TOOL_TYPES_FILE } from '../core/menu/overrides.js';
+import { defaultRegistry, helpTopics, loadRegistry, type MenuRegistry } from '../core/menu/registry.js';
 import { importPdf } from '../core/pdf-import.js';
+import { docsAppCommand, docsKey, docsLink, docsPlan, docsRoot, type DocsAction } from './docs.js';
+import { applicationMenuTemplate, menuStructureKey, rowStates } from './menu.js';
 import {
   readSketchBook,
   withSketchBookExtension,
@@ -48,12 +64,19 @@ import { SKETCHBOOK_EXTENSION, type SketchBook } from '../core/types.js';
 
 const launch: LaunchOptions = decodeLaunchOptions(process.env[LAUNCH_ENV_KEY]);
 
+// A folder to use as the user-data folder, for the GUI checks: a check that
+// puts a settings or a menu file there then leaves nobody's own behind. Set
+// before the app is ready, which is the last moment Electron takes it.
+if (process.env.NAPKIN_USER_DATA) app.setPath('userData', process.env.NAPKIN_USER_DATA);
+
 // Stable identity so Windows groups the taskbar/Start-menu entry correctly.
 const APP_ID = 'dev.napkinsketch.app';
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
 
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
+/** The documentation window, while it is open; one is reused for every Help row. */
+let docsWindow: BrowserWindow | null = null;
 
 /** In-memory application settings (loaded from disk on startup). */
 let currentSettings: AppSettings = defaultSettings();
@@ -97,10 +120,53 @@ function loadIcon(): Electron.NativeImage | undefined {
   return image.isEmpty() ? undefined : image;
 }
 
-/** Opens the standalone settings window, or focuses it if already open. */
-function openSettingsWindow(): void {
+/**
+ * How much history Track History held when the drawing window last said,
+ * kept here for a settings window that opens later; null before it has.
+ */
+let historyStats: HistoryStats | null = null;
+
+/**
+ * The app's version, as its package.json gives it: beside the app when it is
+ * packaged, two folders up from `dist/main` when it runs from the repository,
+ * where Electron's own version would otherwise answer.
+ */
+let appVersion: string | null = null;
+async function readAppVersion(): Promise<string> {
+  if (appVersion !== null) return appVersion;
+  for (const file of [join(app.getAppPath(), 'package.json'), join(__dirname, '..', '..', 'package.json')]) {
+    try {
+      const pkg = JSON.parse(await readFile(file, 'utf-8')) as { name?: unknown; version?: unknown };
+      if (pkg.name === 'napkin-sketch' && typeof pkg.version === 'string') return (appVersion = pkg.version);
+    } catch {
+      // Not here; try the next place.
+    }
+  }
+  return (appVersion = app.getVersion());
+}
+
+/** History figures sent over IPC, checked: whole, finite, not negative. */
+function readHistoryStats(value: unknown): HistoryStats | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  const whole = (n: unknown): number | null => (typeof n === 'number' && Number.isFinite(n) && n >= 0 ? Math.floor(n) : null);
+  const steps = whole(raw.steps);
+  const limit = whole(raw.limit);
+  const bytes = whole(raw.bytes);
+  if (typeof raw.tracking !== 'boolean' || steps === null || limit === null || bytes === null) return null;
+  return { tracking: raw.tracking, steps, limit, bytes };
+}
+
+/**
+ * Opens the standalone settings window, or focuses it if already open, and
+ * brings `section` - the id of one of its sections, such as `automate` -
+ * into view.
+ */
+function openSettingsWindow(section?: string): void {
+  const hash = section !== undefined && /^[a-z][a-z-]*$/.test(section) ? section : undefined;
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus();
+    if (hash) settingsWindow.webContents.send(IPC.showSettingsSection, hash);
     return;
   }
   settingsWindow = new BrowserWindow({
@@ -121,113 +187,300 @@ function openSettingsWindow(): void {
     },
   });
   settingsWindow.setMenuBarVisibility(false);
-  settingsWindow.loadFile(join(__dirname, '..', 'renderer', 'settings.html'));
+  settingsWindow.loadFile(join(__dirname, '..', 'renderer', 'settings.html'), hash ? { hash } : undefined);
   settingsWindow.once('ready-to-show', () => settingsWindow?.show());
   settingsWindow.on('closed', () => {
     settingsWindow = null;
   });
 }
 
-/** Sends a menu action to the focused window's renderer. */
-function dispatch(action: MenuAction): void {
-  mainWindow?.webContents.send(IPC.menuAction, action);
+// ---- The menu bar -------------------------------------------------------------
+
+/**
+ * The user's two menu files as read at startup. The drawing window asks for
+ * them and builds its right-click menus from the same registry the menu bar
+ * is built from, so the two cannot disagree.
+ */
+let menuConfig: MenuConfig = { toolTypes: null, shortcuts: null, problems: [] };
+
+/** The shipped menu files with the user's merged in. */
+let menuRegistry: MenuRegistry = defaultRegistry();
+
+/** The drawing window's answers to the menus' questions, as it last sent them. */
+let rendererMenuState: MenuState = {};
+
+/** What decided the rows of the menu bar now built; see {@link menuStructureKey}. */
+let menuStructure: string | null = null;
+
+/** The answers only the main process has: they decide whether some rows are there at all. */
+function mainMenuState(): MenuState {
+  return { animationNotInstalled: animationInstall === null, noDocsSite: DOCS_SITE_URL === null };
 }
 
-function buildMenu(): void {
-  const menu = Menu.buildFromTemplate([
-    {
-      label: 'File',
-      submenu: [
-        { label: 'New Sketch', accelerator: 'CmdOrCtrl+N', click: () => dispatch('new') },
-        { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => dispatch('open') },
-        { label: 'Import…', accelerator: 'CmdOrCtrl+I', click: () => dispatch('import') },
-        { type: 'separator' },
-        { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => dispatch('save') },
-        { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => dispatch('save-as') },
-        { type: 'separator' },
-        {
-          label: 'Export',
-          submenu: [
-            { label: 'PNG Image…', click: () => dispatch('export-png') },
-            { label: 'JPEG Image…', click: () => dispatch('export-jpeg') },
-            { label: 'SVG Vector…', click: () => dispatch('export-svg') },
-            { label: 'PDF Document…', click: () => dispatch('export-pdf') },
-          ],
-        },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => dispatch('undo') },
-        { label: 'Redo', accelerator: 'CmdOrCtrl+Shift+Z', click: () => dispatch('redo') },
-        { type: 'separator' },
-        // The clipboard items show their shortcut but do not claim it:
-        // `registerAccelerator: false` leaves the keypress to the page, where
-        // the renderer ignores it while a text field has focus. Claiming it
-        // here would take Ctrl+C away from the layer-rename box and the
-        // property fields, which is the one place these keys must not mean
-        // "copy the drawing".
-        { label: 'Cut', accelerator: 'CmdOrCtrl+X', registerAccelerator: false, click: () => dispatch('cut') },
-        { label: 'Copy', accelerator: 'CmdOrCtrl+C', registerAccelerator: false, click: () => dispatch('copy') },
-        { label: 'Paste', accelerator: 'CmdOrCtrl+V', registerAccelerator: false, click: () => dispatch('paste') },
-        {
-          label: 'Paste in Place',
-          accelerator: 'CmdOrCtrl+Shift+V',
-          registerAccelerator: false,
-          click: () => dispatch('paste-in-place'),
-        },
-        { label: 'Duplicate', accelerator: 'CmdOrCtrl+D', registerAccelerator: false, click: () => dispatch('duplicate') },
-        // Rotate shows its shortcut but does not claim it, for the reason the
-        // clipboard items above do not: the page has to keep Ctrl+R away from
-        // Chromium's own reload, which it can only do by seeing the keypress.
-        { label: 'Rotate…', accelerator: 'CmdOrCtrl+R', registerAccelerator: false, click: () => dispatch('rotate') },
-        // A bare letter, so the page must see it: shown here, handled there.
-        { label: 'Mirror…', accelerator: 'O', registerAccelerator: false, click: () => dispatch('mirror') },
-        { type: 'separator' },
-        { label: 'Delete', accelerator: 'Delete', registerAccelerator: false, click: () => dispatch('delete-selection') },
-        { label: 'Select All', accelerator: 'CmdOrCtrl+A', registerAccelerator: false, click: () => dispatch('select-all') },
-        { type: 'separator' },
-        { label: 'Verbose Settings…', accelerator: 'CmdOrCtrl+Alt+,', click: () => openSettingsWindow() },
-        { label: 'Rearrange Toolbar', click: () => dispatch('toggle-rearrange') },
-        // Animation Mode is an optional install (npm run animation-mode --
-        // --install): with no install record there is no menu entry, no
-        // shortcut, and nothing in the app that wants an AI tool.
-        ...(animationInstall
-          ? [
-              { type: 'separator' } as const,
-              {
-                label: 'Animation Mode',
-                accelerator: 'CmdOrCtrl+Shift+N',
-                click: () => dispatch('toggle-animation'),
-              } as const,
-            ]
-          : []),
-      ],
-    },
-    {
-      label: 'View',
-      submenu: [
-        { label: 'Toggle Pages Panel', accelerator: 'CmdOrCtrl+B', click: () => dispatch('toggle-pages') },
-        { label: 'Toggle Layers Panel', accelerator: 'CmdOrCtrl+L', click: () => dispatch('toggle-layers') },
-        { label: 'Toggle Properties Panel', accelerator: 'CmdOrCtrl+P', click: () => dispatch('toggle-properties') },
-        { label: 'Quick Settings', accelerator: 'CmdOrCtrl+,', click: () => dispatch('toggle-settings') },
-        { type: 'separator' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        // Replaces the stock "Actual Size" zoom reset: Ctrl+0 now fits every
-        // graphic on the canvas into view instead of resetting page zoom.
-        { label: 'Fit All in View', accelerator: 'CmdOrCtrl+0', click: () => dispatch('fit-view') },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' },
-      ],
-    },
+function currentMenuState(): MenuState {
+  return { ...rendererMenuState, ...mainMenuState() };
+}
+
+/** Reads one of the user's menu files from the user-data folder: its parsed value, or null and why. */
+async function readMenuFile(file: string, what: 'shortcuts' | 'tool types'): Promise<{ value: unknown; problem: string | null }> {
+  let text: string;
+  try {
+    text = await readFile(join(app.getPath('userData'), file), 'utf-8');
+  } catch (err) {
+    // No file is the usual case: nobody has changed anything.
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { value: null, problem: null };
+    return { value: null, problem: `The ${what} file could not be read (${(err as Error).message}), so it was ignored.` };
+  }
+  return readOverridesText(text, what);
+}
+
+/** Reads the user's menu files and builds the registry both processes draw from. */
+async function loadMenuConfig(): Promise<void> {
+  const [toolTypes, shortcuts] = await Promise.all([
+    readMenuFile(TOOL_TYPES_FILE, 'tool types'),
+    readMenuFile(SHORTCUTS_FILE, 'shortcuts'),
   ]);
-  Menu.setApplicationMenu(menu);
+  menuConfig = {
+    toolTypes: toolTypes.value,
+    shortcuts: shortcuts.value,
+    problems: [toolTypes.problem, shortcuts.problem].filter((problem): problem is string => problem !== null),
+  };
+  menuRegistry = loadRegistry({ toolTypes: menuConfig.toolTypes, shortcuts: menuConfig.shortcuts });
+  // The drawing window shows these as a toast; the log is for a terminal.
+  for (const problem of [...menuConfig.problems, ...menuRegistry.problems]) console.warn(`napkin-sketch menus: ${problem}`);
+}
+
+/**
+ * Saves what a menu editor accepted. The user's files are planned first
+ * ({@link planUserFiles}): only what differs from the shipped files, and no
+ * file at all when nothing does, which is how Reset to defaults ends. A plan
+ * with problems writes nothing and says the first. Otherwise the files are
+ * written, read back, the menu bar is built again - its accelerators are the
+ * shortcuts - and every window is sent the new files, so the drawing
+ * window's registry, tooltips and keys follow at once.
+ */
+async function updateMenuConfig(update: unknown): Promise<MenuConfigResult> {
+  const plan = planUserFiles({ toolTypes: menuConfig.toolTypes, shortcuts: menuConfig.shortcuts }, update);
+  if (plan.problems.length > 0) {
+    const [first, ...rest] = plan.problems;
+    return { ok: false, error: rest.length === 0 ? first : `${first} (and ${rest.length} more)` };
+  }
+  const folder = app.getPath('userData');
+  const writes: [string, string | null | undefined][] = [
+    [SHORTCUTS_FILE, plan.shortcuts],
+    [TOOL_TYPES_FILE, plan.toolTypes],
+  ];
+  try {
+    await mkdir(folder, { recursive: true });
+    for (const [file, text] of writes) {
+      if (text === undefined) continue;
+      if (text === null) await rm(join(folder, file), { force: true });
+      else await writeFile(join(folder, file), text, 'utf-8');
+    }
+  } catch (err) {
+    return { ok: false, error: `The menu files could not be saved: ${(err as Error).message}` };
+  }
+  await loadMenuConfig();
+  buildMenu();
+  for (const win of BrowserWindow.getAllWindows()) win.webContents.send(IPC.menuConfigChanged, menuConfig);
+  return { ok: true, config: menuConfig };
+}
+
+/** Shows the user a sentence, as a toast in the drawing window. */
+function notice(message: string): void {
+  mainWindow?.webContents.send(IPC.notice, message);
+}
+
+/** True when the app was started for a GUI check (`NAPKIN_GUI_CHECK=1`). */
+const GUI_CHECK = process.env.NAPKIN_GUI_CHECK === '1';
+
+/**
+ * The links a GUI check's clicks sent to the system browser, kept for the
+ * check to read back instead of opened, so a check run starts no browser on
+ * the machine that runs it.
+ */
+const checkOpenedLinks: string[] = [];
+
+/** Opens one of the app's own links in the system browser, and says so when that fails. */
+function openLink(url: string): void {
+  if (GUI_CHECK) {
+    checkOpenedLinks.push(url);
+    return;
+  }
+  shell.openExternal(url).catch((err: Error) => notice(`Could not open ${url}: ${err.message}`));
+}
+
+// ---- The documentation window ------------------------------------------------------
+
+/** The folder the documentation pages are read from: the resources folder's when packaged, the repository's otherwise. */
+function docsFolder(): string {
+  return docsRoot({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, mainDir: __dirname });
+}
+
+/**
+ * Opens a documentation page, such as `quickstart/draw`: in the docs window
+ * when the page is on disk, on the published site when it is not and the
+ * site is up, and otherwise as a toast saying where the pages come from.
+ */
+function openDocs(page: string): void {
+  const plan = docsPlan(page, docsFolder(), existsSync, DOCS_SITE_URL);
+  if (plan.kind === 'window') openDocsWindow(plan.file);
+  else if (plan.kind === 'browser') openLink(plan.url);
+  else notice(plan.message);
+}
+
+/** Loads a page into the docs window. A load that a newer one replaced is not a failure. */
+function loadDocsPage(win: BrowserWindow, file: string): void {
+  win.loadFile(file).catch((err: Error) => {
+    if (!/ERR_ABORTED/.test(err.message)) notice(`Could not open the documentation: ${err.message}`);
+  });
+}
+
+/** Moves the docs window back or forward through the pages it has shown, or closes it. */
+function runDocsAction(win: BrowserWindow, action: DocsAction): void {
+  const contents = win.webContents;
+  if (action === 'close') win.close();
+  else if (action === 'back' && contents.canGoBack()) contents.goBack();
+  else if (action === 'forward' && contents.canGoForward()) contents.goForward();
+}
+
+/**
+ * Opens the documentation window at a page's file, or shows that page in the
+ * one already open. The pages are read from disk, so they need no network.
+ * The window has no menu bar, so none of the drawing window's shortcuts act
+ * through it, and no preload, so its pages reach nothing of the app's. A page
+ * link stays in it, a web or mail link opens in the system browser, and
+ * nothing else is followed; Alt and an arrow go back and forward, as the
+ * mouse's side buttons do, and Ctrl+W closes it.
+ */
+function openDocsWindow(file: string): void {
+  if (docsWindow && !docsWindow.isDestroyed()) {
+    loadDocsPage(docsWindow, file);
+    if (docsWindow.isMinimized()) docsWindow.restore();
+    docsWindow.focus();
+    return;
+  }
+  const root = docsFolder();
+  const win = new BrowserWindow({
+    width: 1180,
+    height: 860,
+    minWidth: 360,
+    minHeight: 420,
+    // The pages' own background, so the window shows no white before a page paints.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1f24' : '#eef1f4',
+    title: 'napkin-sketch documentation',
+    icon: loadIcon(),
+    show: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  docsWindow = win;
+  win.removeMenu();
+  const follow = (url: string): boolean => {
+    const link = docsLink(url, root);
+    if (link.kind === 'browser') openLink(link.url);
+    return link.kind === 'stay';
+  };
+  // A page asking for a new window gets this one, or the browser.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (follow(url)) win.loadURL(url).catch(() => undefined);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!follow(url)) event.preventDefault();
+  });
+  win.webContents.on('before-input-event', (event, input) => {
+    const action = docsKey(input, process.platform === 'darwin');
+    if (action === null) return;
+    event.preventDefault();
+    runDocsAction(win, action);
+  });
+  win.on('app-command', (_event, command) => {
+    const action = docsAppCommand(command);
+    if (action !== null) runDocsAction(win, action);
+  });
+  win.once('ready-to-show', () => win.show());
+  win.on('closed', () => {
+    if (docsWindow === win) docsWindow = null;
+  });
+  loadDocsPage(win, file);
+}
+
+/** What the commands the main process owns do. */
+const mainCommands: Record<MainCommandId, () => void> = {
+  'verbose-settings': () => openSettingsWindow(),
+  'history-limit': () => openSettingsWindow('automate'),
+  'help-verbose': () => openDocs(DOCS_INDEX_PAGE),
+  'help-source-code': () => openLink(REPO_URL),
+  'help-source-docs': () => {
+    if (DOCS_SITE_URL !== null) openLink(DOCS_SITE_URL);
+  },
+};
+
+/** Runs a command the main process owns, a Help > Tool Types row included. */
+function runMainCommand(id: string): void {
+  if (isHelpTopic(id)) {
+    const topic = helpTopics(menuRegistry).find((row) => row.id === id);
+    if (topic) openDocs(topic.page);
+    return;
+  }
+  if ((MAIN_COMMAND_IDS as readonly string[]).includes(id)) mainCommands[id as MainCommandId]();
+}
+
+/** Asks the drawing window to run a command. */
+function dispatch(id: MenuCommand): void {
+  mainWindow?.webContents.send(IPC.menuAction, id);
+}
+
+/** A click on a row of the menu bar: the main process runs its own commands, and hands the rest to the drawing window. */
+function onMenuClick(id: string): void {
+  if (isMainCommand(id)) runMainCommand(id);
+  else if (isMenuCommand(id)) dispatch(id);
+  // Electron flips a check mark by itself on a click. The state decides it,
+  // so it goes back to what the state says until the state changes.
+  refreshMenuState();
+}
+
+/** Builds the menu bar: the registry's rows for the current state. */
+function buildMenu(): void {
+  const state = currentMenuState();
+  Menu.setApplicationMenu(Menu.buildFromTemplate(applicationMenuTemplate(menuRegistry, state, onMenuClick)));
+  menuStructure = menuStructureKey(menuRegistry, state);
+}
+
+/**
+ * Greys and checks the menu bar's rows for the current state, on the items it
+ * already has. The menu bar is built again only when the state changes which
+ * rows it has, which the answers the drawing window sends never do.
+ */
+function refreshMenuState(): void {
+  const state = currentMenuState();
+  const menu = Menu.getApplicationMenu();
+  if (!menu || menuStructureKey(menuRegistry, state) !== menuStructure) {
+    buildMenu();
+    return;
+  }
+  for (const row of rowStates(menuRegistry, state)) {
+    const item = menu.getMenuItemById(row.id);
+    if (!item) continue;
+    if (item.enabled !== row.enabled) item.enabled = row.enabled;
+    if (row.checked !== null && item.checked !== row.checked) item.checked = row.checked;
+  }
+}
+
+/** The live menu bar as data, for a GUI check to read back. */
+function snapshotMenu(items: Electron.MenuItem[]): AppMenuItemSnapshot[] {
+  return items.map((item) => ({
+    id: item.id || null,
+    label: item.label,
+    role: item.role ?? null,
+    type: item.type,
+    enabled: item.enabled,
+    checked: item.checked,
+    visible: item.visible,
+    accelerator: item.accelerator ?? null,
+    registerAccelerator: item.registerAccelerator,
+    submenu: item.submenu ? snapshotMenu(item.submenu.items) : null,
+  }));
 }
 
 function createWindow(): void {
@@ -326,25 +579,33 @@ function dataUrlToBuffer(dataUrl: string): Buffer {
   return Buffer.from(base64, 'base64');
 }
 
-/** Reads an importable SVG/PDF/PNG/JPEG file from a known path. */
+/** The pictures an import reads, by extension, with the media type each is read as. */
+const RASTER_TYPES: Readonly<Record<string, string>> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+};
+
+/** Reads an importable SVG/PDF/PNG/JPEG/GIF/WebP file from a known path. */
 async function readImportable(filePath: string): Promise<ImportFileResult> {
+  const fileName = basename(filePath);
   const name = basename(filePath, extname(filePath));
   const ext = extname(filePath).toLowerCase();
   try {
     if (ext === '.svg') {
       const text = await readFile(filePath, 'utf-8');
-      return { ok: true, kind: 'svg', name, text };
+      return { ok: true, kind: 'svg', name, fileName, text };
     }
     if (ext === '.pdf') {
       const pages = importPdf(await readFile(filePath));
-      return { ok: true, kind: 'pdf', name, pages };
+      return { ok: true, kind: 'pdf', name, fileName, pages };
     }
-    if (ext !== '.png' && ext !== '.jpg' && ext !== '.jpeg') {
-      return { ok: false, error: `Unsupported import type: ${ext || filePath}` };
-    }
-    const mime = ext === '.png' ? 'image/png' : 'image/jpeg';
+    const mime = RASTER_TYPES[ext];
+    if (!mime) return { ok: false, error: `Unsupported import type: ${ext || filePath}` };
     const bytes = await readFile(filePath);
-    return { ok: true, kind: 'raster', name, dataUrl: `data:${mime};base64,${bytes.toString('base64')}` };
+    return { ok: true, kind: 'raster', name, fileName, dataUrl: `data:${mime};base64,${bytes.toString('base64')}` };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }
@@ -1025,6 +1286,29 @@ function registerIpc(): void {
   );
 
   ipcMain.handle(
+    IPC.saveText,
+    async (_event, text: unknown, suggestedName: unknown, extension: unknown): Promise<SaveResult> => {
+      if (!mainWindow) return { ok: false, error: 'No window available.' };
+      if (typeof text !== 'string') return { ok: false, error: 'There is no text to save.' };
+      // The extension only names the file and its filter, so it is held to a plain word.
+      const ext = typeof extension === 'string' && /^[a-z0-9]{1,12}$/i.test(extension) ? extension.toLowerCase() : 'txt';
+      const stem = typeof suggestedName === 'string' && suggestedName.trim() !== '' ? suggestedName.trim() : 'untitled';
+      const picked = await dialog.showSaveDialog(mainWindow, {
+        title: ext === 'napkin' ? 'Save napkin script' : 'Save text',
+        defaultPath: `${stem}.${ext}`,
+        filters: [{ name: ext === 'napkin' ? 'Napkin script' : `${ext.toUpperCase()} file`, extensions: [ext] }],
+      });
+      if (picked.canceled || !picked.filePath) return { ok: false, cancelled: true };
+      try {
+        await writeFile(picked.filePath, text, 'utf-8');
+        return { ok: true, filePath: picked.filePath };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    },
+  );
+
+  ipcMain.handle(
     IPC.savePdf,
     async (_event, pdfContent: string, suggestedName: string): Promise<SaveResult> => {
       if (!mainWindow) return { ok: false, error: 'No window available.' };
@@ -1049,10 +1333,10 @@ function registerIpc(): void {
     const picked = await dialog.showOpenDialog(mainWindow, {
       title: 'Import file',
       filters: [
-        { name: 'Importable Files', extensions: ['svg', 'pdf', 'png', 'jpg', 'jpeg'] },
+        { name: 'Importable Files', extensions: ['svg', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp'] },
         { name: 'SVG Vector', extensions: ['svg'] },
         { name: 'PDF Document', extensions: ['pdf'] },
-        { name: 'Images', extensions: ['png', 'jpg', 'jpeg'] },
+        { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
       ],
       properties: ['openFile'],
     });
@@ -1119,6 +1403,10 @@ function registerIpc(): void {
     if (typeof svgContent === 'string' && svgContent !== '') clipboard.writeText(svgContent);
   });
 
+  ipcMain.handle(IPC.writeClipboardText, (_event, text: unknown): void => {
+    if (typeof text === 'string') clipboard.writeText(text);
+  });
+
   ipcMain.handle(IPC.readClipboardSvg, (): string | null => {
     const text = clipboard.readText();
     return typeof text === 'string' && /<svg[\s>]/i.test(text) ? text : null;
@@ -1175,7 +1463,45 @@ function registerIpc(): void {
 
   ipcMain.on(IPC.openSettings, () => openSettingsWindow());
 
+  // Track History's figures: the drawing window says, the settings window shows.
+  ipcMain.on(IPC.reportHistoryStats, (_event, stats: unknown) => {
+    const read = readHistoryStats(stats);
+    if (!read) return;
+    historyStats = read;
+    if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.webContents.send(IPC.historyStatsChanged, read);
+  });
+  ipcMain.handle(IPC.getHistoryStats, (): HistoryStats | null => historyStats);
+  ipcMain.handle(IPC.getAppVersion, (): Promise<string> => readAppVersion());
+
   ipcMain.on(IPC.toggleRearrange, () => dispatch('toggle-rearrange'));
+
+  // ---- Menus ----------------------------------------------------------------
+
+  ipcMain.handle(IPC.getMenuConfig, (): MenuConfig => menuConfig);
+
+  ipcMain.handle(IPC.updateMenuConfig, (_event, update: unknown): Promise<MenuConfigResult> => updateMenuConfig(update));
+
+  ipcMain.on(IPC.setMenuState, (_event, state: unknown) => {
+    rendererMenuState = menuStateFrom(state);
+    refreshMenuState();
+  });
+
+  ipcMain.on(IPC.runMainCommand, (_event, id: unknown) => {
+    if (typeof id === 'string' && isMainCommand(id)) runMainCommand(id);
+  });
+
+  // The GUI checks read the menu bar back and click its rows through these.
+  // An ordinary launch has no use for either, so it does not answer them.
+  if (GUI_CHECK) {
+    ipcMain.handle(IPC.getAppMenu, (): AppMenuItemSnapshot[] => snapshotMenu(Menu.getApplicationMenu()?.items ?? []));
+    ipcMain.handle(IPC.openedLinks, (): string[] => [...checkOpenedLinks]);
+    ipcMain.handle(IPC.clickAppMenuItem, (_event, id: string): boolean => {
+      const item = Menu.getApplicationMenu()?.getMenuItemById(id);
+      if (!item || !item.enabled) return false;
+      item.click();
+      return true;
+    });
+  }
 }
 
 app.whenReady().then(async () => {
@@ -1183,6 +1509,7 @@ app.whenReady().then(async () => {
   // Read before the menu is built: an uninstalled Animation Mode must leave
   // no trace in the UI, starting with the Edit menu.
   animationInstall = await loadAnimationInstall();
+  await loadMenuConfig();
   registerIpc();
   createWindow();
 

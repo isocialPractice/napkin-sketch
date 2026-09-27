@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cheatsheet - napkin-sketch</title>
+<meta name="description" content="Every shortcut, command-line flag and npm script on one page.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="index.html"><img src="assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="index.html">Home</a></li><li><a href="install.html">Install</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html" aria-current="page">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="quickstart/draw.html">Draw</a></li><li><a href="quickstart/transform.html">Transform</a></li><li><a href="quickstart/layers.html">Layers</a></li><li><a href="quickstart/pages.html">Pages</a></li><li><a href="quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="guide/index.html">Overview</a></li><li><a href="guide/tools.html">Tools</a></li><li><a href="guide/gestures.html">Gestures</a></li><li><a href="guide/vector-paths.html">Vector paths</a></li><li><a href="guide/selection.html">Selection and editing</a></li><li><a href="guide/transform.html">Transform</a></li><li><a href="guide/layers.html">Layers</a></li><li><a href="guide/pages.html">Pages</a></li><li><a href="guide/import-export.html">Import and export</a></li><li><a href="guide/sharpen.html">Sharpen</a></li><li><a href="guide/settings.html">Settings</a></li><li><a href="guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="guide/automate.html">Automate</a></li><li><a href="guide/animation-mode.html">Animation Mode</a></li><li><a href="guide/skbk-format.html">The .skbk format</a></li><li><a href="guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="api/index.html">Overview</a></li><li><a href="api/quickstart.html">Quickstart</a></li><li><a href="api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="api/language/index.html">Reference</a></li><li><a href="api/language/quickstart.html">Quickstart</a></li><li><a href="api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="api/drawing/index.html">Reference</a></li><li><a href="api/drawing/quickstart.html">Quickstart</a></li><li><a href="api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="api/compose/index.html">Reference</a></li><li><a href="api/compose/quickstart.html">Quickstart</a></li><li><a href="api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="api/output/index.html">Reference</a></li><li><a href="api/output/quickstart.html">Quickstart</a></li><li><a href="api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="api/cli/index.html">Reference</a></li><li><a href="api/cli/quickstart.html">Quickstart</a></li><li><a href="api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="api/node/index.html">Reference</a></li><li><a href="api/node/quickstart.html">Quickstart</a></li><li><a href="api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="api/interop/index.html">Reference</a></li><li><a href="api/interop/quickstart.html">Quickstart</a></li><li><a href="api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="api/ai/index.html">Reference</a></li><li><a href="api/ai/quickstart.html">Quickstart</a></li><li><a href="api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="embed.html">Embedding</a></li><li><a href="scripting.html">Scripting</a></li><li><a href="ai-helpers.html">AI helpers</a></li><li><a href="ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="develop/building.html">Building</a></li><li><a href="develop/testing.html">Testing</a></li><li><a href="develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="changelog.html">Changelog</a></li><li><a href="about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Start</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
+<h1 id="cheatsheet">Cheatsheet<a class="anchor" href="#cheatsheet" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#tools">Tools</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#quick-features">Quick features</a></li><li><a href="#view-pan-and-zoom">View, pan, and zoom</a></li><li><a href="#selection-and-editing">Selection and editing</a></li><li><a href="#vector-path-editing">Vector path editing</a></li><li><a href="#layers">Layers</a></li><li><a href="#files">Files</a></li><li><a href="#menus">Menus</a></li><li><a href="#automate">Automate</a></li><li><a href="#cli">CLI</a></li><li><a href="#npm-scripts">npm scripts</a></li><li><a href="#embedding">Embedding</a></li><li><a href="#drawing-from-a-script">Drawing from a script</a></li><li><a href="#graphic-design-api">Graphic design API</a></li><li><a href="#ai-helpers">AI helpers</a></li><li><a href="#defaults-worth-knowing">Defaults worth knowing</a></li></ul></details>
+<p>Every shortcut, flag, and script on one page. New here? Start with
+<a href="quickstart.html">QUICKSTART.md</a>. Full prose reference: <a href="guide/index.html">Using the
+app</a>, which the documentation site publishes
+and <strong>Help &gt; Verbose</strong> opens. The API on one page:
+<a href="api/cheatsheet.html">API-CHEATSHEET.md</a>.</p>
+<p><code>Ctrl</code> is <code>Cmd</code> on macOS throughout. The keys are the app's own; <strong>Edit &gt;
+Edit Keyboard Shortcuts</strong> changes them for you alone.</p>
+<h2 id="tools">Tools<a class="anchor" href="#tools" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Tool</th><th style="text-align:left">Key</th><th style="text-align:left">Notes</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Pen</td><td style="text-align:left"><code>P</code></td><td style="text-align:left">Pressure-aware variable width</td></tr>
+<tr><td style="text-align:left">Marker</td><td style="text-align:left"><code>M</code></td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left">Copic marker</td><td style="text-align:left"><code>K</code></td><td style="text-align:left">Flat broad nib, rotatable</td></tr>
+<tr><td style="text-align:left">Eraser</td><td style="text-align:left"><code>E</code></td><td style="text-align:left">Reveals the paper beneath; cuts only its own layer</td></tr>
+<tr><td style="text-align:left">Select</td><td style="text-align:left"><code>S</code></td><td style="text-align:left">Black arrow; active at launch</td></tr>
+<tr><td style="text-align:left">Direct Select</td><td style="text-align:left"><code>A</code></td><td style="text-align:left">White arrow; drags anchor points</td></tr>
+<tr><td style="text-align:left">Text</td><td style="text-align:left"><code>T</code></td><td style="text-align:left">Click = auto-sizing box, drag = fixed width with wrap</td></tr>
+<tr><td style="text-align:left">Rectangle</td><td style="text-align:left"><code>R</code></td><td style="text-align:left">Hold <code>Shift</code> for a square</td></tr>
+<tr><td style="text-align:left">Ellipse</td><td style="text-align:left"><code>L</code></td><td style="text-align:left">Hold <code>Shift</code> for a circle</td></tr>
+<tr><td style="text-align:left">Curve</td><td style="text-align:left"><code>V</code></td><td style="text-align:left">Click and hold the button for the free-ends variant</td></tr>
+<tr><td style="text-align:left">Paint Bucket</td><td style="text-align:left"><code>G</code></td><td style="text-align:left">Fills the enclosed shape under the click</td></tr>
+<tr><td style="text-align:left">Fill Color</td><td style="text-align:left">toolbar</td><td style="text-align:left">Fills the element under the click, else the selection</td></tr>
+<tr><td style="text-align:left">Eyedropper</td><td style="text-align:left"><code>I</code></td><td style="text-align:left">Hold <code>Ctrl</code> to pick a shape instead</td></tr>
+<tr><td style="text-align:left">Vector Path</td><td style="text-align:left"><code>B</code></td><td style="text-align:left">Click = corner, drag = smooth Bezier point</td></tr>
+<tr><td style="text-align:left">Mesh Warp</td><td style="text-align:left">toolbar</td><td style="text-align:left">Click art to mesh it, then drag its pins to bend it</td></tr>
+</tbody></table></div>
+<h2 id="drawing">Drawing<a class="anchor" href="#drawing" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Shortcut</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Straight line</td><td style="text-align:left">Hold <code>Space</code> and drag</td></tr>
+<tr><td style="text-align:left">Lock line to 90 degrees</td><td style="text-align:left"><code>Shift</code> mid-drag (release to free)</td></tr>
+<tr><td style="text-align:left">Quick curve (ellipse)</td><td style="text-align:left">Hold <code>Ctrl + Space</code> and drag</td></tr>
+<tr><td style="text-align:left">Quick curve (circle)</td><td style="text-align:left">Hold <code>Ctrl + Space + Alt</code> and drag</td></tr>
+<tr><td style="text-align:left">Swing a quick curve apex</td><td style="text-align:left"><code>Shift</code>, 90 degrees clockwise per press</td></tr>
+<tr><td style="text-align:left">Endpoint snap</td><td style="text-align:left">Hold <code>Shift</code> while drawing</td></tr>
+<tr><td style="text-align:left">Rotate the Copic nib</td><td style="text-align:left">Hold <code>Ctrl</code> 1s, then <code>Alt</code> (CW) / <code>Shift</code> (CCW)</td></tr>
+<tr><td style="text-align:left">Cancel the stroke in progress</td><td style="text-align:left"><code>Esc</code></td></tr>
+<tr><td style="text-align:left">Sharpen all</td><td style="text-align:left"><code>H</code></td></tr>
+<tr><td style="text-align:left">Sharpen Selection</td><td style="text-align:left">Transform &gt; Sharpen, or the toolbar button</td></tr>
+</tbody></table></div>
+<h2 id="quick-features">Quick features<a class="anchor" href="#quick-features" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Shortcut</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Quick width</td><td style="text-align:left"><code>W</code> then a number</td></tr>
+<tr><td style="text-align:left">Quick opacity</td><td style="text-align:left"><code>Q</code> then a number</td></tr>
+<tr><td style="text-align:left">Quick zoom</td><td style="text-align:left"><code>Z</code> then a digit (<code>9</code> = 90%, <code>0</code> = 100%)</td></tr>
+<tr><td style="text-align:left">Cycle Quick Access Color</td><td style="text-align:left"><code>C</code> forward, <code>Shift + C</code> back</td></tr>
+</tbody></table></div>
+<h2 id="view-pan-and-zoom">View, pan, and zoom<a class="anchor" href="#view-pan-and-zoom" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Shortcut</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Fit All in View</td><td style="text-align:left"><code>Ctrl + 0</code></td></tr>
+<tr><td style="text-align:left">Zoom (mouse)</td><td style="text-align:left">Hold <code>Alt</code> and scroll</td></tr>
+<tr><td style="text-align:left">Pan (mouse)</td><td style="text-align:left">Scroll; <code>Ctrl + Shift</code> + scroll pans across</td></tr>
+<tr><td style="text-align:left">Pan (Select / Direct Select)</td><td style="text-align:left">Hold <code>Space</code> and drag</td></tr>
+<tr><td style="text-align:left">Pan / zoom (touch)</td><td style="text-align:left">Two-finger gesture</td></tr>
+<tr><td style="text-align:left">Toggle Pages panel</td><td style="text-align:left"><code>Ctrl + B</code></td></tr>
+<tr><td style="text-align:left">Toggle Layers panel</td><td style="text-align:left"><code>Ctrl + L</code></td></tr>
+<tr><td style="text-align:left">Toggle Properties panel</td><td style="text-align:left"><code>Ctrl + P</code></td></tr>
+<tr><td style="text-align:left">Quick Settings</td><td style="text-align:left"><code>Ctrl + ,</code></td></tr>
+<tr><td style="text-align:left">Verbose Settings</td><td style="text-align:left"><code>Ctrl + Alt + ,</code></td></tr>
+<tr><td style="text-align:left">Animation Mode</td><td style="text-align:left"><code>Ctrl + Shift + N</code> (optional add-on)</td></tr>
+</tbody></table></div>
+<h2 id="selection-and-editing">Selection and editing<a class="anchor" href="#selection-and-editing" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Shortcut</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Select all</td><td style="text-align:left"><code>Ctrl + A</code></td></tr>
+<tr><td style="text-align:left">Deselect all</td><td style="text-align:left"><code>Ctrl + Shift + A</code></td></tr>
+<tr><td style="text-align:left">Add to / remove from selection</td><td style="text-align:left"><code>Shift</code> + click</td></tr>
+<tr><td style="text-align:left">Rubber-band select</td><td style="text-align:left">Drag over empty space (Select tool)</td></tr>
+<tr><td style="text-align:left">Drag-copy the selection</td><td style="text-align:left">Hold <code>Alt</code> and drag</td></tr>
+<tr><td style="text-align:left">Cut / Copy / Paste</td><td style="text-align:left"><code>Ctrl + X</code> / <code>Ctrl + C</code> / <code>Ctrl + V</code></td></tr>
+<tr><td style="text-align:left">Paste in Place</td><td style="text-align:left"><code>Ctrl + Shift + V</code></td></tr>
+<tr><td style="text-align:left">Duplicate</td><td style="text-align:left"><code>Ctrl + D</code></td></tr>
+<tr><td style="text-align:left">Delete selection or layer</td><td style="text-align:left"><code>Delete</code> or <code>Backspace</code></td></tr>
+<tr><td style="text-align:left">Move by a distance</td><td style="text-align:left"><code>Enter</code>, or the Move button</td></tr>
+<tr><td style="text-align:left">Step a Move field</td><td style="text-align:left">Arrow keys, <code>Shift</code> for a coarse step</td></tr>
+<tr><td style="text-align:left">Rotate</td><td style="text-align:left"><code>Ctrl + R</code>, Transform &gt; Rotate, or the Rotate button</td></tr>
+<tr><td style="text-align:left">Snap a rotation to 15 degrees</td><td style="text-align:left"><code>Shift</code> while dragging, or the Snap toggle</td></tr>
+<tr><td style="text-align:left">Join strokes</td><td style="text-align:left"><code>Ctrl + J</code></td></tr>
+<tr><td style="text-align:left">Undo</td><td style="text-align:left"><code>Ctrl + Z</code></td></tr>
+<tr><td style="text-align:left">Redo</td><td style="text-align:left"><code>Ctrl + Y</code> or <code>Ctrl + Shift + Z</code></td></tr>
+</tbody></table></div>
+<h2 id="vector-path-editing">Vector path editing<a class="anchor" href="#vector-path-editing" aria-label="Link to this section">#</a></h2>
+<p>With the Vector Path tool active, click a committed path to open its anchors.</p>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Shortcut</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Add an anchor</td><td style="text-align:left">Click a segment (a <code>+</code> badge marks the spot)</td></tr>
+<tr><td style="text-align:left">Remove an anchor</td><td style="text-align:left">Click the anchor (a <code>-</code> badge marks it)</td></tr>
+<tr><td style="text-align:left">Move an anchor or handle</td><td style="text-align:left">Hold <code>Ctrl</code> and drag</td></tr>
+<tr><td style="text-align:left">Round a corner</td><td style="text-align:left">Hold <code>Ctrl</code>, drag the target icon, or type a Radius</td></tr>
+<tr><td style="text-align:left">Toggle an anchor's handles</td><td style="text-align:left"><code>Alt</code> + click the anchor</td></tr>
+<tr><td style="text-align:left">Close the path</td><td style="text-align:left">Click the first point</td></tr>
+<tr><td style="text-align:left">Finish it open</td><td style="text-align:left"><code>Enter</code>, double-click, or switch tools</td></tr>
+<tr><td style="text-align:left">Abandon the path</td><td style="text-align:left"><code>Esc</code></td></tr>
+<tr><td style="text-align:left">Put an edited path down</td><td style="text-align:left">Click empty canvas, or <code>Esc</code></td></tr>
+</tbody></table></div>
+<h2 id="layers">Layers<a class="anchor" href="#layers" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Shortcut</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Toggle the panel</td><td style="text-align:left"><code>Ctrl + L</code></td></tr>
+<tr><td style="text-align:left">Rename the active layer</td><td style="text-align:left"><code>F2</code> or double-click the row</td></tr>
+<tr><td style="text-align:left">Group the selected layers</td><td style="text-align:left"><code>Ctrl + G</code></td></tr>
+<tr><td style="text-align:left">Ungroup</td><td style="text-align:left"><code>Ctrl + Shift + G</code></td></tr>
+<tr><td style="text-align:left">Move layer up / down</td><td style="text-align:left"><code>Ctrl + ]</code> / <code>Ctrl + [</code></td></tr>
+<tr><td style="text-align:left">Multi-select rows</td><td style="text-align:left"><code>Shift</code> + click</td></tr>
+<tr><td style="text-align:left">Restack or nest</td><td style="text-align:left">Drag the row (drop onto a group to nest)</td></tr>
+<tr><td style="text-align:left">Layer tools menu</td><td style="text-align:left">Right-click a row</td></tr>
+</tbody></table></div>
+<h2 id="files">Files<a class="anchor" href="#files" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Shortcut</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">New Sketch</td><td style="text-align:left"><code>Ctrl + N</code></td></tr>
+<tr><td style="text-align:left">Open</td><td style="text-align:left"><code>Ctrl + O</code></td></tr>
+<tr><td style="text-align:left">Import</td><td style="text-align:left"><code>Ctrl + I</code></td></tr>
+<tr><td style="text-align:left">Save</td><td style="text-align:left"><code>Ctrl + S</code></td></tr>
+<tr><td style="text-align:left">Save As</td><td style="text-align:left"><code>Ctrl + Shift + S</code></td></tr>
+<tr><td style="text-align:left">Export</td><td style="text-align:left">File &gt; Export &gt; PNG / SVG / JPEG / PDF</td></tr>
+</tbody></table></div>
+<h2 id="menus">Menus<a class="anchor" href="#menus" aria-label="Link to this section">#</a></h2>
+<p>Nine menus: File, Edit, View, Transform, Sketch, Layers, Pages, Automate and
+Help. What each one holds is in the <a href="guide/menus-and-shortcuts.html#the-menus">menus
+table</a>.</p>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Where</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Change a tool's keys</td><td style="text-align:left">Edit &gt; Edit Keyboard Shortcuts</td></tr>
+<tr><td style="text-align:left">List a tool in another menu</td><td style="text-align:left">Edit &gt; Edit Tool Types</td></tr>
+<tr><td style="text-align:left">Read this documentation</td><td style="text-align:left">Help &gt; Verbose</td></tr>
+<tr><td style="text-align:left">A menu's quickstart</td><td style="text-align:left">Help &gt; Tool Types</td></tr>
+<tr><td style="text-align:left">The project's page</td><td style="text-align:left">Help &gt; Source Code</td></tr>
+<tr><td style="text-align:left">Back / forward in the docs</td><td style="text-align:left"><code>Alt + Left</code> / <code>Alt + Right</code></td></tr>
+</tbody></table></div>
+<h2 id="automate">Automate<a class="anchor" href="#automate" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Where</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Script an SVG, PDF or picture</td><td style="text-align:left">Automate &gt; Generate Script &gt; From Media File</td></tr>
+<tr><td style="text-align:left">Script the lit layers</td><td style="text-align:left">Automate &gt; Generate Script &gt; Selected Layers</td></tr>
+<tr><td style="text-align:left">Record every step</td><td style="text-align:left">Automate &gt; Track History</td></tr>
+<tr><td style="text-align:left">Keep more or fewer steps (500; 50-5000)</td><td style="text-align:left">Automate &gt; History Limit</td></tr>
+<tr><td style="text-align:left">Script the steps, leaving some out</td><td style="text-align:left">Automate &gt; Generate Script &gt; From Session History</td></tr>
+</tbody></table></div>
+<h2 id="cli">CLI<a class="anchor" href="#cli" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-bash">napkin-sketch [option] [target]</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Flag</th><th style="text-align:left">Description</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>-h, --help</code></td><td style="text-align:left">Show command-line help</td></tr>
+<tr><td style="text-align:left"><code>-v, --version</code></td><td style="text-align:left">Show the version</td></tr>
+<tr><td style="text-align:left"><code>-b, --book</code></td><td style="text-align:left">Open a saved <code>.skbk</code> sketch book</td></tr>
+<tr><td style="text-align:left"><code>-n, --new</code></td><td style="text-align:left">New sketch, named <code>unnamed</code> or <code>[target]</code></td></tr>
+<tr><td style="text-align:left"><code>-f, --full-screen</code></td><td style="text-align:left">Open full screen (the default window is maximized)</td></tr>
+<tr><td style="text-align:left"><code>-i, --import</code></td><td style="text-align:left">Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch</td></tr>
+<tr><td style="text-align:left"><code>-m, --multiple-imports</code></td><td style="text-align:left">Import a comma-separated list, laid out in a grid</td></tr>
+<tr><td style="text-align:left"><code>--sharpen</code></td><td style="text-align:left">Auto-sharpen a saved sketch on disk, then open it</td></tr>
+<tr><td style="text-align:left"><code>[target]</code></td><td style="text-align:left">A <code>.skbk</code> file to open, or a name for a new sketch</td></tr>
+</tbody></table></div>
+<pre><code class="language-bash">napkin-sketch                                        # new blank sketch
+napkin-sketch --new ideas                            # new sketch named &quot;ideas&quot;
+napkin-sketch --book ./notes.skbk                    # open a saved book
+napkin-sketch ./notes.skbk                           # same, bare path
+napkin-sketch --sharpen ./notes                      # sharpen on disk, then open
+napkin-sketch --new -f                               # full screen
+napkin-sketch --import logo.svg                      # import one file
+napkin-sketch -m logo.svg,&quot;site map.svg&quot;,photo.png   # grid of files</code></pre>
+<p>Quote file names that contain spaces.</p>
+<h3 id="commands-no-window-no-electron">Commands (no window, no Electron)<a class="anchor" href="#commands-no-window-no-electron" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Command</th><th style="text-align:left">Does</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>draw &lt;script | -&gt;</code></td><td style="text-align:left">Draw to files: <code>--to svg,png,pdf,skbk,jsx --out &lt;dir&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>check &lt;script | -&gt;</code></td><td style="text-align:left">Read and run, report problems, write nothing</td></tr>
+<tr><td style="text-align:left"><code>render &lt;book.skbk&gt;</code></td><td style="text-align:left">Write a book as files; <code>--page &lt;n&gt;</code> for one page</td></tr>
+<tr><td style="text-align:left"><code>verbs</code></td><td style="text-align:left">The language by category; <code>--json</code> for the table</td></tr>
+</tbody></table></div>
+<pre><code class="language-bash">napkin-sketch draw card.napkin --to svg,png          # card.svg, card.png
+napkin-sketch draw card.napkin --to jsx              # card.jsx, for Illustrator
+napkin-sketch draw --prompt &quot;a three-box flowchart&quot;  # an AI tool writes the script
+napkin-sketch draw - --json &lt; card.napkin            # stdin in, one JSON line out
+napkin-sketch draw card.napkin --asset logo=logo.png # an image the script names
+napkin-sketch check card.napkin --strict             # fail on warnings too
+napkin-sketch render deck.skbk --to png --page 2     # deck-2.png
+napkin-sketch render hero.skbk --animate walk        # hero-walk-1.svg on: frames, no AI
+napkin-sketch verbs --category shapes                # one category</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Exit</th><th style="text-align:left">Meaning</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>0</code></td><td style="text-align:left">Drew</td></tr>
+<tr><td style="text-align:left"><code>1</code></td><td style="text-align:left">The arguments were wrong</td></tr>
+<tr><td style="text-align:left"><code>2</code></td><td style="text-align:left">The script had errors (files still written unless <code>--strict</code>)</td></tr>
+<tr><td style="text-align:left"><code>3</code></td><td style="text-align:left">A file could not be read or written (a linked file included)</td></tr>
+<tr><td style="text-align:left"><code>4</code></td><td style="text-align:left">The AI helper gave back no script (<code>draw --prompt</code>)</td></tr>
+</tbody></table></div>
+<h2 id="npm-scripts">npm scripts<a class="anchor" href="#npm-scripts" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Script</th><th style="text-align:left">What it does</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>npm run build</code></td><td style="text-align:left">Bundle CLI, main, preload, renderer, and the embed API</td></tr>
+<tr><td style="text-align:left"><code>npm run build:watch</code></td><td style="text-align:left">Rebuild on change</td></tr>
+<tr><td style="text-align:left"><code>npm run build:types</code></td><td style="text-align:left">Emit <code>.d.ts</code> declarations for the embeddable API</td></tr>
+<tr><td style="text-align:left"><code>npm run typecheck</code></td><td style="text-align:left">Type-check without emitting</td></tr>
+<tr><td style="text-align:left"><code>npm test</code></td><td style="text-align:left">Run the unit test suites</td></tr>
+<tr><td style="text-align:left"><code>npm test -- --keep-graphics</code></td><td style="text-align:left">Keep the graphics the graphic-design suite draws</td></tr>
+<tr><td style="text-align:left"><code>npm test -- --update-golden</code></td><td style="text-align:left">Rewrite the golden SVGs in <code>test/scripts/</code></td></tr>
+<tr><td style="text-align:left"><code>npm start</code></td><td style="text-align:left">Build, then launch a new sketch</td></tr>
+<tr><td style="text-align:left"><code>npm run clean</code></td><td style="text-align:left">Remove <code>dist/</code></td></tr>
+<tr><td style="text-align:left"><code>npm run icon</code></td><td style="text-align:left">Generate the app icon from <code>assets/icon.svg</code></td></tr>
+<tr><td style="text-align:left"><code>npm run import-tree -- &lt;file.svg&gt;</code></td><td style="text-align:left">Print the layer tree an SVG would import as</td></tr>
+<tr><td style="text-align:left"><code>npm run todo</code></td><td style="text-align:left">Archive checked <code>TODO.md</code> items into its Complete section</td></tr>
+<tr><td style="text-align:left"><code>npm run ai-helper -- --list</code></td><td style="text-align:left">Show AI tool targets and the helpers that install to them</td></tr>
+<tr><td style="text-align:left"><code>npm run ai-helper</code></td><td style="text-align:left">Install every helper's skills to <code>.claude</code></td></tr>
+<tr><td style="text-align:left"><code>npm run ai-helper -- --to github</code></td><td style="text-align:left">Install them to <code>.github</code> (Copilot) instead</td></tr>
+<tr><td style="text-align:left"><code>npm run ai-helper -- --helper &lt;name&gt;</code></td><td style="text-align:left">Narrow to one helper (<code>vectors</code>, <code>graphic-designer</code>, <code>scripting</code>)</td></tr>
+<tr><td style="text-align:left"><code>npm run ai-helper -- --to plugin</code></td><td style="text-align:left">Check the plugins and print the <code>/plugin</code> commands</td></tr>
+<tr><td style="text-align:left"><code>npm run wireframe-cycles</code></td><td style="text-align:left">Rebuild the animation cycle tables from the wireframe asset</td></tr>
+<tr><td style="text-align:left"><code>npm run shape-library</code></td><td style="text-align:left">Rebuild the script shape library from its SVG assets</td></tr>
+<tr><td style="text-align:left"><code>npm run shape-library -- --check</code></td><td style="text-align:left">Fail when the committed shape library is out of date</td></tr>
+<tr><td style="text-align:left"><code>npm run api-docs</code></td><td style="text-align:left">Rewrite the API docs' generated tables, schema and index</td></tr>
+<tr><td style="text-align:left"><code>npm run api-docs -- --check</code></td><td style="text-align:left">Fail when any of them is out of date</td></tr>
+<tr><td style="text-align:left"><code>npm run menu-docs</code></td><td style="text-align:left">Rewrite the shortcut tables from the menu registry</td></tr>
+<tr><td style="text-align:left"><code>npm run menu-docs -- --check</code></td><td style="text-align:left">Fail when either is out of date</td></tr>
+<tr><td style="text-align:left"><code>npm run pack-check</code></td><td style="text-align:left">Pack, install the tarball with no Electron, and draw</td></tr>
+<tr><td style="text-align:left"><code>npm run dist</code></td><td style="text-align:left">Build an installer for the current OS</td></tr>
+<tr><td style="text-align:left"><code>npm run dist:win</code> / <code>dist:mac</code> / <code>dist:linux</code></td><td style="text-align:left">NSIS / DMG / AppImage</td></tr>
+<tr><td style="text-align:left"><code>npm run animation-mode -- --status</code></td><td style="text-align:left">Is Animation Mode installed?</td></tr>
+<tr><td style="text-align:left"><code>npm run animation-mode -- --install</code></td><td style="text-align:left">Install it (defaults to Claude Code)</td></tr>
+<tr><td style="text-align:left"><code>npm run animation-mode -- --uninstall</code></td><td style="text-align:left">Remove it again</td></tr>
+</tbody></table></div>
+<h2 id="embedding">Embedding<a class="anchor" href="#embedding" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-ts">import { NapkinSketch } from 'napkin-sketch';
+import 'napkin-sketch/styles.css';
+
+const editor = new NapkinSketch(document.getElementById('host')!, {
+  liveSharpen: false,
+  onChange: (e) =&gt; console.log(e.toJSON()),
+});
+
+editor.setTool('pen');
+editor.sharpenAll();
+editor.toDataURL('image/png');
+editor.toSVG();
+editor.toPDF();</code></pre>
+<p>Pure-engine entry points, no editor required: <code>sharpenStrokes</code>,
+<code>parseSketchBook</code>, <code>sketchesToPdf</code>, and <code>importSvg</code> (browser only).</p>
+<h2 id="drawing-from-a-script">Drawing from a script<a class="anchor" href="#drawing-from-a-script" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-ts">import { drawSvg, evaluate, renderBook } from 'napkin-sketch';   // anywhere
+import { drawFile, drawToFiles } from 'napkin-sketch/node';      // Node: files
+
+const { svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60');
+const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png', 'pdf', 'skbk'] });</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Call</th><th style="text-align:left">Gives</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>evaluate(script, options)</code></td><td style="text-align:left"><code>{ ok, book, diagnostics, stats, output }</code></td></tr>
+<tr><td style="text-align:left"><code>renderBook(book, { format, ...output })</code></td><td style="text-align:left"><code>svg</code>/<code>png</code>: one a page; <code>pdf</code>/<code>skbk</code>/<code>jsx</code>: one string</td></tr>
+<tr><td style="text-align:left"><code>drawFile(path, options)</code>, <code>drawToFiles(script, options)</code></td><td style="text-align:left"><code>{ ok, files, diagnostics, stats, warnings }</code>, files written</td></tr>
+</tbody></table></div>
+<p>References: <a href="api/node/index.html">docs/api/node</a>,
+<a href="api/output/index.html">docs/api/output</a>.</p>
+<p>The twenty verbs most scripts use:</p>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Verb</th><th style="text-align:left">Example</th><th style="text-align:left">Draws or sets</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>napkin</code></td><td style="text-align:left"><code>napkin 1</code></td><td style="text-align:left">The language version: the first line</td></tr>
+<tr><td style="text-align:left"><code>page</code></td><td style="text-align:left"><code>page 400 300</code>, <code>page a4 landscape</code></td><td style="text-align:left">The page size</td></tr>
+<tr><td style="text-align:left"><code>background</code></td><td style="text-align:left"><code>background #fcfaf5</code>, <code>background none</code></td><td style="text-align:left">The page color</td></tr>
+<tr><td style="text-align:left"><code>layer</code></td><td style="text-align:left"><code>layer &quot;Sky&quot; opacity 0.8</code></td><td style="text-align:left">A layer the marks after it go on</td></tr>
+<tr><td style="text-align:left"><code>group</code></td><td style="text-align:left"><code>group &quot;Figure&quot; { layer &quot;Head&quot; }</code></td><td style="text-align:left">A group layer around a block</td></tr>
+<tr><td style="text-align:left"><code>color</code></td><td style="text-align:left"><code>color #1f2328</code></td><td style="text-align:left">The ink</td></tr>
+<tr><td style="text-align:left"><code>width</code></td><td style="text-align:left"><code>width 3</code></td><td style="text-align:left">The stroke width</td></tr>
+<tr><td style="text-align:left"><code>fill</code></td><td style="text-align:left"><code>fill #ffe08a</code>, <code>fill none</code></td><td style="text-align:left">The fill of closed shapes</td></tr>
+<tr><td style="text-align:left"><code>rect</code></td><td style="text-align:left"><code>rect 20 20 360 80 r 12</code></td><td style="text-align:left">A rectangle, rounded with <code>r</code></td></tr>
+<tr><td style="text-align:left"><code>circle</code></td><td style="text-align:left"><code>circle 50% 50% 48</code></td><td style="text-align:left">A circle</td></tr>
+<tr><td style="text-align:left"><code>ellipse</code></td><td style="text-align:left"><code>ellipse 200 150 120 60</code></td><td style="text-align:left">An ellipse</td></tr>
+<tr><td style="text-align:left"><code>line</code></td><td style="text-align:left"><code>line 20 20 380 280</code></td><td style="text-align:left">A straight line</td></tr>
+<tr><td style="text-align:left"><code>polygon</code></td><td style="text-align:left"><code>polygon 200 40, 360 260, 40 260 r 8</code></td><td style="text-align:left">A closed shape through points</td></tr>
+<tr><td style="text-align:left"><code>path</code></td><td style="text-align:left"><code>path &quot;M20 20 C60 0 100 40 140 20&quot;</code></td><td style="text-align:left">SVG path data, or a block of steps</td></tr>
+<tr><td style="text-align:left"><code>through</code></td><td style="text-align:left"><code>through 20 100, 80 40, 140 100</code></td><td style="text-align:left">A smooth curve through points</td></tr>
+<tr><td style="text-align:left"><code>text</code></td><td style="text-align:left"><code>text &quot;Acme Corp&quot; at 200 70 size 28 align center</code></td><td style="text-align:left">A text item</td></tr>
+<tr><td style="text-align:left"><code>image</code></td><td style="text-align:left"><code>image &quot;logo&quot; at 20 20 size 120</code></td><td style="text-align:left">An image the host passed in</td></tr>
+<tr><td style="text-align:left"><code>link</code></td><td style="text-align:left"><code>link &quot;assets/logo.svg&quot; at 20 120 size 120 120</code></td><td style="text-align:left">A linked file, drawn where it can be</td></tr>
+<tr><td style="text-align:left"><code>repeat</code></td><td style="text-align:left"><code>repeat 10 as i { rect (20 + i * 36) 20 30 30 }</code></td><td style="text-align:left">A block, a number of times</td></tr>
+<tr><td style="text-align:left"><code>rough</code></td><td style="text-align:left"><code>rough 0.6</code></td><td style="text-align:left">The hand-drawn pass</td></tr>
+</tbody></table></div>
+<p>Every verb, flag and exit code: <a href="api/cheatsheet.html">API-CHEATSHEET.md</a>. The map
+of the documentation: <a href="api/index.html">API.md</a>.</p>
+<h2 id="graphic-design-api">Graphic design API<a class="anchor" href="#graphic-design-api" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-ts">import { createComposition } from 'napkin-sketch';
+
+const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
+design.rect({ x: 24, y: 24, width: 312, height: 96, rx: 12, fill: '#326478' });
+design.text({ x: 180, y: 78, text: 'Acme Corp', align: 'center', fill: '#ffffff' });
+design.defineClip('badge', { type: 'circle', cx: 180, cy: 220, r: 64 });
+design.image({ src: logo, x: 116, y: 156, width: 128, height: 128, fit: 'cover', clip: 'badge' });
+
+design.toSVG();  // string
+design.toPNG();  // PNG bytes, no canvas and no image dependency</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Element</th><th style="text-align:left">Method</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Rectangle</td><td style="text-align:left"><code>rect({ x, y, width, height, rx })</code></td></tr>
+<tr><td style="text-align:left">Circle</td><td style="text-align:left"><code>circle({ cx, cy, r })</code></td></tr>
+<tr><td style="text-align:left">Ellipse</td><td style="text-align:left"><code>ellipse({ cx, cy, rx, ry })</code></td></tr>
+<tr><td style="text-align:left">Triangle</td><td style="text-align:left"><code>triangle({ x, y, width, height, variant })</code> or <code>points</code></td></tr>
+<tr><td style="text-align:left">Polygon</td><td style="text-align:left"><code>polygon({ points })</code> / <code>polyline({ points })</code></td></tr>
+<tr><td style="text-align:left">Line</td><td style="text-align:left"><code>line({ x1, y1, x2, y2 })</code></td></tr>
+<tr><td style="text-align:left">Path</td><td style="text-align:left"><code>path({ d })</code> - <code>M L H V C S Q T Z</code>, no arcs</td></tr>
+<tr><td style="text-align:left">Text</td><td style="text-align:left"><code>text({ x, y, text, ...font and paragraph styling })</code></td></tr>
+<tr><td style="text-align:left">Media</td><td style="text-align:left"><code>image({ src, x, y, width, height, fit, clip })</code></td></tr>
+<tr><td style="text-align:left">Group</td><td style="text-align:left"><code>group(props, (g) =&gt; { ... })</code></td></tr>
+<tr><td style="text-align:left">Mask</td><td style="text-align:left"><code>defineClip(id, shape)</code>, or <code>clip:</code> inline on an element</td></tr>
+<tr><td style="text-align:left">Effects</td><td style="text-align:left"><code>effects: [{ type: 'drop-shadow', dx, dy, blur, color }]</code></td></tr>
+</tbody></table></div>
+<p>Page defaults: 360 by 360, <code>px</code>, transparent, headless. Full reference in
+<a href="api/compose/index.html">the graphic design API</a>.</p>
+<h2 id="ai-helpers">AI helpers<a class="anchor" href="#ai-helpers" aria-label="Link to this section">#</a></h2>
+<p>Two plugins in <code>ai-helper/</code>, one folder each, both listed by the marketplace at
+the repository root.</p>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Helper</th><th style="text-align:left">Command</th><th style="text-align:left">What it does</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left"><code>vectors</code></td><td style="text-align:left"><code>/vectors:animation-mode</code></td><td style="text-align:left">Draws the next Animation Mode frame</td></tr>
+<tr><td style="text-align:left"><code>graphic-designer</code></td><td style="text-align:left"><code>/graphic-designer:design-language</code></td><td style="text-align:left">Reads an asset into a <code>DESIGN_LANGUAGE.md</code></td></tr>
+</tbody></table></div>
+<pre><code class="language-text">/plugin marketplace add .                              # from a clone
+/plugin marketplace add isocialPractice/napkin-sketch  # without one
+/plugin install vectors@napkin-sketch
+/plugin install graphic-designer@napkin-sketch</code></pre>
+<pre><code class="language-bash"># What design language is this asset in?
+node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs asset.svg --markdown</code></pre>
+<p>An SVG yields colors, type, strokes and structure; a PNG yields colors only;
+JPEG and GIF have no decoder and say so rather than returning an empty result.</p>
+<h2 id="defaults-worth-knowing">Defaults worth knowing<a class="anchor" href="#defaults-worth-knowing" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left">Setting</th><th style="text-align:left">Default</th></tr></thead>
+<tbody>
+<tr><td style="text-align:left">Active tool at launch</td><td style="text-align:left">Select</td></tr>
+<tr><td style="text-align:left">Live sharpen</td><td style="text-align:left">Off</td></tr>
+<tr><td style="text-align:left">Window</td><td style="text-align:left">Maximized; 1280x860 when restored down</td></tr>
+<tr><td style="text-align:left">Endpoint snap sensitivity</td><td style="text-align:left">10px (range 1-20)</td></tr>
+<tr><td style="text-align:left">Join stroke on snap</td><td style="text-align:left">Off</td></tr>
+<tr><td style="text-align:left">Eyedropper select pixel sensitivity</td><td style="text-align:left">10px (range 1-36)</td></tr>
+<tr><td style="text-align:left">Direct Select grab radius</td><td style="text-align:left">3px</td></tr>
+<tr><td style="text-align:left">Copic nib hold time</td><td style="text-align:left">1s (range 0.5-2)</td></tr>
+<tr><td style="text-align:left">Copic rotate width multiplier</td><td style="text-align:left">2x (range 1-4, capped at 40px)</td></tr>
+<tr><td style="text-align:left">Show selection borders</td><td style="text-align:left">On</td></tr>
+<tr><td style="text-align:left">Animation Mode</td><td style="text-align:left">Not installed</td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="quickstart.html" rel="prev"><span>Previous</span>Quickstart</a><a href="quickstart/draw.html" rel="next"><span>Next</span>Quickstart: drawing</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/CHEATSHEET.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

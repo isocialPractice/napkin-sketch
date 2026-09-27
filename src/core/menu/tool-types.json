@@ -1,0 +1,277 @@
+{
+  "version": 1,
+  "mainTypes": ["App", "Composition", "GUI", "Draw", "API", "docs"],
+  "subTypes": [
+    { "id": "edit:mixed", "main": "Composition" },
+    { "id": "Subtract:element", "main": "Composition" },
+    { "id": "edit:selection", "main": "Composition" },
+    { "id": "Add:vector", "main": "Draw" },
+    { "id": "Modify:element", "main": "Draw" },
+    { "id": "Subtract:vector", "main": "Draw" },
+    { "id": "Add:mark", "main": "Draw" },
+    { "id": "Modify:vector", "main": "Draw" },
+    { "id": "Subtract:mark", "main": "Draw" },
+    { "id": "Add:layer", "main": "App" },
+    { "id": "Modify:layer", "main": "App" },
+    { "id": "Subtract:layer", "main": "App" },
+    { "id": "automate:mixed", "main": "API" }
+  ],
+  "menus": [
+    { "id": "file", "label": "File", "type": "App", "accepts": [] },
+    {
+      "id": "edit",
+      "label": "Edit",
+      "type": "Composition",
+      "accepts": [
+        { "type": "edit:mixed", "group": 2 },
+        { "type": "Subtract:element", "group": 3 },
+        { "type": "edit:selection", "group": 3 }
+      ]
+    },
+    { "id": "view", "label": "View", "type": "GUI", "accepts": [] },
+    {
+      "id": "transform",
+      "label": "Transform",
+      "type": "Draw",
+      "accepts": ["Add:vector", "Modify:element", "Subtract:vector"],
+      "help": { "label": "Transform", "page": "quickstart/transform", "order": 1 }
+    },
+    {
+      "id": "sketch",
+      "label": "Sketch",
+      "type": "Draw",
+      "accepts": ["Add:mark", "Modify:vector", "Subtract:mark"],
+      "help": { "label": "Draw", "page": "quickstart/draw", "order": 2 }
+    },
+    {
+      "id": "layers",
+      "label": "Layers",
+      "type": "App",
+      "panel": "layers-panel",
+      "accepts": ["Add:layer", "Modify:layer", "Subtract:layer", { "type": "edit:mixed", "group": 2, "when": "panel" }],
+      "help": { "label": "Layers", "page": "quickstart/layers", "order": 4 }
+    },
+    {
+      "id": "pages",
+      "label": "Pages",
+      "type": "App",
+      "panel": "pages-panel",
+      "accepts": [],
+      "help": { "label": "Pages", "page": "quickstart/pages", "order": 3 }
+    },
+    {
+      "id": "automate",
+      "label": "Automate",
+      "type": "API",
+      "accepts": ["automate:mixed"],
+      "help": { "label": "Automate", "page": "quickstart/automate", "order": 5 }
+    },
+    { "id": "help", "label": "Help", "type": "docs", "accepts": [] },
+    {
+      "id": "canvas",
+      "label": "Canvas",
+      "type": "Composition",
+      "top": false,
+      "panel": "canvas-wrap",
+      "accepts": [
+        { "type": "edit:mixed", "group": 1 },
+        { "type": "Subtract:element", "group": 2 },
+        { "type": "edit:selection", "group": 3 }
+      ]
+    },
+    { "id": "export-button", "label": "Export", "type": "App", "top": false, "panel": "export", "from": "export" },
+    { "id": "pages-button", "label": "Page menu", "type": "App", "top": false, "panel": "pages-menu", "from": "add-page" },
+    { "id": "close-shape-button", "label": "Close Shape", "type": "Draw", "top": false, "panel": "close-shape", "from": "close-shape" }
+  ],
+  "tools": [
+    { "id": "new-sketch", "label": "New Sketch", "type": "App:file", "group": 1, "claim": "menu" },
+    { "id": "open", "label": "Open", "type": "App:file", "group": 1, "claim": "menu", "dots": true },
+    { "id": "import", "label": "Import", "type": "App:file", "group": 1, "claim": "menu", "dots": true },
+    { "id": "save", "label": "Save", "type": "App:file", "group": 2, "claim": "menu" },
+    { "id": "save-as", "label": "Save As", "type": "App:file", "group": 2, "claim": "menu", "dots": true },
+    { "id": "export", "label": "Export", "type": "App:file", "group": 3 },
+    { "id": "export-png", "label": "PNG Image", "name": "Export PNG Image", "parent": "export", "dots": true },
+    { "id": "export-svg", "label": "SVG Vector", "name": "Export SVG Vector", "parent": "export", "dots": true },
+    { "id": "export-jpeg", "label": "JPEG Image", "name": "Export JPEG Image", "parent": "export", "dots": true },
+    { "id": "export-pdf", "label": "PDF Document", "name": "Export PDF Document", "parent": "export", "dots": true },
+    {
+      "id": "export-selection",
+      "label": "Selection",
+      "name": "Export Selection",
+      "parent": "export",
+      "group": 2,
+      "only": ["export-button"],
+      "disabledWhen": "noSelection"
+    },
+    { "id": "export-selection-png", "label": "PNG Image", "name": "Export Selection as PNG", "parent": "export-selection", "dots": true },
+    { "id": "export-selection-svg", "label": "SVG Vector", "name": "Export Selection as SVG", "parent": "export-selection", "dots": true },
+    { "id": "export-selection-jpeg", "label": "JPEG Image", "name": "Export Selection as JPEG", "parent": "export-selection", "dots": true },
+    { "id": "export-selection-pdf", "label": "PDF Document", "name": "Export Selection as PDF", "parent": "export-selection", "dots": true },
+    { "id": "quit", "label": "Exit", "type": "App:file", "group": 4, "role": "quit" },
+
+    { "id": "undo", "label": "Undo", "type": "Composition:edit", "group": 1, "claim": "menu", "disabledWhen": "cannotUndo" },
+    { "id": "redo", "label": "Redo", "type": "Composition:edit", "group": 1, "claim": "menu", "disabledWhen": "cannotRedo" },
+    { "id": "cut", "label": "Cut", "type": "Composition:edit:mixed", "group": 2, "disabledWhen": "noSelection" },
+    { "id": "copy", "label": "Copy", "type": "Composition:edit:mixed", "group": 2, "disabledWhen": "noSelection" },
+    { "id": "paste", "label": "Paste", "type": "Composition:edit:mixed", "group": 2 },
+    { "id": "paste-in-place", "label": "Paste in Place", "type": "Composition:edit:mixed", "group": 2, "disabledWhen": "noClipboard" },
+    { "id": "duplicate", "label": "Duplicate", "type": "Composition:edit:mixed", "group": 2, "disabledWhen": "noSelection" },
+    { "id": "delete-selection", "label": "Delete", "type": "Composition:Subtract:element", "group": 3, "disabledWhen": "noSelection", "summary": "Elements first; else the selected layer rows" },
+    { "id": "select-all", "label": "Select All", "type": "Composition:edit:selection", "group": 3 },
+    {
+      "id": "deselect-all",
+      "label": "Deselect All",
+      "type": "Composition:edit:selection",
+      "group": 3,
+      "only": ["canvas"],
+      "disabledWhen": "noMarksSelected"
+    },
+    { "id": "verbose-settings", "label": "Verbose Settings", "type": "Composition:edit", "group": 4, "claim": "menu", "dots": true, "host": "main" },
+    { "id": "toggle-rearrange", "label": "Rearrange Toolbar", "type": "Composition:edit", "group": 4 },
+    { "id": "edit-shortcuts", "label": "Edit Keyboard Shortcuts", "type": "Composition:edit", "group": 4, "dots": true, "fixed": "an editor stays in the Edit menu, where it can always be found" },
+    { "id": "edit-tool-types", "label": "Edit Tool Types", "type": "Composition:edit", "group": 4, "dots": true, "fixed": "an editor stays in the Edit menu, where it can always be found" },
+    {
+      "id": "toggle-animation",
+      "label": "Animation Mode",
+      "type": "Composition:edit",
+      "group": 5,
+      "claim": "menu",
+      "hiddenWhen": "animationNotInstalled",
+      "summary": "An optional add-on"
+    },
+
+    { "id": "toggle-pages", "label": "Toggle Pages Panel", "type": "GUI:view", "group": 1, "claim": "menu" },
+    { "id": "toggle-layers", "label": "Toggle Layers Panel", "type": "GUI:view", "group": 1, "claim": "menu" },
+    { "id": "toggle-properties", "label": "Toggle Properties Panel", "type": "GUI:view", "group": 1, "claim": "menu" },
+    { "id": "toggle-settings", "label": "Quick Settings", "type": "GUI:view", "group": 1, "claim": "menu" },
+    { "id": "toggle-dev-tools", "label": "Toggle Developer Tools", "type": "GUI:view", "group": 2, "role": "toggleDevTools" },
+    { "id": "fit-view", "label": "Fit All in View", "type": "GUI:view", "group": 3, "claim": "menu" },
+    { "id": "zoom-in", "label": "Zoom In", "type": "GUI:view", "group": 3, "role": "zoomIn" },
+    { "id": "zoom-out", "label": "Zoom Out", "type": "GUI:view", "group": 3, "role": "zoomOut" },
+    { "id": "toggle-full-screen", "label": "Toggle Full Screen", "type": "GUI:view", "group": 4, "role": "togglefullscreen" },
+
+    { "id": "tool-vector", "label": "Vector Path", "type": "Draw:Add:vector", "group": 1, "summary": "Click = corner, drag = smooth Bezier point" },
+    { "id": "toggle-transform", "label": "Transform Box", "type": "Draw:Modify:element", "group": 2, "checked": "transformBox", "summary": "Again, or `Esc`, to put it away" },
+    { "id": "move-selection", "label": "Move", "type": "Draw:Modify:element", "group": 2, "dots": true, "summary": "By an exact x and y, in any unit" },
+    { "id": "rotate", "label": "Rotate", "type": "Draw:Modify:element", "group": 2, "dots": true },
+    { "id": "join-strokes", "label": "Join", "type": "Draw:Modify:element", "group": 2 },
+    { "id": "close-shape", "label": "Close Shape", "type": "Draw:Modify:element", "group": 2 },
+    {
+      "id": "close-shape-sharp",
+      "label": { "top": "Sharp", "panel": "Sharp - straight line between the end points" },
+      "name": "Close Shape: Sharp",
+      "parent": "close-shape"
+    },
+    {
+      "id": "close-shape-smooth",
+      "label": { "top": "Smooth", "panel": "Smooth - curve on through the end points" },
+      "name": "Close Shape: Smooth",
+      "parent": "close-shape"
+    },
+    { "id": "mirror", "label": "Mirror", "type": "Draw:Modify:element", "group": 2, "dots": true, "summary": "Horizontally or vertically, in place or as a copy" },
+    { "id": "sharpen", "label": "Sharpen", "type": "Draw:Modify:element", "group": 3 },
+    { "id": "sharpen-selection", "label": "Sharpen Selection", "parent": "sharpen", "dots": true, "summary": "Smooth and Simplify sliders with a live preview" },
+    { "id": "sharpen-all", "label": "Sharpen All", "parent": "sharpen" },
+    { "id": "tool-warp", "label": "Mesh Warp", "type": "Draw:Modify:element", "group": 3, "summary": "Click art to mesh it, then drag its pins to bend it" },
+
+    { "id": "tool-pen", "label": "Pen", "type": "Draw:Add:mark", "group": 1, "summary": "Pressure-aware variable width" },
+    { "id": "tool-marker", "label": "Marker", "type": "Draw:Add:mark", "group": 1 },
+    { "id": "tool-eraser", "label": "Eraser", "type": "Draw:Subtract:mark", "group": 1, "summary": "Reveals the paper beneath; cuts only its own layer" },
+    { "id": "tool-text", "label": "Text", "type": "Draw:Add:mark", "group": 1, "summary": "Click = auto-sizing box, drag = fixed width with wrap" },
+    { "id": "tool-copic", "label": "Copic", "name": "Copic marker", "type": "Draw:Add:mark", "group": 1, "summary": "Flat broad nib, rotatable" },
+    { "id": "tool-point", "label": "Direct", "name": "Direct Select", "type": "Draw:Modify:vector", "group": 1, "summary": "White arrow; drags anchor points" },
+    { "id": "stroke-profile", "label": "Stroke Profile", "type": "Draw:sketch", "group": 2, "dots": true, "summary": "How the width runs along new pen and marker strokes" },
+
+    { "id": "add-layer", "label": "Add Layer", "type": "App:Add:layer", "group": 1 },
+    { "id": "group-layer", "label": "Group Layer", "type": "App:Add:layer", "group": 1, "summary": "Groups the selected layers" },
+    { "id": "ungroup-layer", "label": "Ungroup", "name": "Ungroup Layer", "type": "App:Subtract:layer", "group": 1, "disabledWhen": "notGroup" },
+    { "id": "rename-layer", "label": "Rename", "name": "Rename Layer", "type": "App:Modify:layer", "group": 1, "summary": "Or double-click the layer row" },
+    { "id": "delete-layer", "label": "Delete Layer", "type": "App:Subtract:layer", "group": 1 },
+    { "id": "move-layer", "label": { "top": "Move Layer", "panel": "Move" }, "type": "App:Modify:layer", "group": 3 },
+    { "id": "layer-up", "label": "Layer Up", "parent": "move-layer" },
+    { "id": "layer-down", "label": "Layer Down", "parent": "move-layer" },
+    { "id": "hide-layers", "label": "Hide Layers Panel", "type": "App:layers", "group": 4, "disabledWhen": "layersHidden" },
+
+    { "id": "add-page", "label": "Add Page", "type": "App:pages", "group": 1 },
+    { "id": "add-page-default", "label": "Default New Page", "parent": "add-page" },
+    { "id": "add-page-custom", "label": "Custom New Page", "parent": "add-page", "dots": true },
+    {
+      "id": "add-page-from-selection",
+      "label": "From Selection",
+      "name": "New Page from Selection",
+      "parent": "add-page",
+      "disabledWhen": "noSelection"
+    },
+    { "id": "delete-page", "label": "Delete Page", "type": "App:pages", "group": 1, "disabledWhen": "onePage" },
+    { "id": "page-settings", "label": "Page Settings", "type": "App:pages", "group": 2, "dots": true },
+    { "id": "hide-pages", "label": "Hide Pages Panel", "type": "App:pages", "group": 3, "disabledWhen": "pagesHidden" },
+
+    { "id": "generate-script", "label": "Generate Script", "type": "API:automate", "group": 1 },
+    {
+      "id": "script-from-media",
+      "label": "From Media File",
+      "name": "Generate Script from a Media File",
+      "parent": "generate-script",
+      "dots": true
+    },
+    {
+      "id": "script-from-layers",
+      "label": "Selected Layers",
+      "name": "Generate Script from the Selected Layers",
+      "parent": "generate-script",
+      "dots": true,
+      "disabledWhen": "noSelection"
+    },
+    {
+      "id": "script-from-history",
+      "label": "From Session History",
+      "name": "Generate Script from the Session History",
+      "parent": "generate-script",
+      "dots": true,
+      "disabledWhen": "noHistory"
+    },
+    { "id": "track-history", "label": "Track History", "type": "API:automate", "group": 1, "checked": "historyTracking" },
+    {
+      "id": "history-limit",
+      "label": "History Limit",
+      "type": "API:automate:mixed",
+      "group": 1,
+      "dots": true,
+      "host": "main",
+      "fixed": "it is Automate's own setting, and Verbose Settings holds it too"
+    },
+
+    { "id": "help-verbose", "label": "Verbose", "name": "Documentation", "type": "docs:help", "group": 1, "host": "main" },
+    { "id": "help-tool-types", "label": "Tool Types", "type": "docs:help", "group": 1, "generate": "helpTopics" },
+    { "id": "help-source-code", "label": "Source Code", "type": "docs:help", "group": 2, "host": "main" },
+    {
+      "id": "help-source-docs",
+      "label": "Source Docs",
+      "type": "docs:help",
+      "group": 2,
+      "host": "main",
+      "hiddenWhen": "noDocsSite"
+    },
+
+    { "id": "tool-select", "label": "Select", "type": "Draw:Modify:element", "inMenus": false, "summary": "Black arrow; active at launch" },
+    { "id": "tool-rect", "label": "Rectangle", "type": "Draw:Add:vector", "inMenus": false, "summary": "Hold `Shift` for a square" },
+    { "id": "tool-ellipse", "label": "Ellipse", "type": "Draw:Add:vector", "inMenus": false, "summary": "Hold `Shift` for a circle" },
+    { "id": "tool-curve", "label": "Curve", "type": "Draw:Add:vector", "inMenus": false, "summary": "Click and hold the button for the free-ends variant" },
+    { "id": "tool-bucket", "label": "Paint Bucket", "type": "Draw:Modify:element", "inMenus": false, "summary": "Fills the enclosed shape under the click" },
+    { "id": "tool-fill", "label": "Fill Color", "type": "Draw:Modify:element", "inMenus": false, "summary": "Fills the element under the click, else the selection" },
+    { "id": "tool-eyedrop", "label": "Eyedropper", "type": "Draw:Modify:element", "inMenus": false, "summary": "Hold `Ctrl` to pick a shape instead" },
+    { "id": "clear-page", "label": "Clear", "name": "Clear Page", "type": "Composition:Subtract:element", "inMenus": false },
+    {
+      "id": "toggle-selection-borders",
+      "label": "Show Selection Borders",
+      "type": "GUI:view",
+      "inMenus": false,
+      "fixed": "it is a view switch, kept on the keyboard, in Quick Settings and in the Move palette"
+    },
+    { "id": "quick-width", "label": "Quick Width", "type": "Draw:sketch", "inMenus": false, "fixed": "it starts a typed entry, so it stays on the keyboard", "summary": "Then type a number" },
+    { "id": "quick-opacity", "label": "Quick Opacity", "type": "Draw:sketch", "inMenus": false, "fixed": "it starts a typed entry, so it stays on the keyboard", "summary": "Then type a number" },
+    { "id": "quick-zoom", "label": "Quick Zoom", "type": "GUI:view", "inMenus": false, "fixed": "it starts a typed entry, so it stays on the keyboard", "summary": "Then a digit: `9` is 90%, `0` is 100%" },
+    { "id": "cycle-color", "label": "Next Color", "type": "Draw:sketch", "inMenus": false, "fixed": "it steps through the swatches, so it stays on the keyboard", "summary": "Steps through the Quick Access colors" },
+    { "id": "cycle-color-back", "label": "Previous Color", "type": "Draw:sketch", "inMenus": false, "fixed": "it steps through the swatches, so it stays on the keyboard", "summary": "Steps back through them" }
+  ]
+}

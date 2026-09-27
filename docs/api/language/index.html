@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The napkin script language - napkin-sketch</title>
+<meta name="description" content="The syntax, values and expressions, the object form, every verb, and every diagnostic code.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group" open><summary>The napkin script language</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Reference</span></nav>
+<h1 id="the-napkin-script-language">The napkin script language<a class="anchor" href="#the-napkin-script-language" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>Napkin script says what to draw without a pointer. A person or an AI helper
+writes it as text, one instruction to a line; a program in any language builds
+the same thing as JSON. Both become one list of instructions, the object form,
+which is what the rest of the API runs.</p>
+<p>This page is the reference for the language itself: how a script is written,
+what its values look like, how expressions work, what the diagnostics mean, and
+the functions that read, check and write scripts. What each instruction draws,
+and the function that runs a script, are in
+<a href="../drawing/index.html">Drawing with napkin script</a>.</p>
+<p><strong>Contents</strong></p>
+<ul>
+<li><a href="#what-this-is">What this is</a></li>
+<li><a href="#the-mental-model">The mental model</a></li>
+<li><a href="#reference">Reference</a>
+<ul>
+<li><a href="#a-script-line-by-line">A script, line by line</a></li>
+<li><a href="#values">Values</a></li>
+<li><a href="#expressions">Expressions</a></li>
+<li><a href="#the-version-line">The version line</a></li>
+<li><a href="#the-budget">The budget</a></li>
+<li><a href="#the-object-form">The object form</a></li>
+<li><a href="#verbs">Verbs</a></li>
+<li><a href="#diagnostics">Diagnostics</a></li>
+<li><a href="#functions">Functions</a></li>
+</ul></li>
+<li><a href="#worked-examples">Worked examples</a></li>
+<li><a href="#limits">Limits</a></li>
+<li><a href="#for-agents">For agents</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+<h2 id="what-this-is">What this is<a class="anchor" href="#what-this-is" aria-label="Link to this section">#</a></h2>
+<p>A drawing language small enough to learn from one page and strict enough to
+check before anything runs. A script is a list of instructions such as <code>page</code>,
+<code>layer</code>, <code>color</code>, <code>rect</code>, <code>text</code> and <code>repeat</code>. Each one is a verb followed by
+its arguments, and every verb is described in one table, <code>verbs.json</code>, which
+the parser follows and every listing of the language is generated from.</p>
+<p>The text form is for people and for AI helpers; it reads like a list of
+drawing steps and is forgiving about spacing and case. The object form is for
+programs: an array of plain objects, one per instruction, each naming its
+<code>verb</code>. A Python script, a C program or a shell pipeline builds the object form
+as JSON and never has to produce the text syntax. The two are interchangeable:
+a script read from text and the same script built as JSON come out as exactly
+the same instructions.</p>
+<h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-text"> text (.napkin) --parseScript--&gt;  instructions  &lt;--validateScript-- JSON (.napkin.json)
+                                       |
+                                  formatScript
+                                       |
+                                       v
+                                 canonical text</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Step</th><th>Function</th><th>Takes</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td>Read text</td><td><code>parseScript(text)</code></td><td>a script as text</td><td>the instructions, and what was wrong</td></tr>
+<tr><td>Check JSON</td><td><code>validateScript(value)</code></td><td>a parsed JSON value</td><td>the same</td></tr>
+<tr><td>Write text</td><td><code>formatScript(script)</code></td><td>instructions</td><td>the script as canonical text</td></tr>
+</tbody></table></div>
+<p>Neither reader throws. Each returns <code>{ ok, script, diagnostics }</code>: <code>script</code> holds
+every instruction that was read without an error, <code>diagnostics</code> holds the
+errors and warnings in reading order, and <code>ok</code> is true when there were no
+errors. An instruction with an error is left out rather than half-read, so what
+comes back is always a well-formed script.</p>
+<h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
+<h3 id="a-script-line-by-line">A script, line by line<a class="anchor" href="#a-script-line-by-line" aria-label="Link to this section">#</a></h3>
+<pre><code class="language-napkin">napkin 1
+page 400 300          # the page, in pixels
+color #1f2328 width 3 # two paint instructions on one line
+group &quot;Figure&quot; {
+  layer &quot;Head&quot;
+  circle 200 80 30
+}
+repeat 3 as i { rect (20 + i * 40) 200 30 30 }</code></pre>
+<ul>
+<li><strong>One instruction to a line.</strong> A newline ends an instruction, and so does
+<code>;</code>, so <code>line 0 0 10 10; line 10 10 20 0</code> is two.</li>
+<li><strong>A verb first, then its arguments.</strong> Positional arguments come first, in
+order; keyword clauses such as <code>at 200 70</code> and flags such as <code>hidden</code> follow
+in any order. The <a href="#verbs">verb tables</a> show every way of writing each verb.</li>
+<li><strong>Blocks.</strong> A verb that holds other instructions - <code>group</code>, <code>define</code>,
+<code>repeat</code> and <code>path</code> - takes a block: <code>{</code> at the end of its line, the
+instructions, and <code>}</code>. A block can also sit on one line.</li>
+<li><strong>Paint instructions share a line.</strong> On a line that starts with a paint verb
+(<code>tool</code>, <code>color</code>, <code>width</code>, <code>opacity</code>, <code>fill</code>, <code>gradient</code>, <code>stroke</code>, <code>style</code>,
+<code>profile</code>, <code>nib</code>, <code>rough</code>, <code>font</code>), another paint verb starts the next
+instruction. Nothing else chains, so in <code>layer &quot;Sky&quot; opacity 0.8</code> the
+<code>opacity</code> is the layer's own.</li>
+<li><strong>Comments.</strong> <code>#</code> at the start of a line, or followed by a space, starts a
+comment that runs to the end of the line. <code>#</code> followed by anything else is a
+color, <code>#1f2328</code>, which is why a comment after an instruction needs its
+space.</li>
+<li><strong>Case.</strong> Verbs, keywords and choices ignore case and are written back in
+lower case. Strings and <code>let</code> names keep theirs.</li>
+<li><strong>Hyphens.</strong> Outside parentheses a hyphen with a letter after it joins a
+word, as in <code>effect drop-shadow</code>; inside, it is a minus, so <code>(a-5)</code> is a
+subtraction.</li>
+</ul>
+<h3 id="values">Values<a class="anchor" href="#values" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Kind</th><th>Written</th><th>In JSON</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Number</td><td><code>12</code>, <code>-3.5</code>, <code>1e3</code></td><td><code>12</code></td><td>Degrees for angles, clockwise.</td></tr>
+<tr><td>Length</td><td><code>120</code>, <code>10mm</code>, <code>0.5in</code>, <code>12pt</code>, <code>4px</code>, <code>50%</code></td><td><code>120</code>, <code>&quot;10mm&quot;</code>, <code>&quot;50%&quot;</code></td><td>A bare number is in the current units.</td></tr>
+<tr><td>Expression</td><td><code>(i * 40 + 20)</code></td><td><code>{ &quot;expr&quot;: &quot;i * 40 + 20&quot; }</code></td><td>Anywhere a number or a length goes.</td></tr>
+<tr><td>String</td><td><code>&quot;Acme Corp&quot;</code></td><td><code>&quot;Acme Corp&quot;</code></td><td><code>\&quot;</code>, <code>\\</code>, <code>\n</code> and <code>\t</code> are escapes.</td></tr>
+<tr><td>Color</td><td><code>#1f2328</code>, <code>steelblue</code>, <code>rgb(31, 35, 40)</code></td><td>the same, as a string</td><td>Written back in lower case.</td></tr>
+<tr><td>Name</td><td><code>gap</code>, <code>row_2</code></td><td><code>&quot;gap&quot;</code></td><td>For <code>let</code> and <code>repeat ... as</code>.</td></tr>
+<tr><td>Choice</td><td><code>dashed</code>, <code>a4</code>, <code>center</code></td><td><code>&quot;dashed&quot;</code></td><td>One word from the verb's list.</td></tr>
+<tr><td>Switch</td><td><code>on</code>, <code>off</code></td><td><code>true</code>, <code>false</code></td><td></td></tr>
+<tr><td>Points</td><td><code>0 0, 10 0, 5 8</code></td><td><code>[{ &quot;x&quot;: 0, &quot;y&quot;: 0 }, ...]</code></td><td>Each coordinate is a length.</td></tr>
+<tr><td>Stops</td><td><code>(#ffffff 0, #000000 1)</code>, <code>(red, blue)</code></td><td><code>[{ &quot;color&quot;: &quot;#ffffff&quot;, &quot;offset&quot;: 0 }, ...]</code></td><td>Offsets from 0 to 1, or percentages.</td></tr>
+</tbody></table></div>
+<p><strong>Units.</strong> A length can carry <code>px</code>, <code>in</code>, <code>mm</code> or <code>pt</code> straight after its
+number. A bare number is read in the units in force, which are pixels until a
+<code>units</code> instruction changes them; the print units convert at 96 pixels to the
+inch, the ratio every export uses.</p>
+<p><strong>Shares of the page.</strong> <code>50%</code> is half of the page, measured along the axis the
+argument runs on: an x coordinate or a width against the page's width, a y
+coordinate or a height against its height, and a size with no direction - a
+radius, a stroke width, a font size - against the shorter side. A percentage is
+refused where there is no page to measure it against, such as the page's own
+size or a <code>let</code>.</p>
+<p><strong>Strings.</strong> Double-quoted. <code>\&quot;</code>, <code>\\</code>, <code>\n</code> and <code>\t</code> are escapes; any other
+backslash is kept as written, so <code>&quot;C:\art\logo.svg&quot;</code> survives. A newline in a
+text item is written <code>\n</code>.</p>
+<p><strong>Colors.</strong> <code>#</code> and 3, 4, 6 or 8 hex digits; any of the 148 CSS color names;
+or <code>rgb()</code>, <code>rgba()</code>, <code>hsl()</code> and <code>hsla()</code>, written with no space before the
+<code>(</code>. The set is exactly what every output format can paint, the PNG included.
+<code>none</code> is not a color: the verbs that accept it spell it themselves,
+<code>background none</code> and <code>fill none</code>.</p>
+<p><strong>Gradient stops.</strong> A color and an offset, separated by commas inside
+parentheses. Give every stop an offset, as a number from 0 to 1 or a
+percentage, or give none and they are spaced evenly.</p>
+<h3 id="expressions">Expressions<a class="anchor" href="#expressions" aria-label="Link to this section">#</a></h3>
+<p>Anything computed goes in parentheses: <code>(i * 40 + 20)</code>, <code>(width / 2)</code>,
+<code>(80 * cos(i * 30))</code>. A bare name where a number is expected is an error that
+says to wrap it, <code>(gap)</code>.</p>
+<ul>
+<li><strong>Operators:</strong> <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code> and <code>%</code> (the remainder), with unary minus.
+Unary minus binds first, then <code>* / %</code>, then <code>+ -</code>, each from left to right.</li>
+<li><strong>Names:</strong> a <code>let</code> value, a <code>repeat</code> counter, and the page's <code>width</code> and
+<code>height</code>, all in the current units.</li>
+<li><strong>Units inside:</strong> <code>(width - 20mm)</code> converts the <code>20mm</code> into the current units
+before subtracting.</li>
+<li><strong>Shares of the page inside:</strong> <code>(50% - 20)</code> works as it does outside an
+expression. A <code>%</code> right after a number is a share of the page unless a value
+follows it, so <code>(10%3)</code> and <code>(10 % 3)</code> are both the remainder, 1.</li>
+<li><strong>Functions:</strong> trigonometry is in degrees, like every angle in the language,
+and gives exact answers at the exact angles: <code>sin(30)</code> is 0.5.</li>
+</ul>
+<div class="table-wrap"><table>
+<thead><tr><th>Function</th><th>Takes</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>sin</code></td><td>a number</td><td>The sine of an angle in degrees.</td></tr>
+<tr><td><code>cos</code></td><td>a number</td><td>The cosine of an angle in degrees.</td></tr>
+<tr><td><code>tan</code></td><td>a number</td><td>The tangent of an angle in degrees.</td></tr>
+<tr><td><code>sqrt</code></td><td>a number</td><td>The square root.</td></tr>
+<tr><td><code>abs</code></td><td>a number</td><td>The value without its sign.</td></tr>
+<tr><td><code>round</code></td><td>a number</td><td>The nearest whole number.</td></tr>
+<tr><td><code>floor</code></td><td>a number</td><td>The whole number at or below.</td></tr>
+<tr><td><code>ceil</code></td><td>a number</td><td>The whole number at or above.</td></tr>
+<tr><td><code>min</code></td><td>2 or more numbers</td><td>The smallest of two or more values.</td></tr>
+<tr><td><code>max</code></td><td>2 or more numbers</td><td>The largest of two or more values.</td></tr>
+</tbody></table></div>
+<pre><code class="language-napkin">let gap 24
+repeat 12 as i {
+  circle (200 + 80 * cos(i * 30)) (150 + 80 * sin(i * 30)) 6
+}
+rect 10mm 10mm (width - 20mm) (gap * 2)</code></pre>
+<p>An expression is checked when the script is read, so a missing operand or an
+unknown function is reported at its column before anything runs. A name that
+was never set, or a division by zero, can only be found when the expression
+runs.</p>
+<h3 id="the-version-line">The version line<a class="anchor" href="#the-version-line" aria-label="Link to this section">#</a></h3>
+<p>A script's first instruction names the language version it was written for:</p>
+<pre><code class="language-napkin">napkin 1</code></pre>
+<p>Without it, version 1 is assumed and a <code>version-missing</code> warning says so. A
+version newer than this build reads is a <code>version-unsupported</code> error that names
+the newest it does. A version changes only when a script that ran under the old
+one would run differently under the new one; a new verb or a new optional
+field is an addition, and a script that uses one reports <code>unknown-verb</code> on an
+older build rather than drawing something else.</p>
+<p>A snippet that is not a whole script - an example in the documentation, a
+block a program is assembling - is read with <code>{ fragment: true }</code>, and then no
+<code>napkin</code> line is expected.</p>
+<h3 id="the-budget">The budget<a class="anchor" href="#the-budget" aria-label="Link to this section">#</a></h3>
+<p>One run of a script has a budget, so a loop that never ends, or a script that
+would draw more than any output can hold, stops rather than hanging the
+program that ran it:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Limit</th><th>Default</th><th>Counts</th></tr></thead>
+<tbody>
+<tr><td><code>instructions</code></td><td>200,000</td><td>Instructions run, every pass through a <code>repeat</code> counted</td></tr>
+<tr><td><code>marks</code></td><td>50,000</td><td>Marks drawn</td></tr>
+<tr><td><code>anchors</code></td><td>250,000</td><td>Bezier anchors, across every mark</td></tr>
+<tr><td><code>points</code></td><td>1,000,000</td><td>Points sampled from those anchors for the canvas to paint</td></tr>
+<tr><td><code>depth</code></td><td>64</td><td>Blocks open at once: groups, placed definitions and repeats</td></tr>
+</tbody></table></div>
+<p>A run that reaches a limit stops with a <code>budget-exceeded</code> error at the
+instruction that crossed it, and keeps everything it drew before. Each pass
+through a <code>repeat</code> costs an instruction of its own, so even an empty body
+cannot spin forever. A caller that means to draw more raises a limit
+deliberately: <code>evaluate(text, { limits: { marks: 200000 } })</code>.</p>
+<p>Sampled points are the limit that matters for drawings with many curves. A
+curved segment is sampled to its size, about a point a pixel and never more
+than 24, so a circle of radius 14 or more comes to 97 points and a thousand of
+them to 97,000.</p>
+<h3 id="the-object-form">The object form<a class="anchor" href="#the-object-form" aria-label="Link to this section">#</a></h3>
+<p>A script in JSON is an array of instructions. Each instruction is an object
+with a <code>verb</code> and the fields that verb has; the <a href="#verbs">verb tables</a> list them,
+<code>?</code> marking the optional ones. This is the script from
+<a href="#a-script-line-by-line">A script, line by line</a>, built as JSON:</p>
+<pre><code class="language-json">[
+  { &quot;verb&quot;: &quot;napkin&quot;, &quot;version&quot;: 1 },
+  { &quot;verb&quot;: &quot;page&quot;, &quot;width&quot;: 400, &quot;height&quot;: 300 },
+  { &quot;verb&quot;: &quot;color&quot;, &quot;color&quot;: &quot;#1f2328&quot; },
+  { &quot;verb&quot;: &quot;width&quot;, &quot;width&quot;: 3 },
+  {
+    &quot;verb&quot;: &quot;group&quot;,
+    &quot;name&quot;: &quot;Figure&quot;,
+    &quot;body&quot;: [
+      { &quot;verb&quot;: &quot;layer&quot;, &quot;name&quot;: &quot;Head&quot; },
+      { &quot;verb&quot;: &quot;circle&quot;, &quot;cx&quot;: 200, &quot;cy&quot;: 80, &quot;r&quot;: 30 }
+    ]
+  },
+  {
+    &quot;verb&quot;: &quot;repeat&quot;,
+    &quot;count&quot;: 3,
+    &quot;as&quot;: &quot;i&quot;,
+    &quot;body&quot;: [{ &quot;verb&quot;: &quot;rect&quot;, &quot;x&quot;: { &quot;expr&quot;: &quot;20 + i * 40&quot; }, &quot;y&quot;: 200, &quot;width&quot;: 30, &quot;height&quot;: 30 }]
+  }
+]</code></pre>
+<ul>
+<li><strong>Values</strong> are encoded as the <a href="#values">Values</a> table shows: a length is a
+number, or a string when it carries a unit or a <code>%</code>; an expression is
+<code>{ &quot;expr&quot;: &quot;...&quot; }</code>, its source without the parentheses.</li>
+<li><strong>Blocks</strong> are arrays: <code>body</code> of a <code>group</code>, <code>define</code>, <code>repeat</code> or <code>path</code>.</li>
+<li><strong><code>at</code></strong>, <code>{ &quot;line&quot;: 3, &quot;column&quot;: 5 }</code>, is where a parsed instruction came
+from. It is optional, and a program building JSON leaves it out.</li>
+<li><strong>What a form implies is a field.</strong> <code>fill none</code> is <code>{ &quot;verb&quot;: &quot;fill&quot;,
+&quot;fill&quot;: null }</code>, <code>rough off</code> is <code>{ &quot;verb&quot;: &quot;rough&quot;, &quot;amount&quot;: 0 }</code>, and
+<code>crop auto</code> is <code>{ &quot;verb&quot;: &quot;crop&quot;, &quot;mode&quot;: &quot;auto&quot; }</code>.</li>
+<li><strong>Forgiving where it is safe.</strong> An unknown field is a warning and is left
+out on its own. A flag set to <code>false</code>, such as <code>&quot;hidden&quot;: false</code>, and an
+optional field set to <code>null</code> mean the field is absent.</li>
+<li><strong>Canonical on the way out.</strong> <code>validateScript</code> returns values in the form the
+text parser writes them: colors in lower case, <code>&quot;10.50MM&quot;</code> as <code>&quot;10.5mm&quot;</code>,
+expressions trimmed. A script built as JSON and the same script written as
+text therefore compare equal.</li>
+<li><strong>Always writable.</strong> A JSON instruction whose fields together fit no way of
+writing its verb - <code>crop</code> with <code>mode: &quot;auto&quot;</code> and an <code>x</code> - is an
+<code>invalid-value</code> error, so every valid script can be written as text.</li>
+</ul>
+<h3 id="verbs">Verbs<a class="anchor" href="#verbs" aria-label="Link to this section">#</a></h3>
+<h4 id="document">Document<a class="anchor" href="#document" aria-label="Link to this section">#</a></h4>
+<p>The page: its size, background and name, the unit bare numbers are read in, the seed, and more pages.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Verb</th><th>Written</th><th>Fields in JSON</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>napkin</code></td><td><code>napkin &lt;version&gt;</code></td><td><code>version</code></td><td>The language version the script was written for. The first line of a script; without it version 1 is assumed, with a warning.</td></tr>
+<tr><td><code>page</code></td><td><code>page &lt;paper&gt; [portrait|landscape]</code><br><code>page &lt;width&gt; &lt;height&gt; [portrait|landscape]</code></td><td><code>paper?, width?, height?, orientation?</code></td><td>The page size: a named size (a3, a4, a5, letter, legal, tabloid, square, slide, napkin) or a width and a height, turned portrait or landscape.</td></tr>
+<tr><td><code>background</code></td><td><code>background &lt;color&gt;</code><br><code>background none</code></td><td><code>color</code></td><td>The page color, or none for a transparent page.</td></tr>
+<tr><td><code>name</code></td><td><code>name &quot;&lt;name&gt;&quot;</code></td><td><code>name</code></td><td>The page's name, and the file stem it is written under.</td></tr>
+<tr><td><code>units</code></td><td><code>units px|in|mm|pt</code></td><td><code>units</code></td><td>The unit bare numbers are read in from here on: px, in, mm or pt. Pixels until changed.</td></tr>
+<tr><td><code>seed</code></td><td><code>seed &lt;n&gt;</code></td><td><code>seed</code></td><td>The seed for the hand-drawn pass. One script and one seed draw the same bytes every run.</td></tr>
+<tr><td><code>newpage</code></td><td><code>newpage [&quot;&lt;name&gt;&quot;]</code></td><td><code>name?</code></td><td>Starts another page the same size, carrying the paint state across.</td></tr>
+</tbody></table></div>
+<h4 id="layers">Layers<a class="anchor" href="#layers" aria-label="Link to this section">#</a></h4>
+<p>Named layers and nested groups, with opacity, visibility and lock.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Verb</th><th>Written</th><th>Fields in JSON</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>layer</code></td><td><code>layer &quot;&lt;name&gt;&quot; [opacity &lt;0-1&gt;] [hidden] [locked]</code></td><td><code>name, opacity?, hidden?, locked?</code></td><td>A drawing layer. Marks after it go on it until the next layer.</td></tr>
+<tr><td><code>group</code></td><td><code>group &quot;&lt;name&gt;&quot; [opacity &lt;0-1&gt;] [hidden] [locked] { ... }</code></td><td><code>name, opacity?, hidden?, locked?, body</code></td><td>A group layer. The layer and group lines in its block become its children.</td></tr>
+</tbody></table></div>
+<h4 id="paint">Paint<a class="anchor" href="#paint" aria-label="Link to this section">#</a></h4>
+<p>What every mark after it is drawn with: tool, color, width, opacity, fill, gradient, outline, dash, profile, nib, font, and the hand-drawn pass.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Verb</th><th>Written</th><th>Fields in JSON</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>tool</code></td><td><code>tool pen|marker|copic|eraser</code></td><td><code>tool</code></td><td>The kind of mark: pen, marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib) or eraser (takes away what is under it, on its own layer only).</td></tr>
+<tr><td><code>color</code></td><td><code>color &lt;color&gt;</code></td><td><code>color</code></td><td>The ink color of every mark after it.</td></tr>
+<tr><td><code>width</code></td><td><code>width &lt;length&gt;</code></td><td><code>width</code></td><td>The stroke width of every mark after it.</td></tr>
+<tr><td><code>opacity</code></td><td><code>opacity &lt;0-1&gt;</code></td><td><code>opacity</code></td><td>The opacity of every mark after it, from 0 to 1.</td></tr>
+<tr><td><code>fill</code></td><td><code>fill &lt;color&gt;</code><br><code>fill none</code></td><td><code>fill</code></td><td>The fill color of closed shapes after it, or none.</td></tr>
+<tr><td><code>gradient</code></td><td><code>gradient linear &lt;angle&gt; (&lt;color&gt; &lt;offset&gt;, ...)</code><br><code>gradient radial (&lt;color&gt; &lt;offset&gt;, ...)</code><br><code>gradient none</code></td><td><code>type, angle?, stops?</code></td><td>A gradient fill for closed shapes after it: linear at an angle, or radial from the centre out, or none.</td></tr>
+<tr><td><code>stroke</code></td><td><code>stroke on|off</code></td><td><code>on</code></td><td>Turns the outline on or off. With it off, a closed shape is its fill alone.</td></tr>
+<tr><td><code>style</code></td><td><code>style solid|dashed|dotted</code></td><td><code>style</code></td><td>The outline's dash: solid, dashed or dotted.</td></tr>
+<tr><td><code>profile</code></td><td><code>profile uniform|rounded|tapered|wave</code></td><td><code>profile</code></td><td>How the width runs along a pen or marker stroke: uniform, rounded, tapered or wave.</td></tr>
+<tr><td><code>nib</code></td><td><code>nib &lt;degrees&gt;</code></td><td><code>angle</code></td><td>The angle of the copic nib, in degrees.</td></tr>
+<tr><td><code>rough</code></td><td><code>rough &lt;0-1&gt; [passes 1|2] [overshoot &lt;length&gt;]</code><br><code>rough off</code></td><td><code>amount, passes?, overshoot?</code></td><td>The hand-drawn pass for every mark after it: 0 is exact, 1 is clearly drawn by hand, and off is 0. Seeded, so it draws the same way every run.</td></tr>
+<tr><td><code>font</code></td><td><code>font &quot;&lt;family&gt;&quot; [&lt;size&gt;]</code><br><code>font &lt;size&gt;</code></td><td><code>family?, size?</code></td><td>The font family and size of text after it.</td></tr>
+</tbody></table></div>
+<h4 id="shapes">Shapes<a class="anchor" href="#shapes" aria-label="Link to this section">#</a></h4>
+<p>Marks built from Bezier anchors: rectangles, circles, ellipses, lines, polygons, stars, arcs, spirals and the shape library.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Verb</th><th>Written</th><th>Fields in JSON</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>rect</code></td><td><code>rect &lt;x&gt; &lt;y&gt; &lt;width&gt; &lt;height&gt; [r &lt;radius&gt;]</code></td><td><code>x, y, width, height, radius?</code></td><td>A rectangle, with rounded corners when r is given.</td></tr>
+<tr><td><code>circle</code></td><td><code>circle &lt;cx&gt; &lt;cy&gt; &lt;r&gt;</code></td><td><code>cx, cy, r</code></td><td>A circle, drawn as four cubic curves rather than a polygon.</td></tr>
+<tr><td><code>ellipse</code></td><td><code>ellipse &lt;cx&gt; &lt;cy&gt; &lt;rx&gt; &lt;ry&gt;</code></td><td><code>cx, cy, rx, ry</code></td><td>An ellipse, from its centre and two radii.</td></tr>
+<tr><td><code>line</code></td><td><code>line &lt;x1&gt; &lt;y1&gt; &lt;x2&gt; &lt;y2&gt;</code></td><td><code>x1, y1, x2, y2</code></td><td>A straight line between two points.</td></tr>
+<tr><td><code>polygon</code></td><td><code>polygon &lt;x&gt; &lt;y&gt;, &lt;x&gt; &lt;y&gt;, ... [r &lt;radius&gt;]</code></td><td><code>points, radius?</code></td><td>A closed shape through a list of points, with rounded corners when r is given.</td></tr>
+<tr><td><code>polyline</code></td><td><code>polyline &lt;x&gt; &lt;y&gt;, &lt;x&gt; &lt;y&gt;, ...</code></td><td><code>points</code></td><td>An open line through a list of points.</td></tr>
+<tr><td><code>star</code></td><td><code>star &lt;cx&gt; &lt;cy&gt; &lt;outer&gt; &lt;inner&gt; &lt;count&gt;</code></td><td><code>cx, cy, outer, inner, count</code></td><td>A star with the given number of points, between an outer and an inner radius.</td></tr>
+<tr><td><code>arc</code></td><td><code>arc &lt;cx&gt; &lt;cy&gt; &lt;r&gt; &lt;from&gt; &lt;to&gt;</code></td><td><code>cx, cy, r, from, to</code></td><td>An open arc of a circle between two angles, in degrees clockwise from three o'clock.</td></tr>
+<tr><td><code>spiral</code></td><td><code>spiral &lt;cx&gt; &lt;cy&gt; &lt;r&gt; &lt;turns&gt;</code></td><td><code>cx, cy, r, turns</code></td><td>A spiral winding out from its centre to the radius over the given number of turns.</td></tr>
+<tr><td><code>shape</code></td><td><code>shape &quot;&lt;name&gt;&quot; at &lt;x&gt; &lt;y&gt; size &lt;width&gt; [&lt;height&gt;]</code></td><td><code>name, x, y, width, height?</code></td><td>A named shape from the built-in library, drawn in a box from x, y. With one size its longer side is that long and it keeps its proportions; with a width and a height it is stretched to fill them.</td></tr>
+</tbody></table></div>
+<h4 id="paths">Paths<a class="anchor" href="#paths" aria-label="Link to this section">#</a></h4>
+<p>Marks written segment by segment, from SVG path data or from a block of steps, and curves through points.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Verb</th><th>Written</th><th>Fields in JSON</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>path</code></td><td><code>path &quot;&lt;svg path data&gt;&quot;</code><br><code>path { ... }</code></td><td><code>d?, body?</code></td><td>One mark, from SVG path data or from a block of path steps. Each subpath of a compound path is one piece of the same mark.</td></tr>
+<tr><td><code>move</code></td><td><code>move &lt;x&gt; &lt;y&gt;</code></td><td><code>x, y</code></td><td>Starts a new subpath at a point.</td></tr>
+<tr><td><code>to</code></td><td><code>to &lt;x&gt; &lt;y&gt;</code></td><td><code>x, y</code></td><td>A straight segment to a point.</td></tr>
+<tr><td><code>by</code></td><td><code>by &lt;dx&gt; &lt;dy&gt;</code></td><td><code>dx, dy</code></td><td>A straight segment by an offset from the current point.</td></tr>
+<tr><td><code>curve</code></td><td><code>curve &lt;c1x&gt; &lt;c1y&gt; &lt;c2x&gt; &lt;c2y&gt; &lt;x&gt; &lt;y&gt;</code></td><td><code>c1x, c1y, c2x, c2y, x, y</code></td><td>A cubic curve to a point, steered by two handles.</td></tr>
+<tr><td><code>smooth</code></td><td><code>smooth &lt;c2x&gt; &lt;c2y&gt; &lt;x&gt; &lt;y&gt;</code></td><td><code>c2x, c2y, x, y</code></td><td>A cubic curve whose first handle mirrors the last one, so the join stays smooth.</td></tr>
+<tr><td><code>through</code></td><td><code>through &lt;x&gt; &lt;y&gt;, &lt;x&gt; &lt;y&gt;, ...</code></td><td><code>points</code></td><td>A smooth curve through a list of points. Inside a path block it continues the subpath; outside one it is an open mark of its own.</td></tr>
+<tr><td><code>close</code></td><td><code>close</code></td><td><code>none</code></td><td>Closes the current subpath back to its start.</td></tr>
+</tbody></table></div>
+<h4 id="transforms">Transforms<a class="anchor" href="#transforms" aria-label="Link to this section">#</a></h4>
+<p>Translate, rotate, scale and mirror, baked into the anchors of every mark after them, with push and pop to undo them.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Verb</th><th>Written</th><th>Fields in JSON</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>push</code></td><td><code>push</code></td><td><code>none</code></td><td>Saves the transform, the paint state and the units, for the next pop to restore.</td></tr>
+<tr><td><code>pop</code></td><td><code>pop</code></td><td><code>none</code></td><td>Restores the transform, the paint state and the units the last push saved.</td></tr>
+<tr><td><code>translate</code></td><td><code>translate &lt;dx&gt; &lt;dy&gt;</code></td><td><code>dx, dy</code></td><td>Moves everything drawn after it.</td></tr>
+<tr><td><code>rotate</code></td><td><code>rotate &lt;degrees&gt; [at &lt;x&gt; &lt;y&gt;]</code></td><td><code>angle, cx?, cy?</code></td><td>Turns everything drawn after it, clockwise in degrees, about the origin or a point given with at.</td></tr>
+<tr><td><code>scale</code></td><td><code>scale &lt;s&gt; [&lt;sy&gt;] [at &lt;x&gt; &lt;y&gt;]</code></td><td><code>sx, sy?, cx?, cy?</code></td><td>Scales everything drawn after it, about the origin or a point given with at. One factor scales both ways.</td></tr>
+<tr><td><code>mirror</code></td><td><code>mirror x|y [at &lt;position&gt;]</code></td><td><code>axis, about?</code></td><td>Reflects everything drawn after it: x swaps left and right across a vertical line, y swaps top and bottom across a horizontal one, at 0 unless given.</td></tr>
+</tbody></table></div>
+<h4 id="control">Control<a class="anchor" href="#control" aria-label="Link to this section">#</a></h4>
+<p>Named numbers, reusable definitions, and repetition.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Verb</th><th>Written</th><th>Fields in JSON</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>let</code></td><td><code>let &lt;name&gt; &lt;value&gt;</code></td><td><code>name, value</code></td><td>Names a number for the expressions after it, in the current units.</td></tr>
+<tr><td><code>define</code></td><td><code>define &quot;&lt;name&gt;&quot; { ... }</code></td><td><code>name, body</code></td><td>Records a block of drawing under a name without drawing it, for place to draw.</td></tr>
+<tr><td><code>place</code></td><td><code>place &quot;&lt;name&gt;&quot; [at &lt;x&gt; &lt;y&gt;] [scale &lt;s&gt;] [rotate &lt;degrees&gt;]</code></td><td><code>name, x?, y?, scale?, rotate?</code></td><td>Draws a definition, moved, scaled or turned.</td></tr>
+<tr><td><code>repeat</code></td><td><code>repeat &lt;count&gt; [as &lt;name&gt;] { ... }</code></td><td><code>count, as?, body</code></td><td>Runs a block a number of times, counting from 0 in the name given with as.</td></tr>
+</tbody></table></div>
+<h4 id="text-and-media">Text and media<a class="anchor" href="#text-and-media" aria-label="Link to this section">#</a></h4>
+<p>Text, placed images, linked files, and documents the host supplied.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Verb</th><th>Written</th><th>Fields in JSON</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>text</code></td><td><code>text &quot;&lt;text&gt;&quot; at &lt;x&gt; &lt;y&gt; [size &lt;size&gt;] [box &lt;width&gt;] [align left|center|right] [as marks]</code></td><td><code>text, x, y, size?, box?, align?, asMarks?</code></td><td>A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as pen strokes instead.</td></tr>
+<tr><td><code>image</code></td><td><code>image &quot;&lt;asset or data URL&gt;&quot; at &lt;x&gt; &lt;y&gt; [size &lt;width&gt; [&lt;height&gt;]]</code></td><td><code>src, x, y, width?, height?</code></td><td>Places an image: an asset the host supplied, by name, or a data URL. Nothing is read from disk.</td></tr>
+<tr><td><code>link</code></td><td><code>link &quot;&lt;path&gt;&quot; at &lt;x&gt; &lt;y&gt; [size &lt;width&gt; [&lt;height&gt;]] [name &quot;&lt;layer name&gt;&quot;]</code></td><td><code>href, x, y, width?, height?, name?</code></td><td>Places a linked file: one selectable element that references the file instead of drawing its contents into the page.</td></tr>
+<tr><td><code>use</code></td><td><code>use &quot;&lt;document&gt;&quot; [at &lt;x&gt; &lt;y&gt;] [scale &lt;s&gt;] [layer &quot;&lt;name&gt;&quot;]</code></td><td><code>name, x?, y?, scale?, layer?</code></td><td>Copies in a document the host supplied, as a group, with its layers and anchors.</td></tr>
+</tbody></table></div>
+<h4 id="effects">Effects<a class="anchor" href="#effects" aria-label="Link to this section">#</a></h4>
+<p>Blur, shadow and color effects for the next layer, group or mark, as CSS filter functions are: drawn in SVG, in PNG and in the app, and left out of a PDF.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Verb</th><th>Written</th><th>Fields in JSON</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>effect</code></td><td><code>effect blur &lt;radius&gt;</code><br><code>effect brightness &lt;amount&gt;</code><br><code>effect contrast &lt;amount&gt;</code><br><code>effect saturate &lt;amount&gt;</code><br><code>effect grayscale [&lt;0-1&gt;]</code><br><code>effect sepia [&lt;0-1&gt;]</code><br><code>effect invert [&lt;0-1&gt;]</code><br><code>effect hue-rotate &lt;degrees&gt;</code><br><code>effect opacity &lt;0-1&gt;</code><br><code>effect drop-shadow &lt;dx&gt; &lt;dy&gt; &lt;blur&gt; &lt;color&gt;</code><br><code>effect none</code></td><td><code>type, radius?, amount?, angle?, dx?, dy?, blur?, color?</code></td><td>An effect for the next layer, group or mark the script makes, as its CSS filter function works: blur, brightness, contrast, saturate, grayscale, sepia, invert, hue-rotate, opacity or drop-shadow. Several stack in order, and none clears what is waiting.</td></tr>
+</tbody></table></div>
+<h4 id="output">Output<a class="anchor" href="#output" aria-label="Link to this section">#</a></h4>
+<p>Hints the renderers read: the box every output is cut to, and one box every page shares.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Verb</th><th>Written</th><th>Fields in JSON</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>crop</code></td><td><code>crop auto [pad &lt;length&gt;]</code><br><code>crop none</code><br><code>crop &lt;x&gt; &lt;y&gt; &lt;width&gt; &lt;height&gt;</code></td><td><code>mode, pad?, x?, y?, width?, height?</code></td><td>The box every output is cut to: auto fits the ink with room to spare, none keeps the page, or a box given outright.</td></tr>
+<tr><td><code>registration</code></td><td><code>registration &lt;x&gt; &lt;y&gt; &lt;width&gt; &lt;height&gt;</code></td><td><code>x, y, width, height</code></td><td>One box every page is written in, so frames drawn by one script line up when they are played in sequence.</td></tr>
+</tbody></table></div>
+<h3 id="diagnostics">Diagnostics<a class="anchor" href="#diagnostics" aria-label="Link to this section">#</a></h3>
+<p>A diagnostic is <code>{ level, code, message, line?, column?, index?, verb?,
+expected? }</code>. Text scripts point at a <code>line</code> and <code>column</code>, both 1-based; JSON
+scripts point at an <code>index</code> path, <code>[3, 0]</code> being the first instruction in the
+body of the fourth. A program matches on <code>code</code>, which is never renamed or
+reused. The <code>message</code> is one sentence for a person and may change.</p>
+<p>Printed with <code>formatDiagnostic</code>, a diagnostic takes the shape editors and CI
+parsers already read:</p>
+<pre><code class="language-text">card.napkin:3:1: error unknown-verb: `circl` is not a verb. Did you mean `circle`?
+card.napkin.json[1][0]: error expected-length: `x` of `rect` at [1][0]: `ten` is not a length, such as `120`, `&quot;10mm&quot;` or `&quot;50%&quot;`.</code></pre>
+<div class="table-wrap"><table>
+<thead><tr><th>Code</th><th>Level</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>unknown-verb</code></td><td>error</td><td>A line starts with a word that is not a verb.</td></tr>
+<tr><td><code>misplaced-verb</code></td><td>error</td><td>A verb where it cannot appear: a path step outside a path block, a napkin line after the first, a layer inside a path, a newpage inside a group or a definition.</td></tr>
+<tr><td><code>unsupported-verb</code></td><td>error</td><td>The verb, or this way of writing it, is known but not drawn by this build or by the host running the script; the instruction is skipped.</td></tr>
+<tr><td><code>expected-number</code></td><td>error</td><td>A number, or an expression in parentheses, was expected.</td></tr>
+<tr><td><code>expected-length</code></td><td>error</td><td>A length was expected: a number, a number with a unit (10mm, 0.5in, 12pt, 4px), a percentage, or an expression.</td></tr>
+<tr><td><code>expected-string</code></td><td>error</td><td>A double-quoted string was expected.</td></tr>
+<tr><td><code>expected-identifier</code></td><td>error</td><td>A bare name was expected: letters, digits and underscores, starting with a letter.</td></tr>
+<tr><td><code>expected-color</code></td><td>error</td><td>A CSS color was expected, such as #1f2328, red or rgb(31, 35, 40).</td></tr>
+<tr><td><code>expected-choice</code></td><td>error</td><td>One word from a fixed list was expected; the message lists them.</td></tr>
+<tr><td><code>expected-points</code></td><td>error</td><td>A list of points was expected: x y pairs separated by commas.</td></tr>
+<tr><td><code>expected-stops</code></td><td>error</td><td>A list of gradient stops was expected: (color offset, color offset, ...).</td></tr>
+<tr><td><code>unexpected-token</code></td><td>error</td><td>Something is left on the line after the instruction was read, or a character that cannot start anything.</td></tr>
+<tr><td><code>missing-argument</code></td><td>error</td><td>A required argument is missing; the message names it and shows how the verb is written.</td></tr>
+<tr><td><code>expected-block</code></td><td>error</td><td>A block was expected: { at the end of the line, the instructions it holds, and } to close it.</td></tr>
+<tr><td><code>unclosed-block</code></td><td>error</td><td>A block opened with { is never closed with }.</td></tr>
+<tr><td><code>unexpected-close</code></td><td>error</td><td>A } closes a block that was never opened.</td></tr>
+<tr><td><code>unclosed-string</code></td><td>error</td><td>A string runs to the end of the line without its closing quote.</td></tr>
+<tr><td><code>invalid-expression</code></td><td>error</td><td>An expression could not be read: an unknown operator, a missing operand, or an unclosed parenthesis.</td></tr>
+<tr><td><code>unit-unknown</code></td><td>error</td><td>A number carries a unit the language does not know. The units are px, in, mm and pt, and % for a share of the page.</td></tr>
+<tr><td><code>invalid-value</code></td><td>error</td><td>A value is out of range: an opacity above 1, a negative radius, a star with fewer than 2 points, a percentage where the page cannot measure one.</td></tr>
+<tr><td><code>version-missing</code></td><td>warning</td><td>The script does not start with napkin &lt;version&gt;; version 1 is assumed.</td></tr>
+<tr><td><code>version-unsupported</code></td><td>error</td><td>The script names a version newer than this build reads; the message names the newest it does.</td></tr>
+<tr><td><code>unknown-variable</code></td><td>error</td><td>An expression uses a name no let or repeat has set.</td></tr>
+<tr><td><code>unknown-definition</code></td><td>error</td><td>place names something no define recorded.</td></tr>
+<tr><td><code>unknown-shape</code></td><td>error</td><td>shape names something the shape library does not have.</td></tr>
+<tr><td><code>unknown-asset</code></td><td>error</td><td>image names an asset the host did not supply.</td></tr>
+<tr><td><code>unknown-document</code></td><td>error</td><td>use names a document the host did not supply.</td></tr>
+<tr><td><code>image-size-unknown</code></td><td>warning</td><td>An image's size cannot be read from its data, so it is placed square: 100 by 100, or the one size given by itself.</td></tr>
+<tr><td><code>glyph-missing</code></td><td>warning</td><td>text as marks has a character the built-in face does not draw; it is left as a gap.</td></tr>
+<tr><td><code>unknown-field</code></td><td>warning</td><td>An instruction in a JSON script has a field its verb does not have; it is left out.</td></tr>
+<tr><td><code>recursive-definition</code></td><td>error</td><td>A definition places itself, directly or through another definition.</td></tr>
+<tr><td><code>division-by-zero</code></td><td>error</td><td>An expression divides by zero.</td></tr>
+<tr><td><code>budget-exceeded</code></td><td>error</td><td>The script ran more instructions, drew more marks, emitted more anchors or sampled points, or nested deeper than the limit allows; what it drew up to that point is kept.</td></tr>
+<tr><td><code>pop-without-push</code></td><td>error</td><td>pop with nothing saved to restore.</td></tr>
+<tr><td><code>unbalanced-push</code></td><td>warning</td><td>A push is never popped before its block ends; the saved state is restored there anyway.</td></tr>
+<tr><td><code>duplicate-definition</code></td><td>warning</td><td>A second define replaces an earlier one of the same name.</td></tr>
+<tr><td><code>link-unresolved</code></td><td>warning</td><td>A linked file could not be read for an output that has to draw it, so its placeholder was drawn instead.</td></tr>
+<tr><td><code>unused-effect</code></td><td>warning</td><td>An effect nothing took: no layer, group or mark followed it before its block, its page or the script ended.</td></tr>
+</tbody></table></div>
+<h3 id="functions">Functions<a class="anchor" href="#functions" aria-label="Link to this section">#</a></h3>
+<p>Exported from <code>napkin-sketch</code>, the package's browser-safe entry, and DOM-free;
+the source is <code>src/core/script/index.ts</code>.</p>
+<pre><code class="language-ts">parseScript(text: string, options?: { fragment?: boolean }): ParseResult
+validateScript(value: unknown, options?: { fragment?: boolean }): ParseResult
+formatScript(script: Instruction[], options?: { indent?: string; comments?: Map&lt;object, string[]&gt; }): string
+
+interface ParseResult {
+  ok: boolean;               // no errors: every instruction is in `script`
+  script: Script;            // the instructions that were read
+  diagnostics: Diagnostic[]; // errors and warnings, in reading order
+}
+
+parseExpression(source: string): ExprParse   // { ok: true, node } or { ok: false, code, message, index }
+evaluateExpression(node: ExprNode, scope: ExprScope): number   // throws ExpressionError
+formatDiagnostic(diagnostic: Diagnostic, file?: string): string</code></pre>
+<p><code>formatScript</code> throws on an instruction it cannot write, which only an
+unchecked script can contain; check a script built by hand with
+<code>validateScript</code> first. <code>comments</code> puts <code>#</code> lines before chosen
+instructions, keyed by the instruction object itself and written at its
+indent, inside a block too; the parser skips them, as it skips every comment. The verb table itself is exported as <code>VERBS</code>, with
+<code>verbSpec(name)</code> to look one verb up.</p>
+<h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
+<p><strong>Reading a script with mistakes.</strong> Every mistake is reported, each at its line
+and column, and the instructions without one are still read:</p>
+<pre><code class="language-napkin-error"># expect: unknown-verb, missing-argument, expected-length
+napkin 1
+circl 50 50 10
+rect 0 0 10
+color #1f2328 width three
+line 0 0 10 10</code></pre>
+<pre><code class="language-text">card.napkin:3:1: error unknown-verb: `circl` is not a verb. Did you mean `circle`?
+card.napkin:4:12: error missing-argument: `rect` needs `height`: rect &lt;x&gt; &lt;y&gt; &lt;width&gt; &lt;height&gt; [r &lt;radius&gt;].
+card.napkin:5:21: error expected-length: `width` takes a length, such as `120`, `10mm` or `50%`, and got `three`. To use a name, write it in parentheses: `(three)`.</code></pre>
+<p>That is what printing each diagnostic gives. The script that comes back holds
+<code>napkin</code>, <code>color</code> and <code>line</code>, and <code>ok</code> is false:</p>
+<pre><code class="language-ts">import { formatDiagnostic, parseScript } from 'napkin-sketch';
+
+const { ok, script, diagnostics } = parseScript(text);
+for (const d of diagnostics) console.error(formatDiagnostic(d, 'card.napkin'));</code></pre>
+<p><strong>Building a script in another language.</strong> A program writes JSON and hands it
+over; nothing in it has to know the text syntax. From Python:</p>
+<pre><code class="language-python">import json
+
+script = [{&quot;verb&quot;: &quot;napkin&quot;, &quot;version&quot;: 1}, {&quot;verb&quot;: &quot;page&quot;, &quot;paper&quot;: &quot;slide&quot;}]
+for i in range(5):
+    script.append({&quot;verb&quot;: &quot;rect&quot;, &quot;x&quot;: {&quot;expr&quot;: f&quot;80 + {i} * 360&quot;}, &quot;y&quot;: 400, &quot;width&quot;: 300, &quot;height&quot;: 200})
+
+with open(&quot;deck.napkin.json&quot;, &quot;w&quot;) as f:
+    json.dump(script, f)</code></pre>
+<p>Read back, it validates to the same instructions as the text it corresponds to,
+and <code>formatScript</code> writes that text:</p>
+<pre><code class="language-napkin">napkin 1
+page slide
+rect (80 + 0 * 360) 400 300 200</code></pre>
+<h2 id="limits">Limits<a class="anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>No verb reads a file.</strong> An <code>image</code> names an asset the host supplied or
+carries a data URL, and a <code>link</code> records a path the host resolves. A script
+cannot open anything on its own.</li>
+<li><strong>Expressions are numbers.</strong> There are no strings, comparisons or conditions
+in an expression, and no loop but <code>repeat</code>.</li>
+<li><strong>A comment after an instruction needs its space.</strong> <code>rect 0 0 10 10 #add</code>
+reads <code>#add</code> as a color.</li>
+<li><strong>One color model.</strong> Hex, the CSS names and the <code>rgb</code> and <code>hsl</code> functions.
+<code>currentColor</code>, <code>color()</code> and the newer CSS color spaces are not accepted,
+because not every output can paint them.</li>
+<li><strong>Keywords are English.</strong> Verbs, clauses and choices are fixed words.</li>
+</ul>
+<h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Write one instruction to a line</strong>, verb first, and check the verb tables
+for the exact spelling of each form. <code>formatScript</code> shows the canonical
+spelling of anything you are unsure of.</li>
+<li><strong>Match diagnostics on <code>code</code>, never on <code>message</code>.</strong> Codes are stable;
+messages are for people and may be reworded.</li>
+<li><strong>Most errors are a one-token fix.</strong> <code>expected-*</code>, <code>missing-argument</code>,
+<code>unit-unknown</code>, and <code>unknown-verb</code> with a suggestion name the exact token and
+what would be accepted there. <code>unclosed-block</code> and <code>unexpected-close</code> mean the
+braces are unbalanced; count them rather than editing the line reported.</li>
+<li><strong>Fix every error before running.</strong> An instruction with an error is left out,
+so a script that is not <code>ok</code> draws less than it says.</li>
+<li><strong>Read snippets with <code>{ fragment: true }</code></strong> so a missing <code>napkin</code> line is not
+reported.</li>
+<li><strong>Prefer JSON when a program builds the script</strong>, and text when a person will
+read it. They are the same instructions either way.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../drawing/index.html">Drawing with napkin script</a>: running a script, and what
+each instruction draws.</li>
+<li><a href="../output/index.html">Writing a drawing out</a>: the formats, and what <code>crop</code> and
+<code>registration</code> do to them.</li>
+<li><a href="../cli/index.html">The napkin-sketch command line</a>: <code>check</code> a script, <code>draw</code>
+it, and <code>verbs</code> for this page's tables as JSON.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/script/verbs.json"><code>src/core/script/verbs.json</code></a>: the verb
+table every listing on this page is generated from.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/script/instructions.ts"><code>src/core/script/instructions.ts</code></a>:
+the object form's types.</li>
+<li><a href="../compose/index.html">The graphic design API</a>: the composition API.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../cheatsheet.html" rel="prev"><span>Previous</span>API cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>The napkin script language: quickstart</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/language/README.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

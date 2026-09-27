@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drawing with napkin script: cheatsheet - napkin-sketch</title>
+<meta name="description" content="Drawing with napkin script, as tables to look things up in.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Drawing with napkin script</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html" aria-current="page">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">Drawing with napkin script</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
+<h1 id="drawing-with-napkin-script-cheatsheet">Drawing with napkin script: cheatsheet<a class="anchor" href="#drawing-with-napkin-script-cheatsheet" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#the-drawing-verbs">The drawing verbs</a></li><li><a href="#what-a-block-keeps-to-itself">What a block keeps to itself</a></li><li><a href="#the-shape-library">The shape library</a></li><li><a href="#the-hand-drawn-pass">The hand-drawn pass</a></li><li><a href="#evaluatesource-options"><code>evaluate(source, options)</code></a></li><li><a href="#one-line-each">One line each</a></li><li><a href="#common-mistakes">Common mistakes</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <a href="quickstart.html">Quickstart</a> · <strong>Cheatsheet</strong></p>
+<p>Reminders for what each instruction draws: the drawing verbs, the shape library, the hand-drawn pass and <code>evaluate</code>.</p>
+<h2 id="the-drawing-verbs">The drawing verbs<a class="anchor" href="#the-drawing-verbs" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Category</th><th>Verb</th><th>Written</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td>Layers</td><td><code>layer</code></td><td><code>layer &quot;&lt;name&gt;&quot; [opacity &lt;0-1&gt;] [hidden] [locked]</code></td><td>A drawing layer. Marks after it go on it until the next layer.</td></tr>
+<tr><td>Layers</td><td><code>group</code></td><td><code>group &quot;&lt;name&gt;&quot; [opacity &lt;0-1&gt;] [hidden] [locked] { ... }</code></td><td>A group layer. The layer and group lines in its block become its children.</td></tr>
+<tr><td>Paint</td><td><code>tool</code></td><td><code>tool pen|marker|copic|eraser</code></td><td>The kind of mark: pen, marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib) or eraser (takes away what is under it, on its own layer only).</td></tr>
+<tr><td>Paint</td><td><code>color</code></td><td><code>color &lt;color&gt;</code></td><td>The ink color of every mark after it.</td></tr>
+<tr><td>Paint</td><td><code>width</code></td><td><code>width &lt;length&gt;</code></td><td>The stroke width of every mark after it.</td></tr>
+<tr><td>Paint</td><td><code>opacity</code></td><td><code>opacity &lt;0-1&gt;</code></td><td>The opacity of every mark after it, from 0 to 1.</td></tr>
+<tr><td>Paint</td><td><code>fill</code></td><td><code>fill &lt;color&gt;</code><br><code>fill none</code></td><td>The fill color of closed shapes after it, or none.</td></tr>
+<tr><td>Paint</td><td><code>gradient</code></td><td><code>gradient linear &lt;angle&gt; (&lt;color&gt; &lt;offset&gt;, ...)</code><br><code>gradient radial (&lt;color&gt; &lt;offset&gt;, ...)</code><br><code>gradient none</code></td><td>A gradient fill for closed shapes after it: linear at an angle, or radial from the centre out, or none.</td></tr>
+<tr><td>Paint</td><td><code>stroke</code></td><td><code>stroke on|off</code></td><td>Turns the outline on or off. With it off, a closed shape is its fill alone.</td></tr>
+<tr><td>Paint</td><td><code>style</code></td><td><code>style solid|dashed|dotted</code></td><td>The outline's dash: solid, dashed or dotted.</td></tr>
+<tr><td>Paint</td><td><code>profile</code></td><td><code>profile uniform|rounded|tapered|wave</code></td><td>How the width runs along a pen or marker stroke: uniform, rounded, tapered or wave.</td></tr>
+<tr><td>Paint</td><td><code>nib</code></td><td><code>nib &lt;degrees&gt;</code></td><td>The angle of the copic nib, in degrees.</td></tr>
+<tr><td>Paint</td><td><code>rough</code></td><td><code>rough &lt;0-1&gt; [passes 1|2] [overshoot &lt;length&gt;]</code><br><code>rough off</code></td><td>The hand-drawn pass for every mark after it: 0 is exact, 1 is clearly drawn by hand, and off is 0. Seeded, so it draws the same way every run.</td></tr>
+<tr><td>Paint</td><td><code>font</code></td><td><code>font &quot;&lt;family&gt;&quot; [&lt;size&gt;]</code><br><code>font &lt;size&gt;</code></td><td>The font family and size of text after it.</td></tr>
+<tr><td>Shapes</td><td><code>rect</code></td><td><code>rect &lt;x&gt; &lt;y&gt; &lt;width&gt; &lt;height&gt; [r &lt;radius&gt;]</code></td><td>A rectangle, with rounded corners when r is given.</td></tr>
+<tr><td>Shapes</td><td><code>circle</code></td><td><code>circle &lt;cx&gt; &lt;cy&gt; &lt;r&gt;</code></td><td>A circle, drawn as four cubic curves rather than a polygon.</td></tr>
+<tr><td>Shapes</td><td><code>ellipse</code></td><td><code>ellipse &lt;cx&gt; &lt;cy&gt; &lt;rx&gt; &lt;ry&gt;</code></td><td>An ellipse, from its centre and two radii.</td></tr>
+<tr><td>Shapes</td><td><code>line</code></td><td><code>line &lt;x1&gt; &lt;y1&gt; &lt;x2&gt; &lt;y2&gt;</code></td><td>A straight line between two points.</td></tr>
+<tr><td>Shapes</td><td><code>polygon</code></td><td><code>polygon &lt;x&gt; &lt;y&gt;, &lt;x&gt; &lt;y&gt;, ... [r &lt;radius&gt;]</code></td><td>A closed shape through a list of points, with rounded corners when r is given.</td></tr>
+<tr><td>Shapes</td><td><code>polyline</code></td><td><code>polyline &lt;x&gt; &lt;y&gt;, &lt;x&gt; &lt;y&gt;, ...</code></td><td>An open line through a list of points.</td></tr>
+<tr><td>Shapes</td><td><code>star</code></td><td><code>star &lt;cx&gt; &lt;cy&gt; &lt;outer&gt; &lt;inner&gt; &lt;count&gt;</code></td><td>A star with the given number of points, between an outer and an inner radius.</td></tr>
+<tr><td>Shapes</td><td><code>arc</code></td><td><code>arc &lt;cx&gt; &lt;cy&gt; &lt;r&gt; &lt;from&gt; &lt;to&gt;</code></td><td>An open arc of a circle between two angles, in degrees clockwise from three o'clock.</td></tr>
+<tr><td>Shapes</td><td><code>spiral</code></td><td><code>spiral &lt;cx&gt; &lt;cy&gt; &lt;r&gt; &lt;turns&gt;</code></td><td>A spiral winding out from its centre to the radius over the given number of turns.</td></tr>
+<tr><td>Shapes</td><td><code>shape</code></td><td><code>shape &quot;&lt;name&gt;&quot; at &lt;x&gt; &lt;y&gt; size &lt;width&gt; [&lt;height&gt;]</code></td><td>A named shape from the built-in library, drawn in a box from x, y. With one size its longer side is that long and it keeps its proportions; with a width and a height it is stretched to fill them.</td></tr>
+<tr><td>Paths</td><td><code>path</code></td><td><code>path &quot;&lt;svg path data&gt;&quot;</code><br><code>path { ... }</code></td><td>One mark, from SVG path data or from a block of path steps. Each subpath of a compound path is one piece of the same mark.</td></tr>
+<tr><td>Paths</td><td><code>move</code></td><td><code>move &lt;x&gt; &lt;y&gt;</code></td><td>Starts a new subpath at a point.</td></tr>
+<tr><td>Paths</td><td><code>to</code></td><td><code>to &lt;x&gt; &lt;y&gt;</code></td><td>A straight segment to a point.</td></tr>
+<tr><td>Paths</td><td><code>by</code></td><td><code>by &lt;dx&gt; &lt;dy&gt;</code></td><td>A straight segment by an offset from the current point.</td></tr>
+<tr><td>Paths</td><td><code>curve</code></td><td><code>curve &lt;c1x&gt; &lt;c1y&gt; &lt;c2x&gt; &lt;c2y&gt; &lt;x&gt; &lt;y&gt;</code></td><td>A cubic curve to a point, steered by two handles.</td></tr>
+<tr><td>Paths</td><td><code>smooth</code></td><td><code>smooth &lt;c2x&gt; &lt;c2y&gt; &lt;x&gt; &lt;y&gt;</code></td><td>A cubic curve whose first handle mirrors the last one, so the join stays smooth.</td></tr>
+<tr><td>Paths</td><td><code>through</code></td><td><code>through &lt;x&gt; &lt;y&gt;, &lt;x&gt; &lt;y&gt;, ...</code></td><td>A smooth curve through a list of points. Inside a path block it continues the subpath; outside one it is an open mark of its own.</td></tr>
+<tr><td>Paths</td><td><code>close</code></td><td><code>close</code></td><td>Closes the current subpath back to its start.</td></tr>
+<tr><td>Text and media</td><td><code>text</code></td><td><code>text &quot;&lt;text&gt;&quot; at &lt;x&gt; &lt;y&gt; [size &lt;size&gt;] [box &lt;width&gt;] [align left|center|right] [as marks]</code></td><td>A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as pen strokes instead.</td></tr>
+<tr><td>Text and media</td><td><code>image</code></td><td><code>image &quot;&lt;asset or data URL&gt;&quot; at &lt;x&gt; &lt;y&gt; [size &lt;width&gt; [&lt;height&gt;]]</code></td><td>Places an image: an asset the host supplied, by name, or a data URL. Nothing is read from disk.</td></tr>
+<tr><td>Text and media</td><td><code>link</code></td><td><code>link &quot;&lt;path&gt;&quot; at &lt;x&gt; &lt;y&gt; [size &lt;width&gt; [&lt;height&gt;]] [name &quot;&lt;layer name&gt;&quot;]</code></td><td>Places a linked file: one selectable element that references the file instead of drawing its contents into the page.</td></tr>
+<tr><td>Text and media</td><td><code>use</code></td><td><code>use &quot;&lt;document&gt;&quot; [at &lt;x&gt; &lt;y&gt;] [scale &lt;s&gt;] [layer &quot;&lt;name&gt;&quot;]</code></td><td>Copies in a document the host supplied, as a group, with its layers and anchors.</td></tr>
+<tr><td>Effects</td><td><code>effect</code></td><td><code>effect blur &lt;radius&gt;</code><br><code>effect brightness &lt;amount&gt;</code><br><code>effect contrast &lt;amount&gt;</code><br><code>effect saturate &lt;amount&gt;</code><br><code>effect grayscale [&lt;0-1&gt;]</code><br><code>effect sepia [&lt;0-1&gt;]</code><br><code>effect invert [&lt;0-1&gt;]</code><br><code>effect hue-rotate &lt;degrees&gt;</code><br><code>effect opacity &lt;0-1&gt;</code><br><code>effect drop-shadow &lt;dx&gt; &lt;dy&gt; &lt;blur&gt; &lt;color&gt;</code><br><code>effect none</code></td><td>An effect for the next layer, group or mark the script makes, as its CSS filter function works: blur, brightness, contrast, saturate, grayscale, sepia, invert, hue-rotate, opacity or drop-shadow. Several stack in order, and none clears what is waiting.</td></tr>
+</tbody></table></div>
+<ul>
+<li>The verbs that shape a script, <code>repeat</code>, <code>let</code> and the transforms: <a href="../language/cheatsheet.html">the language cheatsheet</a>.</li>
+<li><code>crop</code> and <code>registration</code>: <a href="../output/cheatsheet.html">the output cheatsheet</a>.</li>
+</ul>
+<h2 id="what-a-block-keeps-to-itself">What a block keeps to itself<a class="anchor" href="#what-a-block-keeps-to-itself" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Block</th><th>Keeps</th></tr></thead>
+<tbody>
+<tr><td><code>group &quot;G&quot; { ... }</code></td><td>Paint, transform, units and the current layer</td></tr>
+<tr><td><code>place &quot;d&quot;</code></td><td>The same: a definition is a drawing of its own</td></tr>
+<tr><td><code>repeat n { ... }</code></td><td>Nothing: each pass starts where the last one ended</td></tr>
+<tr><td><code>push</code> ... <code>pop</code></td><td>Paint, transform and units</td></tr>
+</tbody></table></div>
+<h2 id="the-shape-library">The shape library<a class="anchor" href="#the-shape-library" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Shape</th><th>Natural size</th><th>Marks</th><th>Backdrops</th><th>Read from</th></tr></thead>
+<tbody>
+<tr><td><code>square</code></td><td>231.43 x 231.43</td><td>1</td><td>-</td><td><code>shapes.svg#square</code></td></tr>
+<tr><td><code>rectangle</code></td><td>482.09 x 231.43</td><td>1</td><td>-</td><td><code>shapes.svg#rectangle</code></td></tr>
+<tr><td><code>circle</code></td><td>272.06 x 272.06</td><td>1</td><td>-</td><td><code>shapes.svg#circle</code></td></tr>
+<tr><td><code>ellipse</code></td><td>514.62 x 212.94</td><td>1</td><td>-</td><td><code>shapes.svg#ellipse</code></td></tr>
+<tr><td><code>triangle</code></td><td>231.43 x 231.44</td><td>1</td><td>-</td><td><code>shapes.svg#triangle</code></td></tr>
+<tr><td><code>right-triangle</code></td><td>209.91 x 231.44</td><td>1</td><td>-</td><td><code>shapes.svg#right-triangle</code></td></tr>
+<tr><td><code>hexagon</code></td><td>164.76 x 142.68</td><td>1</td><td>-</td><td><code>shapes.svg#polygon</code></td></tr>
+<tr><td><code>star</code></td><td>233.42 x 222</td><td>1</td><td>-</td><td><code>shapes.svg#star</code></td></tr>
+<tr><td><code>horizontal</code></td><td>195.31 x 0</td><td>1</td><td>-</td><td><code>shapes.svg#horizontal</code></td></tr>
+<tr><td><code>vertical</code></td><td>0 x 195.31</td><td>1</td><td>-</td><td><code>shapes.svg#verticla</code></td></tr>
+<tr><td><code>45-degree</code></td><td>138.11 x 138.11</td><td>1</td><td>-</td><td><code>shapes.svg#_45-degree</code></td></tr>
+<tr><td><code>15-degree</code></td><td>188.66 x 50.55</td><td>1</td><td>-</td><td><code>shapes.svg#_15-degree</code></td></tr>
+<tr><td><code>arc</code></td><td>79.66 x 103.4</td><td>1</td><td>-</td><td><code>shapes.svg#curve</code></td></tr>
+<tr><td><code>spiral</code></td><td>147.292 x 130.561</td><td>1</td><td>-</td><td><code>shapes.svg#curve-2</code></td></tr>
+<tr><td><code>wheel-isometric</code></td><td>249.57 x 262.712</td><td>3</td><td>1</td><td><code>isometric-objects.svg#wheel-isometric</code></td></tr>
+<tr><td><code>sphere-isometric</code></td><td>275.74 x 275.74</td><td>1</td><td>-</td><td><code>isometric-objects.svg#sphere-isometric</code></td></tr>
+<tr><td><code>cube-isometric</code></td><td>296.23 x 264.39</td><td>7</td><td>-</td><td><code>isometric-objects.svg#cube-isometric</code></td></tr>
+<tr><td><code>cylinder-isometric</code></td><td>246.64 x 199.92</td><td>5</td><td>-</td><td><code>isometric-objects.svg#cylinder-isometric</code></td></tr>
+<tr><td><code>wheel-perspective</code></td><td>200.615 x 260.116</td><td>3</td><td>1</td><td><code>perspective-objects.svg#wheel-perspective</code></td></tr>
+<tr><td><code>sphere-perspective</code></td><td>262.48 x 275.74</td><td>1</td><td>-</td><td><code>perspective-objects.svg#sphere-perspective</code></td></tr>
+<tr><td><code>cube-perspective</code></td><td>267.9 x 223.06</td><td>7</td><td>1</td><td><code>perspective-objects.svg#cube-perspective</code></td></tr>
+<tr><td><code>cylinder-perspective</code></td><td>246.64 x 209.92</td><td>5</td><td>1</td><td><code>perspective-objects.svg#cylinder-perspective</code></td></tr>
+</tbody></table></div>
+<h2 id="the-hand-drawn-pass">The hand-drawn pass<a class="anchor" href="#the-hand-drawn-pass" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Part</th><th>At <code>rough 1</code></th></tr></thead>
+<tbody>
+<tr><td>Anchor drift</td><td>Up to 5 px, and no more than 15% of the way to a neighbouring anchor</td></tr>
+<tr><td>Bow of a straight segment</td><td>Up to 0.57 times the square root of its length: 5.7 px for a 100 px segment, 11.4 px for a 400 px one</td></tr>
+<tr><td>Turn of a curve's handles</td><td>Up to 6 degrees, both handles of an anchor alike</td></tr>
+<tr><td>Stretch of a curve's handles</td><td>Up to 20% longer or shorter</td></tr>
+<tr><td>Overshoot</td><td>1.5 line widths past each end, and no more than 25% of the segment it extends</td></tr>
+<tr><td>Join of a closed line</td><td>Up to 60% of the anchor drift from where the line began</td></tr>
+<tr><td>Fill under a line</td><td>Roughened 50% as much as the line</td></tr>
+<tr><td>Second pass</td><td>60% of the width and 55% of the opacity</td></tr>
+<tr><td>Wobble length</td><td>80 px: anchors closer together than this drift together</td></tr>
+</tbody></table></div>
+<h2 id="evaluatesource-options"><code>evaluate(source, options)</code><a class="anchor" href="#evaluatesource-options" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Option</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>name</code></td><td><code>drawing</code></td><td>The book's name and its first page's</td></tr>
+<tr><td><code>seed</code></td><td><code>0</code></td><td>The seed for <code>rough</code>, until a <code>seed</code> line names one</td></tr>
+<tr><td><code>assets</code></td><td>none</td><td><code>{ logo: 'data:image/png;base64,...' }</code> for <code>image &quot;logo&quot;</code></td></tr>
+<tr><td><code>documents</code></td><td>none</td><td>Pages or books for <code>use &quot;badge&quot;</code></td></tr>
+<tr><td><code>resolveLink</code></td><td>none</td><td>Reads a linked file for its size; <code>resolveLinkFromDir(folder)</code></td></tr>
+<tr><td><code>limits</code></td><td>the budget</td><td><code>{ marks: 200000 }</code> raises one limit</td></tr>
+<tr><td><code>timestamp</code></td><td>now</td><td>Fix it for a book that is the same byte for byte</td></tr>
+<tr><td><code>fragment</code></td><td><code>false</code></td><td>A snippet: no <code>napkin</code> line expected</td></tr>
+</tbody></table></div>
+<h2 id="one-line-each">One line each<a class="anchor" href="#one-line-each" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Want</th><th>Write</th></tr></thead>
+<tbody>
+<tr><td>A rounded card</td><td><code>rect 20 20 360 260 r 16</code></td></tr>
+<tr><td>A dashed outline, no fill</td><td><code>style dashed fill none</code></td></tr>
+<tr><td>A linear gradient</td><td><code>gradient linear 90 (#ffe08a 0, #ff8a65 1)</code></td></tr>
+<tr><td>A smooth curve through points</td><td><code>through 20 200, 120 140, 240 190</code></td></tr>
+<tr><td>A hexagon from the library</td><td><code>shape &quot;hexagon&quot; at 40 40 size 120</code></td></tr>
+<tr><td>Wrapped text</td><td><code>text &quot;A caption&quot; at 40 100 size 16 box 180</code></td></tr>
+<tr><td>Letters as pen strokes</td><td><code>text &quot;Hi&quot; at 40 40 size 32 as marks</code></td></tr>
+<tr><td>A placed image</td><td><code>image &quot;logo&quot; at 40 40 size 120</code></td></tr>
+<tr><td>A linked file</td><td><code>link &quot;assets/logo.svg&quot; at 40 40 size 160 80</code></td></tr>
+<tr><td>A shadow under the next mark</td><td><code>effect drop-shadow 4 4 8 #00000066</code></td></tr>
+<tr><td>A sepia layer</td><td><code>effect sepia</code> then <code>layer &quot;Photo&quot;</code></td></tr>
+</tbody></table></div>
+<h2 id="common-mistakes">Common mistakes<a class="anchor" href="#common-mistakes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Wrong</th><th>Right</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><code>image &quot;art/logo.png&quot; at 0 0</code></td><td><code>image &quot;logo&quot; at 0 0</code>, with the host passing <code>logo</code></td><td>A script reads no files: a path is <code>unknown-asset</code>.</td></tr>
+<tr><td>Paint set inside <code>repeat</code> leaking out</td><td>Wrap the body in <code>push</code> ... <code>pop</code></td><td>A repeat keeps nothing to itself.</td></tr>
+<tr><td><code>effect blur 2</code> with nothing after it</td><td>Put it right before the layer, group or mark</td><td>It waits for the next one, and <code>unused-effect</code> says none came.</td></tr>
+<tr><td>Expecting <code>rough 1</code> to wobble differently each run</td><td>Change the seed: <code>seed 3</code>, or <code>--seed 3</code></td><td>One script and one seed draw the same bytes every run.</td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="quickstart.html" rel="prev"><span>Previous</span>Drawing with napkin script: quickstart</a><a href="../compose/index.html" rel="next"><span>Next</span>The graphic design API</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/drawing/CHEATSHEET.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

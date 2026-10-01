@@ -1,0 +1,51 @@
+# Publishes the documentation site in docs/ to GitHub Pages.
+#
+# The site is plain static HTML that `npm run site` writes and the repository
+# commits, so this builds nothing and needs no Node: it uploads docs/ as the
+# Pages artifact and deploys it. `npm test` fails while docs/ is behind its
+# sources, so what is on main is what gets published. Pages must be set to
+# deploy from GitHub Actions in the repository's settings for this to publish.
+#
+# Force-add this file when committing (git add -f): an ignore rule covering
+# .github/ would otherwise leave it untracked, and the site would never build.
+name: Deploy the documentation site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push waits for the one running to finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload docs/ as the Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

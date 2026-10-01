@@ -126,6 +126,93 @@ test('the barrel exports effects: their names, the reader, and the canvas filter
   assert.equal(api.cssFilter([{ type: 'blur', radius: 2 }]), 'blur(2px)');
 });
 
+test('the barrel exports paint: the two targets, and the rules of the fill and stroke control', () => {
+  const now = exportsOf('src/api/index.ts');
+  for (const name of ['COLOR_TARGETS', 'paintPatch', 'swapPaint']) assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  assert.ok(now.types.includes('ColorTarget'), 'and the type ColorTarget');
+  assert.deepEqual([...api.COLOR_TARGETS], ['stroke', 'fill']);
+  const square = { id: 's', tool: 'pen' as const, color: '#1f2328', width: 2, points: [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 40 }, { x: 0, y: 0 }] };
+  assert.deepEqual(api.paintPatch(square, 'fill', '#e9c46a'), { fill: '#e9c46a', gradient: undefined });
+  assert.deepEqual(api.swapPaint(square), { fill: '#1f2328', noStroke: true });
+});
+
+test('the barrel exports region geometry: the boolean engine, erasing, the wipes, stacking and splitting', () => {
+  const now = exportsOf('src/api/index.ts');
+  for (const name of ['booleanOp', 'booleanRegions', 'eraseKind', 'eraseMarks', 'eraseRegionOf', 'wipeMarks', 'wipeOperand', 'arrangeFaces', 'WIPE_OPS', 'stackArrangement', 'stackEdit', 'stackFaces', 'faceAt', 'facesAlong', 'facesInBox', 'nearestOnMark', 'splitMark', 'splitTarget', 'isSplittable']) {
+    assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  }
+  for (const name of ['BooleanOp', 'EraseResult', 'WipeOp', 'WipeResult', 'MarkEdit', 'Face', 'StackArrangement', 'StackMode', 'StackResult', 'SplitPoint', 'SplitPieces']) assert.ok(now.types.includes(name), `and the type ${name}`);
+  const square = (x0: number, y0: number, x1: number, y1: number) => [[{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }]];
+  assert.equal(api.booleanOp(square(0, 0, 10, 10), square(5, 5, 15, 15), 'union')?.length, 1, 'two overlapping squares unite into one contour');
+  assert.deepEqual([...api.WIPE_OPS], ['in', 'out-front', 'out-back', 'mid', 'outer', 'clean']);
+  assert.equal(api.arrangeFaces([square(0, 0, 10, 10), square(5, 5, 15, 15)]).faces.length, 3);
+  const mark = (id: string, x0: number, y0: number, x1: number, y1: number) => ({
+    id,
+    tool: 'pen' as const,
+    color: '#1f2328',
+    width: 2,
+    fill: '#e9c46a',
+    layer: `ly_${id}`,
+    points: [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }, { x: x0, y: y0 }],
+  });
+  const page = { ...api.createSketch('stack'), layers: ['a', 'b'].map((id) => ({ id: `ly_${id}`, name: id, opacity: 1, visible: true, locked: false })), strokes: [mark('a', 0, 0, 10, 10), mark('b', 5, 5, 15, 15)] };
+  const stacked = api.stackFaces(page, ['a', 'b'], [{ x: 7, y: 7 }], 'remove');
+  assert.deepEqual([...stacked.changed.keys()].sort(), ['a', 'b'], 'the overlap taken from both squares');
+  const line = mark('l', 0, 0, 10, 10);
+  const cut = api.splitMark(line, api.nearestOnMark(line, { x: 10, y: 5 })!);
+  assert.equal(cut?.second, null, 'a closed square opened, one mark');
+  assert.equal(cut?.first.vector?.closed, false);
+});
+
+test('the barrel exports the Pencil and the Smear: the kit, the grain, a mark\'s picture and a stump\'s pass', () => {
+  const now = exportsOf('src/api/index.ts');
+  for (const name of ['DEFAULT_PENCIL', 'GRAIN_TILE_SIZE', 'PENCIL_GRADES', 'PENCIL_KIT', 'grainTile', 'parsePencil', 'pencilCoverage', 'pencilGrade', 'pencilMeanCoverage', 'pencilPaint', 'pencilPicture', 'pencilRegion', 'pencilWidth', 'rasterizePencil', 'DEFAULT_SMEAR_STRENGTH', 'mapSmudges', 'smearReaches', 'smudgeBuffer', 'smudgeFor', 'widthAtPressure']) {
+    assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  }
+  for (const name of ['PencilChoice', 'PencilGrade', 'PencilMedium', 'PencilRegion', 'SmudgePass', 'SmudgeState', 'Smudge']) assert.ok(now.types.includes(name), `and the type ${name}`);
+  assert.equal(api.PENCIL_GRADES.length, 30);
+  assert.deepEqual(api.parsePencil('vine soft'), { medium: 'vine', grade: 'Soft' });
+  assert.equal(api.grainTile().length, api.GRAIN_TILE_SIZE ** 2);
+  const line = { id: 'l', tool: 'pencil' as const, color: '#6a6d72', width: 3, points: [{ x: 50, y: 0 }, { x: 50, y: 100 }], pencil: { medium: 'graphite' as const, grade: 'HB' } };
+  const pass = api.smudgeFor(line, [{ x: 0, y: 50 }, { x: 120, y: 50 }], 20, api.DEFAULT_SMEAR_STRENGTH);
+  assert.ok(pass && pass.width === 20, 'a drag across the line leaves a pass on it');
+  const region = api.pencilRegion({ ...line, smudges: [pass] }, 1)!;
+  assert.equal(api.pencilPicture({ ...line, smudges: [pass] }, region).length, region.width * region.height * 4);
+});
+
+test("the barrel exports Liquify: the four brushes' fields, the marks a drag bends, and the refit", () => {
+  const now = exportsOf('src/api/index.ts');
+  for (const name of ['LIQUIFY_MODES', 'liquifiable', 'liquifyFalloff', 'liquifyField', 'liquifyMarks', 'liquifyReaches', 'refitLiquified']) {
+    assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  }
+  for (const name of ['LiquifyDab', 'LiquifyMode', 'LiquifyOptions', 'PointMap']) assert.ok(now.types.includes(name), `and the type ${name}`);
+  assert.deepEqual(api.LIQUIFY_MODES.map((m) => m.id), ['warp', 'twirl', 'pucker', 'bloat']);
+  const line = { id: 'l', tool: 'pen' as const, color: '#000000', width: 2, points: [{ x: 0, y: 50 }, { x: 100, y: 50 }] };
+  const bent = api.liquifyMarks([line], [{ mode: 'warp', x: 50, y: 50, radius: 30, dx: 0, dy: 20 }], { refit: 0.5 }).get('l');
+  assert.ok(bent && Math.max(...bent.points.map((p) => p.y)) > 65, 'a push across a line bends it');
+  assert.deepEqual(api.liquifyField({ mode: 'bloat', x: 0, y: 0, radius: 10, amount: 0.5 }).point({ x: 20, y: 0 }), { x: 20, y: 0 }, 'nothing past the rim moves');
+});
+
+test('the barrel exports clipping masks: making, releasing, and what a clip shows', () => {
+  const now = exportsOf('src/api/index.ts');
+  for (const name of ['CLIP_GROUP_NAME', 'canClip', 'clipIndex', 'clipMarkOf', 'clipRegionOf', 'clippedAt', 'makeClip', 'normalizeClips', 'releaseClip', 'shownBounds']) {
+    assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  }
+  for (const name of ['Clip', 'ClipIndex', 'ClipProblem']) assert.ok(now.types.includes(name), `and the type ${name}`);
+  const mark = (id: string, x0: number, y0: number, x1: number, y1: number) => ({
+    id,
+    tool: 'pen' as const,
+    color: '#1f2328',
+    width: 2,
+    layer: `ly_${id}`,
+    points: [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }, { x: x0, y: y0 }],
+  });
+  const page = { ...api.createSketch('clip'), layers: ['a', 'b'].map((id) => ({ id: `ly_${id}`, name: id, opacity: 1, visible: true, locked: false })), strokes: [mark('a', 0, 0, 40, 40), mark('b', 10, 10, 20, 20)] };
+  const plan = api.makeClip(page, ['a', 'b']);
+  assert.ok('clip' in plan && plan.clip.id === 'b', 'the top mark clips');
+  assert.equal(api.CLIP_GROUP_NAME, 'Clip Group');
+});
+
 test('napkin-sketch/node exports the host, and every composition file helper beside it', () => {
   const host = ['drawFile', 'drawToFiles', 'readScript', 'loadAssets', 'loadDocuments', 'writeBook', 'resolveLinkFromDir'];
   for (const name of host) assert.equal(typeof (node as Record<string, unknown>)[name], 'function', `${name} is exported`);

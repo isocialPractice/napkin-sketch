@@ -50,6 +50,7 @@ import { parseColor } from './graphic-design/color.js';
 import { wrapText } from './graphic-design/font.js';
 import { linkName, safeLinkPath } from './link.js';
 import { copicNibPolygons } from './nib.js';
+import { meanPressure, pencilMeanCoverage, pencilPaint } from './pencil.js';
 import { activeProfile, profileInputOf, profileOutline } from './stroke-profile.js';
 import { EXPORT_SIMPLIFY_EPSILON } from './svg-path.js';
 import {
@@ -66,6 +67,7 @@ import {
   type Stroke,
   type VectorAnchor,
 } from './types.js';
+import { clipIndex } from './clip.js';
 
 /** How {@link sketchesToJsx} writes its script. */
 export interface JsxOptions {
@@ -495,6 +497,21 @@ function copicLines(stroke: Stroke, ctx: Context): string[] {
 }
 
 /**
+ * A Pencil mark: the outline the canvas fills, at the lead's mean tone over
+ * the paper's tooth - Illustrator has no grain paint to give it (open
+ * question 32).
+ */
+function pencilLines(stroke: Stroke, ctx: Context): string[] {
+  if (stroke.noStroke) return [];
+  const runs = outlineRuns(profileOutline(profileInputOf(stroke)));
+  const ink = shown(ctx.paint(stroke.color));
+  if (!runs || !ink) return [];
+  const lays = pencilMeanCoverage(pencilPaint(stroke.pencil), meanPressure(stroke.points));
+  const opacity = (stroke.opacity ?? 1) * lays;
+  return [`path(${runs}, true, ${style([['fill', rgbText(ink)], ['opacity', opacityField(opacity * ink.alpha)]])});`];
+}
+
+/**
  * An eraser, drawn in the paper's color as the PDF draws one: a script cannot
  * cut a layer's mask, so it covers what lies under it on other layers too.
  * With no paper there is nothing to draw it in, and it is left out.
@@ -578,6 +595,7 @@ function markLines(stroke: Stroke, ctx: Context): string[] {
   if (isImageStroke(stroke)) return imageLines(stroke, ctx);
   if (stroke.tool === 'eraser') return eraserLines(stroke, ctx);
   if (stroke.tool === 'copic') return copicLines(stroke, ctx);
+  if (stroke.tool === 'pencil') return pencilLines(stroke, ctx);
   if (activeProfile(stroke) && !stroke.noStroke) return profiledLines(stroke, ctx);
   return pathLines(stroke, ctx);
 }
@@ -658,6 +676,32 @@ const RUNTIME = `  // Set QUIET to true to have the script report through its re
     stack.push(item);
     names.push(name);
     marks = 0;
+  }
+
+  // A clip group's content: a group of its own, which its clipping path will clip.
+  function clipOpen() {
+    var group = top().groupItems.add();
+    group.name = "Clip Group";
+    stack.push(group);
+  }
+
+  // The clipping path, drawn last so it is on top of what it clips, unpainted,
+  // and the group clipped by it - Illustrator clips with the topmost path.
+  function clipClose(runs, closed) {
+    var group = stack.pop(), item, part, i;
+    if (runs.length === 1) {
+      item = anchors(group.pathItems.add(), runs[0], closed);
+      item.filled = false;
+      item.stroked = false;
+    } else {
+      item = group.compoundPathItems.add();
+      for (i = 0; i < runs.length; i++) {
+        part = anchors(item.pathItems.add(), runs[i], closed);
+        part.filled = false;
+        part.stroked = false;
+      }
+    }
+    group.clipped = true;
   }
 
   // Hidden and locked once what is on it is drawn: Illustrator draws on neither.
@@ -1031,6 +1075,7 @@ export function sketchesToJsx(sketches: readonly Sketch[], options: JsxOptions =
     // The tree as the SVG export rebuilds it: a layer sits in its parent when
     // that parent is a group, and at the top otherwise, in stack order.
     const byLayer = strokesByLayer(sketch);
+    const clips = clipIndex(sketch);
     const byId = new Map(sketch.layers.map((layer) => [layer.id, layer]));
     const childrenOf = new Map<string, Layer[]>();
     const topLevel: Layer[] = [];
@@ -1049,9 +1094,17 @@ export function sketchesToJsx(sketches: readonly Sketch[], options: JsxOptions =
       body.push(`${pad}open(${str(layer.name)}, ${pct(layer.opacity)});`);
       if (readEffects(layer.effects)) warn(`${page}: an effect is not written to an Illustrator script, so what carries it is drawn plain`);
       if (layer.group) {
+        // A clip group: what it holds in a group of its own, clipped by the
+        // clip mark drawn on top of it as the clipping path.
+        const clip = clips.byGroup.get(layer.id);
+        const shape = clip ? runsOf(clip.mark) : null;
+        if (shape) body.push(`${pad}  clipOpen();`);
         for (const child of childrenOf.get(layer.id) ?? []) emit(child, depth + 1);
+        if (shape) body.push(`${pad}  clipClose(${shape.runs}, ${shape.closed});`);
       } else {
         for (const stroke of byLayer.get(layer.id) ?? []) {
+          // A clip mark is its group's clipping path, and paints nothing.
+          if (clips.marks.has(stroke.id)) continue;
           for (const line of markLines(stroke, ctx)) body.push(`${pad}  ${line}`);
         }
       }
@@ -1066,8 +1119,9 @@ export function sketchesToJsx(sketches: readonly Sketch[], options: JsxOptions =
     '//',
     '// Run it in Illustrator with File > Scripts > Other Script. Each page opens as',
     '// a document of its own, its artboard the page and a pixel a point, with the',
-    "// page's layers as layers, the layers in a group as named groups, and every",
-    '// mark as a path on its own anchors. An image is embedded. A linked file is',
+    "// page's layers as layers, the layers in a group as named groups - a clip",
+    '// group clipped by its clipping path - and every mark as a path on its own',
+    '// anchors. An image is embedded. A linked file is',
     "// placed by link, found from this script's folder, and one that cannot be",
     '// found or placed is drawn as its placeholder and named when the script ends.',
     '//',

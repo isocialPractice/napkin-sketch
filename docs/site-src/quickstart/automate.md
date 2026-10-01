@@ -32,7 +32,7 @@ A picture is placed, not traced: its script links the file by name, or with
 1. Choose **Automate > Track History**; the row shows a check mark while it
    records.
 2. Draw a couple of strokes and turn one with `Ctrl + R`. Each is a step, named
-   for what made it: "Pen stroke", "Rotate".
+   for what made it: "Brush stroke", "Rotate".
 3. **Automate > History Limit** opens Verbose Settings at its Automate
    section, where the limit is set and the steps are counted.
 

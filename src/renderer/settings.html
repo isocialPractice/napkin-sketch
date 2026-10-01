@@ -40,7 +40,8 @@
         </label>
         <p class="settings-hint">
           Hold Alt and scroll the mouse wheel to zoom. By default scroll up
-          zooms in and scroll down zooms out.
+          zooms in and scroll down zooms out. An Alt used to zoom never hands
+          the keyboard to the menu bar.
         </p>
         <label class="switch settings-row">
           <input id="invert-scroll-pan" type="checkbox" />
@@ -78,7 +79,8 @@
         </label>
         <p class="settings-hint">
           Hold Shift while drawing to snap the stroke to the nearest endpoint
-          of an existing stroke within the sensitivity radius.
+          of an existing stroke within the sensitivity radius. A straight
+          line's end and a quick curve's far end snap without Shift.
         </p>
         <label class="switch settings-row">
           <input id="join-stroke" type="checkbox" />
@@ -104,7 +106,25 @@
           same switch is in Quick Settings.
         </p>
         <label class="settings-field">
-          <span>Select pixel sensitivity <em id="eyedrop-px-value">10px</em></span>
+          <span>Select sensitivity <em id="select-px-value">4px</em></span>
+          <input id="select-px" type="range" />
+        </label>
+        <p class="settings-hint">
+          How far from a mark's ink a click with the Select tool (V) may land
+          and still pick it, in screen pixels, so it reaches as far at every
+          zoom. A click on the ink itself always picks the mark on top.
+        </p>
+        <label class="settings-field">
+          <span>Direct Select sensitivity <em id="direct-select-px-value">8px</em></span>
+          <input id="direct-select-px" type="range" />
+        </label>
+        <p class="settings-hint">
+          Grab radius for anchor points, handles, and paths with the Direct
+          Select tool (A), in screen pixels. The Vector Path tool's anchors
+          and its closing click use it too.
+        </p>
+        <label class="settings-field">
+          <span>Eyedropper sensitivity <em id="eyedrop-px-value">10px</em></span>
           <input id="eyedrop-px" type="range" />
         </label>
         <p class="settings-hint">
@@ -112,12 +132,14 @@
           canvas.
         </p>
         <label class="settings-field">
-          <span>Direct Select sensitivity <em id="direct-select-px-value">3px</em></span>
-          <input id="direct-select-px" type="range" />
+          <span>Freehand fidelity <em id="freehand-fidelity-value">1.5px</em></span>
+          <input id="freehand-fidelity" type="range" />
         </label>
         <p class="settings-hint">
-          Grab radius for selecting anchor points, handles, and paths with the
-          Direct Select tool (A).
+          How closely a Brush, Marker or Copic stroke's curves follow what you
+          drew, in screen pixels. A stroke is kept as a few Bézier anchors fitted
+          to its samples: smaller keeps more of the hand's detail, in more
+          anchors; larger smooths more, in fewer.
         </p>
         <label class="switch settings-row">
           <input id="show-selection-borders" type="checkbox" />
@@ -216,10 +238,12 @@
           </select>
         </label>
         <p class="settings-hint">
-          Hold the hold key for the hold time to show the nib indicator, then
-          hold a rotate key to turn the broad nib. While active, the stroke
-          width is scaled by the width multiplier (restored on release). The
-          three keys must differ; a clashing pick is reassigned automatically.
+          Hold the hold key still for the hold time, with a drawing tool in
+          hand, to show the nib indicator, then hold a rotate key to turn the
+          broad nib. Moving the pointer, pressing or typing another key during
+          the hold cancels it. While active, the stroke width is scaled by the
+          width multiplier (restored on release). The three keys must differ;
+          a clashing pick is reassigned automatically.
         </p>
       </section>
 
@@ -283,6 +307,16 @@
           <span>Auto-save <em id="autosave-value">off</em></span>
           <input id="autosave" type="range" />
         </label>
+        <label class="switch settings-row">
+          <input id="wipe-animation" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Wipe animation</span>
+        </label>
+        <p class="settings-hint">
+          A napkin wipes over a Wipe Stacks result for a quarter of a second.
+          Off - or with the system asking for reduced motion - the result shows
+          at once.
+        </p>
       </section>
 
       <section class="settings-section" aria-label="Persistence">

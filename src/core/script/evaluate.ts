@@ -12,8 +12,8 @@
  *
  * - The paint state, the transform and the units carry from one instruction
  *   to the next. `push` saves all three and `pop` restores them.
- * - A `group` or a placed definition keeps its changes to itself: whatever it
- *   changes is put back when it ends. A `repeat` does not - its passes build on
+ * - A `group`, a `wipe`, a `stack` or a placed definition keeps its changes
+ *   to itself: whatever it changes is put back when it ends. A `repeat` does not - its passes build on
  *   one another, so `translate` in a repeat walks across the page - and a
  *   `push` and `pop` inside the body keep a pass to itself.
  * - `let` sets the nearest name already set, or makes a new one in the current
@@ -30,12 +30,22 @@ import {
   DEFAULT_SURFACE,
   type Gradient,
   type Layer,
+  type Sketch,
   type SketchBook,
   type Stroke,
   type VectorAnchor,
+  toolId,
 } from '../types.js';
+import { isWipeable, stackFaces, wipeMarks, WIPE_FACE_LIMIT, WIPE_OPERAND_LIMIT, type WipeOp, type WipeResult } from '../wipe.js';
+import { splitMark, splitTarget, SPLIT_REACH_PX } from '../split.js';
+import { canClip, CLIP_GROUP_NAME } from '../clip.js';
+import { paintOrder } from '../paint-order.js';
+import { parsePencil, pencilPaint } from '../pencil.js';
+import { smudgeFor } from '../smudge.js';
+import { liquifyMarks, type LiquifyDab } from '../liquify.js';
+import { eraseMarks, eraseRegionOf } from '../erase.js';
 import { fromPx, isLengthUnit, toPx } from '../units.js';
-import { IDENTITY, meanScale, multiply, rotation, scaling, translation, type Matrix } from '../graphic-design/geometry.js';
+import { IDENTITY, apply, meanScale, multiply, rotation, scaling, translation, type Matrix } from '../graphic-design/geometry.js';
 import { SubpathBuilder, parsePathD, sampleOutline } from '../path-data.js';
 import { linkKind, linkName, linkPlaceholder, type LinkResolver } from '../link.js';
 import { hasErrors, makeDiagnostic, sortDiagnostics, suggest, type Where } from './diagnostics.js';
@@ -47,6 +57,10 @@ import {
   PAPER_SIZES,
   SCRIPT_LIMITS,
   VERBS,
+  type ClipInstruction,
+  type SmearInstruction,
+  type LiquifyInstruction,
+  type WarpInstruction,
   type CropInstruction,
   type DefineInstruction,
   type Diagnostic,
@@ -76,6 +90,9 @@ import {
   type ShapeInstruction,
   type TextInstruction,
   type UseInstruction,
+  type SplitInstruction,
+  type StackInstruction,
+  type WipeInstruction,
 } from './instructions.js';
 import { SHAPE_NAMES, findShape, fitShape } from './library.js';
 import {
@@ -250,6 +267,23 @@ function axisOf(verb: string, field: string): PercentAxis {
   return AXES.get(verb)?.get(field) ?? 'none';
 }
 
+/** Why each wipe can leave nothing, for its warning. */
+const WIPE_EMPTY: Readonly<Record<WipeOp, string>> = {
+  in: 'its marks cover no ground',
+  'out-front': 'the marks above the bottom one cover all of it',
+  'out-back': 'the marks below the top one cover all of it',
+  mid: 'there is no ground all of its marks cover',
+  outer: 'no ground is covered by an odd number of its marks',
+  clean: 'its marks cover no ground',
+};
+
+/**
+ * How far a mark a Liquify verb bent may stray when it is fitted again, in
+ * page pixels: the Smear's fit, a third of the app's Freehand fidelity, since
+ * a script's marks are read at every size.
+ */
+const LIQUIFY_REFIT_PX = 0.5;
+
 /** A number as a message shows it: four decimals at most. */
 /** A number rounded to a millionth, so a computed size does not carry the last bits of its arithmetic. */
 function round6(value: number): number {
@@ -293,6 +327,12 @@ class Evaluator {
   private readonly resolveLink: LinkResolver | undefined;
   /** Effects written and waiting for the next layer, group or mark, each with where it was written. */
   private pending: Array<{ effect: Effect; where: Where }> = [];
+  /**
+   * The `wipe` or `stack` blocks under way, the innermost last, each with the
+   * marks it has drawn: its operands, held back from the sink until it
+   * combines them.
+   */
+  private readonly combining: Array<{ verb: 'wipe' | 'stack'; held: Stroke[] }> = [];
 
   constructor(
     private readonly sink: ScriptSink,
@@ -547,13 +587,14 @@ class Evaluator {
     const anchorCount = pieces.reduce((sum, piece) => sum + piece.anchors.length, 0);
     const pointCount = sampled.reduce((sum, points) => sum + points.length, 0);
     this.afford(pieces.length, anchorCount, pointCount, where, verb);
-    // An eraser takes away what is under it and nothing more: no fill, no
-    // outline style, and no effects, which wait for the next mark that shows.
+    // An eraser cuts what is under it and draws nothing of its own: no fill,
+    // no outline style, and no effects, which wait for the next mark that shows.
     const erasing = paint.tool === 'eraser';
     // A mark the hand-drawn pass draws as several strokes goes on a layer of
-    // its own when it takes effects, so they work on the whole mark at once.
+    // its own when it takes effects, so they work on the whole mark at once -
+    // except in a wipe or a stack, whose marks are its operands, each carrying them.
     const effects = erasing ? undefined : this.takeEffects();
-    const ownLayer = effects !== undefined && pieces.length > 1;
+    const ownLayer = effects !== undefined && pieces.length > 1 && this.combining.length === 0;
     const cursor = ownLayer ? this.sink.cursor() : null;
     if (ownLayer) this.sink.newLayer(verb, { effects });
     pieces.forEach((piece, k) => {
@@ -576,11 +617,95 @@ class Evaluator {
       }
       if ((paint.tool === 'pen' || paint.tool === 'marker') && paint.profile !== 'uniform') stroke.profile = paint.profile;
       if (paint.tool === 'copic') stroke.nibAngle = transformAngle(paint.nib, m);
+      // A Pencil mark is drawn in its lead's tone, or the colored pencil's color.
+      if (paint.tool === 'pencil') {
+        stroke.pencil = { ...paint.pencil };
+        stroke.color = paint.pencilColor ?? pencilPaint(paint.pencil).tone;
+      }
       if (effects && !ownLayer) stroke.effects = effects;
-      this.sink.addMark(stroke);
+      if (erasing) this.eraseWith(stroke, where, verb);
+      else this.put(stroke);
     });
     if (cursor) this.sink.restore(cursor);
-    this.spend(pieces.length, anchorCount, pointCount);
+    // An eraser's lines count for what they change, as they land (eraseWith).
+    if (!erasing) this.spend(pieces.length, anchorCount, pointCount);
+  }
+
+  /**
+   * A line drawn with `tool eraser`, at work as the app's Eraser works
+   * (core/erase.ts): its swath cut out of the marks drawn before it on its
+   * layer - in a `wipe` or a `stack` block, out of the block's own - each
+   * mark it changes left in its place and each it leaves nothing of taken
+   * away. It draws no mark of its own, unless the geometry cannot make a cut:
+   * then the eraser mark itself goes on, as an older file's does, so the
+   * picture shows the cut all the same. Text and pictures it reaches are
+   * passed over, as the Eraser passes over them, with a warning.
+   */
+  private eraseWith(eraser: Stroke, where: Where, verb: string): void {
+    const region = eraseRegionOf(eraser);
+    const top = this.combining[this.combining.length - 1];
+    const page = this.sink.currentPage();
+    // A block's marks have no ids yet: each is given one for the cut.
+    const held = top ? top.held.map((mark, i) => ({ mark, id: `held-${i}` })) : null;
+    const layer = held ? null : this.sink.currentLayerId();
+    const targets = held ? held.map(({ mark, id }) => ({ ...mark, id })) : page.strokes.filter((s) => layer !== null && s.layer === layer);
+    const result = eraseMarks(held ? { ...page, strokes: targets } : page, targets.map((s) => s.id), region);
+    const size = (s: Stroke): { anchors: number; points: number } => ({ anchors: s.vector?.anchors.length ?? 0, points: s.points.length });
+    let marks = 0;
+    let anchors = 0;
+    let points = 0;
+    const count = (sign: 1 | -1, s: Stroke): void => {
+      const { anchors: a, points: p } = size(s);
+      anchors += sign * a;
+      points += sign * p;
+    };
+    for (const [id, cut] of result.changed) {
+      const was = targets.find((s) => s.id === id);
+      if (was) {
+        count(-1, was);
+        count(1, cut);
+      }
+    }
+    for (const id of result.removed) {
+      const was = targets.find((s) => s.id === id);
+      if (was) {
+        marks--;
+        count(-1, was);
+      }
+    }
+    const fallback = result.raster.size > 0;
+    if (fallback) {
+      marks++;
+      count(1, eraser);
+    }
+    this.afford(marks, anchors, points, where, verb);
+    if (held && top) {
+      const kept: Stroke[] = [];
+      for (const { mark, id } of held) {
+        if (result.removed.has(id)) continue;
+        const cut = result.changed.get(id);
+        kept.push(cut ? { ...cut, id: '' } : mark);
+      }
+      top.held.splice(0, top.held.length, ...kept);
+    } else {
+      for (const target of targets) {
+        if (result.removed.has(target.id)) this.sink.removeMark(target);
+        else {
+          const cut = result.changed.get(target.id);
+          if (cut) this.sink.replaceMark(target, [cut]);
+        }
+      }
+    }
+    if (fallback) this.put(eraser);
+    if (result.skipped.size > 0) {
+      this.warn(
+        'erase-skipped',
+        `\`${verb}\` with \`tool eraser\` reached ${result.skipped.size === 1 ? 'text or a picture' : `${result.skipped.size} text items or pictures`}, which it passed over: an eraser cuts paths and lines, as the app's Eraser does.`,
+        where,
+        verb,
+      );
+    }
+    this.spend(marks, anchors, points);
   }
 
   /** Stops the run when drawing this much more would go over the budget. */
@@ -608,8 +733,27 @@ class Evaluator {
     this.afford(1, 0, stroke.points.length, where, verb);
     const effects = this.takeEffects();
     if (effects) stroke.effects = effects;
-    this.sink.addMark(stroke);
+    this.put(stroke);
     this.spend(1, 0, stroke.points.length);
+  }
+
+  /** Sends a finished mark on: to the innermost `wipe` or `stack` under way, which holds it back, or to the sink. */
+  private put(stroke: Stroke): void {
+    const top = this.combining[this.combining.length - 1];
+    if (top) top.held.push(stroke);
+    else this.sink.addMark(stroke);
+  }
+
+  /** Stops a verb that makes layers inside a `wipe` or a `stack`: the block's marks are combined where it is, on its layer. */
+  private outsideCombining(where: Where, verb: string): void {
+    const top = this.combining[this.combining.length - 1];
+    if (!top) return;
+    throw this.problem(
+      'misplaced-verb',
+      `\`${verb}\` cannot be inside a \`${top.verb}\`: the marks of its block are combined where the \`${top.verb}\` is, on its layer.`,
+      where,
+      verb,
+    );
   }
 
   // ---- Text and media --------------------------------------------------------
@@ -921,12 +1065,18 @@ class Evaluator {
       case 'newpage':
         return this.newPage(instruction, where);
       case 'layer':
+        this.outsideCombining(where, verb);
         this.sink.useLayer(instruction.name, { ...this.layerProps(instruction, where, verb), ...this.effectProps() });
         return;
       case 'group':
+        this.outsideCombining(where, verb);
         return this.group(instruction, path, where);
+      case 'clip':
+        this.outsideCombining(where, verb);
+        return this.clip(instruction, path, where);
       case 'tool':
-        paint.tool = instruction.tool;
+        // `brush` is the Brush, which marks call `pen`.
+        paint.tool = toolId(instruction.tool);
         return;
       case 'color':
         paint.color = instruction.color;
@@ -954,6 +1104,12 @@ class Evaluator {
         return;
       case 'nib':
         paint.nib = degrees(this.number(instruction.angle, where, verb));
+        return;
+      case 'pencil':
+        // The parser and the validator take only a pencil there is.
+        paint.tool = 'pencil';
+        paint.pencil = parsePencil(instruction.pencil) ?? paint.pencil;
+        paint.pencilColor = instruction.color ?? null;
         return;
       case 'rough':
         return this.rough(instruction, where);
@@ -1012,6 +1168,10 @@ class Evaluator {
       }
       case 'shape':
         return this.shape(instruction, where);
+      case 'wipe':
+        return this.wipe(instruction, path, where);
+      case 'stack':
+        return this.stack(instruction, path, where);
       case 'through': {
         const anchors = throughAnchors(this.points(instruction.points, where, verb));
         if (anchors.length < 2) throw this.problem('invalid-value', 'A `through` needs at least two different points.', where, verb);
@@ -1022,11 +1182,21 @@ class Evaluator {
       case 'image':
         return this.image(instruction, where);
       case 'use':
+        this.outsideCombining(where, verb);
         return this.use(instruction, where);
       case 'link':
         return this.link(instruction, where);
       case 'path':
         return this.path(instruction, path, where);
+      case 'split':
+        return this.split(instruction, where);
+      case 'smear':
+        return this.smear(instruction, where);
+      case 'warp':
+      case 'twirl':
+      case 'pucker':
+      case 'bloat':
+        return this.liquify(instruction, where);
       case 'move':
       case 'to':
       case 'by':
@@ -1105,10 +1275,10 @@ class Evaluator {
   }
 
   private newPage(instruction: NewPageInstruction, where: Where): void {
-    if (this.groups > 0 || this.placing.length > 0) {
+    if (this.groups > 0 || this.placing.length > 0 || this.combining.length > 0) {
       throw this.problem(
         'misplaced-verb',
-        '`newpage` cannot be inside a group or a placed definition; it belongs at the top of a script, or in a repeat there.',
+        '`newpage` cannot be inside a group, a wipe, a stack or a placed definition; it belongs at the top of a script, or in a repeat there.',
         where,
         'newpage',
       );
@@ -1186,6 +1356,311 @@ class Evaluator {
       this.sink.endGroup();
       this.depth--;
     }
+  }
+
+  /**
+   * A `wipe`: the marks its block draws, combined as the app's Wipe Stacks
+   * combine them (`core/wipe.ts`), and what is left drawn in their place.
+   */
+  private wipe(instruction: WipeInstruction, path: number[], where: Where): void {
+    const op = instruction.op;
+    this.combine(instruction.body, path, where, 'wipe', `wipe ${op}`, WIPE_EMPTY[op], (page, ids) => wipeMarks(page, ids, op));
+  }
+
+  /**
+   * A `stack`: the marks its block draws, stacked as the app's Shape Stacker
+   * stacks them (`core/wipe.ts`'s `stackFaces`) - the pieces under its points
+   * merged into one shape, or taken away - and what is left drawn in their
+   * place. The points are where the `stack` line is, under its transform, as
+   * a mark drawn there would be; one on none of the pieces picks nothing, and
+   * says so.
+   */
+  private stack(instruction: StackInstruction, path: number[], where: Where): void {
+    const verb = 'stack';
+    const mode = instruction.mode;
+    const at = this.points(instruction.points, where, verb).map((p) => apply(this.frame.matrix, p));
+    let missed: number[] = [];
+    this.combine(instruction.body, path, where, verb, `stack ${mode}`, 'its points took every piece away', (page, ids) => {
+      const result = stackFaces(page, ids, at, mode);
+      missed = at.flatMap((p, k) => (result.missed.includes(p) ? [k + 1] : []));
+      return result;
+    });
+    if (missed.length === 0) return;
+    const which =
+      missed.length === 1 ? `point ${missed[0]}` : `points ${missed.slice(0, -1).join(', ')} and ${missed[missed.length - 1]}`;
+    this.warn(
+      'stack-missed',
+      `\`stack ${mode}\` found no piece under ${which} of its ${at.length}: a point picks the piece of its block's marks under it.`,
+      where,
+      verb,
+    );
+  }
+
+  /**
+   * A `split`: the topmost mark drawn so far whose path passes within
+   * {@link SPLIT_REACH_PX} of the point - under the `split` line's transform,
+   * as a mark drawn there would be - cut there as the app's Split cuts it
+   * (`core/split.ts`), and the pieces put in its place, on its layer. In a
+   * `wipe` or a `stack` block, it cuts among the marks the block has drawn,
+   * which the block goes on to combine.
+   */
+  private split(instruction: SplitInstruction, where: Where): void {
+    const verb = 'split';
+    const local = this.point(instruction.x, instruction.y, where, verb);
+    const at = apply(this.frame.matrix, local);
+    const top = this.combining[this.combining.length - 1];
+    const marks = top ? top.held : paintOrder(this.sink.currentPage());
+    const place = `(${shown(fromPx(local.x, this.frame.units))}, ${shown(fromPx(local.y, this.frame.units))})`;
+    const target = splitTarget(marks, at, SPLIT_REACH_PX, { anchorReach: SPLIT_REACH_PX / 2 });
+    if (!target) {
+      this.warn('split-missed', `\`split\` found no path within ${SPLIT_REACH_PX} px of ${place}.`, where, verb);
+      return;
+    }
+    const pieces = splitMark(target.stroke, target.at);
+    if (!pieces) {
+      this.warn('split-missed', `\`split\` at ${place} lands on the end of an open path: there is nothing there to cut.`, where, verb);
+      return;
+    }
+    const placed = pieces.second ? [pieces.first, pieces.second] : [pieces.first];
+    // The budget counts the pieces, less the mark they replace.
+    const size = (list: readonly Stroke[]): { anchors: number; points: number } =>
+      list.reduce((sum, s) => ({ anchors: sum.anchors + (s.vector?.anchors.length ?? 0), points: sum.points + s.points.length }), { anchors: 0, points: 0 });
+    const before = size([target.stroke]);
+    const after = size(placed);
+    this.afford(placed.length - 1, after.anchors - before.anchors, after.points - before.points, where, verb);
+    if (top) {
+      const i = top.held.indexOf(target.stroke);
+      top.held.splice(i, 1, ...placed.map((piece) => ({ ...piece, id: '' })));
+    } else {
+      this.sink.replaceMark(target.stroke, placed);
+    }
+    this.spend(placed.length - 1, after.anchors - before.anchors, after.points - before.points);
+  }
+
+  /**
+   * A `smear`: a pass of the app's Smear along the points, where the `smear`
+   * line is under its transform, over every Pencil mark drawn so far that it
+   * reaches - in a wipe or a stack block, the block's marks - each keeping
+   * the part of the pass that reached it (core/smudge.ts). The width scales
+   * with the transform, as a mark's does. Reaching none, it says so.
+   */
+  private smear(instruction: SmearInstruction, where: Where): void {
+    const verb = 'smear';
+    const m = this.frame.matrix;
+    const width = this.positive(this.length(instruction.width, axisOf(verb, 'width'), where, verb), "A smear's width", where, verb) * meanScale(m);
+    const strength = Math.min(1, Math.max(0, this.number(instruction.strength, where, verb)));
+    const at = this.points(instruction.points, where, verb).map((p) => ({ ...apply(m, p), pressure: 0.5 }));
+    const top = this.combining[this.combining.length - 1];
+    const marks = top ? top.held : this.sink.currentPage().strokes;
+    let reached = 0;
+    for (const mark of marks) {
+      if (mark.tool !== 'pencil') continue;
+      const pass = smudgeFor(mark, at, width, strength);
+      if (!pass) continue;
+      mark.smudges = [...(mark.smudges ?? []), pass];
+      reached++;
+    }
+    if (reached === 0) this.warn('smear-missed', '`smear` reached no pencil mark drawn so far: it spreads the graphite of the pencil marks it passes over.', where, verb);
+  }
+
+  /**
+   * A `warp`, `twirl`, `pucker` or `bloat`: one of the app's Liquify brushes
+   * pressed once at the point, where the line is under its transform, on
+   * every mark drawn so far that it reaches - in a wipe or a stack block, the
+   * block's marks - each bent where it is and fitted again after, as the app's
+   * release fits it (core/liquify.ts). The radius scales with the transform,
+   * Warp's push turns and scales with it, and a mirrored transform turns a
+   * Twirl the other way, as it turns everything else. Reaching none, it says so.
+   */
+  private liquify(instruction: WarpInstruction | LiquifyInstruction, where: Where): void {
+    const verb = instruction.verb;
+    const m = this.frame.matrix;
+    const local = this.point(instruction.x, instruction.y, where, verb);
+    const at = apply(m, local);
+    const radius = this.positive(this.length(instruction.radius, axisOf(verb, 'radius'), where, verb), "A brush's radius", where, verb) * meanScale(m);
+    const dab: LiquifyDab = { mode: verb, x: at.x, y: at.y, radius };
+    if (instruction.verb === 'warp') {
+      const push = this.point(instruction.dx, instruction.dy, where, verb);
+      const tip = apply(m, { x: local.x + push.x, y: local.y + push.y });
+      dab.dx = tip.x - at.x;
+      dab.dy = tip.y - at.y;
+    } else {
+      const amount = this.number(instruction.amount, where, verb);
+      const mirrored = m[0] * m[3] - m[1] * m[2] < 0;
+      dab.amount = instruction.verb === 'twirl' ? (mirrored ? -amount : amount) : Math.min(1, Math.max(0, amount));
+    }
+    const top = this.combining[this.combining.length - 1];
+    const marks = top ? top.held : this.sink.currentPage().strokes;
+    // Each mark on its own: a block's held marks have no ids to tell them apart by.
+    const bends: Array<{ mark: Stroke; bent: Stroke }> = [];
+    for (const mark of marks) {
+      const bent = liquifyMarks([mark], [dab], { refit: LIQUIFY_REFIT_PX }).values().next().value;
+      if (bent) bends.push({ mark, bent });
+    }
+    if (bends.length === 0) {
+      const place = `(${shown(fromPx(local.x, this.frame.units))}, ${shown(fromPx(local.y, this.frame.units))})`;
+      this.warn('liquify-missed', `\`${verb}\` at ${place} reached no mark drawn so far: Liquify bends the marks under its brush, all but pencil marks.`, where, verb);
+      return;
+    }
+    const size = (list: readonly Stroke[]): { anchors: number; points: number } =>
+      list.reduce((sum, s) => ({ anchors: sum.anchors + (s.vector?.anchors.length ?? 0), points: sum.points + s.points.length }), { anchors: 0, points: 0 });
+    const before = size(bends.map((b) => b.mark));
+    const after = size(bends.map((b) => b.bent));
+    this.afford(0, after.anchors - before.anchors, after.points - before.points, where, verb);
+    for (const { mark, bent } of bends) {
+      mark.points = bent.points;
+      if (bent.vector) mark.vector = bent.vector;
+      if (bent.nibAngle !== undefined) mark.nibAngle = bent.nibAngle;
+    }
+    this.spend(0, after.anchors - before.anchors, after.points - before.points);
+  }
+
+  /**
+   * A block whose marks are combined into what it draws: a `wipe`'s or a
+   * `stack`'s. The block keeps its paint and transforms to itself, as a
+   * group's does, and its marks are held back from the sink while it runs.
+   * `edit` then says what becomes of them - given them as a page of their
+   * own, each on a layer of its own, so a piece added from one can be told
+   * apart by the mark it is of - and each is put back as the edit left it, in
+   * the order drawn: a mark changed, with the pieces added from it right
+   * after; nothing for one taken away; and text, pictures and eraser marks
+   * as they were. Effects written just before the block go on every mark it
+   * leaves, as a group's go on everything in it. An edit that cannot be made
+   * draws the marks as they are, with a warning.
+   */
+  private combine(
+    body: readonly Instruction[],
+    path: number[],
+    where: Where,
+    verb: 'wipe' | 'stack',
+    label: string,
+    emptyReason: string,
+    edit: (page: Sketch, ids: string[]) => WipeResult,
+  ): void {
+    const effects = this.takeEffects();
+    this.enter(where, verb);
+    const held: Stroke[] = [];
+    this.combining.push({ verb, held });
+    let drawn = false;
+    try {
+      this.block(body, path, true);
+      drawn = true;
+    } finally {
+      this.combining.pop();
+      this.depth--;
+      // The budget ran out in the block: what it drew stays as it was drawn.
+      if (!drawn) for (const stroke of held) this.put(stroke);
+    }
+    const leave = (list: readonly Stroke[]): void => {
+      for (const stroke of list) this.put(effects ? { ...stroke, effects: [...(stroke.effects ?? []), ...effects] } : stroke);
+    };
+
+    // The block's marks as a page of their own, each on a layer of its own,
+    // so each piece added can be told apart by the mark it is of.
+    const layerOf = (i: number): string => `wl${i}`;
+    const idOf = (i: number): string => `w${i}`;
+    const page: Sketch = {
+      id: verb,
+      name: verb,
+      width: this.page.width,
+      height: this.page.height,
+      background: this.background,
+      layers: held.map((_, i) => ({ id: layerOf(i), name: layerOf(i), opacity: 1, visible: true, locked: false })),
+      strokes: held.map((stroke, i) => ({ ...stroke, id: idOf(i), layer: layerOf(i) })),
+      createdAt: '',
+      updatedAt: '',
+    };
+    const result = edit(page, page.strokes.map((stroke) => stroke.id));
+    if (result.problem) {
+      const operands = held.filter(isWipeable).length;
+      const why =
+        result.problem === 'too-few'
+          ? 'its block drew fewer than two marks it can combine'
+          : result.problem === 'too-many'
+            ? operands > WIPE_OPERAND_LIMIT
+              ? `it combines up to ${WIPE_OPERAND_LIMIT} marks, and its block drew ${operands}`
+              : `its marks cut into more than ${WIPE_FACE_LIMIT} pieces`
+            : 'the geometry of its marks could not be combined';
+      this.warn('wipe-failed', `\`${label}\` did nothing: ${why}. Its marks are drawn as they are.`, where, verb);
+      leave(held);
+      return;
+    }
+
+    const bare = (stroke: Stroke): Stroke => {
+      const copy: Stroke = { ...stroke, id: '' };
+      delete copy.layer;
+      return copy;
+    };
+    const left: Stroke[] = [];
+    let passed = 0;
+    held.forEach((stroke, i) => {
+      const changed = result.changed.get(idOf(i));
+      if (changed) left.push(bare(changed));
+      else if (!result.removed.has(idOf(i))) {
+        left.push(stroke);
+        // As it was: a mark the edit cannot take, or one it never reached.
+        if (result.skipped.has(idOf(i)) || stroke.tool === 'eraser') passed++;
+      }
+      for (const piece of result.added) if (piece.above === layerOf(i)) left.push(bare(piece.stroke));
+    });
+    if (passed > 0) {
+      this.warn(
+        'wipe-skipped',
+        `\`${label}\` passed over ${passed === 1 ? 'a mark' : `${passed} marks`} it cannot combine, such as text, pictures and eraser marks, and drew ${passed === 1 ? 'it' : 'them'} as ${passed === 1 ? 'it was' : 'they were'}.`,
+        where,
+        verb,
+      );
+    }
+    if (result.empty) this.warn('wipe-empty', `\`${label}\` left nothing: ${emptyReason}.`, where, verb);
+
+    // The budget counts what the block leaves, not the operands it took.
+    const size = (list: readonly Stroke[]): { anchors: number; points: number } =>
+      list.reduce((sum, s) => ({ anchors: sum.anchors + (s.vector?.anchors.length ?? 0), points: sum.points + s.points.length }), { anchors: 0, points: 0 });
+    const before = size(held);
+    const after = size(left);
+    const more = { marks: left.length - held.length, anchors: after.anchors - before.anchors, points: after.points - before.points };
+    try {
+      this.afford(more.marks, more.anchors, more.points, where, verb);
+    } catch (err) {
+      // No room for what the block leaves: its marks stay as they were drawn.
+      leave(held);
+      throw err;
+    }
+    leave(left);
+    this.spend(more.marks, more.anchors, more.points);
+  }
+
+  /**
+   * A `clip`: a group, as `group` makes one, whose content shows only inside
+   * the block's last closed shape in paint order - the app's Make Clipping
+   * Mask takes the topmost - which paints nothing while it clips
+   * (core/clip.ts). With no closed shape in the block it is a plain group,
+   * and says so.
+   */
+  private clip(instruction: ClipInstruction, path: number[], where: Where): void {
+    const verb = 'clip';
+    const page = this.sink.currentPage();
+    const before = new Set(page.strokes);
+    this.enter(where, verb);
+    const groupId = this.sink.beginGroup(instruction.name ?? CLIP_GROUP_NAME, this.effectProps());
+    this.groups++;
+    try {
+      this.block(instruction.body, path, true);
+    } finally {
+      this.groups--;
+      this.sink.endGroup();
+      this.depth--;
+    }
+    const drawn = new Set(page.strokes.filter((s) => !before.has(s)));
+    const mark = paintOrder(page)
+      .filter((s) => drawn.has(s))
+      .reverse()
+      .find(canClip);
+    if (!mark) {
+      this.warn('clip-open', '`clip` drew no closed shape in its block to clip with, so it is a plain group.', where, verb);
+      return;
+    }
+    this.sink.clipGroup(groupId, mark);
   }
 
   private gradient(instruction: GradientInstruction, where: Where): Gradient | null {

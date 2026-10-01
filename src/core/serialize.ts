@@ -29,7 +29,9 @@ import {
   type VectorAnchor,
 } from './types.js';
 import { readEffects } from './effects.js';
+import { normalizeClips } from './clip.js';
 import { linkKind } from './link.js';
+import { DEFAULT_PENCIL, pencilGrade, type PencilChoice } from './pencil.js';
 
 /** Ensures a path/name ends with the `.skbk` extension. */
 export function withSketchBookExtension(filePath: string): string {
@@ -44,7 +46,7 @@ export function deriveName(filePath: string): string {
   return stem(filePath) || 'untitled';
 }
 
-const VALID_TOOLS: Tool[] = ['pen', 'marker', 'copic', 'eraser', 'select', 'text', 'image'];
+const VALID_TOOLS: Tool[] = ['pen', 'marker', 'copic', 'pencil', 'eraser', 'select', 'text', 'image'];
 
 /** Reads an `{x, y}` position, or null when the shape is invalid. */
 function normalizeXY(raw: unknown): { x: number; y: number } | null {
@@ -71,15 +73,17 @@ function normalizeVector(raw: unknown): Stroke['vector'] {
     if (!p) return undefined;
     const hIn = normalizeXY(a.hIn);
     const hOut = normalizeXY(a.hOut);
+    const pressure = typeof a.pressure === 'number' && Number.isFinite(a.pressure) ? Math.min(1, Math.max(0, a.pressure)) : undefined;
     anchors.push({
       p,
       ...(hIn ? { hIn } : {}),
       ...(hOut ? { hOut } : {}),
       ...(a.move === true ? { move: true as const } : {}),
+      ...(pressure !== undefined ? { pressure } : {}),
     });
   }
   if (anchors.length < 2) return undefined;
-  return { anchors, ...(r.closed === true ? { closed: true } : {}) };
+  return { anchors, ...(r.closed === true ? { closed: true } : {}), ...(r.fitted === true ? { fitted: true as const } : {}) };
 }
 
 /**
@@ -180,6 +184,11 @@ function normalizeStroke(raw: unknown): Stroke | null {
       tool === 'copic' && typeof r.nibAngle === 'number' && Number.isFinite(r.nibAngle)
         ? ((r.nibAngle % 360) + 360) % 360
         : undefined,
+    // A Pencil mark keeps the pencil it was drawn with, and one naming none
+    // there is draws as graphite HB.
+    pencil: tool === 'pencil' ? normalizePencil(r.pencil) : undefined,
+    // The Smear's passes, kept on the Pencil marks they smeared.
+    smudges: tool === 'pencil' ? normalizeSmudges(r.smudges) : undefined,
     text: isText ? (r.text as string) : undefined,
     fontSize: isText && typeof r.fontSize === 'number' ? r.fontSize : undefined,
     fontFamily: isText && typeof r.fontFamily === 'string' ? r.fontFamily : undefined,
@@ -192,6 +201,31 @@ function normalizeStroke(raw: unknown): Stroke | null {
     link: isImage ? normalizeLink(r.link) : undefined,
     ...(effects ? { effects } : {}),
   };
+}
+
+/**
+ * A Pencil mark's Smear passes: each a path of at least two anchors, a
+ * width above nothing and a strength from 0 to 1. A pass that is not one is
+ * dropped, and a mark left with none has none.
+ */
+export function normalizeSmudges(raw: unknown): Stroke['smudges'] {
+  if (!Array.isArray(raw)) return undefined;
+  const smudges: NonNullable<Stroke['smudges']> = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const r = entry as Record<string, unknown>;
+    const path = normalizeVector({ anchors: r.path })?.anchors;
+    if (!path || typeof r.width !== 'number' || !(r.width > 0) || !Number.isFinite(r.width)) continue;
+    if (typeof r.strength !== 'number' || !Number.isFinite(r.strength)) continue;
+    smudges.push({ path, width: r.width, strength: Math.min(1, Math.max(0, r.strength)) });
+  }
+  return smudges.length > 0 ? smudges : undefined;
+}
+
+/** A Pencil mark's pencil as the kit spells it, or graphite HB for one that names none there is. */
+function normalizePencil(raw: unknown): PencilChoice {
+  const grade = raw && typeof raw === 'object' ? pencilGrade(raw as PencilChoice) : null;
+  return grade ? { medium: grade.medium, grade: grade.grade } : { ...DEFAULT_PENCIL };
 }
 
 const LINK_KINDS: readonly LinkKind[] = ['svg', 'png', 'jpeg', 'gif', 'pdf', 'unknown'];
@@ -221,6 +255,7 @@ function normalizeLayer(raw: unknown, index: number): Layer | null {
     group: r.group === true ? true : undefined,
     parent: typeof r.parent === 'string' ? r.parent : undefined,
     ...(effects ? { effects } : {}),
+    ...(r.group === true && typeof r.clip === 'string' ? { clip: r.clip } : {}),
   };
 }
 
@@ -273,7 +308,7 @@ function normalizeSketch(raw: unknown): Sketch {
     if (!stroke.layer || !drawableIds.has(stroke.layer)) stroke.layer = fallbackId;
   }
 
-  return {
+  const sketch: Sketch = {
     id: typeof r.id === 'string' ? r.id : base.id,
     name: typeof r.name === 'string' ? r.name : base.name,
     width: typeof r.width === 'number' && r.width > 0 ? r.width : base.width,
@@ -285,6 +320,9 @@ function normalizeSketch(raw: unknown): Sketch {
     createdAt: typeof r.createdAt === 'string' ? r.createdAt : base.createdAt,
     updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : base.updatedAt,
   };
+  // A clip that names no closed mark in its group clips nothing, and goes.
+  normalizeClips(sketch);
+  return sketch;
 }
 
 /** Coerces an arbitrary parsed object into a valid SketchBook. */

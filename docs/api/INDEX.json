@@ -33,6 +33,11 @@
       "summary": "The two entries, ES modules and CommonJS, types, the result object, and what throws."
     },
     {
+      "id": "engines",
+      "title": "The drawing engines",
+      "summary": "The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify."
+    },
+    {
       "id": "interop",
       "title": "Working with other programs",
       "summary": "Illustrator and Inkscape through SVG, an Illustrator script that rebuilds a drawing, files linked from elsewhere, and what survives a round trip."
@@ -50,8 +55,8 @@
       "kind": "hub",
       "title": "The napkin-sketch API",
       "summary": "Draw without a pointer. napkin-sketch has a language, napkin script, that says what to draw one instruction a line, and a composition API that builds a graphic in code. Both write SVG and PNG, and a drawing also PDF, the app's own `.skbk` and an Illustrator script, with no window, no browser and no native library, from a shell, from Node, or from any language that can start a process.",
-      "lines": 133,
-      "tokens": 2334
+      "lines": 138,
+      "tokens": 2500
     },
     {
       "path": "API-QUICKSTART.md",
@@ -68,8 +73,8 @@
       "kind": "cheatsheet",
       "title": "API cheatsheet",
       "summary": "The whole API on one page: every verb, the command line, the two imports, the render options and the exit codes.",
-      "lines": 130,
-      "tokens": 3438
+      "lines": 142,
+      "tokens": 5073
     },
     {
       "path": "docs/api/language/README.md",
@@ -77,8 +82,8 @@
       "kind": "verbose",
       "title": "The napkin script language",
       "summary": "Napkin script says what to draw without a pointer. A person or an AI helper writes it as text, one instruction to a line; a program in any language builds the same thing as JSON. Both become one list of instructions, the object form, which is what the rest of the API runs.",
-      "lines": 609,
-      "tokens": 8707
+      "lines": 628,
+      "tokens": 10593
     },
     {
       "path": "docs/api/language/QUICKSTART.md",
@@ -96,7 +101,7 @@
       "title": "The napkin script language: cheatsheet",
       "summary": "Reminders for the language: syntax, values, the verbs that shape a script, functions, the budget and every diagnostic code.",
       "lines": 150,
-      "tokens": 2633
+      "tokens": 2926
     },
     {
       "path": "docs/api/drawing/README.md",
@@ -104,8 +109,8 @@
       "kind": "verbose",
       "title": "Drawing with napkin script",
       "summary": "`evaluate` runs a napkin script and gives back a drawing: a sketch book of pages, each with a layer tree and the marks on it. This page is the reference for what each instruction draws and how state carries through a script. How a script is written - its syntax, values, expressions and diagnostics - is in [The napkin script language](../language/README.md).",
-      "lines": 753,
-      "tokens": 8749
+      "lines": 1038,
+      "tokens": 11750
     },
     {
       "path": "docs/api/drawing/QUICKSTART.md",
@@ -122,8 +127,8 @@
       "kind": "cheatsheet",
       "title": "Drawing with napkin script: cheatsheet",
       "summary": "Reminders for what each instruction draws: the drawing verbs, the shape library, the hand-drawn pass and `evaluate`.",
-      "lines": 144,
-      "tokens": 2813
+      "lines": 150,
+      "tokens": 4298
     },
     {
       "path": "docs/api/compose/README.md",
@@ -159,7 +164,7 @@
       "title": "Writing a drawing out",
       "summary": "`renderSketch` writes a page and `renderBook` writes a book, as SVG, PNG, PDF, a `.skbk` the app opens, or an Illustrator script that rebuilds it. Both run with no DOM, in a browser or in plain Node, and add no dependency. This page is the reference for the formats, the box every format is cut to, and what a format says when it leaves something out. How a drawing is made is in [Drawing with napkin script](../drawing/README.md).",
       "lines": 421,
-      "tokens": 5080
+      "tokens": 5081
     },
     {
       "path": "docs/api/output/QUICKSTART.md",
@@ -234,13 +239,40 @@
       "tokens": 1101
     },
     {
+      "path": "docs/api/engines/README.md",
+      "category": "engines",
+      "kind": "verbose",
+      "title": "The drawing engines",
+      "summary": "The app's tools stand on engines that run as plain functions: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify. This page is the reference for each as a program calls it from `napkin-sketch`, with a worked example for each that runs as it is.",
+      "lines": 449,
+      "tokens": 5518
+    },
+    {
+      "path": "docs/api/engines/QUICKSTART.md",
+      "category": "engines",
+      "kind": "quickstart",
+      "title": "The drawing engines: quickstart",
+      "summary": "The engines behind the app's Eraser, Wipe Stacks, Split and Liquify run as plain functions; this is the path from a clone to a page combined and cut by a program, and written out as SVG.",
+      "lines": 65,
+      "tokens": 679
+    },
+    {
+      "path": "docs/api/engines/CHEATSHEET.md",
+      "category": "engines",
+      "kind": "cheatsheet",
+      "title": "The drawing engines: cheatsheet",
+      "summary": "Reminders for the engines: what each call takes, what it gives back, and where it stops.",
+      "lines": 102,
+      "tokens": 1244
+    },
+    {
       "path": "docs/api/interop/README.md",
       "category": "interop",
       "kind": "verbose",
       "title": "Working with other programs",
       "summary": "napkin-sketch trades drawings with Illustrator, Inkscape and other vector editors through SVG, which all of them read and write, writes an Illustrator script that rebuilds a drawing in Illustrator's own objects, and places files made elsewhere by reference with `link`. This page is the reference for what an export writes for another editor, what an import makes of another editor's file, what the Illustrator script builds, what survives the trip each way, and how a linked file differs from an imported or an embedded one.",
       "lines": 486,
-      "tokens": 6791
+      "tokens": 6792
     },
     {
       "path": "docs/api/interop/QUICKSTART.md",
@@ -293,8 +325,8 @@
       "kind": "schema",
       "title": "The object form as a JSON Schema",
       "summary": "A JSON Schema, draft-07, for a script built as JSON: check one against it before handing it over. validateScript is the full check.",
-      "lines": 3467,
-      "tokens": 22577
+      "lines": 4073,
+      "tokens": 27649
     }
   ]
 }

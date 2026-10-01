@@ -38,6 +38,9 @@ function formatValue(slot: SlotPart, value: unknown): string {
       return quoteString(String(value));
     case 'switch':
       return value ? 'on' : 'off';
+    case 'pencil':
+      // `charcoal-4B` is two words in a script: the hyphen before a digit would read as a minus.
+      return String(value).replace('-', ' ');
     case 'points':
       return (value as PointArg[]).map((point) => `${scalar(point.x)} ${scalar(point.y)}`).join(', ');
     case 'stops':

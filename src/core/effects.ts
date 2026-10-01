@@ -249,22 +249,29 @@ export interface LinearTransform {
  * filter in device pixels whatever its transform, so the transform the list
  * is drawn under is applied here: its scale sizes every blur and shadow, and
  * its turn carries a shadow's offset, as it does in SVG. A context's own
- * `getTransform()` will do.
+ * `getTransform()` will do. `maxBlurPx` holds every blur, a shadow's
+ * included, to that many device pixels: a painter that paints only so far past
+ * its canvas gives it, so a blur never gathers from beyond what was painted.
  */
-export function cssFilter(effects: readonly Effect[], transform: LinearTransform = { a: 1, b: 0, c: 0, d: 1 }): string {
+export function cssFilter(
+  effects: readonly Effect[],
+  transform: LinearTransform = { a: 1, b: 0, c: 0, d: 1 },
+  maxBlurPx = Infinity,
+): string {
   const { a, b, c, d } = transform;
   const scale = Math.sqrt(Math.abs(a * d - b * c)) || 1;
+  const blur = (length: number): number => Math.min(length * scale, maxBlurPx);
   return effects
     .map((effect) => {
       switch (effect.type) {
         case 'blur':
-          return `blur(${num(effect.radius * scale)}px)`;
+          return `blur(${num(blur(effect.radius))}px)`;
         case 'hue-rotate':
           return `hue-rotate(${num(effect.angle)}deg)`;
         case 'drop-shadow': {
           const dx = a * effect.dx + c * effect.dy;
           const dy = b * effect.dx + d * effect.dy;
-          return `drop-shadow(${num(dx)}px ${num(dy)}px ${num(effect.blur * scale)}px ${effect.color})`;
+          return `drop-shadow(${num(dx)}px ${num(dy)}px ${num(blur(effect.blur))}px ${effect.color})`;
         }
         default:
           return `${effect.type}(${num(effect.amount)})`;

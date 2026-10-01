@@ -62,6 +62,14 @@ test('select tool is normalized to pen on persistence', () => {
   assert.equal(book.sketches[0].strokes[0].tool, 'pen');
 });
 
+test("a mark whose tool is brush, the Brush's other name, reads as the pen it is", () => {
+  const book = normalizeSketchBook(
+    { sketches: [{ strokes: [{ tool: 'brush', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] }] }] },
+    'x',
+  );
+  assert.equal(book.sketches[0].strokes[0].tool, 'pen');
+});
+
 test('version 1 documents (no layers) gain a default layer', () => {
   const v1 = {
     format: 'napkin-sketch',

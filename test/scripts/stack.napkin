@@ -1,0 +1,59 @@
+napkin 1
+# The Shape Stacker as a block verb. Each stack takes the pieces its points
+# land on - where the marks overlap, and where they do not - and merges them
+# into one shape, painted as the topmost mark over the first point, or with
+# remove takes them away from every mark. Every cell in the top row stacks
+# the same pair: a red square below and a blue circle above it.
+page 520 320
+name "stack"
+background #ffffff
+layer "Stacks"
+color #1f2328 width 2
+define "pair" {
+  fill #d0342c
+  rect 0 0 70 70
+  fill #27486d
+  circle 70 70 40
+}
+define "venn" {
+  fill #d0342c
+  circle 40 40 40
+  fill #27486d
+  circle 80 40 40
+  fill #2e7d5b
+  circle 60 75 40
+}
+# The square's own piece and the overlap merged: the square again, and the
+# circle keeps the rest.
+stack merge 35 35, 80 80 {
+  place "pair" at 20 20
+}
+# The overlap alone: a piece of its own, in the circle's paint.
+stack merge 205 80 {
+  place "pair" at 145 20
+}
+# The overlap taken away from both.
+stack remove 330 80 {
+  place "pair" at 270 20
+}
+# Every piece merged: one shape, in the paint of the square the first point is on.
+stack merge 410 35, 455 80, 485 110 {
+  place "pair" at 395 20
+}
+# Three circles: the middle taken from all three, and then every overlap
+# merged into one piece, painted as the topmost circle over the middle.
+stack remove 80 222 {
+  place "venn" at 20 170
+}
+stack merge 230 222, 230 190, 205 240, 255 240 {
+  place "venn" at 170 170
+}
+# A line is its ink: the piece where it crosses a square taken away cuts the
+# square in two, and the line with it.
+stack remove 385 235 {
+  fill #ffe08a
+  rect 330 180 110 110
+  fill none
+  width 14
+  line 320 235 450 235
+}

@@ -12,6 +12,7 @@ import { DEFAULT_FONT_FAMILY, DEFAULT_NIB_ANGLE, type Gradient, type StrokeProfi
 import { IDENTITY, apply, type Matrix } from '../graphic-design/geometry.js';
 import type { LengthUnit } from '../units.js';
 import type { ScriptTool } from './instructions.js';
+import { DEFAULT_PENCIL, type PencilChoice } from '../pencil.js';
 
 /** napkin's default ink: what a script draws in until it names a color. */
 export const DEFAULT_INK = '#1f2328';
@@ -48,6 +49,9 @@ export interface PaintState {
   profile: StrokeProfile;
   /** The copic nib angle, in degrees. */
   nib: number;
+  /** The pencil the Pencil draws with, and a colored pencil's color - null for the grade's own tone. */
+  pencil: PencilChoice;
+  pencilColor: string | null;
   rough: RoughState;
   font: { family: string; size: number };
 }
@@ -64,6 +68,8 @@ export function defaultPaint(): PaintState {
     style: 'solid',
     profile: 'uniform',
     nib: DEFAULT_NIB_ANGLE,
+    pencil: { ...DEFAULT_PENCIL },
+    pencilColor: null,
     rough: { amount: 0, passes: 1 },
     font: { family: DEFAULT_FONT_FAMILY, size: DEFAULT_TEXT_SIZE },
   };
@@ -90,6 +96,7 @@ export function copyFrame(frame: Frame): Frame {
     paint: {
       ...paint,
       gradient: paint.gradient ? { ...paint.gradient, stops: paint.gradient.stops.map((s) => ({ ...s })) } : null,
+      pencil: { ...paint.pencil },
       rough: { ...paint.rough },
       font: { ...paint.font },
     },

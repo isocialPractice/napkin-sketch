@@ -1,15 +1,26 @@
-# Transform, Rotate, Mirror and Mesh Warp
+# Transform, Rotate, Mirror, Mesh Warp, Liquify and Wipe Stacks
 
 ## At a glance
 
 - **Mesh Warp** - below the tools in the side rail: click art to mesh it, then
   drag its pins to bend it, as Illustrator's Puppet Warp does. `Enter` bakes the
   bend into the art as one undo step, and `Escape` throws it away.
+- **Liquify** (`Shift+R`, after Mesh Warp in the side rail): bend the marks
+  under a brush as Illustrator's Warp tools do - Warp pushes their outline
+  along the drag, Twirl turns it, Pucker draws it in and Bloat pushes it out -
+  one undo step a drag.
+- **Wipe Stacks** - Transform > Wipe Stacks, the canvas's right-click menu, or
+  the Shape Stacker's panel:
+  combine the selected shapes as Illustrator's Pathfinder does - unite them,
+  take one from the others, keep their overlap or all but it, or cut them into
+  every piece of their overlaps - in one undo step, with a quarter-second
+  napkin wiping over the result.
 
 ## The Transform box
 
-**Transform (`Ctrl+T`, or Transform > Transform Box, checked while the box is
-up):** puts one box around everything selected, with a
+**Transform (`Ctrl+T`, the **Transform** button beside Mirror in the toolbar,
+or Transform > Transform Box; the button is pressed and the row checked while
+the box is up):** puts one box around everything selected, with a
 handle on each corner and the middle of each side, and scales it by dragging
 one. The box stays up while it is in use — press `Ctrl+T` again or `Escape` to
 put it away — and a press anywhere off a handle still belongs to the tool
@@ -147,6 +158,96 @@ Gradients and dash styles are written into exported SVGs as real
 `<linearGradient>` / `<radialGradient>` paint servers and `stroke-dasharray`
 values, so other editors see them, and they round-trip back into napkin
 unchanged.
+
+## Liquify
+
+*New in 1.0.0-alpha.4.6.0.*
+
+**Liquify (`Shift+R`, Transform > Liquify, or its button after Mesh Warp's
+below the tools in the side rail):** bends the marks under a brush, as
+Illustrator's Warp tools do. The key or a press on the button opens its
+panel of four brushes, two by two; the arrows move round it and `Enter`
+chooses.
+
+| Brush | What it does |
+| --- | --- |
+| **Warp** | Pushes the outline along the drag, like clay: what is under the brush's centre goes the whole way |
+| **Twirl** | Turns what is under the brush about its centre, clockwise, for as long as the press is held |
+| **Pucker** | Draws what is under the brush in toward its centre, while held |
+| **Bloat** | Pushes what is under the brush out from its centre, while held |
+
+- **The brush.** A ring round the pointer with a small cross at its centre,
+  100 px across the page unless changed. What it bends falls off smoothly
+  from its centre to nothing at the ring. `Alt`-drag sizes it: the ring
+  stays where the press went down and its edge follows the pointer. `[` and
+  `]` make it a step smaller or larger. A toast gives the new size.
+- **What bends.** The selected marks, or, with nothing selected, every mark
+  under the brush on a visible, unlocked layer, as Illustrator chooses.
+  `Ctrl` lends the selection tool, as on the drawing tools, to choose them.
+  Pencil marks are the [Smear](tools.md#smear)'s to blend, so Liquify leaves
+  them, and says so the first time. Text, pictures and eraser marks have no
+  outline to bend.
+- **Held and pressed.** Twirl, Pucker and Bloat keep working while the press
+  is held still, faster under a pen pressed harder. Warp works as the
+  pointer moves, and pushes less under a light pen.
+- **What moves.** As under Mesh Warp, anchors and handles move, and a segment
+  is split where one piece could no longer follow the bend. A drawn rectangle
+  or ellipse, which has points rather than anchors, bends as a path, its
+  straight sides too. When the drag ends, each mark it bent is fitted again
+  at the Freehand fidelity (Verbose Settings > Sketch Support), so its
+  anchors stay few. A Vector Path the brush never split keeps the anchors it
+  was drawn with. Widths are kept, and a Copic nib turns with what it is on.
+- **Undo.** One drag is one undo step. `Escape` before letting go puts back
+  everything the drag bent.
+
+A script bends with `warp`, `twirl`, `pucker` and `bloat`
+([Drawing with napkin script](../api/drawing/README.md#liquify)).
+
+## Wipe Stacks
+
+**Wipe Stacks (Transform > Wipe Stacks, after Close Shape, the canvas's
+right-click menu, or the tiles in the [Shape Stacker](tools.md#shape-stacker)'s
+panel):** combines the selected shapes as Illustrator's Pathfinder does. It takes two or more shapes, and its rows are greyed until two are
+selected. As in Illustrator the rows have no keys; **Edit Keyboard Shortcuts**
+can give them some.
+
+| Row | Pathfinder | What is left | Painted as |
+| --- | --- | --- | --- |
+| **Wipe In** | Unite | everything the shapes cover, as one shape | the topmost shape |
+| **Wipe Out > Subtract Top from Below** | Minus Front | the bottom shape, less the ones above it | the bottom shape |
+| **Wipe Out > Subtract Below from Top** | Minus Back | the top shape, less the ones below it | the top shape |
+| **Mid Wipe** | Intersect | only where every shape overlaps | the topmost shape |
+| **Outer Wipes** | Exclude | where an odd number overlap: two shapes lose their overlap, three keep their middle | the topmost shape |
+| **Clean Wipe** | Divide | every piece of the overlaps, a shape each, each on a layer of its own | the topmost shape over the piece |
+
+- **What counts as a shape.** A filled mark, or a closed outline, is its
+  inside. Anything else - a line, a Copic stroke, a profiled stroke - is its
+  ink, the width it paints at: a thick line taken from a square cuts the
+  square in two. A result painted as a shape keeps that shape's fill,
+  outline, width, opacity and effects; one painted from ink is a filled shape
+  in the ink's colour, with no outline.
+- **Text, pictures and placed files are passed over.** They stay as they are,
+  and the notice says so.
+- **Curves are kept.** Where the result runs along one of the shapes' own
+  curves it keeps that shape's anchors and handles exactly, and a corner is
+  made only where one edge crosses another.
+- **One undo step.** The result is on the page, selected, the moment the row
+  is chosen, and `Ctrl+Z` takes the whole wipe back. A wipe takes up to 32
+  shapes at a time.
+- **The wipe.** A paper-coloured napkin, a third of the shapes' width and
+  leaning a little, sweeps across them in a quarter of a second: ahead of it
+  the picture from before, behind it the result. A press, a key or the wheel
+  ends it at once, so it never holds anything up. It is skipped when the
+  system asks for reduced motion, and **Wipe animation** in Verbose Settings
+  (Extras) turns it off.
+- **In the right-click menu** the Wipe Stacks are a block at the end of the
+  canvas menu. The window opens one panel beside a menu, so Wipe Out's two
+  rows are laid out in the Wipe Stacks panel itself, as **Wipe Out: Subtract
+  Top from Below** and **Wipe Out: Subtract Below from Top**.
+- **In a script,** `wipe in|out-front|out-back|mid|outer|clean { ... }`
+  combines the marks its block draws the same six ways, and draws what is
+  left in their place: `wipe out-front { circle 100 100 60  circle 150 100 60 }`.
+  The [drawing reference](../../api/drawing/README.md#combining-shapes) has the verb.
 
 ## Docking the editing panels
 

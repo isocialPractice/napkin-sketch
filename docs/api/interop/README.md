@@ -35,7 +35,7 @@ Inkscape with its layer tree and its layer names, its curves as the same Bezier
 anchors, and its gradients and dashes as the SVG paint those editors show. An
 SVG either of them writes opens in napkin-sketch the same way round: named
 groups become named layers, curves stay curves, and gradients keep their stops.
-What only napkin-sketch knows about a mark - a pen's width profile, a Copic
+What only napkin-sketch knows about a mark - a brush's width profile, a Copic
 nib, the width of a text box - rides along in `data-*` attributes that other
 editors ignore, so napkin's own files come back as they left.
 
@@ -90,7 +90,7 @@ writer, so they write the same file.
 - **A layer's opacity is its group's `opacity`**, which SVG multiplies down the
   tree as the app does.
 - **Marks are paths of exact cubic Beziers**, at two decimals and in the
-  shortest spelling of their path data. A pen or marker stroke with a width
+  shortest spelling of their path data. A brush or marker stroke with a width
   profile, and a Copic stroke, is written as the filled outline it draws, since
   an SVG stroke has one width along its length; its centreline, width and nib
   ride along in `data-d`, `data-width`, `data-profile`, `data-nib` and

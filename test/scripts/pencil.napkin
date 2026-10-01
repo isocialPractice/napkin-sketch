@@ -1,0 +1,28 @@
+napkin 1
+# The Pencil as a script draws with it: graphite grades alone, a medium and
+# its grade, and a colored pencil. Each line is the lead through the paper's
+# grain, in its tone; the SVG carries the paper's tooth once, and a grain
+# paint for each pencil.
+page 520 280
+name "pencil"
+background #fcfaf5
+layer "Pencils"
+width 3
+pencil 2H
+line 20 30 500 30
+pencil HB
+line 20 60 500 60
+pencil 6B
+line 20 90 500 90
+width 4
+pencil charcoal 4B
+line 20 130 500 130
+width 7
+pencil vine soft
+line 20 170 500 170
+width 6
+pencil compressed 6B
+line 20 210 500 210
+width 3
+pencil 2B #3b6e8f
+line 20 250 500 250

@@ -83,7 +83,8 @@ test('the menus table has a row for each menu of the menu bar, with what places 
     ['File', 'Edit', 'View', 'Transform', 'Sketch', 'Layers', 'Pages', 'Automate', 'Help'],
   );
   const row = (menu: string): string => rows.find((line) => line.startsWith(`| ${menu} |`))!;
-  assert.match(row('Transform'), /^\| Transform \| `transform`, `Add:vector`, `Modify:element`, `Subtract:vector` \| Vector Path; /);
+  assert.match(row('Transform'), /^\| Transform \| `transform`, `Add:vector`, `Modify:element`, `Combine:element`, `Subtract:vector` \| Vector Path; /);
+  assert.match(row('Transform'), /Wipe Stacks: Wipe In, Wipe Out, Mid Wipe, Outer Wipes, Clean Wipe;/);
   assert.match(row('Transform'), /Close Shape: Sharp, Smooth;/);
   assert.match(row('Edit'), /Animation Mode \(once installed\)/);
   assert.match(row('Help'), /Tool Types: Transform, Draw, Pages, Layers, Automate; Source Code; Source Docs \(once the site is published\) \|$/);

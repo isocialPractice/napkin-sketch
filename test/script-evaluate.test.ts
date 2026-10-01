@@ -15,6 +15,7 @@ import {
   formatDiagnostic,
   parseScript,
   runScript,
+  validateScript,
   type LayerProps,
   type PageSpec,
   type ScriptResult,
@@ -63,6 +64,13 @@ test('a script becomes a sketch book: a sized page, its background, its marks', 
   assert.equal(rect.points.length, 5, 'sampled from the anchors, closing back to the start');
   assert.deepEqual(tree(page), [['Layer 1', false, null]]);
   assert.deepEqual(result.stats, { instructions: 4, marks: 1, anchors: 4, points: 5, pages: 1 });
+});
+
+test('tool brush draws with the Brush, whose marks say pen, in text and in JSON', () => {
+  const mark = marks(clean('tool brush\nline 0 0 10 10'))[0];
+  assert.equal(mark.tool, 'pen');
+  assert.deepEqual(validateScript([{ verb: 'tool', tool: 'brush' }], { fragment: true }).diagnostics, []);
+  assert.equal(marks(clean('tool marker\ntool brush\nline 0 0 10 10'))[0].tool, 'pen', 'from another tool too');
 });
 
 test('the default page is the app one, 1280 by 800 on napkin paper', () => {

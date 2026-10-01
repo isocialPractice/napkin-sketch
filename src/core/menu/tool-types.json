@@ -7,6 +7,7 @@
     { "id": "edit:selection", "main": "Composition" },
     { "id": "Add:vector", "main": "Draw" },
     { "id": "Modify:element", "main": "Draw" },
+    { "id": "Combine:element", "main": "Draw" },
     { "id": "Subtract:vector", "main": "Draw" },
     { "id": "Add:mark", "main": "Draw" },
     { "id": "Modify:vector", "main": "Draw" },
@@ -33,7 +34,7 @@
       "id": "transform",
       "label": "Transform",
       "type": "Draw",
-      "accepts": ["Add:vector", "Modify:element", "Subtract:vector"],
+      "accepts": ["Add:vector", "Modify:element", "Combine:element", "Subtract:vector"],
       "help": { "label": "Transform", "page": "quickstart/transform", "order": 1 }
     },
     {
@@ -76,7 +77,8 @@
       "accepts": [
         { "type": "edit:mixed", "group": 1 },
         { "type": "Subtract:element", "group": 2 },
-        { "type": "edit:selection", "group": 3 }
+        { "type": "edit:selection", "group": 3 },
+        { "type": "Combine:element", "group": 4 }
       ]
     },
     { "id": "export-button", "label": "Export", "type": "App", "top": false, "panel": "export", "from": "export" },
@@ -146,8 +148,8 @@
     { "id": "toggle-settings", "label": "Quick Settings", "type": "GUI:view", "group": 1, "claim": "menu" },
     { "id": "toggle-dev-tools", "label": "Toggle Developer Tools", "type": "GUI:view", "group": 2, "role": "toggleDevTools" },
     { "id": "fit-view", "label": "Fit All in View", "type": "GUI:view", "group": 3, "claim": "menu" },
-    { "id": "zoom-in", "label": "Zoom In", "type": "GUI:view", "group": 3, "role": "zoomIn" },
-    { "id": "zoom-out", "label": "Zoom Out", "type": "GUI:view", "group": 3, "role": "zoomOut" },
+    { "id": "zoom-in", "label": "Zoom In", "type": "GUI:view", "group": 3, "claim": "menu" },
+    { "id": "zoom-out", "label": "Zoom Out", "type": "GUI:view", "group": 3, "claim": "menu" },
     { "id": "toggle-full-screen", "label": "Toggle Full Screen", "type": "GUI:view", "group": 4, "role": "togglefullscreen" },
 
     { "id": "tool-vector", "label": "Vector Path", "type": "Draw:Add:vector", "group": 1, "summary": "Click = corner, drag = smooth Bezier point" },
@@ -168,19 +170,36 @@
       "name": "Close Shape: Smooth",
       "parent": "close-shape"
     },
+    { "id": "wipe-stacks", "label": "Wipe Stacks", "type": "Draw:Combine:element", "group": 2, "disabledWhen": "fewerThanTwoShapes", "summary": "Combine the selected shapes, as a vector editor's Pathfinder does" },
+    { "id": "wipe-in", "label": "Wipe In", "parent": "wipe-stacks", "disabledWhen": "fewerThanTwoShapes", "summary": "One shape of their union" },
+    { "id": "wipe-out", "label": "Wipe Out", "parent": "wipe-stacks", "disabledWhen": "fewerThanTwoShapes" },
+    { "id": "wipe-out-front", "label": "Subtract Top from Below", "name": "Wipe Out: Subtract Top from Below", "parent": "wipe-out", "disabledWhen": "fewerThanTwoShapes", "summary": "The bottom shape less every one above it" },
+    { "id": "wipe-out-back", "label": "Subtract Below from Top", "name": "Wipe Out: Subtract Below from Top", "parent": "wipe-out", "disabledWhen": "fewerThanTwoShapes", "summary": "The top shape less every one below it" },
+    { "id": "wipe-mid", "label": "Mid Wipe", "parent": "wipe-stacks", "disabledWhen": "fewerThanTwoShapes", "summary": "Only where they all overlap" },
+    { "id": "wipe-outer", "label": "Outer Wipes", "parent": "wipe-stacks", "disabledWhen": "fewerThanTwoShapes", "summary": "Only where they do not overlap" },
+    { "id": "wipe-clean", "label": "Clean Wipe", "parent": "wipe-stacks", "disabledWhen": "fewerThanTwoShapes", "summary": "Every piece of their overlap a shape of its own" },
     { "id": "mirror", "label": "Mirror", "type": "Draw:Modify:element", "group": 2, "dots": true, "summary": "Horizontally or vertically, in place or as a copy" },
     { "id": "sharpen", "label": "Sharpen", "type": "Draw:Modify:element", "group": 3 },
     { "id": "sharpen-selection", "label": "Sharpen Selection", "parent": "sharpen", "dots": true, "summary": "Smooth and Simplify sliders with a live preview" },
     { "id": "sharpen-all", "label": "Sharpen All", "parent": "sharpen" },
     { "id": "tool-warp", "label": "Mesh Warp", "type": "Draw:Modify:element", "group": 3, "summary": "Click art to mesh it, then drag its pins to bend it" },
+    { "id": "tool-liquify", "label": "Liquify", "type": "Draw:Modify:element", "group": 3, "summary": "Bend the marks under a brush - Warp, Twirl, Pucker or Bloat; press for the four" },
 
-    { "id": "tool-pen", "label": "Pen", "type": "Draw:Add:mark", "group": 1, "summary": "Pressure-aware variable width" },
+    { "id": "tool-pen", "label": "Brush", "type": "Draw:Add:mark", "group": 1, "summary": "Pressure-aware variable width" },
     { "id": "tool-marker", "label": "Marker", "type": "Draw:Add:mark", "group": 1 },
-    { "id": "tool-eraser", "label": "Eraser", "type": "Draw:Subtract:mark", "group": 1, "summary": "Reveals the paper beneath; cuts only its own layer" },
+    { "id": "tool-eraser", "label": "Eraser", "type": "Draw:Subtract:mark", "group": 1, "summary": "Cuts the selection, or every mark it touches, out of the drawing" },
+    { "id": "tool-shape-eraser", "label": "Shape Eraser", "type": "Draw:Subtract:mark", "group": 1, "summary": "Drag a shape to cut it out of the selected marks; press for the shapes" },
+    { "id": "tool-shape-stacker", "label": "Shape Stacker", "type": "Draw:Subtract:mark", "group": 1, "summary": "Drag across the pieces of the selected shapes to merge them, Alt to take them away; press for the Wipe Stacks" },
+    { "id": "tool-split", "label": "Split", "type": "Draw:Subtract:mark", "group": 1, "summary": "Click a path to cut it where you click, as scissors do; a closed one opens there" },
+    { "id": "apply-erasers", "label": "Apply Erasers", "type": "Draw:Subtract:mark", "group": 1, "disabledWhen": "noLegacyErasers", "summary": "Turns an older file's eraser marks into the cuts they paint" },
     { "id": "tool-text", "label": "Text", "type": "Draw:Add:mark", "group": 1, "summary": "Click = auto-sizing box, drag = fixed width with wrap" },
     { "id": "tool-copic", "label": "Copic", "name": "Copic marker", "type": "Draw:Add:mark", "group": 1, "summary": "Flat broad nib, rotatable" },
+    { "id": "tool-pencil", "label": "Pencil", "type": "Draw:Add:mark", "group": 1, "summary": "Graphite and charcoal by hardness, through the paper's grain; press for the drawing kit" },
+    { "id": "tool-smear", "label": "Smear", "type": "Draw:Add:mark", "group": 1, "summary": "A blending stump: drag over pencil marks to spread their graphite; Quick Width sizes it, Quick Opacity sets its strength" },
     { "id": "tool-point", "label": "Direct", "name": "Direct Select", "type": "Draw:Modify:vector", "group": 1, "summary": "White arrow; drags anchor points" },
-    { "id": "stroke-profile", "label": "Stroke Profile", "type": "Draw:sketch", "group": 2, "dots": true, "summary": "How the width runs along new pen and marker strokes" },
+    { "id": "stroke-profile", "label": "Stroke Profile", "type": "Draw:sketch", "group": 2, "dots": true, "summary": "How the width runs along new brush and marker strokes" },
+    { "id": "fill-in-front", "label": "Fill in Front", "type": "Draw:sketch", "group": 2, "checked": "fillInFront", "summary": "The colors paint the fill, not the stroke; again for the stroke" },
+    { "id": "swap-fill-stroke", "label": "Swap Fill and Stroke", "type": "Draw:sketch", "group": 2, "summary": "The tool's ink and fill, or the selected shapes' fill and outline" },
 
     { "id": "add-layer", "label": "Add Layer", "type": "App:Add:layer", "group": 1 },
     { "id": "group-layer", "label": "Group Layer", "type": "App:Add:layer", "group": 1, "summary": "Groups the selected layers" },
@@ -190,6 +209,9 @@
     { "id": "move-layer", "label": { "top": "Move Layer", "panel": "Move" }, "type": "App:Modify:layer", "group": 3 },
     { "id": "layer-up", "label": "Layer Up", "parent": "move-layer" },
     { "id": "layer-down", "label": "Layer Down", "parent": "move-layer" },
+    { "id": "clipping-mask", "label": "Clipping Mask", "type": "App:Modify:layer", "group": 3, "summary": "The topmost selected closed path clips the rest, as a vector editor's clipping masks do" },
+    { "id": "clip-make", "label": "Make", "name": "Make Clipping Mask", "parent": "clipping-mask", "disabledWhen": "noMarksSelected", "summary": "Groups the selection; it shows only inside the closed path on top" },
+    { "id": "clip-release", "label": "Release", "name": "Release Clipping Mask", "parent": "clipping-mask", "disabledWhen": "noClipGroup", "summary": "Takes the clip off; the group stays a group" },
     { "id": "hide-layers", "label": "Hide Layers Panel", "type": "App:layers", "group": 4, "disabledWhen": "layersHidden" },
 
     { "id": "add-page", "label": "Add Page", "type": "App:pages", "group": 1 },
@@ -203,8 +225,10 @@
       "disabledWhen": "noSelection"
     },
     { "id": "delete-page", "label": "Delete Page", "type": "App:pages", "group": 1, "disabledWhen": "onePage" },
-    { "id": "page-settings", "label": "Page Settings", "type": "App:pages", "group": 2, "dots": true },
-    { "id": "hide-pages", "label": "Hide Pages Panel", "type": "App:pages", "group": 3, "disabledWhen": "pagesHidden" },
+    { "id": "prev-page", "label": "Previous Page", "type": "App:pages", "group": 2, "disabledWhen": "firstPage" },
+    { "id": "next-page", "label": "Next Page", "type": "App:pages", "group": 2, "disabledWhen": "lastPage" },
+    { "id": "page-settings", "label": "Page Settings", "type": "App:pages", "group": 3, "dots": true },
+    { "id": "hide-pages", "label": "Hide Pages Panel", "type": "App:pages", "group": 4, "disabledWhen": "pagesHidden" },
 
     { "id": "generate-script", "label": "Generate Script", "type": "API:automate", "group": 1 },
     {

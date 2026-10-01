@@ -44,6 +44,12 @@ make it.
     Track History, From Session History and the Help menu. There are twenty
     now, each run in a user-data folder of its own; page flows are still not
     covered.
+  - 1.0.0-alpha.4.6.0 added seventeen: the held keys, select accuracy, zoom,
+    freehand, lines, the Vector Path, the Eraser, the Shape Eraser, the
+    Brush, fill and stroke, the Wipe Stacks, the Shape Stacker, Split,
+    clipping masks, the Pencil, the Smear and Liquify. There are thirty-seven
+    now, and `npm run gui-check -- --background` runs them off the screen,
+    with the computer still in use; page flows are still not covered.
   - From: Patch
 - [ ] **Docs**: API reference for the embeddable package and a WordPress block
   example.
@@ -79,7 +85,7 @@ For the **Verify the documentation site deployment** item under Current.
 
 ## Found Issues
 
-Defects noticed while working and not yet scheduled. Twenty-six sit here,
+Defects noticed while working and not yet scheduled. Twenty-nine sit here,
 and each later entry says where it was found; the first eighteen came six
 from 1.0.0-alpha.4.1.0, four from the Animation Mode work, two the 1.0.0-alpha.4.1.2 source
 review turned up, one the popup pass found, four from surveying the transform
@@ -92,7 +98,7 @@ and a panel positioned against the wrong box reads the same either way - and
 the four in the middle came out of generating frames, where the failures show
 up in the artifacts rather than in the code.
 
-Fifteen are open. The eleven that have been resolved are stamped rather than
+Sixteen are open. The thirteen that have been resolved are stamped rather than
 deleted, so the record of what was found stays with the record of what fixed
 it; the 1.0.0-alpha.4.1.2 source review, including the reasoning behind the calls it
 made, is in `reviews/source-code-09-01-2026.log`.
@@ -123,11 +129,15 @@ made, is in `reviews/source-code-09-01-2026.log`.
   writer already starts a new subpath at `move`. (Found reading `pathD` in the
   same survey; not yet reproduced through a user action.) Each run between
   breaks is now its own subpath, simplified on its own.
-- [ ] **The Vector Path button's place in the toolbar is not remembered**:
+- [x] **RESOLVED (1.0.0-alpha.4.6.0)** - **The Vector Path button's place in the toolbar is not remembered**:
   `DEFAULT_TOOL_ORDER` lists every reorderable tool except `tool-vector`, and
   `normalizeToolOrder` keeps only ids from that list, so wherever the Vector
   Path button is dragged in rearrange mode, the saved order never records it.
   (Found reading the settings code in the same survey; not run.)
+  - Fixed in Phase C, which added the Shape Eraser to the same list:
+    `tool-vector` is in `DEFAULT_TOOL_ORDER`, and a tool a saved order does
+    not know yet goes in after the tool it follows by default, not at the
+    end of the list. `test/settings.test.ts` holds both.
 - [ ] **Outlines draw at 70% of their width on canvas and export at 100%**:
   `paintStroke` draws every pen-tool mark segment by segment at
   `width * (0.4 + 0.6 * pressure)`. That is right for a stylus, but shapes,
@@ -330,7 +340,7 @@ made, is in `reviews/source-code-09-01-2026.log`.
   Enter in the angle field still applies the turn. (Found writing the Track
   History GUI check in 1.0.0-alpha.4.5.0, whose click on Rotate landed on
   nothing; the check presses Enter instead.)
-- [ ] **A group's drop shadow leaves a dark line on the canvas's bottom
+- [x] **RESOLVED (1.0.0-alpha.4.6.0)** - **A group's drop shadow leaves a dark line on the canvas's bottom
   edge**: with `test/gui/check-effects.mjs`'s script open at 1.475 canvas
   pixels a unit in a 1903 by 927 canvas, the canvas's last row is 75 percent
   black - the group's 50 percent shadow twice - for exactly the group's width
@@ -342,6 +352,51 @@ made, is in `reviews/source-code-09-01-2026.log`.
   launching with default settings: the check counted every near-black-gray
   pixel on the canvas and failed on this row. It now looks inside the
   shadow, where the row is not.)
+  - Fixed in Phase Z, and not where this entry guessed. A canvas 617.67 CSS
+    pixels tall at a ratio of 1.5 is 926.5 device pixels, and its backing
+    store 927; the paper was filled at the CSS size, so the last row was
+    half painted over the opaque black beneath - a 50 percent grey line the
+    whole width of the canvas, which the group's shadow darkened to 75
+    percent where it reached. `paintBackground` now fills the whole
+    backing store. Phase Z also paints a picture with effects past the view
+    by their reach, so a blur or a shadow at the canvas's edge no longer
+    meets a picture cut off there.
+- [ ] **Curves show their facets at the deepest zooms**: a curve is painted,
+  hit and exported from points sampled along it - 24 for each cubic in
+  `sampleVectorPathPoints`, 48 along a Curve tool arc - so at the zooms
+  1.0.0-alpha.4.6.0 opened up, where one page pixel can fill the canvas, the
+  straight runs between the samples show. Painting a vector path from its
+  anchors (`bezierCurveTo`) would draw it true at any zoom; the samples
+  still serve the hit test, the eraser and the exports. (A known limit of
+  Phase Z of the 1.0.0-alpha.4.5.1 plan, filed as the plan said.)
+- [x] **RESOLVED (1.0.0-alpha.4.6.0)** - **Every tool stops working after a
+  quick curve is cancelled**: `Esc` during a `Ctrl + Space` quick curve, or
+  the window losing the focus during one, cleared the curve but not the
+  pointer the press had captured, and `onPointerDown` turns every press away
+  while a pointer is owned - so from then on nothing drew, selected or moved,
+  whatever the tool, until a restart. Holding `Ctrl` through a Select or a
+  Text drag did the same (the Copic nib-rotate switched the tool mid-press
+  and the release found nothing of the new tool's to finish), and so did a
+  shortcut key choosing another tool mid-drag and `Esc` closing a Transform,
+  Rotate or Mesh Warp mid-drag. A lost window also left `Space` held, which
+  turned every pen stroke into a straight line. (Reported by the owner with
+  `logs/issues/tools-break-09-26-26.skbk`; the file itself is clean, and the
+  sequence was reproduced live over CDP while planning 1.0.0-alpha.4.5.1.)
+  - Fixed in Phase P: a press is a record of what it does and the tool it
+    began with (`src/renderer/press-state.ts`), its release acts on the
+    record, whatever ends a press lets go of the pointer, a lost window, a
+    hidden page or a lost capture ends the press where it stands, a tool
+    chosen mid-press waits for the release, and a press still on record when
+    a new one arrives is finished instead of turning it away.
+    `npm run gui-check -- held-keys` runs every sequence.
+- [ ] **An imported SVG's masks arrive as an "Erased" layer that cuts
+  nothing**: the importer turns the erasers of a group's `<mask>` into a
+  child layer named "Erased" (`svg-import.ts`), and an eraser mark cuts only
+  the layer it is on - which holds nothing else - so the masked-out ground
+  comes back. Importing each as a cut of the group's marks, by the rule
+  Apply Erasers follows, would carry the mask in. (Left as it was by Phase E
+  of the 1.0.0-alpha.4.5.1 plan, which made the Eraser cut geometry, and
+  filed as the plan said.)
 
 ## Things to Improve
 
@@ -369,6 +424,11 @@ which is the shape the rest should follow.
     `history-tracker.ts`, 2,146 lines in all. The features it added still
     left `renderer.ts` at 12,107 lines, up from 11,626, so the clipboard and
     the layers panel are still the next seams.
+  - 1.0.0-alpha.4.6.0 lifted seven pure ones out: `press-state.ts`,
+    `held-keys.ts`, `alt-menu.ts`, `zoom.ts`, `vector-place.ts`, `notice.ts`
+    and `fill-stroke.ts`, 833 lines, and every new tool's engine went to the
+    core. Its tools still left `renderer.ts` at 14,870 lines, so the clipboard
+    and the layers panel are still the next seams.
 - [ ] **A decoded image outlives the mark that placed it** *(1.0.0-alpha.4.1.2 source
   review, residual - needs measuring)*: `Surface.imageCache` is now emptied
   whenever the whole document is replaced, and by the throwaway surface Export
@@ -989,6 +1049,329 @@ documentation site's own plan is `.claude/website.plan.md`.
   them and say in `DESIGN_LANGUAGE.md` where they come from now.
   - Found in Phase H, when the site test failed on the copied mark.
 
+## Resolve issues and the Shape Eraser (1.0.0-alpha.4.6.0)
+
+Planned 2026-09-26 in `.claude/prompts/resolveIssues-addFeature-1.0.0-alpha.4.5.1.md`
+(gitignored, like the earlier plans) from `.claude/prompt.md` - fourteen
+issues noted while using the app, a new tool, and a note to check the
+CHANGELOG against the 1.0.0-alpha.4.5.0 plan - and the Shape Eraser mockups
+in `.support/features/`. Thirteen entries, one per phase, built in this
+order and one phase per run; the plan holds each phase's spec, files, tests
+and decisions, and nineteen open questions.
+
+Amended 2026-09-30, after C, from the collaborator's notes. Eleven more
+phases go between C and D, each on an engine the API exports and each,
+except the Pencil and Smear, modelled on the Illustrator tool it names:
+the Shape Stacker, the Wipe Stacks, `X` for fill and stroke, the Pen
+renamed Brush, a Pencil with a drawing kit, Smear, Liquify, Split,
+clipping masks, and the API sweep. The plan now holds forty open
+questions. The version was open question 15: shipped 2026-10-01 as
+`1.0.0-alpha.4.6.0`, the minor release the amendment's tools make, though the plan
+file keeps its 4.5.1 name.
+
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **Phase 0 - spikes and check hooks**: whether the drawing window can
+  stop the menu bar on a bare `Alt`, whether the stroke-profile boundary
+  engine subtracts, how few anchors a fitted stroke needs, and what costs at
+  a very deep zoom; plus the check hooks the new GUI checks read.
+  - Built 2026-09-27: the page can stop the menu bar itself (cancelling the
+    `Alt` keyup is enough), so the Alt rule needs nothing from the main
+    process; the lifted engine subtracted exactly on every test shape and
+    on all 17 marks of the tools-break drawing, with no failures; a fitted
+    222-sample pen stroke needs 13 anchors at 1.5 px, which becomes the
+    Freehand fidelity default; and depth itself costs nothing, but layers
+    with effects grow a canvas with the zoom even out of view, which the zoom
+    phase now culls and caps. Five `window.napkinCheck` read-outs are in:
+    `inputState`, `strokeSummary`, `layerRows`, `selectionBoxes`,
+    `viewState`.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **P - a press can never stick**: the tools-break, reproduced. `Escape`
+  or a window blur during a `Ctrl+Space` quick curve leaves the canvas
+  believing a pointer is down, and every later press is ignored whatever
+  the tool; four more sequences do the same. Whatever ends a press releases
+  the pointer, the release acts on the press rather than the tool in hand,
+  and a stale pointer heals itself.
+  - Built 2026-09-27: `src/renderer/press-state.ts` holds the press record
+    and the rules; every press takes the pointer through one call and every
+    release lets it go, whichever branch finishes it. A lost window, a
+    hidden page or a lost capture finishes a stroke or a drag where it
+    stands (only a curve is dropped), a tool chosen mid-press waits for the
+    release, and Space, Ctrl and Alt are let go with the window. The new
+    check `check-held-keys.mjs` failed 25 of its first 56 assertions on the
+    build before the fix; with a Rotate sequence added it passes all 63.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **K - held keys and the Alt rule**: with no press in progress, `Space`
+  pans and `Ctrl` gives the last selection tool on every drawing tool; the
+  straight line and quick curve are made by pressing first, then `Space`.
+  `Alt` opens the menu bar only after 5 seconds with no other key, and never
+  after an `Alt` gesture such as `Alt` + scroll.
+  - Built 2026-09-27: `src/renderer/held-keys.ts` and `alt-menu.ts` hold the
+    rules; a Ctrl chord such as `Ctrl+Z` never brings the selection tool up,
+    the Copic nib-rotate is a still hold that movement cancels, and Vector
+    Path and Mesh Warp keep their own `Ctrl`. The check's Alt sequences
+    watch the real focus: a bare `Alt` after five idle seconds gives the menu
+    bar the keyboard, and after a key or a scroll it does not.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **S - Select and Direct Select pick what is under the pointer**: a
+  shared hit test in paint order, measured to the painted ink in screen
+  pixels, topmost then nearest, erasers never hit; a real **Select
+  sensitivity** setting (the slider called "Select pixel sensitivity" is
+  the eyedropper's), and Direct Select's reaching every pick.
+  - Built 2026-09-29: `src/core/paint-order.ts` gives the order the canvas
+    paints in, and the canvas now paints from it; `src/core/hit-test.ts`
+    measures each kind of mark's ink as the canvas paints it. Ink an eraser
+    has cut away picks nothing, a rubber band takes a line it only crosses,
+    and the Paint Bucket, Fill Color, the right-click menu and Mesh Warp pick
+    in the same order. Direct Select waits 4 px before a drag edits, moves
+    both ends of a closed shape's seam, and lets `Shift` pin every drag.
+    The new check `check-select-accuracy.mjs` failed on the build before
+    the change wherever the old rules showed, 7 assertions; its two Direct
+    Select sequences, which first aimed off the path, fail with the old
+    rules put back. It passes all 39.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **Z - zoom to one page pixel**: the deepest zoom makes one page pixel
+  span the canvas's shorter side; View > Zoom In and Zoom Out zoom the
+  canvas instead of the whole window; thresholds and boxes stay right at
+  depth.
+  - Built 2026-09-29: `src/renderer/zoom.ts` holds the limits, a length on
+    the screen measured on the page, the wheel's steps and the view test.
+    Pen samples, the drag thresholds, the selection's box and the rubber
+    band are in screen pixels; a magnified image shows its pixels; a layer,
+    group or mark with effects is painted past the view by their reach (at
+    most half the view's diagonal, a blur held to a third of that) and not
+    at all when nothing it holds reaches the view. The new check
+    `check-zoom.mjs` failed 12 of its 24 assertions on the build before the
+    change and passes all 24. Found on the way: the canvas's last row was
+    half painted (the drop-shadow line under Found Issues, resolved), and a
+    blur faded toward the canvas's edges, more with the zoom.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **T - the Transform button and the missed rows**: a Transform button
+  beside Rotate (the Transform menu has had the row since 4.5.0), and
+  Previous Page / Next Page in the Pages menu, which the CHANGELOG audit
+  found missed.
+  - Built 2026-09-29: the button sits beside Mirror rather than Rotate -
+    after Rotate it wrapped the toolbar onto a third row in a 1494-pixel
+    window, the owner's screen at 1.5, and took 50 pixels off the canvas.
+    It runs `toggle-transform` and is pressed
+    (`is-open`, `aria-pressed`) while the box is up; `prev-page` and
+    `next-page` are Pages rows of their own block, greyed by two new menu
+    questions, `firstPage` and `lastPage`, on `PageUp` and `PageDown`, and
+    the page bar's arrows run them. `check-context-menus.mjs` and
+    `check-shortcuts.mjs` gained eleven assertions that failed before the
+    change; both pass.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **F - freehand with few control points and flat ink**: plain strokes
+  are painted as one fill, so translucent ink no longer beads into circles;
+  Pen, Marker and Copic strokes are fitted into a few Bezier anchors with a
+  **Freehand fidelity** setting, and Sharpen stops multiplying points.
+  - Built 2026-09-29: `src/core/fit-curve.ts` fits the samples at commit
+    (a drawn S curve keeps 4 anchors), with corners kept, straight runs as
+    lines and a stylus's pressure carried on every anchor; Sharpen and
+    Sharpen Selection fit their results within 0.35 px. A constant-width
+    line is one canvas path, a stylus's a cached one-fill outline. On the
+    way: Join kept the first stroke's anchors, and history snapshots and
+    two anchor copies dropped the new fields. `check-freehand.mjs` failed 4
+    of its 10 assertions on the build before the change and passes all 10.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **L - lines by hand**: the Shift-click line (click, hold `Shift`,
+  click, and a straight line joins them at once); the straight line's and
+  quick curve's ends snap again; `Shift` gives 45 degrees as well.
+  - Built 2026-09-29: point 1 and when a Shift press uses it are
+    `held-keys.ts` rules; the line goes on the last mark as one undo step
+    (`extendWithLine` in `geometry.ts`), or starts a mark of its own when
+    that mark's paint differs, and a drag, `Space` or `Ctrl + Space` carry
+    on from point 2. While the press is down the mark paints once, in its
+    place. `check-lines.mjs` failed 11 of its first 25 assertions on the
+    build before the change and passes all 34.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **V - Vector Path**: `Shift` constrains to 0, 45 and 90 degrees, and
+  `src/assets/close-path-indicator.svg` shows on the start point when a
+  click would close the shape.
+  - Built 2026-09-29: `src/renderer/vector-place.ts` holds where Shift puts
+    the next point, the band and a pulled handle, and when a press closes
+    the path; the band ends on the first point where the indicator shows,
+    at the Direct Select sensitivity (open question 11's recommendation).
+    `check-vector-path.mjs` failed 7 of its 18 assertions with the old
+    placing rules bundled in, and passes all 18.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **B - the subtraction engine**: `src/core/boolean.ts` lifted out of
+  the stroke-profile boundary code, and `src/core/erase.ts`, which cuts a
+  region out of marks - by area for fills and broad marks, along the
+  centreline for plain lines, which stay strokes.
+  - Built 2026-09-29: the stroke profiles' outlines are unchanged (1,200
+    compared against the engine before the lift); a failed operation is
+    tried again with every vertex moved by a hundred-thousandth of a pixel,
+    which took the owner's tools-break drawing from 24 failed cuts to none;
+    a shape with anchors keeps them through a cut, only the eraser's edge
+    fitted, so 30 bites leave its untouched side exactly where it was. The
+    fitter no longer loops out between far-apart samples.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **E - the Eraser subtracts**: no eraser mark, no new layer, every
+  selected mark erased, boxes that fit the ink that is left; older files'
+  erasers stop being picked or boxed, and **Apply Erasers** turns them into
+  real cuts.
+  - Built 2026-09-30: the release runs `core/erase.ts` over the selection,
+    or every editable mark the swath touches, and `Store.eraseMarks` makes
+    it one undo step; the canvas cuts every target's layer while the press
+    is down. An older file's eraser marks ride along with their layer's
+    selection, so their cuts move with the mark, but draw no box and count
+    in no bounds. `check-eraser.mjs` failed 12 of its first 21 assertions
+    on the build before the change and passes all 27.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **C - the Shape Eraser**: a tool after Eraser whose press opens a
+  panel of Rectangle, Ellipse, Square, Circle and Top Path; a drawn shape
+  cuts the selected layers, a closed path on top cuts the rest, and anything
+  else gets a notice with "Do not show this notice again" for the session.
+  - Built 2026-09-30: `Shift+E` or the button takes the tool and opens the
+    panel under it; the drag is the Rectangle and Ellipse tools' press, its
+    outline and live cut drawn over the selection, and the release cuts
+    with the Eraser's rules in one step; Top Path cuts with the topmost
+    closed mark and takes it away (Minus Front). The notices are
+    `src/renderer/notice.ts`, session only. The default tool order gained
+    the Shape Eraser and the missing Vector Path, resolving that Found
+    Issue. `check-shape-eraser.mjs` failed every sequence at its first
+    Shape Eraser step on the build before the change (3 of 8 assertions
+    passed, the drawing set-ups) and passes all 54.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **R - the Brush**: the Pen renamed Brush, on `B`, with a brush icon;
+  Vector Path on `P`; the ids, files and scripts unchanged, with `brush`
+  taken as another name for `pen`.
+  - Built 2026-09-30: the label, tooltip, menu rows, history names ("Brush
+    stroke") and new layers ("Brush N") say Brush; `B` and `P` swapped; a
+    three-path brush glyph in place of `✎`. `toolId` / `TOOL_ALIASES` in
+    `core/types.ts` take `brush` for `pen` in a script's `tool` and the
+    embedded editor's `setTool`; a file already read any unknown tool as
+    `pen`. `check-brush.mjs` passed 1 of its 14 assertions on the build
+    before the change and passes all of them; seven existing checks gained
+    the Brush's name and keys.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **X - fill and stroke**: `X` puts the fill or the stroke in front and
+  `Shift+X` swaps them, as Illustrator's control does; the Quick Access
+  Colors and the swatches paint the one in front, and new shapes take the
+  fill.
+  - Built 2026-09-30: the color well became the fill and stroke control
+    (`#fill-stroke`, 34 px), `X` is **Sketch > Fill in Front** (a check row)
+    and `Shift+X` **Swap Fill and Stroke**; `C` steps the one in front, the
+    fill's steps taking in None; the rules are `core/paint.ts` (`paintPatch`,
+    `swapPaint`, exported) and `renderer/fill-stroke.ts`. A swatch with a
+    selection follows the one in front in place of Fill Shape's rule.
+    `check-fill-stroke.mjs` passed 3 of its first 12 assertions on the build
+    before the change and passes all 29; `check-color-picker.mjs`, rewritten
+    for the rule, passed 8 of 10 before and 10 after.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **W - the wipe engine**: stacking regions (unite, minus front, minus
+  back, intersect, exclude, divide) and their faces, pure, with one store
+  commit that adds marks on layers of their own; B's and E's engines made
+  public.
+  - Built 2026-09-30: `src/core/wipe.ts` (`wipeOperand`, `wipeMarks`,
+    `arrangeFaces`, `MarkEdit`); the Eraser's rebuild lifted into
+    `erase.ts`'s `ringsToAnchors`, which tries every operand's traced
+    outline; `Store.applyMarkEdit`, with `eraseMarks` built on it. 24 new unit
+    tests; every Eraser test still passes unchanged.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **Y - Wipe Stacks**: Wipe In, Wipe Out (Subtract Top from Below,
+  Subtract Below from Top), Mid Wipe, Outer Wipes and Clean Wipe in the
+  Transform and canvas menus, each with a quarter-second napkin wipe; the
+  `wipe` script verb.
+  - Built 2026-09-30: the rows on a new `Combine:element` sub-type, greyed
+    by `fewerThanTwoShapes` - on the canvas too, rather than hidden, since
+    one row cannot differ between menus; Wipe Out's rows laid out in the
+    canvas menu's panel (`inlineDeeperSubmenus`); the napkin wipe from a
+    synchronous canvas copy (`Surface.snapshot`, `paintWipe`), 250 ms, ended
+    by a press, a key or the wheel, skipped by reduced motion and by the new
+    **Wipe animation** setting; the `wipe` verb, with `wipe-skipped`,
+    `wipe-empty` and `wipe-failed`, and a golden. `check-wipe-stacks.mjs`
+    passed 3 of its first 33 assertions on the build before the change and
+    passes all 51.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **M - the Shape Stacker**: Illustrator's Shape Builder beside the Shape
+  Eraser - a drag merges the pieces it crosses, `Shift` drags a box, `Alt`
+  takes pieces away - with the Wipe Stacks in its panel.
+  - Built 2026-09-30: `core/wipe.ts` gained the selection's pieces
+    (`stackArrangement`), picking them at a point, along a path or in a box,
+    and `stackEdit` / `stackFaces` to merge or remove them - a circle's
+    pieces merged back are its four cubics exactly. `#tool-shape-stacker`
+    after the Shape Eraser, on `Shift+M`, with its own `stack` press, the
+    mesh shading, a plus or minus cursor and the six Wipe Stacks tiles; the
+    `stack` script verb and a golden. `check-shape-stacker.mjs` passed 1 of
+    its first 7 assertions on the build before the change and passes all 44.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **J - Split**: Illustrator's Scissors - a click cuts a path in two
+  where it lands, nothing moving, or opens a closed one.
+  - Built 2026-09-30: `src/core/split.ts` (`nearestOnMark`, `splitMark`,
+    `splitTarget`, exported): a subpath model over anchors and bare points,
+    de Casteljau cuts with the fitted pressure carried, a closed path opened
+    round from the cut, a compound shape's ring cut out. `#tool-split` on
+    `J` after the Shape Stacker, with a scissors glyph, the
+    `split-cursor.svg` cursor and the hover ring; the `split` script verb.
+    A ring of bare points opens as a path of corner anchors at the same
+    points, the one way it can say it is open. `check-split.mjs` passed 5 of
+    its first 20 assertions on the build before the change and passes all 27.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **O - clipping masks**: Make and Release (`Ctrl+7`, `Ctrl+Alt+7`)
+  from the topmost selected shape, drawn by every output, and `clip-path`
+  read on import.
+  - Built 2026-09-30: `src/core/clip.ts` (`makeClip`, `releaseClip`,
+    `clipIndex`, `clippedAt`, `shownBounds`, exported) and `Layer.clip`,
+    the id of a closed mark inside the group, dropped on load when it names
+    none. The canvas clips a clip group's picture before its effects; picking,
+    box selection and the dashed boxes skip what is hidden, while Direct
+    Select reaches everything. SVG `<clipPath>`, PDF `W n`, the
+    composition's `clip` and Illustrator's clipped group; `clip-path` read
+    on import, the `<clipPath>`'s shapes read in the group's own space; the
+    `clip` script verb. `check-clipping.mjs` passed 6 of its first 26
+    assertions on the build before the change and passes all 44.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **N - the Pencil**: a collegiate drawing kit - graphite 4H to 8B,
+  charcoal pencils, vine and compressed charcoal - drawing with graded tone,
+  pressure and the paper's grain, in every output.
+  - Built 2026-09-30: `src/core/pencil.ts` (the table of 30 pencils, the
+    kit, `parsePencil`, the coverage rule, the seeded and equalized tooth
+    tile, `rasterizePencil` over any region), `Stroke.pencil`, the
+    `pencil` tool and `widthAtPressure` (a pencil line from 0.8 of its
+    width). `#tool-pencil` after the Copic on `N`, its kit, per-mark
+    pictures kept per scale and grown where a live stroke grew; SVG through
+    one tooth tile, PNG from the same raster, PDF and Illustrator at the mean
+    tone; the `pencil` verb and its golden. The spike: 500 pencil circles
+    redraw in 10-12 ms, as 500 Brush circles do. `check-pencil.mjs` passed 3
+    of its first 13 assertions on the build before the change and passes all
+    39.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **U - Smear**: a blending stump that spreads the Pencil's graphite for
+  shading, kept on the marks it touched.
+  - Built 2026-09-30: `src/core/smudge.ts` (`smudgeBuffer`, a pass run a
+    tenth of the stump's width at a time, trading graphite with the paper as
+    density so the darkness is kept, resumable for a live drag;
+    `smudgeFor`, the pass a drag leaves on a mark; `mapSmudges`) and
+    `Stroke.smudges`, carried by every transform and Mesh Warp. `#tool-smear`
+    after the Pencil on `Shift+N`, the stump sized by Quick Width and
+    strengthened by Quick Opacity, the live pass run step by step on the
+    canvas, one undo; SVG and PDF as the picture, which the importer reads
+    back; the `smear` verb. `check-smear.mjs` passed 7 of its first 17
+    assertions on the build before the change and passes all 27.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **I - Liquify**: Warp, Twirl, Pucker and Bloat for every other mark,
+  carried as Mesh Warp carries its art.
+  - Built 2026-10-01: `src/core/liquify.ts`. `liquifyField` makes each brush
+    a `PointMap` that falls off as (1 - (d/r)²)² to nothing at its rim.
+    `liquifyMarks` runs a drag's dabs over the marks they reach, a push in
+    steps of a quarter of the radius at most. `refitLiquified` is the fit
+    after the drag: it keeps a straight piece someone meant exactly, fits
+    only the runs between, and leaves a path the brush never split as it was. Mesh
+    Warp's carrier now takes any `PointMap`. `#tool-liquify` sits after Mesh
+    Warp on `Shift+R`, with its panel of four. The brush is a ring on the
+    canvas, sized by an `Alt`-drag or `[` and `]`, and Twirl, Pucker and
+    Bloat work while held. A drag is one undo, kept in a store transaction
+    that `Escape` rolls back. Pencil marks are left to the Smear. Scripts get
+    the `warp`, `twirl`, `pucker` and `bloat` verbs. `check-liquify.mjs`
+    passed 1 of its first 7 assertions on the build before the change and
+    passes all 45.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **A - the API sweep**: every new engine and verb written up with an
+  example; the script's `tool eraser` cutting as the Eraser does.
+  - Built 2026-10-01:
+    - **The engines' pages.** `docs/api/engines/` is a ninth category:
+      a section and a worked example for each engine, and a helper that
+      applies an edit. `test/api-engines.test.ts` runs all 13 examples and
+      checks what each prints.
+    - **Erasing.** The drawing reference gains an "Erasing" section. The
+      skill knows the new verbs.
+    - **Goldens and package checks.** `test/scripts/every-verb.napkin` uses
+      all 66 verbs, held to the verb table. pack-check and the graphic-design
+      suite call the engines from the built package.
+    - **`tool eraser`** cuts the marks before it on its layer (`eraseMarks`),
+      with `erase-skipped` for text it passes over.
+    - **The writer** writes clip groups as `clip` blocks, and notes older
+      eraser marks.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **D - docs sweep and the release**: the version open question 15
+  settles (`1.0.0-alpha.4.6.0` recommended with the amendment).
+  - Built 2026-10-01. The owner settled open question 15 on `1.0.0-alpha.4.6.0`:
+    - It is the version in `package.json`, the three plugin manifests and
+      the CLI reference's JSON example.
+    - It is in every "New in" and "Changed in" note of the manual, and in
+      this section's stamps.
+    - The CHANGELOG's `[Unreleased]` became its section, with the release's
+      own paragraph.
+    - Checked: 1384 unit tests, the GUI suite (37 of 37 files), pack-check
+      and the graphic-design suite, all passing.
+
 ## Chores
 
 Housekeeping with no user-visible result: dead code left by a replacement,
@@ -1018,6 +1401,13 @@ carries.
   `test/gui/cdp.mjs` behind `npm run gui-check`. The menu checks it once ran
   are still owed; that half lives with the **Scripted GUI checks** item under
   Current.
+- [x] **DONE (1.0.0-alpha.4.6.0)** - **Run the GUI checks without taking the
+  computer**: a run maximized and focused a window about a hundred times, so
+  the machine was no use to anyone for its length, and a click or a key at
+  the wrong moment failed a check. `npm run gui-check -- --background` keeps
+  every window off the screen and out of the focus, pins the drawing page
+  to the size the checks were measured at, and skips - and counts - the
+  three bare-`Alt` sequences that need the real focus.
 - [ ] **1.0.0-alpha.4.1.0 carries features, not just fixes**: copy and paste, the
   Selection export, the pages menu, and the Shift drag constraint all landed
   under a patch version because the version was pinned for the batch. Decide
@@ -1090,11 +1480,14 @@ rest are quick-feature shortcuts.
 - [ ] **Show the constrained axis while Shift is held**: a faint guide line
   through the drag origin along the axis the drag has snapped to would make it
   obvious which of the eight directions is in force before letting go.
-- [ ] **Constrain a Bézier handle to its anchor, not to the drag start**: the
+- [x] **PARTLY DONE (1.0.0-alpha.4.6.0)** - **Constrain a Bézier handle to its anchor, not to the drag start**: the
   Shift constraint measures from where the drag began, which is what was
   asked for and is consistent across every drag. For a handle specifically,
   measuring from its own anchor is the more useful constraint - it gives a
-  horizontal, vertical, or 45-degree tangent.
+  horizontal, vertical, or 45-degree tangent. Done for the Vector Path
+  tool's placing drag in 1.0.0-alpha.4.6.0 (Phase V); Direct Select's and
+  the Vector Path edit mode's handle drags still measure from where the drag
+  began.
 - [ ] **Shift + marquee for a square selection box**: the rubber band keeps
   Shift for adding to the selection, so a square marquee needs another
   modifier if it is wanted at all.

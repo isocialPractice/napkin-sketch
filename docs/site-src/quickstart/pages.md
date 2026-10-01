@@ -39,8 +39,10 @@ keeps an exact width and height and shows a dashed outline.
 ## 6. Move between pages
 
 Click a thumbnail to turn to its page; everything you drew stays where you
-left it. **Pages > Delete Page** removes the page in view, and is greyed while
-there is only one.
+left it. `PageUp` and `PageDown` turn back and on a page, as do **Pages >
+Previous Page** and **Next Page** and the **‹** and **›** at the right of the
+status bar. **Pages > Delete Page** removes the page in view, and is greyed
+while there is only one.
 
 ## 7. Export every page
 

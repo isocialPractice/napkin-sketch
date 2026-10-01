@@ -312,6 +312,32 @@ function distanceToPolyline(p: Vec, line: Vec[]): number {
   return best;
 }
 
+test("a fitted stroke's pressure is carried through the bend, onto every anchor the bend adds", () => {
+  const { mesh, locator, pins, rest } = bar();
+  const solver = new ArapSolver(mesh);
+  solver.setPins(pins);
+  const [hold, swing] = rest;
+  const deformed = solver.solve([hold, { x: swing.x - 20, y: swing.y + 70 }]);
+  const map = new MeshMap(mesh, locator, deformed);
+  const fitted: VectorAnchor[] = [
+    { p: { x: 20, y: 50 }, hOut: { x: 120, y: 40 }, pressure: 0.2 },
+    { p: { x: 380, y: 50 }, hIn: { x: 280, y: 60 }, pressure: 0.9 },
+  ];
+  const stroke = vectorStroke(fitted);
+  stroke.vector!.fitted = true;
+  const warped = mapStrokeGeometry(stroke, map);
+  const anchors = warped.vector!.anchors;
+  assert.equal(warped.vector?.fitted, true);
+  assert.ok(anchors.length > 2, 'the bend splits the curve');
+  assert.equal(anchors[0].pressure, 0.2);
+  assert.equal(anchors[anchors.length - 1].pressure, 0.9);
+  // In between, the pressure climbs as it did along the curve, never back.
+  for (let i = 1; i < anchors.length; i++) assert.ok(anchors[i].pressure! >= anchors[i - 1].pressure!);
+  // And the points sampled from them carry it: none left at the mouse's 0.5 at the ends.
+  assert.equal(warped.points[0].pressure, 0.2);
+  assert.equal(warped.points[warped.points.length - 1].pressure, 0.9);
+});
+
 test('under a bent map, every carried curve stays within a quarter pixel of where its points went', () => {
   const { mesh, locator, pins, rest } = bar();
   const solver = new ArapSolver(mesh);

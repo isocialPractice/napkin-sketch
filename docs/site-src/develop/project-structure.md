@@ -19,6 +19,13 @@ src/
 │   ├── renderer.ts     # UI wiring + pointer input
 │   ├── commands.ts     # Every command the window runs, by its menu id
 │   ├── keys.ts         # Keys to commands, through the menu registry
+│   ├── press-state.ts  # A press on the canvas as a record: how it ends, whatever ends it
+│   ├── held-keys.ts    # Space, Ctrl and Shift: the hand, the lent selection tool, the nib's still hold, the Shift-click line
+│   ├── alt-menu.ts     # When a bare Alt may hand the keyboard to the menu bar
+│   ├── zoom.ts         # How far the canvas zooms, and screen lengths on the page
+│   ├── vector-place.ts # Placing a Vector Path: Shift's eight directions, and when a press closes it
+│   ├── notice.ts       # Session notices: why an action did nothing, until ticked away for the session
+│   ├── fill-stroke.ts  # Fill and stroke: the one in front, where C takes it, and the tool's swap
 │   ├── menus.ts        # Right-click and dropdown items, from the registry's rows
 │   ├── config-dialog.ts # The configuration popup the menu editors fill
 │   ├── editors.ts      # The menu editors: Edit Keyboard Shortcuts and Edit Tool Types
@@ -59,12 +66,24 @@ src/
     ├── path-data.ts    # Path data and basic shapes to Bézier anchors, and sampling; no DOM
     ├── svg-path.ts     # Compact SVG path data: the writer every export shares
     ├── bounds.ts       # The box each kind of mark covers, with no DOM
+    ├── paint-order.ts  # The order the canvas paints a page in: the layer stack, effect groups as one
+    ├── hit-test.ts     # What a press picks: the ink on top, else the nearest within a reach
+    ├── fit-curve.ts    # Freehand samples as the fewest cubic Béziers within a tolerance
+    ├── boolean.ts      # Union, difference and intersection of regions, under either fill rule
+    ├── erase.ts        # Erasing as geometry: what an eraser leaves of each mark, as marks
+    ├── paint.ts        # A mark's outline and fill: what a picked color does to each, and the swap
+    ├── wipe.ts         # The wipes: Pathfinder's six operations on marks, and an arrangement's faces
+    ├── split.ts        # Split: a path cut where a point lands on it, as Scissors cut
+    ├── clip.ts         # Clipping masks: a group shown only inside a closed mark on top
+    ├── pencil.ts       # The Pencil: the kit's grades, the paper's tooth, a mark's picture
+    ├── smudge.ts       # The Smear: a blending stump's pass over a pencil mark's picture
     ├── sketch-svg.ts   # A sketch as SVG, with no DOM: the app's SVG export
     ├── sketch-composition.ts  # A sketch lowered into the composition model, for PNG
     ├── link.ts         # Linked files: their names, placeholders, and the paths a host follows
     ├── effects.ts      # Effects: the CSS filter functions, as data every output can draw
     ├── transform.ts    # The Transform tool's arithmetic: one box, eight handles, two modifiers
     ├── mesh-warp.ts    # Mesh Warp: bending art by pins, as Illustrator's Puppet Warp does
+    ├── liquify.ts      # Liquify: Warp, Twirl, Pucker and Bloat, fields that bend marks under a brush
     ├── stroke-profile.ts # Stroke profiles: how a stroke's width runs along its length
     ├── menu/           # The menus as data: every command, its type and its shortcut
     │   ├── tool-types.json  # Every command, the type that places it, and the menus
@@ -137,7 +156,7 @@ docs/api/               # The API documentation; API.md at the root maps it
 ├── INDEX.json          # Every page: its kind, first paragraph and size
 ├── schema/             # The object form as a JSON Schema, generated
 ├── cli/examples/       # Callers in sh, cmd, Node, Python and C, run by the tests
-└── <category>/         # language, drawing, compose, output, cli, node, interop, ai
+└── <category>/         # language, drawing, compose, output, cli, node, engines, interop, ai
     ├── README.md       #   The reference
     ├── QUICKSTART.md   #   A path that runs as written
     ├── CHEATSHEET.md   #   Tables and one-line reminders

@@ -18,6 +18,7 @@ import {
   PAPER_SIZES,
   PATH_ONLY_VERBS,
   SCRIPT_TOOLS,
+  SCRIPT_TOOL_NAMES,
   SCRIPT_VERSION,
   VERBS,
   VERB_CATEGORIES,
@@ -31,8 +32,9 @@ import {
   type VerbForm,
 } from '../src/core/script/instructions.js';
 import { LENGTH_UNITS } from '../src/core/units.js';
-import { STROKE_PROFILES, STROKE_STYLES } from '../src/core/types.js';
+import { STROKE_PROFILES, STROKE_STYLES, toolId } from '../src/core/types.js';
 import verbTable from '../src/core/script/verbs.json';
+import { STACK_MODES, WIPE_OPS } from '../src/core/wipe.js';
 
 const isSlot = (p: FormPart): p is SlotPart => 'slot' in p;
 const isClause = (p: FormPart): p is ClausePart => 'clause' in p;
@@ -129,7 +131,7 @@ test('every way of writing a verb writes exactly the fields its type has', () =>
 });
 
 test('slots are well formed', () => {
-  const types = new Set(['length', 'number', 'integer', 'string', 'identifier', 'color', 'choice', 'switch', 'points', 'stops']);
+  const types = new Set(['length', 'number', 'integer', 'string', 'identifier', 'color', 'choice', 'switch', 'pencil', 'points', 'stops']);
   const axes = new Set(['x', 'y', 'min', 'none', 'axis']);
   for (const verb of VERBS) {
     for (const form of verb.forms) {
@@ -178,6 +180,12 @@ test('each form reads positional parts first, then clauses and flags, then its b
   }
 });
 
+test('another name for a tool is its id: brush is the pen, and a name of no tool is left as it is', () => {
+  assert.equal(toolId('brush'), 'pen');
+  assert.equal(toolId('marker'), 'marker');
+  assert.equal(toolId('toString' as never), 'toString', 'an inherited property is no other name');
+});
+
 test('the choice lists match the model they choose from', () => {
   const choices = (verb: string, slot: string) =>
     specOf(verb)
@@ -185,9 +193,12 @@ test('the choice lists match the model they choose from', () => {
       .find((s) => s.slot.slot === slot)?.slot.choices;
   assert.deepEqual(choices('page', 'paper'), Object.keys(PAPER_SIZES));
   assert.deepEqual(choices('units', 'units'), [...LENGTH_UNITS]);
-  assert.deepEqual(choices('tool', 'tool'), [...SCRIPT_TOOLS]);
+  assert.deepEqual(choices('tool', 'tool'), [...SCRIPT_TOOL_NAMES]);
+  assert.deepEqual(SCRIPT_TOOL_NAMES.slice(0, SCRIPT_TOOLS.length), [...SCRIPT_TOOLS], 'the tools first, then their other names');
   assert.deepEqual(choices('style', 'style'), [...STROKE_STYLES]);
   assert.deepEqual(choices('profile', 'profile'), [...STROKE_PROFILES]);
+  assert.deepEqual(choices('wipe', 'op'), [...WIPE_OPS], "the Wipe Stacks' ops, in the menus' order");
+  assert.deepEqual(choices('stack', 'mode'), [...STACK_MODES]);
 });
 
 test('every verb has a summary and an example that uses it', () => {

@@ -19,6 +19,37 @@ const PORT = 9222;
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * True when the checks run in the background (`NAPKIN_GUI_BACKGROUND=1`, which
+ * `npm run gui-check -- --background` sets): the app keeps every window off
+ * the screen and out of the focus, so the computer stays usable while they
+ * run. Every page is told it has the focus, since no window ever has it, and
+ * the drawing window's page is pinned to {@link BACKGROUND_PAGE}. A sequence
+ * that needs the real focus - the menu bar's Alt rules - is skipped, and says
+ * so.
+ */
+export const BACKGROUND = process.env.NAPKIN_GUI_BACKGROUND === '1';
+
+/**
+ * The drawing window's page in a background run, in CSS pixels at a pixel
+ * scale: what the window maximized on a 2240 by 1400 screen at 150% gives,
+ * which is what the checks' numbers were measured at. `NAPKIN_GUI_SIZE`
+ * (`1494x837`) and `NAPKIN_GUI_SCALE` (`1.5`) change them.
+ *
+ * Off the screen the window cannot be maximized, and Windows keeps a window
+ * no wider than the screen, frame and all, so the page is pinned over the
+ * DevTools protocol rather than by the window's size.
+ */
+export const BACKGROUND_PAGE = (() => {
+  const size = /^(\d+)x(\d+)$/.exec(process.env.NAPKIN_GUI_SIZE ?? '');
+  const scale = Number(process.env.NAPKIN_GUI_SCALE);
+  return {
+    width: size ? Number(size[1]) : 1494,
+    height: size ? Number(size[2]) : 837,
+    scale: scale > 0 ? scale : 1.5,
+  };
+})();
+
 /** The user-data folders `launch` made, by the app it made each for; `stop` removes them. */
 const madeUserData = new WeakMap();
 
@@ -44,6 +75,8 @@ export function launch(launchOptions, extraEnv = {}) {
     NAPKIN_LAUNCH: JSON.stringify(launchOptions),
     NAPKIN_GUI_CHECK: '1',
     ...(own ? { NAPKIN_USER_DATA: own } : {}),
+    // The window opens near the page size `connect` pins.
+    ...(BACKGROUND ? { NAPKIN_GUI_SIZE: `${BACKGROUND_PAGE.width}x${BACKGROUND_PAGE.height}` } : {}),
     ...extraEnv,
   };
   // Inherited by the child, and the app dies on `setAppUserModelId` of
@@ -63,6 +96,9 @@ export function launch(launchOptions, extraEnv = {}) {
       '--disable-features=CalculateNativeWinOcclusion',
       '--disable-backgrounding-occluded-windows',
       '--disable-renderer-backgrounding',
+      // Off every screen, a window takes the pixel scale of whichever screen
+      // is nearest: pinned, for the settings and documentation windows too.
+      ...(BACKGROUND ? [`--force-device-scale-factor=${BACKGROUND_PAGE.scale}`] : []),
     ],
     { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] },
   );
@@ -113,13 +149,31 @@ export async function connect({ tries = 60, url = 'renderer/index.html' } = {}) 
   for (let i = 0; i < tries; i++) {
     try {
       const page = (await pages()).find((t) => t.url.includes(url));
-      if (page) return await open(page.webSocketDebuggerUrl);
+      if (page) {
+        const opened = await open(page.webSocketDebuggerUrl);
+        if (BACKGROUND) await inBackground(opened, page.url);
+        return opened;
+      }
     } catch {
       // Not listening yet.
     }
     await sleep(500);
   }
   throw new Error(`no page target appeared for ${url}`);
+}
+
+/**
+ * Readies a page for a background run: it is told it has the focus, which no
+ * window kept off the screen ever has, and the drawing window's page is laid
+ * out at {@link BACKGROUND_PAGE} before the check goes on. Both hold for as
+ * long as the connection does, across reloads.
+ */
+async function inBackground(page, url) {
+  await page.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+  if (!url.includes('renderer/index.html')) return;
+  const { width, height, scale } = BACKGROUND_PAGE;
+  await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: scale, mobile: false });
+  await page.evalIn('await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));');
 }
 
 function open(url) {
@@ -197,6 +251,7 @@ function open(url) {
  */
 export function checker() {
   const results = [];
+  let skipped = 0;
   return {
     ok(label, condition, detail = '') {
       results.push({ pass: !!condition });
@@ -205,9 +260,15 @@ export function checker() {
     eq(label, actual, expected) {
       this.ok(label, Object.is(actual, expected), `got ${JSON.stringify(actual)}`);
     },
+    /** A check not run here, and why: it neither passes nor fails, and the summary counts it. */
+    skip(label, why) {
+      skipped++;
+      console.log(`SKIP  ${label}  (${why})`);
+    },
     summary() {
       const failed = results.filter((r) => !r.pass).length;
-      console.log(`\n${results.length - failed}/${results.length} checks passed`);
+      const also = skipped > 0 ? `, ${skipped} skipped` : '';
+      console.log(`\n${results.length - failed}/${results.length} checks passed${also}`);
       return failed === 0;
     },
   };

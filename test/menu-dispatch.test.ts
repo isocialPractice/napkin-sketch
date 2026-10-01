@@ -22,7 +22,7 @@ import {
 import { contextItems, defaultRegistry, menuTree, nativeMenus, type MenuRow, type NativeItem } from '../src/core/menu/registry.js';
 import { applicationMenuTemplate, menuStructureKey, rowStates } from '../src/main/menu.js';
 import { Commands, type CommandHandlers } from '../src/renderer/commands.js';
-import { contextMenuItems, type ContextMenuItem } from '../src/renderer/menus.js';
+import { contextMenuItems, inlineDeeperSubmenus, type ContextMenuItem } from '../src/renderer/menus.js';
 
 const registry = defaultRegistry();
 
@@ -193,10 +193,28 @@ test("a context menu shows each row's label, shortcut and state, and a click run
     '---',
     'Select All [Ctrl+A]',
     'Deselect All [Ctrl+Shift+A]',
+    '---',
+    'Wipe Stacks []',
   ]);
   items[2].action!();
   items[9].action!();
   assert.deepEqual(ran, ['paste', 'deselect-all']);
+});
+
+test("a submenu inside the canvas menu's Wipe Stacks panel lays its rows out in it, named after it", () => {
+  const ran: string[] = [];
+  const items = contextMenuItems(contextItems(registry, 'canvas'), (id) => ran.push(id));
+  const stacks = items.find((item) => item.label === 'Wipe Stacks')!;
+  const laid = inlineDeeperSubmenus(stacks.items!);
+  assert.deepEqual(
+    laid.map((item) => (item.separator ? '---' : item.label)),
+    ['Wipe In', '---', 'Wipe Out: Subtract Top from Below', 'Wipe Out: Subtract Below from Top', '---', 'Mid Wipe', 'Outer Wipes', 'Clean Wipe'],
+  );
+  laid[2].action!();
+  assert.deepEqual(ran, ['wipe-out-front']);
+  const greyed = inlineDeeperSubmenus(contextMenuItems(contextItems(registry, 'canvas', { fewerThanTwoShapes: true }), () => {}).find((item) => item.label === 'Wipe Stacks')!.items!);
+  assert.ok(greyed.filter((item) => !item.separator).every((item) => item.disabled), 'greyed with fewer than two shapes, the laid-out rows too');
+  assert.deepEqual(inlineDeeperSubmenus([{ label: 'A' }, { separator: true }, { separator: true }, { label: 'B' }, { separator: true }]).map((i) => i.label ?? '---'), ['A', '---', 'B'], 'no separator twice, none at the end');
 });
 
 test('a row with a submenu opens it rather than running anything, and a Mac reads the shortcuts its own way', () => {

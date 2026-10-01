@@ -39,9 +39,10 @@ import {
   type Tool,
   type VectorAnchor,
 } from '../core/types.js';
-import { normalizeGradient } from '../core/serialize.js';
+import { normalizeGradient, normalizeSmudges } from '../core/serialize.js';
 import { readEffects, type Effect } from '../core/effects.js';
 import { linkKind, linkName, linkPlaceholder } from '../core/link.js';
+import { DEFAULT_PENCIL, parsePencil } from '../core/pencil.js';
 import { elementSubpaths, parsePathD, sampleAnchors, type ParsedSubpath } from '../core/path-data.js';
 
 // The DOM-free path-data parsers, re-exported for callers that reach them
@@ -57,6 +58,8 @@ export interface ImportedLayer {
   children?: ImportedLayer[];
   /** Effects napkin-sketch wrote on the layer's group as `data-effects`. */
   effects?: Effect[];
+  /** The group's clip mark, from its `clip-path`: one of the strokes in its children. */
+  clip?: Stroke;
 }
 
 /** Result of parsing an SVG document. */
@@ -87,10 +90,10 @@ export interface SvgImportOptions {
 }
 
 const GEOMETRY_TAGS = new Set(['path', 'line', 'polyline', 'polygon', 'rect', 'circle', 'ellipse']);
-const NAPKIN_TOOLS = new Set<Tool>(['pen', 'marker', 'copic', 'eraser', 'text', 'image']);
+const NAPKIN_TOOLS = new Set<Tool>(['pen', 'marker', 'copic', 'pencil', 'eraser', 'text', 'image']);
 
 /** Non-drawing children skipped wherever elements are walked. */
-const NON_CONTENT_TAGS = new Set(['defs', 'title', 'metadata', 'desc', 'style']);
+const NON_CONTENT_TAGS = new Set(['defs', 'title', 'metadata', 'desc', 'style', 'clippath']);
 
 /**
  * Id stems editors auto-generate (`path4521`, `g830`); an id built from one of
@@ -352,7 +355,16 @@ function groupToLayer(
   splitUnnamed: boolean,
 ): ImportedLayer {
   const opacity = clamp01(Number(group.getAttribute('opacity') ?? 1));
-  const kids = contentChildren(group);
+  let kids = contentChildren(group);
+  // A clip on the group - or on the one group napkin put inside it, to clip
+  // before the group's effects - makes it a clip group: its <clipPath>'s
+  // shape is the clip mark, in a layer of its own on top inside the group.
+  let holder: SVGGElement = group;
+  if (kids.length === 1 && kids[0].tagName.toLowerCase() === 'g' && kids[0].hasAttribute('data-clip-inner')) {
+    holder = kids[0] as SVGGElement;
+    kids = contentChildren(holder);
+  }
+  const clip = clipMarkOf(holder, root, nextOrder);
   // A group stays a single leaf layer only when it holds nothing but
   // napkin's own exported marks (data-tool) - those merge back as the
   // layer's strokes so exports round-trip. Any generic child (named, a
@@ -360,6 +372,7 @@ function groupToLayer(
   // a group row whose children each get their own layer.
   const structured =
     splitUnnamed ||
+    clip !== null ||
     kids.some(
       (child) =>
         isLayerGroup(child) ||
@@ -382,7 +395,54 @@ function groupToLayer(
   if (erased.length > 0) {
     children.push({ name: 'Erased', opacity: 1, strokes: sortByOrder(erased) });
   }
+  if (clip) {
+    children.push({ name: clip.name, opacity: 1, strokes: [clip.stroke] });
+    return { name, opacity, strokes: [], children, clip: clip.stroke, ...effectsOf(group) };
+  }
   return { name, opacity, strokes: [], children, ...effectsOf(group) };
+}
+
+/**
+ * The clip mark a `<g>`'s `clip-path` names: its `<clipPath>`'s shapes as
+ * one closed mark, read in the group's own user space - a clip path's - by
+ * reading a copy of them put in the group for the moment. A clip napkin wrote
+ * keeps the paint it carried, for Release to show; any other has no fill and
+ * no outline, as a clipping path paints nothing. Null without one, or for a
+ * clip measured in the object's bounding box.
+ */
+function clipMarkOf(group: SVGGElement, root: SVGSVGElement, nextOrder: () => number): { stroke: Stroke; name: string } | null {
+  const ref = /url\(\s*["']?#([^"')\s]+)["']?\s*\)/.exec(group.getAttribute('clip-path') ?? group.style.clipPath ?? '');
+  if (!ref) return null;
+  const clipPath = Array.from(root.querySelectorAll('clipPath')).find((el) => el.id === ref[1]);
+  if (!clipPath || clipPath.getAttribute('clipPathUnits') === 'objectBoundingBox') return null;
+  const shapes = Array.from(clipPath.children).filter((el) => GEOMETRY_TAGS.has(el.tagName.toLowerCase()));
+  if (shapes.length === 0) return null;
+  const copy = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  const transform = clipPath.getAttribute('transform');
+  if (transform) copy.setAttribute('transform', transform);
+  for (const shape of shapes) copy.appendChild(shape.cloneNode(true));
+  group.appendChild(copy);
+  const items: OrderedStroke[] = [];
+  try {
+    for (const shape of Array.from(copy.children)) elementToStrokes(shape as SVGElement, root, items, nextOrder);
+  } finally {
+    copy.remove();
+  }
+  const marks = sortByOrder(items).filter((s) => s.points.length >= 3);
+  if (marks.length === 0) return null;
+  // Several shapes clip as their union: one compound mark, a subpath each.
+  const [first, ...rest] = marks;
+  const points = [...first.points, ...rest.flatMap((m) => m.points.map((p, i) => (i === 0 ? { ...p, move: true as const } : p)))];
+  const allVector = marks.every((m) => m.vector);
+  const anchors = allVector ? marks.flatMap((m, k) => m.vector!.anchors.map((a, i) => (k > 0 && i === 0 ? { ...a, move: true as const } : a))) : null;
+  const stroke: Stroke = { ...first, points, ...(anchors ? { vector: { anchors, closed: true } } : {}) };
+  if (!anchors) delete stroke.vector;
+  if (!shapes.some((el) => el.hasAttribute('data-tool'))) {
+    delete stroke.fill;
+    delete stroke.gradient;
+    stroke.noStroke = true;
+  }
+  return { stroke, name: clipPath.getAttribute('data-name') ?? 'Clipping Path' };
 }
 
 /**
@@ -550,6 +610,17 @@ function elementMarks(
     const stroke = textToStroke(el as SVGTextElement, root);
     if (stroke) out.push({ order, stroke });
     return;
+  }
+  // A smeared napkin Pencil mark: its picture is for other editors, and the
+  // mark comes back from the data it carries, passes and all.
+  if (tag === 'image' && el.getAttribute('data-tool') === 'pencil' && el.hasAttribute('data-d')) {
+    const stroke = profiledToStroke(el, root);
+    if (stroke) {
+      const smudges = readSmudges(el.getAttribute('data-smudges'));
+      if (smudges) stroke.smudges = smudges;
+      out.push({ order, stroke });
+      return;
+    }
   }
   if (tag === 'image') {
     const stroke = imageToStroke(el as SVGImageElement, root);
@@ -769,10 +840,12 @@ function geometryOf(
 }
 
 /**
- * Rebuilds a profiled napkin stroke. SVG has no variable-width stroke, so the
- * exporter writes the shape a profile makes as a filled outline - grouped with
- * the shape's fill, when it has one - and carries the stroke itself on the
- * outer element as data: its centreline (`data-d`), width, ink and profile.
+ * Rebuilds a profiled napkin stroke, or a Pencil mark. SVG has no
+ * variable-width stroke and no grain, so the exporter writes the shape a
+ * profile makes, or a pencil's outline filled with its grain, as a filled
+ * outline - grouped with the shape's fill, when it has one - and carries the
+ * stroke itself on the outer element as data: its centreline (`data-d`),
+ * width, ink and profile, or its pencil (`data-pencil`).
  * The stroke is rebuilt from those, as the mark it was drawn as: a polyline
  * comes back as its samples and anything with curves or several contours as
  * a Vector Path, just as the same path data would as a mark's own `d`.
@@ -783,7 +856,8 @@ function profiledToStroke(el: Element, root: SVGSVGElement): Stroke | null {
   const subpaths = parsePathD(el.getAttribute('data-d') ?? '');
   if (!subpaths || subpaths.length === 0) return null;
   const matrix = matrixToRoot(el as SVGGraphicsElement, root);
-  const tool: Tool = el.getAttribute('data-tool') === 'marker' ? 'marker' : 'pen';
+  const dataTool = el.getAttribute('data-tool');
+  const tool: Tool = dataTool === 'marker' ? 'marker' : dataTool === 'pencil' ? 'pencil' : 'pen';
   const color = normalizeColor(el.getAttribute('data-color') ?? DEFAULT_INK);
   const width = importWidth((Number(el.getAttribute('data-width')) || 1) * matrixScale(matrix));
   const opacity = clamp01(Number(getComputedStyle(el).opacity || 1));
@@ -804,8 +878,23 @@ function profiledToStroke(el: Element, root: SVGSVGElement): Stroke | null {
   }
   const fill = el.getAttribute('data-fill');
   if (fill && stroke.points.length > 2) stroke.fill = fill;
+  // A Pencil mark's outline is filled with its grain; the pencil itself rides along.
+  if (tool === 'pencil') stroke.pencil = parsePencil(el.getAttribute('data-pencil') ?? '') ?? { ...DEFAULT_PENCIL };
   applyNapkinPaint(el, stroke);
   return stroke;
+}
+
+/**
+ * A smeared Pencil mark's passes, as napkin writes them in `data-smudges`:
+ * read as a file reads them, so a pass that is not one is dropped.
+ */
+function readSmudges(text: string | null): Stroke['smudges'] {
+  if (!text) return undefined;
+  try {
+    return normalizeSmudges(JSON.parse(text));
+  } catch {
+    return undefined;
+  }
 }
 
 /**

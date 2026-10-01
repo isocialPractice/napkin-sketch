@@ -17,4 +17,8 @@
   gives the new page those dimensions, and brings a **copy of the selection
   with it** - the copies land at the new page's origin and stay selected,
   while the originals stay where they were.
+- **Turning pages** - the page bar's **‹** and **›**, **Pages > Previous Page**
+  and **Next Page**, or `PageUp` and `PageDown`. Each is greyed at its end of
+  the book, and a click on a thumbnail turns straight to that page. The menu
+  rows and the keys are new in 1.0.0-alpha.4.6.0; the arrows always had them.
 - **Multi-page sketch books** saved as portable `.skbk` JSON files.

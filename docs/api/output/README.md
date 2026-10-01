@@ -292,7 +292,7 @@ watermark - before rendering it, or to write it with `compositionToSvg`.
 
 | Mark | Composition element |
 | --- | --- |
-| A line (pen or marker) | `path`: `stroke`, `strokeWidth`, round `lineCap` and `lineJoin`, `dash`, and `opacity`, the tool's own when the mark sets none: a marker's is 0.38, a Copic's 0.5 |
+| A line (brush or marker) | `path`: `stroke`, `strokeWidth`, round `lineCap` and `lineJoin`, `dash`, and `opacity`, the tool's own when the mark sets none: a marker's is 0.38, a Copic's 0.5 |
 | A one-point mark | `circle`, its radius half the mark's width |
 | A filled shape | `fill` as a color or a [gradient](../compose/README.md#gradients); `stroke: null` when its outline is off |
 | A profiled mark | a filled `path` of its outline; with a fill as well, a group of the fill under the outline, the opacity on the group |

@@ -91,12 +91,19 @@ import type {
 } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
 import { scaleEffects } from '../core/effects.js';
+import { hitMark, marksInBox, outlineDistance } from '../core/hit-test.js';
+import { paintOrder } from '../core/paint-order.js';
+import { PENCIL_KIT, pencilGrade, pencilPaint, pencilRegion, pencilWidth, rasterizePencil, samePencil, type PencilChoice } from '../core/pencil.js';
+import { DEFAULT_SMEAR_STRENGTH, mapSmudges, smearReaches, smudgeFor } from '../core/smudge.js';
+import { LIQUIFY_MODES, liquifyMarks, liquifyReaches, refitLiquified, type LiquifyDab, type LiquifyMode } from '../core/liquify.js';
+import { isSplittable, splitMark, splitTarget, type SplitPoint } from '../core/split.js';
 import { sketchesToPdf } from '../core/pdf.js';
 import { defaultSettings, type AppSettings, type QuickModifier } from '../core/settings.js';
 import {
   catmullRom,
   constrainDrag,
   cubicBezierPoints,
+  extendWithLine,
   sampleVectorPathPoints,
   normalizeRotation,
   quarterArcCubic,
@@ -114,7 +121,7 @@ import { inkBox } from '../core/script/render.js';
 import { ScriptDialog } from './script-dialog.js';
 import { Commands, type CommandHandlers } from './commands.js';
 import { describeStep, HistoryTracker, localMinute, type CommandInfo } from './history-tracker.js';
-import { contextMenuItems, type ContextMenuItem } from './menus.js';
+import { contextMenuItems, inlineDeeperSubmenus, type ContextMenuItem } from './menus.js';
 import { contextItems, defaultRegistry, loadRegistry, type MenuRegistry } from '../core/menu/registry.js';
 import type { MenuCommand, MenuState } from '../core/menu/ids.js';
 import { displayChord } from '../core/menu/chords.js';
@@ -132,8 +139,56 @@ import {
   type ShortcutRow,
   type ToolTypeRow,
 } from './editors.js';
-import { sharpenStroke } from '../sharpen/sharpen.js';
-import { Surface, strokeBounds, type LiveStroke, type WarpOverlay } from './surface.js';
+import { fitPoints, fitsFreehand, fitStroke, SHARPEN_FIT_TOLERANCE, sharpenStroke } from '../sharpen/sharpen.js';
+import { Surface, strokeBounds, type LiveStroke, type Overlay, type WarpOverlay, type WipeSnapshot } from './surface.js';
+import {
+  faceAt,
+  facesAlong,
+  facesInBox,
+  isWipeable,
+  stackArrangement,
+  stackEdit,
+  wipeMarks,
+  WIPE_OPERAND_LIMIT,
+  type StackArrangement,
+  type WipeOp,
+} from '../core/wipe.js';
+import { screenPx, wheelZoomFactor, ZOOM_MENU_STEP } from './zoom.js';
+import {
+  AfterPress,
+  isStalePress,
+  pressEndPolicy,
+  type PressEndReason,
+  type PressKind,
+  type PressRecord,
+} from './press-state.js';
+import {
+  ctrlJoinsPress,
+  drawsLines,
+  isModifierKey,
+  lineStartOf,
+  nibStep,
+  shiftLineAction,
+  SPRING_DELAY_MS,
+  spaceAction,
+  springsFrom,
+  springStep,
+  type InkPaint,
+  type LineStart,
+  type NibEvent,
+  type NibState,
+  type SelectionTool,
+  type SpringEvent,
+  type SpringState,
+} from './held-keys.js';
+import { fitCurve } from '../core/fit-curve.js';
+import { bandEnd, closesAt, nextAnchorAt, pulledHandles } from './vector-place.js';
+import { eraseKind, eraseMarks, eraseRegionOf } from '../core/erase.js';
+import { CLIP_NOTICES, SessionNotices, SHAPE_ERASER_NOTICES, SHAPE_STACKER_NOTICES } from './notice.js';
+import { clipIndex, releaseClip, shownBounds } from '../core/clip.js';
+import { frontColor, nextQuickColor, otherTarget, swapToolPaint } from './fill-stroke.js';
+import type { ColorTarget } from '../core/paint.js';
+import { AltMenuRule } from './alt-menu.js';
 import {
   ArapSolver,
   MeshLocator,
@@ -301,10 +356,13 @@ const SYMMETRY_FADE_MS = 220;
  * absorbed is the hand's and does not get smaller when the page is zoomed out.
  *
  * Four is the smallest value that swallowed a deliberate click in testing
- * while still letting a one-pixel nudge be dragged; it sits alongside the
- * three-pixel default the Direct Select grab radius already uses.
+ * while still letting a one-pixel nudge be dragged. Direct Select's anchor,
+ * handle and path drags wait for the same distance.
  */
 const SELECT_DRAG_THRESHOLD_PX = 4;
+
+/** What a Direct Select drag carries: raw points, a tangent handle, the path, or a vector anchor or handle. */
+type AnchorDragKind = 'anchor' | 'handle' | 'path' | 'vanchor' | 'vhIn' | 'vhOut';
 
 /** True when the OS asks for reduced motion; animations are skipped outright. */
 function prefersReducedMotion(): boolean {
@@ -380,6 +438,8 @@ const CURSOR_REMOVE_POINT = svgCursor(
  * keeps the sweep readable where the pointer crosses dark ink.
  */
 const CURSOR_ROTATE = "url('../assets/rotate-popup.svg') 16 16, grab";
+/** Split's scissors, their hotspot the crosshair where the cut lands. */
+const CURSOR_SPLIT = "url('../assets/split-cursor.svg') 5 5, crosshair";
 
 /** KeyboardEvent.key value produced by each configurable quick-feature modifier. */
 const MODIFIER_EVENT_KEYS: Record<QuickModifier, string> = {
@@ -418,7 +478,12 @@ const TOOL_IDS = [
   'tool-pen',
   'tool-marker',
   'tool-copic',
+  'tool-pencil',
+  'tool-smear',
   'tool-eraser',
+  'tool-shape-eraser',
+  'tool-shape-stacker',
+  'tool-split',
   'tool-select',
   'tool-point',
   'tool-text',
@@ -430,6 +495,7 @@ const TOOL_IDS = [
   'tool-fill',
   'tool-eyedrop',
   'tool-warp',
+  'tool-liquify',
 ] as const;
 
 /** How long a toast stays up. */
@@ -507,6 +573,17 @@ class App {
 
   private live: LiveStroke | null = null;
   private activePointerId: number | null = null;
+  /**
+   * The press that owns `activePointerId`: what it is doing and the tool it
+   * began with, which its moves and its release act on (press-state.ts).
+   */
+  private press: PressRecord | null = null;
+  /** Work asked for while a press is live - a change of tool above all - done when it ends. */
+  private readonly afterPress = new AfterPress();
+  /** Where the owning pointer last was, for finishing a press whose release never comes. */
+  private pressClient: { x: number; y: number; pointerType: string } | null = null;
+  /** Above zero while a release is being handled, which a capture lost during it belongs to. */
+  private releasing = 0;
   private renderQueued = false;
   /** Animation-frame handle for a pending panel sync, or null when none is due. */
   private uiSyncFrame: number | null = null;
@@ -704,6 +781,92 @@ class App {
   private quickCurve = false;
   private quickCurveUniform = false;
   private quickCurveApex = 0;
+  // Where the pointer puts the quick curve's far end, before the snap: kept
+  // so Shift going down or up can free or snap the end without a move.
+  private quickCurveRaw: Point | null = null;
+
+  // Shift-click lines (held-keys.ts). `lineStart` is point 1, where the next
+  // one starts. `shiftLine` is the press drawing one: the mark it carries on
+  // (null when the line is a mark of its own), what the live stroke holds
+  // before point 2, and point 2, where the press's own drawing begins.
+  private lineStart: LineStart | null = null;
+  private shiftLine: { markId: string | null; prefix: Point[]; to: Point } | null = null;
+
+  // The Eraser press under way: the marks it cuts, fixed when it went down -
+  // the selection, or null for every editable mark it touches.
+  private erasing: { targets: Set<string> | null } | null = null;
+
+  // Shape Eraser: the shape it cuts with, for the session (its panel sets it,
+  // as the Curve flyout sets `curveVariant`), and the drag under way - the
+  // selected marks it cuts, and the shape dragged out so far.
+  private shapeEraserShape: ShapeEraserShape = 'rect';
+  private shapeErase: { targets: Set<string>; outline: Point[] | null } | null = null;
+  /** A Wipe Stacks wipe under way: the picture from before it, when it began, how far across it is, and its frame request. */
+  private wipeAnim: { snapshot: WipeSnapshot; start: number; t: number; frame: number } | null = null;
+  /**
+   * The Shape Stacker's faces of the selection (core/wipe.ts), worked out when
+   * first wanted after the page or the selection changed.
+   */
+  private stacker: StackArrangement | null = null;
+  private stackerDirty = true;
+  /** The face under the pointer while the Shape Stacker is in hand, or -1. */
+  private stackerHover = -1;
+  /**
+   * A Shape Stacker press: whether it takes faces away (Alt at the press) or
+   * drags a box (Shift), where it began and is now, its path, and the faces
+   * it has marked in the order it reached them.
+   */
+  private stackDrag: { remove: boolean; box: boolean; start: Point; end: Point; path: Point[]; marked: number[] } | null = null;
+  /**
+   * A Smear drag under way: the stump's path, width and strength; the marks
+   * it may smear - the selected ones, or with none selected every one it
+   * passes - with their boxes; those it has reached; and whether it has
+   * passed over a mark that is not a pencil's, which it leaves alone.
+   */
+  private smearDrag: {
+    points: Point[];
+    width: number;
+    strength: number;
+    candidates: Array<{ stroke: Stroke; box: { minX: number; minY: number; maxX: number; maxY: number } }>;
+    reached: Set<string>;
+    others: boolean;
+  } | null = null;
+  /** Whether the Smear has said, this session, that it blends pencil marks only. */
+  private smearSaid = false;
+  /** The Liquify brush in hand: which of the four, and its radius in page units. */
+  private liquifyMode: LiquifyMode = 'warp';
+  private liquifyRadius = LIQUIFY_RADIUS;
+  /**
+   * A Liquify press under way. A bend: the marks it may bend - the selected
+   * ones, or with none selected every editable one - and those it has bent;
+   * where the brush is, the pressure, and the frame clock of a brush that
+   * works while held; whether the store transaction that keeps the drag as one
+   * undo step is open; and whether it passed over pencil marks, which it leaves
+   * to the Smear. A size (an Alt-drag): the brush's centre, the radius it had,
+   * and whether the pointer has moved off the centre yet.
+   */
+  private liquifyDrag:
+    | {
+        kind: 'bend';
+        mode: LiquifyMode;
+        candidates: Set<string>;
+        bent: Set<string>;
+        at: Point;
+        pressure: number;
+        last: number;
+        frame: number | null;
+        open: boolean;
+        pencils: boolean;
+      }
+    | { kind: 'size'; center: Point; from: number; moved: boolean }
+    | null = null;
+  /** Whether Liquify has said, this session, that it leaves pencil marks to the Smear. */
+  private liquifySaid = false;
+  /** Where a Split click would cut, while Split is in hand and the pointer is on a path. */
+  private splitHover: { strokeId: string; at: SplitPoint } | null = null;
+
+  // Why an action did nothing, once a session (notice.ts).
+  private readonly notices = new SessionNotices((text) => this.toast(text));
 
   // Direct Select (A): stroke whose anchor points are shown, which anchors
   // are selected (Shift adds), whether the whole path is selected, and the
@@ -715,12 +878,20 @@ class App {
   private anchorStrokeId: string | null = null;
   private selectedAnchors = new Set<number>();
   private pathSelected = false;
-  private anchorDragKind: 'anchor' | 'handle' | 'path' | 'vanchor' | 'vhIn' | 'vhOut' | null =
-    null;
+  private anchorDragKind: AnchorDragKind | null = null;
   private anchorDragLast: Point | null = null;
 
   /** Where the anchor/handle/path drag began, for the Shift constraint. */
   private anchorDragOrigin: Point | null = null;
+
+  /**
+   * Where a Direct Select press landed, in client pixels, and whether its drag
+   * has begun. As with the Select tool, nothing moves and no history step is
+   * pushed until the pointer has travelled {@link SELECT_DRAG_THRESHOLD_PX}
+   * from here, so a click that only picks an anchor leaves the drawing alone.
+   */
+  private anchorDragFrom: { x: number; y: number } | null = null;
+  private anchorDragCommitted = false;
   // Tangent-handle drag, captured at grab time. The handle pivots the curve
   // around the anchor: the span between anchor and handle turns rigidly and
   // the effect fades to nothing over the falloff window, so each move is
@@ -737,9 +908,15 @@ class App {
   // both out symmetrically; a plain click leaves them unset for a corner).
   // `vectorDragging` is true while that placement drag runs, and
   // `vectorHover` previews the rubber-band segment to the pointer.
+  // `vectorPointer` is where the pointer is, before Shift holds it to eight
+  // directions, so Shift going down or up can redo the band or the handle
+  // without a move (vector-place.ts); `vectorCloseHover` is true while a
+  // press would close the path, and the close indicator shows.
   private vectorAnchors: VectorAnchor[] = [];
   private vectorDragging = false;
   private vectorHover: Point | null = null;
+  private vectorPointer: Point | null = null;
+  private vectorCloseHover = false;
 
   // Vector Path edit mode: a committed vector stroke whose anchors are being
   // reworked. Plain clicks add (on a segment) or remove (on an anchor)
@@ -770,11 +947,22 @@ class App {
   // Apply can record one clean history step from the pre-dialog state.
   private sharpenPreview: Map<
     string,
-    { points: Point[]; vector?: Stroke['vector'] }
+    { points: Point[]; vector?: Stroke['vector']; fit: boolean }
   > | null = null;
 
-  // Eyedropper: true while Ctrl temporarily switched to the select tool.
-  private eyedropTempSelect = false;
+  // Held keys (held-keys.ts). Ctrl on a drawing tool gives the last selection
+  // tool chosen: `spring` is how far that has got, `springFrom` the drawing
+  // tool to give back, `springTimer` the delay before it comes up by itself.
+  private lastSelectionTool: SelectionTool = 'select';
+  private spring: SpringState = 'off';
+  private springFrom: Tool | null = null;
+  private springTimer: number | null = null;
+  /** Where the pointer was, in client pixels, over any part of the window. */
+  private hoverClient: { x: number; y: number } | null = null;
+  /** Where the pointer was when the nib-rotate's hold key went down. */
+  private nibHoldOrigin: { x: number; y: number } | null = null;
+  /** Whether a bare Alt may open the menu bar (alt-menu.ts). */
+  private readonly altRule = new AltMenuRule();
 
   // Quick-feature digit entry (Quick Width "W" / Quick Opacity "Q").
   private quickMode: 'width' | 'opacity' | null = null;
@@ -786,8 +974,9 @@ class App {
   private quickZoomArmed = false;
   private quickZoomTimer: number | null = null;
 
-  // Copic quick nib-rotate (hold Ctrl → Alt/Shift rotate the broad nib).
-  private nibHoldDown = false;
+  // Copic quick nib-rotate (hold Ctrl → Alt/Shift rotate the broad nib): a
+  // still hold while `nib` is pending, the mode itself once it is on.
+  private nib: NibState = 'off';
   private nibHoldTimer: number | null = null;
   private nibRotateActive = false;
   private nibRotateDir: 1 | -1 | 0 = 0;
@@ -864,6 +1053,10 @@ class App {
 
     this.store.subscribe(() => this.scheduleRender());
     this.store.subscribe(() => this.scheduleSyncUi());
+    this.store.subscribe(() => this.checkLineStart());
+    this.store.subscribe(() => {
+      this.stackerDirty = true;
+    });
 
     this.bindTools();
     this.bindFileActions();
@@ -872,6 +1065,7 @@ class App {
     this.bindSettings();
     this.bindPointer();
     this.bindKeyboard();
+    this.bindHeldKeys();
     this.bindResize();
     this.bindMenu();
     this.bindVectorOptions();
@@ -1054,6 +1248,25 @@ class App {
                 }
               : undefined,
         snapTarget: this.snapTarget ?? undefined,
+        liveErase:
+          this.erasing && this.live?.tool === 'eraser'
+            ? { targets: this.erasing.targets }
+            : this.shapeErase?.outline
+              ? { targets: this.shapeErase.targets, region: [this.shapeErase.outline] }
+              : undefined,
+        shapeOutline: this.shapeErase?.outline ?? undefined,
+        stack: this.stackerOverlay() ?? undefined,
+        liveSmear:
+          this.smearDrag && this.smearDrag.reached.size > 0
+            ? { pass: { points: this.smearDrag.points, width: this.smearDrag.width, strength: this.smearDrag.strength }, ids: this.smearDrag.reached }
+            : undefined,
+        splitRing: this.store.tool.tool === 'split' && this.splitHover && this.pointerOverCanvas ? this.splitHover.at.point : undefined,
+        liquifyBrush: this.liquifyBrush() ?? undefined,
+        wipe: this.wipeAnim ? { snapshot: this.wipeAnim.snapshot, t: this.wipeAnim.t } : undefined,
+        closeIndicator:
+          this.store.tool.tool === 'vector' && this.vectorCloseHover && this.vectorAnchors.length >= 2
+            ? this.vectorAnchors[0].p
+            : undefined,
         rotate: this.rotateOverlay() ?? undefined,
         transform: this.transformOverlay() ?? undefined,
         anchors: this.anchorOverlay() ?? undefined,
@@ -1150,7 +1363,10 @@ class App {
       }
       return {
         points: anchors.map((a) => ({ ...a.p, pressure: 0.5 })),
-        selected: [...this.selectedAnchors],
+        selected: withSeamTwins(
+          anchors.map((a) => a.p),
+          this.selectedAnchors,
+        ),
         handles,
         handleOrigin,
         pathSelected: this.pathSelected,
@@ -1169,7 +1385,7 @@ class App {
     }
     return {
       points: stroke.points,
-      selected: [...this.selectedAnchors],
+      selected: withSeamTwins(stroke.points, this.selectedAnchors),
       handles,
       handleOrigin,
       pathSelected: this.pathSelected,
@@ -1255,10 +1471,25 @@ class App {
       // Track History records what a press commits under the tool that made
       // it, or the dialog it turns or sizes the selection for.
       if (e.button === 0) {
+        // A press still on record lost its release somewhere. It is finished
+        // where it stands, under its own name, before this one begins -
+        // rather than turning this one away, which is how the tools-break
+        // stopped every tool for good.
+        const owner = this.press?.pointerId ?? this.activePointerId;
+        if (owner !== null && isStalePress(owner, e.pointerId, this.pointers)) this.endPressEarly('stale');
+        // Ctrl held on a drawing tool: the selection tool comes up now, if it
+        // has not already, so this press is the selection tool's.
+        if (!this.press) this.springEvent('press');
         this.endPress();
         this.pressEnd = this.store.beginCommand(this.pressCommand());
       }
       this.onPointerDown(e);
+    });
+    // The capture can go before the release does - taken by the system, or by
+    // another element. That ends the press where it stands. After an ordinary
+    // release there is no press left by the time this is heard.
+    c.addEventListener('lostpointercapture', (e) => {
+      if (this.releasing === 0 && this.press?.pointerId === e.pointerId) this.endPressEarly('capture');
     });
     c.addEventListener('pointermove', (e) => this.onPointerMove(e));
     c.addEventListener('pointerup', (e) => {
@@ -1277,6 +1508,12 @@ class App {
       // Paste aims at the pointer only while there is one on the page.
       this.pointerOverCanvas = false;
       this.showWarpHint(null);
+      if (this.store.tool.tool === 'liquify') this.scheduleRender();
+      if (this.stackerHover >= 0 || this.splitHover) {
+        this.stackerHover = -1;
+        this.splitHover = null;
+        this.scheduleRender();
+      }
     });
     c.addEventListener('pointerenter', () => {
       this.pointerOverCanvas = true;
@@ -1298,15 +1535,17 @@ class App {
    * are configurable; plain wheel events over the canvas are consumed.
    */
   private onWheel(e: WheelEvent): void {
+    this.endWipe();
     if (e.deltaY === 0) return;
     const scrollUp = e.deltaY < 0;
 
     if (e.altKey) {
       e.preventDefault();
       const rect = this.canvas.getBoundingClientRect();
-      let zoomIn = scrollUp;
-      if (this.settings.invertScrollZoom) zoomIn = !zoomIn;
-      const factor = zoomIn ? 1.1 : 1 / 1.1;
+      // A notch of a mouse wheel is 1.1; a trackpad's smaller deltas zoom by
+      // as much of a notch as they are, and a deep zoom takes no longer to
+      // reach with a fast wheel.
+      const factor = wheelZoomFactor(e.deltaY, e.deltaMode, this.settings.invertScrollZoom);
       this.surface.zoomAt(factor, e.clientX - rect.left, e.clientY - rect.top);
       this.scheduleRender();
       return;
@@ -1360,7 +1599,155 @@ class App {
     }
   }
 
+  // ---- The press record (press-state.ts) -----------------------------------
+
+  /**
+   * Takes the pointer for a press: its capture, and the record the press's
+   * moves and release act on. Every press that captures the pointer comes
+   * through here.
+   */
+  private claimPointer(e: PointerEvent, kind: PressKind): void {
+    this.activePointerId = e.pointerId;
+    this.press = { kind, pointerId: e.pointerId, tool: this.store.tool.tool };
+    this.pressClient = { x: e.clientX, y: e.clientY, pointerType: e.pointerType };
+    this.canvas.setPointerCapture(e.pointerId);
+  }
+
+  /**
+   * Lets go of the pointer a press owns - its capture and its record - and
+   * does whatever was asked for while it was down. Safe to call twice, and
+   * from inside a release.
+   */
+  private releasePointer(): void {
+    const id = this.press?.pointerId ?? this.activePointerId;
+    this.press = null;
+    this.activePointerId = null;
+    this.pressClient = null;
+    if (id !== null && this.canvas.hasPointerCapture(id)) this.canvas.releasePointerCapture(id);
+    this.afterPress.flush();
+    // With the press gone, a Space still held shows the hand again.
+    this.updateCursor();
+  }
+
+  /** Does `work` now, or once the press in progress has ended. */
+  private whenPressEnds(work: () => void): void {
+    if (this.press) this.afterPress.add(work);
+    else work();
+  }
+
+  /** The tool a press acts with: the one it began with while it lasts, the one in hand otherwise. */
+  private pressTool(): Tool {
+    return this.press?.tool ?? this.store.tool.tool;
+  }
+
+  /**
+   * Ends the press in progress for something other than its release, as
+   * {@link pressEndPolicy} says: finished where it stands - the release it
+   * never had, at the last place its pointer was - or dropped. Either way the
+   * pointer is let go and the press's history step is closed.
+   */
+  private endPressEarly(reason: PressEndReason): void {
+    const owner = this.press?.pointerId ?? this.activePointerId;
+    if (owner === null) return;
+    const kind = this.press?.kind ?? 'freehand';
+    if (pressEndPolicy(kind, reason) === 'finish') {
+      const at = this.pressClient;
+      this.onPointerUp(
+        new PointerEvent('pointerup', {
+          pointerId: owner,
+          pointerType: at?.pointerType ?? 'mouse',
+          isPrimary: true,
+          clientX: at?.x ?? 0,
+          clientY: at?.y ?? 0,
+          button: 0,
+          buttons: 0,
+        }),
+      );
+    } else {
+      this.dropPress();
+    }
+    this.endPress();
+  }
+
+  /** Drops the press in progress when it is one of `kinds`: a mode's own cancel, mid-drag. */
+  private dropPressOf(...kinds: PressKind[]): void {
+    if (!this.press || !kinds.includes(this.press.kind)) return;
+    this.dropPress();
+    this.endPress();
+  }
+
+  /**
+   * Abandons the press in progress: every per-press field goes and the
+   * pointer is let go, so nothing the press was about to add is added. What
+   * a drag has already done to the drawing - a scale, a pin, an anchor -
+   * stays, one undo away.
+   */
+  private dropPress(): void {
+    this.clearPressFields();
+    this.releasePointer();
+    this.updateCursor();
+    this.scheduleRender();
+  }
+
+  /** Clears every field a press sets, whatever the press was. */
+  private clearPressFields(): void {
+    this.live = null;
+    this.straightStart = null;
+    this.straightEnd = null;
+    this.straightRaw = null;
+    this.shapeStart = null;
+    this.curveA = null;
+    this.curveB = null;
+    this.curveBending = false;
+    this.curveControl = null;
+    this.quickCurve = false;
+    this.quickCurveUniform = false;
+    this.quickCurveApex = 0;
+    this.quickCurveRaw = null;
+    this.shiftLine = null;
+    this.erasing = null;
+    this.shapeErase = null;
+    this.stackDrag = null;
+    this.smearDrag = null;
+    this.abandonLiquify();
+    this.vectorDragging = false;
+    this.vectorEditDrag = null;
+    this.startSnapHit = null;
+    this.setSnapTarget(null);
+    this.dragging = false;
+    this.dragLast = null;
+    this.dragOrigin = null;
+    this.dragFrom = null;
+    this.dragCommitted = false;
+    this.dragMoved = false;
+    this.copyDragging = false;
+    this.pendingSelectionClear = false;
+    this.pendingSelectHitId = null;
+    this.shiftToggleId = null;
+    this.rubberBandStart = null;
+    this.rubberBandBox = null;
+    this.textDragStart = null;
+    this.textDragLive = null;
+    this.anchorDragKind = null;
+    this.handleDrag = null;
+    this.anchorDragLast = null;
+    this.anchorDragOrigin = null;
+    this.anchorDragFrom = null;
+    this.anchorDragCommitted = false;
+    this.panDragging = false;
+    this.panLast = null;
+    this.panOrigin = null;
+    this.warpDrag = null;
+    this.transformDrag = null;
+    this.rotateDrag = null;
+    this.rotateCenterDrag = null;
+    this.rotateRay = null;
+  }
+
   private onPointerDown(e: PointerEvent): void {
+    // A press, whichever button, ends a wipe at once: the page already holds
+    // the result, and the press goes on to do what it does.
+    this.endWipe();
     // Only the primary button draws, selects and edits. A right press is the
     // canvas menu's: before this, it drew a dot with the pen, or dropped the
     // selection with the Select tool, before the menu meant to act on that
@@ -1378,6 +1765,15 @@ class App {
     const tool = this.store.tool.tool;
     const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
 
+    // Space held gives the hand, on every tool and over any box or dialog:
+    // the press pans the canvas (held-keys.ts). The straight line and the
+    // quick curve are Space pressed after the press (see bindKeyboard).
+    if (this.spaceDown) {
+      e.preventDefault();
+      this.beginPanDrag(e);
+      return;
+    }
+
     // Rotate: while its dialog is open the canvas turns the selection rather
     // than drawing on it, and the pivot marker can be dragged somewhere else.
     // Claimed ahead of every tool, since the gesture belongs to the dialog
@@ -1394,6 +1790,14 @@ class App {
       return;
     }
 
+    // Liquify: the drag bends the marks under the brush (core/liquify.ts), and
+    // an Alt-drag sizes the brush. Like Mesh Warp it bends marks where they are.
+    if (tool === 'liquify') {
+      e.preventDefault();
+      this.liquifyPointerDown(e, pt);
+      return;
+    }
+
     // Eyedropper reads the canvas; it needs no editable layer.
     if (tool === 'eyedrop') {
       e.preventDefault();
@@ -1401,14 +1805,9 @@ class App {
       return;
     }
 
-    // Direct Select: Space + drag pans (as with the Select tool); otherwise
-    // grab an anchor point, or pick a stroke to edit.
+    // Direct Select: grab an anchor point, or pick a stroke to edit.
     if (tool === 'point') {
       e.preventDefault();
-      if (this.spaceDown) {
-        this.beginPanDrag(e);
-        return;
-      }
       this.beginPointSelect(e, pt);
       return;
     }
@@ -1420,8 +1819,19 @@ class App {
       return;
     }
 
-    // Every mark-making tool needs an editable (visible, unlocked) layer.
-    if (tool !== 'select' && !this.ensureDrawableLayer()) return;
+    // Every mark-making tool needs an editable (visible, unlocked) layer - but
+    // the Eraser and the Shape Eraser make no mark, and cut the marks where
+    // they are, and the Shape Stacker and Split work on the marks where they are.
+    if (
+      tool !== 'select' &&
+      tool !== 'eraser' &&
+      tool !== 'shape-eraser' &&
+      tool !== 'shape-stacker' &&
+      tool !== 'split' &&
+      !this.ensureDrawableLayer()
+    ) {
+      return;
+    }
 
     // Curve tool, bend phase: a click commits the pending curve.
     if (this.curveBending) {
@@ -1430,28 +1840,24 @@ class App {
       return;
     }
 
-    // Curve chord: the Curve tool, or the Ctrl+Space quick feature
-    // (Shift+Ctrl+Space additionally snaps the chord ends).
-    if (
-      (tool === 'curve' || (this.spaceDown && e.ctrlKey && tool !== 'select' && tool !== 'text')) &&
-      tool !== 'bucket'
-    ) {
+    // Curve tool: the chord (Shift additionally snaps the chord ends). The
+    // quick curve is Ctrl and Space pressed after a press (see bindKeyboard).
+    if (tool === 'curve') {
       e.preventDefault();
-      this.activePointerId = e.pointerId;
-      this.canvas.setPointerCapture(e.pointerId);
+      // The Curve tool keeps its two-phase chord-and-bend flow for a mouse,
+      // which can hover between clicks; pen and touch input cannot, so they
+      // take the quick curve's single-gesture flow instead.
+      const quick = e.pointerType !== 'mouse';
+      this.claimPointer(e, quick ? 'curve' : 'chord');
       this.curveTool = drawingToolOf(tool);
       // The default Curve variant starts (and ends) at nearby stroke endpoints.
-      const snapEnds = e.shiftKey || (tool === 'curve' && this.curveVariant === 'endpoints');
+      const snapEnds = e.shiftKey || this.curveVariant === 'endpoints';
       const start = this.applyEndpointSnap(pt, snapEnds, this.curveTool);
       this.startSnapHit = this.snapTarget;
       this.curveA = start;
       this.curveB = start;
       this.curveBending = false;
-      // The quick curve draws the whole arc in one gesture. The Curve tool
-      // keeps its two-phase chord-and-bend flow for a mouse, which can hover
-      // between clicks; pen and touch input cannot, so they take the quick
-      // curve's single-gesture flow instead.
-      this.quickCurve = tool !== 'curve' || e.pointerType !== 'mouse';
+      this.quickCurve = quick;
       this.quickCurveUniform = this.quickCurve && e.altKey;
       this.quickCurveApex = 0;
       this.scheduleRender();
@@ -1460,9 +1866,9 @@ class App {
 
     // Vector Path: each press places an anchor (drag pulls out its Bézier
     // handles; a plain click leaves a corner). Pressing on the first anchor
-    // closes the path and commits it. Space defers to the quick straight
-    // line, as with every drawing tool.
-    if (tool === 'vector' && !this.spaceDown) {
+    // closes the path and commits it. Space pans, as with every tool, and
+    // the path waits for the next press.
+    if (tool === 'vector') {
       e.preventDefault();
       // Editing a committed path claims every press; with no pending path, a
       // press on an existing vector stroke picks it up for editing instead
@@ -1478,47 +1884,22 @@ class App {
           return;
         }
       }
-      const grab = this.vectorGrab();
-      const first = this.vectorAnchors[0];
-      if (
-        first &&
-        this.vectorAnchors.length >= 2 &&
-        Math.hypot(first.p.x - pt.x, first.p.y - pt.y) <= grab
-      ) {
+      // A press where the close indicator shows closes the path, Shift or not.
+      if (closesAt(this.vectorAnchors, pt, this.vectorGrab())) {
         this.commitVectorPath(true);
         return;
       }
-      this.activePointerId = e.pointerId;
-      this.canvas.setPointerCapture(e.pointerId);
-      this.vectorAnchors.push({ p: { x: pt.x, y: pt.y } });
+      this.claimPointer(e, 'vector-place');
+      // Shift holds the new anchor to eight directions from the last.
+      this.vectorAnchors.push({ p: nextAnchorAt(this.vectorAnchors, pt, e.shiftKey) });
       this.vectorDragging = true;
       this.vectorHover = null;
+      this.vectorPointer = pt;
+      this.vectorCloseHover = false;
       if (this.vectorAnchors.length === 1) {
         this.toast('Click to add points, drag for curves; click the first point to close, Enter to finish (Esc cancels).');
       }
       this.previewVectorPath();
-      return;
-    }
-
-    // Straight-line mode: Space held + single-pointer drag draws a straight line.
-    if (this.spaceDown && tool !== 'select' && tool !== 'text') {
-      e.preventDefault();
-      this.activePointerId = e.pointerId;
-      this.canvas.setPointerCapture(e.pointerId);
-      const start = this.applyEndpointSnap(pt, e.shiftKey, tool);
-      this.startSnapHit = this.snapTarget;
-      this.straightStart = start;
-      this.straightEnd = start;
-      this.straightRaw = start;
-      this.scheduleRender();
-      return;
-    }
-
-    // Select tool + Space: drag to pan the canvas (quick-feature pan). The
-    // Direct Select branch above routes its own Space press here too.
-    if (this.spaceDown && tool === 'select') {
-      e.preventDefault();
-      this.beginPanDrag(e);
       return;
     }
 
@@ -1529,13 +1910,95 @@ class App {
       return;
     }
 
+    // Shape Eraser: drag out the chosen shape over the selection, and the
+    // release cuts it out of the selected marks (core/erase.ts).
+    // REUSE: the drag is the Rectangle and Ellipse tools' press - the 'shape'
+    // press kind and `shapeStart` - with `shapeErase` saying it is the
+    // eraser's, so the move draws an outline and the release cuts instead of
+    // adding a mark. Should the shape tools and the eraser ever need to part
+    // ways mid-drag (a key that means one thing to each, say), give the Shape
+    // Eraser a press kind of its own rather than growing the branches.
+    if (tool === 'shape-eraser') {
+      e.preventDefault();
+      const targets = this.eraserTargets();
+      if (!targets || targets.size === 0) {
+        this.notices.show(SHAPE_ERASER_NOTICES.noSelection);
+        return;
+      }
+      this.claimPointer(e, 'shape');
+      this.shapeStart = pt;
+      this.shapeErase = { targets, outline: null };
+      this.scheduleRender();
+      return;
+    }
+
+    // Shape Stacker: a press on the selection's pieces marks them - a drag
+    // every piece it crosses, a click the one under it, a Shift-drag every
+    // piece its box touches - and the release merges them into one shape,
+    // or with Alt at the press takes them away (core/wipe.ts's stackEdit).
+    if (tool === 'shape-stacker') {
+      e.preventDefault();
+      const arrangement = this.stackerFaces();
+      if (arrangement.problem === 'too-few') {
+        this.notices.show(SHAPE_STACKER_NOTICES.tooFew);
+        return;
+      }
+      if (arrangement.problem) {
+        this.toast(
+          arrangement.problem === 'too-many'
+            ? 'The Shape Stacker takes up to ' + WIPE_OPERAND_LIMIT + ' shapes and a few hundred pieces: select fewer.'
+            : 'These shapes could not be cut into pieces: try fewer, or simpler ones.',
+        );
+        return;
+      }
+      this.claimPointer(e, 'stack');
+      const first = faceAt(arrangement, pt);
+      this.stackDrag = { remove: e.altKey, box: e.shiftKey, start: pt, end: pt, path: [pt], marked: first >= 0 ? [first] : [] };
+      this.stackerHover = -1;
+      this.scheduleRender();
+      return;
+    }
+
+    // Split: a click on a path cuts it there (core/split.ts), nothing moving.
+    if (tool === 'split') {
+      e.preventDefault();
+      this.splitAt(pt);
+      return;
+    }
+
+    // Smear: a drag spreads the graphite of the Pencil marks it passes
+    // (core/smudge.ts) - the selected ones, or with none selected every one,
+    // as the Eraser chooses what it cuts.
+    if (tool === 'smear') {
+      e.preventDefault();
+      this.claimPointer(e, 'smear');
+      const targets = this.eraserTargets();
+      const editable = this.editableStrokeIds();
+      const candidates = this.store.sketch.strokes
+        .filter((s) => editable.has(s.id) && (targets === null || targets.has(s.id)) && s.tool !== 'eraser')
+        .map((stroke) => ({ stroke, box: strokeBounds(stroke, (s) => this.surface.measureText(s)) }))
+        .filter((c): c is { stroke: Stroke; box: NonNullable<typeof c.box> } => c.box !== null);
+      // REUSE: with the Smear in hand, Quick Width is the stump's size and
+      // Quick Opacity its strength - the tool state those two quick features set.
+      this.smearDrag = {
+        points: [pt],
+        width: this.store.tool.width,
+        strength: this.store.tool.opacity ?? DEFAULT_SMEAR_STRENGTH,
+        candidates,
+        reached: new Set(),
+        others: false,
+      };
+      this.smearReach([pt]);
+      this.scheduleRender();
+      return;
+    }
+
     // Shape tools: drag out a rectangle or ellipse (Shift = square / circle).
     if (tool === 'rect' || tool === 'ellipse') {
       e.preventDefault();
-      this.activePointerId = e.pointerId;
-      this.canvas.setPointerCapture(e.pointerId);
+      this.claimPointer(e, 'shape');
       this.shapeStart = pt;
-      const { color, width, opacity } = this.store.tool;
+      const { color, fill, width, opacity } = this.store.tool;
       this.live = {
         id: createId('st'),
         tool: 'pen',
@@ -1545,6 +2008,8 @@ class App {
         layer: this.store.activeLayer.id,
         sharpened: true,
         ...(opacity != null ? { opacity } : {}),
+        // A new shape takes the tool's fill (fill-stroke.ts), as it takes the ink.
+        ...(fill ? { fill } : {}),
         ...this.toolProfile('pen'),
       };
       this.scheduleRender();
@@ -1553,8 +2018,7 @@ class App {
 
     if (tool === 'text') {
       e.preventDefault();
-      this.activePointerId = e.pointerId;
-      this.canvas.setPointerCapture(e.pointerId);
+      this.claimPointer(e, 'text');
       this.textDragStart = pt;
       this.textDragLive = null;
       return;
@@ -1566,8 +2030,12 @@ class App {
     }
 
     e.preventDefault();
-    this.activePointerId = e.pointerId;
-    this.canvas.setPointerCapture(e.pointerId);
+    this.claimPointer(e, 'freehand');
+    // Shift with point 1 in hand: the Shift-click line (held-keys.ts).
+    if (e.shiftKey && this.beginShiftLine(tool, pt)) return;
+    // The Eraser cuts the marks it is aimed at as it goes (Surface liveErase),
+    // and the release cuts them for good.
+    if (tool === 'eraser') this.erasing = { targets: this.eraserTargets() };
     const { color, width, opacity, nibAngle } = this.store.tool;
     const start = this.applyEndpointSnap(pt, e.shiftKey, tool);
     this.startSnapHit = this.snapTarget;
@@ -1581,6 +2049,7 @@ class App {
       layer: this.store.activeLayer.id,
       ...(opacity != null ? { opacity } : {}),
       ...(tool === 'copic' ? { nibAngle } : {}),
+      ...this.pencilInk(tool),
       ...this.toolProfile(tool),
     };
     this.scheduleRender();
@@ -1590,6 +2059,11 @@ class App {
     // Keep the tracked pointer position current for gesture math.
     if (this.pointers.has(e.pointerId)) {
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    // And where the press's pointer is, should the press have to be finished
+    // without the release it never had.
+    if (this.press?.pointerId === e.pointerId) {
+      this.pressClient = { x: e.clientX, y: e.clientY, pointerType: e.pointerType };
     }
     // Where a paste with no explicit target lands.
     this.lastCanvasPoint = this.surface.toSketchPoint(e.clientX, e.clientY, 0.5);
@@ -1610,7 +2084,8 @@ class App {
     if (this.transformActive && this.onTransformPointerMove(e, this.lastCanvasPoint)) return;
     if (this.rotateDialogOpen && this.onRotatePointerMove(e, this.lastCanvasPoint)) return;
 
-    const tool = this.store.tool.tool;
+    // A drag carries on with the tool it began with, whatever is in hand now.
+    const tool = this.pressTool();
 
     // Select-tool Space + drag: pan the canvas following the pointer.
     if (this.panDragging && this.activePointerId === e.pointerId && this.panLast) {
@@ -1635,8 +2110,43 @@ class App {
       return;
     }
 
+    // Liquify: the brush follows the pointer, and a drag bends as it goes.
+    if (tool === 'liquify') {
+      this.liquifyPointerMove(e);
+      return;
+    }
+
+    // Shape Stacker: the piece under the pointer is shaded for the press that
+    // would take it, and a press marks what it passes.
+    if (tool === 'shape-stacker') {
+      this.stackerPointerMove(e);
+      return;
+    }
+
+    // Smear: the drag goes on, and the marks it reaches smear as it goes.
+    if (tool === 'smear') {
+      this.smearPointerMove(e);
+      return;
+    }
+
+    // Split: the place a click would cut is ringed.
+    if (tool === 'split') {
+      if (!this.press) this.updateSplitHover(this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure));
+      return;
+    }
+
     // Direct Select: drag the grabbed anchor(s), handle, or whole path.
     if (this.anchorDragKind && this.anchorStrokeId && this.activePointerId === e.pointerId) {
+      // A press is a click until it travels; only then does the edit begin,
+      // with the history step that undoes it.
+      if (!this.anchorDragCommitted) {
+        const from = this.anchorDragFrom;
+        if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) < SELECT_DRAG_THRESHOLD_PX) {
+          return;
+        }
+        this.anchorDragCommitted = true;
+        this.store.pushHistory();
+      }
       const raw = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
       // Shift pins the drag to the nearest axis or diagonal, whether it is
       // carrying anchors, a handle, or the whole path.
@@ -1646,7 +2156,13 @@ class App {
         const dx = pt.x - this.anchorDragLast.x;
         const dy = pt.y - this.anchorDragLast.y;
         if (this.anchorDragKind === 'anchor') {
-          this.store.nudgeStrokePoints(this.anchorStrokeId, [...this.selectedAnchors], dx, dy);
+          const edited = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
+          this.store.nudgeStrokePoints(
+            this.anchorStrokeId,
+            withSeamTwins(edited?.points ?? [], this.selectedAnchors),
+            dx,
+            dy,
+          );
         } else if (this.anchorDragKind === 'handle') {
           this.applyHandleDrag(pt);
         } else if (this.anchorDragKind === 'vanchor') {
@@ -1662,14 +2178,12 @@ class App {
     }
 
     // Quick curve: the pointer sizes the arc, and Alt (tracked live) decides
-    // quarter circle versus quarter ellipse. The far end does not snap to
-    // stroke endpoints, because Shift is the apex key here, so the snap ring
-    // from a Shift-anchored start is dropped once the drag is under way.
+    // quarter circle versus quarter ellipse. The far end snaps to a stroke's
+    // end in reach, except while Shift - the apex key here - is held.
     if (this.quickCurve && this.curveA !== null && this.activePointerId === e.pointerId) {
-      this.curveB = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      this.quickCurveRaw = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
       this.quickCurveUniform = e.altKey;
-      this.setSnapTarget(null);
-      this.previewQuickCurve();
+      this.updateQuickCurveEnd(e.shiftKey);
       return;
     }
 
@@ -1702,8 +2216,19 @@ class App {
         sharpened: true,
         ...(opacity != null ? { opacity } : {}),
         ...(this.curveTool === 'copic' ? { nibAngle } : {}),
+        ...this.pencilInk(this.curveTool),
         ...this.toolProfile(this.curveTool),
       };
+      this.scheduleRender();
+      return;
+    }
+
+    // Shape Eraser: the shape from the drag box - Square and Circle held
+    // square, and Shift holding Rectangle and Ellipse too - cut out of the
+    // targets on the canvas as it grows (Surface liveErase).
+    if (this.shapeErase && this.shapeStart !== null && this.activePointerId === e.pointerId) {
+      const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      this.shapeErase.outline = shapeEraserOutline(this.shapeEraserShape, this.shapeStart, pt, e.shiftKey);
       this.scheduleRender();
       return;
     }
@@ -1793,38 +2318,29 @@ class App {
 
     // Vector Path: while placing, the drag pulls the newest anchor's handles
     // out symmetrically (Illustrator-style smooth point); otherwise the
-    // pointer position previews the next segment as a rubber band. An active
-    // quick straight line takes precedence over the hover preview.
+    // pointer position previews the next segment as a rubber band. Shift
+    // holds either to eight directions. An active quick straight line takes
+    // precedence over the hover preview.
     if (tool === 'vector' && this.straightStart === null) {
       const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
       if (this.vectorDragging && this.activePointerId === e.pointerId) {
-        const anchor = this.vectorAnchors[this.vectorAnchors.length - 1];
-        const dx = pt.x - anchor.p.x;
-        const dy = pt.y - anchor.p.y;
-        if (Math.hypot(dx, dy) >= 3) {
-          anchor.hOut = { x: anchor.p.x + dx, y: anchor.p.y + dy };
-          anchor.hIn = { x: anchor.p.x - dx, y: anchor.p.y - dy };
-        } else {
-          // Back inside the click radius: the anchor reverts to a corner.
-          anchor.hOut = undefined;
-          anchor.hIn = undefined;
-        }
-        this.previewVectorPath();
+        this.vectorPointer = pt;
+        this.pullVectorHandles(e.shiftKey);
         return;
       }
       if (this.vectorAnchors.length > 0) {
-        this.vectorHover = pt;
-        this.previewVectorPath();
+        this.vectorPointer = pt;
+        this.updateVectorHover(e.shiftKey);
         return;
       }
     }
 
     // Straight-line mode: update the dashed preview endpoint. While Shift is
-    // held the line is strictly horizontal or vertical (whichever axis the
-    // drag favours); releasing Shift frees it again mid-drag.
+    // held the line keeps to the nearest of eight directions; without it the
+    // end snaps to a stroke's end in reach. Shift going up or down mid-drag
+    // swaps one for the other.
     if (this.straightStart !== null && this.activePointerId === e.pointerId) {
       this.straightRaw = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
-      this.setSnapTarget(null);
       this.updateStraightEnd(e.shiftKey);
       return;
     }
@@ -1834,7 +2350,8 @@ class App {
       const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
       const dx = pt.x - this.textDragStart.x;
       const dy = pt.y - this.textDragStart.y;
-      if (Math.abs(dx) > TEXT_DRAG_THRESHOLD || Math.abs(dy) > TEXT_DRAG_THRESHOLD) {
+      const threshold = this.screenPx(TEXT_DRAG_THRESHOLD);
+      if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
         this.textDragLive = { x1: this.textDragStart.x, y1: this.textDragStart.y, x2: pt.x, y2: pt.y };
         this.scheduleRender();
       }
@@ -1883,10 +2400,14 @@ class App {
         ? e.getCoalescedEvents()
         : [e];
 
+    // A sample every three quarters of a screen pixel, whatever the zoom: in
+    // page units it was nothing at the widest zoom and hundreds of pixels at
+    // the deepest, where a stroke kept two points.
+    const spacing = this.screenPx(0.75);
     for (const ev of events) {
       const pt = this.surface.toSketchPoint(ev.clientX, ev.clientY, ev.pressure);
       const last = this.live.points[this.live.points.length - 1];
-      if (Math.hypot(pt.x - last.x, pt.y - last.y) >= 0.75) {
+      if (Math.hypot(pt.x - last.x, pt.y - last.y) >= spacing) {
         this.live.points.push(pt);
       }
     }
@@ -1900,6 +2421,19 @@ class App {
   }
 
   private onPointerUp(e: PointerEvent): void {
+    this.releasing++;
+    try {
+      this.finishPress(e);
+    } finally {
+      this.releasing--;
+      // Whichever branch took the release - or none, when the gesture it was
+      // for had been cancelled - the pointer that owned the press is let go.
+      if (this.press?.pointerId === e.pointerId || this.activePointerId === e.pointerId) this.releasePointer();
+    }
+  }
+
+  /** Finishes what a press was doing when its pointer comes up. */
+  private finishPress(e: PointerEvent): void {
     // Release this pointer from gesture tracking first.
     this.pointers.delete(e.pointerId);
     // The copy has been put down: the pointer goes back to the plain arrow.
@@ -1916,7 +2450,15 @@ class App {
     if (this.transformActive && this.endTransformDrag(e)) return;
     if (this.rotateDialogOpen && this.endRotateDrag(e)) return;
 
-    const tool = this.store.tool.tool;
+    // The release finishes what the press began, with the tool it began with:
+    // a shortcut or the Copic nib-rotate may have put another in hand since.
+    const tool = this.pressTool();
+
+    // Liquify: the drag is over - what it bent is fitted again, one undo step.
+    if (this.liquifyDrag && this.activePointerId === e.pointerId) {
+      this.finishLiquify();
+      return;
+    }
 
     // Select-tool Space + drag: end the pan.
     if (this.panDragging && this.activePointerId === e.pointerId) {
@@ -1927,6 +2469,7 @@ class App {
       this.panLast = null;
       this.panOrigin = null;
       this.activePointerId = null;
+      this.updateCursor();
       return;
     }
 
@@ -1942,6 +2485,8 @@ class App {
       this.handleDrag = null;
       this.anchorDragLast = null;
       this.anchorDragOrigin = null;
+      this.anchorDragFrom = null;
+      this.anchorDragCommitted = false;
       this.activePointerId = null;
       this.scheduleRender();
       return;
@@ -1990,7 +2535,7 @@ class App {
       const a = this.curveA;
       const b = this.curveB ?? a;
       // A click without a drag never entered a usable chord: cancel.
-      if (Math.hypot(b.x - a.x, b.y - a.y) < 2) {
+      if (Math.hypot(b.x - a.x, b.y - a.y) < this.screenPx(2)) {
         this.cancelCurve();
         return;
       }
@@ -2007,6 +2552,7 @@ class App {
         sharpened: true,
         ...(opacity != null ? { opacity } : {}),
         ...(this.curveTool === 'copic' ? { nibAngle } : {}),
+        ...this.pencilInk(this.curveTool),
         ...this.toolProfile(this.curveTool),
       };
       this.toast('Move to bend the curve, click to place it (Esc cancels).');
@@ -2014,10 +2560,37 @@ class App {
       return;
     }
 
+    // Smear: each mark the drag reached keeps its pass.
+    if (this.smearDrag && this.activePointerId === e.pointerId) {
+      const drag = this.smearDrag;
+      this.smearDrag = null;
+      this.commitSmear(drag);
+      return;
+    }
+
+    // Shape Stacker: the pieces the press marked are merged, or taken away.
+    if (this.stackDrag && this.activePointerId === e.pointerId) {
+      const drag = this.stackDrag;
+      this.stackDrag = null;
+      this.commitStack(drag);
+      return;
+    }
+
     // Shape tools: commit the dragged rectangle / ellipse outline.
     if (this.shapeStart !== null && this.activePointerId === e.pointerId) {
       if (this.canvas.hasPointerCapture(e.pointerId)) {
         this.canvas.releasePointerCapture(e.pointerId);
+      }
+      // The Shape Eraser's release: the shape dragged out cuts.
+      const erase = this.shapeErase;
+      if (erase) {
+        const start = this.shapeStart;
+        this.shapeErase = null;
+        this.shapeStart = null;
+        this.activePointerId = null;
+        const end = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+        this.commitShapeErase(shapeEraserOutline(this.shapeEraserShape, start, end, e.shiftKey), erase.targets);
+        return;
       }
       this.shapeStart = null;
       this.activePointerId = null;
@@ -2040,15 +2613,26 @@ class App {
       const a = this.straightStart;
       const b = this.straightEnd ?? a;
       const startHit = this.startSnapHit;
-      // The end never snaps: Shift is the horizontal/vertical lock mid-drag,
-      // so only the start (snapped on pointer-down) can join a stroke.
-      const endHit = null;
+      // The end snapped where the ring shows it did; under Shift, the
+      // eight-direction lock, it is where the lock put it.
+      const ring = this.snapTarget;
+      const endHit = ring && ring.x === b.x && ring.y === b.y ? ring : null;
+      const shiftLine = this.shiftLine;
+      const drawn = this.live;
       this.straightStart = null;
       this.straightEnd = null;
       this.straightRaw = null;
       this.startSnapHit = null;
+      this.shiftLine = null;
+      this.live = null;
       this.activePointerId = null;
       this.setSnapTarget(null);
+      // Drawn on from a Shift-click line: one more straight line on its mark.
+      if (shiftLine && drawn) {
+        const run = [anchorAt(a), ...(Math.hypot(b.x - a.x, b.y - a.y) > 0 ? [anchorAt(b)] : [])];
+        this.commitShiftLine(shiftLine, drawn, run, tool);
+        return;
+      }
       const lineTool = drawingToolOf(tool);
       const { color, width, opacity, nibAngle } = this.store.tool;
       let finished: Stroke = {
@@ -2059,12 +2643,14 @@ class App {
         points: [a, b],
         ...(opacity != null ? { opacity } : {}),
         ...(lineTool === 'copic' ? { nibAngle } : {}),
+        ...this.pencilInk(lineTool),
         ...this.toolProfile(lineTool),
       };
       if (this.store.tool.liveSharpen && lineTool !== 'eraser') {
         finished = sharpenStroke(finished, this.store.tool.sharpen);
       }
       this.commitWithJoin(finished, startHit, endHit);
+      this.rememberLineStart(finished.id, tool);
       return;
     }
 
@@ -2080,7 +2666,7 @@ class App {
       this.activePointerId = null;
       this.scheduleRender();
 
-      if (live && Math.abs(live.x2 - live.x1) > TEXT_DRAG_THRESHOLD) {
+      if (live && Math.abs(live.x2 - live.x1) > this.screenPx(TEXT_DRAG_THRESHOLD)) {
         // Drag-to-draw: open text editor constrained to the drawn rectangle.
         const boxW = Math.abs(live.x2 - live.x1);
         const anchorX = Math.min(live.x1, live.x2);
@@ -2115,15 +2701,18 @@ class App {
         this.pendingSelectionClear = false;
         this.store.clearSelection();
       }
-      if (box && (Math.abs(box.x2 - box.x1) > 2 || Math.abs(box.y2 - box.y1) > 2)) {
+      const least = this.screenPx(2);
+      if (box && (Math.abs(box.x2 - box.x1) > least || Math.abs(box.y2 - box.y1) > least)) {
         const minX = Math.min(box.x1, box.x2);
         const maxX = Math.max(box.x1, box.x2);
         const minY = Math.min(box.y1, box.y2);
         const maxY = Math.max(box.y1, box.y2);
-        const editable = this.editableStrokeIds();
-        const ids = this.store.sketch.strokes
-          .filter((s) => this.strokeIntersectsBox(s, minX, minY, maxX, maxY, editable))
-          .map((s) => s.id);
+        // Every mark whose ink the band meets, a line it only crosses included.
+        const ids = marksInBox(
+          this.store.sketch,
+          { minX, minY, maxX, maxY },
+          { editable: this.editableStrokeIds(), measure: (t) => this.surface.measureText(t) },
+        ).map((s) => s.id);
         this.store.setSelection(ids);
       }
       this.scheduleRender();
@@ -2168,10 +2757,15 @@ class App {
     let finished: Stroke = { ...this.live, points: this.live.points };
     this.live = null;
     this.activePointerId = null;
+    const shiftLine = this.shiftLine;
+    this.shiftLine = null;
 
     // Endpoint snap: pull the stroke's final point onto the nearest endpoint.
+    // A Shift-click line that was only a click has no end of its own: its
+    // point 2 snapped when the press went down.
     let endHit: SnapHit | null = null;
-    if (e.shiftKey && this.snapApplies(finished.tool) && finished.points.length > 1) {
+    const drew = !shiftLine || finished.points.length > shiftLine.prefix.length + 1;
+    if (drew && e.shiftKey && this.snapApplies(finished.tool) && finished.points.length > 1) {
       const tail = finished.points[finished.points.length - 1];
       endHit = this.nearestEndpoint(tail);
       if (endHit) {
@@ -2182,11 +2776,1252 @@ class App {
     this.startSnapHit = null;
     this.setSnapTarget(null);
 
-    if (this.store.tool.liveSharpen && finished.tool !== 'eraser' && !finished.sharpened) {
+    // A Shift-click line: the line to point 2, and what the press drew on
+    // from there, fitted as any freehand stroke is.
+    if (shiftLine) {
+      this.commitShiftLine(shiftLine, finished, this.freehandRun(finished.points.slice(shiftLine.prefix.length)), tool);
+      return;
+    }
+    if (finished.tool === 'eraser') {
+      this.commitErase(finished);
+      return;
+    }
+
+    if (this.store.tool.liveSharpen && !finished.sharpened) {
       finished = sharpenStroke(finished, this.store.tool.sharpen);
+    } else {
+      // The samples as the few Bézier anchors they draw (core/fit-curve.ts),
+      // to the Freehand fidelity: what Direct Select shows and the exports
+      // write, where every sample was an anchor.
+      finished = fitStroke(finished, this.freehandTolerance());
     }
 
     this.commitWithJoin(finished, startHit, endHit);
+    this.rememberLineStart(finished.id, tool);
+  }
+
+  /**
+   * A press with Shift held and point 1 in hand for this tool: the
+   * Shift-click line. The press point, snapped to a stroke's end in reach,
+   * is point 2, and a straight line runs to it from point 1 at once - on
+   * point 1's mark, or as a mark of its own when that mark is not painted as
+   * the tool paints now (`shiftLineAction`). A drag goes on drawing from point
+   * 2, and the release commits it all as one step. False when there is no
+   * line to draw: the press snaps its start, as a Shift press always has.
+   */
+  private beginShiftLine(tool: Tool, pt: Point): boolean {
+    const start = this.lineStart;
+    if (!start) return false;
+    const sketch = this.store.sketch;
+    const stroke = sketch.strokes.find((s) => s.id === start.strokeId);
+    const ink = this.inkOf(tool);
+    const action = shiftLineAction(
+      start,
+      { tool, pageId: sketch.id, activeLayerId: this.store.activeLayer.id, symmetry: this.store.tool.symmetry > 1, ink },
+      stroke ? { stroke, layerId: layerOf(sketch, stroke).id } : null,
+    );
+    if (action === 'forget') this.lineStart = null;
+    if (action !== 'append' && action !== 'new') return false;
+    // Point 2 snaps as a Shift press's start always has, though never onto
+    // point 1 itself, which would leave no line to draw.
+    const from = { x: start.x, y: start.y };
+    const hit = this.snapApplies(tool) ? this.nearestEndpoint(pt, from) : null;
+    this.setSnapTarget(hit);
+    const to: Point = hit ? { ...pt, x: hit.x, y: hit.y } : pt;
+    this.startSnapHit = null;
+    const onMark = action === 'append' && stroke ? stroke : null;
+    const prefix = onMark ? onMark.points.map((p) => ({ ...p })) : [{ x: from.x, y: from.y, pressure: to.pressure ?? 0.5 }];
+    this.shiftLine = { markId: onMark?.id ?? null, prefix, to };
+    this.live = {
+      id: onMark?.id ?? createId('st'),
+      ...ink,
+      points: [...prefix, to],
+      layer: onMark ? layerOf(sketch, onMark).id : this.store.activeLayer.id,
+    };
+    this.scheduleRender();
+    return true;
+  }
+
+  /**
+   * Commits a Shift-click line and what its press drew on from point 2 -
+   * `run`, from point 2 - onto its mark as one history step, or as a mark of
+   * its own from point 1. Its end is point 1 for the next.
+   */
+  private commitShiftLine(line: { markId: string | null; prefix: Point[] }, drawn: Stroke, run: VectorAnchor[], tool: Tool): void {
+    const mark = line.markId ? this.store.sketch.strokes.find((s) => s.id === line.markId) : undefined;
+    if (mark) {
+      const geometry = extendWithLine(mark, run);
+      this.store.pushHistory();
+      this.store.setStrokeGeometry(mark.id, geometry.points, geometry.vector);
+      this.rememberLineStart(mark.id, tool);
+      return;
+    }
+    // A mark of its own - or the mark it was for went away mid-press - from
+    // where the line starts.
+    const geometry = extendWithLine({ points: line.prefix.slice(-1) }, run);
+    const stroke: Stroke = { ...drawn, id: line.markId ? createId('st') : drawn.id, points: geometry.points };
+    if (geometry.vector) stroke.vector = geometry.vector;
+    else delete stroke.vector;
+    const extras = this.symmetryCopies(stroke);
+    this.store.addStrokes([stroke, ...extras]);
+    this.rememberLineStart(stroke.id, tool);
+  }
+
+  /**
+   * The marks an Eraser press cuts: every selected mark on a layer that can
+   * be drawn on - a selected group's descendants are selected with it - or,
+   * with nothing selected, null: every editable mark the swath touches, as
+   * vector editors erase. A selection wholly on locked or hidden layers cuts
+   * nothing.
+   */
+  private eraserTargets(): Set<string> | null {
+    if (this.store.selectedMarkCount === 0) return null;
+    const editable = this.editableStrokeIds();
+    return new Set([...this.store.selectedIds].filter((id) => editable.has(id)));
+  }
+
+  /**
+   * The Eraser's release: its swath cut out of the marks it was aimed at, as
+   * geometry (`core/erase.ts`) - no eraser mark, no layer, one undo step. A
+   * mark whose cut the geometry could not make keeps an eraser mark just
+   * above it on its layer, as the Eraser used to paint, so the canvas shows
+   * the cut all the same. Text and images are passed over, with a word.
+   */
+  private commitErase(eraser: Stroke): void {
+    const targets = this.erasing ? this.erasing.targets : this.eraserTargets();
+    this.erasing = null;
+    const sketch = this.store.sketch;
+    const ids = targets ? [...targets] : [...this.editableStrokeIds()];
+    const result = eraseMarks(sketch, ids, eraseRegionOf(eraser));
+    const legacy = [...result.raster].map((above) => ({ above, eraser: { ...eraser, id: createId('st') } }));
+    this.store.eraseMarks(result, legacy);
+    this.scheduleRender();
+    if (result.skipped.size > 0) this.toast('Text and images are not erased: select a shape or a line to cut.');
+  }
+
+  /**
+   * Sketch > Apply Erasers: every eraser mark from a file made before
+   * 1.0.0-alpha.4.6.0 turned into the cut it paints - each one cut out of
+   * the marks painted before it on its own layer, exactly what the canvas
+   * showed, and taken away - in one undo step. Erasers on a locked or hidden
+   * layer are left as they are, and so is one whose cut the geometry could
+   * not make.
+   */
+  private applyErasers(): void {
+    const sketch = this.store.sketch;
+    const editable = this.editableStrokeIds();
+    const working = new Map(sketch.strokes.map((s) => [s.id, s]));
+    const changed = new Map<string, Stroke>();
+    const removed = new Set<string>();
+    let applied = 0;
+    let left = 0;
+    for (const [, strokes] of strokesByLayer(sketch)) {
+      const before: string[] = [];
+      for (const stroke of strokes) {
+        if (stroke.tool !== 'eraser') {
+          before.push(stroke.id);
+          continue;
+        }
+        if (!editable.has(stroke.id)) {
+          left++;
+          continue;
+        }
+        const view: Sketch = { ...sketch, strokes: before.map((id) => working.get(id)!).filter(Boolean) };
+        const result = eraseMarks(view, before, eraseRegionOf(stroke));
+        for (const [id, next] of result.changed) {
+          working.set(id, next);
+          changed.set(id, next);
+        }
+        for (const id of result.removed) {
+          working.delete(id);
+          changed.delete(id);
+          removed.add(id);
+          before.splice(before.indexOf(id), 1);
+        }
+        if (result.raster.size > 0) {
+          left++;
+          continue;
+        }
+        removed.add(stroke.id);
+        applied++;
+      }
+    }
+    if (applied === 0) {
+      this.toast(
+        left > 0
+          ? 'No eraser mark could be applied: they are on locked or hidden layers, or cut what the geometry could not.'
+          : 'There are no eraser marks to apply.',
+      );
+      return;
+    }
+    this.store.eraseMarks({ changed, removed });
+    this.toast(`Applied ${applied} eraser mark${applied === 1 ? '' : 's'}${left > 0 ? `; ${left} left as they were` : ''}.`);
+  }
+
+  /**
+   * Shape Eraser (`Shift+E`, or its button): the tool in hand, and its panel
+   * open beside the button to choose the shape it cuts with - or Top Path.
+   */
+  private chooseShapeEraser(): void {
+    this.selectTool('shape-eraser');
+    this.openShapeEraserPanel();
+  }
+
+  /**
+   * The Shape Eraser's panel, beside its button as the Curve flyout is: the
+   * four shapes as outline tiles, two by two, and Top Path across the
+   * bottom. Arrows move round it, Enter or Space chooses, Escape closes it,
+   * and a press anywhere else puts it away.
+   */
+  private openShapeEraserPanel(): void {
+    this.closeToolFlyout();
+    const btn = el('tool-shape-eraser');
+    const panel = document.createElement('div');
+    panel.className = 'tool-flyout shape-eraser-panel';
+    panel.id = 'tool-flyout';
+    panel.setAttribute('role', 'menu');
+    panel.setAttribute('aria-label', 'Shape Eraser shapes');
+    const rect = btn.getBoundingClientRect();
+    const onRail = btn.closest('#side-rail') !== null;
+    panel.style.left = `${Math.round(onRail ? rect.right + 4 : rect.left)}px`;
+    panel.style.top = `${Math.round(onRail ? rect.top : rect.bottom + 4)}px`;
+    const items: HTMLButtonElement[] = [];
+    for (const shape of SHAPE_ERASER_SHAPES) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'shape-tile';
+      item.dataset.shape = shape.id;
+      item.setAttribute('role', 'menuitemradio');
+      item.setAttribute('aria-checked', String(this.shapeEraserShape === shape.id));
+      item.classList.toggle('is-active', this.shapeEraserShape === shape.id);
+      // A fixed picture and label, no user text: safe as markup.
+      item.innerHTML = `${shape.icon}<span>${shape.label}</span>`;
+      item.addEventListener('click', () => {
+        this.shapeEraserShape = shape.id;
+        this.closeToolFlyout();
+        this.updateShapeEraserTitle();
+        this.toast(`Shape Eraser: drag ${withArticle(shape.label)} over the selection to cut it out.`);
+      });
+      panel.appendChild(item);
+      items.push(item);
+    }
+    const top = document.createElement('button');
+    top.type = 'button';
+    top.className = 'top-path';
+    top.dataset.shape = 'top-path';
+    top.setAttribute('role', 'menuitem');
+    top.textContent = 'Top Path';
+    top.title = 'Cut the other selected marks with the topmost selected closed path, and take the path away';
+    top.addEventListener('click', () => {
+      this.closeToolFlyout();
+      this.shapeEraseTopPath();
+    });
+    panel.appendChild(top);
+    items.push(top);
+    // The panel keeps its keys: the arrows would nudge the selection and
+    // Enter open the Move dialog, were they let through to the window.
+    panel.addEventListener('keydown', (ev) => {
+      const i = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+      const go = (to: number): void => items[Math.max(0, Math.min(items.length - 1, to))].focus();
+      ev.stopPropagation();
+      if (ev.key === 'ArrowRight') go(i + 1);
+      else if (ev.key === 'ArrowLeft') go(i - 1);
+      else if (ev.key === 'ArrowDown') go(i < 2 ? i + 2 : items.length - 1);
+      else if (ev.key === 'ArrowUp') go(i >= 4 ? 2 : i >= 2 ? i - 2 : i);
+      else if (ev.key === 'Enter' || ev.key === ' ') items[i].click();
+      else if (ev.key === 'Escape') {
+        this.closeToolFlyout();
+        btn.focus();
+      } else return;
+      ev.preventDefault();
+    });
+    document.body.appendChild(panel);
+    (items[SHAPE_ERASER_SHAPES.findIndex((s) => s.id === this.shapeEraserShape)] ?? items[0]).focus();
+    window.setTimeout(() => {
+      window.addEventListener(
+        'pointerdown',
+        (ev) => {
+          if (!(ev.target instanceof Node) || !panel.contains(ev.target)) this.closeToolFlyout();
+        },
+        { once: true, capture: true },
+      );
+    });
+  }
+
+  /** Names the Shape Eraser's shape in its button's hover text. */
+  private updateShapeEraserTitle(): void {
+    const btn = el('tool-shape-eraser');
+    const label = SHAPE_ERASER_SHAPES.find((s) => s.id === this.shapeEraserShape)?.label ?? 'Rectangle';
+    btn.dataset.titleTemplate = `Shape Eraser ({key}) - drag ${withArticle(label)} to cut it out of the selected marks; press for the shapes`;
+    this.applyShortcutTitle(btn);
+  }
+
+  /**
+   * The Shape Eraser's release: the shape's interior cut out of the selected
+   * marks, by the Eraser's rules (core/erase.ts) - one undo step, no layer.
+   * The tool stays in hand and the selection stays, for the next cut.
+   */
+  private commitShapeErase(outline: Point[], targets: Set<string>): void {
+    this.scheduleRender();
+    let area = 0;
+    for (let i = 0; i < outline.length; i++) {
+      const a = outline[i];
+      const b = outline[(i + 1) % outline.length];
+      area += a.x * b.y - b.x * a.y;
+    }
+    // A click, or a drag with no breadth, is no shape to cut with.
+    if (outline.length < 3 || Math.abs(area) / 2 < 1e-6) return;
+    const region = [outline.map((p) => ({ x: p.x, y: p.y }))];
+    const result = eraseMarks(this.store.sketch, [...targets], region);
+    this.store.eraseMarks(result);
+    this.reportShapeErase(result);
+  }
+
+  /**
+   * Shape Eraser > Top Path: the topmost of the selected marks in paint
+   * order, when it is a closed path, cuts the others and is taken away - the
+   * Minus Front of vector editors' Pathfinder. A notice says why when there
+   * is nothing to cut, only the one path, or a path that is open.
+   * REUSE: the cut is the Eraser's - `eraseRegionOf` gives any closed mark's
+   * interior as a region and `eraseMarks` cuts with it - with the cutter
+   * added to what is removed.
+   */
+  private shapeEraseTopPath(): void {
+    const editable = this.editableStrokeIds();
+    const selected = paintOrder(this.store.sketch, this.layerPaints()).filter(
+      (s) => this.store.selectedIds.has(s.id) && editable.has(s.id) && s.tool !== 'eraser',
+    );
+    if (selected.length === 0) {
+      this.notices.show(SHAPE_ERASER_NOTICES.noSelection);
+      return;
+    }
+    if (selected.length === 1) {
+      this.notices.show(SHAPE_ERASER_NOTICES.onePath);
+      return;
+    }
+    const cutter = selected[selected.length - 1];
+    const closed = eraseKind(cutter) !== 'skip' && (cutter.vector?.closed === true || isClosedStroke(cutter));
+    if (!closed) {
+      this.notices.show(SHAPE_ERASER_NOTICES.openPath);
+      return;
+    }
+    const others = selected.slice(0, -1).map((s) => s.id);
+    const result = eraseMarks(this.store.sketch, others, eraseRegionOf(cutter));
+    result.removed.add(cutter.id);
+    this.recordAs('tool:shape-eraser', () => this.store.eraseMarks(result));
+    this.scheduleRender();
+    this.reportShapeErase(result);
+  }
+
+  /**
+   * The Pencil (`N`, or its button): the tool in hand. Its button opens the
+   * drawing kit as well; so does `N` pressed again with the Pencil already in
+   * hand, so a key never puts a panel in the way of drawing.
+   */
+  private choosePencil(): void {
+    const held = this.store.tool.tool === 'pencil';
+    this.selectTool('pencil');
+    if (held && !document.querySelector('.pencil-kit')) this.openPencilKit();
+  }
+
+  /**
+   * The Pencil's drawing kit, beside its button as the Shape Eraser's panel
+   * is: a row of chips for each medium - graphite 4H to 8B, the charcoal
+   * pencils, vine and compressed charcoal - each drawing a short line with
+   * its own lead, through the paper's grain, the way it draws on the page.
+   * Arrows move round it, Enter or Space chooses, Escape closes it, and a
+   * press anywhere else puts it away.
+   */
+  private openPencilKit(): void {
+    this.closeToolFlyout();
+    const btn = el('tool-pencil');
+    const panel = document.createElement('div');
+    panel.className = 'tool-flyout pencil-kit';
+    panel.id = 'tool-flyout';
+    panel.setAttribute('role', 'menu');
+    panel.setAttribute('aria-label', 'Drawing kit');
+    const rect = btn.getBoundingClientRect();
+    const onRail = btn.closest('#side-rail') !== null;
+    panel.style.left = Math.round(onRail ? rect.right + 4 : rect.left) + 'px';
+    panel.style.top = Math.round(onRail ? rect.top : rect.bottom + 4) + 'px';
+    const rows: HTMLButtonElement[][] = [];
+    const current = this.store.tool.pencil;
+    for (const medium of PENCIL_KIT) {
+      const heading = document.createElement('p');
+      heading.className = 'pencil-kit-medium';
+      heading.textContent = medium.label;
+      panel.appendChild(heading);
+      const row = document.createElement('div');
+      row.className = 'pencil-kit-row';
+      row.setAttribute('role', 'group');
+      row.setAttribute('aria-label', medium.label);
+      const chips: HTMLButtonElement[] = [];
+      for (const grade of medium.grades) {
+        const choice: PencilChoice = { medium: medium.medium, grade };
+        const paint = pencilGrade(choice);
+        if (!paint) continue;
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'pencil-chip';
+        chip.dataset.pencil = paint.name;
+        chip.title = paint.label;
+        chip.setAttribute('role', 'menuitemradio');
+        const on = samePencil(choice, current);
+        chip.setAttribute('aria-checked', String(on));
+        chip.classList.toggle('is-active', on);
+        chip.appendChild(this.pencilSample(choice));
+        const label = document.createElement('span');
+        label.textContent = grade;
+        chip.appendChild(label);
+        chip.addEventListener('click', () => {
+          this.store.setTool({ pencil: { medium: paint.medium, grade: paint.grade } });
+          this.closeToolFlyout();
+          this.updatePencilTitle();
+          this.updateCursor();
+          this.toast(`Pencil: ${paint.label}.`);
+        });
+        row.appendChild(chip);
+        chips.push(chip);
+      }
+      panel.appendChild(row);
+      rows.push(chips);
+    }
+    const items = rows.flat();
+    // The kit keeps its keys, as the Shape Eraser's panel does.
+    panel.addEventListener('keydown', (ev) => {
+      const at = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+      const r = rows.findIndex((row) => row.includes(items[at]));
+      const c = rows[r].indexOf(items[at]);
+      const to = (row: number): void => {
+        const next = rows[Math.max(0, Math.min(rows.length - 1, row))];
+        next[Math.min(next.length - 1, c)].focus();
+      };
+      ev.stopPropagation();
+      if (ev.key === 'ArrowRight') items[Math.min(items.length - 1, at + 1)].focus();
+      else if (ev.key === 'ArrowLeft') items[Math.max(0, at - 1)].focus();
+      else if (ev.key === 'ArrowDown') to(r + 1);
+      else if (ev.key === 'ArrowUp') to(r - 1);
+      else if (ev.key === 'Enter' || ev.key === ' ') items[at].click();
+      else if (ev.key === 'Escape') {
+        this.closeToolFlyout();
+        btn.focus();
+      } else return;
+      ev.preventDefault();
+    });
+    document.body.appendChild(panel);
+    (items.find((chip) => chip.classList.contains('is-active')) ?? items[0])?.focus();
+    window.setTimeout(() => {
+      window.addEventListener(
+        'pointerdown',
+        (ev) => {
+          if (!(ev.target instanceof Node) || !panel.contains(ev.target)) this.closeToolFlyout();
+        },
+        { once: true, capture: true },
+      );
+    });
+  }
+
+  /** A chip's picture: a short line drawn with `choice`'s lead, through the paper's grain, at the screen's pixel ratio. */
+  private pencilSample(choice: PencilChoice): HTMLCanvasElement {
+    const css = { w: 40, h: 14 };
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const canvas = document.createElement('canvas');
+    canvas.className = 'pencil-sample';
+    canvas.width = Math.round(css.w * dpr);
+    canvas.height = Math.round(css.h * dpr);
+    canvas.style.width = css.w + 'px';
+    canvas.style.height = css.h + 'px';
+    const paint = pencilPaint(choice);
+    const points: Point[] = [];
+    for (let i = 0; i <= 36; i++) {
+      const t = i / 36;
+      points.push({ x: 4 + t * 32, y: 7 + 3 * Math.sin(t * Math.PI * 2), pressure: 0.35 + 0.5 * Math.sin(t * Math.PI) });
+    }
+    const sample: Stroke = { id: 'sample', tool: 'pencil', color: paint.tone, width: Math.min(6, pencilWidth(3, choice)), points, pencil: choice };
+    const region = pencilRegion(sample, dpr);
+    const ctx = canvas.getContext('2d');
+    if (region && ctx) {
+      const data = rasterizePencil(sample, region);
+      const art = document.createElement('canvas');
+      art.width = region.width;
+      art.height = region.height;
+      art.getContext('2d')?.putImageData(new ImageData(data, region.width, region.height), 0, 0);
+      ctx.drawImage(art, region.x, region.y);
+    }
+    return canvas;
+  }
+
+  /** Names the pencil in hand in the Pencil button's hover text. */
+  private updatePencilTitle(): void {
+    const btn = el('tool-pencil');
+    btn.dataset.titleTemplate = `Pencil ({key}) - ${pencilPaint(this.store.tool.pencil).label}; press for the drawing kit`;
+    this.applyShortcutTitle(btn);
+  }
+
+  /**
+   * The Shape Stacker (`Shift+M`, or its button): the tool in hand, and its
+   * panel open beside the button - the Wipe Stacks as tiles.
+   */
+  private chooseShapeStacker(): void {
+    this.selectTool('shape-stacker');
+    this.stackerDirty = true;
+    this.openShapeStackerPanel();
+  }
+
+  /**
+   * The Shape Stacker's panel, beside its button as the Shape Eraser's is:
+   * the six Wipe Stacks as tiles, three by two, each running its row on the
+   * selection, greyed with fewer than two shapes selected - a click then
+   * says why - and a line on stacking. Arrows move round it, Enter or Space
+   * chooses, Escape closes it, and a press anywhere else puts it away.
+   */
+  private openShapeStackerPanel(): void {
+    this.closeToolFlyout();
+    const btn = el('tool-shape-stacker');
+    const panel = document.createElement('div');
+    panel.className = 'tool-flyout shape-stacker-panel';
+    panel.id = 'tool-flyout';
+    panel.setAttribute('role', 'menu');
+    panel.setAttribute('aria-label', 'Wipe Stacks');
+    const rect = btn.getBoundingClientRect();
+    const onRail = btn.closest('#side-rail') !== null;
+    panel.style.left = Math.round(onRail ? rect.right + 4 : rect.left) + 'px';
+    panel.style.top = Math.round(onRail ? rect.top : rect.bottom + 4) + 'px';
+    const few = this.wipeableSelection().length < 2;
+    const items: HTMLButtonElement[] = [];
+    for (const tile of STACKER_TILES) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'shape-tile';
+      item.dataset.command = tile.command;
+      item.setAttribute('role', 'menuitem');
+      item.title = tile.title;
+      if (few) {
+        item.classList.add('is-disabled');
+        item.setAttribute('aria-disabled', 'true');
+      }
+      // A fixed picture and label, no user text: safe as markup.
+      item.innerHTML = tile.icon + '<span>' + tile.label + '</span>';
+      item.addEventListener('click', () => {
+        this.closeToolFlyout();
+        this.runCommand(tile.command);
+      });
+      panel.appendChild(item);
+      items.push(item);
+    }
+    const hint = document.createElement('p');
+    hint.className = 'stacker-hint';
+    hint.textContent = 'On the canvas: drag across the pieces to merge them, Alt to take them away, Shift to drag a box.';
+    panel.appendChild(hint);
+    // The panel keeps its keys, as the Shape Eraser's does.
+    panel.addEventListener('keydown', (ev) => {
+      const i = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+      const go = (to: number): void => items[Math.max(0, Math.min(items.length - 1, to))].focus();
+      ev.stopPropagation();
+      if (ev.key === 'ArrowRight') go(i + 1);
+      else if (ev.key === 'ArrowLeft') go(i - 1);
+      else if (ev.key === 'ArrowDown') go(i + 3);
+      else if (ev.key === 'ArrowUp') go(i - 3);
+      else if (ev.key === 'Enter' || ev.key === ' ') items[i].click();
+      else if (ev.key === 'Escape') {
+        this.closeToolFlyout();
+        btn.focus();
+      } else return;
+      ev.preventDefault();
+    });
+    document.body.appendChild(panel);
+    items[0].focus();
+    window.setTimeout(() => {
+      window.addEventListener(
+        'pointerdown',
+        (ev) => {
+          if (!(ev.target instanceof Node) || !panel.contains(ev.target)) this.closeToolFlyout();
+        },
+        { once: true, capture: true },
+      );
+    });
+  }
+
+  /** The selection's pieces for the Shape Stacker, worked out again when the page or the selection has changed. */
+  private stackerFaces(): StackArrangement {
+    if (this.stackerDirty || !this.stacker) {
+      const editable = this.editableStrokeIds();
+      const ids = this.store.sketch.strokes.filter((st) => this.store.selectedIds.has(st.id) && editable.has(st.id)).map((st) => st.id);
+      this.stacker = stackArrangement(this.store.sketch, ids);
+      this.stackerDirty = false;
+      this.stackerHover = -1;
+    }
+    return this.stacker;
+  }
+
+  /**
+   * The Shape Stacker's pointer: with no press, the piece under it shaded;
+   * in a press, each piece the path reaches marked in order, or with a box
+   * every piece it touches - the one it began on first.
+   */
+  private stackerPointerMove(e: PointerEvent): void {
+    const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+    const drag = this.stackDrag;
+    if (drag) {
+      if (this.activePointerId !== e.pointerId) return;
+      const arrangement = this.stackerFaces();
+      drag.end = pt;
+      if (drag.box) {
+        // The piece the box began on comes first, so its mark paints the
+        // merge; from bare paper, a piece of the topmost mark the box touches.
+        const touched = facesInBox(arrangement, boxOf(drag.start, pt));
+        const first = faceAt(arrangement, drag.start);
+        const top = (i: number): number => Math.max(...arrangement.faces[i].covers);
+        drag.marked =
+          first >= 0 && touched.includes(first)
+            ? [first, ...touched.filter((i) => i !== first)]
+            : [...touched].sort((i, j) => top(j) - top(i));
+      } else {
+        for (const face of facesAlong(arrangement, [drag.path[drag.path.length - 1], pt])) {
+          if (!drag.marked.includes(face)) drag.marked.push(face);
+        }
+        drag.path.push(pt);
+      }
+      this.scheduleRender();
+      return;
+    }
+    if (this.press) return;
+    const hover = faceAt(this.stackerFaces(), pt);
+    if (hover !== this.stackerHover) {
+      this.stackerHover = hover;
+      this.scheduleRender();
+    }
+  }
+
+  /**
+   * The Shape Stacker's release: the pieces its press marked merged into one
+   * shape - painted as the topmost mark where the press began, and each mark
+   * keeping what was not merged - or taken away from every mark, in one undo
+   * step. The tool stays in hand, and what the stack made or changed stays
+   * selected with the rest, for the next stack.
+   */
+  /** The Smear's drag goes on: its new points, and the marks they reach. */
+  private smearPointerMove(e: PointerEvent): void {
+    const drag = this.smearDrag;
+    if (!drag || this.activePointerId !== e.pointerId) return;
+    const events = typeof e.getCoalescedEvents === 'function' && e.getCoalescedEvents().length > 0 ? e.getCoalescedEvents() : [e];
+    // A sample every three quarters of a screen pixel, as a freehand stroke takes them.
+    const spacing = this.screenPx(0.75);
+    const added: Point[] = [];
+    for (const ev of events) {
+      const p = this.surface.toSketchPoint(ev.clientX, ev.clientY, ev.pressure);
+      const last = drag.points[drag.points.length - 1];
+      if (Math.hypot(p.x - last.x, p.y - last.y) >= spacing) {
+        drag.points.push(p);
+        added.push(p);
+      }
+    }
+    if (added.length === 0) return;
+    this.smearReach(added);
+    this.scheduleRender();
+  }
+
+  /** The marks the Smear's new points reach: a Pencil mark is smeared from there on, any other noted, and left alone. */
+  private smearReach(points: readonly Point[]): void {
+    const drag = this.smearDrag;
+    if (!drag) return;
+    const half = drag.width / 2;
+    for (const { stroke, box } of drag.candidates) {
+      const pencil = stroke.tool === 'pencil';
+      if (pencil ? drag.reached.has(stroke.id) : drag.others) continue;
+      const reach = half + stroke.width / 2;
+      const near = points.filter((p) => p.x >= box.minX - reach && p.x <= box.maxX + reach && p.y >= box.minY - reach && p.y <= box.maxY + reach);
+      if (near.length === 0) continue;
+      if (pencil) {
+        if (smearReaches(stroke, near, drag.width)) drag.reached.add(stroke.id);
+      } else if (isTextStroke(stroke) || isImageStroke(stroke) || smearReaches(stroke, near, drag.width)) {
+        drag.others = true;
+      }
+    }
+  }
+
+  /**
+   * The Smear's release: each Pencil mark the drag reached keeps its pass -
+   * the part of the drag from where it reached the mark to as far as it
+   * carried graphite past it, fitted to the Freehand fidelity - in one undo
+   * step. No mark and no layer is added. A drag over other marks leaves them
+   * alone, and says so once a session.
+   */
+  private commitSmear(drag: NonNullable<App['smearDrag']>): void {
+    this.scheduleRender();
+    const changed = new Map<string, Stroke>();
+    const tolerance = this.freehandTolerance();
+    for (const stroke of this.store.sketch.strokes) {
+      if (!drag.reached.has(stroke.id)) continue;
+      const pass = smudgeFor(stroke, drag.points, drag.width, drag.strength, tolerance);
+      if (pass) changed.set(stroke.id, { ...stroke, smudges: [...(stroke.smudges ?? []), pass] });
+    }
+    if (changed.size > 0) this.store.applyMarkEdit({ changed, removed: new Set(), added: [] }, { select: 'keep' });
+    if (drag.others && !this.smearSaid) {
+      this.smearSaid = true;
+      this.toast("Smear blends pencil marks; Liquify's Warp pushes the others.");
+    }
+  }
+
+  // ---- Liquify (core/liquify.ts) ----------------------------------------------------
+
+  /**
+   * Liquify (`Shift+R`, or its button): the tool in hand, and its panel open
+   * beside the button to choose the brush - Warp, Twirl, Pucker or Bloat.
+   */
+  private chooseLiquify(): void {
+    this.selectTool('liquify');
+    this.openLiquifyPanel();
+  }
+
+  /**
+   * Liquify's panel, beside its button as the Shape Eraser's is: the four
+   * brushes as tiles, two by two, each a picture of what it does. Arrows move
+   * round it, Enter or Space chooses, Escape closes it, and a press anywhere
+   * else puts it away.
+   */
+  private openLiquifyPanel(): void {
+    this.closeToolFlyout();
+    const btn = el('tool-liquify');
+    const panel = document.createElement('div');
+    // REUSE: the Shape Eraser's panel - its tiles, its place and its keys.
+    panel.className = 'tool-flyout shape-eraser-panel liquify-panel';
+    panel.id = 'tool-flyout';
+    panel.setAttribute('role', 'menu');
+    panel.setAttribute('aria-label', 'Liquify brushes');
+    const rect = btn.getBoundingClientRect();
+    const onRail = btn.closest('#side-rail') !== null;
+    panel.style.left = `${Math.round(onRail ? rect.right + 4 : rect.left)}px`;
+    panel.style.top = `${Math.round(onRail ? rect.top : rect.bottom + 4)}px`;
+    const items: HTMLButtonElement[] = [];
+    for (const mode of LIQUIFY_MODES) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'shape-tile';
+      item.dataset.liquify = mode.id;
+      item.title = `${mode.label} ${mode.summary}`;
+      item.setAttribute('role', 'menuitemradio');
+      item.setAttribute('aria-checked', String(this.liquifyMode === mode.id));
+      item.classList.toggle('is-active', this.liquifyMode === mode.id);
+      // A fixed picture and label, no user text: safe as markup.
+      item.innerHTML = `${LIQUIFY_TILES[mode.id]}<span>${mode.label}</span>`;
+      item.addEventListener('click', () => {
+        this.liquifyMode = mode.id;
+        this.closeToolFlyout();
+        this.updateLiquifyTitle();
+        this.toast(`Liquify: ${mode.label} ${mode.summary}.`);
+      });
+      panel.appendChild(item);
+      items.push(item);
+    }
+    // The panel keeps its keys: the arrows would nudge the selection and
+    // Enter open the Move dialog, were they let through to the window.
+    panel.addEventListener('keydown', (ev) => {
+      const i = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+      const go = (to: number): void => items[Math.max(0, Math.min(items.length - 1, to))].focus();
+      ev.stopPropagation();
+      if (ev.key === 'ArrowRight') go(i + 1);
+      else if (ev.key === 'ArrowLeft') go(i - 1);
+      else if (ev.key === 'ArrowDown') go(i < 2 ? i + 2 : i);
+      else if (ev.key === 'ArrowUp') go(i >= 2 ? i - 2 : i);
+      else if (ev.key === 'Enter' || ev.key === ' ') items[i].click();
+      else if (ev.key === 'Escape') {
+        this.closeToolFlyout();
+        btn.focus();
+      } else return;
+      ev.preventDefault();
+    });
+    document.body.appendChild(panel);
+    (items[LIQUIFY_MODES.findIndex((m) => m.id === this.liquifyMode)] ?? items[0]).focus();
+    window.setTimeout(() => {
+      window.addEventListener(
+        'pointerdown',
+        (ev) => {
+          if (!(ev.target instanceof Node) || !panel.contains(ev.target)) this.closeToolFlyout();
+        },
+        { once: true, capture: true },
+      );
+    });
+  }
+
+  /** Names the Liquify brush in hand in its button's hover text. */
+  private updateLiquifyTitle(): void {
+    const btn = el('tool-liquify');
+    const mode = LIQUIFY_MODES.find((m) => m.id === this.liquifyMode) ?? LIQUIFY_MODES[0];
+    btn.dataset.titleTemplate = `Liquify ({key}) - ${mode.label} ${mode.summary}. Alt-drag, or [ and ], sizes the brush; press for the four`;
+    this.applyShortcutTitle(btn);
+  }
+
+  /**
+   * Where the Liquify brush is drawn: round an Alt-drag's centre while it
+   * sizes the brush, where a drag has taken it, and otherwise at the pointer
+   * while Liquify is in hand and the pointer is over the canvas.
+   */
+  private liquifyBrush(): Overlay['liquifyBrush'] | null {
+    const drag = this.liquifyDrag;
+    if (drag?.kind === 'size') return { x: drag.center.x, y: drag.center.y, radius: this.liquifyRadius };
+    if (drag?.kind === 'bend') return { x: drag.at.x, y: drag.at.y, radius: this.liquifyRadius };
+    const at = this.lastCanvasPoint;
+    if (this.store.tool.tool !== 'liquify' || !this.pointerOverCanvas || !at) return null;
+    return { x: at.x, y: at.y, radius: this.liquifyRadius };
+  }
+
+  /**
+   * A press with Liquify. With Alt it sizes the brush, as in a vector editor:
+   * the brush stays where the press went down and its rim follows the
+   * pointer. Otherwise the drag bends what the brush passes over - the
+   * selected marks, or with none selected every editable one, as the Eraser
+   * chooses - and Twirl, Pucker and Bloat keep working while it is held.
+   */
+  private liquifyPointerDown(e: PointerEvent, pt: Point): void {
+    this.claimPointer(e, 'liquify');
+    if (e.altKey) {
+      this.liquifyDrag = { kind: 'size', center: pt, from: this.liquifyRadius, moved: false };
+      this.scheduleRender();
+      return;
+    }
+    const targets = this.eraserTargets();
+    const editable = this.editableStrokeIds();
+    const candidates = new Set(
+      this.store.sketch.strokes.filter((s) => editable.has(s.id) && (targets === null || targets.has(s.id))).map((s) => s.id),
+    );
+    const drag: NonNullable<App['liquifyDrag']> = {
+      kind: 'bend',
+      mode: this.liquifyMode,
+      candidates,
+      bent: new Set(),
+      at: pt,
+      pressure: liquifyPressure(e),
+      last: performance.now(),
+      frame: null,
+      open: false,
+      pencils: false,
+    };
+    this.liquifyDrag = drag;
+    if (drag.mode !== 'warp') drag.frame = requestAnimationFrame(this.liquifyTick);
+    this.scheduleRender();
+  }
+
+  /** The pointer moving with Liquify in hand: the brush follows it, an Alt-drag sizes the brush, and a Warp pushes along the move. */
+  private liquifyPointerMove(e: PointerEvent): void {
+    const drag = this.liquifyDrag;
+    if (!drag || this.activePointerId !== e.pointerId) {
+      this.scheduleRender();
+      return;
+    }
+    const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+    if (drag.kind === 'size') {
+      const radius = Math.hypot(pt.x - drag.center.x, pt.y - drag.center.y);
+      // A few screen pixels off the centre before it sizes, so an Alt-click leaves the brush as it was.
+      if (!drag.moved && radius < this.screenPx(3)) return;
+      drag.moved = true;
+      this.liquifyRadius = clampLiquifyRadius(radius);
+      this.scheduleRender();
+      return;
+    }
+    drag.pressure = liquifyPressure(e);
+    if (drag.mode === 'warp') {
+      // A push as far as the brush moved, less under a light pen: never more,
+      // so what is under the brush's centre goes with it and no further.
+      const share = Math.min(1, Math.max(0.2, drag.pressure / 0.5));
+      const events = typeof e.getCoalescedEvents === 'function' && e.getCoalescedEvents().length > 0 ? e.getCoalescedEvents() : [e];
+      const dabs: LiquifyDab[] = [];
+      for (const ev of events) {
+        const p = this.surface.toSketchPoint(ev.clientX, ev.clientY, ev.pressure);
+        const dx = p.x - drag.at.x;
+        const dy = p.y - drag.at.y;
+        if (dx === 0 && dy === 0) continue;
+        dabs.push({ mode: 'warp', x: drag.at.x, y: drag.at.y, radius: this.liquifyRadius, dx: dx * share, dy: dy * share });
+        drag.at = p;
+      }
+      this.liquifyApply(dabs);
+    } else {
+      drag.at = pt;
+    }
+    this.scheduleRender();
+  }
+
+  /**
+   * A frame of a held Twirl, Pucker or Bloat: the brush works where it is, at
+   * a rate a second that the press's pressure scales - a mouse's at the rate
+   * itself, a pen pressed hard at twice it.
+   */
+  private readonly liquifyTick = (now: number): void => {
+    const drag = this.liquifyDrag;
+    if (!drag || drag.kind !== 'bend' || drag.mode === 'warp') return;
+    const dt = Math.min(0.05, Math.max(0, (now - drag.last) / 1000));
+    drag.last = now;
+    const scale = Math.min(2, Math.max(0.2, drag.pressure / 0.5));
+    const rate = drag.mode === 'twirl' ? LIQUIFY_TWIRL_RATE : LIQUIFY_SWELL_RATE;
+    if (dt > 0) this.liquifyApply([{ mode: drag.mode, x: drag.at.x, y: drag.at.y, radius: this.liquifyRadius, amount: rate * dt * scale }]);
+    drag.frame = requestAnimationFrame(this.liquifyTick);
+  };
+
+  /**
+   * Bends what the dabs reach of the press's marks, live. The first bend
+   * opens the store transaction that keeps the drag as one undo step, or
+   * throws it away whole.
+   */
+  private liquifyApply(dabs: LiquifyDab[]): void {
+    const drag = this.liquifyDrag;
+    if (!drag || drag.kind !== 'bend' || dabs.length === 0) return;
+    const marks = this.store.sketch.strokes.filter((s) => drag.candidates.has(s.id));
+    if (!drag.pencils) drag.pencils = marks.some((s) => s.tool === 'pencil' && dabs.some((dab) => liquifyReaches(s, dab)));
+    const bent = liquifyMarks(marks, dabs, { tolerance: this.screenPx(LIQUIFY_TOLERANCE_PX) });
+    if (bent.size === 0) return;
+    if (!drag.open) {
+      drag.open = true;
+      this.store.beginTransaction(() => this.onLiquifySettled());
+    }
+    this.store.setStrokesGeometry(
+      [...bent.values()].map((s) => ({ id: s.id, points: s.points, vector: s.vector, ...(s.nibAngle !== undefined ? { nibAngle: s.nibAngle } : {}) })),
+    );
+    for (const id of bent.keys()) drag.bent.add(id);
+  }
+
+  /**
+   * Liquify's release. A bend: each mark the drag bent is fitted again at the
+   * Freehand fidelity, so the anchors its splits added do not stay, and the
+   * drag is kept as one undo step, the selection as it was. A drag over
+   * pencil marks, which Liquify leaves to the Smear, says so once a session.
+   * An Alt-drag: the brush keeps the size it was given, and says it.
+   */
+  private finishLiquify(): void {
+    const drag = this.liquifyDrag;
+    this.liquifyDrag = null;
+    this.scheduleRender();
+    if (!drag) return;
+    if (drag.kind === 'size') {
+      if (drag.moved) this.toast(`Liquify: a brush ${Math.round(this.liquifyRadius * 2)}px across.`);
+      return;
+    }
+    if (drag.frame !== null) cancelAnimationFrame(drag.frame);
+    if (drag.open) {
+      const tolerance = this.freehandTolerance();
+      const refits: Array<{ id: string; points: Point[]; vector?: Stroke['vector'] }> = [];
+      for (const stroke of this.store.sketch.strokes) {
+        if (!drag.bent.has(stroke.id)) continue;
+        const refit = refitLiquified(stroke, tolerance, this.store.strokeBeforeTransaction(stroke.id));
+        if (refit !== stroke) refits.push({ id: stroke.id, points: refit.points, vector: refit.vector });
+      }
+      if (refits.length > 0) this.store.setStrokesGeometry(refits);
+      this.store.commitTransaction();
+    }
+    if (drag.pencils && !this.liquifySaid) {
+      this.liquifySaid = true;
+      this.toast("Liquify bends every mark but a pencil's: the Smear blends those.");
+    }
+  }
+
+  /**
+   * A Liquify press dropped - Escape, or a second finger: the drag is undone as
+   * if it had never begun, and an Alt-drag puts the brush back as it was.
+   */
+  private abandonLiquify(): void {
+    const drag = this.liquifyDrag;
+    this.liquifyDrag = null;
+    if (!drag) return;
+    if (drag.kind === 'size') {
+      this.liquifyRadius = drag.from;
+      return;
+    }
+    if (drag.frame !== null) cancelAnimationFrame(drag.frame);
+    if (drag.open) this.store.rollbackTransaction();
+  }
+
+  /** Something else kept the drag's transaction - an undo, a page turned: what is bent so far stays, and the next bend opens another. */
+  private onLiquifySettled(): void {
+    const drag = this.liquifyDrag;
+    if (drag?.kind !== 'bend') return;
+    drag.open = false;
+    drag.bent.clear();
+  }
+
+  /** `[` and `]` with Liquify in hand: the brush a step smaller or larger, drawn where the pointer is. */
+  private sizeLiquify(factor: number): void {
+    this.liquifyRadius = clampLiquifyRadius(this.liquifyRadius * factor);
+    this.toast(`Liquify: a brush ${Math.round(this.liquifyRadius * 2)}px across.`);
+    this.scheduleRender();
+  }
+
+  private commitStack(drag: { remove: boolean; marked: number[] }): void {
+    this.scheduleRender();
+    if (drag.marked.length === 0) return;
+    const result = stackEdit(this.store.sketch, this.stackerFaces(), drag.marked, drag.remove ? 'remove' : 'merge');
+    if (result.problem) {
+      this.toast('These pieces could not be stacked: try fewer, or simpler shapes.');
+      return;
+    }
+    this.store.applyMarkEdit(result, { select: 'keep' });
+    if (result.empty) this.toast('The stack took every piece away.');
+  }
+
+  /** What the Shape Stacker shades: the piece under the pointer, or what a press has marked and its path or box. */
+  private stackerOverlay(): Overlay['stack'] | null {
+    const drag = this.stackDrag;
+    if (!drag && (this.store.tool.tool !== 'shape-stacker' || this.stackerDirty || this.stackerHover < 0 || !this.pointerOverCanvas)) return null;
+    const arrangement = this.stacker;
+    if (!arrangement || arrangement.problem) return null;
+    if (drag) {
+      return {
+        marked: drag.marked.map((i) => arrangement.faces[i].contours),
+        path: drag.box ? undefined : drag.path,
+        box: drag.box ? boxOf(drag.start, drag.end) : undefined,
+        remove: drag.remove,
+      };
+    }
+    const hover = arrangement.faces[this.stackerHover];
+    return hover ? { hover: hover.contours, remove: this.altDown } : null;
+  }
+
+  /**
+   * The path a Split click at `pt` would cut, and where: the topmost whose
+   * centreline is within the Direct Select sensitivity - S's reach - and on
+   * an anchor when it is within half of that, so a cut there adds none.
+   */
+  private splitTargetAt(pt: Point): { stroke: Stroke; at: SplitPoint } | null {
+    const reach = this.vectorGrab();
+    return splitTarget(paintOrder(this.store.sketch, this.layerPaints()), pt, reach, {
+      editable: this.editableStrokeIds(),
+      anchorReach: reach / 2,
+    });
+  }
+
+  /** Rings the place a Split click would cut, or takes the ring away. */
+  private updateSplitHover(pt: Point): void {
+    const target = this.splitTargetAt(pt);
+    if (!target && !this.splitHover) return;
+    this.splitHover = target ? { strokeId: target.stroke.id, at: target.at } : null;
+    this.scheduleRender();
+  }
+
+  /**
+   * Split's click, as a vector editor's Scissors: the path cut where the
+   * click lands on it (core/split.ts), and nothing moves - an open path in
+   * two, the second piece on a layer of its own just above; a closed one
+   * opened there, to be divided by a second cut; a compound shape's ring cut
+   * out, open, as a mark of its own. One undo step, the pieces selected, and
+   * the tool stays in hand.
+   */
+  private splitAt(pt: Point): void {
+    const target = this.splitTargetAt(pt);
+    if (!target) {
+      // Text, a picture, or an older file's eraser mark under the click: nothing a split can cut.
+      const under = this.hitTest(pt);
+      const reach = this.vectorGrab();
+      const eraser = this.store.sketch.strokes.some((s) => {
+        if (s.tool !== 'eraser') return false;
+        const box = strokeBounds(s, (t) => this.surface.measureText(t));
+        return !!box && pt.x >= box.minX - reach && pt.x <= box.maxX + reach && pt.y >= box.minY - reach && pt.y <= box.maxY + reach;
+      });
+      if ((under && !isSplittable(under)) || eraser) this.toast('Split cuts paths and lines.');
+      return;
+    }
+    const pieces = splitMark(target.stroke, target.at);
+    if (!pieces) {
+      this.toast('That is the end of the path: there is nothing there to cut.');
+      return;
+    }
+    this.store.applyMarkEdit({
+      changed: new Map([[target.stroke.id, pieces.first]]),
+      removed: new Set(),
+      added: pieces.second ? [{ stroke: pieces.second, above: layerOf(this.store.sketch, target.stroke).id }] : [],
+    });
+    this.splitHover = null;
+    this.scheduleRender();
+  }
+
+  /**
+   * Layers > Clipping Mask > Make (`Ctrl+7`): the topmost selected mark, when
+   * it is closed, clips the rest - their layers grouped into a Clip Group, the
+   * clip on top inside it, one undo step (core/clip.ts) - or a notice says why
+   * not: one mark selected, or an open path on top.
+   */
+  private makeClipMask(): void {
+    const editable = this.editableStrokeIds();
+    const problem = this.store.makeClipping([...this.store.selectedIds].filter((id) => editable.has(id)));
+    if (problem === 'too-few') this.notices.show(CLIP_NOTICES.onePath);
+    else if (problem === 'open') this.notices.show(CLIP_NOTICES.openPath);
+    this.scheduleRender();
+  }
+
+  /**
+   * The clip group Release would act on: the one round the first selected
+   * mark, or a selected layer row, or the active layer - or null.
+   */
+  private releaseTarget(): Layer | null {
+    const sketch = this.store.sketch;
+    for (const stroke of sketch.strokes) {
+      if (!this.store.selectedIds.has(stroke.id)) continue;
+      const group = releaseClip(sketch, layerOf(sketch, stroke).id);
+      if (group) return group;
+    }
+    for (const id of this.store.selectedLayerIds) {
+      const group = releaseClip(sketch, id);
+      if (group) return group;
+    }
+    return releaseClip(sketch, this.store.activeLayer.id);
+  }
+
+  /**
+   * Layers > Clipping Mask > Release (`Ctrl+Alt+7`): the clip taken off a clip
+   * group or anything in it. The group stays a group, and its clip mark
+   * paints again. One undo step.
+   */
+  private releaseClipMask(): void {
+    const group = this.releaseTarget();
+    if (!group || !this.store.releaseClipping(group.id)) {
+      this.toast('There is no clipping mask here to release.');
+      return;
+    }
+    this.scheduleRender();
+  }
+
+  /** The selected marks a wipe can take, on layers that can be drawn on. */
+  private wipeableSelection(): Stroke[] {
+    const editable = this.editableStrokeIds();
+    return this.store.sketch.strokes.filter((s) => this.store.selectedIds.has(s.id) && editable.has(s.id) && isWipeable(s));
+  }
+
+  /**
+   * A Wipe Stacks row (core/wipe.ts): the selected shapes wiped and the
+   * result made one undo step at once - the history, the selection and the
+   * layers right before anything moves - and then a napkin wiped over them,
+   * the picture from before ahead of it and the result behind.
+   */
+  private runWipe(op: WipeOp): void {
+    // Every selected mark goes in: the wipe takes the shapes, and passes over
+    // the rest - text, pictures - so the toast can say it did.
+    const editable = this.editableStrokeIds();
+    const selected = this.store.sketch.strokes.filter((s) => this.store.selectedIds.has(s.id) && editable.has(s.id));
+    const shapes = selected.filter(isWipeable);
+    const result = wipeMarks(this.store.sketch, selected.map((s) => s.id), op);
+    if (result.problem === 'too-few') {
+      this.toast('Select two or more shapes to wipe: text and pictures are passed over.');
+      return;
+    }
+    if (result.problem === 'too-many') {
+      this.toast(`The Wipe Stacks take up to ${WIPE_OPERAND_LIMIT} shapes and a few hundred pieces: select fewer.`);
+      return;
+    }
+    if (result.problem === 'failed') {
+      this.toast('These shapes could not be combined: try fewer, or simpler ones.');
+      return;
+    }
+    // The picture over the shapes, taken before the page changes.
+    const box = shapes.reduce<{ minX: number; minY: number; maxX: number; maxY: number } | null>((acc, s) => {
+      const b = strokeBounds(s, (t) => this.surface.measureText(t));
+      if (!b) return acc;
+      const reach = s.width / 2;
+      const grown = { minX: b.minX - reach, minY: b.minY - reach, maxX: b.maxX + reach, maxY: b.maxY + reach };
+      return acc ? { minX: Math.min(acc.minX, grown.minX), minY: Math.min(acc.minY, grown.minY), maxX: Math.max(acc.maxX, grown.maxX), maxY: Math.max(acc.maxY, grown.maxY) } : grown;
+    }, null);
+    const snapshot = box && this.settings.wipeAnimation && !prefersReducedMotion() ? this.surface.snapshot(box) : null;
+    this.endWipe();
+    this.store.applyMarkEdit(result);
+    const made = result.changed.size + result.added.length;
+    this.toast(
+      result.empty
+        ? 'The wipe left nothing: the shapes had nothing it keeps.'
+        : `${made} ${made === 1 ? 'shape' : 'shapes'} left${result.skipped.size > 0 ? '; text and pictures passed over' : ''}.`,
+    );
+    if (snapshot) this.startWipe(snapshot);
+    this.scheduleRender();
+  }
+
+  /** How long a wipe's napkin takes to cross, in milliseconds. */
+  private static readonly WIPE_MS = 250;
+
+  /** Starts the napkin across a snapshot, a frame at a time, until it is past. */
+  private startWipe(snapshot: WipeSnapshot): void {
+    const anim = { snapshot, start: performance.now(), t: 0, frame: 0 };
+    const step = (now: number): void => {
+      if (this.wipeAnim !== anim) return;
+      anim.t = Math.min(1, (now - anim.start) / App.WIPE_MS);
+      if (anim.t >= 1) {
+        this.wipeAnim = null;
+      } else {
+        anim.frame = requestAnimationFrame(step);
+      }
+      this.scheduleRender();
+    };
+    this.wipeAnim = anim;
+    anim.frame = requestAnimationFrame(step);
+    this.scheduleRender();
+  }
+
+  /** Ends a wipe under way at once, leaving the result showing. */
+  private endWipe(): void {
+    if (!this.wipeAnim) return;
+    cancelAnimationFrame(this.wipeAnim.frame);
+    this.wipeAnim = null;
+    this.scheduleRender();
+  }
+
+  /** Says what a Shape Eraser cut passed over, when it passed over anything. */
+  private reportShapeErase(result: { skipped: Set<string>; raster: Set<string> }): void {
+    if (result.raster.size > 0) {
+      this.toast(`${result.raster.size} mark${result.raster.size === 1 ? '' : 's'} could not be cut here: try a smaller shape.`);
+    } else if (result.skipped.size > 0) {
+      this.toast('Text and images are not erased: select a shape or a line to cut.');
+    }
+  }
+
+  /** A Shift-click line's freehand run, from point 2, as anchors: fitted as any freehand stroke is, or point 2 alone for a click. */
+  private freehandRun(run: Point[]): VectorAnchor[] {
+    if (run.length < 2) return run.slice(0, 1).map(anchorAt);
+    return fitCurve(run, { tolerance: this.freehandTolerance() }) ?? run.map(anchorAt);
+  }
+
+  /** Point 1 for the next Shift-click line: the end of the mark just committed with freehand ink in hand, as the store holds it. */
+  private rememberLineStart(strokeId: string, tool: Tool): void {
+    if (!drawsLines(tool)) return;
+    const mark = this.store.sketch.strokes.find((s) => s.id === strokeId);
+    this.lineStart = mark?.tool === tool ? lineStartOf(mark, this.store.sketch.id) : null;
+  }
+
+  /**
+   * Forgets point 1 once it no longer holds: another page in view, or a
+   * tool other than freehand ink in hand for good. Ctrl's loan of a
+   * selection tool gives the drawing tool back, and keeps it.
+   */
+  private checkLineStart(): void {
+    const start = this.lineStart;
+    if (!start) return;
+    if (start.pageId !== this.store.sketch.id || (!drawsLines(this.store.tool.tool) && this.springFrom === null)) {
+      this.lineStart = null;
+    }
+  }
+
+  /** The paint a new mark drawn with `tool` takes from the tool state. */
+  private inkOf(tool: Tool): InkPaint {
+    const { color, width, opacity, nibAngle } = this.store.tool;
+    return {
+      tool,
+      color,
+      width,
+      ...(opacity != null ? { opacity } : {}),
+      ...(tool === 'copic' ? { nibAngle } : {}),
+      ...this.pencilInk(tool),
+      ...this.toolProfile(tool),
+    };
+  }
+
+  /**
+   * A Pencil mark's paint over the ink and width the tool state holds: the
+   * pencil in hand, the tone its lead lays down - the ink color does not
+   * change a pencil, as it does not change a real one - and the width its
+   * lead wears to at the tool's width. Nothing for any other tool.
+   */
+  private pencilInk(tool: Tool): Partial<Pick<Stroke, 'pencil' | 'color' | 'width'>> {
+    if (tool !== 'pencil') return {};
+    const choice = this.store.tool.pencil;
+    return { pencil: { ...choice }, color: pencilPaint(choice).tone, width: pencilWidth(this.store.tool.width, choice) };
+  }
+
+  /** How far a fitted stroke may stray from what was drawn: the Freehand fidelity, in screen pixels, at this zoom. */
+  private freehandTolerance(): number {
+    return this.screenPx(this.settings.freehandFidelityPx);
   }
 
   /**
@@ -2195,6 +4030,11 @@ class App {
    * and color) merges into that stroke instead of stacking on top of it.
    */
   private commitWithJoin(finished: Stroke, startHit: SnapHit | null, endHit: SnapHit | null): void {
+    // A straight line drawn with the Eraser cuts, as its freehand does.
+    if (finished.tool === 'eraser') {
+      this.commitErase(finished);
+      return;
+    }
     const extras = this.symmetryCopies(finished);
     // Symmetry copies and joins don't mix; plain add covers that case.
     if (!this.settings.joinStrokeOnSnap || extras.length > 0 || (!startHit && !endHit)) {
@@ -2233,7 +4073,9 @@ class App {
       this.store.addStrokes([finished]);
       return;
     }
-    const merged: Stroke = { ...finished, points, layer: this.store.activeLayer.id };
+    const joined: Stroke = { ...finished, points, layer: this.store.activeLayer.id };
+    delete joined.vector;
+    const merged = fitStroke(joined, this.freehandTolerance());
     this.store.replaceWithJoined(removeIds, merged);
     this.toast('Joined stroke.');
   }
@@ -2279,7 +4121,7 @@ class App {
     const b = this.curveB;
     if (!a || !b) return null;
     const cubic = quarterArcCubic(a, b, this.quickCurveUniform, this.quickCurveApex);
-    return Math.hypot(cubic.p3.x - a.x, cubic.p3.y - a.y) < 2 ? null : cubic;
+    return Math.hypot(cubic.p3.x - a.x, cubic.p3.y - a.y) < this.screenPx(2) ? null : cubic;
   }
 
   /** Sampled points of the in-progress quick curve (empty while unusable). */
@@ -2305,12 +4147,18 @@ class App {
     return profile !== 'uniform' && (tool === 'pen' || tool === 'marker') ? { profile } : {};
   }
 
-  /** Builds the live quick-curve stroke, or clears it while the arc is empty. */
+  /**
+   * Builds the live quick-curve stroke, or clears it while the arc is empty.
+   * Drawn on from a Shift-click line, it carries the line's mark before it,
+   * and the line to point 2 while the arc is still empty.
+   */
   private quickCurveStroke(points: Point[]): LiveStroke | null {
+    const line = this.shiftLine;
+    if (line) points = [...line.prefix, ...(points.length > 0 ? points : [line.to])];
     if (points.length < 2) return null;
     const { color, width, opacity, nibAngle } = this.store.tool;
     return {
-      id: this.live?.id ?? createId('st'),
+      id: line?.markId ?? this.live?.id ?? createId('st'),
       tool: this.curveTool,
       color,
       width,
@@ -2319,6 +4167,7 @@ class App {
       sharpened: true,
       ...(opacity != null ? { opacity } : {}),
       ...(this.curveTool === 'copic' ? { nibAngle } : {}),
+      ...this.pencilInk(this.curveTool),
       ...this.toolProfile(this.curveTool),
     };
   }
@@ -2339,22 +4188,38 @@ class App {
 
   /**
    * Recomputes the straight-line preview end from the last raw pointer
-   * position. With Shift down the line locks to whichever axis the drag
-   * favours — strictly horizontal or strictly vertical; without it the end
-   * follows the pointer. Called from pointer moves and from Shift key
-   * transitions, so the lock engages and releases without pointer movement.
+   * position. With Shift down the line keeps to the nearest of eight
+   * directions - level, plumb or a diagonal - projected from the pointer;
+   * without it the end snaps to a stroke's end in reach, as a freehand
+   * stroke's does (never back onto the line's own start), or follows the
+   * pointer. Called from pointer moves and from Shift key transitions, so
+   * the lock engages and releases without pointer movement.
    */
   private updateStraightEnd(shift: boolean): void {
     const a = this.straightStart;
     const raw = this.straightRaw;
     if (!a || !raw) return;
-    this.straightEnd =
-      shift && Math.abs(raw.x - a.x) >= Math.abs(raw.y - a.y)
-        ? { ...raw, y: a.y }
-        : shift
-          ? { ...raw, x: a.x }
-          : raw;
+    const hit = !shift && this.snapApplies(drawingToolOf(this.pressTool())) ? this.nearestEndpoint(raw, a) : null;
+    this.straightEnd = shift ? constrainDrag(a, raw) : hit ? { ...raw, x: hit.x, y: hit.y } : raw;
+    this.setSnapTarget(hit);
     this.scheduleRender();
+  }
+
+  /**
+   * Puts the quick curve's far end where the pointer is, snapped to a
+   * stroke's end in reach - except while Shift, the apex key, is held, and
+   * for the Curve tool's Free variant, which keeps its ends where they fall.
+   * Called from pointer moves and from Shift key transitions.
+   */
+  private updateQuickCurveEnd(shift: boolean): void {
+    const a = this.curveA;
+    const raw = this.quickCurveRaw;
+    if (!this.quickCurve || !a || !raw) return;
+    const snaps = !shift && (this.pressTool() !== 'curve' || this.curveVariant === 'endpoints');
+    const hit = snaps && this.snapApplies(this.curveTool) ? this.nearestEndpoint(raw, a) : null;
+    this.curveB = hit ? { ...raw, x: hit.x, y: hit.y } : raw;
+    this.setSnapTarget(hit);
+    this.previewQuickCurve();
   }
 
   /** Switches an in-progress quick curve between quarter circle and ellipse. */
@@ -2374,8 +4239,29 @@ class App {
   private commitQuickCurve(): void {
     const cubic = this.quickCurveCubic();
     const finished = this.quickCurveStroke(this.quickCurvePoints());
+    const shiftLine = this.shiftLine;
+    const start = this.curveA;
+    const tool = this.pressTool();
+    this.shiftLine = null;
     this.cancelCurve();
+    // Drawn on from a Shift-click line: the arc goes on its mark after the
+    // line - or, too small to be an arc, the line alone.
+    if (shiftLine && finished) {
+      const run: VectorAnchor[] = cubic
+        ? [
+            { p: { ...cubic.p0 }, hOut: { ...cubic.c1 } },
+            { p: { ...cubic.p3 }, hIn: { ...cubic.c2 } },
+          ]
+        : [anchorAt(start ?? shiftLine.to)];
+      this.commitShiftLine(shiftLine, finished, run, tool);
+      return;
+    }
     if (!finished || !cubic) return;
+    // A quick curve drawn with the Eraser cuts along the arc.
+    if (finished.tool === 'eraser') {
+      this.commitErase(finished);
+      return;
+    }
     // The whole arc is one cubic: two anchors, two control points.
     finished.vector = {
       anchors: [
@@ -2385,6 +4271,7 @@ class App {
     };
     const extras = this.symmetryCopies(finished);
     this.store.addStrokes([finished, ...extras]);
+    this.rememberLineStart(finished.id, tool);
   }
 
   /** Abandons any in-progress curve (Esc, gesture, or an empty chord). */
@@ -2396,6 +4283,7 @@ class App {
     this.quickCurve = false;
     this.quickCurveUniform = false;
     this.quickCurveApex = 0;
+    this.quickCurveRaw = null;
     this.startSnapHit = null;
     this.live = null;
     this.setSnapTarget(null);
@@ -2418,9 +4306,54 @@ class App {
     return sampleVectorPathPoints(withRubber, close && !rubberTo);
   }
 
-  /** Live preview of the pending vector path (with the rubber-band segment). */
+  /**
+   * The newest anchor's handles, pulled out symmetrically to where the
+   * pointer is - held by Shift to eight directions about the anchor - or put
+   * away inside the click radius, where the anchor reverts to a corner.
+   */
+  private pullVectorHandles(shift: boolean): void {
+    const anchor = this.vectorAnchors[this.vectorAnchors.length - 1];
+    const at = this.vectorPointer;
+    if (!anchor || !at) return;
+    const handles = pulledHandles(anchor, at, shift, this.screenPx(3));
+    anchor.hOut = handles?.hOut;
+    anchor.hIn = handles?.hIn;
+    this.previewVectorPath();
+  }
+
+  /**
+   * The rubber band's end from where the pointer is: on the first anchor
+   * while a press would close the path, which the close indicator marks;
+   * otherwise held by Shift to eight directions from the last anchor, or
+   * under the pointer (vector-place.ts). Called from pointer moves and from
+   * Shift going down or up.
+   */
+  private updateVectorHover(shift: boolean): void {
+    const at = this.vectorPointer;
+    if (!at || this.vectorAnchors.length === 0 || this.vectorDragging) return;
+    const band = bandEnd(this.vectorAnchors, at, shift, this.vectorGrab());
+    this.vectorHover = { ...at, x: band.end.x, y: band.end.y };
+    this.vectorCloseHover = band.closes;
+    this.previewVectorPath();
+  }
+
+  /** Shift went down or up while a path is being placed: the handle being pulled, or the band, follows it at once. */
+  private refreshVectorPointer(shift: boolean): void {
+    if (this.store.tool.tool !== 'vector' || this.vectorEditId || this.vectorAnchors.length === 0) return;
+    if (this.vectorDragging) this.pullVectorHandles(shift);
+    else this.updateVectorHover(shift);
+  }
+
+  /**
+   * Live preview of the pending vector path (with the rubber-band segment).
+   * Where a press would close it, the preview is the path closed, the
+   * closing segment bowed by the handles it will have.
+   */
   private previewVectorPath(): void {
-    const points = this.vectorPathPoints(this.vectorDragging ? null : this.vectorHover, false);
+    const closing = this.vectorCloseHover && !this.vectorDragging;
+    const points = closing
+      ? this.vectorPathPoints(null, true)
+      : this.vectorPathPoints(this.vectorDragging ? null : this.vectorHover, false);
     if (points.length < 2) {
       this.live = null;
       this.scheduleRender();
@@ -2455,7 +4388,7 @@ class App {
           this.vectorAnchors[this.vectorAnchors.length - 2].p.x,
         this.vectorAnchors[this.vectorAnchors.length - 1].p.y -
           this.vectorAnchors[this.vectorAnchors.length - 2].p.y,
-      ) < 2
+      ) < this.screenPx(2)
     ) {
       this.vectorAnchors.pop();
     }
@@ -2464,7 +4397,7 @@ class App {
       return;
     }
     const points = this.vectorPathPoints(null, close);
-    const { color, width, opacity } = this.store.tool;
+    const { color, fill, width, opacity } = this.store.tool;
     const finished: Stroke = {
       id: createId('st'),
       tool: 'pen',
@@ -2474,6 +4407,8 @@ class App {
       layer: this.store.activeLayer.id,
       sharpened: true,
       ...(opacity != null ? { opacity } : {}),
+      // A closed path is a shape, and takes the tool's fill.
+      ...(close && fill ? { fill } : {}),
       ...this.toolProfile('pen'),
       // The anchors persist so the path stays Vector Path editable.
       vector: {
@@ -2489,9 +4424,12 @@ class App {
 
   /** Abandons the pending vector path (Esc, blur, gesture, or tool switch). */
   private cancelVectorPath(): void {
+    this.dropPressOf('vector-place');
     this.vectorAnchors = [];
     this.vectorDragging = false;
     this.vectorHover = null;
+    this.vectorPointer = null;
+    this.vectorCloseHover = false;
     this.live = null;
     this.scheduleRender();
   }
@@ -2499,21 +4437,19 @@ class App {
   // ---- Vector Path edit mode -----------------------------------------------
 
   /**
-   * Grab radius for vector-edit interactions, in sketch units. Anchors,
-   * handles, and the rounding target are deliberate click targets, so the
-   * radius never drops below a comfortable 8 screen pixels even when the
-   * Direct Select sensitivity is tuned finer.
+   * Grab radius for anchors, handles, the rounding target and paths, in
+   * sketch units: the Direct Select sensitivity, in screen pixels, at the
+   * current zoom. It used to be held to at least 8 pixels here, which left
+   * the slider doing nothing below 8 on any path with Bezier anchors.
    */
   private vectorGrab(): number {
-    return (
-      Math.max(8, this.settings.directSelectSensitivityPx) / this.surface.getViewport().zoom
-    );
+    return this.settings.directSelectSensitivityPx / this.surface.getViewport().zoom;
   }
 
   /** Topmost editable stroke with vector structure under the point, or null. */
   private findVectorStroke(pt: Point): Stroke | null {
     const grab = this.vectorGrab();
-    const strokes = this.store.sketch.strokes;
+    const strokes = paintOrder(this.store.sketch, this.layerPaints());
     for (let i = strokes.length - 1; i >= 0; i--) {
       const stroke = strokes[i];
       if (!stroke.vector || !this.strokeEditable(stroke)) continue;
@@ -2542,6 +4478,7 @@ class App {
 
   /** Ends the anchor edit (Esc, empty-canvas click, blur, or tool switch). */
   private exitVectorEdit(): void {
+    this.dropPressOf('vector-edit');
     this.vectorEditId = null;
     this.vectorEditAnchors = [];
     this.vectorEditClosed = false;
@@ -2557,9 +4494,11 @@ class App {
     if (!this.vectorEditId) return;
     const points = sampleVectorPathPoints(this.vectorEditAnchors, this.vectorEditClosed);
     if (points.length < 2) return;
+    const fitted = this.store.sketch.strokes.find((s) => s.id === this.vectorEditId)?.vector?.fitted === true;
     this.store.setStrokeGeometry(this.vectorEditId, points, {
       anchors: cloneAnchors(this.vectorEditAnchors),
       ...(this.vectorEditClosed ? { closed: true } : {}),
+      ...(fitted ? { fitted: true as const } : {}),
     });
   }
 
@@ -2780,6 +4719,20 @@ class App {
     return pts;
   }
 
+  /**
+   * One stroke of Sharpen Selection at the sliders' values. Freehand ink is
+   * fitted afresh, close enough to keep what the sliders made, so the
+   * smoothing does not multiply its points; other marks keep their points.
+   */
+  private applySharpenedGeometry(id: string, original: { points: Point[]; fit: boolean }): void {
+    const pts = this.sharpenedPoints(original.points);
+    if (pts.length < 2) return;
+    const fitted = original.fit ? fitPoints(pts, SHARPEN_FIT_TOLERANCE) : null;
+    // Reshaped points no longer match any stored anchor structure.
+    if (fitted) this.store.setStrokeGeometry(id, fitted.points, fitted.vector);
+    else this.store.setStrokeGeometry(id, pts);
+  }
+
   private bindSharpenSelection(): void {
     el('sharpen-selection').addEventListener('click', () => this.runCommand('sharpen-selection'));
     el('sharpen-apply-btn').addEventListener('click', () => this.closeSharpenDialog(true));
@@ -2806,7 +4759,7 @@ class App {
     this.sharpenPreview = new Map(
       targets.map((s) => [
         s.id,
-        { points: s.points.map((p) => ({ ...p })), vector: s.vector },
+        { points: s.points.map((p) => ({ ...p })), vector: s.vector, fit: fitsFreehand(s) },
       ]),
     );
     el('sharpen-dialog').classList.remove('is-hidden');
@@ -2816,10 +4769,7 @@ class App {
   /** Re-applies the sliders to every previewed stroke, live on the canvas. */
   private updateSharpenPreview(): void {
     if (!this.sharpenPreview) return;
-    for (const [id, original] of this.sharpenPreview) {
-      const pts = this.sharpenedPoints(original.points);
-      if (pts.length >= 2) this.store.setStrokeGeometry(id, pts);
-    }
+    for (const [id, original] of this.sharpenPreview) this.applySharpenedGeometry(id, original);
   }
 
   /**
@@ -2837,11 +4787,7 @@ class App {
     if (apply) {
       this.recordAs('sharpen-selection', () => {
         this.store.pushHistory();
-        for (const [id, original] of preview) {
-          const pts = this.sharpenedPoints(original.points);
-          // Reshaped points no longer match any stored anchor structure.
-          if (pts.length >= 2) this.store.setStrokeGeometry(id, pts);
-        }
+        for (const [id, original] of preview) this.applySharpenedGeometry(id, original);
       });
     }
     el('sharpen-dialog').classList.add('is-hidden');
@@ -2908,7 +4854,7 @@ class App {
         if (near(this.roundTargetPos(sel))) {
           this.store.pushHistory();
           this.vectorEditDrag = { kind: 'round', index: sel, base: cloneAnchors(this.vectorEditAnchors) };
-          this.beginPointerDrag(e);
+          this.beginPointerDrag(e, 'vector-edit');
           return;
         }
         const anchor = this.vectorEditAnchors[sel];
@@ -2916,7 +4862,7 @@ class App {
           if (near(anchor?.[kind])) {
             this.store.pushHistory();
             this.vectorEditDrag = { kind, index: sel, last: pt };
-            this.beginPointerDrag(e);
+            this.beginPointerDrag(e, 'vector-edit');
             return;
           }
         }
@@ -2926,7 +4872,7 @@ class App {
         this.vectorEditSelected = idx;
         this.store.pushHistory();
         this.vectorEditDrag = { kind: 'anchor', index: idx, last: pt };
-        this.beginPointerDrag(e);
+        this.beginPointerDrag(e, 'vector-edit');
         return;
       }
       // Ctrl over a bare segment adds an anchor there, as the pointer's add
@@ -2962,15 +4908,16 @@ class App {
 
   /**
    * Paint bucket: fills the topmost enclosed shape under the click with the
-   * current ink color, added as a new selectable shape on the active layer.
+   * tool's fill - or its ink, while the fill is none - added as a new
+   * selectable shape on the active layer.
    */
   private applyBucket(pt: Point): void {
-    const strokes = this.store.sketch.strokes;
+    const strokes = paintOrder(this.store.sketch, this.layerPaints());
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
       if (!this.strokeEditable(s) || !isClosedStroke(s)) continue;
       if (!pointInPolygon(pt, s.points)) continue;
-      const color = this.store.tool.color;
+      const color = this.store.tool.fill ?? this.store.tool.color;
       const points = s.points.map((p) => ({ ...p }));
       const first = points[0];
       const last = points[points.length - 1];
@@ -3004,7 +4951,7 @@ class App {
     );
     this.store.setTool({ color });
     this.updateCursor();
-    if (this.store.selectedIds.size > 0) {
+    if (this.store.selectedMarkCount > 0) {
       const result = this.store.fillSelected(color);
       if (result.filled + result.recolored > 0) {
         this.toast(
@@ -3021,12 +4968,18 @@ class App {
   /** Join strokes (Ctrl+J / toolbar): merges the selected strokes into one. */
   private joinSelectedStrokes(): void {
     const merged = this.store.joinSelectedStrokes();
+    // The joined run as a few anchors, as a stroke is when it is drawn.
+    if (merged) {
+      const fitted = fitStroke(merged, this.freehandTolerance());
+      if (fitted.vector) this.store.setStrokeGeometry(merged.id, fitted.points, fitted.vector);
+    }
     this.toast(merged ? 'Joined selected strokes.' : 'Select two or more strokes to join.');
   }
 
   /**
-   * Fill Color tool: applies the selected ink color to the selected
-   * element(s), or to the element under the click when nothing is selected.
+   * Fill Color tool: applies the tool's fill - or its ink, while the fill
+   * is none - to the selected element(s), or to the element under the click
+   * when nothing is selected.
    */
   private applyFillColor(pt: Point): void {
     // Clicking an element selects it first — anywhere within the element's
@@ -3037,11 +4990,11 @@ class App {
     const hit = this.hitTestWithinBounds(pt, (s) => s.tool !== 'eraser' && !isImageStroke(s));
     if (hit) {
       this.store.setSelection([hit.id]);
-    } else if (this.store.selectedIds.size === 0) {
+    } else if (this.store.selectedMarkCount === 0) {
       this.toast('Select an element (or click one) to fill.');
       return;
     }
-    const color = this.store.tool.color;
+    const color = this.store.tool.fill ?? this.store.tool.color;
     const result = this.store.fillSelected(color);
     if (result.filled > 0) this.toast(`Filled ${result.filled} element(s) with ${color}.`);
     else if (result.recolored > 0) this.toast(`Recolored ${result.recolored} element(s) with ${color}.`);
@@ -3070,8 +5023,10 @@ class App {
     }
 
     // Pick a different stroke for editing, or drop the edit on empty canvas.
-    // As with the Select tool, a filled shape's interior counts as the shape.
-    const hit = this.hitTest(pt) ?? this.hitFilledInterior(pt);
+    // As with the Select tool, a filled shape's interior counts as the shape;
+    // the reach is Direct Select's own sensitivity.
+    // Direct Select reaches every anchor in a clip group, shown or not.
+    const hit = this.hitTest(pt, undefined, this.settings.directSelectSensitivityPx, true);
     if (hit && !isTextStroke(hit) && !isImageStroke(hit)) {
       this.anchorStrokeId = hit.id;
       this.selectedAnchors.clear();
@@ -3104,11 +5059,7 @@ class App {
       for (const kind of ['vhOut', 'vhIn'] as const) {
         const handle = kind === 'vhIn' ? anchor?.hIn : anchor?.hOut;
         if (near(handle)) {
-          this.store.pushHistory();
-          this.anchorDragKind = kind;
-          this.anchorDragLast = pt;
-          this.anchorDragOrigin = pt;
-          this.beginPointerDrag(e);
+          this.armAnchorDrag(e, kind, pt);
           return true;
         }
       }
@@ -3134,11 +5085,7 @@ class App {
       }
       this.pathSelected = false;
       if (this.selectedAnchors.has(best)) {
-        this.store.pushHistory();
-        this.anchorDragKind = 'vanchor';
-        this.anchorDragLast = pt;
-        this.anchorDragOrigin = pt;
-        this.beginPointerDrag(e);
+        this.armAnchorDrag(e, 'vanchor', pt);
       } else {
         this.scheduleRender();
       }
@@ -3146,15 +5093,11 @@ class App {
     }
 
     // 3. The path body: select and move the whole path (anchors follow).
-    if (this.pointOnPath(stroke, pt, grab)) {
+    if (this.onPathBody(stroke, pt, grab)) {
       this.selectedAnchors.clear();
       this.pathSelected = true;
       this.store.setSelection([stroke.id]);
-      this.store.pushHistory();
-      this.anchorDragKind = 'path';
-      this.anchorDragLast = pt;
-      this.anchorDragOrigin = pt;
-      this.beginPointerDrag(e);
+      this.armAnchorDrag(e, 'path', pt);
       return true;
     }
     return false;
@@ -3177,11 +5120,8 @@ class App {
       const origin = [...this.selectedAnchors][0];
       for (const handle of this.anchorHandleTips(stroke, origin)) {
         if (Math.hypot(handle.tip.x - pt.x, handle.tip.y - pt.y) <= grab) {
-          this.store.pushHistory();
-          this.anchorDragKind = 'handle';
           this.handleDrag = this.captureHandleDrag(stroke, origin, handle);
-          this.anchorDragLast = pt;
-          this.beginPointerDrag(e);
+          this.armAnchorDrag(e, 'handle', pt);
           return true;
         }
       }
@@ -3207,10 +5147,7 @@ class App {
       }
       this.pathSelected = false;
       if (this.selectedAnchors.has(best)) {
-        this.store.pushHistory();
-        this.anchorDragKind = 'anchor';
-        this.anchorDragLast = pt;
-        this.beginPointerDrag(e);
+        this.armAnchorDrag(e, 'anchor', pt);
       } else {
         this.scheduleRender();
       }
@@ -3218,17 +5155,39 @@ class App {
     }
 
     // 3. The path body (a segment within range): select and move the path.
-    if (this.pointOnPath(stroke, pt, grab)) {
+    if (this.onPathBody(stroke, pt, grab)) {
       this.selectedAnchors.clear();
       this.pathSelected = true;
       this.store.setSelection([stroke.id]);
-      this.store.pushHistory();
-      this.anchorDragKind = 'path';
-      this.anchorDragLast = pt;
-      this.beginPointerDrag(e);
+      this.armAnchorDrag(e, 'path', pt);
       return true;
     }
     return false;
+  }
+
+  /**
+   * Arms a Direct Select drag of `kind` from `pt`. The pointer is claimed
+   * now, but the history step and the first move wait until the drag has
+   * travelled (see {@link anchorDragFrom}). The origin is kept for every kind,
+   * raw points and tangent handles included, so Shift can constrain them all.
+   */
+  private armAnchorDrag(e: PointerEvent, kind: AnchorDragKind, pt: Point): void {
+    this.anchorDragKind = kind;
+    this.anchorDragLast = pt;
+    this.anchorDragOrigin = pt;
+    this.anchorDragFrom = { x: e.clientX, y: e.clientY };
+    this.anchorDragCommitted = false;
+    this.beginPointerDrag(e);
+  }
+
+  /**
+   * Whether a Direct Select press at `pt` lands on the edited path's body:
+   * within the grab of its outline, or inside its fill where nothing paints
+   * over it.
+   */
+  private onPathBody(stroke: Stroke, pt: Point, grab: number): boolean {
+    if (this.pointOnPath(stroke, pt, grab)) return true;
+    return this.hitTest(pt, undefined, this.settings.directSelectSensitivityPx)?.id === stroke.id;
   }
 
   /**
@@ -3242,6 +5201,7 @@ class App {
     this.store.setStrokeGeometry(stroke.id, points, {
       anchors,
       ...(closed ? { closed: true } : {}),
+      ...(stroke.vector?.fitted ? { fitted: true as const } : {}),
     });
   }
 
@@ -3250,7 +5210,11 @@ class App {
     const stroke = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
     if (!stroke?.vector) return;
     const anchors = cloneAnchors(stroke.vector.anchors);
-    for (const index of this.selectedAnchors) {
+    const moving = withSeamTwins(
+      anchors.map((a) => a.p),
+      this.selectedAnchors,
+    );
+    for (const index of moving) {
       const anchor = anchors[index];
       if (!anchor) continue;
       anchor.p.x += dx;
@@ -3296,17 +5260,15 @@ class App {
     this.commitVectorPointEdit(stroke, anchors);
   }
 
-  /** Captures the pointer and marks it active for a Direct Select drag. */
-  private beginPointerDrag(e: PointerEvent): void {
-    this.activePointerId = e.pointerId;
-    this.canvas.setPointerCapture(e.pointerId);
+  /** Captures the pointer for a Direct Select drag, or a Vector Path edit mode drag. */
+  private beginPointerDrag(e: PointerEvent, kind: PressKind = 'point-drag'): void {
+    this.claimPointer(e, kind);
     this.scheduleRender();
   }
 
   /** Starts a Space + drag canvas pan (Select and Direct Select tools). */
   private beginPanDrag(e: PointerEvent): void {
-    this.activePointerId = e.pointerId;
-    this.canvas.setPointerCapture(e.pointerId);
+    this.claimPointer(e, 'pan');
     this.panDragging = true;
     this.panLast = { x: e.clientX, y: e.clientY };
     this.panOrigin = { x: e.clientX, y: e.clientY };
@@ -3382,30 +5344,30 @@ class App {
     this.store.setStrokePointPositions(this.anchorStrokeId, updates);
   }
 
-  /** True when `pt` lies within `tol` of any segment of the stroke's path. */
+  /**
+   * True when `pt` lies within `tol` of the stroke's painted outline: the
+   * ink reaches half the width either side of the path, so a wide stroke is
+   * grabbed on its edge as well as its middle. Its fill is not counted here.
+   */
   private pointOnPath(stroke: Stroke, pt: Point, tol: number): boolean {
-    const pts = stroke.points;
-    if (pts.length === 1) return Math.hypot(pts[0].x - pt.x, pts[0].y - pt.y) <= tol;
-    for (let i = 1; i < pts.length; i++) {
-      if (distToSegment(pt, pts[i - 1], pts[i]) <= tol) return true;
-    }
-    return false;
+    return outlineDistance(stroke, pt) <= tol;
   }
 
   // ---- Endpoint snap (hold Shift while drawing) ----------------------------
 
   /** True when endpoint snapping applies to the given tool. */
   private snapApplies(tool: Tool): boolean {
-    return this.settings.endpointSnap && (tool === 'pen' || tool === 'marker' || tool === 'copic');
+    return this.settings.endpointSnap && (tool === 'pen' || tool === 'marker' || tool === 'copic' || tool === 'pencil');
   }
 
   /**
    * Finds the endpoint (first or last point) of an existing drawing stroke on
    * a visible layer nearest to `pt`, or null when none is within the snap
    * sensitivity. The sensitivity is measured in screen pixels so the snap
-   * feel stays the same at any zoom level.
+   * feel stays the same at any zoom level. An end at `from` - where the line
+   * being drawn starts - is passed over: snapping onto it would leave no line.
    */
-  private nearestEndpoint(pt: Point): SnapHit | null {
+  private nearestEndpoint(pt: Point, from?: { x: number; y: number }): SnapHit | null {
     let bestDist = this.settings.endpointSnapPx / this.surface.getViewport().zoom;
     let best: SnapHit | null = null;
     const visible = this.visibleStrokeIds();
@@ -3416,6 +5378,7 @@ class App {
       if (pts.length === 0) continue;
       for (const at of ['start', 'end'] as const) {
         const end = at === 'start' ? pts[0] : pts[pts.length - 1];
+        if (from && Math.hypot(end.x - from.x, end.y - from.y) <= 1e-6) continue;
         const dist = Math.hypot(end.x - pt.x, end.y - pt.y);
         if (dist <= bestDist) {
           bestDist = dist;
@@ -3455,12 +5418,26 @@ class App {
       const angle = (Math.PI * 2 * i) / k;
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
+      const turn = (p: { x: number; y: number }): { x: number; y: number } => {
+        const dx = p.x - cx;
+        const dy = p.y - cy;
+        return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos };
+      };
       copies.push({
         ...stroke,
         id: createId('st'),
-        // The copy's points are rotated below, so any anchor structure from
-        // the source no longer describes them.
-        vector: undefined,
+        // The anchors turn with the points, so every arm stays a fitted curve.
+        vector: stroke.vector
+          ? {
+              ...stroke.vector,
+              anchors: stroke.vector.anchors.map((a) => ({
+                ...a,
+                p: turn(a.p),
+                ...(a.hIn ? { hIn: turn(a.hIn) } : {}),
+                ...(a.hOut ? { hOut: turn(a.hOut) } : {}),
+              })),
+            }
+          : undefined,
         // Rotate the copic nib with the copy so every arm of the mandala
         // shows the same thick/thin chisel behaviour.
         ...(stroke.nibAngle != null
@@ -3490,6 +5467,8 @@ class App {
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const stroke of this.store.sketch.strokes) {
+      // An older file's eraser marks cut what is there; they are nothing to see.
+      if (stroke.tool === 'eraser') continue;
       const b = strokeBounds(stroke);
       if (!b) continue;
       minX = Math.min(minX, b.minX);
@@ -3520,46 +5499,33 @@ class App {
     this.scheduleRender();
   }
 
+/**
+   * View > Zoom In and Zoom Out: the canvas zoomed by `factor` about its
+   * middle, as far as it goes. The rows used to be Electron's, which zoom the
+   * whole window - the panels and the toolbar with the drawing.
+   */
+  private zoomByStep(factor: number): void {
+    this.surface.zoomAt(factor, this.surface.width / 2, this.surface.height / 2);
+    this.scheduleRender();
+    this.toast(`Zoom ${formatZoom(this.surface.getViewport().zoom)}.`);
+  }
+
+  /** `px` screen pixels in page units at the current zoom: a distance meant on the screen. */
+  private screenPx(px: number): number {
+    return screenPx(px, this.surface.getViewport().zoom);
+  }
+
   /** Enters two-finger gesture mode, discarding any in-progress interaction. */
   private beginGesture(): void {
     this.gesturing = true;
     // Abandon any single-pointer drawing or drag that was in progress so it
-    // does not resume when the gesture ends.
-    this.live = null;
-    this.straightStart = null;
-    this.straightEnd = null;
-    this.straightRaw = null;
-    this.shapeStart = null;
-    this.curveA = null;
-    this.curveB = null;
-    this.curveBending = false;
-    this.curveControl = null;
-    this.quickCurve = false;
-    this.quickCurveUniform = false;
-    this.quickCurveApex = 0;
+    // does not resume when the gesture ends, and a Vector Path being placed.
+    this.clearPressFields();
     this.vectorAnchors = [];
-    this.vectorDragging = false;
     this.vectorHover = null;
-    this.vectorEditDrag = null;
-    this.startSnapHit = null;
-    this.setSnapTarget(null);
-    this.dragging = false;
-    this.dragLast = null;
-    this.dragFrom = null;
-    this.dragCommitted = false;
-    this.rubberBandStart = null;
-    this.rubberBandBox = null;
-    this.textDragStart = null;
-    this.textDragLive = null;
-    this.anchorDragKind = null;
-    this.handleDrag = null;
-    this.anchorDragLast = null;
-    this.panDragging = false;
-    this.panLast = null;
-    if (this.activePointerId !== null && this.canvas.hasPointerCapture(this.activePointerId)) {
-      this.canvas.releasePointerCapture(this.activePointerId);
-    }
-    this.activePointerId = null;
+    this.vectorPointer = null;
+    this.vectorCloseHover = false;
+    this.releasePointer();
 
     const pts = [...this.pointers.values()];
     this.gestureStartDist = distance(pts[0], pts[1]);
@@ -3651,10 +5617,11 @@ class App {
   }
 
   private beginSelect(e: PointerEvent, pt: Point): void {
-    // Outline hits win; failing that, a click on a shape's painted fill (its
-    // interior) selects the shape, so filled elements act solid. A click on
-    // genuinely empty canvas still starts a rubber-band selection.
-    const hit = this.hitTest(pt) ?? this.hitFilledInterior(pt);
+    // The mark on top whose ink is under the press - a shape's painted fill
+    // included, so filled elements act solid - or failing that the nearest
+    // within the Select sensitivity. A click on genuinely empty canvas still
+    // starts a rubber-band selection.
+    const hit = this.hitTest(pt);
 
     // A press inside a selection of several elements moves it, even where it
     // lands on a gap between the marks. Demanding an exact hit made a group
@@ -3669,7 +5636,7 @@ class App {
     // design, widening every mark by a few screen pixels. The selection was
     // therefore lost most reliably in exactly the case it was meant to be
     // held: aiming at the middle of what you are about to drag.
-    const insideSelection = this.store.selectedIds.size > 1 && this.pointInSelectedBounds(pt);
+    const insideSelection = this.store.selectedMarkCount > 1 && this.pointInSelectedBounds(pt);
 
     if (hit || insideSelection) {
       if (hit && e.shiftKey) {
@@ -3700,8 +5667,7 @@ class App {
       this.dragOrigin = pt;
       this.dragFrom = { x: e.clientX, y: e.clientY };
       this.dragCommitted = false;
-      this.canvas.setPointerCapture(e.pointerId);
-      this.activePointerId = e.pointerId;
+      this.claimPointer(e, 'select-drag');
     } else {
       // Start rubber-band selection over empty canvas. A selection of several
       // elements is not dropped on the press itself: the gesture has not said
@@ -3709,25 +5675,30 @@ class App {
       // mousedown is what made a multi-row selection so easy to lose. The
       // clear waits for movement (a real rubber band) or for a release with
       // none (a click on empty canvas).
-      if (this.store.selectedIds.size > 1) this.pendingSelectionClear = true;
+      if (this.store.selectedMarkCount > 1) this.pendingSelectionClear = true;
       else this.store.clearSelection();
       this.rubberBandStart = pt;
       this.rubberBandBox = { x1: pt.x, y1: pt.y, x2: pt.x, y2: pt.y };
-      this.canvas.setPointerCapture(e.pointerId);
-      this.activePointerId = e.pointerId;
+      this.claimPointer(e, 'rubber-band');
       this.scheduleRender();
     }
   }
 
-  /** Bounds of every selected mark, or null when nothing is selected. */
+  /**
+   * Bounds of every selected mark as it shows - a mark in a clip group cut to
+   * the clip's bounds, so a group selected whole is boxed by its clip - or
+   * null when nothing is selected.
+   */
   private selectedBounds(): { minX: number; minY: number; maxX: number; maxY: number } | null {
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
+    const clips = clipIndex(this.store.sketch);
     for (const stroke of this.store.sketch.strokes) {
-      if (!this.store.selectedIds.has(stroke.id)) continue;
-      const b = strokeBounds(stroke, (t) => this.surface.measureText(t));
+      if (!this.store.selectedIds.has(stroke.id) || stroke.tool === 'eraser') continue;
+      const bounds = strokeBounds(stroke, (t) => this.surface.measureText(t));
+      const b = bounds && shownBounds(this.store.sketch, stroke, bounds, clips);
       if (!b) continue;
       minX = Math.min(minX, b.minX);
       minY = Math.min(minY, b.minY);
@@ -3814,106 +5785,68 @@ class App {
   }
 
   /**
-   * Returns the topmost editable stroke under a point, or null.
+   * The mark a press at `pt` picks: the topmost editable one, in the order
+   * the canvas paints, whose ink is under the point - a fill counts as the
+   * shape, a line as wide as it is painted - or failing that the nearest
+   * whose ink lies within `tolerancePx` screen pixels. Null over bare canvas,
+   * and over ink an eraser has cut away. See core/hit-test.ts.
    *
    * `editable` is the pickable set from {@link editableStrokeIds}; a caller
    * making several passes over the page passes its own so the layer stack is
    * resolved once for the whole gesture step rather than once per pass.
    */
-  private hitTest(pt: Point, editable = this.editableStrokeIds()): Stroke | null {
-    const strokes = this.store.sketch.strokes;
-    for (let i = strokes.length - 1; i >= 0; i--) {
-      const s = strokes[i];
-      if (!editable.has(s.id)) continue;
-      if (isImageStroke(s)) {
-        const b = strokeBounds(s);
-        if (b && pt.x >= b.minX && pt.x <= b.maxX && pt.y >= b.minY && pt.y <= b.maxY) {
-          return s;
-        }
-        continue;
-      }
-      if (isTextStroke(s)) {
-        const b = strokeBounds(s, (t) => this.surface.measureText(t));
-        if (b && pt.x >= b.minX - 6 && pt.x <= b.maxX + 6 && pt.y >= b.minY - 6 && pt.y <= b.maxY + 6) {
-          return s;
-        }
-        continue;
-      }
-      const pad = Math.max(8, s.width * 1.5);
-      for (let j = 1; j < s.points.length; j++) {
-        if (distToSegment(pt, s.points[j - 1], s.points[j]) <= pad) return s;
-      }
-      if (s.points.length === 1 && Math.hypot(pt.x - s.points[0].x, pt.y - s.points[0].y) <= pad) {
-        return s;
-      }
-    }
-    return null;
+  private hitTest(
+    pt: Point,
+    editable: ReadonlySet<string> = this.editableStrokeIds(),
+    tolerancePx = this.settings.selectSensitivityPx,
+    ignoreClips = false,
+  ): Stroke | null {
+    return hitMark(this.store.sketch, pt, {
+      zoom: this.surface.getViewport().zoom,
+      tolerancePx,
+      editable,
+      paints: this.layerPaints(),
+      measure: (t) => this.surface.measureText(t),
+      ignoreClips,
+    });
   }
 
-  /**
-   * Topmost filled shape whose painted interior contains the point.
-   *
-   * Used by the selection tools so a shape with a fill reads as solid: a
-   * click on its color grabs it, while unfilled outlines stay click-through
-   * (their middle is empty canvas, where rubber-banding must still work).
-   */
-  private hitFilledInterior(pt: Point, editable = this.editableStrokeIds()): Stroke | null {
-    const strokes = this.store.sketch.strokes;
-    for (let i = strokes.length - 1; i >= 0; i--) {
-      const s = strokes[i];
-      if (!s.fill || s.tool === 'eraser' || s.points.length < 3) continue;
-      if (!editable.has(s.id)) continue;
-      if (pointInPolygon(pt, s.points)) return s;
-    }
-    return null;
+  /** Which layers paint on the canvas - none hidden, by itself or by a group above it - for the paint order. */
+  private layerPaints(): (layer: Layer) => boolean {
+    const effectiveOf = effectiveLayers(this.store.sketch);
+    return (layer) => effectiveOf.get(layer.id)?.visible === true;
   }
 
   /**
    * Like {@link hitTest}, but a click anywhere within an element's
-   * dimensions counts, not just near its outline. Three passes, each
-   * topmost-first: exact outline proximity, then shape interior
-   * (point-in-polygon over the stroke's points), then bounding box.
+   * dimensions counts, not just on its ink. Three passes, each topmost-first
+   * in paint order: the ink, then the shape's interior (point-in-polygon over
+   * the stroke's points, filled or not), then its bounding box.
    *
    * @param eligible Optional filter; ineligible strokes are skipped so the
    *   pick falls through to whatever sits beneath them.
    */
   private hitTestWithinBounds(pt: Point, eligible?: (s: Stroke) => boolean): Stroke | null {
-    const strokes = this.store.sketch.strokes;
+    const sketch = this.store.sketch;
     const editable = this.editableStrokeIds();
-    const pickable = (s: Stroke): boolean =>
-      editable.has(s.id) && (eligible === undefined || eligible(s));
-    const exact = this.hitTest(pt, editable);
-    if (exact && pickable(exact)) return exact;
-    for (let i = strokes.length - 1; i >= 0; i--) {
-      const s = strokes[i];
-      if (!pickable(s)) continue;
+    const pickable = new Set(
+      sketch.strokes
+        .filter((s) => editable.has(s.id) && (eligible === undefined || eligible(s)))
+        .map((s) => s.id),
+    );
+    const exact = this.hitTest(pt, pickable);
+    if (exact) return exact;
+    const topFirst = paintOrder(sketch, this.layerPaints())
+      .filter((s) => pickable.has(s.id))
+      .reverse();
+    for (const s of topFirst) {
       if (s.points.length >= 3 && pointInPolygon(pt, s.points)) return s;
     }
-    for (let i = strokes.length - 1; i >= 0; i--) {
-      const s = strokes[i];
-      if (!pickable(s)) continue;
+    for (const s of topFirst) {
       const b = strokeBounds(s, (t) => this.surface.measureText(t));
       if (b && pt.x >= b.minX && pt.x <= b.maxX && pt.y >= b.minY && pt.y <= b.maxY) return s;
     }
     return null;
-  }
-
-  /** Returns true if any point of `stroke` falls inside the given AABB. */
-  private strokeIntersectsBox(
-    stroke: Stroke,
-    minX: number,
-    minY: number,
-    maxX: number,
-    maxY: number,
-    editable = this.editableStrokeIds(),
-  ): boolean {
-    if (!editable.has(stroke.id)) return false;
-    if (isTextStroke(stroke) || isImageStroke(stroke)) {
-      const b = strokeBounds(stroke, (t) => this.surface.measureText(t));
-      if (!b) return false;
-      return b.maxX >= minX && b.minX <= maxX && b.maxY >= minY && b.minY <= maxY;
-    }
-    return stroke.points.some((p) => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
   }
 
   // ---- Text tool -----------------------------------------------------------
@@ -4032,6 +5965,18 @@ class App {
   private updateCursor(): void {
     const tool = this.store.tool.tool;
 
+    // The hand: Space held with no press under way pans on every tool, over
+    // a Transform box or a Rotate dialog too, and a pan under way grabs.
+    // Mid-press, Space is the straight line's, and the tool's cursor stays.
+    if (this.panDragging) {
+      this.canvas.style.cursor = 'grabbing';
+      return;
+    }
+    if (this.spaceDown && !this.press) {
+      this.canvas.style.cursor = 'grab';
+      return;
+    }
+
     // Transform: a handle under the pointer says which way it pulls. Anywhere
     // else the tool underneath keeps its own cursor, since the box does not
     // take those presses either.
@@ -4053,12 +5998,6 @@ class App {
       return;
     }
 
-    // Select or Direct Select + Space pans: show a grab cursor.
-    if (this.spaceDown && (tool === 'select' || tool === 'point')) {
-      this.canvas.style.cursor = this.panDragging ? 'grabbing' : 'grab';
-      return;
-    }
-
     if (this.capsLockOn || this.spaceDown) {
       this.canvas.style.cursor = 'crosshair';
       return;
@@ -4069,7 +6008,7 @@ class App {
     // the drag commits to it.
     if (
       tool === 'select' &&
-      (this.copyDragging || (this.altDown && this.store.selectedIds.size > 0))
+      (this.copyDragging || (this.altDown && this.store.selectedMarkCount > 0))
     ) {
       this.canvas.style.cursor = CURSOR_ARROW_COPY;
       return;
@@ -4109,6 +6048,28 @@ class App {
         : 'cell';
       return;
     }
+    if (tool === 'liquify') {
+      // The brush itself is drawn on the canvas: too big for a cursor picture.
+      this.canvas.style.cursor = 'crosshair';
+      return;
+    }
+    if (tool === 'split') {
+      this.canvas.style.cursor = CURSOR_SPLIT;
+      return;
+    }
+    if (tool === 'smear') {
+      // The stump's size on the screen, as the Eraser's ring shows its own.
+      const stump = Surface.makeEraserCursorDataUrl(this.store.tool.width * this.surface.getViewport().zoom);
+      this.canvas.style.cursor = stump.url ? `url('${stump.url}') ${stump.hotspotX} ${stump.hotspotY}, crosshair` : 'crosshair';
+      return;
+    }
+    if (tool === 'shape-stacker') {
+      const stacker = Surface.makeStackerCursorDataUrl(this.altDown);
+      this.canvas.style.cursor = stacker.url ? "url('" + stacker.url + "') " + stacker.hotspotX + ' ' + stacker.hotspotY + ', crosshair' : 'crosshair';
+      // The shading turns red with Alt too.
+      if (this.stackerHover >= 0) this.scheduleRender();
+      return;
+    }
     if (
       tool === 'rect' ||
       tool === 'ellipse' ||
@@ -4116,7 +6077,8 @@ class App {
       tool === 'vector' ||
       tool === 'bucket' ||
       tool === 'fill' ||
-      tool === 'eyedrop'
+      tool === 'eyedrop' ||
+      tool === 'shape-eraser'
     ) {
       this.canvas.style.cursor = 'crosshair';
       return;
@@ -4131,7 +6093,9 @@ class App {
             this.store.tool.color,
             this.store.tool.nibAngle,
           )
-        : Surface.makeCursorDataUrl(this.store.tool.width, this.store.tool.color);
+        : tool === 'pencil'
+          ? Surface.makeCursorDataUrl(pencilWidth(this.store.tool.width, this.store.tool.pencil), pencilPaint(this.store.tool.pencil).tone)
+          : Surface.makeCursorDataUrl(this.store.tool.width, this.store.tool.color);
     if (url) {
       this.canvas.style.cursor = `url('${url}') ${hotspotX} ${hotspotY}, crosshair`;
     } else {
@@ -4155,6 +6119,11 @@ class App {
     }
 
     this.bindCurveFlyout();
+    // The Pencil's button opens its drawing kit, as the Shape Eraser's opens its shapes.
+    el('tool-pencil').addEventListener('click', () => {
+      if (!this.rearranging && !document.querySelector('.pencil-kit')) this.openPencilKit();
+    });
+    this.updatePencilTitle();
 
     el('join-strokes').addEventListener('click', () => this.runCommand('join-strokes'));
     // Close Shape offers its two joins as a submenu on press (mousedown),
@@ -4175,23 +6144,22 @@ class App {
     this.makeSortable([el('tool-group'), el('sketch-group')], '.tool', () => this.persistToolOrder());
     this.makeSortable([el('swatches')], '.swatch', () => this.persistQuickColors());
 
-    // The custom color picks ink the way a swatch does, so a selection takes
-    // it too. Chromium fires `input` for each color the pointer crosses while
-    // the popup is open and `change` once it closes: the first tick opens a
-    // history step that the rest of the drag folds into, and the report
-    // waits for the color actually chosen.
+    // The color well picks the way a swatch does - the one of fill and
+    // stroke in front takes it, and a selection too. Chromium fires `input`
+    // for each color the pointer crosses while the popup is open and `change`
+    // once it closes: the first tick opens a history step that the rest of
+    // the drag folds into, and the report waits for the color chosen.
     const custom = el<HTMLInputElement>('color-custom');
     custom.addEventListener('input', () => {
-      this.inkPick = this.applyInkToSelection(custom.value, this.inkPick === null) ?? this.inkPick;
-      this.store.setTool({ color: custom.value });
-      this.updateCursor();
+      this.inkPick = this.applyColorToSelection(custom.value, this.inkPick === null) ?? this.inkPick;
+      this.setFrontColor(custom.value);
     });
     custom.addEventListener('change', () => {
-      this.reportInkPick(custom.value, this.inkPick ?? this.applyInkToSelection(custom.value));
+      this.reportColorPick(custom.value, this.inkPick ?? this.applyColorToSelection(custom.value));
       this.inkPick = null;
-      this.store.setTool({ color: custom.value });
-      this.updateCursor();
+      this.setFrontColor(custom.value);
     });
+    this.bindFillStroke();
 
     // The width reaches a selection too, the way the colour does: with the
     // Select tool and something selected, the selected outlines take it as
@@ -4313,33 +6281,102 @@ class App {
       btn.className = 'swatch';
       btn.style.setProperty('--swatch', color);
       btn.title = color;
-      btn.setAttribute('aria-label', `Ink color ${color}`);
+      btn.setAttribute('aria-label', `Quick Access Color ${color}`);
       btn.dataset.color = color;
       btn.draggable = this.rearranging;
       btn.addEventListener('click', () => {
         if (this.rearranging) return;
-        this.reportInkPick(color, this.applyInkToSelection(color));
-        this.store.setTool({ color });
-        this.updateCursor();
+        this.reportColorPick(color, this.applyColorToSelection(color));
+        this.setFrontColor(color);
       });
       swatches.appendChild(btn);
     }
   }
 
   /**
-   * Fill Shape: with the select tool active and a selection made, picking an
-   * ink color - a swatch or the custom color - fills the selected closed
-   * shapes and recolors the selected open strokes, instead of only changing
-   * the ink for the next mark. `history: false` folds a picker drag into the
-   * step its first tick opened. Returns what changed, or null when the pick
-   * had no selection to reach.
+   * With the Select tool and a selection, a picked color - a swatch or the
+   * color well - paints the selection with the one of fill and stroke in
+   * front (`Store.paintSelected`, core/paint.ts's rule), as well as the tool
+   * for the next mark. It took the place of Fill Shape, which filled the
+   * closed shapes and recolored the rest whatever was meant. `history:
+   * false` folds a picker drag into the step its first tick opened. Returns
+   * what changed, or null when the pick had no selection to reach.
    */
-  private applyInkToSelection(
+  private applyColorToSelection(
     color: string,
     history = true,
   ): { filled: number; recolored: number } | null {
-    if (this.store.tool.tool !== 'select' || this.store.selectedIds.size === 0) return null;
-    return this.store.fillSelected(color, history);
+    if (this.store.tool.tool !== 'select' || this.store.selectedMarkCount === 0) return null;
+    return this.store.paintSelected(this.store.tool.colorTarget, color, history);
+  }
+
+  /** The tool's color in front takes a picked one: the fill's, or the ink's. */
+  private setFrontColor(color: string): void {
+    this.store.setTool(this.store.tool.colorTarget === 'fill' ? { fill: color } : { color });
+    this.updateCursor();
+  }
+
+  /**
+   * The fill and stroke control, where the color well was: a click on the box
+   * behind brings it in front, one on the box in front opens the color well
+   * on its color, and the corner arrow runs Swap Fill and Stroke.
+   */
+  private bindFillStroke(): void {
+    const well = el<HTMLInputElement>('color-custom');
+    const press = (target: ColorTarget): void => {
+      if (this.store.tool.colorTarget !== target) {
+        this.setColorTarget(target);
+        return;
+      }
+      // The well opens on the color it would change; a fill of none, on the ink.
+      const start = frontColor(this.store.tool) ?? this.store.tool.color;
+      if (/^#[0-9a-f]{6}$/i.test(start)) well.value = start.toLowerCase();
+      try {
+        well.showPicker();
+      } catch {
+        well.click();
+      }
+    };
+    el('fill-stroke-fill').addEventListener('click', () => press('fill'));
+    el('fill-stroke-stroke').addEventListener('click', () => press('stroke'));
+    el('fill-stroke-swap').addEventListener('click', () => this.runCommand('swap-fill-stroke'));
+  }
+
+  /** `X`, Fill in Front: the other of fill and stroke comes in front. */
+  private toggleColorTarget(): void {
+    this.setColorTarget(otherTarget(this.store.tool.colorTarget));
+  }
+
+  private setColorTarget(target: ColorTarget): void {
+    if (this.store.tool.colorTarget === target) return;
+    this.store.setTool({ colorTarget: target });
+    this.toast(target === 'fill' ? 'Fill in front: the colors paint the fill.' : 'Stroke in front: the colors paint the stroke.');
+  }
+
+  /**
+   * `Shift+X`, Swap Fill and Stroke: with the Select tool and a selection,
+   * each selected closed shape's fill and outline trade colors; otherwise the
+   * tool's ink and fill do - but the ink is never none, so a fill of none has
+   * nothing to trade.
+   */
+  private swapFillStroke(): void {
+    if (this.store.tool.tool === 'select' && this.store.selectedMarkCount > 0) {
+      const swapped = this.store.swapSelectedPaint();
+      this.toast(
+        swapped > 0
+          ? `Swapped the fill and the outline of ${swapped} ${swapped === 1 ? 'shape' : 'shapes'}.`
+          : 'Swap Fill and Stroke swaps closed shapes: the selection has none.',
+      );
+      return;
+    }
+    const swapped = swapToolPaint(this.store.tool);
+    if (!swapped) {
+      this.toast('The fill is none, and the ink never is: give the fill a color first.');
+      return;
+    }
+    this.store.setTool(swapped);
+    this.updateCursor();
+    this.toast(`Swapped the fill and the ink: the fill is ${swapped.fill}, the ink ${swapped.color}.`);
   }
 
   /**
@@ -4351,7 +6388,7 @@ class App {
    * when it holds none, or the Select tool is not the one in hand.
    */
   private applyWidthToSelection(width: number): number | null {
-    if (this.store.tool.tool !== 'select' || this.store.selectedIds.size === 0) return null;
+    if (this.store.tool.tool !== 'select' || this.store.selectedMarkCount === 0) return null;
     const outlines = this.propertyShapes();
     if (outlines.length === 0) return null;
     const changing = outlines.filter((s) => s.width !== width).map((s) => s.id);
@@ -4367,11 +6404,12 @@ class App {
     this.toast(`Width ${width}px on ${outlines} ${outlines === 1 ? 'outline' : 'outlines'}.`);
   }
 
-  /** Says what an ink pick did to the selection, when it did anything. */
-  private reportInkPick(color: string, result: { filled: number; recolored: number } | null): void {
+  /** Says what a color pick did to the selection, when it reached one. */
+  private reportColorPick(color: string, result: { filled: number; recolored: number } | null): void {
     if (!result) return;
-    if (result.filled > 0) this.toast(`Filled ${result.filled} shape(s) with ${color}.`);
-    else if (result.recolored > 0) this.toast(`Recolored the selection with ${color}.`);
+    if (result.filled > 0) this.toast(`Filled ${result.filled} ${result.filled === 1 ? 'shape' : 'shapes'} with ${color}.`);
+    else if (result.recolored > 0) this.toast(`Recolored ${result.recolored} ${result.recolored === 1 ? 'mark' : 'marks'} with ${color}.`);
+    else if (this.store.tool.colorTarget === 'fill') this.toast('The fill is in front, and the selection has no closed shape to fill.');
   }
 
   // ---- Settings application ------------------------------------------------
@@ -4629,6 +6667,8 @@ class App {
       const outlines = this.applyWidthToSelection(width);
       this.widthPick = null;
       if (outlines !== null) this.reportWidthPick(width, outlines);
+      // REUSE: with the Smear in hand, Quick Width is the stump's size (see commitSmear).
+      else if (this.store.tool.tool === 'smear') this.toast(`Smear: a stump ${width}px wide.`);
       else this.toast(`Width set to ${width}px.`);
       return;
     }
@@ -4644,7 +6684,8 @@ class App {
     }
     percent = Math.min(100, Math.max(0.1, percent));
     this.store.setTool({ opacity: percent / 100 });
-    this.toast(`Opacity set to ${percent}%.`);
+    // REUSE: with the Smear in hand, Quick Opacity is the stump's strength (see commitSmear).
+    this.toast(this.store.tool.tool === 'smear' ? `Smear: strength ${percent}%.` : `Opacity set to ${percent}%.`);
   }
 
   // ---- Quick Zoom ("Z" then a digit) ---------------------------------------
@@ -4677,37 +6718,184 @@ class App {
     this.toast(`Zoom ${percent}%.`);
   }
 
-  // ---- Copic quick nib-rotate (hold Ctrl, then Alt / Shift) ----------------
+  // ---- Held keys: Space and Ctrl (held-keys.ts) -----------------------------
 
   /**
-   * Called on keydown of the configured hold key. After the configured hold
-   * time (with the key still down) the nib-rotate mode activates: the
-   * bottom-right indicator appears and the rotate keys steer the broad nib.
+   * Feeds the Ctrl spring an event: with no press under way, Ctrl on a
+   * drawing tool gives the last selection tool, once the pointer moves or
+   * presses or {@link SPRING_DELAY_MS} has passed, and letting Ctrl go gives
+   * the drawing tool back. `springs` says whether the tool in hand springs,
+   * for the key going down.
    */
-  private beginNibHold(): void {
-    if (this.nibHoldDown) return;
-    // Space (straight-line / quick-curve modes), the eyedropper, and the
-    // Vector Path tool (whose Ctrl is direct-select mode) all borrow
-    // modifier keys; never arm nib rotate underneath them.
-    if (
-      this.spaceDown ||
-      this.eyedropTempSelect ||
-      this.store.tool.tool === 'eyedrop' ||
-      this.store.tool.tool === 'vector'
-    ) {
-      return;
+  private springEvent(event: SpringEvent, springs = true): void {
+    const { state, effect } = springStep(this.spring, event, springs);
+    this.spring = state;
+    if (state === 'armed' && this.springTimer === null) {
+      this.springTimer = window.setTimeout(() => {
+        this.springTimer = null;
+        this.springEvent('timer');
+      }, SPRING_DELAY_MS);
+    } else if (state !== 'armed' && this.springTimer !== null) {
+      window.clearTimeout(this.springTimer);
+      this.springTimer = null;
     }
-    this.nibHoldDown = true;
-    this.nibHoldTimer = window.setTimeout(
-      () => this.activateNibRotate(),
-      Math.round(this.settings.copicHoldSec * 1000),
+    if (effect === 'show') this.showSpring();
+    else if (effect === 'hide') this.hideSpring();
+  }
+
+  /**
+   * Whether Ctrl going down now gives the last selection tool: a drawing tool
+   * in hand that springs, no press under way, no Space held, and no curve
+   * waiting for its bend click - a press with the selection tool would place
+   * it.
+   */
+  private springArms(): boolean {
+    return (
+      !this.press &&
+      !this.spaceDown &&
+      springsFrom(this.store.tool.tool) &&
+      this.curveA === null &&
+      !this.curveBending
     );
   }
 
-  /** Activates rotate mode once the hold key has been down long enough. */
+  /** Puts the last selection tool in hand for as long as Ctrl stays down. */
+  private showSpring(): void {
+    this.springFrom = this.store.tool.tool;
+    this.store.setTool({ tool: this.lastSelectionTool });
+    this.updateCursor();
+  }
+
+  /**
+   * Gives the drawing tool back when Ctrl comes up - after the press, when a
+   * drag the selection tool began is still under way. A tool chosen while
+   * Ctrl was down wins over the one given back.
+   */
+  private hideSpring(): void {
+    const from = this.springFrom;
+    this.springFrom = null;
+    if (!from) return;
+    const lent = this.lastSelectionTool;
+    this.whenPressEnds(() => {
+      if (this.store.tool.tool === lent) this.store.setTool({ tool: from });
+      this.updateCursor();
+    });
+  }
+
+  /** The pointer moved, anywhere in the window: the spring comes up, and a still hold that drifted is off. */
+  private heldMove(x: number, y: number): void {
+    this.hoverClient = { x, y };
+    if (this.spring === 'armed') this.springEvent('move');
+    if (this.nib === 'pending') {
+      const origin = this.nibHoldOrigin ?? (this.nibHoldOrigin = { x, y });
+      this.nibEvent({ type: 'move', drift: Math.hypot(x - origin.x, y - origin.y) });
+    }
+  }
+
+  /** Where the pointer of the press under way is now, in sketch units. */
+  private pressPoint(fallback: Point): Point {
+    const at = this.pressClient;
+    return at ? this.surface.toSketchPoint(at.x, at.y, fallback.pressure ?? 0.5) : fallback;
+  }
+
+  /**
+   * Space mid-press: the freehand stroke under way becomes a straight line
+   * from where it began to where the pointer is, and the end follows the
+   * pointer until the release. What was drawn freehand before is dropped;
+   * the start keeps the snap it had. A Shift-click line's own drawing began
+   * at point 2, and the line to point 2 stays on show.
+   */
+  private straightenPress(shift: boolean): void {
+    const press = this.press;
+    const line = this.shiftLine;
+    const start = line ? line.to : this.live?.points[0];
+    if (!press || press.kind !== 'freehand' || !start) return;
+    press.kind = 'straight';
+    this.live = line && this.live ? { ...this.live, points: [...line.prefix, line.to] } : null;
+    this.straightStart = start;
+    this.straightRaw = this.pressPoint(start);
+    this.setSnapTarget(null);
+    this.updateStraightEnd(shift);
+  }
+
+  /**
+   * Ctrl with Space mid-press: the stroke under way - freehand, or already
+   * made straight - becomes the quick curve from where it began, which the
+   * release places, as the quick curve always has. A Shift-click line's own
+   * drawing began at point 2.
+   */
+  private curvePress(alt: boolean, shift: boolean): void {
+    const press = this.press;
+    if (!press || (press.kind !== 'freehand' && press.kind !== 'straight')) return;
+    const start = press.kind === 'freehand' ? (this.shiftLine?.to ?? this.live?.points[0]) : this.straightStart;
+    if (!start) return;
+    press.kind = 'curve';
+    this.live = null;
+    this.straightStart = null;
+    this.straightEnd = null;
+    this.straightRaw = null;
+    this.curveTool = drawingToolOf(press.tool);
+    this.curveA = start;
+    this.curveBending = false;
+    this.quickCurve = true;
+    this.quickCurveUniform = alt;
+    this.quickCurveApex = 0;
+    this.quickCurveRaw = this.pressPoint(start);
+    this.updateQuickCurveEnd(shift);
+  }
+
+  // ---- Copic quick nib-rotate (hold Ctrl, then Alt / Shift) ----------------
+
+  /**
+   * Feeds the nib-rotate's still hold an event (held-keys.ts), keeps its
+   * timer in step, and turns the mode on or off when the hold says so. After
+   * the configured hold time with the key down and the pointer still, the
+   * mode comes on: the bottom-right indicator appears and the rotate keys
+   * steer the broad nib.
+   */
+  private nibEvent(event: NibEvent): void {
+    const was = this.nib;
+    const { state, effect } = nibStep(was, event);
+    this.nib = state;
+    if (state === 'pending' && was !== 'pending') this.nibHoldOrigin = this.hoverClient ? { ...this.hoverClient } : null;
+    if (state === 'pending' && this.nibHoldTimer === null) {
+      this.nibHoldTimer = window.setTimeout(() => {
+        this.nibHoldTimer = null;
+        this.nibEvent({ type: 'timer' });
+      }, Math.round(this.settings.copicHoldSec * 1000));
+    } else if (state !== 'pending' && this.nibHoldTimer !== null) {
+      window.clearTimeout(this.nibHoldTimer);
+      this.nibHoldTimer = null;
+    }
+    if (effect === 'start') this.activateNibRotate();
+    else if (effect === 'end') this.endNibRotate();
+  }
+
+  /**
+   * Whether the nib-rotate's hold key may arm the still hold now: the feature
+   * on, no press under way, no Space held, and a drawing tool in hand - never
+   * a selection tool, Vector Path, Mesh Warp or the eyedropper.
+   */
+  private nibHoldArms(): boolean {
+    const tool = this.store.tool.tool;
+    return this.settings.copicQuickRotate && !this.press && !this.spaceDown && springsFrom(tool) && tool !== 'eyedrop';
+  }
+
+  /**
+   * Activates rotate mode once the hold key has been held still long enough.
+   * Never mid-press: the mode puts the Copic in hand, and a drag begun with
+   * another tool must end with it. The mode waits for the release, and comes
+   * on then if the key is still held. It takes the hold over from the Ctrl
+   * spring, so the tool it gives back when it ends is the drawing tool.
+   */
   private activateNibRotate(): void {
-    this.nibHoldTimer = null;
-    if (!this.nibHoldDown) return;
+    if (this.press) {
+      this.whenPressEnds(() => {
+        if (this.nib === 'on') this.activateNibRotate();
+      });
+      return;
+    }
+    this.springEvent('nib-on');
     this.nibRotateActive = true;
     // Switch to the Copic marker at the configured width multiplier for the
     // duration of the mode, remembering the previous tool and width so both
@@ -4723,22 +6911,8 @@ class App {
     el('nib-indicator').classList.remove('is-hidden');
   }
 
-  /** Cancels a pending (not yet active) nib-rotate hold. */
-  private cancelNibHold(): void {
-    this.nibHoldDown = false;
-    if (this.nibHoldTimer !== null) {
-      window.clearTimeout(this.nibHoldTimer);
-      this.nibHoldTimer = null;
-    }
-  }
-
-  /** Ends rotate mode (hold key released, window blurred, or feature off). */
+  /** Ends rotate mode (the hold key released, or the window lost). */
   private endNibRotate(): void {
-    this.nibHoldDown = false;
-    if (this.nibHoldTimer !== null) {
-      window.clearTimeout(this.nibHoldTimer);
-      this.nibHoldTimer = null;
-    }
     if (!this.nibRotateActive) return;
     this.nibRotateActive = false;
     this.setNibRotateDir(0);
@@ -4753,7 +6927,9 @@ class App {
     if (this.lastUsedWidth !== null && this.store.tool.width === this.nibModeWidth) {
       restore.width = this.lastUsedWidth;
     }
-    if (Object.keys(restore).length > 0) this.store.setTool(restore);
+    // A Copic stroke drawn in the mode and still under way finishes as the
+    // Copic; the tool goes back when it is done.
+    if (Object.keys(restore).length > 0) this.whenPressEnds(() => this.store.setTool(restore));
     this.lastUsedTool = null;
     this.lastUsedWidth = null;
     this.nibModeWidth = null;
@@ -4795,15 +6971,15 @@ class App {
   // ---- Quick Access Colors (cycle with "C" / Shift+C) ----------------------
 
   /** Cycles the ink color through the quick-access colors (dir 1 = next, -1 = prev). */
+  /**
+   * `C` / `Shift+C`: the color in front steps through the Quick Access
+   * Colors - the fill's stops begin with None (fill-stroke.ts).
+   */
   private cycleColor(dir: 1 | -1): void {
-    const colors = this.settings.quickColors;
-    if (colors.length === 0) return;
-    const current = this.store.tool.color.toLowerCase();
-    const index = colors.findIndex((c) => c.toLowerCase() === current);
-    let next: number;
-    if (index === -1) next = dir === 1 ? 0 : colors.length - 1;
-    else next = (index + dir + colors.length) % colors.length;
-    this.store.setTool({ color: colors[next] });
+    const { colorTarget } = this.store.tool;
+    const next = nextQuickColor(this.settings.quickColors, frontColor(this.store.tool), dir, colorTarget);
+    if (colorTarget === 'fill') this.store.setTool({ fill: next });
+    else if (next !== null) this.store.setTool({ color: next });
     this.updateCursor();
   }
 
@@ -5167,7 +7343,7 @@ class App {
     const count = clipboardMarkCount(this.clipboard);
     // Cut acts on the canvas selection; a layer-row selection with nothing
     // selected on the canvas would otherwise delete nothing and look broken.
-    if (this.store.selectedIds.size === 0) {
+    if (this.store.selectedMarkCount === 0) {
       this.store.setSelection(this.exportSelectionStrokes().map((stroke) => stroke.id));
     }
     this.store.deleteSelected();
@@ -5233,8 +7409,7 @@ class App {
 
     this.store.setSelection(added.map((stroke) => stroke.id));
     // Land on the Select tool so the pasted graphic can be dragged at once.
-    this.store.setTool({ tool: 'select' });
-    this.updateCursor();
+    this.selectTool('select');
     this.renderLayers();
     this.renderThumbnails();
     const layers = clip.kind === 'tree' ? countTreeLayers(clip.roots) : 0;
@@ -5661,8 +7836,8 @@ class App {
   // ---- Pages ---------------------------------------------------------------
 
   private bindPages(): void {
-    el('prev-page').addEventListener('click', () => this.turnPage(this.store.activeIndex - 1));
-    el('next-page').addEventListener('click', () => this.turnPage(this.store.activeIndex + 1));
+    el('prev-page').addEventListener('click', () => this.runCommand('prev-page'));
+    el('next-page').addEventListener('click', () => this.runCommand('next-page'));
     el('new-page').addEventListener('click', () => this.runCommand('add-page-default'));
     // The hamburger drops down Pages > Add Page's three ways to start a page.
     el('pages-menu').addEventListener('click', () => this.toggleMenuUnder(el('pages-menu'), this.windowMenu('pages-button')));
@@ -5932,7 +8107,7 @@ class App {
       open.classList.remove('is-open');
     }
     anchor.classList.add('is-open');
-    this.fillMenu(sub, items, true);
+    this.fillMenu(sub, inlineDeeperSubmenus(items), true);
     sub.classList.remove('is-hidden');
     const box = anchor.getBoundingClientRect();
     const rect = sub.getBoundingClientRect();
@@ -6214,7 +8389,7 @@ class App {
    * none, the selected layer rows go, empty layers and groups included.
    */
   private deleteSelectionOrLayers(): void {
-    if (this.store.selectedIds.size > 0) {
+    if (this.store.selectedMarkCount > 0) {
       this.store.deleteSelected();
       this.renderLayers();
     } else if (this.store.selectedLayerIds.size > 0) {
@@ -6306,6 +8481,9 @@ class App {
     const active = this.store.activeLayer;
     // The whole stack resolved once for the rebuild, rather than once per row.
     const effectiveOf = effectiveLayers(this.store.sketch);
+    // The clip groups, and the layers their clip marks are on.
+    const clips = clipIndex(this.store.sketch);
+    const clipLayers = new Set([...clips.byGroup.values()].map((clip) => clip.mark.layer ?? ''));
 
     for (let i = layers.length - 1; i >= 0; i--) {
       const layer = layers[i];
@@ -6387,6 +8565,19 @@ class App {
       badge.textContent = layer.opacity < 1 ? `${Math.round(layer.opacity * 100)}%` : '';
 
       row.append(eye, lock, name, badge);
+      // A clip group's row carries a clip icon, and its clip's row a badge,
+      // as a vector editor marks a <Clip Group> and its <Clipping Path>.
+      if (clips.byGroup.has(layer.id) || clipLayers.has(layer.id)) {
+        const group = clips.byGroup.has(layer.id);
+        const mark = document.createElement('span');
+        mark.className = group ? 'layer-clip-icon' : 'layer-clip-badge';
+        mark.textContent = group ? '◘' : 'clip';
+        mark.title = group
+          ? 'Clip group: it shows only inside its clipping path'
+          : 'Clipping path: it paints nothing while it clips; Release Clipping Mask shows it again';
+        row.classList.add(group ? 'is-clip-group' : 'is-clip-path');
+        name.after(mark);
+      }
       // Double-click anywhere on the row - not just the name - starts the
       // rename, the pointer counterpart of `F2`. The caret and the two
       // toggles keep their own single-click jobs: a double-click on one of
@@ -6684,6 +8875,10 @@ class App {
       'toggle-properties': () => this.toggleProperties(),
       'toggle-settings': () => this.toggleSettings(),
       'fit-view': () => this.fitAllInView(),
+      'prev-page': () => this.turnPage(this.store.activeIndex - 1),
+      'next-page': () => this.turnPage(this.store.activeIndex + 1),
+      'zoom-in': () => this.zoomByStep(ZOOM_MENU_STEP),
+      'zoom-out': () => this.zoomByStep(1 / ZOOM_MENU_STEP),
       'tool-vector': () => this.selectTool('vector'),
       'move-selection': () => this.openMoveDialog(),
       rotate: () => this.openRotateDialog(),
@@ -6694,11 +8889,20 @@ class App {
       'sharpen-selection': () => this.openSharpenDialog(),
       'sharpen-all': () => this.sharpenAll(),
       'tool-warp': () => this.selectTool('warp'),
+      'tool-liquify': () => this.chooseLiquify(),
       'tool-pen': () => this.selectTool('pen'),
       'tool-marker': () => this.selectTool('marker'),
       'tool-eraser': () => this.selectTool('eraser'),
+      'tool-shape-eraser': () => this.chooseShapeEraser(),
+      'tool-shape-stacker': () => this.chooseShapeStacker(),
+      'tool-split': () => this.selectTool('split'),
+      'clip-make': () => this.makeClipMask(),
+      'clip-release': () => this.releaseClipMask(),
+      'apply-erasers': () => this.applyErasers(),
       'tool-text': () => this.selectTool('text'),
       'tool-copic': () => this.selectTool('copic'),
+      'tool-pencil': () => this.choosePencil(),
+      'tool-smear': () => this.selectTool('smear'),
       'tool-point': () => this.selectTool('point'),
       'add-layer': () => this.addLayer(),
       'group-layer': () => this.groupActiveLayer(),
@@ -6733,12 +8937,34 @@ class App {
       'quick-opacity': () => this.startQuickEntry('opacity'),
       'quick-zoom': () => this.startQuickZoom(),
       'cycle-color': () => this.cycleColor(1),
+      'fill-in-front': () => this.toggleColorTarget(),
+      'swap-fill-stroke': () => this.swapFillStroke(),
       'cycle-color-back': () => this.cycleColor(-1),
+      'wipe-in': () => this.runWipe('in'),
+      'wipe-out-front': () => this.runWipe('out-front'),
+      'wipe-out-back': () => this.runWipe('out-back'),
+      'wipe-mid': () => this.runWipe('mid'),
+      'wipe-outer': () => this.runWipe('outer'),
+      'wipe-clean': () => this.runWipe('clean'),
     };
   }
 
-  /** Makes a tool current: its toolbar button, its menu row and its key all come here. */
+  /**
+   * Makes a tool current: its toolbar button, its menu row and its key all
+   * come here. Asked for mid-press - a shortcut key while a drag is under
+   * way - the change waits for the release, so the drag finishes as the tool
+   * it began with.
+   */
   private selectTool(tool: Tool): void {
+    if (this.press) {
+      this.whenPressEnds(() => this.selectTool(tool));
+      return;
+    }
+    // Ctrl on a drawing tool gives whichever selection tool was chosen last.
+    if (tool === 'select' || tool === 'point') this.lastSelectionTool = tool;
+    // A tool chosen while Ctrl lends the selection tool stands when Ctrl
+    // comes up: there is no drawing tool to give back any more.
+    this.springFrom = null;
     this.store.setTool({ tool });
     this.updateCursor();
     if (tool === 'warp') this.beginWarpTool();
@@ -6763,17 +8989,23 @@ class App {
   private menuState(): MenuState {
     return {
       noSelection: this.exportSelectionStrokes().length === 0,
-      noMarksSelected: this.store.selectedIds.size === 0,
+      noMarksSelected: this.store.selectedMarkCount === 0,
       noClipboard: clipboardMarkCount(this.clipboard) === 0,
       cannotUndo: !this.store.canUndo,
       cannotRedo: !this.store.canRedo,
       notGroup: this.store.activeLayer.group !== true,
       onePage: this.store.book.sketches.length <= 1,
+      firstPage: this.store.activeIndex <= 0,
+      lastPage: this.store.activeIndex >= this.store.book.sketches.length - 1,
       layersHidden: !this.layersOpen,
       pagesHidden: !this.pagesOpen,
       historyTracking: this.settings.trackHistory,
       noHistory: !this.settings.trackHistory || this.tracker.count === 0,
       transformBox: this.transformActive,
+      noLegacyErasers: !this.store.sketch.strokes.some((s) => s.tool === 'eraser'),
+      fillInFront: this.store.tool.colorTarget === 'fill',
+      fewerThanTwoShapes: this.wipeableSelection().length < 2,
+      noClipGroup: this.releaseTarget() === null,
     };
   }
 
@@ -6799,7 +9031,7 @@ class App {
    */
   private runKey(id: MenuCommand, e?: KeyboardEvent): void {
     if (id === 'move-selection' && !this.canOpenMoveDialog()) return;
-    if (id === 'delete-selection' && this.store.selectedIds.size === 0 && this.store.selectedLayerIds.size === 0) return;
+    if (id === 'delete-selection' && this.store.selectedMarkCount === 0 && this.store.selectedLayerIds.size === 0) return;
     e?.preventDefault();
     if (id === 'rotate') this.openRotateDialog(true);
     else this.runCommand(id);
@@ -7224,7 +9456,7 @@ class App {
       if (this.rotateDialogOpen) this.closeRotateDialog(true);
       if (this.mirrorDialogOpen) this.closeMirrorDialog();
       if (this.transformActive) this.closeTransformTool();
-      this.store.setTool({ tool: 'select' });
+      this.selectTool('select');
       this.toggleLayers(true);
       this.refreshAnimationStatus();
     }
@@ -8682,8 +10914,224 @@ class App {
         const ids = this.scriptLayerIds();
         return ids.length > 0 ? inkBox({ ...this.store.sketch, strokes: this.strokesInLayerSubtree(ids) }) : null;
       },
+      // The input a press and the held keys leave behind. `press` names every
+      // per-press field still set, so a check can ask that a release, a cancel
+      // or a blur left nothing behind - a pointer still owned is what stopped
+      // every tool in the tools-break.
+      inputState: () => ({
+        activePointerId: this.activePointerId,
+        pressKind: this.press?.kind ?? null,
+        pressTool: this.press?.tool ?? null,
+        pointers: this.pointers.size,
+        press: this.pressFieldsSet(),
+        spaceDown: this.spaceDown,
+        ctrlDown: this.ctrlDown,
+        altDown: this.altDown,
+        spring: this.spring,
+        springFrom: this.springFrom,
+        lastSelectionTool: this.lastSelectionTool,
+        nib: this.nib,
+        nibRotateActive: this.nibRotateActive,
+        tool: this.store.tool.tool,
+        width: this.store.tool.width,
+        cursor: this.canvas.style.cursor,
+      }),
+      // The marks of the page in view, in the page's order, with where each is.
+      strokeSummary: () => {
+        const sketch = this.store.sketch;
+        return sketch.strokes.map((stroke) => ({
+          id: stroke.id,
+          tool: stroke.tool,
+          layerId: stroke.layer ?? null,
+          layer: layerOf(sketch, stroke).name,
+          points: stroke.points.length,
+          anchors: stroke.vector?.anchors.length ?? null,
+          closed: stroke.vector?.closed ?? null,
+          width: stroke.width,
+          opacity: stroke.opacity ?? null,
+          fill: stroke.fill ?? null,
+          color: stroke.color,
+          noStroke: stroke.noStroke === true,
+          pencil: stroke.pencil ? { ...stroke.pencil } : null,
+          smudges: (stroke.smudges ?? []).map((pass) => ({ width: pass.width, strength: pass.strength, anchors: pass.path.length })),
+          bounds: strokeBounds(stroke, (s) => this.surface.measureText(s)),
+          // Where the path starts and ends: one point on a closed shape's seam.
+          first: stroke.points.length > 0 ? { x: stroke.points[0].x, y: stroke.points[0].y } : null,
+          last:
+            stroke.points.length > 0
+              ? { x: stroke.points[stroke.points.length - 1].x, y: stroke.points[stroke.points.length - 1].y }
+              : null,
+        }));
+      },
+      // One mark's points and anchors, as the page holds them, or null.
+      strokeGeometry: (id: string) => {
+        const stroke = this.store.sketch.strokes.find((s) => s.id === id);
+        if (!stroke) return null;
+        return {
+          points: stroke.points.map((p) => ({ x: p.x, y: p.y, ...(p.move ? { move: true } : {}) })),
+          anchors: stroke.vector ? cloneAnchors(stroke.vector.anchors) : null,
+          fitted: stroke.vector?.fitted === true,
+        };
+      },
+      // Where the next Shift-click line starts (held-keys.ts), or null.
+      lineStart: () => (this.lineStart ? { ...this.lineStart } : null),
+      // The Shape Eraser: its shape, whether its panel is open and which
+      // choices it offers, and the session notice showing, if one is.
+      // A Wipe Stacks wipe: whether one is under way, and how far across.
+      wipeState: () => ({ active: this.wipeAnim !== null, t: this.wipeAnim?.t ?? null }),
+      shapeEraserState: () => {
+        const panel = document.querySelector('.shape-eraser-panel');
+        return {
+          shape: this.shapeEraserShape,
+          panelOpen: panel !== null,
+          choices: panel ? Array.from(panel.querySelectorAll<HTMLElement>('button')).map((b) => b.dataset.shape ?? '') : [],
+          notice: this.notices.showing?.id ?? null,
+        };
+      },
+      // The Shape Stacker: its panel and the tiles in it, the selection's
+      // pieces, the one under the pointer, and what a press has marked.
+      // The Pencil: its kit, the chips it shows, and the pencil in hand.
+      pencilState: () => {
+        const kit = document.querySelector('.pencil-kit');
+        return {
+          kitOpen: kit !== null,
+          chips: kit ? Array.from(kit.querySelectorAll<HTMLElement>('.pencil-chip')).map((chip) => chip.dataset.pencil ?? '') : [],
+          active: kit?.querySelector<HTMLElement>('.pencil-chip.is-active')?.dataset.pencil ?? null,
+          pencil: { ...this.store.tool.pencil },
+          label: pencilPaint(this.store.tool.pencil).label,
+          rasters: this.surface.pencilRasters,
+        };
+      },
+      // A Smear drag under way: how far it has gone, and the marks it has reached.
+      smearState: () => (this.smearDrag ? { points: this.smearDrag.points.length, reached: [...this.smearDrag.reached], others: this.smearDrag.others } : null),
+      // Liquify: the brush in hand, where it is drawn, its panel, and a drag under way.
+      liquifyState: () => {
+        const panel = document.querySelector('.liquify-panel');
+        const drag = this.liquifyDrag;
+        return {
+          mode: this.liquifyMode,
+          radius: this.liquifyRadius,
+          brush: this.liquifyBrush(),
+          panelOpen: panel !== null,
+          tiles: panel ? Array.from(panel.querySelectorAll<HTMLElement>('.shape-tile')).map((tile) => tile.dataset.liquify ?? '') : [],
+          active: panel?.querySelector<HTMLElement>('.shape-tile.is-active')?.dataset.liquify ?? null,
+          drag: drag ? (drag.kind === 'size' ? { kind: 'size' } : { kind: 'bend', bent: [...drag.bent], open: drag.open }) : null,
+        };
+      },
+      // How long a render of the page in view takes, in ms, the mean of `n`.
+      renderTime: (n = 5) => {
+        const runs = Math.max(1, Math.min(50, Math.floor(n)));
+        const start = performance.now();
+        for (let i = 0; i < runs; i++) this.surface.render(this.store.sketch, null, { selectedIds: new Set<string>() });
+        return (performance.now() - start) / runs;
+      },
+      shapeStackerState: () => {
+        const panel = document.querySelector('.shape-stacker-panel');
+        const arrangement = this.store.tool.tool === 'shape-stacker' ? this.stackerFaces() : null;
+        return {
+          panelOpen: panel !== null,
+          tiles: panel ? Array.from(panel.querySelectorAll<HTMLElement>('.shape-tile')).map((b) => b.dataset.command ?? '') : [],
+          greyed: panel ? Array.from(panel.querySelectorAll<HTMLElement>('.shape-tile.is-disabled')).length : 0,
+          faces: arrangement?.faces.length ?? 0,
+          problem: arrangement?.problem ?? null,
+          hover: this.stackerHover,
+          marked: this.stackDrag ? [...this.stackDrag.marked] : null,
+          remove: this.stackDrag?.remove ?? null,
+          notice: this.notices.showing?.id ?? null,
+        };
+      },
+      // Split: the path a click would cut, where, and how far along.
+      splitState: () =>
+        this.splitHover
+          ? {
+              id: this.splitHover.strokeId,
+              point: { x: this.splitHover.at.point.x, y: this.splitHover.at.point.y },
+              subpath: this.splitHover.at.subpath,
+              segment: this.splitHover.at.segment,
+              t: this.splitHover.at.t,
+            }
+          : null,
+      // The Vector Path being placed: its anchors, the band's end, and
+      // whether a press now would close it, which the close indicator shows.
+      vectorPathState: () => ({
+        anchors: cloneAnchors(this.vectorAnchors),
+        hover: this.vectorHover ? { x: this.vectorHover.x, y: this.vectorHover.y } : null,
+        closeHover: this.vectorCloseHover,
+        indicatorReady: this.surface.closeIndicatorReady(),
+      }),
+      // The layers of the page in view, bottom first, as the page holds them.
+      layerRows: () =>
+        this.store.sketch.layers.map((layer) => ({
+          id: layer.id,
+          name: layer.name,
+          group: layer.group === true,
+          parent: layer.parent ?? null,
+          visible: layer.visible,
+          locked: layer.locked,
+          clip: layer.clip ?? null,
+        })),
+      // The page in view as Export SVG writes it, for a check to import again.
+      pageSvg: () => Surface.toSVG(this.store.sketch),
+      // The dashed boxes the canvas draws around the selection, in sketch units.
+      selectionBoxes: () => this.surface.selectionBoxes(this.store.sketch, this.store.selectedIds),
+      // The mark a Select click at a client point would pick, at a reach in
+      // screen pixels (the Select sensitivity when none is given).
+      hitAt: (clientX: number, clientY: number, tolerancePx?: number): string | null =>
+        this.hitTest(this.surface.toSketchPoint(clientX, clientY, 0.5), undefined, tolerancePx)?.id ?? null,
+      // What Direct Select is editing: the stroke, its picked anchors, and whether the whole path is.
+      directSelectState: () => ({
+        stroke: this.anchorStrokeId,
+        anchors: [...this.selectedAnchors],
+        pathSelected: this.pathSelected,
+      }),
+      viewState: () => {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+          ...this.surface.getViewport(),
+          minZoom: this.surface.getZoomLimits().min,
+          maxZoom: this.surface.getZoomLimits().max,
+          width: rect.width,
+          height: rect.height,
+        };
+      },
     };
     (window as unknown as { napkinCheck: typeof hooks }).napkinCheck = hooks;
+  }
+
+  /**
+   * The per-press fields that are set, by name. Between presses the list is
+   * empty; a name left in it after a release is a press that never ended.
+   */
+  private pressFieldsSet(): string[] {
+    const fields: Array<[string, unknown]> = [
+      ['live', this.live],
+      ['curveA', this.curveA],
+      ['curveBending', this.curveBending || null],
+      ['quickCurve', this.quickCurve || null],
+      ['shiftLine', this.shiftLine],
+      ['erasing', this.erasing],
+      ['shapeErase', this.shapeErase],
+      ['stackDrag', this.stackDrag],
+      ['smearDrag', this.smearDrag],
+      ['liquifyDrag', this.liquifyDrag],
+      ['straightStart', this.straightStart],
+      ['shapeStart', this.shapeStart],
+      ['dragging', this.dragging || null],
+      ['dragFrom', this.dragFrom],
+      ['rubberBandStart', this.rubberBandStart],
+      ['textDragStart', this.textDragStart],
+      ['panDragging', this.panDragging || null],
+      ['anchorDragKind', this.anchorDragKind],
+      ['anchorDragFrom', this.anchorDragFrom],
+      ['vectorDragging', this.vectorDragging || null],
+      ['vectorEditDrag', this.vectorEditDrag],
+      ['warpDrag', this.warpDrag],
+      ['transformDrag', this.transformDrag],
+      ['rotateDrag', this.rotateDrag],
+      ['pendingSelectHitId', this.pendingSelectHitId],
+      ['shiftToggleId', this.shiftToggleId],
+    ];
+    return fields.filter(([, value]) => value !== null && value !== undefined).map(([name]) => name);
   }
 
   /** Pulls the Move panel back on screen, after a resize or before opening. */
@@ -8748,7 +11196,7 @@ class App {
    */
   private canOpenMoveDialog(): boolean {
     if (this.moveDialogOpen || this.animationMode) return false;
-    if (this.store.selectedIds.size === 0) return false;
+    if (this.store.selectedMarkCount === 0) return false;
     return !this.otherDialogOpen();
   }
 
@@ -9018,8 +11466,8 @@ class App {
    * in no group, its own layer. Null over empty canvas.
    */
   private warpArtAt(pt: Point): { ids: string[]; layerId: string } | null {
-    const hit = this.hitTest(pt) ?? this.hitFilledInterior(pt);
-    if (!hit || hit.tool === 'eraser') return null;
+    const hit = this.hitTest(pt);
+    if (!hit) return null;
     const sketch = this.store.sketch;
     const layer = layerOf(sketch, hit);
     const top = topMostParent(sketch, layer);
@@ -9130,10 +11578,6 @@ class App {
    * it starts a new warp there, and on empty canvas it puts the tool down.
    */
   private warpPointerDown(e: PointerEvent, pt: Point): void {
-    if (this.spaceDown) {
-      this.beginPanDrag(e);
-      return;
-    }
     const session = this.warp;
     if (session) {
       const hit = this.warpPinAt(pt);
@@ -9171,8 +11615,7 @@ class App {
   private beginWarpDrag(e: PointerEvent, pt: Point, saved: boolean): void {
     const session = this.warp;
     if (!session) return;
-    this.activePointerId = e.pointerId;
-    this.canvas.setPointerCapture(e.pointerId);
+    this.claimPointer(e, 'warp');
     this.warpDrag = { pins: [...session.selected], last: { x: pt.x, y: pt.y }, saved };
     this.updateCursor();
   }
@@ -9330,6 +11773,7 @@ class App {
   private keepWarp(): void {
     const session = this.warp;
     if (!session) return;
+    this.dropPressOf('warp');
     this.warp = null;
     this.warpDrag = null;
     if (session.moved) this.store.commitTransaction();
@@ -9340,20 +11784,26 @@ class App {
   private cancelWarp(): void {
     const session = this.warp;
     if (!session) return;
+    this.dropPressOf('warp');
     this.warp = null;
     this.warpDrag = null;
     if (session.moved) this.store.rollbackTransaction();
     this.scheduleRender();
   }
 
-  /** Undo from anywhere - a key, the toolbar, the menu: inside a warp it steps back through the pins. */
+  /**
+   * Undo from anywhere - a key, the toolbar, the menu: inside a warp it steps
+   * back through the pins. A Shift-click line starts nowhere after it.
+   */
   private undo(): void {
+    this.lineStart = null;
     if (this.warp) this.undoWarpStep();
     else this.store.undo();
   }
 
   /** Redo from anywhere. Inside a warp there is nothing to redo, and the warp is left as it is. */
   private redo(): void {
+    this.lineStart = null;
     if (!this.warp) this.store.redo();
   }
 
@@ -9432,7 +11882,7 @@ class App {
     const button = el('stroke-profile');
     button.setAttribute('aria-label', `Stroke profile: ${label}`);
     // The title names the profile and, once one is given, the key.
-    button.dataset.titleTemplate = `Stroke Profile: ${label} - how the width runs along new pen and marker strokes ({key})`;
+    button.dataset.titleTemplate = `Stroke Profile: ${label} - how the width runs along new brush and marker strokes ({key})`;
     this.applyShortcutTitle(button);
     el('stroke-profile-picture')
       .querySelector('path')
@@ -9510,7 +11960,7 @@ class App {
     } else if (eligible.length > 0) {
       this.toast(`The selection is already ${label}.`);
     } else {
-      this.toast(`New pen and marker strokes: ${label}.`);
+      this.toast(`New brush and marker strokes: ${label}.`);
     }
     if (!this.popups.staysAfterApply('profile-dialog')) this.closeProfileDialog();
     this.syncStrokeProfileControl();
@@ -9845,6 +12295,7 @@ class App {
     this.transformActive = true;
     this.transformBox = box;
     this.transformHover = null;
+    this.syncTransformButton();
     this.toast('Transform: drag a handle. Shift keeps the shape, Alt works from the centre.');
     this.updateCursor();
     this.scheduleRender();
@@ -9852,12 +12303,22 @@ class App {
     this.publishMenuState();
   }
 
+  /** The toolbar's Transform button, pressed while the box is up, as Transform > Transform Box is checked. */
+  private syncTransformButton(): void {
+    const button = el('transform-selection');
+    button.classList.toggle('is-open', this.transformActive);
+    button.setAttribute('aria-pressed', String(this.transformActive));
+  }
+
   /** Takes the box off the canvas, abandoning any drag still in hand. */
   private closeTransformTool(): void {
+    // A handle drag in hand when the box goes lets go of its pointer too.
+    this.dropPressOf('transform');
     this.transformActive = false;
     this.transformBox = null;
     this.transformHover = null;
     this.transformDrag = null;
+    this.syncTransformButton();
     this.updateCursor();
     this.scheduleRender();
     this.publishMenuState();
@@ -9914,8 +12375,7 @@ class App {
     const ids = this.propertyTargets();
     if (ids.length === 0) return false;
     e.preventDefault();
-    this.canvas.setPointerCapture(e.pointerId);
-    this.activePointerId = e.pointerId;
+    this.claimPointer(e, 'transform');
     this.transformDrag = {
       pointerId: e.pointerId,
       handle,
@@ -10082,6 +12542,7 @@ class App {
     this.fillUnitSelect('rotate-cy-unit', LENGTH_UNITS, this.propUnits.y);
 
     el('rotate-selection').addEventListener('click', () => this.runCommand('rotate'));
+    el('transform-selection').addEventListener('click', () => this.runCommand('toggle-transform'));
     el('rotate-cancel').addEventListener('click', () => this.closeRotateDialog(true));
     el('rotate-apply').addEventListener('click', () => {
       this.applyRotate();
@@ -10204,6 +12665,7 @@ class App {
 
   /** Closes the dialog, dropping any live preview when the rotation was abandoned. */
   private closeRotateDialog(revert: boolean): void {
+    this.dropPressOf('rotate');
     if (revert) this.revertRotatePreview();
     else this.rotatePreview = null;
     this.rotateDrag = null;
@@ -10514,8 +12976,7 @@ class App {
   private beginRotateDrag(e: PointerEvent, pt: Point): boolean {
     if (!this.rotateCenter || this.activePointerId !== null) return false;
     e.preventDefault();
-    this.canvas.setPointerCapture(e.pointerId);
-    this.activePointerId = e.pointerId;
+    this.claimPointer(e, 'rotate');
 
     if (this.nearRotateCenter(pt)) {
       this.rotateCenterDrag = e.pointerId;
@@ -10676,11 +13137,19 @@ class App {
       ...(holding ? { moving: true } : {}),
     };
   }
-  /** Union of the selected elements' bounds, or null when nothing is selected. */
+  /**
+   * Union of the selected elements' bounds, or null when nothing is selected.
+   * An older file's eraser marks ride along with their layer's selection, so
+   * a move takes their cuts with it, but they are no element: no bounds.
+   */
   private selectionBounds(): { minX: number; minY: number; maxX: number; maxY: number } | null {
     let box: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
+    const clips = clipIndex(this.store.sketch);
     for (const stroke of this.propertyStrokes()) {
-      const b = strokeBounds(stroke, (t) => this.surface.measureText(t));
+      if (stroke.tool === 'eraser') continue;
+      // As it shows: in a clip group, cut to the clip's bounds.
+      const bounds = strokeBounds(stroke, (t) => this.surface.measureText(t));
+      const b = bounds && shownBounds(this.store.sketch, stroke, bounds, clips);
       if (!b) continue;
       box = box
         ? {
@@ -11110,6 +13579,7 @@ class App {
 
   private bindKeyboard(): void {
     window.addEventListener('keydown', (e) => {
+      this.endWipe();
       // Track CapsLock state.
       const newCapsLock = e.getModifierState('CapsLock');
       if (newCapsLock !== this.capsLockOn) {
@@ -11151,6 +13621,14 @@ class App {
       // no letters, so they keep the shortcuts working.
       if (isTextEntry(document.activeElement)) return;
 
+      // Held keys (held-keys.ts): any key but a modifier ends the Ctrl spring,
+      // so a chord such as Ctrl+Z runs with the drawing tool still in hand,
+      // and cancels a still hold of the nib-rotate.
+      if (!isModifierKey(e.key)) {
+        this.springEvent('other-key');
+        this.nibEvent({ type: 'other-key' });
+      }
+
       // Track Ctrl while a vector edit is open: holding it reveals the
       // corner-rounding target and switches the pointer to the Select arrow.
       if (e.key === 'Control' && !this.ctrlDown) {
@@ -11158,6 +13636,17 @@ class App {
         if (this.vectorEditId) {
           this.updateVectorEditCursor();
           this.scheduleRender();
+        }
+      }
+
+      // Ctrl mid-press, with Space still held, makes the straight line the
+      // quick curve; with no press under way, on a drawing tool, it lends the
+      // last selection tool until it comes up.
+      if (e.key === 'Control' && !e.repeat) {
+        if (this.press) {
+          if (ctrlJoinsPress(this.press.kind, this.spaceDown) === 'curve') this.curvePress(e.altKey, e.shiftKey);
+        } else {
+          this.springEvent('ctrl-down', this.springArms());
         }
       }
 
@@ -11277,10 +13766,36 @@ class App {
         return;
       }
 
-      // Escape abandons a pending curve (chord or bend phase).
+      // Escape abandons a pending curve (chord or bend phase). Mid-drag the
+      // pointer goes with it: keeping the pointer is what stopped every tool
+      // after Escape during a quick curve.
       if (e.key === 'Escape' && (this.curveA !== null || this.curveBending)) {
         e.preventDefault();
+        this.dropPressOf('curve', 'chord');
         this.cancelCurve();
+        return;
+      }
+
+      // Escape drops a Liquify press: the drag is undone, and an Alt-drag's size put back.
+      if (e.key === 'Escape' && this.liquifyDrag) {
+        e.preventDefault();
+        this.dropPressOf('liquify');
+        this.scheduleRender();
+        return;
+      }
+
+      // Escape drops a Smear press: no mark keeps the pass.
+      if (e.key === 'Escape' && this.smearDrag) {
+        e.preventDefault();
+        this.dropPressOf('smear');
+        this.scheduleRender();
+        return;
+      }
+
+      // Escape drops a Shape Stacker press: nothing is merged or taken away.
+      if (e.key === 'Escape' && this.stackDrag) {
+        e.preventDefault();
+        this.dropPressOf('stack');
         return;
       }
 
@@ -11294,20 +13809,28 @@ class App {
       }
 
       // Quick curve: each Shift press swings the arc's apex another 90 degrees
-      // clockwise. Auto-repeat is ignored so a held key parks the apex at one
-      // angle instead of spinning it.
+      // clockwise, and frees its far end from the snap while held. Auto-repeat
+      // is ignored so a held key parks the apex at one angle instead of
+      // spinning it.
       if (e.key === 'Shift' && this.quickCurve) {
         e.preventDefault();
-        if (!e.repeat) this.turnQuickCurveApex();
+        if (!e.repeat) {
+          this.updateQuickCurveEnd(true);
+          this.turnQuickCurveApex();
+        }
         return;
       }
 
-      // Straight line: pressing Shift mid-drag locks the line to a strict
-      // horizontal or vertical immediately, before the pointer next moves.
+      // Straight line: pressing Shift mid-drag holds the line to the nearest
+      // of eight directions at once, before the pointer next moves.
       if (e.key === 'Shift' && this.straightStart !== null && !e.repeat) {
         this.updateStraightEnd(true);
         return;
       }
+
+      // Vector Path: Shift holds the band, or the handle being pulled, to
+      // eight directions at once, before the pointer next moves.
+      if (e.key === 'Shift' && !e.repeat) this.refreshVectorPointer(true);
 
       // Escape takes the Transform box off. It comes first among the Escape
       // handlers because the box is the thing most recently put up.
@@ -11317,9 +13840,10 @@ class App {
         return;
       }
 
-      // Escape drops the Direct Select anchor edit.
+      // Escape drops the Direct Select anchor edit, and the drag in hand with it.
       if (e.key === 'Escape' && this.anchorStrokeId !== null) {
         e.preventDefault();
+        this.dropPressOf('point-drag');
         this.anchorStrokeId = null;
         this.selectedAnchors.clear();
         this.pathSelected = false;
@@ -11330,20 +13854,14 @@ class App {
         return;
       }
 
-      // Eyedropper: holding Ctrl temporarily switches to the select tool so
-      // a shape can be picked; releasing Ctrl returns to the eyedropper.
-      if (e.key === 'Control' && this.store.tool.tool === 'eyedrop' && !this.eyedropTempSelect) {
-        this.eyedropTempSelect = true;
-        this.store.setTool({ tool: 'select' });
-        this.updateCursor();
+      // Copic quick nib-rotate: holding the hold key still arms the timer;
+      // once active, the rotate keys steer the broad nib and are consumed.
+      // Auto-repeat is no new hold: letting it re-arm the timer is how a Ctrl
+      // kept down after Space let go turned the Pen into the Copic.
+      if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicHoldKey] && !e.repeat) {
+        this.nibEvent({ type: 'hold-down', arms: this.nibHoldArms() });
       }
-
-      // Copic quick nib-rotate: holding the hold key arms the timer; once
-      // active, the rotate keys steer the broad nib and are consumed.
       if (this.settings.copicQuickRotate) {
-        if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicHoldKey]) {
-          this.beginNibHold();
-        }
         if (this.nibRotateActive) {
           if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicRotateCwKey]) {
             e.preventDefault();
@@ -11358,18 +13876,23 @@ class App {
         }
       }
 
-      // Space (held) arms straight-line mode for the next single-pointer
-      // drag; with Ctrl also held it arms the quick curve instead.
+      // Space, held with no press under way, gives the hand: the next press
+      // pans. Mid-press it turns the freehand stroke into a straight line, or
+      // with Ctrl into the quick curve (held-keys.ts).
       if (e.key === ' ' || e.code === 'Space') {
         // Unless a checkbox has the focus, in which case the space bar is
-        // already spoken for - see {@link togglesOnSpace}. Arming a drawing
-        // mode is worth nothing while a dialog's field has the focus, and the
-        // toggle is worth everything.
+        // already spoken for - see {@link togglesOnSpace}. Arming the hand is
+        // worth nothing while a dialog's field has the focus, and the toggle
+        // is worth everything.
         if (togglesOnSpace(document.activeElement)) return;
         e.preventDefault();
+        if (!e.repeat) {
+          const action = spaceAction(this.press?.kind ?? null, e.ctrlKey);
+          if (action === 'straight') this.straightenPress(e.shiftKey);
+          else if (action === 'curve') this.curvePress(e.altKey, e.shiftKey);
+        }
         if (!this.spaceDown) {
           this.spaceDown = true;
-          this.cancelNibHold();
           this.updateCursor();
         }
         return;
@@ -11386,6 +13909,13 @@ class App {
       if (this.quickZoomArmed && /^[0-9]$/.test(e.key)) {
         e.preventDefault();
         this.applyQuickZoom(e.key);
+        return;
+      }
+
+      // Liquify: [ and ] size the brush, as a vector editor's do.
+      if ((e.key === '[' || e.key === ']') && this.store.tool.tool === 'liquify' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        this.sizeLiquify(e.key === ']' ? LIQUIFY_RADIUS_STEP : 1 / LIQUIFY_RADIUS_STEP);
         return;
       }
 
@@ -11416,16 +13946,21 @@ class App {
         this.setQuickCurveUniform(false);
       }
 
-      // Straight line: releasing Shift frees the horizontal/vertical lock.
-      if (e.key === 'Shift' && this.straightStart !== null) {
-        this.updateStraightEnd(false);
+      // Endpoint snap: releasing Shift dismisses the snap-indicator ring - a
+      // freehand end snaps only while it is held. The straight line and the
+      // quick curve are the other way about: letting Shift go frees the line
+      // from its eight directions, and the curve from its apex key, and their
+      // end snaps again.
+      if (e.key === 'Shift') {
+        this.setSnapTarget(null);
+        if (this.straightStart !== null) this.updateStraightEnd(false);
+        if (this.quickCurve) this.updateQuickCurveEnd(false);
+        this.refreshVectorPointer(false);
       }
 
-      // Endpoint snap: releasing Shift dismisses the snap-indicator ring.
-      if (e.key === 'Shift') this.setSnapTarget(null);
-
       // Releasing Ctrl hides the corner-rounding target and restores the
-      // hover pointer.
+      // hover pointer, and gives back the drawing tool Ctrl lent the
+      // selection tool from - once any drag the selection tool began is over.
       if (e.key === 'Control' && this.ctrlDown) {
         this.ctrlDown = false;
         if (this.vectorEditId) {
@@ -11433,6 +13968,7 @@ class App {
           this.scheduleRender();
         }
       }
+      if (e.key === 'Control') this.springEvent('ctrl-up');
 
       // Vector Path: an Alt keyup would otherwise focus the native menu bar
       // and blur the canvas mid-edit. The held-Alt flag resets regardless of
@@ -11446,20 +13982,14 @@ class App {
         }
       }
 
-      // Eyedropper: releasing Ctrl ends the temporary select tool.
-      if (e.key === 'Control' && this.eyedropTempSelect) {
-        this.eyedropTempSelect = false;
-        this.store.setTool({ tool: 'eyedrop' });
-        this.updateCursor();
-      }
-
-      // Copic quick nib-rotate: releasing the hold key ends the mode;
-      // releasing a rotate key stops the spin in that direction. Runs even
-      // when the feature was toggled off mid-hold so no state gets stuck.
-      // preventDefault keeps an Alt keyup from focusing the native menu bar.
+      // Copic quick nib-rotate: releasing the hold key ends the mode, or the
+      // still hold that had not reached it; releasing a rotate key stops the
+      // spin in that direction. Runs even when the feature was toggled off
+      // mid-hold so no state gets stuck. preventDefault keeps an Alt keyup
+      // from focusing the native menu bar.
       if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicHoldKey]) {
         if (this.nibRotateActive) e.preventDefault();
-        this.endNibRotate();
+        this.nibEvent({ type: 'hold-up' });
       } else if (this.nibRotateActive) {
         if (e.key === MODIFIER_EVENT_KEYS[this.settings.copicRotateCwKey]) {
           e.preventDefault();
@@ -11472,25 +14002,83 @@ class App {
       }
     });
 
-    // A lost focus swallows keyup events; never leave rotate mode, the
-    // eyedropper's temporary select, or a pending curve stuck on.
-    window.addEventListener('blur', () => {
-      this.endNibRotate();
-      if (this.eyedropTempSelect) {
-        this.eyedropTempSelect = false;
-        this.store.setTool({ tool: 'eyedrop' });
-        this.updateCursor();
-      }
-      if (this.curveA !== null || this.curveBending) this.cancelCurve();
-      // A pending vector path is accepted rather than lost when the window
-      // loses focus (a too-short path drops in the commit).
-      if (this.vectorAnchors.length > 0) this.commitVectorPath(false);
-      this.vectorEditDrag = null;
-      this.ctrlDown = false;
-      this.altDown = false;
-      this.updateCursor();
-      if (this.sharpenPreview) this.closeSharpenDialog(false);
+    // A lost focus swallows keyup events and the release of any press under
+    // way, and so does a hidden page.
+    window.addEventListener('blur', () => this.focusLost('blur'));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.focusLost('hidden');
     });
+  }
+
+  /**
+   * The window lost the focus, or the page was hidden: every keyup and the
+   * release of any press under way now go somewhere else, so nothing may be
+   * left held. The press is ended as its policy says (press-state.ts) - a
+   * stroke keeps what was drawn, a curve goes - and every held key is let go:
+   * rotate mode, the eyedropper's temporary select, Space, Ctrl and Alt.
+   */
+  private focusLost(reason: 'blur' | 'hidden'): void {
+    this.endPressEarly(reason);
+    this.pointers.clear();
+    this.spaceDown = false;
+    this.ctrlDown = false;
+    this.altDown = false;
+    this.springEvent('blur');
+    this.nibEvent({ type: 'blur' });
+    this.altRule.reset();
+    if (this.curveA !== null || this.curveBending) this.cancelCurve();
+    // A pending vector path is accepted rather than lost when the window
+    // loses focus (a too-short path drops in the commit).
+    if (this.vectorAnchors.length > 0) this.commitVectorPath(false);
+    this.vectorEditDrag = null;
+    this.updateCursor();
+    if (this.sharpenPreview) this.closeSharpenDialog(false);
+  }
+
+  /**
+   * The Alt rule (alt-menu.ts) and the pointer side of the held keys. In the
+   * capture phase on the window, so every key and every pointer event reaches
+   * them first, whatever has the focus and whatever stops the event later - a
+   * dialog, a text field.
+   */
+  private bindHeldKeys(): void {
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        this.altRule.keyDown(e.key, performance.now(), e.repeat);
+        // Alt pressed during a press is Alt at work: the quick curve's circle.
+        if (e.key === 'Alt' && this.press) this.altRule.gesture();
+      },
+      true,
+    );
+    // Electron gives the menu bar only the Alt keyup the page leaves alone.
+    window.addEventListener(
+      'keyup',
+      (e) => {
+        if (e.key === 'Alt' && !this.altRule.altUp()) e.preventDefault();
+      },
+      true,
+    );
+    const altAtWork = (e: MouseEvent): void => {
+      if (e.altKey) this.altRule.gesture();
+    };
+    window.addEventListener('wheel', altAtWork, { capture: true, passive: true });
+    window.addEventListener(
+      'pointerdown',
+      (e) => {
+        altAtWork(e);
+        this.nibEvent({ type: 'press' });
+      },
+      true,
+    );
+    window.addEventListener(
+      'pointermove',
+      (e) => {
+        if (e.buttons !== 0) altAtWork(e);
+        this.heldMove(e.clientX, e.clientY);
+      },
+      true,
+    );
   }
 
   private bindResize(): void {
@@ -11504,7 +14092,7 @@ class App {
   // ---- UI sync -------------------------------------------------------------
 
   private syncUi(): void {
-    const { tool, color, width, liveSharpen, sharpen, symmetry, fontSize } = this.store.tool;
+    const { tool, width, liveSharpen, sharpen, symmetry, fontSize } = this.store.tool;
 
     // Animation Mode: keep the banner's layer-validation status live.
     if (this.animationMode) this.refreshAnimationStatus();
@@ -11549,9 +14137,12 @@ class App {
     this.canvas.dataset.tool = tool;
     this.updateCursor();
 
+    // The swatch lit is the color in front's.
+    const front = frontColor(this.store.tool);
     for (const node of Array.from(document.querySelectorAll<HTMLButtonElement>('.swatch'))) {
-      node.classList.toggle('is-active', node.dataset.color === color);
+      node.classList.toggle('is-active', node.dataset.color === front);
     }
+    this.syncFillStroke();
 
     el<HTMLInputElement>('width').value = String(width);
     el('width-value').textContent = `${width}px`;
@@ -11606,6 +14197,31 @@ class App {
     if (this.layersOpen && !this.layerOpacityDragging) this.renderLayers();
     this.renderProperties();
     this.publishMenuState();
+  }
+
+  /** The fill and stroke control shows the tool's ink and fill, the one in front on top. */
+  private syncFillStroke(): void {
+    const { color, fill, colorTarget } = this.store.tool;
+    const control = el('fill-stroke');
+    control.dataset.front = colorTarget;
+    control.dataset.fill = fill ?? 'none';
+    control.dataset.stroke = color;
+    const shown = fill ?? 'none';
+    const boxes: Array<[HTMLElement, ColorTarget, string, string]> = [
+      [el('fill-stroke-fill'), 'fill', 'Fill', shown],
+      [el('fill-stroke-stroke'), 'stroke', 'Stroke', color],
+    ];
+    for (const [box, target, name, value] of boxes) {
+      const inFront = colorTarget === target;
+      box.style.setProperty('--fs-color', value === 'none' ? 'transparent' : value);
+      box.setAttribute('aria-pressed', String(inFront));
+      box.setAttribute('aria-label', `${name}: ${value}`);
+      box.dataset.titleTemplate = inFront
+        ? `${name}: ${value}, in front - click to pick its color; Fill in Front ({key})`
+        : `${name}: ${value} - click to put it in front ({key})`;
+      this.applyShortcutTitle(box);
+    }
+    el('fill-stroke-fill').classList.toggle('is-none', fill === null);
   }
 
   private toast(message: string): void {
@@ -11801,6 +14417,7 @@ function translateStrokes(strokes: Stroke[], dx: number, dy: number): Stroke[] {
   return strokes.map((stroke) => ({
     ...stroke,
     points: stroke.points.map(shift),
+    ...(stroke.smudges ? { smudges: mapSmudges(stroke.smudges, shift) } : {}),
     ...(stroke.vector
       ? {
           vector: {
@@ -11907,6 +14524,7 @@ function transformImportedLayers(
           // A compound shape's subpath breaks travel with it, or its contours
           // export joined into one outline.
           ...(a.move ? { move: true as const } : {}),
+          ...(a.pressure !== undefined ? { pressure: a.pressure } : {}),
         }));
       }
       stroke.width = Math.max(0.1, stroke.width * scale);
@@ -12000,9 +14618,14 @@ function dragAfterElement(
  * (UI-only tools like the shape tools and bucket fall back to the pen).
  */
 function drawingToolOf(tool: Tool): Tool {
-  return tool === 'pen' || tool === 'marker' || tool === 'copic' || tool === 'eraser'
+  return tool === 'pen' || tool === 'marker' || tool === 'copic' || tool === 'pencil' || tool === 'eraser'
     ? tool
     : 'pen';
+}
+
+/** A point as a corner anchor - no handles - with its pressure. */
+function anchorAt(p: Point): VectorAnchor {
+  return { p: { x: p.x, y: p.y }, ...(p.pressure !== undefined ? { pressure: p.pressure } : {}) };
 }
 
 /** Deep-copies vector anchors so working copies never alias stored strokes. */
@@ -12012,6 +14635,7 @@ function cloneAnchors(anchors: VectorAnchor[]): VectorAnchor[] {
     ...(a.hIn ? { hIn: { ...a.hIn } } : {}),
     ...(a.hOut ? { hOut: { ...a.hOut } } : {}),
     ...(a.move ? { move: true as const } : {}),
+    ...(a.pressure !== undefined ? { pressure: a.pressure } : {}),
   }));
 }
 
@@ -12028,6 +14652,126 @@ function rectPoints(a: Point, b: Point, uniform: boolean): Point[] {
   const y2 = a.y + dy;
   const P = (x: number, y: number): Point => ({ x, y, pressure: 0.5 });
   return [P(a.x, a.y), P(x2, a.y), P(x2, y2), P(a.x, y2), P(a.x, a.y)];
+}
+
+/** The Liquify brush's radius when the app starts, in page units: a vector editor's 100-point brush. */
+const LIQUIFY_RADIUS = 50;
+/** The smallest and the largest Liquify brush, by radius in page units. */
+const LIQUIFY_RADIUS_MIN = 4;
+const LIQUIFY_RADIUS_MAX = 1000;
+/** How much `[` and `]` shrink and grow the Liquify brush. */
+const LIQUIFY_RADIUS_STEP = 1.25;
+/** How far Twirl turns what is at the brush's centre, in degrees a second, held at a mouse's pressure. */
+const LIQUIFY_TWIRL_RATE = 120;
+/** How fast Pucker draws in and Bloat pushes out what is near the centre, as a share of its distance a second, at a mouse's pressure. */
+const LIQUIFY_SWELL_RATE = 0.6;
+/** How far a bent curve may stray from the brush's image of it, in screen pixels. */
+const LIQUIFY_TOLERANCE_PX = 0.25;
+
+/** A Liquify brush's radius, held to its range. */
+function clampLiquifyRadius(radius: number): number {
+  return Math.min(LIQUIFY_RADIUS_MAX, Math.max(LIQUIFY_RADIUS_MIN, Math.round(radius * 10) / 10));
+}
+
+/** A press's pressure, for a brush it scales: a mouse's is 0.5, and a pen that reads none is taken as one. */
+function liquifyPressure(e: PointerEvent): number {
+  return e.pointerType === 'mouse' || !(e.pressure > 0) ? 0.5 : e.pressure;
+}
+
+/**
+ * The Liquify brushes as its panel draws them: Warp a block whose side the
+ * brush (the dashed ring) has pushed out, Twirl a spiral of half turns,
+ * Pucker a square drawn in to a four-pointed star, and Bloat one pushed out
+ * into a cushion.
+ */
+const LIQUIFY_TILES: Readonly<Record<LiquifyMode, string>> = {
+  warp: '<svg viewBox="0 0 34 26" aria-hidden="true"><path d="M5 6H17C21 6 22 10 26 11.5 29 12.5 29 13.5 26 14.5 22 16 21 20 17 20H5Z" /><circle class="brush" cx="24" cy="13" r="6" /></svg>',
+  twirl: '<svg viewBox="0 0 34 26" aria-hidden="true"><path d="M17 13a1 1 0 0 1 2 0 2 2 0 0 1-4 0 3 3 0 0 1 6 0 4 4 0 0 1-8 0 5 5 0 0 1 10 0 6 6 0 0 1-12 0" /></svg>',
+  pucker: '<svg viewBox="0 0 34 26" aria-hidden="true"><path d="M17 3C18 9 19 11 26 13 19 15 18 17 17 23 16 17 15 15 8 13 15 11 16 9 17 3Z" /></svg>',
+  bloat: '<svg viewBox="0 0 34 26" aria-hidden="true"><path d="M9 6C13 4 21 4 25 6 28 9 28 17 25 20 21 22 13 22 9 20 6 17 6 9 9 6Z" /></svg>',
+};
+
+/** The shapes the Shape Eraser cuts with, as its panel shows them. */
+type ShapeEraserShape = 'rect' | 'ellipse' | 'square' | 'circle';
+
+const SHAPE_ERASER_SHAPES: ReadonlyArray<{ id: ShapeEraserShape; label: string; icon: string }> = [
+  { id: 'rect', label: 'Rectangle', icon: '<svg viewBox="0 0 34 26" aria-hidden="true"><rect x="3" y="5" width="28" height="16" /></svg>' },
+  { id: 'ellipse', label: 'Ellipse', icon: '<svg viewBox="0 0 34 26" aria-hidden="true"><ellipse cx="17" cy="13" rx="14" ry="8" /></svg>' },
+  { id: 'square', label: 'Square', icon: '<svg viewBox="0 0 34 26" aria-hidden="true"><rect x="7" y="3" width="20" height="20" /></svg>' },
+  { id: 'circle', label: 'Circle', icon: '<svg viewBox="0 0 34 26" aria-hidden="true"><circle cx="17" cy="13" r="10" /></svg>' },
+];
+
+/** A shape's name for a sentence, with its article: 'a rectangle', 'an ellipse'. */
+/** The box two points span. */
+function boxOf(a: Point, b: Point): { minX: number; minY: number; maxX: number; maxY: number } {
+  return { minX: Math.min(a.x, b.x), minY: Math.min(a.y, b.y), maxX: Math.max(a.x, b.x), maxY: Math.max(a.y, b.y) };
+}
+
+/**
+ * The Shape Stacker panel's tiles: the Wipe Stacks' six rows, each with a
+ * vector editor's Pathfinder icon drawn again - a back square and a front
+ * one, what the wipe keeps solid and what it takes away dashed.
+ */
+const STACKER_TILES: ReadonlyArray<{ command: string; label: string; title: string; icon: string }> = [
+  {
+    command: 'wipe-in',
+    label: 'Wipe In',
+    title: 'Wipe In - the selected shapes united, as one',
+    icon: '<svg viewBox="0 0 34 26" aria-hidden="true"><path class="kept" d="M5 3H19V9H27V23H13V17H5Z" /></svg>',
+  },
+  {
+    command: 'wipe-out-front',
+    label: 'Subtract Top',
+    title: 'Wipe Out: Subtract Top from Below - the bottom shape less the ones above it',
+    icon: '<svg viewBox="0 0 34 26" aria-hidden="true"><path class="kept" d="M5 3H19V9H13V17H5Z" /><path class="gone" d="M13 9H27V23H13Z" /></svg>',
+  },
+  {
+    command: 'wipe-out-back',
+    label: 'Subtract Below',
+    title: 'Wipe Out: Subtract Below from Top - the top shape less the ones below it',
+    icon: '<svg viewBox="0 0 34 26" aria-hidden="true"><path class="gone" d="M5 3H19V17H5Z" /><path class="kept" d="M19 9H27V23H13V17H19Z" /></svg>',
+  },
+  {
+    command: 'wipe-mid',
+    label: 'Mid Wipe',
+    title: 'Mid Wipe - only where every shape overlaps',
+    icon: '<svg viewBox="0 0 34 26" aria-hidden="true"><path class="gone" d="M5 3H19V17H5ZM13 9H27V23H13Z" /><path class="kept" d="M13 9H19V17H13Z" /></svg>',
+  },
+  {
+    command: 'wipe-outer',
+    label: 'Outer Wipes',
+    title: 'Outer Wipes - where an odd number of the shapes overlap',
+    icon: '<svg viewBox="0 0 34 26" aria-hidden="true"><path class="kept" fill-rule="evenodd" d="M5 3H19V9H27V23H13V17H5ZM13 9H19V17H13Z" /></svg>',
+  },
+  {
+    command: 'wipe-clean',
+    label: 'Clean Wipe',
+    title: 'Clean Wipe - every piece of the overlaps, a shape each',
+    icon: '<svg viewBox="0 0 34 26" aria-hidden="true"><path class="piece" d="M5 3H19V17H5ZM13 9H27V23H13Z" /></svg>',
+  },
+];
+
+function withArticle(label: string): string {
+  return `${/^[aeiou]/i.test(label) ? 'an' : 'a'} ${label.toLowerCase()}`;
+}
+
+/**
+ * The Shape Eraser's shape for a drag from `a` to `b`: a Square or a Circle
+ * always square, a Rectangle or an Ellipse square with Shift.
+ * REUSE: the Rectangle and Ellipse tools' outlines, so a cut is exactly the
+ * shape either would draw.
+ */
+function shapeEraserOutline(shape: ShapeEraserShape, a: Point, b: Point, shift: boolean): Point[] {
+  switch (shape) {
+    case 'rect':
+      return rectPoints(a, b, shift);
+    case 'square':
+      return rectPoints(a, b, true);
+    case 'ellipse':
+      return ellipsePoints(a, b, shift);
+    case 'circle':
+      return ellipsePoints(a, b, true);
+  }
 }
 
 /** Closed ellipse outline for a drag from `a` to `b` (uniform = circle). */
@@ -12066,6 +14810,29 @@ function quadraticPoints(a: Point, c: { x: number; y: number }, b: Point, sample
   return pts;
 }
 
+/**
+ * The anchors a Direct Select edit moves: the picked ones, and with the first
+ * or last of a closed shape whose ends meet - a rectangle's corner is its
+ * first point and its last - the other end too, so the seam never tears.
+ */
+function withSeamTwins(points: readonly { x: number; y: number }[], picked: Iterable<number>): number[] {
+  const out = new Set(picked);
+  const last = points.length - 1;
+  const first = points[0];
+  const end = points[last];
+  if (last >= 2 && first && end && Math.hypot(first.x - end.x, first.y - end.y) < 1e-6) {
+    if (out.has(0)) out.add(last);
+    if (out.has(last)) out.add(0);
+  }
+  return [...out];
+}
+
+/** A zoom as a percentage, whole for most and to a tenth below 10%: 125%, 90000%, 20%. */
+function formatZoom(zoom: number): string {
+  const percent = zoom * 100;
+  return `${percent >= 10 ? Math.round(percent) : Math.round(percent * 10) / 10}%`;
+}
+
 /** Even-odd (ray cast) point-in-polygon test; the polygon closes implicitly. */
 function pointInPolygon(pt: Point, polygon: Point[]): boolean {
   let inside = false;
@@ -12080,17 +14847,6 @@ function pointInPolygon(pt: Point, polygon: Point[]): boolean {
     }
   }
   return inside;
-}
-
-/** Distance from a point to a line segment a-b. */
-function distToSegment(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
-  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
-  t = Math.max(0, Math.min(1, t));
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
 /**

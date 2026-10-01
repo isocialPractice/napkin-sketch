@@ -50,8 +50,8 @@ export interface ScriptSink {
    * layers one for one.
    */
   newLayer(name: string, props: LayerProps): void;
-  /** Opens a group inside the current one; layers and marks go inside it until {@link endGroup}. */
-  beginGroup(name: string, props: LayerProps): void;
+  /** Opens a group inside the current one, and gives its id; layers and marks go inside it until {@link endGroup}. */
+  beginGroup(name: string, props: LayerProps): string;
   /** Closes the innermost group, making current again the layer that was current before it opened. */
   endGroup(): void;
   /** Where marks go now. */
@@ -60,6 +60,20 @@ export interface ScriptSink {
   restore(cursor: SinkCursor): void;
   /** Adds a mark to the current layer. The sink gives it its id and its layer. */
   addMark(stroke: Stroke): void;
+  /** The current page as drawn so far, to be read and not changed: what a `split` can cut. */
+  currentPage(): Sketch;
+  /**
+   * Puts `pieces` in the place of a mark added to the current page, on its
+   * layer and in its paint order: the first keeps the mark's id, and the rest
+   * get ids of their own.
+   */
+  replaceMark(target: Stroke, pieces: readonly Stroke[]): void;
+  /** Takes a mark added to the current page away: what an eraser does to a mark it leaves nothing of. */
+  removeMark(target: Stroke): void;
+  /** The drawing layer marks go to now, or null when no mark has made one yet: the layer an eraser cuts on. */
+  currentLayerId(): string | null;
+  /** Makes a group a clip group: its content shows only inside `mark`, a closed mark it holds (core/clip.ts). */
+  clipGroup(groupId: string, mark: Stroke): void;
 }
 
 /** One open level of the layer tree: the page itself, or a group. */
@@ -169,13 +183,19 @@ export class SketchSink implements ScriptSink {
     scope.current = layer.id;
   }
 
-  beginGroup(name: string, props: LayerProps): void {
+  beginGroup(name: string, props: LayerProps): string {
     const scope = this.scope;
     const group: Layer = { id: this.nextId('gp'), name, opacity: 1, visible: true, locked: false, group: true };
     if (scope.group) group.parent = scope.group;
     this.applyProps(group, props);
     this.page.layers.push(group);
     this.scopes.push({ group: group.id, name, current: null });
+    return group.id;
+  }
+
+  clipGroup(groupId: string, mark: Stroke): void {
+    const group = this.page.layers.find((layer) => layer.id === groupId);
+    if (group?.group) group.clip = mark.id;
   }
 
   endGroup(): void {
@@ -204,6 +224,28 @@ export class SketchSink implements ScriptSink {
     stroke.id = this.nextId('st');
     stroke.layer = scope.current;
     page.strokes.push(stroke);
+  }
+
+  currentPage(): Sketch {
+    return this.page;
+  }
+
+  replaceMark(target: Stroke, pieces: readonly Stroke[]): void {
+    const page = this.page;
+    const at = page.strokes.indexOf(target);
+    if (at < 0 || pieces.length === 0) return;
+    const placed = pieces.map((piece, k) => ({ ...piece, id: k === 0 ? target.id : this.nextId('st'), layer: target.layer }));
+    page.strokes.splice(at, 1, ...placed);
+  }
+
+  removeMark(target: Stroke): void {
+    const page = this.page;
+    const at = page.strokes.indexOf(target);
+    if (at >= 0) page.strokes.splice(at, 1);
+  }
+
+  currentLayerId(): string | null {
+    return this.scope.current;
   }
 
   /**

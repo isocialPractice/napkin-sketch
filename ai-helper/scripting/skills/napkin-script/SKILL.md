@@ -59,6 +59,20 @@ The parser holds every script to these, and most first-try errors break one.
   `hexagon`, `cube-isometric` and the rest - `references/verbs.md` lists.
 - **Paths**: `path "<SVG path data>"`, or `path { ... }` holding its steps -
   `move`, `to`, `by`, `curve`, `smooth`, `through` and `close` - one a line.
+- **Combining and cutting**: `wipe in { ... }` makes one shape of the shapes
+  its block draws, as Pathfinder's Unite does (`out-front`, `out-back`,
+  `mid`, `outer` and `clean` are its other ops); `stack merge 40 40, 90 40
+  { ... }` merges the pieces under the points, and `stack remove` takes them
+  away; `split <x> <y>` cuts a path where the point lands; `clip "Window"
+  { ... }` shows its block only inside the last closed shape it draws; and
+  `tool eraser` makes the lines after it cut the marks before them on their
+  layer.
+- **Pencils and bending**: `pencil 2B` takes up a pencil - graphite `9H` to
+  `9B`, or charcoal such as `charcoal-2B` and `vine-soft` - and
+  `smear <width> <strength> <x> <y>, <x> <y>` blends the pencil marks it
+  passes. `warp <x> <y> <radius> <dx> <dy>` pushes the marks under a brush;
+  `twirl`, `pucker` and `bloat <x> <y> <radius> <amount>` turn them, draw them
+  in and push them out. `tool brush` is `tool pen`, the app's Brush.
 - **Text**: `text "<words>" at <x> <y> [size <n>] [box <width>] [align center]`.
   `x y` is the top-left of the text, or the top-centre with `align center`.
   `font "<family>" <size>` sets the face for what follows; `box` wraps.

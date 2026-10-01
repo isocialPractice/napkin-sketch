@@ -2,12 +2,15 @@
 
 ## At a glance
 
-- **Fill Shape** — with the Select tool active and a shape selected, clicking
-  a Quick Access Color fills the shape with it. The custom color well beside
-  the swatches does the same: the selection follows the picker as it is
-  dragged, and the whole drag undoes as one step. Selected open strokes take
-  the color as their ink instead. Fills are honored by the canvas,
-  thumbnails, and SVG/PDF export.
+- **Fill and stroke** — with the Select tool active and something selected,
+  clicking a Quick Access Color paints the selection with whichever of fill
+  and stroke is in front ([Fill and stroke](tools.md#fill-and-stroke)): with
+  the stroke, every outline and text takes it; with the fill (`X` puts it in
+  front), every closed shape is filled with it and open lines keep what they
+  have. The color picker in the fill and stroke control does the same: the
+  selection follows it as it is dragged, and the whole drag undoes as one
+  step. `Shift + X` swaps each selected shape's fill and outline. Fills are
+  honored by the canvas, thumbnails, and SVG/PDF export.
 - **Stroke width on a selection** - with the Select tool active and something
   selected, the **Width** slider widens or narrows the selected outlines as it
   moves, and the whole drag undoes as one step. A width typed with Quick Width
@@ -59,6 +62,35 @@ add it to (or remove it from) the current selection; *drag over empty space*
 to rubber-band-select multiple strokes at once; `Ctrl+A` selects everything
 and `Ctrl+Shift+A` deselects. Hold `Space` and drag to pan the canvas.
 Selecting elements highlights their rows in the Layers panel.
+
+## What a click picks
+
+*Changed in 1.0.0-alpha.4.6.0: a click used to pick the first mark in the
+page's list within 8 page units of the mark's centre line, a reach that no
+setting changed and that grew on screen as you zoomed in.*
+
+- **The mark on top, where its ink is.** A click picks the mark whose painted
+  ink is under the pointer, and when marks overlap, the one painted over the
+  others. The order is the canvas's: the Layers panel's stack, so a layer
+  moved up picks on top as it paints on top. A line is as wide as it is
+  painted, pressure included, and so are a Copic's broad nib and a stroke
+  drawn with a Stroke Profile. A dashed line counts as solid, gaps and all.
+  Text and images pick by their boxes.
+- **Failing that, the nearest.** A click beside the ink picks the nearest mark
+  within the **Select sensitivity**, in screen pixels: 4 unless changed in
+  Verbose Settings > Sketch Support (1 to 20). Screen pixels, so it reaches as
+  far at every zoom.
+- **Erased ink is gone.** The Eraser cuts the marks themselves, so a click
+  where it passed picks nothing. An older file's eraser marks are never
+  picked or boxed either, and a click where one has cut a mark away picks
+  nothing there.
+- **A rubber band takes what its box meets.** Every mark whose ink the box
+  touches joins the selection, a line it only crosses included. A rectangle's
+  edge counts even with none of its corners inside the box. A filled shape
+  also counts when the box sits inside its fill.
+- **Direct Select picks the same way**, at its own reach, the **Direct Select
+  sensitivity** (8 unless changed, 1 to 20 screen pixels). See
+  [Direct Select](vector-paths.md#direct-select).
 
 ## Copy and paste
 

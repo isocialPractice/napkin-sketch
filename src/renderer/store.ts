@@ -30,13 +30,37 @@ import {
   type Tool,
 } from '../core/types.js';
 import { DEFAULT_SHARPEN_OPTIONS, type SharpenOptions } from '../sharpen/sharpen.js';
+import type { EraseResult } from '../core/erase.js';
+import { CLIP_GROUP_NAME, makeClip, releaseClip, type ClipProblem } from '../core/clip.js';
+import type { MarkEdit } from '../core/wipe.js';
+import { paintPatch, swapPaint, type ColorTarget } from '../core/paint.js';
+import { DEFAULT_PENCIL, type PencilChoice } from '../core/pencil.js';
+import { mapSmudges } from '../core/smudge.js';
 import { catmullRom, cubicBezierPoints, rotateAbout, rotationTrig } from '../sharpen/geometry.js';
 import { mirrorStroke, type Mirror, type TransformBox } from '../core/transform.js';
+
+/** Applies a property patch to a stroke in place: a key set to `undefined` is taken away, not stored. */
+function applyPatch(stroke: Stroke, patch: Partial<Stroke>): void {
+  const record = stroke as unknown as Record<string, unknown>;
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) delete record[key];
+    else record[key] = value;
+  }
+}
 
 /** Snapshot of the current tool configuration. */
 export interface ToolState {
   tool: Tool;
+  /** The ink: every new mark's outline. Always a color - every drawing tool draws with it. */
   color: string;
+  /**
+   * The fill new closed shapes take - Rectangle, Ellipse, a closed Vector
+   * Path - and the Paint Bucket and Fill Color paint with, or null for none,
+   * as it is until one is picked: a sketch's shapes are outlines.
+   */
+  fill: string | null;
+  /** Which of the ink and the fill the colors paint: `X` puts the other one in front. */
+  colorTarget: ColorTarget;
   width: number;
   /**
    * Explicit stroke opacity (0-1) applied to new strokes, or null to use each
@@ -51,6 +75,8 @@ export interface ToolState {
   symmetry: number;
   /** Copic broad-nib rotation in degrees (0 = horizontal, clockwise). */
   nibAngle: number;
+  /** The pencil the Pencil draws with, chosen from its kit (core/pencil.ts). */
+  pencil: PencilChoice;
   /**
    * The profile new pen and marker strokes are drawn with. Tool state, like
    * the width: it lasts while the app runs and is not saved as a setting.
@@ -64,9 +90,11 @@ const HISTORY_LIMIT = 100;
 
 /** Display-name stems for the auto-created per-element layers. */
 const TOOL_LAYER_NAMES: Partial<Record<Tool, string>> = {
-  pen: 'Pen',
+  // The app calls the `pen` the Brush; a file's older "Pen N" rows keep their names.
+  pen: 'Brush',
   marker: 'Marker',
   copic: 'Copic',
+  pencil: 'Pencil',
   text: 'Text',
   image: 'Image',
 };
@@ -165,6 +193,8 @@ export class Store {
   tool: ToolState = {
     tool: 'pen',
     color: '#1f2328',
+    fill: null,
+    colorTarget: 'stroke',
     width: 3,
     opacity: null,
     // Per request: Live Sharpen defaults OFF.
@@ -172,6 +202,7 @@ export class Store {
     fontSize: 24,
     symmetry: 1,
     nibAngle: DEFAULT_NIB_ANGLE,
+    pencil: { ...DEFAULT_PENCIL },
     profile: 'uniform',
     sharpen: { ...DEFAULT_SHARPEN_OPTIONS },
   };
@@ -375,6 +406,16 @@ export class Store {
   }
 
   /**
+   * A mark as the open transaction found it, or undefined when there is no
+   * transaction or the mark was not there: for an edit that weighs what it
+   * did against what was - Liquify's refit, which leaves a path it never
+   * split with the anchors it was drawn with.
+   */
+  strokeBeforeTransaction(id: string): Stroke | undefined {
+    return this.transaction?.before.strokes.find((s) => s.id === id);
+  }
+
+  /**
    * Keeps what the open transaction did, as a single undo step. One that left
    * the page exactly as it found it leaves no step behind - an undo press that
    * changes nothing is a defect this store has fixed once already - and puts
@@ -462,8 +503,10 @@ export class Store {
                 ...(a.hIn ? { hIn: { ...a.hIn } } : {}),
                 ...(a.hOut ? { hOut: { ...a.hOut } } : {}),
                 ...(a.move ? { move: true as const } : {}),
+                ...(a.pressure !== undefined ? { pressure: a.pressure } : {}),
               })),
               ...(s.vector.closed ? { closed: true as const } : {}),
+              ...(s.vector.fitted ? { fitted: true as const } : {}),
             },
           }
         : {}),
@@ -658,6 +701,19 @@ export class Store {
     this.emit();
   }
 
+  /**
+   * How many marks are selected. An older file's eraser marks ride along
+   * with their layer's selection, so that a move takes their cuts with it,
+   * but they are no element of their own: they are not counted.
+   */
+  get selectedMarkCount(): number {
+    let count = 0;
+    for (const stroke of this.sketch.strokes) {
+      if (stroke.tool !== 'eraser' && this.selectedIds.has(stroke.id)) count++;
+    }
+    return count;
+  }
+
   /** Clears the current selection (strokes and layer highlight). */
   clearSelection(): void {
     if (this.selectedIds.size === 0 && this.selectedLayerIds.size === 0) return;
@@ -666,8 +722,9 @@ export class Store {
     this.emit();
   }
 
-  /** Shifts a stroke's Bézier anchor structure with its points. */
+  /** Shifts a stroke's Bézier anchor structure with its points, and the Smear's passes over it. */
   private shiftVector(stroke: Stroke, dx: number, dy: number): void {
+    if (stroke.smudges) stroke.smudges = mapSmudges(stroke.smudges, (p) => ({ x: p.x + dx, y: p.y + dy }));
     if (!stroke.vector) return;
     for (const anchor of stroke.vector.anchors) {
       anchor.p.x += dx;
@@ -734,7 +791,7 @@ export class Store {
    * does, and a `nibAngle` turns a Copic nib.
    */
   setStrokesGeometry(
-    updates: Array<{ id: string; points: Point[]; vector?: Stroke['vector']; nibAngle?: number }>,
+    updates: Array<{ id: string; points: Point[]; vector?: Stroke['vector']; nibAngle?: number; smudges?: Stroke['smudges'] }>,
   ): void {
     const byId = new Map(updates.map((u) => [u.id, u]));
     let changed = false;
@@ -745,6 +802,7 @@ export class Store {
       if (update.vector) stroke.vector = update.vector;
       else delete stroke.vector;
       if (update.nibAngle !== undefined) stroke.nibAngle = update.nibAngle;
+      if (update.smudges) stroke.smudges = update.smudges;
       changed = true;
     }
     if (changed) this.touch();
@@ -801,8 +859,90 @@ export class Store {
   }
 
   /**
+   * Applies an erase (`core/erase.ts`) as one history step: each changed
+   * mark replaced where it was, its id and layer kept, so Track History
+   * records a change; each mark with nothing left removed, and the layers
+   * that leaves empty pruned. `legacy` are eraser marks laid on the marks
+   * the geometry could not cut (`raster`), each on its mark's layer just
+   * above it, so the canvas still shows the cut. The selection stays on
+   * whatever is left of it.
+   */
+  eraseMarks(result: Pick<EraseResult, 'changed' | 'removed'>, legacy: Array<{ above: string; eraser: Stroke }> = []): void {
+    // REUSE: the Eraser's commit is the wipes' (applyMarkEdit) with the
+    // selection kept for the next cut, and the raster fallback's eraser
+    // marks put in beside the marks they cut.
+    this.applyMarkEdit({ changed: result.changed, removed: result.removed, added: [] }, { select: 'keep', beside: legacy });
+  }
+
+  /**
+   * Commits an edit of the page's marks as one undo step - what a wipe
+   * (core/wipe.ts) or the Eraser leaves. Changed marks are replaced in place,
+   * keeping their ids and layers; removed ones go. Each added mark goes on a
+   * new layer of its own right above the layer it names, in the same group,
+   * with that layer's opacity and effects, named for its tool as a drawn
+   * mark's layer is; several above one layer stack in the order given. The
+   * layers left empty are pruned. `beside` puts marks on the layer of the
+   * mark they follow, just after it. The selection becomes the changed and
+   * added marks (`select: 'result'`, the default), or keeps what it had but
+   * the removed (`'keep'`).
+   */
+  applyMarkEdit(
+    edit: MarkEdit,
+    options: { select?: 'result' | 'keep'; beside?: Array<{ above: string; eraser: Stroke }> } = {},
+  ): void {
+    const beside = options.beside ?? [];
+    if (edit.changed.size === 0 && edit.removed.size === 0 && edit.added.length === 0 && beside.length === 0) return;
+    this.pushHistory();
+    const vacated = new Set<string>();
+    const strokes: Stroke[] = [];
+    for (const stroke of this.sketch.strokes) {
+      if (edit.removed.has(stroke.id)) {
+        vacated.add(layerOf(this.sketch, stroke).id);
+        continue;
+      }
+      const next = edit.changed.get(stroke.id);
+      strokes.push(next ? { ...next, id: stroke.id, layer: stroke.layer } : stroke);
+      for (const extra of beside) {
+        if (extra.above === stroke.id) strokes.push({ ...extra.eraser, layer: layerOf(this.sketch, stroke).id });
+      }
+    }
+    // The added marks' layers: each right above the last one put above the same layer.
+    const lastAbove = new Map<string, string>();
+    const added: Stroke[] = [];
+    for (const { stroke, above } of edit.added) {
+      const after = lastAbove.get(above) ?? above;
+      const index = this.sketch.layers.findIndex((l) => l.id === after);
+      const anchor = this.sketch.layers.find((l) => l.id === above);
+      const base = TOOL_LAYER_NAMES[stroke.tool] ?? 'Layer';
+      const n = this.sketch.layers.filter((l) => l.name.startsWith(base)).length + 1;
+      const layer = createLayer(`${base} ${n}`);
+      layer.parent = anchor?.parent;
+      if (anchor) {
+        layer.opacity = anchor.opacity;
+        if (anchor.effects) layer.effects = anchor.effects.map((effect) => ({ ...effect }));
+      }
+      this.sketch.layers.splice(index < 0 ? this.sketch.layers.length : index + 1, 0, layer);
+      lastAbove.set(above, layer.id);
+      added.push({ ...stroke, layer: layer.id });
+    }
+    this.sketch.strokes = [...strokes, ...added];
+    if (options.select === 'keep') {
+      for (const id of edit.removed) this.selectedIds.delete(id);
+      for (const stroke of added) this.selectedIds.add(stroke.id);
+      if (added.length > 0) this.syncLayerHighlight();
+    } else {
+      this.selectedIds = new Set([...edit.changed.keys(), ...added.map((s) => s.id)].filter((id) => !edit.removed.has(id)));
+      this.syncLayerHighlight();
+    }
+    this.pruneEmptyLayers(vacated);
+    this.touch();
+  }
+
+  /**
    * Removes the candidate layers that no longer hold strokes, then any group
-   * emptied by that removal. Always keeps at least one drawable layer.
+   * emptied by that removal. Always keeps at least one drawable layer. A
+   * layer holding only eraser marks is empty - they cut what is on their own
+   * layer, and there is nothing - and they go with it.
    */
   private pruneEmptyLayers(candidates: Set<string>): void {
     const hadChildren = new Set(
@@ -810,12 +950,19 @@ export class Store {
         .filter((l) => l.group && this.sketch.layers.some((c) => c.parent === l.id))
         .map((l) => l.id),
     );
+    const before = this.sketch.layers;
     let layers = this.sketch.layers.filter(
       (l) =>
         l.group ||
         !candidates.has(l.id) ||
-        this.sketch.strokes.some((s) => layerOf(this.sketch, s).id === l.id),
+        this.sketch.strokes.some((s) => s.tool !== 'eraser' && layerOf(this.sketch, s).id === l.id),
     );
+    // The erasers of a layer pruned away go with it.
+    const keptIds = new Set(layers.map((l) => l.id));
+    const gone = new Set(before.filter((l) => !keptIds.has(l.id)).map((l) => l.id));
+    if (gone.size > 0) {
+      this.sketch.strokes = this.sketch.strokes.filter((s) => s.tool !== 'eraser' || !gone.has(layerOf(this.sketch, s).id));
+    }
     for (;;) {
       const next = layers.filter(
         (l) => !l.group || !hadChildren.has(l.id) || layers.some((c) => c.parent === l.id),
@@ -1011,6 +1158,48 @@ export class Store {
     this.selectedLayerIds = new Set([group.id]);
     this.touch();
     return group;
+  }
+
+  /**
+   * Make Clipping Mask (core/clip.ts): the topmost of the marks of `ids`,
+   * when it is a closed shape, clips the rest. Their layers are grouped into a
+   * "Clip Group" (REUSE: {@link groupLayers}) whose `clip` names that mark,
+   * and the clip's layer goes on top inside it. One undo step. Returns why it
+   * could not - fewer than two marks, or an open path on top - or null.
+   */
+  makeClipping(ids: Iterable<string>): ClipProblem | null {
+    const plan = makeClip(this.sketch, ids);
+    if ('problem' in plan) return plan.problem;
+    const group = this.groupLayers(plan.layers);
+    group.name = CLIP_GROUP_NAME;
+    group.clip = plan.clip.id;
+    // The block the clip's layer heads in the group, moved up under the group's row.
+    const byId = new Map(this.sketch.layers.map((l) => [l.id, l]));
+    let root = byId.get(plan.clip.layer ?? '');
+    while (root && root.parent !== group.id) root = root.parent ? byId.get(root.parent) : undefined;
+    if (root) {
+      const block = new Set([root.id, ...descendantLayerIds(this.sketch, root.id)]);
+      const moved = this.sketch.layers.filter((l) => block.has(l.id));
+      const rest = this.sketch.layers.filter((l) => !block.has(l.id));
+      rest.splice(rest.findIndex((l) => l.id === group.id), 0, ...moved);
+      this.sketch.layers = rest;
+    }
+    this.touch();
+    return null;
+  }
+
+  /**
+   * Release Clipping Mask: the clip taken off the clip group `layerId` is or
+   * is in. The group stays a group - Ungroup ungroups it - and its clip mark
+   * paints again. One undo step; false when there is no clip to release.
+   */
+  releaseClipping(layerId: string): boolean {
+    const group = releaseClip(this.sketch, layerId);
+    if (!group) return false;
+    this.pushHistory();
+    delete group.clip;
+    this.touch();
+    return true;
   }
 
   /**
@@ -1537,6 +1726,9 @@ export class Store {
       id: createId('st'),
       points: pool[0],
       fill: undefined,
+      // The first piece's anchors describe the first piece alone; the caller
+      // fits the whole joined run afresh.
+      vector: undefined,
       layer: home.id,
       sharpened: candidates.every((s) => s.sharpened),
     };
@@ -1601,6 +1793,53 @@ export class Store {
     return { filled, recolored };
   }
 
+  /**
+   * Paints the selection with `color` as the one of fill and stroke in front
+   * would (core/paint.ts's `paintPatch`, mark by mark): with the stroke,
+   * every outline and text takes it; with the fill, every closed shape is
+   * filled, and text takes it. Continuous edits (a picker being dragged) pass
+   * `history: false` after the first tick, so the drag is one undo step.
+   * Returns how many shapes were filled and how many marks recolored.
+   */
+  paintSelected(target: ColorTarget, color: string, history = true): { filled: number; recolored: number } {
+    const patches: Array<[Stroke, Partial<Stroke>]> = [];
+    for (const stroke of this.sketch.strokes) {
+      if (!this.selectedIds.has(stroke.id)) continue;
+      const patch = paintPatch(stroke, target, color);
+      if (patch) patches.push([stroke, patch]);
+    }
+    if (patches.length === 0) return { filled: 0, recolored: 0 };
+    if (history) this.pushHistory();
+    let filled = 0;
+    let recolored = 0;
+    for (const [stroke, patch] of patches) {
+      applyPatch(stroke, patch);
+      if ('fill' in patch) filled++;
+      else recolored++;
+    }
+    this.touch();
+    return { filled, recolored };
+  }
+
+  /**
+   * Swap Fill and Stroke on the selection: each selected closed shape's fill
+   * and outline trade colors (core/paint.ts's `swapPaint`), in one undo
+   * step. Returns how many shapes swapped.
+   */
+  swapSelectedPaint(): number {
+    const patches: Array<[Stroke, Partial<Stroke>]> = [];
+    for (const stroke of this.sketch.strokes) {
+      if (!this.selectedIds.has(stroke.id)) continue;
+      const patch = swapPaint(stroke);
+      if (patch) patches.push([stroke, patch]);
+    }
+    if (patches.length === 0) return 0;
+    this.pushHistory();
+    for (const [stroke, patch] of patches) applyPatch(stroke, patch);
+    this.touch();
+    return patches.length;
+  }
+
   // ---- Element properties (properties panel) -------------------------------
 
   /**
@@ -1614,13 +1853,7 @@ export class Store {
     const strokes = this.sketch.strokes.filter((s) => targets.has(s.id));
     if (strokes.length === 0) return 0;
     if (history) this.pushHistory();
-    for (const stroke of strokes) {
-      const record = stroke as unknown as Record<string, unknown>;
-      for (const [key, value] of Object.entries(patch)) {
-        if (value === undefined) delete record[key];
-        else record[key] = value;
-      }
-    }
+    for (const stroke of strokes) applyPatch(stroke, patch);
     this.touch();
     return strokes.length;
   }
@@ -1674,6 +1907,7 @@ export class Store {
           if (anchor.hOut) map(anchor.hOut);
         }
       }
+      if (stroke.smudges) stroke.smudges = mapSmudges(stroke.smudges, (p) => ({ x: ox + (p.x - ox) * sx, y: oy + (p.y - oy) * sy }), Math.sqrt(Math.abs(sx * sy)));
       if (isImageStroke(stroke)) {
         stroke.imageWidth = Math.max(1, (stroke.imageWidth ?? 100) * sx);
         stroke.imageHeight = Math.max(1, (stroke.imageHeight ?? 100) * sy);
@@ -1744,6 +1978,7 @@ export class Store {
         continue;
       }
       for (const p of stroke.points) turn(p);
+      if (stroke.smudges) stroke.smudges = mapSmudges(stroke.smudges, (p) => rotateAbout(p, cx, cy, trig));
       if (stroke.vector) {
         for (const anchor of stroke.vector.anchors) {
           turn(anchor.p);

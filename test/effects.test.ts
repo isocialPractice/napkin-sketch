@@ -113,6 +113,18 @@ test('a canvas filter is the CSS list, its lengths and a shadow turned by the tr
   assert.equal(cssFilter(effects.slice(2, 3), { a: 0, b: 2, c: -2, d: 0 }), 'drop-shadow(0px 8px 12px #00000066)');
 });
 
+test("a canvas filter's blurs can be held to what the painter painted past its canvas", () => {
+  const deep = { a: 900, b: 0, c: 0, d: 900 };
+  const effects: Effect[] = [
+    { type: 'blur', radius: 8 },
+    { type: 'drop-shadow', dx: 4, dy: 0, blur: 6, color: '#00000066' },
+  ];
+  // At 900 device pixels a unit, 8 units of blur is 7200; held to 500. The
+  // shadow's offset is where it falls, so it is left as it is.
+  assert.equal(cssFilter(effects, deep, 500), 'blur(500px) drop-shadow(3600px 0px 500px #00000066)');
+  assert.equal(cssFilter(effects, { a: 1, b: 0, c: 0, d: 1 }, 500), 'blur(8px) drop-shadow(4px 0px 6px #00000066)', 'a blur under the limit is untouched');
+});
+
 // ---- The rasterizer, pass by pass ----------------------------------------------
 
 test('each color effect gives the pixel its matrix does', () => {

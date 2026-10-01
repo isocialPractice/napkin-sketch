@@ -16,13 +16,21 @@ script is written - its syntax, values, expressions and diagnostics - is in
   - [Running a script](#running-a-script)
   - [Pages](#pages)
   - [Layers and groups](#layers-and-groups)
+  - [Clipping masks](#clipping-masks)
   - [Paint](#paint)
+  - [Pencils](#pencils)
   - [Transforms](#transforms)
   - [Blocks, names and definitions](#blocks-names-and-definitions)
   - [Shapes](#shapes)
   - [The shape library](#the-shape-library)
+  - [Erasing](#erasing)
+  - [Combining shapes](#combining-shapes)
+  - [Stacking shapes](#stacking-shapes)
   - [Paths](#paths)
   - [Curves through points](#curves-through-points)
+  - [Splitting paths](#splitting-paths)
+  - [Smearing](#smearing)
+  - [Liquify](#liquify)
   - [The hand-drawn pass](#the-hand-drawn-pass)
   - [Text](#text)
   - [Images](#images)
@@ -168,13 +176,43 @@ layer "Paper"
 line 0 400 400 400
 ```
 
+### Clipping masks
+
+`clip ["<name>"] { ... }` makes a clip group, as the app's Make Clipping Mask
+does: a group, named `Clip Group` unless given a name, whose content shows
+only inside the last closed shape its block draws, in paint order. That shape
+is the clipping path. It paints nothing while it clips, and keeps its paint
+for the app's Release Clipping Mask to show.
+
+- **The clip is the topmost closed shape**, as the app takes the topmost of a
+  selection: an open line or text drawn after it does not take its place.
+  Text, pictures and linked graphics never clip.
+- **The block is a group's block**: `layer` makes layers inside it, and a
+  mark drawn before any `layer` lands on a layer named after the group. A
+  clip inside a clip shows only where both clipping paths overlap.
+- A block that draws no closed shape is a plain group, with a `clip-open`
+  warning. A `clip` inside a `wipe` or a `stack` is a `misplaced-verb`,
+  as a `group` is there.
+- Every output keeps the clip: the SVG as a `<clipPath>` the group is
+  clipped by, the PDF as a clipping path, the Illustrator script as a
+  clipped group, and the composition as the group's `clip`.
+
+```napkin
+clip "Window" {
+  fill #27486d
+  rect 20 20 200 140
+  stroke off
+  circle 120 90 60
+}
+```
+
 ### Paint
 
 Each paint instruction sets one field of every mark after it:
 
 | Instruction | Mark field | Notes |
 | --- | --- | --- |
-| `tool` | `tool` | `pen`; `marker`, translucent; `copic`, a broad angled nib. |
+| `tool` | `tool` | `pen`, the app's Brush (`tool brush` is the same: the app calls the pen the Brush, and files keep `pen`); `marker`, translucent; `copic`, a broad angled nib; `pencil`, a lead through the paper's grain; `eraser`, which cuts rather than draws: see [Erasing](#erasing). |
 | `color` | `color` | Any color the language accepts. |
 | `width` | `width` | Scaled by the transform's average scale. |
 | `opacity` | `opacity` | Left unset, the tool's own default applies, as in the app. |
@@ -182,13 +220,47 @@ Each paint instruction sets one field of every mark after it:
 | `gradient` | `gradient` | Closed marks only; a linear gradient's angle turns with the drawing. |
 | `stroke off` | `noStroke` | A closed shape drawn as its fill alone. |
 | `style` | `strokeStyle` | `solid`, `dashed` or `dotted`. |
-| `profile` | `profile` | Pen and marker marks only. |
+| `profile` | `profile` | Brush (`pen`) and marker marks only. |
 | `nib` | `nibAngle` | Copic marks only; the angle turns with the drawing. |
+| `pencil` | `tool`, `pencil`, `color` | The Pencil at a grade; see [Pencils](#pencils). |
 | `rough` | - | Draws the marks after it by hand; see [The hand-drawn pass](#the-hand-drawn-pass). |
 | `font` | `fontFamily`, `fontSize` | The family and size of [text](#text) after it. |
 
 Every mark is flagged `sharpened`, so the app's auto-sharpen leaves a generated
 shape as it is.
+
+### Pencils
+
+`pencil <grade> [<color>]` takes up the app's Pencil at a grade: every mark
+after it is drawn with that lead through the paper's grain, in the grade's
+tone, as the app draws it (`core/pencil.ts`).
+
+- **A grade**: graphite alone, `9H` to `9B` (`2B`, `HB`, `4H`), or a medium
+  and its grade - `charcoal` `HB` to `6B`, `compressed` `2B` to `6B`, and
+  `vine` `hard`, `medium` or `soft` - as two words (`charcoal 4B`) or one
+  (`vine-soft`), in any case. The object form names it as the API does:
+  `2B`, `charcoal-4B`, `vine-soft`. A pencil there is not is an
+  `expected-choice` error.
+- **A color** makes a colored pencil: the lead's grain and density in that
+  color. Without one the grade's tone is the mark's `color`, whatever
+  `color` says - the ink does not change a pencil.
+- **The width is the line's own.** The app's softer leads draw a broader
+  line at one tool width; a script says the width it wants.
+- `tool pencil` takes the Pencil up at the grade it had last, graphite HB to
+  begin with.
+
+```napkin
+width 3
+pencil 2H
+line 20 20 380 20
+pencil 6B
+line 20 50 380 50
+width 6
+pencil vine soft
+line 20 90 380 90
+pencil 2B #3b6e8f
+line 20 130 380 130
+```
 
 ### Transforms
 
@@ -294,6 +366,125 @@ filled without an outline - is left out when nothing is filled, and drawn
 with the fill and no outline when something is. So with no fill the isometric
 and perspective objects are line drawings, and with one they are solid.
 
+### Erasing
+
+`tool eraser` makes the lines after it erase, as the app's Eraser does: each
+cuts its swath - the width it is drawn at, all along it - out of the marks drawn
+before it on its layer, and draws nothing of its own (`core/erase.ts`).
+
+- **A line** under it is cut where the eraser crosses it, into a mark of
+  several pieces, one subpath each.
+- **A filled shape** has the swath taken out of it; where the shape has an
+  outline, the outline follows the cut.
+- **What it leaves alone.** Marks on other layers, and marks drawn after it.
+  Text and pictures it reaches are passed over, with an `erase-skipped`
+  warning: an eraser cuts paths and lines. A mark left with nothing is taken
+  away.
+- **In a `wipe` or a `stack` block**, it cuts the block's own marks before
+  they are combined.
+- An eraser takes no fill, outline style or effect, which wait for the next
+  mark that shows. Where the geometry cannot make a cut, the eraser mark
+  itself is drawn, as an older file holds one, so the picture still shows the
+  cut.
+
+```napkin
+layer "Card"
+color #1f2328 width 3 fill #ffe08a
+rect 20 20 200 120 r 12
+line 20 160 220 160
+tool eraser
+width 24
+line 120 0 120 180
+```
+
+### Combining shapes
+
+`wipe <op> { ... }` combines the marks its block draws as the app's Wipe
+Stacks - a vector editor's Pathfinder - combine them, and draws what is left
+in their place:
+
+| Op | Pathfinder | What is left | Painted as |
+| --- | --- | --- | --- |
+| `in` | Unite | everything the marks cover | the topmost mark |
+| `out-front` | Minus Front | the bottom mark, less the rest | the bottom mark |
+| `out-back` | Minus Back | the top mark, less the rest | the top mark |
+| `mid` | Intersect | where all of them overlap | the topmost mark |
+| `outer` | Exclude | where an odd number of them overlap | the topmost mark |
+| `clean` | Divide | every piece of their overlaps, a mark each | the topmost mark over the piece |
+
+- **What a mark is to a wipe.** A filled mark, or a closed outline, is its
+  inside; any other mark - a line, a Copic stroke, a profiled one - is its
+  ink, the width it paints at. A result keeps the paint of the mark it is
+  painted as; one painted from ink is a filled shape in the ink's color, with
+  no outline. Where a result runs along a mark's own curves, it keeps that
+  mark's anchors exactly.
+- **The block** keeps its paint and transforms to itself, as a group's does,
+  and its marks stay on the layer the `wipe` is on, so `layer`, `group`,
+  `use` and `newpage` are refused inside it. A `place` or another `wipe`
+  inside one works, its marks among the ones combined. Effects written just
+  before a `wipe` go on every mark it leaves.
+- **What it cannot combine.** Text, pictures, linked files and eraser marks
+  in the block are drawn as they are, with a `wipe-skipped` warning. A wipe
+  that leaves nothing warns `wipe-empty`; one that cannot combine its marks -
+  fewer than two, more than 32 of them or 512 pieces, or geometry it cannot
+  make - warns `wipe-failed` and draws them as they are.
+- **The budget** counts what a wipe leaves, not the marks it took.
+
+### Stacking shapes
+
+`stack merge|remove <points> { ... }` stacks the marks its block draws as the
+app's Shape Stacker - a vector editor's Shape Builder - stacks them. The
+marks make pieces: every place where they overlap, and every place where
+they do not. Each point picks the piece under it.
+
+- **`merge`** makes the pieces picked one shape, painted as the topmost mark
+  over the first point's piece, and each mark keeps what was not merged. A
+  single point makes its piece a shape of its own, drawn right after the mark
+  it is painted as.
+- **`remove`** takes the pieces picked away from every mark; a mark left
+  with nothing is not drawn.
+- **The points are where the `stack` line is**: its transform places them,
+  as it would a mark drawn on that line, and a transform inside the block
+  moves the marks and not the points. A point on none of the pieces picks
+  nothing, with a `stack-missed` warning naming it.
+- The rest is `wipe`'s: the block keeps its paint and transforms to itself,
+  `layer`, `group`, `use` and `newpage` are refused inside it, text,
+  pictures and eraser marks are passed over (`wipe-skipped`), a stack that
+  takes every piece away warns `wipe-empty`, one that cannot stack its marks
+  warns `wipe-failed` and draws them as they are, and effects written just
+  before it go on every mark it leaves.
+
+```napkin
+fill #d0342c
+stack merge 60 100, 125 100 {
+  circle 100 100 60
+  fill #27486d
+  circle 150 100 60
+}
+stack remove 355 100 {
+  fill #ffe08a
+  rect 260 40 120 120
+  fill #27486d
+  circle 380 100 60
+}
+```
+
+```napkin
+fill #d0342c
+wipe clean {
+  circle 100 100 70
+  fill #27486d
+  circle 180 100 70
+}
+fill #ffe08a
+wipe out-front {
+  rect 300 30 140 140
+  fill none
+  width 14
+  line 290 180 450 20
+}
+```
+
 <!-- shapes:start -->
 | Shape | Natural size | Marks | Backdrops | Read from |
 | --- | --- | --- | --- | --- |
@@ -388,6 +579,100 @@ path {
   through 280 360, 360 300
   smooth 460 220 500 300
 }
+```
+
+### Splitting paths
+
+`split <x> <y>` cuts the topmost mark drawn so far whose path passes within
+4 px of the point, where the point lands on it, as the app's Split - a
+vector editor's Scissors - cuts it. Nothing moves, and the pieces take the
+mark's place on its layer, each keeping every paint property.
+
+- **An open path becomes two.** A point within 2 px of an anchor cuts on the
+  anchor and adds none; anywhere else a curve is divided by de Casteljau, so
+  both pieces trace it exactly.
+- **A closed path opens there**, one open path starting and ending at the
+  point; a second `split` divides it. A compound shape gives up the ring
+  that was cut, as an open mark of its own, and the rest stays closed.
+- **The point is where the `split` line is**: its transform places it, as it
+  would a mark drawn there. In a `wipe` or a `stack` block, `split` cuts
+  among the marks the block has drawn, which the block then combines.
+- A point within reach of no path - text and pictures have none - or on the
+  end of an open one cuts nothing, with a `split-missed` warning.
+
+```napkin
+line 20 60 220 60
+split 120 60
+fill #e9c46a
+rect 260 20 120 80
+split 320 20
+split 320 100
+```
+
+### Smearing
+
+`smear <width> <strength> <x> <y>, <x> <y>, ...` runs a pass of the app's
+Smear, a blending stump, along the points: every Pencil mark drawn so far
+that it reaches keeps the pass, and draws with its graphite spread along it
+(`core/smudge.ts`). Tone moves from where it is thick to where it is thin,
+the paper's tooth fills in and edges soften; the darkness is kept.
+
+- **The width** is the stump's, in the current units and scaled by the
+  transform, as a mark's width is; **the strength** runs from 0 to 1, and is
+  held there.
+- **The points** are where the `smear` line is, under its transform. Each
+  mark keeps the part of the pass from where the stump first reached it to
+  as far as it carried graphite past it.
+- In a `wipe` or a `stack` block, it smears among the marks the block has
+  drawn. Reaching no pencil mark, it says so with a `smear-missed` warning.
+- The script writer cannot say which marks a pass was for, so a page with
+  smeared marks is written unsmeared, and the writer says so.
+
+```napkin
+pencil 4B
+repeat 12 as i {
+  line (20 + i * 6) 20 (40 + i * 6) 140
+}
+smear 24 0.6 10 80, 150 80
+```
+
+### Liquify
+
+`warp <x> <y> <radius> <dx> <dy>`, `twirl <x> <y> <radius> <degrees>`,
+`pucker <x> <y> <radius> <amount>` and `bloat <x> <y> <radius> <amount>`
+press one of the app's Liquify brushes once at the point, on every mark drawn
+so far that it reaches (`core/liquify.ts`). What the brush bends falls off
+smoothly from its centre to nothing at its radius, so a mark is bent where the
+brush is and left exactly as it was past it.
+
+- **`warp`** pushes what is under the brush by `dx` and `dy`, carrying the
+  brush along, so what is under its centre goes the whole way, like clay.
+- **`twirl`** turns what is under the brush about its centre, by the angle
+  there - clockwise on the screen, as `rotate` turns - and less toward the
+  rim. Distances from the centre are kept.
+- **`pucker`** and **`bloat`** draw what is under the brush in toward its
+  centre or push it out: a point near the centre moves by the amount, 0 to 1
+  and held there, of its distance.
+- **The point and the radius** are where the line is, under its transform, as
+  a mark drawn there would be. The radius scales with the transform, Warp's
+  push turns and scales with it, and a mirrored transform turns a Twirl the
+  other way.
+- **What bends.** Anchors and handles move, and a segment is split where one
+  piece could no longer follow the bend; each mark bent is then fitted again,
+  within half a pixel, so its anchors stay few. Pencil marks are the Smear's,
+  and text, pictures and eraser marks have no outline to bend: all are left
+  as they are. Reaching nothing it bends, the line says so with a
+  `liquify-missed` warning.
+- In a `wipe` or a `stack` block, it bends among the marks the block has
+  drawn, before they are combined.
+
+```napkin
+rect 40 40 160 100
+warp 120 40 30 0 24
+circle 300 90 50
+bloat 340 90 40 0.5
+line 60 200 180 200
+twirl 120 200 70 90
 ```
 
 ### The hand-drawn pass
@@ -486,7 +771,7 @@ text "A caption that wraps inside a box of its own" at 40 100 size 16 box 180
 - **The paint it takes** is the color and the opacity. The hand-drawn pass
   does not reach a text item.
 
-`as marks` draws the letters instead, as the built-in face's pen strokes: one
+`as marks` draws the letters instead, as the built-in face's brush strokes: one
 mark in the current paint, which turns and mirrors with the drawing and goes
 through the hand-drawn pass like any other.
 

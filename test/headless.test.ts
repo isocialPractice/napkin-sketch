@@ -298,14 +298,23 @@ test('a sketch lowers into a composition that code adds to and renders, without 
 });
 
 test('a page of every kind of mark writes to a script that draws it back, without a DOM', () => {
+  // An older file's eraser mark reads back as the cut it paints, not as itself
+  // (test/script-writer.test.ts); every other kind comes back byte for byte.
   const sketch = everyMark();
+  sketch.strokes = sketch.strokes.filter((stroke) => stroke.tool !== 'eraser');
   const written = sketchToInstructions(sketch, { decimals: null });
   assert.deepEqual(written.notes, []);
   const result = evaluate(formatScript(written.script), { timestamp: '2026-09-25T00:00:00.000Z', name: sketch.name });
   assert.deepEqual(result.diagnostics, []);
   const back = result.book.sketches[0];
-  assert.equal(back.strokes.length, sketch.strokes.length, 'every mark, the eraser and the hidden one among them');
+  assert.equal(back.strokes.length, sketch.strokes.length, 'every mark, the hidden one among them');
   assert.deepEqual(renderSketch(back, { format: 'png' }), renderSketch(sketch, { format: 'png' }), 'the same picture, byte for byte');
+  // With the eraser, the page writes and draws back here too, the eraser cutting the marker under it.
+  const withEraser = sketchToInstructions(everyMark(), { decimals: null });
+  assert.equal(withEraser.notes.length, 1, withEraser.notes.join(' / '));
+  const cut = evaluate(formatScript(withEraser.script), { timestamp: '2026-09-25T00:00:00.000Z', name: sketch.name });
+  assert.deepEqual(cut.diagnostics, []);
+  assert.ok(!cut.book.sketches[0].strokes.some((stroke) => stroke.tool === 'eraser'), 'the eraser cut, and is not drawn');
 });
 
 test('the menu registry loads the user files and builds every menu without a DOM', () => {

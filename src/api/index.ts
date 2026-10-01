@@ -43,7 +43,9 @@ export {
   type Stroke,
   type Sketch,
   type SketchBook,
+  type Smudge,
   type Tool,
+  widthAtPressure,
 } from '../core/types.js';
 
 // Serialization (browser-safe)
@@ -75,6 +77,117 @@ export { sketchesToJsx, type JsxOptions } from '../core/illustrator.js';
 // Effects: the CSS filter functions as data, on a mark, a layer or an
 // element, drawn by every output that can draw them.
 export { EFFECT_TYPES, cssFilter, readEffects, type Effect, type EffectType } from '../core/effects.js';
+
+// Paint: which of a mark's two paints - its outline and its fill - a picked
+// color goes to, and Swap Fill and Stroke: the rules of the drawing window's
+// fill and stroke control, one mark at a time.
+export { COLOR_TARGETS, paintPatch, swapPaint, type ColorTarget } from '../core/paint.js';
+
+// Region geometry: the boolean engine the stroke profiles, the Eraser and the
+// wipes stand on; erasing as geometry; the wipes - a vector editor's
+// Pathfinder, six operations on marks - with the faces of an arrangement; and
+// stacking - its Shape Builder - which merges faces or takes them away; and
+// splitting - its Scissors - which cuts a path where a point lands on it; and
+// clipping masks, a group that shows only inside the closed mark on top.
+export {
+  BOOLEAN_EDGE_LIMIT,
+  booleanOp,
+  booleanRegions,
+  type BooleanOp,
+  type BooleanOptions,
+  type BooleanResult,
+  type FillRule,
+} from '../core/boolean.js';
+export { eraseKind, eraseMarks, eraseRegionOf, type EraseKind, type EraseRegion, type EraseResult } from '../core/erase.js';
+export {
+  WIPE_FACE_LIMIT,
+  WIPE_OPERAND_LIMIT,
+  WIPE_OPS,
+  arrangeFaces,
+  faceAt,
+  facesAlong,
+  facesInBox,
+  stackArrangement,
+  stackEdit,
+  stackFaces,
+  wipeMarks,
+  wipeOperand,
+  type Arrangement,
+  type Face,
+  type MarkEdit,
+  type StackArrangement,
+  type StackBox,
+  type StackMode,
+  type StackResult,
+  type WipeOp,
+  type WipeOperand,
+  type WipeProblem,
+  type WipeResult,
+} from '../core/wipe.js';
+export { SPLIT_REACH_PX, isSplittable, nearestOnMark, splitMark, splitTarget, type SplitPieces, type SplitPoint } from '../core/split.js';
+export {
+  CLIP_GROUP_NAME,
+  canClip,
+  clipIndex,
+  clipMarkOf,
+  clipRegionOf,
+  clippedAt,
+  makeClip,
+  normalizeClips,
+  releaseClip,
+  shownBounds,
+  type Clip,
+  type ClipIndex,
+  type ClipProblem,
+} from '../core/clip.js';
+// The Pencil: the drawing kit's grades, how each lays down through the
+// paper's tooth, and a mark's picture as the canvas paints it.
+export {
+  DEFAULT_PENCIL,
+  GRAIN_TILE_SIZE,
+  PENCIL_GRADES,
+  PENCIL_KIT,
+  grainTile,
+  parsePencil,
+  pencilCoverage,
+  pencilGrade,
+  pencilMeanCoverage,
+  pencilPaint,
+  pencilPicture,
+  pencilRegion,
+  pencilWidth,
+  rasterizePencil,
+  type PencilChoice,
+  type PencilGrade,
+  type PencilMedium,
+  type PencilRegion,
+} from '../core/pencil.js';
+// The Smear: a blending stump's pass over a Pencil mark's picture, and the
+// pass a drag leaves on each mark it reached.
+export {
+  DEFAULT_SMEAR_STRENGTH,
+  mapSmudges,
+  smearReaches,
+  smudgeBuffer,
+  smudgeFor,
+  type SmudgePass,
+  type SmudgeState,
+} from '../core/smudge.js';
+// Liquify: a vector editor's Warp tools - Warp, Twirl, Pucker and Bloat - as
+// fields that bend the marks under a brush, and the refit after a drag.
+export {
+  LIQUIFY_MODES,
+  liquifiable,
+  liquifyFalloff,
+  liquifyField,
+  liquifyMarks,
+  liquifyReaches,
+  refitLiquified,
+  type LiquifyDab,
+  type LiquifyMode,
+  type LiquifyOptions,
+} from '../core/liquify.js';
+export type { PointMap } from '../core/mesh-warp.js';
 
 // Napkin script: a drawing from written instructions, with no DOM. The
 // language reads no file; `napkin-sketch/node` is the host that does.

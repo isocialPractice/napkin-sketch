@@ -4,6 +4,7 @@
  */
 
 import { isImageStroke, isTextStroke, type Stroke } from './types.js';
+import { smudgeBox } from './smudge.js';
 
 /** Axis-aligned bounds of a stroke (or text item) in CSS pixels. */
 export function strokeBounds(
@@ -39,6 +40,15 @@ export function strokeBounds(
     if (p.y < minY) minY = p.y;
     if (p.x > maxX) maxX = p.x;
     if (p.y > maxY) maxY = p.y;
+  }
+  // A smeared Pencil mark takes in where the stump carried its graphite.
+  for (const smudge of stroke.smudges ?? []) {
+    const box = smudgeBox(smudge);
+    if (!box) continue;
+    minX = Math.min(minX, box.minX);
+    minY = Math.min(minY, box.minY);
+    maxX = Math.max(maxX, box.maxX);
+    maxY = Math.max(maxY, box.maxY);
   }
   return { minX, minY, maxX, maxY };
 }

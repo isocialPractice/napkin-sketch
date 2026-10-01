@@ -29,17 +29,72 @@ import {
   type Sketch,
   type Stroke,
 } from '../core/types.js';
-import { cssFilter, readEffects, type Effect, type LinearTransform } from '../core/effects.js';
+import { cssFilter, effectReach, readEffects, type Effect, type LinearTransform } from '../core/effects.js';
 import { copicNibPolygons } from '../core/nib.js';
 import { sketchToSvg, type SvgExportOptions } from '../core/sketch-svg.js';
 import { strokeBounds } from '../core/bounds.js';
+import { paintSteps, paintsAsPicture } from '../core/paint-order.js';
+import { clipIndex, shownBounds, type ClipIndex } from '../core/clip.js';
+import { pencilPicture, pencilRegion, pencilRgb, rasterizePencil, type PencilRegion } from '../core/pencil.js';
+import { smudgeBuffer, type SmudgePass, type SmudgeState } from '../core/smudge.js';
+import { boxReachesView, clampView, clampZoom, zoomLimits, type ZoomLimits } from './zoom.js';
 
 export { strokeBounds, type SvgExportOptions };
 import { activeProfile, profileInputOf, profilePieces } from '../core/stroke-profile.js';
 
-/** A live (in-progress) stroke being drawn by the user. */
+/**
+ * A live (in-progress) stroke being drawn by the user. One with the id of a
+ * stored mark is that mark being drawn on, and paints instead of it.
+ */
 export interface LiveStroke extends Stroke {
   points: Point[];
+}
+
+/** The canvas as it showed over a box - its device pixels - kept for a wipe to sweep away. */
+export interface WipeSnapshot {
+  image: HTMLCanvasElement;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** How far a wipe's band leans from upright, in degrees. */
+const WIPE_TILT_DEG = 6;
+
+/**
+ * How long a zoom must hold still before Pencil marks are worked out again at
+ * it, in milliseconds. Until then each is drawn from its picture at the last
+ * scale, stretched, so a wheel zoom never waits on the grain.
+ */
+const PENCIL_SETTLE_MS = 160;
+
+/** The most device pixels one Pencil picture holds; a bigger mark is worked out for the part in view. */
+const PENCIL_PICTURE_MAX = 4_000_000;
+
+/**
+ * The most device pixels a smeared Pencil mark's picture holds. A smear
+ * carries graphite from anywhere in the mark, so it is worked out whole;
+ * past this, at a lower scale, drawn stretched - a deep zoom on a big
+ * smeared mark goes soft rather than out of memory.
+ */
+const SMEARED_PICTURE_MAX = 6_000_000;
+
+/**
+ * A Pencil mark's picture (core/pencil.ts), kept while the mark and the
+ * scale are as they were. A live stroke grows its picture where it grew.
+ */
+interface PencilPicture {
+  /** The paint and shape the picture was made from, all but the points. */
+  key: string;
+  /** The points array it was made from, how many there were, and their checksum. */
+  points: Point[];
+  count: number;
+  sum: number;
+  region: PencilRegion;
+  canvas: HTMLCanvasElement;
+  /** The scale the picture stands for: its own, or the bigger one a capped smeared picture is stretched to. */
+  meant: number;
 }
 
 /** What a render puts under the ink. */
@@ -49,12 +104,38 @@ interface LayerWalk {
   byLayer: Map<string, Stroke[]>;
   effectiveOf: ReturnType<typeof effectiveLayers>;
   byId: Map<string, Layer>;
-  /** Groups whose effects make them paint as one picture. */
-  effectGroups: Set<string>;
+  /** Groups that paint as one picture: those with effects, and clip groups. */
+  pictureGroups: Set<string>;
+  /** The page's clips: the marks that paint nothing while they clip, and each clip group's region. */
+  clips: ClipIndex;
   live: LiveStroke | null;
   liveLayerId: string | null;
+  /** The Eraser at work - its stroke, or the Shape Eraser's region - and whose layers it cuts (see Overlay.liveErase). */
+  liveErase: {
+    stroke: LiveStroke | null;
+    region: ReadonlyArray<ReadonlyArray<{ x: number; y: number }>> | null;
+    targets: ReadonlySet<string> | null;
+  } | null;
   /** Device pixels to one page pixel, for a filter's lengths. */
   device: LinearTransform;
+  /**
+   * How far past the view every picture with effects is painted this render,
+   * in device pixels (see Surface.effectPad): one pad for them all, so a
+   * blurred mark on a blurred layer in a blurred group paints no further out
+   * than any one of them.
+   */
+  pad: number;
+}
+
+/**
+ * A canvas being painted, and where the view's device origin sits on it:
+ * `pad` device pixels in from its corner. The ink canvas is the view itself;
+ * a picture with effects is painted `pad` past the view on every side, so a
+ * blur at the view's edge gathers what is just outside it as well.
+ */
+interface Frame {
+  ctx: CanvasRenderingContext2D;
+  pad: number;
 }
 
 export interface RenderOptions {
@@ -118,6 +199,48 @@ export interface Overlay {
   /** Ring marking the endpoint the pointer will snap to (Shift held while drawing). */
   snapTarget?: Point;
   /**
+   * The live stroke is the Eraser at work: it paints nowhere of its own, and
+   * cuts every layer holding one of `targets` instead - or, with no targets,
+   * every layer that can be drawn on - as the release will cut the marks.
+   * With a `region` it is the Shape Eraser: that region's interior is what
+   * cuts, and the live stroke is left alone.
+   */
+  liveErase?: { targets: ReadonlySet<string> | null; region?: ReadonlyArray<ReadonlyArray<{ x: number; y: number }>> };
+  /**
+   * A Smear drag under way: its pass so far, and the Pencil marks it has
+   * reached, which paint with the pass run over them (core/smudge.ts).
+   */
+  liveSmear?: { pass: SmudgePass; ids: ReadonlySet<string> };
+  /** The Shape Eraser's shape being dragged out, drawn as an outline over the cut. */
+  shapeOutline?: ReadonlyArray<{ x: number; y: number }>;
+  /**
+   * The Shape Stacker's pieces: the one under the pointer, shaded with a
+   * light mesh, or the ones a press has marked, with its path or its box -
+   * to merge, or, with `remove`, to take away. Each piece is its contours.
+   */
+  /** Where a Split click would cut: a small ring there, a constant size on the screen. */
+  splitRing?: { x: number; y: number };
+  /** The Liquify brush, at the pointer or where a drag has it: its ring, in page units, and a small cross at its centre. */
+  liquifyBrush?: { x: number; y: number; radius: number };
+  stack?: {
+    hover?: ReadonlyArray<ReadonlyArray<{ x: number; y: number }>>;
+    marked?: ReadonlyArray<ReadonlyArray<ReadonlyArray<{ x: number; y: number }>>>;
+    path?: ReadonlyArray<{ x: number; y: number }>;
+    box?: { minX: number; minY: number; maxX: number; maxY: number };
+    remove: boolean;
+  };
+  /**
+   * A wipe under way (the Wipe Stacks): the picture from before it, and how
+   * far across the napkin is, 0 to 1. Drawn over everything else.
+   */
+  wipe?: { snapshot: WipeSnapshot; t: number };
+  /**
+   * The Vector Path tool's first anchor, while a press would close the path
+   * there: `close-path-indicator.svg` is drawn on it, 20 screen pixels
+   * across whatever the zoom.
+   */
+  closeIndicator?: { x: number; y: number };
+  /**
    * Anchor-point overlay, shared by Direct Select and the Vector Path tool:
    * the anchor points, which of them are selected (drawn blue), tangent
    * handles (tip positions, with guide lines from the anchor they belong
@@ -167,9 +290,28 @@ export interface Viewport {
   zoom: number;
 }
 
-/** Smallest and largest allowed zoom factors. */
-export const MIN_ZOOM = 0.2;
-export const MAX_ZOOM = 8;
+/** How far a selected mark's dashed box stands off its bounds, in screen pixels. */
+export const SELECTION_BOX_PAD = 6;
+
+/** The steps an effect picture's pad comes in, in device pixels, so zooming does not resize its canvas at every frame. */
+const EFFECT_PAD_STEP = 64;
+
+/** How magnified an image is, in screen pixels to one of its own, before it shows its pixels rather than smoothing them. */
+const IMAGE_PIXELS_AT = 4;
+
+/** The Vector Path close indicator, as the drawing window reaches it from `dist/renderer`, and its size in screen pixels. */
+const CLOSE_INDICATOR_SRC = '../assets/close-path-indicator.svg';
+const CLOSE_INDICATOR_PX = 20;
+
+/** One selected mark's dashed box, as `Surface.selectionBoxes` reports it (sketch units). */
+export interface SelectionBox {
+  /** The mark the box is drawn around. */
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export class Surface {
   private readonly canvas: HTMLCanvasElement;
@@ -180,9 +322,36 @@ export class Surface {
   private readonly scratchCtx: CanvasRenderingContext2D;
   /** A mark with effects is painted here first, then laid down through them. */
   private effectCanvas: HTMLCanvasElement | null = null;
+  /** A drawing layer with effects is painted here, past the view by the render's pad. */
+  private effectScratch: HTMLCanvasElement | null = null;
+  /** Each stroke's filled outline, while the stroke is unchanged (see outlinePath). */
+  private readonly outlines = new WeakMap<Stroke, { points: Point[]; key: string; path: Path2D }>();
+  /** Each Pencil mark's picture, while it and the scale are unchanged (see paintPencil). */
+  private readonly pencils = new WeakMap<Stroke, PencilPicture>();
+  /** The scale Pencil marks were last painted at, and when that changed. */
+  private pencilScale = 0;
+  private pencilScaleAt = 0;
+  /** A repaint asked for once a zoom holds still. */
+  private pencilTimer: ReturnType<typeof setTimeout> | null = null;
+  /** How many Pencil pictures were worked out, whole or in part, since the surface was made: for the checks. */
+  pencilRasters = 0;
+  /** The Smear drag under way, for the render in progress (see Overlay.liveSmear). */
+  private liveSmear: Overlay['liveSmear'] | null = null;
+  /**
+   * Each reached mark's picture with the drag's pass run over it so far: the
+   * pass goes on from where it stopped as the drag grows, so a long smear
+   * costs only its new steps. Dropped when the drag ends.
+   */
+  private readonly smearing = new Map<string, { key: string; region: PencilRegion; data: Uint8ClampedArray<ArrayBuffer>; state: SmudgeState; canvas: HTMLCanvasElement }>();
+  /** The pad of the render under way (see LayerWalk.pad); 0 between renders. */
+  private renderPad = 0;
+  /** How far past the view the canvas a layer's marks are going onto reaches, in device pixels. */
+  private framePad = 0;
   /** A group with effects paints its layers here, one canvas for each depth of nesting. */
   private readonly groupCanvases: HTMLCanvasElement[] = [];
   private dpr = 1;
+  /** The Shape Stacker's mesh patterns, by colour and pixel ratio. */
+  private readonly meshes = new Map<string, CanvasPattern>();
   private cssWidth = 0;
   private cssHeight = 0;
 
@@ -196,6 +365,9 @@ export class Surface {
 
   /** Called when a lazily-decoded image finishes loading (schedule a re-render). */
   onImageLoad: (() => void) | null = null;
+
+  /** The Vector Path close indicator, loaded the first time it is drawn. */
+  private closeIndicatorImage: HTMLImageElement | null = null;
 
   /**
    * Drops every decoded image the surface is holding.
@@ -247,6 +419,11 @@ export class Surface {
     this.ink.height = h;
     this.scratch.width = w;
     this.scratch.height = h;
+    // A canvas that shrank below its zoom zooms out about its middle.
+    const held = clampView({ panX: this.panX, panY: this.panY, zoom: this.zoom }, this.getZoomLimits(), cssWidth / 2, cssHeight / 2);
+    this.panX = held.panX;
+    this.panY = held.panY;
+    this.zoom = held.zoom;
   }
 
   /** Width of the drawable area in CSS pixels. */
@@ -312,9 +489,14 @@ export class Surface {
     return { panX: this.panX, panY: this.panY, zoom: this.zoom };
   }
 
+  /** How far this canvas zooms: out to a fifth, in until one page pixel spans its shorter side. */
+  getZoomLimits(): ZoomLimits {
+    return zoomLimits(this.cssWidth, this.cssHeight);
+  }
+
   /** Replaces the viewport, clamping zoom to the supported range. */
   setViewport(viewport: Viewport): void {
-    this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, viewport.zoom));
+    this.zoom = clampZoom(viewport.zoom, this.getZoomLimits());
     this.panX = viewport.panX;
     this.panY = viewport.panY;
   }
@@ -337,7 +519,7 @@ export class Surface {
    * (`centerX`, `centerY`) fixed on screen (zoom toward the pinch centroid).
    */
   zoomAt(factor: number, centerX: number, centerY: number): void {
-    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, this.zoom * factor));
+    const next = clampZoom(this.zoom * factor, this.getZoomLimits());
     if (next === this.zoom) return;
     // World point currently under the cursor must stay under the cursor.
     const worldX = (centerX - this.panX) / this.zoom;
@@ -355,7 +537,7 @@ export class Surface {
     if (options?.transparent) {
       // A cropped export drops into somebody else's composition, so no paper,
       // no texture, and no page outline goes under the ink.
-      ctx.clearRect(0, 0, this.cssWidth, this.cssHeight);
+      ctx.clearRect(0, 0, this.canvas.width / this.dpr, this.canvas.height / this.dpr);
     } else {
       this.paintBackground(sketch.background);
       this.paintPaperTexture();
@@ -380,17 +562,33 @@ export class Surface {
     // layer of its own, so rescanning the stroke list for each row made a
     // frame cost the square of the page's size.
     const scale = this.dpr * this.zoom;
+    this.liveSmear = overlay?.liveSmear ?? null;
+    if (!this.liveSmear) this.smearing.clear();
+    const region = overlay?.liveErase?.region ?? null;
+    const erasing = !region && overlay?.liveErase && live && live.tool === 'eraser' && live.points.length > 0 ? live : null;
     const walk: LayerWalk = {
       sketch,
       byLayer: strokesByLayer(sketch),
       effectiveOf: effectiveLayers(sketch),
       byId: new Map(sketch.layers.map((layer) => [layer.id, layer])),
-      effectGroups: new Set(sketch.layers.filter((layer) => layer.group && readEffects(layer.effects)).map((layer) => layer.id)),
-      live: live ?? null,
-      liveLayerId: live ? layerOf(sketch, live).id : null,
+      pictureGroups: new Set(sketch.layers.filter(paintsAsPicture).map((layer) => layer.id)),
+      clips: clipIndex(sketch),
+      live: erasing ? null : (live ?? null),
+      liveLayerId: live && !erasing ? layerOf(sketch, live).id : null,
+      liveErase:
+        overlay?.liveErase && (erasing || region)
+          ? { stroke: erasing, region, targets: overlay.liveErase.targets }
+          : null,
       device: { a: scale, b: 0, c: 0, d: scale },
+      pad: this.effectPad(sketch, scale),
     };
-    this.paintLayers(ink, null, walk, 0);
+    this.renderPad = walk.pad;
+    try {
+      this.paintLayers({ ctx: ink, pad: 0 }, null, walk, 0);
+    } finally {
+      this.renderPad = 0;
+      this.framePad = 0;
+    }
     ink.restore();
 
     // Composite the ink layer onto the base layer at 1:1 device pixels.
@@ -404,9 +602,7 @@ export class Surface {
     this.applyWorld(ctx);
 
     if (overlay?.selectedIds && overlay.selectedIds.size > 0 && overlay.showSelectionBorders !== false) {
-      for (const stroke of sketch.strokes) {
-        if (overlay.selectedIds.has(stroke.id)) this.paintSelection(ctx, stroke);
-      }
+      for (const box of this.selectionBoxes(sketch, overlay.selectedIds)) this.paintSelection(ctx, box);
     }
 
     if (overlay?.liveTextBox) {
@@ -437,10 +633,235 @@ export class Surface {
       this.paintAnchors(ctx, overlay.anchors);
     }
 
+    if (overlay?.closeIndicator) {
+      this.paintCloseIndicator(ctx, overlay.closeIndicator);
+    }
+
+    if (overlay?.shapeOutline && overlay.shapeOutline.length > 1) {
+      // The Shape Eraser's shape, in the close indicator's blue, a constant
+      // width on the screen.
+      ctx.save();
+      ctx.strokeStyle = '#20557b';
+      ctx.lineWidth = 1.5 / this.zoom;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      overlay.shapeOutline.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+
     if (overlay?.warp) {
       this.paintWarpOverlay(ctx, overlay.warp);
     }
 
+    if (overlay?.stack) {
+      this.paintStack(ctx, overlay.stack);
+    }
+
+    if (overlay?.splitRing) {
+      // Split's cut, in the close indicator's blue over a white halo.
+      const { x, y } = overlay.splitRing;
+      const r = 4.5 / this.zoom;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 3.5 / this.zoom;
+      ctx.stroke();
+      ctx.strokeStyle = '#20557b';
+      ctx.lineWidth = 1.5 / this.zoom;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (overlay?.liquifyBrush) {
+      // Liquify's brush, in the Split ring's blue over a white halo, as a
+      // vector editor draws its warp brushes: the ring is what bends.
+      const { x, y, radius } = overlay.liquifyBrush;
+      const arm = 4 / this.zoom;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.moveTo(x - arm, y);
+      ctx.lineTo(x + arm, y);
+      ctx.moveTo(x, y - arm);
+      ctx.lineTo(x, y + arm);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 3 / this.zoom;
+      ctx.stroke();
+      ctx.strokeStyle = '#20557b';
+      ctx.lineWidth = 1.25 / this.zoom;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.restore();
+
+    if (overlay?.wipe) this.paintWipe(overlay.wipe.snapshot, overlay.wipe.t, sketch.background);
+  }
+
+  /**
+   * The Shape Stacker's pieces, as a vector editor's Shape Builder shades
+   * them: the one under the pointer with a light tint and a fine mesh, those
+   * a press has marked with a stronger one - blue to merge, red to take away
+   * - each outlined, and the press's path or box over them. The mesh keeps
+   * its size on the screen whatever the zoom.
+   */
+  private paintStack(ctx: CanvasRenderingContext2D, stack: NonNullable<Overlay['stack']>): void {
+    const ink = stack.remove ? '179, 38, 30' : '32, 85, 123';
+    const shade = (pieces: ReadonlyArray<ReadonlyArray<ReadonlyArray<{ x: number; y: number }>>>, tint: number, mesh: number, edge: number): void => {
+      if (pieces.length === 0) return;
+      ctx.save();
+      ctx.beginPath();
+      for (const piece of pieces) {
+        for (const ring of piece) {
+          ring.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+          ctx.closePath();
+        }
+      }
+      ctx.fillStyle = `rgba(${ink}, ${tint})`;
+      ctx.fill('evenodd');
+      ctx.strokeStyle = `rgba(${ink}, ${edge})`;
+      ctx.lineWidth = 1 / this.zoom;
+      ctx.stroke();
+      ctx.clip('evenodd');
+      // The mesh, in device pixels, over everything the pieces cover.
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const pattern = this.meshPattern(`rgba(${ink}, ${mesh})`);
+      if (pattern) {
+        ctx.fillStyle = pattern;
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      }
+      ctx.restore();
+    };
+    if (stack.hover) shade([stack.hover], 0.1, 0.35, 0.6);
+    if (stack.marked) shade(stack.marked, 0.2, 0.55, 0.85);
+    ctx.save();
+    ctx.strokeStyle = `rgb(${ink})`;
+    ctx.lineWidth = 1.5 / this.zoom;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    if (stack.path && stack.path.length > 1) {
+      ctx.beginPath();
+      stack.path.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.stroke();
+    }
+    if (stack.box) {
+      ctx.setLineDash([4 / this.zoom, 3 / this.zoom]);
+      ctx.strokeRect(stack.box.minX, stack.box.minY, stack.box.maxX - stack.box.minX, stack.box.maxY - stack.box.minY);
+    }
+    ctx.restore();
+  }
+
+  /** The Shape Stacker's mesh in a colour: a diagonal lattice a few device pixels apart, made once. */
+  private meshPattern(color: string): CanvasPattern | null {
+    const key = color + '@' + this.dpr;
+    const held = this.meshes.get(key);
+    if (held) return held;
+    const size = Math.max(6, Math.round(6 * this.dpr));
+    const tile = document.createElement('canvas');
+    tile.width = size;
+    tile.height = size;
+    const t = tile.getContext('2d');
+    if (!t) return null;
+    t.strokeStyle = color;
+    t.lineWidth = Math.max(1, this.dpr * 0.75);
+    t.beginPath();
+    t.moveTo(0, size);
+    t.lineTo(size, 0);
+    t.moveTo(0, 0);
+    t.lineTo(size, size);
+    t.stroke();
+    const pattern = this.ctx.createPattern(tile, 'repeat');
+    if (pattern) this.meshes.set(key, pattern);
+    return pattern;
+  }
+
+  /**
+   * The canvas as it shows now over a page box and a margin round it, in
+   * device pixels, clipped to the canvas - or null when none of the box is on
+   * it. A copy, taken at once: the page may change the moment after.
+   */
+  snapshot(box: { minX: number; minY: number; maxX: number; maxY: number }, marginCss = 12): WipeSnapshot | null {
+    const k = this.dpr;
+    const x0 = Math.max(0, Math.floor((this.panX + box.minX * this.zoom - marginCss) * k));
+    const y0 = Math.max(0, Math.floor((this.panY + box.minY * this.zoom - marginCss) * k));
+    const x1 = Math.min(this.canvas.width, Math.ceil((this.panX + box.maxX * this.zoom + marginCss) * k));
+    const y1 = Math.min(this.canvas.height, Math.ceil((this.panY + box.maxY * this.zoom + marginCss) * k));
+    if (x1 <= x0 || y1 <= y0) return null;
+    const image = document.createElement('canvas');
+    image.width = x1 - x0;
+    image.height = y1 - y0;
+    const copy = image.getContext('2d');
+    if (!copy) return null;
+    copy.drawImage(this.canvas, x0, y0, image.width, image.height, 0, 0, image.width, image.height);
+    return { image, x: x0, y: y0, w: image.width, h: image.height };
+  }
+
+  /**
+   * A napkin wiping across the box of a wipe: a band of the paper's colour, a
+   * third of the box wide and leaning a few degrees, with a soft shadow and a
+   * few faint creases, eased from left to right as `t` goes from 0 to 1. The
+   * picture from before the wipe shows ahead of it, and the result behind.
+   */
+  private paintWipe(snapshot: WipeSnapshot, t: number, paper: string): void {
+    const ctx = this.ctx;
+    const { image, x, y, w, h } = snapshot;
+    const e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+    const band = Math.max(12 * this.dpr, w / 3);
+    const lean = Math.tan((WIPE_TILT_DEG * Math.PI) / 180);
+    const mid = y + h / 2;
+    // From wholly left of the box to wholly past it, the lean included.
+    const start = x - band - (h / 2) * lean;
+    const left = start + (w + band + h * lean) * e;
+    const at = (edge: number, yy: number): number => edge + (yy - mid) * lean;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    // Ahead of the band: the page as it was.
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(at(left + band, y), y);
+    ctx.lineTo(x + w + h, y);
+    ctx.lineTo(x + w + h, y + h);
+    ctx.lineTo(at(left + band, y + h), y + h);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(image, x, y);
+    ctx.restore();
+    // The napkin.
+    ctx.beginPath();
+    ctx.moveTo(at(left, y), y);
+    ctx.lineTo(at(left + band, y), y);
+    ctx.lineTo(at(left + band, y + h), y + h);
+    ctx.lineTo(at(left, y + h), y + h);
+    ctx.closePath();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+    ctx.shadowBlur = 10 * this.dpr;
+    ctx.shadowOffsetX = 2 * this.dpr;
+    ctx.fillStyle = paper;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    // Its creases: faint and a little crooked, the same every frame.
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.09)';
+    ctx.lineWidth = this.dpr;
+    for (const [across, bend] of [
+      [0.28, 0.06],
+      [0.55, -0.05],
+      [0.8, 0.04],
+    ]) {
+      ctx.beginPath();
+      for (let k = 0; k <= 4; k++) {
+        const yy = y + (h * k) / 4;
+        const xx = at(left + band * (across + (k % 2 === 0 ? 0 : bend)), yy);
+        if (k === 0) ctx.moveTo(xx, yy);
+        else ctx.lineTo(xx, yy);
+      }
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -558,109 +979,242 @@ export class Surface {
    * paints what it holds on a canvas of its own and lays that down through
    * its effects as one picture, as the exports draw it.
    */
-  private paintLayers(target: CanvasRenderingContext2D, scope: Layer | null, walk: LayerWalk, depth: number): void {
-    const done = new Set<string>();
-    for (const layer of walk.sketch.layers) {
-      if (layer.group) continue;
-      const effective = walk.effectiveOf.get(layer.id);
-      if (!effective || !effective.visible) continue;
-      if (scope && !this.isUnder(layer, scope, walk)) continue;
-      const group = this.effectGroupOf(layer, scope, walk);
-      if (group) {
-        if (!done.has(group.id)) {
-          done.add(group.id);
-          this.paintGroupPicture(target, group, scope, walk, depth);
-        }
-        continue;
-      }
-      this.paintLeaf(target, layer, this.opacityBetween(layer, scope, walk), walk);
+  private paintLayers(target: Frame, scope: Layer | null, walk: LayerWalk, depth: number): void {
+    // The steps the hit test walks too (core/paint-order.ts), so what a click
+    // picks is what is on top here.
+    for (const step of paintSteps(walk.sketch, scope, walk, (layer) => this.layerPaints(layer, walk))) {
+      if (step.kind === 'group') this.paintGroupPicture(target, step.group, scope, walk, depth);
+      else this.paintLeaf(target, step.layer, this.opacityBetween(step.layer, scope, walk), walk);
     }
   }
 
-  /** One drawing layer: its marks on the scratch canvas, laid down at `opacity` through its own effects. */
-  private paintLeaf(target: CanvasRenderingContext2D, layer: Layer, opacity: number, walk: LayerWalk): void {
-    const strokes = walk.byLayer.get(layer.id) ?? [];
+  private layerPaints(layer: Layer, walk: LayerWalk): boolean {
+    return walk.effectiveOf.get(layer.id)?.visible === true;
+  }
+
+  /**
+   * One drawing layer: its marks on a scratch canvas, laid down at `opacity`
+   * through its own effects. A layer with effects is painted past the view
+   * by their reach, and not at all when nothing it paints reaches the view:
+   * its blur is worked over the whole picture, which deep in costs as much
+   * off the screen as on it.
+   */
+  private paintLeaf(target: Frame, layer: Layer, opacity: number, walk: LayerWalk): void {
     const live = walk.live;
+    const stored = walk.byLayer.get(layer.id) ?? [];
+    // A live stroke that carries a stored mark's id is that mark being drawn
+    // on (a Shift-click line): it paints in the mark's place, not over it. A
+    // clip mark paints nothing while it clips.
+    const unclipped = walk.clips.any ? stored.filter((s) => !walk.clips.marks.has(s.id)) : stored;
+    const strokes = live ? unclipped.filter((s) => s.id !== live.id) : unclipped;
     const liveHere = live && live.points.length > 0 && walk.liveLayerId === layer.id ? live : null;
     if (strokes.length === 0 && !liveHere) return;
 
-    const scratch = this.scratchCtx;
+    const effects = readEffects(layer.effects);
+    let marks = liveHere ? [...strokes, liveHere] : strokes;
+    // The Eraser at work cuts this layer when it holds a mark the release
+    // will cut: painted over the layer's marks, it takes away what it covers
+    // - its swath, or the Shape Eraser's shape, filled.
+    const erase = walk.liveErase && this.eraseCuts(layer, strokes, walk.liveErase.targets, walk) ? walk.liveErase : null;
+    if (erase?.stroke) marks = [...marks, erase.stroke];
+    if (effects && !this.marksReachView(marks, effectReach(effects), walk)) return;
+    // A layer with effects is painted past the view, and so is any layer
+    // going into a picture that is: a group's blur gathers from its margin.
+    const pad = effects ? walk.pad : target.pad;
+    const canvas = pad === 0 ? this.scratch : (this.effectScratch = this.paddedCanvas(this.effectScratch, pad));
+    const scratch = pad === 0 ? this.scratchCtx : canvas.getContext('2d');
+    if (!scratch) return;
     scratch.save();
     scratch.setTransform(1, 0, 0, 1, 0, 0);
-    scratch.clearRect(0, 0, this.scratch.width, this.scratch.height);
+    scratch.clearRect(0, 0, canvas.width, canvas.height);
+    scratch.translate(pad, pad);
     scratch.scale(this.dpr, this.dpr);
     this.applyWorld(scratch);
-    for (const stroke of strokes) {
-      this.paintStroke(scratch, stroke);
+    const framePad = this.framePad;
+    this.framePad = pad;
+    try {
+      for (const stroke of marks) this.paintStroke(scratch, stroke);
+      if (erase?.region) this.cutRegion(scratch, erase.region);
+    } finally {
+      this.framePad = framePad;
+      scratch.restore();
     }
-    if (liveHere) this.paintStroke(scratch, liveHere);
-    scratch.restore();
 
-    this.layDown(target, this.scratch, opacity, readEffects(layer.effects), walk.device);
+    this.layDown(target, { ctx: scratch, pad }, opacity, effects, walk.device);
   }
 
-  /** A group with effects: what it holds, on a canvas of its own, laid down through its effects. */
-  private paintGroupPicture(target: CanvasRenderingContext2D, group: Layer, scope: Layer | null, walk: LayerWalk, depth: number): void {
-    const canvas = this.groupCanvas(depth);
+  /** Takes a region's interior out of what a layer's pass has painted so far: the Shape Eraser's cut, before the release makes it. */
+  private cutRegion(ctx: CanvasRenderingContext2D, region: ReadonlyArray<ReadonlyArray<{ x: number; y: number }>>): void {
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    for (const ring of region) {
+      ring.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.closePath();
+    }
+    ctx.fill('nonzero');
+    ctx.restore();
+  }
+
+  /**
+   * Whether the Eraser at work cuts a layer: it holds one of the targets, or,
+   * with none, it can be drawn on - visible and unlocked, groups and all -
+   * and holds a mark an eraser can cut.
+   */
+  private eraseCuts(layer: Layer, strokes: readonly Stroke[], targets: ReadonlySet<string> | null, walk: LayerWalk): boolean {
+    if (targets) return strokes.some((s) => targets.has(s.id));
+    const effective = walk.effectiveOf.get(layer.id);
+    if (!effective || !effective.visible || effective.locked) return false;
+    return strokes.some((s) => s.tool !== 'eraser' && !isTextStroke(s) && !isImageStroke(s));
+  }
+
+  /**
+   * A group painting as one picture: what it holds, on a canvas of its own -
+   * past the view by its effects' reach - cut to its clip's interior when it
+   * is a clip group (the inverse of the Shape Eraser's cut, and before the
+   * effects, so a shadow falls under what shows), and laid down through its
+   * effects.
+   */
+  private paintGroupPicture(target: Frame, group: Layer, scope: Layer | null, walk: LayerWalk, depth: number): void {
+    const effects = readEffects(group.effects);
+    if (effects && !this.contentReachesView(group, effectReach(effects), walk)) return;
+    const pad = effects ? walk.pad : target.pad;
+    const canvas = this.groupCanvas(depth, pad);
     const gctx = canvas.getContext('2d');
     if (!gctx) return;
-    this.paintLayers(gctx, group, walk, depth + 1);
-    this.layDown(target, canvas, this.opacityBetween(group, scope, walk), readEffects(group.effects), walk.device);
+    const frame = { ctx: gctx, pad };
+    this.paintLayers(frame, group, walk, depth + 1);
+    // A clip naming no closed mark in the group clips nothing.
+    const clip = walk.clips.byGroup.get(group.id);
+    if (clip) this.keepRegion(frame, clip.region);
+    this.layDown(target, frame, this.opacityBetween(group, scope, walk), effects, walk.device);
   }
 
-  /** Draws a device-sized picture onto `target` at `opacity`, through `effects` when it has any. */
+  /** Keeps only a region's interior of what a picture's canvas holds: a clip group's clip. */
+  private keepRegion(frame: Frame, region: ReadonlyArray<ReadonlyArray<{ x: number; y: number }>>): void {
+    const ctx = frame.ctx;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.translate(frame.pad, frame.pad);
+    ctx.scale(this.dpr, this.dpr);
+    this.applyWorld(ctx);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    for (const ring of region) {
+      ring.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.closePath();
+    }
+    ctx.fill('nonzero');
+    ctx.restore();
+  }
+
+  /**
+   * Lays a picture painted on its own canvas onto `target` at `opacity`,
+   * through `effects` when it has any. The two frames' pads line their views
+   * up; a blur is held to a third of the picture's pad, so all it gathers
+   * was painted.
+   */
   private layDown(
-    target: CanvasRenderingContext2D,
-    picture: HTMLCanvasElement,
+    target: Frame,
+    picture: Frame,
     opacity: number,
     effects: Effect[] | undefined,
     device: LinearTransform,
   ): void {
-    target.save();
-    target.setTransform(1, 0, 0, 1, 0, 0);
-    target.globalAlpha = opacity;
-    if (effects) target.filter = cssFilter(effects, device);
-    target.drawImage(picture, 0, 0);
-    target.restore();
+    const ctx = target.ctx;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = opacity;
+    if (effects) ctx.filter = cssFilter(effects, device, blurCap(picture.pad));
+    ctx.drawImage(picture.ctx.canvas, target.pad - picture.pad, target.pad - picture.pad);
+    ctx.restore();
   }
 
-  /** A cleared, device-sized canvas for a group's picture at a depth of nesting. */
-  private groupCanvas(depth: number): HTMLCanvasElement {
-    let canvas = this.groupCanvases[depth];
-    if (!canvas) {
-      canvas = document.createElement('canvas');
-      this.groupCanvases[depth] = canvas;
-    }
-    if (canvas.width !== this.ink.width || canvas.height !== this.ink.height) {
-      canvas.width = this.ink.width;
-      canvas.height = this.ink.height;
-    } else {
-      canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
-    }
+  /** A cleared canvas for a group's picture at a depth of nesting, the view's size plus `pad` on every side. */
+  private groupCanvas(depth: number, pad: number): HTMLCanvasElement {
+    const canvas = this.paddedCanvas(this.groupCanvases[depth] ?? null, pad);
+    this.groupCanvases[depth] = canvas;
     return canvas;
   }
 
-  /** True when `layer` sits somewhere inside `group`. */
-  private isUnder(layer: Layer, group: Layer, walk: LayerWalk): boolean {
-    const seen = new Set<string>();
-    for (let at = layer.parent ? walk.byId.get(layer.parent) : undefined; at && !seen.has(at.id); at = at.parent ? walk.byId.get(at.parent) : undefined) {
-      if (at.id === group.id) return true;
-      seen.add(at.id);
+  /**
+   * `canvas`, or a new one, sized to the view plus `pad` device pixels on
+   * every side and cleared. A canvas already that size is only cleared:
+   * resizing one is what costs, so the pads come in steps (see effectPad).
+   */
+  private paddedCanvas(canvas: HTMLCanvasElement | null, pad: number): HTMLCanvasElement {
+    const out = canvas ?? document.createElement('canvas');
+    const w = this.ink.width + pad * 2;
+    const h = this.ink.height + pad * 2;
+    if (out.width !== w || out.height !== h) {
+      out.width = w;
+      out.height = h;
+    } else {
+      out.getContext('2d')?.clearRect(0, 0, w, h);
+    }
+    return out;
+  }
+
+  /**
+   * How far past the view this render paints every picture with effects, in
+   * device pixels: the farthest any effect on the page reaches at `scale`,
+   * in steps of {@link EFFECT_PAD_STEP} so zooming does not resize a canvas
+   * at every frame, and at most half the view's diagonal. Past that, deep in,
+   * a blur already wider than the view is held to a third of the pad (see
+   * blurCap), which inside a shape looks the same and saves painting a canvas
+   * many times the view's size. 0 on a page with no blur and no shadow.
+   */
+  private effectPad(sketch: Sketch, scale: number): number {
+    let reach = 0;
+    for (const layer of sketch.layers) {
+      const effects = readEffects(layer.effects);
+      if (effects) reach = Math.max(reach, effectReach(effects));
+    }
+    for (const stroke of sketch.strokes) {
+      if (!stroke.effects || stroke.tool === 'eraser') continue;
+      const effects = readEffects(stroke.effects);
+      if (effects) reach = Math.max(reach, effectReach(effects));
+    }
+    const px = reach * scale;
+    if (!(px > 0)) return 0;
+    const cap = Math.ceil(Math.hypot(this.ink.width, this.ink.height) / 2);
+    return Math.min(cap, Math.ceil(px / EFFECT_PAD_STEP) * EFFECT_PAD_STEP);
+  }
+
+  /**
+   * Whether anything these marks paint, their own effects included and then
+   * `reach` page units more, lands in the view. Each mark on its own: two
+   * marks either side of the view reach it no more than one does.
+   */
+  private marksReachView(strokes: readonly Stroke[], reach: number, walk: LayerWalk): boolean {
+    const scale = walk.device.a;
+    const transform = { a: scale, b: 0, c: 0, d: scale, e: this.panX * this.dpr, f: this.panY * this.dpr };
+    for (const stroke of strokes) {
+      const box = strokeBounds(stroke, (s) => this.measureText(s));
+      if (!box) continue;
+      const effects = stroke.tool === 'eraser' ? undefined : readEffects(stroke.effects);
+      const own = inkMargin(stroke) + (effects ? effectReach(effects) : 0);
+      if (boxReachesView(box, own + reach, transform, this.ink.width, this.ink.height)) return true;
     }
     return false;
   }
 
-  /** The outermost group with effects between `layer` and `scope`, which paints `layer` as part of its picture. */
-  private effectGroupOf(layer: Layer, scope: Layer | null, walk: LayerWalk): Layer | null {
-    if (walk.effectGroups.size === 0) return null;
-    let found: Layer | null = null;
-    const seen = new Set<string>();
-    for (let at = layer.parent ? walk.byId.get(layer.parent) : undefined; at && !seen.has(at.id); at = at.parent ? walk.byId.get(at.parent) : undefined) {
-      if (scope && at.id === scope.id) break;
-      seen.add(at.id);
-      if (walk.effectGroups.has(at.id)) found = at;
+  /** Whether anything a group holds reaches the view, with `reach` page units of the effects around it more. */
+  private contentReachesView(scope: Layer, reach: number, walk: LayerWalk): boolean {
+    for (const step of paintSteps(walk.sketch, scope, walk, (layer) => this.layerPaints(layer, walk))) {
+      if (step.kind === 'group') {
+        const effects = readEffects(step.group.effects);
+        if (this.contentReachesView(step.group, reach + (effects ? effectReach(effects) : 0), walk)) return true;
+        continue;
+      }
+      const strokes = walk.byLayer.get(step.layer.id) ?? [];
+      const marks = walk.live && walk.liveLayerId === step.layer.id ? [...strokes, walk.live] : strokes;
+      const effects = readEffects(step.layer.effects);
+      if (this.marksReachView(marks, reach + (effects ? effectReach(effects) : 0), walk)) return true;
     }
-    return found;
+    return false;
   }
 
   /** The opacity of `layer` and of every group above it, up to `scope` and not counting it. */
@@ -680,10 +1234,17 @@ export class Surface {
     ctx.scale(this.zoom, this.zoom);
   }
 
+  /**
+   * The paper, over every pixel of the backing store. That is the CSS size
+   * times the device pixel ratio rounded, which can be half a pixel more than
+   * the CSS size covers: filled at the CSS size, a canvas 617.67 pixels tall
+   * at 1.5 left its last row half painted over the opaque black under it, a
+   * grey line along the bottom that any shadow reaching it darkened.
+   */
   private paintBackground(color: string): void {
     const ctx = this.ctx;
     ctx.fillStyle = color;
-    ctx.fillRect(0, 0, this.cssWidth, this.cssHeight);
+    ctx.fillRect(0, 0, this.canvas.width / this.dpr, this.canvas.height / this.dpr);
   }
 
   /**
@@ -744,10 +1305,13 @@ export class Surface {
     color: string,
     dash: number[],
   ): void {
+    // In screen pixels, whatever the zoom: a rubber band or a text box's
+    // outline is the pointer's, not the drawing's.
+    const px = 1 / this.zoom;
     ctx.save();
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash(dash);
+    ctx.lineWidth = 1.5 * px;
+    ctx.setLineDash(dash.map((d) => d * px));
     const x = Math.min(box.x1, box.x2);
     const y = Math.min(box.y1, box.y2);
     const w = Math.abs(box.x2 - box.x1);
@@ -766,7 +1330,7 @@ export class Surface {
     ctx.globalAlpha = 0.7;
     ctx.lineWidth = Math.max(1, line.width);
     ctx.lineCap = 'round';
-    ctx.setLineDash([8, 6]);
+    ctx.setLineDash([8 / this.zoom, 6 / this.zoom]);
     ctx.beginPath();
     ctx.moveTo(line.a.x, line.a.y);
     ctx.lineTo(line.b.x, line.b.y);
@@ -784,6 +1348,38 @@ export class Surface {
     ctx.arc(pt.x, pt.y, 6 / this.zoom, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
+  }
+
+  /**
+   * The close indicator on a Vector Path's first anchor: the asset, 20
+   * screen pixels across, loaded the first time it is wanted. Until it has
+   * decoded - or if it never does - a ring in its colour stands in.
+   */
+  private paintCloseIndicator(ctx: CanvasRenderingContext2D, at: { x: number; y: number }): void {
+    let img = this.closeIndicatorImage;
+    if (!img && typeof Image !== 'undefined') {
+      img = this.closeIndicatorImage = new Image();
+      img.onload = () => this.onImageLoad?.();
+      img.src = CLOSE_INDICATOR_SRC;
+    }
+    const size = CLOSE_INDICATOR_PX / this.zoom;
+    ctx.save();
+    if (img && img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, at.x - size / 2, at.y - size / 2, size, size);
+    } else {
+      ctx.strokeStyle = '#20557b';
+      ctx.lineWidth = 2.5 / this.zoom;
+      ctx.beginPath();
+      ctx.arc(at.x, at.y, size * 0.4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /** Whether the close indicator's image has decoded (for the GUI checks). */
+  closeIndicatorReady(): boolean {
+    const img = this.closeIndicatorImage;
+    return !!img && img.complete && img.naturalWidth > 0;
   }
 
   /**
@@ -963,8 +1559,9 @@ export class Surface {
     ctx.restore();
   }
 
-  private paintStroke(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
-    const effects = stroke.tool === 'eraser' ? undefined : readEffects(stroke.effects);
+  /** Paints a mark; `bare` paints it without its effects, as `paintWithEffects` does first. */
+  private paintStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, bare = false): void {
+    const effects = bare || stroke.tool === 'eraser' ? undefined : readEffects(stroke.effects);
     if (effects) {
       this.paintWithEffects(ctx, stroke, effects);
       return;
@@ -1026,17 +1623,19 @@ export class Surface {
       return;
     }
 
+    // Pencil: the lead through the paper's tooth.
+    if (stroke.tool === 'pencil') {
+      this.paintPencil(ctx, stroke);
+      ctx.restore();
+      return;
+    }
+
     // A stroke profile runs the width along the length, which no canvas line
     // can: the stroke paints as the shape it is, its pieces merged by one
     // non-zero fill so translucent ink lays down flat. Dashes are cut from
     // the profiled outline, so this goes before the dash branch below.
     if (pts.length > 1 && activeProfile(stroke)) {
-      ctx.beginPath();
-      for (const piece of profilePieces(profileInputOf(stroke))) {
-        piece.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
-        ctx.closePath();
-      }
-      ctx.fill('nonzero');
+      ctx.fill(this.outlinePath(stroke), 'nonzero');
       ctx.restore();
       return;
     }
@@ -1066,23 +1665,49 @@ export class Surface {
       return;
     }
 
-    // Pressure-aware variable width: draw segment-by-segment so the line can
-    // swell and taper like a real pen rather than a uniform vector path.
-    for (let i = 1; i < pts.length; i++) {
-      const a = pts[i - 1];
-      const b = pts[i];
-      if (b.move) continue; // pen lifts between a compound shape's contours
-      const avgPressure = ((a.pressure ?? 0.5) + (b.pressure ?? 0.5)) / 2;
-      const widthScale =
-        stroke.tool === 'marker' || stroke.tool === 'eraser' ? 1 : 0.4 + 0.6 * avgPressure;
-      ctx.lineWidth = Math.max(0.5, stroke.width * widthScale);
+    // A plain line, painted as one mark so translucent ink lays down flat.
+    // It used to be stroked a segment at a time, each segment with its own
+    // round ends at the stroke's opacity, so wherever two met the ends
+    // overlapped and darkened: a string of beads, one to a sample. A line
+    // whose width never changes - a marker, an eraser, anything drawn with a
+    // mouse, whose pressure is the same all along - is one path, which the
+    // canvas strokes once. A stylus line that swells and tapers is the uniform
+    // profile's outline (stroke-profile.ts), filled once, as a profiled
+    // stroke is: the same widths the segments had, sample by sample.
+    const uniform = stroke.tool === 'marker' || stroke.tool === 'eraser';
+    const scale = (p: Point): number => (uniform ? 1 : 0.4 + 0.6 * (p.pressure ?? 0.5));
+    const first = scale(pts[0]);
+    if (pts.every((p) => Math.abs(scale(p) - first) < 1e-3)) {
+      ctx.lineWidth = Math.max(0.5, stroke.width * first);
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
+      tracePoints(ctx, pts);
       ctx.stroke();
+    } else {
+      ctx.fill(this.outlinePath(stroke), 'nonzero');
     }
 
     ctx.restore();
+  }
+
+  /**
+   * A stroke's filled outline as the canvas paints it (`profilePieces`),
+   * built once and kept while the stroke is as it was: the same points - the
+   * store moves a stroke by moving its points in place, so their values are
+   * checked as well as the array - width, profile, closure and dash. The
+   * live stroke, whose points grow at every move, is built afresh each time.
+   */
+  private outlinePath(stroke: Stroke): Path2D {
+    const pts = stroke.points;
+    const key = `${pts.length}|${stroke.width}|${stroke.profile ?? ''}|${stroke.profileMirrored === true}|${stroke.vector?.closed === true}|${stroke.strokeStyle ?? ''}|${stroke.tool}|${pointsChecksum(pts)}`;
+    const kept = this.outlines.get(stroke);
+    if (kept && kept.points === pts && kept.key === key) return kept.path;
+    const path = new Path2D();
+    for (const piece of profilePieces(profileInputOf(stroke))) {
+      piece.forEach((p, i) => (i === 0 ? path.moveTo(p.x, p.y) : path.lineTo(p.x, p.y)));
+      path.closePath();
+    }
+    this.outlines.set(stroke, { points: pts, key, path });
+    return path;
   }
 
   /**
@@ -1096,27 +1721,206 @@ export class Surface {
    * the whole mark - its fill and its outline as one - as the exports do.
    */
   private paintWithEffects(ctx: CanvasRenderingContext2D, stroke: Stroke, effects: Effect[]): void {
-    let canvas = this.effectCanvas;
-    if (!canvas) {
-      canvas = document.createElement('canvas');
-      this.effectCanvas = canvas;
-    }
-    if (canvas.width !== ctx.canvas.width || canvas.height !== ctx.canvas.height) {
-      canvas.width = ctx.canvas.width;
-      canvas.height = ctx.canvas.height;
+    const transform = ctx.getTransform();
+    // Nothing it paints reaches the canvas: its blur would be worked for nothing.
+    const box = strokeBounds(stroke, (s) => this.measureText(s));
+    if (!box || !boxReachesView(box, inkMargin(stroke) + effectReach(effects), transform, ctx.canvas.width, ctx.canvas.height)) return;
+    // Painted past the view by the render's pad, as a layer's are (see
+    // paintLeaf), so a blur at the view's edge gathers what lies beyond it.
+    // A layer's canvas that is already that far out needs no more.
+    const pad = Math.max(0, this.renderPad - this.framePad);
+    const canvas = this.effectCanvas ?? document.createElement('canvas');
+    this.effectCanvas = canvas;
+    const w = ctx.canvas.width + pad * 2;
+    const h = ctx.canvas.height + pad * 2;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
     }
     const fx = canvas.getContext('2d');
     if (!fx) return;
-    const transform = ctx.getTransform();
     fx.setTransform(1, 0, 0, 1, 0, 0);
     fx.clearRect(0, 0, canvas.width, canvas.height);
-    fx.setTransform(transform);
-    this.paintStroke(fx, { ...stroke, effects: undefined });
+    fx.setTransform(transform.a, transform.b, transform.c, transform.d, transform.e + pad, transform.f + pad);
+    // The mark itself, not a copy: what it keeps for itself (a Pencil mark's picture) is found again.
+    this.paintStroke(fx, stroke, true);
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.filter = cssFilter(effects, transform);
-    ctx.drawImage(canvas, 0, 0);
+    ctx.filter = cssFilter(effects, transform, blurCap(Math.max(this.renderPad, this.framePad)));
+    ctx.drawImage(canvas, -pad, -pad);
     ctx.restore();
+  }
+
+  /**
+   * Paints a Pencil mark: its picture through the paper's tooth
+   * (`rasterizePencil`), on the page's own pixel grid at this scale, laid
+   * down at the mark's opacity. The picture is kept per mark and worked out
+   * again only when the mark, its paint or the scale changes. A live stroke
+   * that grew has only its new end worked out; a zoom under way draws the
+   * old picture stretched until it holds still; and a mark bigger than
+   * {@link PENCIL_PICTURE_MAX} pixels is worked out for the part in view.
+   */
+  private paintPencil(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
+    const t = ctx.getTransform();
+    const scale = Math.hypot(t.a, t.b);
+    if (!(scale > 0) || Math.abs(t.b) > 1e-9 || Math.abs(t.c) > 1e-9) return;
+    const whole = pencilRegion(stroke, scale);
+    if (!whole) return;
+    // The view on the page's grid: a device pixel is a grid pixel moved by the translation.
+    const view = { x: Math.floor(-t.e), y: Math.floor(-t.f), width: ctx.canvas.width + 1, height: ctx.canvas.height + 1 };
+    const shown = overlap(whole, view);
+    if (!shown) return;
+    const now = performance.now();
+    if (scale !== this.pencilScale) {
+      this.pencilScale = scale;
+      this.pencilScaleAt = now;
+    }
+    const pts = stroke.points;
+    const key = `${stroke.width}|${stroke.color}|${stroke.pencil?.medium ?? ''}|${stroke.pencil?.grade ?? ''}|${stroke.vector?.closed === true}|${stroke.strokeStyle ?? ''}|${smudgesKey(stroke)}`;
+    // A Smear drag over this mark: its picture with the pass so far.
+    if (this.liveSmear?.ids.has(stroke.id)) {
+      this.paintSmearing(ctx, stroke, whole, key, t);
+      return;
+    }
+    let pic = this.pencils.get(stroke);
+    const sum = pointsChecksum(pts);
+    const same = pic !== undefined && pic.key === key && pic.points === pts;
+
+    // A zoom under way: last scale's picture, stretched, until it holds still.
+    if (pic && pic.key === key && pic.meant !== scale && pic.count === pts.length && pic.sum === sum && now - this.pencilScaleAt < PENCIL_SETTLE_MS) {
+      const k = scale / pic.region.scale;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(pic.canvas, pic.region.x * k + t.e, pic.region.y * k + t.f, pic.region.width * k, pic.region.height * k);
+      ctx.restore();
+      this.repaintWhenSettled();
+      return;
+    }
+
+    if (!(pic && same && pic.meant === scale && pic.count === pts.length && pic.sum === sum && (pic.region.scale !== scale || contains(pic.region, shown)))) {
+      // A live stroke that only grew, and still fits its picture: its new end.
+      const grew =
+        pic !== undefined &&
+        !stroke.smudges &&
+        same &&
+        pic.region.scale === scale &&
+        pts.length > pic.count &&
+        pointsChecksum(pts.slice(0, pic.count)) === pic.sum &&
+        contains(pic.region, shown);
+      if (grew && pic) {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        // From the point before the old end, whose cap the new segment turns into a join.
+        for (let i = Math.max(0, pic.count - 2); i < pts.length; i++) {
+          minX = Math.min(minX, pts[i].x);
+          minY = Math.min(minY, pts[i].y);
+          maxX = Math.max(maxX, pts[i].x);
+          maxY = Math.max(maxY, pts[i].y);
+        }
+        const half = stroke.width / 2 + 2 / scale;
+        const dirty = overlap(
+          {
+            x: Math.floor((minX - half) * scale) - 1,
+            y: Math.floor((minY - half) * scale) - 1,
+            width: Math.ceil((maxX - minX + 2 * half) * scale) + 3,
+            height: Math.ceil((maxY - minY + 2 * half) * scale) + 3,
+          },
+          pic.region,
+        );
+        if (dirty) {
+          const px = pic.canvas.getContext('2d');
+          if (px) {
+            const data = rasterizePencil(stroke, { scale, ...dirty });
+            px.putImageData(new ImageData(data, dirty.width, dirty.height), dirty.x - pic.region.x, dirty.y - pic.region.y);
+            this.pencilRasters++;
+          }
+        }
+        pic.count = pts.length;
+        pic.sum = sum;
+      } else {
+        // Worked out whole - with room to grow, for a live stroke - or, for a
+        // big mark, the part in view and half a view round it.
+        const live = pic !== undefined && same && pts.length > pic.count;
+        const grow = live ? Math.ceil(Math.max(whole.width, whole.height) * 0.5 + 64) : 0;
+        let region: PencilRegion = grow > 0 ? { scale, x: whole.x - grow, y: whole.y - grow, width: whole.width + grow * 2, height: whole.height + grow * 2 } : whole;
+        const smeared = (stroke.smudges?.length ?? 0) > 0;
+        if (!smeared && region.width * region.height > PENCIL_PICTURE_MAX) {
+          const around = { x: view.x - view.width / 2, y: view.y - view.height / 2, width: view.width * 2, height: view.height * 2 };
+          region = { scale, ...(overlap(whole, around) ?? shown) };
+        }
+        if (smeared && region.width * region.height > SMEARED_PICTURE_MAX) {
+          region = pencilRegion(stroke, scale * Math.sqrt(SMEARED_PICTURE_MAX / (region.width * region.height))) ?? region;
+        }
+        const canvas = pic && pic.canvas.width === region.width && pic.canvas.height === region.height ? pic.canvas : document.createElement('canvas');
+        canvas.width = region.width;
+        canvas.height = region.height;
+        const px = canvas.getContext('2d');
+        if (!px) return;
+        px.putImageData(new ImageData(smeared ? pencilPicture(stroke, region) : rasterizePencil(stroke, region), region.width, region.height), 0, 0);
+        this.pencilRasters++;
+        pic = { key, points: pts, count: pts.length, sum, region, canvas, meant: scale };
+        this.pencils.set(stroke, pic);
+      }
+    }
+    if (!pic) return;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const k = scale / pic.region.scale;
+    if (k === 1) ctx.drawImage(pic.canvas, pic.region.x + t.e, pic.region.y + t.f);
+    else ctx.drawImage(pic.canvas, pic.region.x * k + t.e, pic.region.y * k + t.f, pic.region.width * k, pic.region.height * k);
+    ctx.restore();
+  }
+
+  /**
+   * Paints a Pencil mark a Smear drag has reached: its picture, passes and
+   * all, with the drag's pass run over it - the whole of it the first time,
+   * and after that only the steps the drag has added. At a new scale, or
+   * when the mark itself changed, it starts again.
+   */
+  private paintSmearing(ctx: CanvasRenderingContext2D, stroke: Stroke, whole: PencilRegion, key: string, t: DOMMatrix): void {
+    const drag = this.liveSmear;
+    if (!drag) return;
+    // Room round the mark for as far as the stump carries its graphite past
+    // it (core/smudge.ts's reach), and the stump's own half width.
+    let room = Math.ceil(3 * drag.pass.width * whole.scale);
+    let region: PencilRegion = { scale: whole.scale, x: whole.x - room, y: whole.y - room, width: whole.width + 2 * room, height: whole.height + 2 * room };
+    if (region.width * region.height > SMEARED_PICTURE_MAX) {
+      const lower = pencilRegion(stroke, whole.scale * Math.sqrt(SMEARED_PICTURE_MAX / (region.width * region.height)));
+      if (lower) {
+        room = Math.ceil(3 * drag.pass.width * lower.scale);
+        region = { scale: lower.scale, x: lower.x - room, y: lower.y - room, width: lower.width + 2 * room, height: lower.height + 2 * room };
+      }
+    }
+    const stamp = `${key}|${region.scale}|${region.x}|${region.y}|${region.width}|${region.height}|${pointsChecksum(stroke.points)}`;
+    let live = this.smearing.get(stroke.id);
+    if (!live || live.key !== stamp) {
+      const data = pencilPicture(stroke, region);
+      const canvas = document.createElement('canvas');
+      canvas.width = region.width;
+      canvas.height = region.height;
+      live = { key: stamp, region, data, state: smudgeBuffer(data, region, drag.pass, pencilRgb(stroke)), canvas };
+      this.smearing.set(stroke.id, live);
+      this.pencilRasters++;
+    } else {
+      live.state = smudgeBuffer(live.data, live.region, drag.pass, pencilRgb(stroke), live.state);
+    }
+    live.canvas.getContext('2d')?.putImageData(new ImageData(live.data, region.width, region.height), 0, 0);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const k = whole.scale / region.scale;
+    ctx.drawImage(live.canvas, region.x * k + t.e, region.y * k + t.f, region.width * k, region.height * k);
+    ctx.restore();
+  }
+
+  /** Asks for a repaint once a zoom has held still, so Pencil marks are worked out at it. */
+  private repaintWhenSettled(): void {
+    if (this.pencilTimer !== null) return;
+    this.pencilTimer = setTimeout(() => {
+      this.pencilTimer = null;
+      this.onImageLoad?.();
+    }, PENCIL_SETTLE_MS);
   }
 
   private paintCopicNib(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
@@ -1145,6 +1949,13 @@ export class Surface {
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     if (typeof stroke.opacity === 'number') ctx.globalAlpha = stroke.opacity;
+    // Magnified far enough that one of its pixels covers several of the
+    // screen's, an image shows its pixels, as an image editor does, rather
+    // than smoothing them into a blur.
+    const t = ctx.getTransform();
+    const devicePerPage = Math.sqrt(Math.abs(t.a * t.d - t.b * t.c));
+    const screenPerPixel = (devicePerPage / this.dpr) * Math.min(w / img.naturalWidth, h / img.naturalHeight);
+    if (screenPerPixel >= IMAGE_PIXELS_AT) ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, anchor.x, anchor.y, w, h);
     ctx.restore();
   }
@@ -1174,20 +1985,42 @@ export class Surface {
     ctx.restore();
   }
 
-  private paintSelection(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
-    const box = strokeBounds(stroke, (s) => this.measureText(s));
-    if (!box) return;
+  /**
+   * The dashed boxes a selection is drawn with, in sketch units: one for each
+   * selected mark, in paint-array order, its bounds padded by
+   * {@link SELECTION_BOX_PAD} screen pixels at the current zoom. `render` draws exactly these, so a GUI check
+   * that reads them back reads what is on the screen.
+   */
+  selectionBoxes(sketch: Sketch, selectedIds: ReadonlySet<string>): SelectionBox[] {
+    const boxes: SelectionBox[] = [];
+    const pad = SELECTION_BOX_PAD / this.zoom;
+    const clips = clipIndex(sketch);
+    for (const stroke of sketch.strokes) {
+      // An eraser mark from an older file rides along with its layer but is
+      // no element of its own: no box.
+      if (!selectedIds.has(stroke.id) || stroke.tool === 'eraser') continue;
+      const bounds = strokeBounds(stroke, (s) => this.measureText(s));
+      // In a clip group a mark is boxed as it shows: cut to the clip's bounds.
+      const box = bounds && shownBounds(sketch, stroke, bounds, clips);
+      if (!box) continue;
+      boxes.push({
+        id: stroke.id,
+        x: box.minX - pad,
+        y: box.minY - pad,
+        width: box.maxX - box.minX + pad * 2,
+        height: box.maxY - box.minY + pad * 2,
+      });
+    }
+    return boxes;
+  }
+
+  private paintSelection(ctx: CanvasRenderingContext2D, box: SelectionBox): void {
+    const px = 1 / this.zoom;
     ctx.save();
     ctx.strokeStyle = '#2f6feb';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([5, 4]);
-    const pad = 6;
-    ctx.strokeRect(
-      box.minX - pad,
-      box.minY - pad,
-      box.maxX - box.minX + pad * 2,
-      box.maxY - box.minY + pad * 2,
-    );
+    ctx.lineWidth = 1.5 * px;
+    ctx.setLineDash([5 * px, 4 * px]);
+    ctx.strokeRect(box.x, box.y, box.width, box.height);
     ctx.restore();
   }
 
@@ -1348,6 +2181,42 @@ export class Surface {
   }
 
   /**
+   * The Shape Stacker's cursor: a crosshair with a plus beside it - a press
+   * merges - or, while `Alt` is held, a minus - it takes away.
+   */
+  static makeStackerCursorDataUrl(minus: boolean): { url: string; hotspotX: number; hotspotY: number } {
+    const size = 26;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return { url: '', hotspotX: 0, hotspotY: 0 };
+    const c = 9;
+    const lines = (stroke: string, width: number): void => {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(c, 2);
+      ctx.lineTo(c, 16);
+      ctx.moveTo(2, c);
+      ctx.lineTo(16, c);
+      // The sign, below and to the right.
+      ctx.moveTo(15, 20);
+      ctx.lineTo(23, 20);
+      if (!minus) {
+        ctx.moveTo(19, 16);
+        ctx.lineTo(19, 24);
+      }
+      ctx.stroke();
+    };
+    // A white halo under the dark lines, so the cursor reads on any paper.
+    lines('rgba(255,255,255,0.9)', 3.5);
+    lines('rgba(31,35,40,0.95)', 1.5);
+    return { url: canvas.toDataURL(), hotspotX: c, hotspotY: c };
+  }
+
+  /**
    * Generates the eraser cursor: a dashed circle the size of the eraser's
    * footprint, so the area about to be cleared is visible before pressing.
    * Returns the URL and the hotspot coordinates (center of the circle).
@@ -1444,6 +2313,69 @@ function canvasGradient(
  * Adds a stroke's points to the current canvas path, starting a new subpath
  * at every `move` point so compound shapes keep their holes and islands.
  */
+/** A number that changes when any point does: position or pressure, in order. */
+/** A mark's Smear passes as a key: a smear changes the picture. */
+function smudgesKey(stroke: Stroke): string {
+  if (!stroke.smudges || stroke.smudges.length === 0) return '';
+  let sum = 0;
+  stroke.smudges.forEach((smudge, k) => {
+    sum += (k + 1) * (smudge.width * 1.7 + smudge.strength * 3.1);
+    smudge.path.forEach((a, i) => {
+      sum += (k + 1) * (i + 1) * (a.p.x * 1.0001 + a.p.y * 1.7321 + (a.pressure ?? 0.5) * 2.2361 + (a.hIn ? a.hIn.x + a.hIn.y * 0.7 : 0) + (a.hOut ? a.hOut.x * 0.3 + a.hOut.y : 0));
+    });
+  });
+  return `${stroke.smudges.length}:${sum}`;
+}
+
+/** Where two boxes of whole pixels overlap, or null when they do not. */
+function overlap(
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number },
+): { x: number; y: number; width: number; height: number } | null {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  return right > x && bottom > y ? { x: Math.floor(x), y: Math.floor(y), width: Math.ceil(right - x), height: Math.ceil(bottom - y) } : null;
+}
+
+/** Whether box `outer` holds all of box `inner`. */
+function contains(
+  outer: { x: number; y: number; width: number; height: number },
+  inner: { x: number; y: number; width: number; height: number },
+): boolean {
+  return inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.width <= outer.x + outer.width && inner.y + inner.height <= outer.y + outer.height;
+}
+
+function pointsChecksum(pts: readonly Point[]): number {
+  let sum = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    sum += (i + 1) * (p.x * 1.0001 + p.y * 1.7321 + (p.pressure ?? 0.5) * 2.2361);
+  }
+  return sum;
+}
+
+/**
+ * The widest blur a picture padded `pad` device pixels past the view may
+ * have: a third of it, so the three standard deviations a Gaussian gathers
+ * from never run past what was painted. No cap on a picture with no pad,
+ * which has nothing to blur.
+ */
+function blurCap(pad: number): number {
+  return pad > 0 ? pad / 3 : Infinity;
+}
+
+/**
+ * How far a mark's ink can reach past its points' bounds, in page units,
+ * with room to spare: a whole width covers a Copic's nib and the widest
+ * stroke profile, which reach less. Text and images are their boxes.
+ */
+function inkMargin(stroke: Stroke): number {
+  if (isTextStroke(stroke) || isImageStroke(stroke)) return 2;
+  return Math.max(1, stroke.width);
+}
+
 function tracePoints(ctx: CanvasRenderingContext2D, pts: Point[]): void {
   pts.forEach((p, i) => (i === 0 || p.move ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
 }

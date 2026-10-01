@@ -84,9 +84,9 @@ test('every step ticked draws the page as it is now, the comments in step order'
   assert.equal(written.stats.marks, 2);
   assert.match(written.text, /^# 3 {2}Draw:Add:mark {2}step 3 {2}\(2026-09-26 12:02\)\n# modified mark from step 1$/m, 'a change says whose mark it changed');
   // Deleting the only mark on a layer takes the layer too, and the undo brings both back.
-  assert.match(written.text, /^# 5 .*\n# removed layer "Pen 1"\n# removed mark from step 2$/m);
-  assert.match(written.text, /^# 6 {2}Composition:edit {2}undo .*\n# brought back layer "Pen 1"\n# brought back mark from step 2$/m);
-  assert.match(written.text, /^# 2 .*\n# added layer "Pen 1"\nlayer "Pen 1"$/m, 'a layer is made after the comment of the step that made it');
+  assert.match(written.text, /^# 5 .*\n# removed layer "Brush 1"\n# removed mark from step 2$/m);
+  assert.match(written.text, /^# 6 {2}Composition:edit {2}undo .*\n# brought back layer "Brush 1"\n# brought back mark from step 2$/m);
+  assert.match(written.text, /^# 2 .*\n# added layer "Brush 1"\nlayer "Brush 1"$/m, 'a layer is made after the comment of the step that made it');
   assert.doesNotMatch(written.text, /removed in step/, 'nothing stayed removed');
 });
 
@@ -98,7 +98,7 @@ test('a removal left out brings its mark back, and the step that drew it says no
   store.deleteSelected(); // 3
   const all = historyScript(steps(), store.sketch, { decimals: null });
   assert.equal(run(all.text, 'all').strokes.length, 1);
-  assert.match(all.text, /^# 2 .*\n# added layer "Pen 1"\n# removed in step 3$/m, 'the step that drew it says where it went');
+  assert.match(all.text, /^# 2 .*\n# added layer "Brush 1"\n# removed in step 3$/m, 'the step that drew it says where it went');
 
   const kept = historyScript(steps(), store.sketch, { decimals: null, include: new Set([1, 2]) });
   assert.equal(run(kept.text, 'without 3').strokes.length, 2, 'the mark is back');

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Wipe Stacks check's two overlapping squares, a red one below and a blue
+  one above, with a note beside them: text, which a wipe passes over.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 260">
+  <g id="squares" data-name="squares">
+    <rect id="below" x="20" y="20" width="140" height="140" fill="#d0342c"/>
+    <rect id="above" x="90" y="70" width="140" height="140" fill="#27486d"/>
+    <text id="note" x="20" y="240" font-size="20" fill="#1f2328">note</text>
+  </g>
+</svg>

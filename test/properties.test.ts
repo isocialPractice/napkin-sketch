@@ -200,6 +200,33 @@ test('joining leaves layers that still hold other elements alone', () => {
   );
 });
 
+test("a join drops the first piece's anchors, which describe that piece alone", () => {
+  const store = storeWithLayers(2);
+  store.sketch.strokes[0].vector = {
+    anchors: [{ p: { x: 0, y: 0 } }, { p: { x: 10, y: 0 }, pressure: 0.7 }],
+    fitted: true,
+  };
+  store.setSelection(['s0', 's1']);
+  const merged = store.joinSelectedStrokes();
+  assert.ok(merged);
+  assert.equal(merged.vector, undefined, 'the renderer fits the joined run afresh');
+  assert.equal(merged.points.length, 4);
+});
+
+test('an undo keeps a fitted stroke fitted, its anchors pressure and all', () => {
+  const store = storeWithLayers(1);
+  store.sketch.strokes[0].vector = {
+    anchors: [{ p: { x: 0, y: 0 }, pressure: 0.3 }, { p: { x: 10, y: 0 }, hIn: { x: 6, y: 2 }, pressure: 0.8 }],
+    fitted: true,
+  };
+  store.pushHistory();
+  store.nudgeStroke('s0', 5, 0);
+  store.undo();
+  const vector = store.sketch.strokes[0].vector;
+  assert.equal(vector?.fitted, true);
+  assert.deepEqual(vector?.anchors.map((a) => a.pressure), [0.3, 0.8]);
+});
+
 test('a join is one undo step, layers included', () => {
   const store = storeWithLayers(2);
   store.setSelection(['s0', 's1']);

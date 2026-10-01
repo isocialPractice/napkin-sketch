@@ -12,7 +12,7 @@
  * const editor = new NapkinSketch(document.getElementById('host')!, {
  *   liveSharpen: false,
  * });
- * editor.setTool('pen');
+ * editor.setTool('brush'); // the Brush, whose id is 'pen'
  * const png = editor.toDataURL('image/png');
  * ```
  */
@@ -24,6 +24,8 @@ import {
   type SketchBook,
   type Stroke,
   type Tool,
+  type ToolAlias,
+  toolId,
 } from '../core/types.js';
 import { parseSketchBook, serializeSketchBook } from '../core/serialize.js';
 import { sketchesToPdf } from '../core/pdf.js';
@@ -32,8 +34,8 @@ import { Surface } from '../renderer/surface.js';
 
 /** Options accepted when constructing a {@link NapkinSketch} editor. */
 export interface NapkinOptions {
-  /** Starting tool. Defaults to `'pen'`. */
-  tool?: Tool;
+  /** Starting tool. Defaults to `'pen'`, the Brush; `'brush'` is taken for it. */
+  tool?: Tool | ToolAlias;
   /** Ink color (any CSS color). Defaults to `'#1f2328'`. */
   color?: string;
   /** Stroke width in pixels. Defaults to `3`. */
@@ -72,7 +74,7 @@ export class NapkinSketch {
   constructor(host: HTMLElement, options: NapkinOptions = {}) {
     this.host = host;
     this.sketch = options.sketch ?? createSketch();
-    this.tool = options.tool ?? 'pen';
+    this.tool = toolId(options.tool ?? 'pen');
     this.color = options.color ?? '#1f2328';
     this.width = options.width ?? 3;
     this.liveSharpen = options.liveSharpen ?? false;
@@ -100,9 +102,9 @@ export class NapkinSketch {
 
   // ---- Configuration ------------------------------------------------------
 
-  /** Switches the active drawing tool. */
-  setTool(tool: Tool): void {
-    this.tool = tool;
+  /** Switches the active drawing tool; `'brush'` is the Brush, whose id is `'pen'`. */
+  setTool(tool: Tool | ToolAlias): void {
+    this.tool = toolId(tool);
   }
 
   /** Sets the ink color (any CSS color string). */

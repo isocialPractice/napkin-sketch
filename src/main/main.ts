@@ -5,7 +5,7 @@
  * and reads the launch options the CLI passes via the environment.
  */
 
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, screen, shell } from 'electron';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
@@ -165,7 +165,7 @@ function readHistoryStats(value: unknown): HistoryStats | null {
 function openSettingsWindow(section?: string): void {
   const hash = section !== undefined && /^[a-z][a-z-]*$/.test(section) ? section : undefined;
   if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.focus();
+    if (!GUI_BACKGROUND) settingsWindow.focus();
     if (hash) settingsWindow.webContents.send(IPC.showSettingsSection, hash);
     return;
   }
@@ -188,7 +188,11 @@ function openSettingsWindow(section?: string): void {
   });
   settingsWindow.setMenuBarVisibility(false);
   settingsWindow.loadFile(join(__dirname, '..', 'renderer', 'settings.html'), hash ? { hash } : undefined);
-  settingsWindow.once('ready-to-show', () => settingsWindow?.show());
+  settingsWindow.once('ready-to-show', () => {
+    if (!settingsWindow) return;
+    if (GUI_BACKGROUND) showInBackground(settingsWindow);
+    else settingsWindow.show();
+  });
   settingsWindow.on('closed', () => {
     settingsWindow = null;
   });
@@ -295,6 +299,38 @@ function notice(message: string): void {
 const GUI_CHECK = process.env.NAPKIN_GUI_CHECK === '1';
 
 /**
+ * True when a GUI check runs in the background (`NAPKIN_GUI_BACKGROUND=1`,
+ * which `npm run gui-check -- --background` sets): every window the app
+ * opens is shown without taking the focus, past the left of every screen and
+ * out of the taskbar, so the person at the computer can go on using it -
+ * their mouse cannot reach the windows, and their keys go where they meant
+ * them to. The drawing window opens at about the size of the page the checks
+ * pin (see {@link backgroundSize}) rather than maximized.
+ */
+const GUI_BACKGROUND = GUI_CHECK && process.env.NAPKIN_GUI_BACKGROUND === '1';
+
+/**
+ * The drawing window's content size in a background check: `NAPKIN_GUI_SIZE`
+ * (`1494x837`), which the checks set to the page size they pin, or null. The
+ * checks pin the page itself over the DevTools protocol; this only keeps the
+ * window near that size, as near as the screen lets it (Windows keeps a
+ * window no wider than the screen).
+ */
+function backgroundSize(): { width: number; height: number } | null {
+  const m = /^(\d+)x(\d+)$/.exec(process.env.NAPKIN_GUI_SIZE ?? '');
+  return m ? { width: Number(m[1]), height: Number(m[2]) } : null;
+}
+
+/** Shows a window for a check in the background: past the left of every screen, out of the taskbar, without the focus. */
+function showInBackground(win: BrowserWindow): void {
+  const left = Math.min(...screen.getAllDisplays().map((display) => display.bounds.x));
+  const [width] = win.getSize();
+  win.setSkipTaskbar(true);
+  win.setPosition(left - width - 100, 0);
+  win.showInactive();
+}
+
+/**
  * The links a GUI check's clicks sent to the system browser, kept for the
  * check to read back instead of opened, so a check run starts no browser on
  * the machine that runs it.
@@ -357,7 +393,7 @@ function openDocsWindow(file: string): void {
   if (docsWindow && !docsWindow.isDestroyed()) {
     loadDocsPage(docsWindow, file);
     if (docsWindow.isMinimized()) docsWindow.restore();
-    docsWindow.focus();
+    if (!GUI_BACKGROUND) docsWindow.focus();
     return;
   }
   const root = docsFolder();
@@ -398,7 +434,7 @@ function openDocsWindow(file: string): void {
     const action = docsAppCommand(command);
     if (action !== null) runDocsAction(win, action);
   });
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => (GUI_BACKGROUND ? showInBackground(win) : win.show()));
   win.on('closed', () => {
     if (docsWindow === win) docsWindow = null;
   });
@@ -488,10 +524,14 @@ function createWindow(): void {
   // a maximized window keeps the minimize / restore-down / close controls in
   // view, while full screen (-f, --full-screen) hides them. The width/height
   // below stay the restore-down size the maximized window returns to.
-  const openFullScreen = launch.fullScreen === true;
+  const openFullScreen = launch.fullScreen === true && !GUI_BACKGROUND;
+  const pinned = GUI_BACKGROUND ? backgroundSize() : null;
+  // In a background check the window opens near the page size the check pins,
+  // off the screen and without the focus, and is never maximized.
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 860,
+    width: pinned?.width ?? 1280,
+    height: pinned?.height ?? 860,
+    ...(pinned ? { useContentSize: true } : {}),
     minWidth: 720,
     minHeight: 520,
     backgroundColor: '#eef1f4',
@@ -511,8 +551,13 @@ function createWindow(): void {
 
   mainWindow.loadFile(join(__dirname, '..', 'renderer', 'index.html'));
   mainWindow.once('ready-to-show', () => {
-    if (!openFullScreen) mainWindow?.maximize();
-    mainWindow?.show();
+    if (!mainWindow) return;
+    if (GUI_BACKGROUND) {
+      showInBackground(mainWindow);
+      return;
+    }
+    if (!openFullScreen) mainWindow.maximize();
+    mainWindow.show();
   });
 
   // Closing with unsaved edits used to throw them away without a word. The

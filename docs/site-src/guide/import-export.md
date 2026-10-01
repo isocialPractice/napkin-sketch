@@ -125,3 +125,41 @@ group `id` (what Illustrator reads) — so a sketch exported from napkin opens
 with its layer names intact wherever it lands, and re-imports under the same
 names. Characters an XML id may not hold are escaped as `_xHH_` and repeated
 names take the `-2`, `-3`, … suffix editors expect; the importer undoes both.
+
+## Pencil marks keep their grain
+
+**Pencil marks keep their grain.** The SVG export fills each Pencil line's
+outline with the paper's grain: the tooth is carried once in the file, as a
+small PNG, and a filter turns it into each pencil's tone at the coverage its
+grade lays down, so a browser shows the same grain as the canvas. The line
+itself rides along as data, its centreline, width, tone and pencil, so
+napkin reads its own SVG's pencil lines back as Pencil marks. A PNG export
+has the canvas's pixels, worked out by the same rule at the export's scale.
+PDF and the Illustrator script have no grain paint, so they draw each line
+flat at its pencil's mean tone (open question 32 of the plan).
+
+A Pencil mark the Smear has passed over is written, in the SVG and the PDF,
+as the picture the canvas paints of it: a PNG at twice the page's
+resolution in the SVG, with the mark and its passes riding along as data so
+napkin's importer brings back the mark, and an image with a soft mask in
+the PDF. A PNG export has the canvas's pixels; the Illustrator script draws
+the mark unsmeared.
+
+## Clipping masks travel with the file
+
+**Clipping masks travel with the file.** An exported clip group is a group
+with `clip-path` on it, naming a `<clipPath>` that holds the clipping path
+as napkin writes any mark, so the file shows the same in a browser, Inkscape
+or Illustrator. When the group has effects, the clip goes on a group of its
+own just inside it, so the shadow falls under what shows, as on the canvas.
+The PDF draws each clipped layer inside the clipping path, and the
+Illustrator script builds a clipped group with the clipping path on top.
+
+An SVG with a `clip-path` on a group imports as a clip group: the
+`<clipPath>`'s shapes become its clipping path, one mark however many shapes
+it holds, on a layer of its own on top inside the group, named **Clipping
+Path** unless the file names it. A clipping path from another editor has no
+paint, as a clipping path paints nothing; one napkin wrote keeps the paint it
+had, so Release shows it as it was. A clip measured in the object's bounding
+box (`clipPathUnits="objectBoundingBox"`) is not read, and the group comes in
+unclipped.

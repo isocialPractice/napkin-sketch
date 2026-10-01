@@ -20,7 +20,7 @@
  * The replayed page is written by the script writer in paint order - a group
  * cannot be opened twice, so marks cannot be written in the order they were
  * drawn - and each step's comment goes before the first mark it drew:
- * `# 7  Draw:Add:mark  Pen stroke  (2026-09-25 14:03)`, then a line for each
+ * `# 7  Draw:Add:mark  Brush stroke  (2026-09-25 14:03)`, then a line for each
  * thing it did to marks other steps drew and to the layers, and on the step
  * that drew a mark a later step removed, `# removed in step 12`. A step that
  * drew nothing says what it did before the next step that drew something.
@@ -43,7 +43,7 @@ export interface HistoryScriptStep {
   readonly page: number;
   /** The tool type the popup lists it under: `Draw:Add:mark`. */
   readonly type: string;
-  /** What the popup calls it: `Pen stroke`. */
+  /** What the popup calls it: `Brush stroke`. */
   readonly label: string;
   readonly diff: SnapshotDiff;
 }

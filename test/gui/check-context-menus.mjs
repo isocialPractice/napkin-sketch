@@ -114,9 +114,11 @@ try {
   c.eq(
     'Transform holds its rows',
     labelsOf(menuOf(bar, 'Transform')).join(' | '),
-    'Vector Path | --- | Transform Box | Move… | Rotate… | Join | Close Shape | Mirror… | --- | Sharpen | Mesh Warp',
+    'Vector Path | --- | Transform Box | Move… | Rotate… | Join | Close Shape | Wipe Stacks | Mirror… | --- | Sharpen | Mesh Warp | Liquify',
   );
-  c.eq('Sketch holds its tools', labelsOf(menuOf(bar, 'Sketch')).join(' | '), 'Pen | Marker | Eraser | Text | Copic | Direct | --- | Stroke Profile…');
+  c.eq('Sketch holds its tools', labelsOf(menuOf(bar, 'Sketch')).join(' | '), 'Brush | Marker | Eraser | Shape Eraser | Shape Stacker | Split | Apply Erasers | Text | Copic | Pencil | Smear | Direct | --- | Stroke Profile… | Fill in Front | Swap Fill and Stroke');
+  const apply = rowOf(bar, 'apply-erasers');
+  c.ok('Apply Erasers is greyed on a page with no eraser marks of the old kind', apply?.enabled === false, JSON.stringify(apply));
   const rotate = rowOf(bar, 'rotate');
   c.ok('Rotate shows Ctrl+R and leaves the key to the page', rotate?.accelerator === 'CmdOrCtrl+R' && rotate?.registerAccelerator === false, JSON.stringify(rotate));
   const save = rowOf(bar, 'save');
@@ -124,9 +126,15 @@ try {
   const view = labelsOf(menuOf(bar, 'View'));
   c.ok(
     "Electron's own labels for the role rows are the registry's",
-    ['Toggle Developer Tools', 'Zoom In', 'Zoom Out', 'Toggle Full Screen'].every((label) => view.includes(label)) &&
+    ['Toggle Developer Tools', 'Toggle Full Screen'].every((label) => view.includes(label)) &&
       labelsOf(menuOf(bar, 'File')).at(-1) === 'Exit',
     view.join(' | '),
+  );
+  // Zoom In and Zoom Out zoom the canvas since 1.0.0-alpha.4.6.0: the app's rows, not Electron's.
+  c.ok(
+    'Zoom In and Zoom Out are the app\'s own rows, with their keys',
+    rowOf(bar, 'zoom-in')?.accelerator === 'CmdOrCtrl+Plus' && rowOf(bar, 'zoom-out')?.accelerator === 'CmdOrCtrl+-',
+    JSON.stringify([rowOf(bar, 'zoom-in'), rowOf(bar, 'zoom-out')]),
   );
   const help = labelsOf(menuOf(bar, 'Help'));
   c.ok('Help has Source Code and, with no docs site yet, no Source Docs', help.includes('Source Code') && !help.includes('Source Docs'), help.join(' | '));
@@ -160,17 +168,18 @@ try {
   c.eq(
     'the canvas menu, with nothing selected',
     (await page.evalIn(ROWS('context-menu')))?.join(' | '),
-    'Cut [Ctrl+X] (disabled) | Copy [Ctrl+C] (disabled) | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] (disabled) | --- | Delete [Delete] (disabled) | --- | Select All [Ctrl+A] | Deselect All [Ctrl+Shift+A] (disabled)',
+    'Cut [Ctrl+X] (disabled) | Copy [Ctrl+C] (disabled) | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] (disabled) | --- | Delete [Delete] (disabled) | --- | Select All [Ctrl+A] | Deselect All [Ctrl+Shift+A] (disabled) | --- | Wipe Stacks (disabled) >',
   );
   await escape(page);
   c.eq('Escape closes it', await page.evalIn(ROWS('context-menu')), null);
   await page.chord(65, 'a', 2);
   await sleep(300);
   await rightClick(page, wrap);
+  // The one triangle is fewer than the two shapes a wipe takes, so the Wipe Stacks stay greyed.
   c.eq(
     'the canvas menu, with everything selected',
     (await page.evalIn(ROWS('context-menu')))?.join(' | '),
-    'Cut [Ctrl+X] | Copy [Ctrl+C] | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] | --- | Delete [Delete] | --- | Select All [Ctrl+A] | Deselect All [Ctrl+Shift+A]',
+    'Cut [Ctrl+X] | Copy [Ctrl+C] | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] | --- | Delete [Delete] | --- | Select All [Ctrl+A] | Deselect All [Ctrl+Shift+A] | --- | Wipe Stacks (disabled) >',
   );
   await escape(page);
 
@@ -181,7 +190,7 @@ try {
   c.eq(
     'the layers panel menu, labels in order',
     layerRows.map((row) => row.replace(/ \(disabled\)$/, '')).join(' | '),
-    'Add Layer | Group Layer [Ctrl+G] | Ungroup [Ctrl+Shift+G] | Rename [F2] | Delete Layer | --- | Cut [Ctrl+X] | Copy [Ctrl+C] | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] | --- | Move > | --- | Hide Layers Panel',
+    'Add Layer | Group Layer [Ctrl+G] | Ungroup [Ctrl+Shift+G] | Rename [F2] | Delete Layer | --- | Cut [Ctrl+X] | Copy [Ctrl+C] | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] | --- | Move > | Clipping Mask > | --- | Hide Layers Panel',
   );
   await hover(page, await page.evalIn(ROW_CENTER('context-menu', 'Move')));
   c.eq(
@@ -210,7 +219,7 @@ try {
   c.eq(
     'the pages panel menu',
     (await page.evalIn(ROWS('context-menu')))?.join(' | '),
-    'Add Page > | Delete Page (disabled) | --- | Page Settings… | --- | Hide Pages Panel',
+    'Add Page > | Delete Page (disabled) | --- | Previous Page [PageUp] (disabled) | Next Page [PageDown] (disabled) | --- | Page Settings… | --- | Hide Pages Panel',
   );
   await hover(page, await page.evalIn(ROW_CENTER('context-menu', 'Add Page')));
   c.eq(
@@ -233,6 +242,40 @@ try {
   c.ok('Default New Page adds a page', paged.page === 'Page 2 / 2' && /Added a new page/.test(paged.toast), JSON.stringify(paged));
   bar = await readBar(page);
   c.ok('and with two pages, Delete Page is on in the menu bar', rowOf(bar, 'delete-page')?.enabled === true);
+
+  // Previous Page and Next Page, which the page bar's arrows always had and
+  // the menus did not: greyed at either end of the book, and on PageUp and
+  // PageDown.
+  const pagesMenu = labelsOf(menuOf(bar, 'Pages'));
+  c.eq(
+    'the Pages menu turns pages',
+    pagesMenu.join(' | '),
+    'Add Page | Delete Page | --- | Previous Page | Next Page | --- | Page Settings… | --- | Hide Pages Panel',
+  );
+  c.ok('on the last page, Next Page is greyed', rowOf(bar, 'next-page')?.enabled === false, JSON.stringify(rowOf(bar, 'next-page')));
+  c.ok('and Previous Page is not', rowOf(bar, 'prev-page')?.enabled === true, JSON.stringify(rowOf(bar, 'prev-page')));
+  const pageRow = (id) => page.evalIn(`return await window.napkin.clickAppMenuItem(${JSON.stringify(id)});`);
+  c.ok('Pages > Previous Page runs', await pageRow('prev-page'));
+  await sleep(500);
+  c.eq('and turns to the first page', (await page.evalIn(STATE)).page, 'Page 1 / 2');
+  bar = await readBar(page);
+  c.ok(
+    'where Previous Page is greyed and Next Page is on',
+    rowOf(bar, 'prev-page')?.enabled === false && rowOf(bar, 'next-page')?.enabled === true,
+    JSON.stringify([rowOf(bar, 'prev-page'), rowOf(bar, 'next-page')]),
+  );
+  await pageRow('next-page');
+  await sleep(500);
+  c.eq('Pages > Next Page turns to the second', (await page.evalIn(STATE)).page, 'Page 2 / 2');
+  await page.evalIn('document.activeElement?.blur(); return true;');
+  await page.chord(33, 'PageUp');
+  await sleep(500);
+  c.eq('PageUp turns back a page', (await page.evalIn(STATE)).page, 'Page 1 / 2');
+  await page.chord(34, 'PageDown');
+  await sleep(500);
+  c.eq('and PageDown on again', (await page.evalIn(STATE)).page, 'Page 2 / 2');
+  const arrows = await page.evalIn("return [document.getElementById('prev-page').title, document.getElementById('next-page').title];");
+  c.ok("the page bar's arrows show the keys", arrows[0] === 'Previous page (PageUp)' && arrows[1] === 'Next page (PageDown)', JSON.stringify(arrows));
 
   // ---- The toolbar dropdowns -------------------------------------------------------------------
   await page.click(...Object.values(await page.evalIn(CENTER('export'))));
@@ -259,9 +302,9 @@ try {
 
   // ---- Rows of the menu bar run their commands --------------------------------------------------
   const clickRow = (id) => page.evalIn(`return await window.napkin.clickAppMenuItem(${JSON.stringify(id)});`);
-  c.ok('Sketch > Pen is a row the menu bar runs', await clickRow('tool-pen'));
+  c.ok('Sketch > Brush is a row the menu bar runs', await clickRow('tool-pen'));
   await sleep(300);
-  c.eq('and the pen is in hand', (await page.evalIn(STATE)).tool, 'pen');
+  c.eq('and the brush is in hand', (await page.evalIn(STATE)).tool, 'pen');
   await clickRow('tool-point');
   await sleep(300);
   c.eq('Sketch > Direct takes the Direct Select tool', (await page.evalIn(STATE)).tool, 'point');

@@ -3,9 +3,10 @@
 ## At a glance
 
 - **Nine menus in the menu bar**: **File**, **Edit**, **View**, **Transform**
-  (Vector Path, Transform Box, Move, Rotate, Join, Close Shape, Mirror,
-  Sharpen, Mesh Warp), **Sketch** (Pen, Marker, Eraser, Text, Copic, Direct,
-  Stroke Profile), **Layers**,
+  (Vector Path, Transform Box, Move, Rotate, Join, Close Shape, Wipe Stacks,
+  Mirror, Sharpen, Mesh Warp), **Sketch** (Brush, Marker, Eraser, Shape
+  Eraser, Shape Stacker, Split, Apply Erasers, Text, Copic, Direct, Stroke
+  Profile, Fill in Front, Swap Fill and Stroke), **Layers**,
   **Pages**, **Automate** and **Help**. They are generated from
   `src/core/menu/tool-types.json`, which gives every command a *tool type* -
   a tool is in every menu that accepts its type, which is how the clipboard
@@ -30,9 +31,15 @@
   Types**, and **Animation Mode** once it is installed), and *View* (the
   Pages, Layers and Properties panels, Quick Settings, Developer Tools,
   **Fit All in View** (`Ctrl+0`) to bring every graphic on the page into view
-  at once, Zoom In, Zoom Out and Full Screen).
+  at once, **Zoom In** and **Zoom Out** (`Ctrl++`, `Ctrl+-`), which zoom the
+  canvas by a quarter about its middle, and Full Screen).
+- **A bare `Alt` opens the menu bar** only when no other key was pressed in
+  the 5 seconds before it and it was not used for a scroll, a drag or a
+  press; `Alt` with a menu's underlined letter always works. See [Alt and the
+  menu bar](gestures.md#alt-and-the-menu-bar).
 - **Right-click the canvas** for Cut, Copy, Paste, Paste in Place, Duplicate,
-  Delete, Select All, and Deselect All. Right-clicking an element that is not
+  Delete, Select All, Deselect All, and the [Wipe Stacks](transform.md#wipe-stacks)
+  for two or more selected shapes. Right-clicking an element that is not
   selected picks it first, so *Copy* means the thing just clicked, and a
   right-click on empty paper keeps the selection. The layers panel's own menu
   carries the same clipboard rows, since a lit layer row is a selection. Every
@@ -70,10 +77,10 @@ each menu takes and holds:
 | File | `file` | New Sketch; Open…; Import…; Save; Save As…; Export: PNG Image…, SVG Vector…, JPEG Image…, PDF Document…; Exit |
 | Edit | `edit`, `edit:mixed`, `Subtract:element`, `edit:selection` | Undo; Redo; Cut; Copy; Paste; Paste in Place; Duplicate; Delete; Select All; Verbose Settings…; Rearrange Toolbar; Edit Keyboard Shortcuts…; Edit Tool Types…; Animation Mode (once installed) |
 | View | `view` | Toggle Pages Panel; Toggle Layers Panel; Toggle Properties Panel; Quick Settings; Toggle Developer Tools; Fit All in View; Zoom In; Zoom Out; Toggle Full Screen |
-| Transform | `transform`, `Add:vector`, `Modify:element`, `Subtract:vector` | Vector Path; Transform Box; Move…; Rotate…; Join; Close Shape: Sharp, Smooth; Mirror…; Sharpen: Sharpen Selection…, Sharpen All; Mesh Warp |
-| Sketch | `sketch`, `Add:mark`, `Modify:vector`, `Subtract:mark` | Pen; Marker; Eraser; Text; Copic; Direct; Stroke Profile… |
-| Layers | `layers`, `Add:layer`, `Modify:layer`, `Subtract:layer` | Add Layer; Group Layer; Ungroup; Rename; Delete Layer; Move Layer: Layer Up, Layer Down; Hide Layers Panel |
-| Pages | `pages` | Add Page: Default New Page, Custom New Page…, From Selection; Delete Page; Page Settings…; Hide Pages Panel |
+| Transform | `transform`, `Add:vector`, `Modify:element`, `Combine:element`, `Subtract:vector` | Vector Path; Transform Box; Move…; Rotate…; Join; Close Shape: Sharp, Smooth; Wipe Stacks: Wipe In, Wipe Out, Mid Wipe, Outer Wipes, Clean Wipe; Mirror…; Sharpen: Sharpen Selection…, Sharpen All; Mesh Warp; Liquify |
+| Sketch | `sketch`, `Add:mark`, `Modify:vector`, `Subtract:mark` | Brush; Marker; Eraser; Shape Eraser; Shape Stacker; Split; Apply Erasers; Text; Copic; Pencil; Smear; Direct; Stroke Profile…; Fill in Front; Swap Fill and Stroke |
+| Layers | `layers`, `Add:layer`, `Modify:layer`, `Subtract:layer` | Add Layer; Group Layer; Ungroup; Rename; Delete Layer; Move Layer: Layer Up, Layer Down; Clipping Mask: Make, Release; Hide Layers Panel |
+| Pages | `pages` | Add Page: Default New Page, Custom New Page…, From Selection; Delete Page; Previous Page; Next Page; Page Settings…; Hide Pages Panel |
 | Automate | `automate`, `automate:mixed` | Generate Script: From Media File…, Selected Layers…, From Session History…; Track History; History Limit… |
 | Help | `help` | Verbose; Tool Types: Transform, Draw, Pages, Layers, Automate; Source Code; Source Docs (once the site is published) |
 <!-- menus:end -->
@@ -113,24 +120,36 @@ changes a tool's type, and so the menus that list it.
 | Zoom In | View | `Ctrl++` |  |
 | Zoom Out | View | `Ctrl+-` |  |
 | Toggle Full Screen | View | `F11` |  |
-| Vector Path | Transform | `B` | Click = corner, drag = smooth Bezier point |
+| Vector Path | Transform | `P` | Click = corner, drag = smooth Bezier point |
 | Transform Box | Transform | `Ctrl+T` | Again, or `Esc`, to put it away |
 | Move | Transform | `Enter` | By an exact x and y, in any unit |
 | Rotate | Transform | `Ctrl+R` |  |
 | Join | Transform | `Ctrl+J` |  |
 | Mirror | Transform | `O` | Horizontally or vertically, in place or as a copy |
 | Sharpen All | Transform > Sharpen | `H` |  |
-| Pen | Sketch | `P` | Pressure-aware variable width |
+| Liquify | Transform | `Shift+R` | Bend the marks under a brush - Warp, Twirl, Pucker or Bloat; press for the four |
+| Brush | Sketch | `B` | Pressure-aware variable width |
 | Marker | Sketch | `M` |  |
-| Eraser | Sketch | `E` | Reveals the paper beneath; cuts only its own layer |
+| Eraser | Sketch | `E` | Cuts the selection, or every mark it touches, out of the drawing |
+| Shape Eraser | Sketch | `Shift+E` | Drag a shape to cut it out of the selected marks; press for the shapes |
+| Shape Stacker | Sketch | `Shift+M` | Drag across the pieces of the selected shapes to merge them, Alt to take them away; press for the Wipe Stacks |
+| Split | Sketch | `J` | Click a path to cut it where you click, as scissors do; a closed one opens there |
 | Text | Sketch | `T` | Click = auto-sizing box, drag = fixed width with wrap |
 | Copic marker | Sketch | `K` | Flat broad nib, rotatable |
+| Pencil | Sketch | `N` | Graphite and charcoal by hardness, through the paper's grain; press for the drawing kit |
+| Smear | Sketch | `Shift+N` | A blending stump: drag over pencil marks to spread their graphite; Quick Width sizes it, Quick Opacity sets its strength |
 | Direct Select | Sketch | `A` | White arrow; drags anchor points |
+| Fill in Front | Sketch | `X` | The colors paint the fill, not the stroke; again for the stroke |
+| Swap Fill and Stroke | Sketch | `Shift+X` | The tool's ink and fill, or the selected shapes' fill and outline |
 | Group Layer | Layers | `Ctrl+G` | Groups the selected layers |
 | Ungroup Layer | Layers | `Ctrl+Shift+G` |  |
 | Rename Layer | Layers | `F2` | Or double-click the layer row |
 | Layer Up | Layers > Move Layer | `Ctrl+]` |  |
 | Layer Down | Layers > Move Layer | `Ctrl+[` |  |
+| Make Clipping Mask | Layers > Clipping Mask | `Ctrl+7` | Groups the selection; it shows only inside the closed path on top |
+| Release Clipping Mask | Layers > Clipping Mask | `Ctrl+Alt+7` | Takes the clip off; the group stays a group |
+| Previous Page | Pages | `PageUp` |  |
+| Next Page | Pages | `PageDown` |  |
 | Select | Not in a menu | `S` | Black arrow; active at launch |
 | Rectangle | Not in a menu | `R` | Hold `Shift` for a square |
 | Ellipse | Not in a menu | `L` | Hold `Shift` for a circle |
@@ -157,8 +176,8 @@ green for a shortcut no tool has, and amber for one another tool has,
 which Accept takes from that tool; that row turns amber too, saying it will
 be left with none. Some keys are refused in the box, with the reason:
 Space, Escape and Tab, which the app keeps for itself; Enter, which only
-Move can have; and the keys of the rows Electron draws, such as Zoom In's
-`Ctrl++`, whose own boxes are greyed. Escape in a box puts back what it held
+Move can have; and the keys of the rows Electron draws, such as Toggle Full
+Screen's `F11`, whose own boxes are greyed. Escape in a box puts back what it held
 and leaves it, and the button beside a box takes its shortcut away.
 
 **Accept** saves your changes, and the menus, the tooltips and the keys

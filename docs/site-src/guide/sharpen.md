@@ -33,6 +33,10 @@ Each stroke runs through a four-stage pipeline:
 4. **Humanize** — re-apply subtle, deterministic value-noise *wobble*, taper the
    stroke ends, and anchor endpoints so the result looks hand-drawn rather than
    mechanically perfect.
+5. **Fit** — the result is kept as a few cubic Bézier anchors, fitted within
+   a third of a pixel of it so the wobble survives, as a freehand stroke is
+   when it is drawn. The rebuild used to draw ten points for every one it
+   kept. **Sharpen Selection** fits what its sliders make the same way.
 
 The engine is pure and deterministic (seeded from each stroke's id), so the same
 stroke sharpens identically whether it is processed live in the GUI or headless

@@ -181,7 +181,7 @@ spread over lines here to read:
   ],
   "warnings": [],
   "stats": { "instructions": 4, "marks": 1, "anchors": 8, "points": 101, "pages": 1 },
-  "version": "1.0.0-alpha.4.5.0",
+  "version": "1.0.0-alpha.4.6.0",
   "language": 1
 }
 ```

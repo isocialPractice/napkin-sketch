@@ -4,7 +4,8 @@
  * browser builds.
  */
 
-import type { Point, VectorAnchor } from '../core/types.js';
+import type { Point, Stroke, VectorAnchor } from '../core/types.js';
+import { fittedPressureAt } from '../core/fit-curve.js';
 
 /** A 2D vector / point with only spatial fields. */
 export interface Vec2 {
@@ -401,19 +402,24 @@ export function cubicBezierPoints(
  * segment is the cubic Bézier steered by its anchors' handles; a segment
  * with no handles on either end is a straight line and needs no
  * intermediate samples. `closed` appends the segment back to the first
- * anchor.
+ * anchor. The pressure is the anchors' own, running evenly from one to the
+ * next, where a fitted stroke's anchors carry it; a Vector Path's, which carry
+ * none, sample at the mouse's 0.5.
  */
 export function sampleVectorPathPoints(anchors: VectorAnchor[], closed: boolean): Point[] {
   if (anchors.length === 0) return [];
-  const out: Point[] = [{ x: anchors[0].p.x, y: anchors[0].p.y, pressure: 0.5 }];
+  const pressureOf = (from: VectorAnchor, to: VectorAnchor, t: number): number => fittedPressureAt(from, to, t) ?? 0.5;
+  const out: Point[] = [{ x: anchors[0].p.x, y: anchors[0].p.y, pressure: anchors[0].pressure ?? 0.5 }];
   const addSegment = (from: VectorAnchor, to: VectorAnchor): void => {
     if (!from.hOut && !to.hIn) {
-      out.push({ x: to.p.x, y: to.p.y, pressure: 0.5 });
+      out.push({ x: to.p.x, y: to.p.y, pressure: pressureOf(from, to, 1) });
       return;
     }
     const a = { x: from.p.x, y: from.p.y, pressure: 0.5 };
     const b = { x: to.p.x, y: to.p.y, pressure: 0.5 };
-    out.push(...cubicBezierPoints(a, from.hOut ?? from.p, to.hIn ?? to.p, b).slice(1));
+    const pts = cubicBezierPoints(a, from.hOut ?? from.p, to.hIn ?? to.p, b);
+    const last = pts.length - 1;
+    for (let k = 1; k <= last; k++) out.push({ ...pts[k], pressure: pressureOf(from, to, k / last) });
   };
   // A compound path's subpaths each close back to their own first anchor,
   // and the pen lifts (a `move` point) between them.
@@ -421,7 +427,7 @@ export function sampleVectorPathPoints(anchors: VectorAnchor[], closed: boolean)
   for (let i = 1; i < anchors.length; i++) {
     if (anchors[i].move) {
       if (closed) addSegment(anchors[i - 1], anchors[subStart]);
-      out.push({ x: anchors[i].p.x, y: anchors[i].p.y, pressure: 0.5, move: true });
+      out.push({ x: anchors[i].p.x, y: anchors[i].p.y, pressure: anchors[i].pressure ?? 0.5, move: true });
       subStart = i;
       continue;
     }
@@ -429,6 +435,80 @@ export function sampleVectorPathPoints(anchors: VectorAnchor[], closed: boolean)
   }
   if (closed && anchors.length >= 2) addSegment(anchors[anchors.length - 1], anchors[subStart]);
   return out;
+}
+
+/**
+ * A stroke's geometry carried on through `run`: a straight line from the
+ * stroke's last point to the run's first anchor, then the rest of the run -
+ * a Shift-click line and whatever its press went on to draw, freehand, a
+ * straight line or a quick curve. One mark, with a corner at each end of the
+ * line. A stroke with anchors gains anchors. A stroke of bare points - a
+ * dot, a line, a polyline of Shift-clicks - gains points while the run has
+ * no curve in it, which is how Direct Select already shows it, a corner at
+ * every point; a run with a curve makes those points its corner anchors.
+ * A run that begins on the stroke's very end has no line to draw, and simply
+ * carries on from there.
+ */
+export function extendWithLine(
+  base: { points: readonly Point[]; vector?: Stroke['vector'] },
+  run: readonly VectorAnchor[],
+): { points: Point[]; vector?: NonNullable<Stroke['vector']> } {
+  const copy = (a: VectorAnchor): VectorAnchor => ({
+    p: { x: a.p.x, y: a.p.y },
+    ...(a.hIn ? { hIn: { x: a.hIn.x, y: a.hIn.y } } : {}),
+    ...(a.hOut ? { hOut: { x: a.hOut.x, y: a.hOut.y } } : {}),
+    ...(a.move ? { move: true as const } : {}),
+    ...(a.pressure !== undefined ? { pressure: a.pressure } : {}),
+  });
+  if (run.length === 0) {
+    return {
+      points: base.points.map((p) => ({ ...p })),
+      ...(base.vector ? { vector: { ...base.vector, anchors: base.vector.anchors.map(copy) } } : {}),
+    };
+  }
+  const end = base.points[base.points.length - 1];
+  const onEnd = !!end && Math.hypot(run[0].p.x - end.x, run[0].p.y - end.y) <= 1e-9;
+  const curved = run.some((a) => a.hIn || a.hOut);
+  if (!base.vector && !curved) {
+    const added = onEnd ? run.slice(1) : run;
+    return {
+      points: [...base.points.map((p) => ({ ...p })), ...added.map((a) => ({ x: a.p.x, y: a.p.y, pressure: a.pressure ?? 0.5 }))],
+    };
+  }
+  const anchors: VectorAnchor[] = base.vector
+    ? base.vector.anchors.map(copy)
+    : base.points.map((p) => ({
+        p: { x: p.x, y: p.y },
+        ...(p.move ? { move: true as const } : {}),
+        ...(p.pressure !== undefined ? { pressure: p.pressure } : {}),
+      }));
+  const tail = anchors[anchors.length - 1];
+  if (!tail) {
+    // Nothing to carry on from: the run is the whole path.
+    const own = run.map(copy);
+    if (own[0]) {
+      delete own[0].hIn;
+      delete own[0].move;
+    }
+    anchors.push(...own);
+  } else if (onEnd) {
+    // The run leaves from the end itself, as it leaves.
+    if (run[0].hOut) tail.hOut = { x: run[0].hOut.x, y: run[0].hOut.y };
+    else delete tail.hOut;
+    anchors.push(...run.slice(1).map(copy));
+  } else {
+    // The line leaves the stroke's end and reaches the run straight: no
+    // handle on either side of it.
+    delete tail.hOut;
+    const head = copy(run[0]);
+    delete head.hIn;
+    delete head.move;
+    anchors.push(head, ...run.slice(1).map(copy));
+  }
+  return {
+    points: sampleVectorPathPoints(anchors, false),
+    vector: { anchors, ...(base.vector?.fitted || !base.vector ? { fitted: true as const } : {}) },
+  };
 }
 
 /** Least-squares circle fit (Kåsa method). Returns center, radius, and RMS error. */

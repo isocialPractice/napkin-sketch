@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Transform, Rotate, Mirror and Mesh Warp - napkin-sketch</title>
-<meta name="description" content="The Transform box, Rotate, Mirror, Mesh Warp, and docking their panels.">
+<title>Transform, Rotate, Mirror, Mesh Warp, Liquify and Wipe Stacks - napkin-sketch</title>
+<meta name="description" content="The Transform box, Rotate, Mirror, Mesh Warp, Liquify, the Wipe Stacks, and docking their panels.">
 <meta name="generator" content="napkin-sketch npm run site">
 <link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.4.5.0</span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.6.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -29,7 +29,7 @@
 <p class="nav-section">Using the app</p>
 <ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html" aria-current="page">Transform</a></li><li><a href="layers.html">Layers</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
 <p class="nav-section">Drawing from a script</p>
-<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The drawing engines</summary><ul><li><a href="../api/engines/index.html">Reference</a></li><li><a href="../api/engines/quickstart.html">Quickstart</a></li><li><a href="../api/engines/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
 <p class="nav-section">Building on it</p>
 <ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
 <p class="nav-section">Developing</p>
@@ -40,17 +40,28 @@
 <main class="page" id="content">
 <article class="content">
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Transform</span></nav>
-<h1 id="transform-rotate-mirror-and-mesh-warp">Transform, Rotate, Mirror and Mesh Warp<a class="anchor" href="#transform-rotate-mirror-and-mesh-warp" aria-label="Link to this section">#</a></h1>
-<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#the-transform-box">The Transform box</a></li><li><a href="#rotate">Rotate</a></li><li><a href="#mirror">Mirror</a></li><li><a href="#mesh-warp">Mesh Warp</a></li><li><a href="#docking-the-editing-panels">Docking the editing panels</a></li></ul></details>
+<h1 id="transform-rotate-mirror-mesh-warp-liquify-and-wipe-stacks">Transform, Rotate, Mirror, Mesh Warp, Liquify and Wipe Stacks<a class="anchor" href="#transform-rotate-mirror-mesh-warp-liquify-and-wipe-stacks" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#the-transform-box">The Transform box</a></li><li><a href="#rotate">Rotate</a></li><li><a href="#mirror">Mirror</a></li><li><a href="#mesh-warp">Mesh Warp</a></li><li><a href="#liquify">Liquify</a></li><li><a href="#wipe-stacks">Wipe Stacks</a></li><li><a href="#docking-the-editing-panels">Docking the editing panels</a></li></ul></details>
 <h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
 <ul>
 <li><strong>Mesh Warp</strong> - below the tools in the side rail: click art to mesh it, then
 drag its pins to bend it, as Illustrator's Puppet Warp does. <code>Enter</code> bakes the
 bend into the art as one undo step, and <code>Escape</code> throws it away.</li>
+<li><strong>Liquify</strong> (<code>Shift+R</code>, after Mesh Warp in the side rail): bend the marks
+under a brush as Illustrator's Warp tools do - Warp pushes their outline
+along the drag, Twirl turns it, Pucker draws it in and Bloat pushes it out -
+one undo step a drag.</li>
+<li><strong>Wipe Stacks</strong> - Transform &gt; Wipe Stacks, the canvas's right-click menu, or
+the Shape Stacker's panel:
+combine the selected shapes as Illustrator's Pathfinder does - unite them,
+take one from the others, keep their overlap or all but it, or cut them into
+every piece of their overlaps - in one undo step, with a quarter-second
+napkin wiping over the result.</li>
 </ul>
 <h2 id="the-transform-box">The Transform box<a class="anchor" href="#the-transform-box" aria-label="Link to this section">#</a></h2>
-<p><strong>Transform (<code>Ctrl+T</code>, or Transform &gt; Transform Box, checked while the box is
-up):</strong> puts one box around everything selected, with a
+<p><strong>Transform (<code>Ctrl+T</code>, the **Transform</strong> button beside Mirror in the toolbar,
+or Transform &gt; Transform Box; the button is pressed and the row checked while
+the box is up):** puts one box around everything selected, with a
 handle on each corner and the middle of each side, and scales it by dragging
 one. The box stays up while it is in use — press <code>Ctrl+T</code> again or <code>Escape</code> to
 put it away — and a press anywhere off a handle still belongs to the tool
@@ -185,6 +196,94 @@ nib turns with the art. No width is stretched.</li>
 <code>&lt;linearGradient&gt;</code> / <code>&lt;radialGradient&gt;</code> paint servers and <code>stroke-dasharray</code>
 values, so other editors see them, and they round-trip back into napkin
 unchanged.</p>
+<h2 id="liquify">Liquify<a class="anchor" href="#liquify" aria-label="Link to this section">#</a></h2>
+<p><em>New in 1.0.0-alpha.4.6.0.</em></p>
+<p><strong>Liquify (<code>Shift+R</code>, Transform &gt; Liquify, or its button after Mesh Warp's
+below the tools in the side rail):</strong> bends the marks under a brush, as
+Illustrator's Warp tools do. The key or a press on the button opens its
+panel of four brushes, two by two; the arrows move round it and <code>Enter</code>
+chooses.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Brush</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><strong>Warp</strong></td><td>Pushes the outline along the drag, like clay: what is under the brush's centre goes the whole way</td></tr>
+<tr><td><strong>Twirl</strong></td><td>Turns what is under the brush about its centre, clockwise, for as long as the press is held</td></tr>
+<tr><td><strong>Pucker</strong></td><td>Draws what is under the brush in toward its centre, while held</td></tr>
+<tr><td><strong>Bloat</strong></td><td>Pushes what is under the brush out from its centre, while held</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>The brush.</strong> A ring round the pointer with a small cross at its centre,
+100 px across the page unless changed. What it bends falls off smoothly
+from its centre to nothing at the ring. <code>Alt</code>-drag sizes it: the ring
+stays where the press went down and its edge follows the pointer. <code>[</code> and
+<code>]</code> make it a step smaller or larger. A toast gives the new size.</li>
+<li><strong>What bends.</strong> The selected marks, or, with nothing selected, every mark
+under the brush on a visible, unlocked layer, as Illustrator chooses.
+<code>Ctrl</code> lends the selection tool, as on the drawing tools, to choose them.
+Pencil marks are the <a href="tools.html#smear">Smear</a>'s to blend, so Liquify leaves
+them, and says so the first time. Text, pictures and eraser marks have no
+outline to bend.</li>
+<li><strong>Held and pressed.</strong> Twirl, Pucker and Bloat keep working while the press
+is held still, faster under a pen pressed harder. Warp works as the
+pointer moves, and pushes less under a light pen.</li>
+<li><strong>What moves.</strong> As under Mesh Warp, anchors and handles move, and a segment
+is split where one piece could no longer follow the bend. A drawn rectangle
+or ellipse, which has points rather than anchors, bends as a path, its
+straight sides too. When the drag ends, each mark it bent is fitted again
+at the Freehand fidelity (Verbose Settings &gt; Sketch Support), so its
+anchors stay few. A Vector Path the brush never split keeps the anchors it
+was drawn with. Widths are kept, and a Copic nib turns with what it is on.</li>
+<li><strong>Undo.</strong> One drag is one undo step. <code>Escape</code> before letting go puts back
+everything the drag bent.</li>
+</ul>
+<p>A script bends with <code>warp</code>, <code>twirl</code>, <code>pucker</code> and <code>bloat</code>
+(<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/api/drawing/README.md#liquify">Drawing with napkin script</a>).</p>
+<h2 id="wipe-stacks">Wipe Stacks<a class="anchor" href="#wipe-stacks" aria-label="Link to this section">#</a></h2>
+<p><strong>Wipe Stacks (Transform &gt; Wipe Stacks, after Close Shape, the canvas's
+right-click menu, or the tiles in the <a href="tools.html#shape-stacker">Shape Stacker</a>'s
+panel):</strong> combines the selected shapes as Illustrator's Pathfinder does. It takes two or more shapes, and its rows are greyed until two are
+selected. As in Illustrator the rows have no keys; <strong>Edit Keyboard Shortcuts</strong>
+can give them some.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Row</th><th>Pathfinder</th><th>What is left</th><th>Painted as</th></tr></thead>
+<tbody>
+<tr><td><strong>Wipe In</strong></td><td>Unite</td><td>everything the shapes cover, as one shape</td><td>the topmost shape</td></tr>
+<tr><td><strong>Wipe Out &gt; Subtract Top from Below</strong></td><td>Minus Front</td><td>the bottom shape, less the ones above it</td><td>the bottom shape</td></tr>
+<tr><td><strong>Wipe Out &gt; Subtract Below from Top</strong></td><td>Minus Back</td><td>the top shape, less the ones below it</td><td>the top shape</td></tr>
+<tr><td><strong>Mid Wipe</strong></td><td>Intersect</td><td>only where every shape overlaps</td><td>the topmost shape</td></tr>
+<tr><td><strong>Outer Wipes</strong></td><td>Exclude</td><td>where an odd number overlap: two shapes lose their overlap, three keep their middle</td><td>the topmost shape</td></tr>
+<tr><td><strong>Clean Wipe</strong></td><td>Divide</td><td>every piece of the overlaps, a shape each, each on a layer of its own</td><td>the topmost shape over the piece</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>What counts as a shape.</strong> A filled mark, or a closed outline, is its
+inside. Anything else - a line, a Copic stroke, a profiled stroke - is its
+ink, the width it paints at: a thick line taken from a square cuts the
+square in two. A result painted as a shape keeps that shape's fill,
+outline, width, opacity and effects; one painted from ink is a filled shape
+in the ink's colour, with no outline.</li>
+<li><strong>Text, pictures and placed files are passed over.</strong> They stay as they are,
+and the notice says so.</li>
+<li><strong>Curves are kept.</strong> Where the result runs along one of the shapes' own
+curves it keeps that shape's anchors and handles exactly, and a corner is
+made only where one edge crosses another.</li>
+<li><strong>One undo step.</strong> The result is on the page, selected, the moment the row
+is chosen, and <code>Ctrl+Z</code> takes the whole wipe back. A wipe takes up to 32
+shapes at a time.</li>
+<li><strong>The wipe.</strong> A paper-coloured napkin, a third of the shapes' width and
+leaning a little, sweeps across them in a quarter of a second: ahead of it
+the picture from before, behind it the result. A press, a key or the wheel
+ends it at once, so it never holds anything up. It is skipped when the
+system asks for reduced motion, and <strong>Wipe animation</strong> in Verbose Settings
+(Extras) turns it off.</li>
+<li><strong>In the right-click menu</strong> the Wipe Stacks are a block at the end of the
+canvas menu. The window opens one panel beside a menu, so Wipe Out's two
+rows are laid out in the Wipe Stacks panel itself, as <strong>Wipe Out: Subtract
+Top from Below</strong> and <strong>Wipe Out: Subtract Below from Top</strong>.</li>
+<li><strong>In a script,</strong> <code>wipe in|out-front|out-back|mid|outer|clean { ... }</code>
+combines the marks its block draws the same six ways, and draws what is
+left in their place: <code>wipe out-front { circle 100 100 60  circle 150 100 60 }</code>.
+The <a href="../api/drawing/index.html#combining-shapes">drawing reference</a> has the verb.</li>
+</ul>
 <h2 id="docking-the-editing-panels">Docking the editing panels<a class="anchor" href="#docking-the-editing-panels" aria-label="Link to this section">#</a></h2>
 <p><strong>Docking the editing panels:</strong> <strong>Move</strong>, <strong>Rotate</strong>, <strong>Mirror</strong>, <strong>Page
 Settings</strong>, and <strong>Sharpen Selection</strong> are floating palettes - dragged by their title or by the

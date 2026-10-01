@@ -34,6 +34,38 @@ export interface ContextMenuOptions {
   mac?: boolean;
 }
 
+/**
+ * A nested panel's items with every deeper submenu laid out in them. The
+ * window draws one panel beside a menu, never a panel beside a panel, so a
+ * submenu inside a submenu - Wipe Stacks > Wipe Out - shows its rows in
+ * place, each named after it ("Wipe Out: Subtract Top from Below"), set
+ * apart by separators, and greyed when it is.
+ */
+export function inlineDeeperSubmenus(items: readonly ContextMenuItem[]): ContextMenuItem[] {
+  const out: ContextMenuItem[] = [];
+  const separate = (): void => {
+    if (out.length > 0 && !out[out.length - 1].separator) out.push({ separator: true });
+  };
+  for (const item of items) {
+    if (!item.items || item.items.length === 0) {
+      if (item.separator && (out.length === 0 || out[out.length - 1].separator)) continue;
+      out.push(item);
+      continue;
+    }
+    separate();
+    for (const child of inlineDeeperSubmenus(item.items)) {
+      if (child.separator) {
+        separate();
+        continue;
+      }
+      out.push({ ...child, label: `${item.label ?? ''}: ${child.label ?? ''}`, disabled: item.disabled === true || child.disabled === true });
+    }
+    out.push({ separator: true });
+  }
+  while (out.length > 0 && out[out.length - 1].separator) out.pop();
+  return out;
+}
+
 /** The widget's items for generated rows, each row that runs a command calling `run` with its id. */
 export function contextMenuItems(
   rows: readonly MenuRow[],

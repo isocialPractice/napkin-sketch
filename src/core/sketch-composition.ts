@@ -37,6 +37,9 @@ import {
   type Sketch,
   type Stroke,
 } from './types.js';
+import { clipIndex } from './clip.js';
+import { encodePng } from './graphic-design/png.js';
+import { pencilPicture, pencilRegion, pngDataUrl } from './pencil.js';
 
 /** What of a sketch {@link sketchToComposition} draws. */
 export interface SketchCompositionOptions {
@@ -46,6 +49,12 @@ export interface SketchCompositionOptions {
   transparent?: boolean;
   /** Told about each color that paints nothing because the composition model cannot read it. */
   onWarning?: (message: string) => void;
+  /**
+   * Device pixels per page pixel the composition is to be drawn at: a Pencil
+   * mark's grain is worked out for them, as the canvas works it out for the
+   * screen's. Default 1.
+   */
+  scale?: number;
 }
 
 /** Reads a color once: the color when it paints, null when it cannot. */
@@ -92,18 +101,29 @@ export function sketchToComposition(sketch: Sketch, options: SketchCompositionOp
     }
   }
 
+  // Clip groups (core/clip.ts): each clips with a mark that paints nothing while it does.
+  const clips = clipIndex(sketch);
   const lowerLayer = (layer: Layer): Element | null => {
     if (!layer.visible) return null;
     const effects = readEffects(layer.effects);
     const own = { name: layer.name, ...(layer.opacity < 1 ? { opacity: layer.opacity } : {}), ...(effects ? { effects } : {}) };
     if (layer.group) {
       const children = (childrenOf.get(layer.id) ?? []).map(lowerLayer).filter((el): el is Element => el !== null);
-      return children.length > 0 ? { type: 'group', ...own, children } : null;
+      if (children.length === 0) return null;
+      const clip = clips.byGroup.get(layer.id);
+      if (!clip) return { type: 'group', ...own, children };
+      // REUSE: the composition draws clips. A group's own clip is applied after
+      // its effects, and the canvas cuts the picture before them, so a clip
+      // group with effects carries the clip on a group of its own inside.
+      const clipShape = { type: 'path' as const, d: outlineData(clip.region) };
+      return effects
+        ? { type: 'group', ...own, children: [{ type: 'group', clip: clipShape, children }] }
+        : { type: 'group', ...own, clip: clipShape, children };
     }
-    const strokes = byLayer.get(layer.id) ?? [];
+    const strokes = clips.any ? (byLayer.get(layer.id) ?? []).filter((s) => !clips.marks.has(s.id)) : (byLayer.get(layer.id) ?? []);
     if (strokes.length === 0) return null;
     const erase = strokes.filter((s) => s.tool === 'eraser').flatMap(eraserElements);
-    const children = strokes.filter((s) => s.tool !== 'eraser').flatMap((s) => withEffects(markElements(s, paint), s));
+    const children = strokes.filter((s) => s.tool !== 'eraser').flatMap((s) => withEffects(markElements(s, paint, options.scale ?? 1), s));
     return { type: 'group', ...own, children, ...(erase.length > 0 ? { erase } : {}) };
   };
 
@@ -162,10 +182,11 @@ function withEffects(elements: Element[], stroke: Stroke): Element[] {
 }
 
 /** One mark as the elements that draw it. */
-function markElements(stroke: Stroke, paint: PaintCheck): Element[] {
+function markElements(stroke: Stroke, paint: PaintCheck, scale: number): Element[] {
   if (isTextStroke(stroke)) return textElements(stroke, paint);
   if (isImageStroke(stroke)) return imageElements(stroke);
   if (stroke.tool === 'copic') return copicElements(stroke, paint);
+  if (stroke.tool === 'pencil') return pencilElements(stroke, scale);
   if (activeProfile(stroke) && !stroke.noStroke) return profiledElements(stroke, paint);
   return pathElements(stroke, paint);
 }
@@ -215,6 +236,30 @@ function copicElements(stroke: Stroke, paint: PaintCheck): Element[] {
   const polygons = copicNibPolygons(stroke);
   if (polygons.length === 0) return [];
   return [{ type: 'path', d: outlineData(polygons), fill: paint(stroke.color), fillRule: 'nonzero', ...alphaOf(stroke) }];
+}
+
+/**
+ * A Pencil mark: its picture through the paper's tooth, its Smear passes
+ * and all, worked out by the core (`pencilPicture`) at the scale the composition is drawn at, and
+ * placed as an image on the page's own pixel grid - the canvas's pixels,
+ * since the composition has no grain paint of its own.
+ */
+function pencilElements(stroke: Stroke, scale: number): Element[] {
+  const region = pencilRegion(stroke, scale);
+  if (!region) return [];
+  const data = pencilPicture(stroke, region);
+  return [
+    {
+      type: 'image',
+      src: pngDataUrl(encodePng(data, region.width, region.height)),
+      x: region.x / scale,
+      y: region.y / scale,
+      width: region.width / scale,
+      height: region.height / scale,
+      fit: 'fill',
+      ...alphaOf(stroke),
+    },
+  ];
 }
 
 /** A text item: text set from its top, a line and a quarter apart, wrapped in its box when it has one. */

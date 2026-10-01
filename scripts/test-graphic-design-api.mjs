@@ -341,6 +341,23 @@ async function main() {
     'a configured brand actually changes the graphic'
   );
 
+  // 7. The drawing engines the same built API carries beside the composition
+  //    calls: the Eraser's cut, the wipes, the Pencil and Liquify, each
+  //    answering from dist/ as a program that imports the package calls it.
+  console.log('\nthe drawing engines in the built API');
+  const square = (x, y, s) => [[{ x, y }, { x: x + s, y }, { x: x + s, y: y + s }, { x, y: y + s }]];
+  check(api.booleanOp(square(0, 0, 10), square(5, 5, 10), 'union')?.length === 1, 'booleanOp unites two squares into one outline');
+  const shapes = api.evaluate('napkin 1\nfill #27486d\nrect 0 0 100 100\ncircle 100 50 50\n').book.sketches[0];
+  const union = api.wipeMarks(shapes, shapes.strokes.map((s) => s.id), 'in');
+  check(union.problem === null && union.removed.size === 1, 'wipeMarks makes one shape of two');
+  const swath = api.eraseRegionOf({ id: 'e', tool: 'eraser', color: '#000000', width: 20, points: [{ x: 50, y: -10 }, { x: 50, y: 110 }] });
+  check(api.eraseMarks(shapes, shapes.strokes.map((s) => s.id), swath).changed.size > 0, 'eraseMarks cuts a swath out of the marks under it');
+  check(api.PENCIL_GRADES.length === 30 && api.pencilPaint('2B').label === 'Graphite 2B', 'the Pencil carries its 30 grades');
+  check(
+    api.liquifyMarks(shapes.strokes, [{ mode: 'bloat', x: 100, y: 50, radius: 40, amount: 0.3 }]).size > 0,
+    'liquifyMarks bends the marks under a brush'
+  );
+
   console.log('');
   console.log(`${checks - failures}/${checks} checks passed`);
   console.log(`graphics: ${show(GRAPHICS)}`);

@@ -9,11 +9,11 @@ arranges and saves what was drawn. For the essentials alone, start with the
 ## The pages
 
 <!-- pages:guide:start -->
-- [Tools](tools.md) - The drawing tools, the Copic marker and its nib, and the Sketch Support toolbar.
+- [Tools](tools.md) - The drawing tools, the Copic marker and its nib, the Pencil, its kit and the Smear, and the Sketch Support toolbar.
 - [Gestures and input](gestures.md) - Pen, touch and mouse; pan and zoom; the straight line, the quick curve, endpoint snap and the held keys.
 - [Vector paths and stroke profiles](vector-paths.md) - Editing anchors and handles, rounding corners, Sharpen Selection, and the four stroke profiles.
 - [Selecting and editing](selection.md) - Selecting, filling, widening, the clipboard, and what a press on a selection does.
-- [Transform, Rotate, Mirror and Mesh Warp](transform.md) - The Transform box, Rotate, Mirror, Mesh Warp, and docking their panels.
+- [Transform, Rotate, Mirror, Mesh Warp, Liquify and Wipe Stacks](transform.md) - The Transform box, Rotate, Mirror, Mesh Warp, Liquify, the Wipe Stacks, and docking their panels.
 - [Layers and the Properties panel](layers.md) - The Layers panel, groups, restacking, and editing a selection in the Properties panel.
 - [Pages](pages.md) - The pages panel, page sizes, and the three ways to add a page.
 - [Import and export](import-export.md) - What SVG, PDF and pictures arrive as, and what PNG, JPEG, SVG and PDF exports keep.

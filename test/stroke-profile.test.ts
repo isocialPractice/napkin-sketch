@@ -488,3 +488,39 @@ test('a mirrored profile survives a save, and only beside a profile', () => {
     [true, undefined, undefined],
   );
 });
+
+test("a plain stroke's uniform outline is as wide as the painter's line was, pressure and all", () => {
+  // A horizontal pen line pressed from nothing to full: 0.4 of the width at
+  // one end, the whole width at the other, as the old segments painted it.
+  const line: Stroke = {
+    id: 'plain',
+    tool: 'pen',
+    color: '#000',
+    width: 10,
+    points: [
+      { x: 0, y: 0, pressure: 0 },
+      { x: 100, y: 0, pressure: 1 },
+    ],
+  };
+  const spanOf = (pieces: ReturnType<typeof profilePieces>) => (x: number): number => {
+    let top = 0;
+    let bottom = 0;
+    for (const piece of pieces) {
+      for (let i = 0; i < piece.length; i++) {
+        const a = piece[i];
+        const b = piece[(i + 1) % piece.length];
+        if ((a.x - x) * (b.x - x) > 0 || a.x === b.x) continue;
+        const y = a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+      }
+    }
+    return bottom - top;
+  };
+  const spanAt = spanOf(profilePieces(profileInputOf(line)));
+  assert.ok(Math.abs(spanAt(1) - 10 * (0.4 + 0.6 * 0.01)) < 0.1, `near the light end: ${spanAt(1)}`);
+  assert.ok(Math.abs(spanAt(99) - 10 * (0.4 + 0.6 * 0.99)) < 0.1, `near the full end: ${spanAt(99)}`);
+  // A marker's is its width all along, whatever the pressure.
+  const markerSpan = spanOf(profilePieces(profileInputOf({ ...line, tool: 'marker' })));
+  assert.ok(Math.abs(markerSpan(50) - 10) < 1e-6, `the marker's width: ${markerSpan(50)}`);
+});

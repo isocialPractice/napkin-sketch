@@ -3,7 +3,7 @@
 ![napkin-sketch: its logo beside the app, a sketch on the canvas with the Layers and Properties panels open](../assets/banner.gif)
 
 <!-- version:start -->
-This documents napkin-sketch **1.0.0-alpha.4.5.0**.
+This documents napkin-sketch **1.0.0-alpha.4.6.0**.
 <!-- version:end -->
 
 Quick and easy computer sketching with a drawing GUI that simulates pen and
@@ -27,21 +27,30 @@ hand-drawn rather than vector-perfect.
 
 ## What it does
 
-- **Draws like a pen** - pressure-aware pen, marker and a Copic marker with a
-  turnable nib; see [Tools](guide/tools.md).
+- **Draws like a pen** - a pressure-aware brush and marker, a Copic marker with a
+  turnable nib, and a pencil with a drawing class's kit and a stump to blend
+  it; see [Tools](guide/tools.md), [the Pencil](guide/tools.md#pencil) and
+  [the Smear](guide/tools.md#smear).
 - **Sharpens by hand** - squares up boxes and rounds out circles, and keeps a
   wobble; see [Sharpening](guide/sharpen.md).
 - **Edits like a vector editor** - anchors and handles, stroke profiles,
-  Transform, Rotate, Mirror and Mesh Warp; see [Vector paths](guide/vector-paths.md)
-  and [Transform](guide/transform.md).
-- **Keeps things in order** - layers and groups, pages of any size; see
-  [Layers](guide/layers.md) and [Pages](guide/pages.md).
-- **Round-trips SVG** - imports another editor's layers, curves and gradients,
-  and exports them small; see [Import and export](guide/import-export.md).
+  Transform, Rotate, Mirror, Mesh Warp, Liquify, which bends marks as the Warp
+  tools do, and the Wipe Stacks, the Shape Stacker and Split, which combine
+  and cut shapes as Pathfinder, Shape Builder and Scissors do; see
+  [Vector paths](guide/vector-paths.md), [Transform](guide/transform.md),
+  [the Shape Stacker](guide/tools.md#shape-stacker) and [Split](guide/tools.md#split).
+- **Keeps things in order** - layers and groups, clipping masks, pages of
+  any size; see [Layers](guide/layers.md),
+  [Clipping masks](guide/layers.md#clipping-masks) and [Pages](guide/pages.md).
+- **Round-trips SVG** - imports another editor's layers, curves, gradients and
+  clipping masks, and exports them small; see
+  [Import and export](guide/import-export.md).
 - **Writes scripts** - a drawing, a file or a session as napkin script; see
   [Automate](guide/automate.md).
-- **Draws from scripts** - from a shell, from Node, or from any language; see
-  [Drawing from a script](scripting.md).
+- **Draws from scripts** - from a shell, from Node, or from any language, and
+  the engines behind the tools are functions a program calls; see
+  [Drawing from a script](scripting.md) and
+  [The drawing engines](../api/engines/README.md).
 - **Animates, optionally** - an add-on that draws frames with an AI helper;
   see [Animation Mode](guide/animation-mode.md).
 
@@ -69,11 +78,11 @@ the tests. [About and license](about.md) says more.
 
 <!-- pages:guide:start -->
 - [Using the app](guide/index.md) - The manual, in the order it is best read, one line per page.
-- [Tools](guide/tools.md) - The drawing tools, the Copic marker and its nib, and the Sketch Support toolbar.
+- [Tools](guide/tools.md) - The drawing tools, the Copic marker and its nib, the Pencil, its kit and the Smear, and the Sketch Support toolbar.
 - [Gestures and input](guide/gestures.md) - Pen, touch and mouse; pan and zoom; the straight line, the quick curve, endpoint snap and the held keys.
 - [Vector paths and stroke profiles](guide/vector-paths.md) - Editing anchors and handles, rounding corners, Sharpen Selection, and the four stroke profiles.
 - [Selecting and editing](guide/selection.md) - Selecting, filling, widening, the clipboard, and what a press on a selection does.
-- [Transform, Rotate, Mirror and Mesh Warp](guide/transform.md) - The Transform box, Rotate, Mirror, Mesh Warp, and docking their panels.
+- [Transform, Rotate, Mirror, Mesh Warp, Liquify and Wipe Stacks](guide/transform.md) - The Transform box, Rotate, Mirror, Mesh Warp, Liquify, the Wipe Stacks, and docking their panels.
 - [Layers and the Properties panel](guide/layers.md) - The Layers panel, groups, restacking, and editing a selection in the Properties panel.
 - [Pages](guide/pages.md) - The pages panel, page sizes, and the three ways to add a page.
 - [Import and export](guide/import-export.md) - What SVG, PDF and pictures arrive as, and what PNG, JPEG, SVG and PDF exports keep.

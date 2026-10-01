@@ -33,7 +33,12 @@ before anything uses it. It has three sources:
 The **Generated script** dialog shows the whole script in a box you can
 scroll and select, with a line that counts its instructions, marks and
 layers, and a note for anything the language cannot say as the drawing
-does: pen pressure, for one, is written even. A picture's data is shortened
+does: pen pressure, for one, is written even. A clipping mask is written as a
+`clip` block, which clips with the last closed shape it draws, or, when its
+clip mark is not that shape or the group has an opacity of its own, as a
+plain group, with a note. An older file's eraser mark is written as `tool
+eraser`, which a script reads as the cut it paints: run, the script draws the
+marks cut, and no eraser mark. A picture's data is shortened
 in the box, and everything else takes all of it. **Copy** puts the script
 on the clipboard, **Save As** writes a `.napkin` file, **Open as New Page**
 runs the script into a page of its own after the one in view - the honest
@@ -49,7 +54,7 @@ every step you could undo - a stroke, a command, a change in the Layers
 panel - and every undo and redo, each with what it changed. It is off until
 you turn it on, and the row shows a check mark while it is on. A step is
 named for what made it: the command that ran ("Rotate"), the tool whose
-press on the canvas made it ("Pen stroke"), or, when nothing named it, what
+press on the canvas made it ("Brush stroke"), or, when nothing named it, what
 it changed ("Changed 2 marks"). A drag is one step, as it is one undo. Only
 the document is recorded: zoom, pan, the panels, the tool in hand and the
 colour are not, except as the marks they paint. The steps are what

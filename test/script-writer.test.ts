@@ -187,11 +187,21 @@ for (const file of GOLDEN) {
     const written = bookToInstructions(book, { decimals: null });
     const back = drawBack(written, name);
     assert.equal(back.sketches.length, book.sketches.length, 'every page');
+    // A script's smear passes over every pencil mark it reaches, which the
+    // writer cannot say of one mark: a golden that smears comes back as its
+    // page unsmeared, and says so; everything else on it comes back exact.
+    const smeared = book.sketches.some((page) => page.strokes.some((stroke) => (stroke.smudges?.length ?? 0) > 0));
+    const unsmeared = (page: Sketch): Sketch => ({ ...page, strokes: page.strokes.map(({ smudges: _smudges, ...stroke }) => stroke) });
     book.sketches.forEach((page, i) => {
       assert.equal(back.sketches[i].name, page.name, `page ${i + 1}'s name`);
-      assertSameDrawing(page, back.sketches[i], `${file} page ${i + 1}`);
+      assertSameDrawing(smeared ? unsmeared(page) : page, back.sketches[i], `${file} page ${i + 1}`);
     });
-    assert.deepEqual(written.notes, []);
+    if (smeared) {
+      assert.equal(written.notes.length, 1, written.notes.join(' / '));
+      assert.match(written.notes[0], /smeared pencil marks? (is|are) written unsmeared/);
+    } else {
+      assert.deepEqual(written.notes, []);
+    }
   });
 }
 
@@ -240,7 +250,6 @@ function everyKind(): Sketch {
     { id: 'e', tool: 'pen', color: '#1f2328', width: 8, layer: ink.id, profile: 'tapered', points: line([[20, 190], [70, 200], [120, 185], [180, 195]]) },
     { id: 'f', tool: 'copic', color: '#8e44ad', width: 10, nibAngle: 30, layer: ink.id, points: line([[220, 120], [260, 140], [300, 150]]) },
     { id: 'g', tool: 'pen', color: '#1f2328', width: 2, layer: ink.id, fill: '#c0e0ff', noStroke: true, effects: [{ type: 'blur', radius: 1.5 }], ...square(220, 170, 40) },
-    { id: 'h', tool: 'eraser', color: '#000000', width: 10, layer: ink.id, points: line([[25, 118], [40, 126], [60, 122]]) },
     { id: 'i', tool: 'text', color: '#c0392b', width: 1, layer: base.id, text: 'Acme\nCorp', fontSize: 18, fontFamily: 'Georgia', textBoxWidth: 120, opacity: 0.9, points: [{ x: 20, y: 200 }] },
     { id: 'j', tool: 'image', color: '#000000', width: 1, layer: base.id, image: LOGO, imageWidth: 40, imageHeight: 20, points: [{ x: 260, y: 20 }] },
     { id: 'k', tool: 'image', color: '#000000', width: 1, layer: logo.id, image: LOGO, imageWidth: 80, imageHeight: 40, link: { href: 'assets/logo.svg', kind: 'svg' }, points: [{ x: 200, y: 60 }] },
@@ -277,7 +286,6 @@ test('a page of every kind of mark, drawn back and forth between layers, is writ
     'the profiled line keeps its every point',
   );
   const lines = formatScript(written.script);
-  assert.match(lines, /^ {2}tool eraser$/m, 'the eraser is written as one, in the group');
   assert.match(lines, /^link "assets\/logo\.svg" at 200 60 size 80 40 name "Brand"$/m, 'the linked file makes its layer');
   assert.match(lines, /^layer "Brand" opacity 0\.5$/m, 'which then takes its properties');
   assert.match(lines, /^effect drop-shadow 2 3 4 #00000066\ngroup "Figure" opacity 0\.8 \{$/m, "and a group's effect stands before it");
@@ -490,18 +498,35 @@ test('the notes go at the top of the text as comments, which the parser skips', 
 
 // ---- The eraser the writer needed -----------------------------------------------------------------
 
-test('`tool eraser` draws an eraser mark: its line and nothing else, with effects left for the next mark', () => {
-  const result = evaluate('napkin 1\npage 200 200\nfill #ffe08a\nstyle dashed\nstroke off\neffect blur 2\ntool eraser\nwidth 8\nrect 10 10 50 50\ntool pen\ncircle 150 150 20\n', {
-    timestamp: TIMESTAMP,
-  });
-  assert.deepEqual(result.diagnostics, []);
-  const [eraser, pen] = result.book.sketches[0].strokes;
-  assert.equal(eraser.tool, 'eraser');
-  assert.equal(eraser.width, 8);
-  for (const field of ['fill', 'gradient', 'noStroke', 'strokeStyle', 'effects'] as const) {
-    assert.equal(eraser[field], undefined, `an eraser takes no ${field}`);
+test("an older file's eraser mark is written as `tool eraser`, which reads back as the cut it paints", () => {
+  const source = createSketch('eraser');
+  source.width = 240;
+  source.height = 160;
+  source.background = '#ffffff';
+  const layer = source.layers[0].id;
+  const at = (coords: number[][]): Stroke['points'] => coords.map(([x, y]) => ({ x, y, pressure: 0.5 }));
+  source.strokes = [
+    { id: 'a', tool: 'pen', color: '#1f2328', width: 4, layer, points: at([[20, 60], [220, 60]]) },
+    { id: 'b', tool: 'pen', color: '#326478', width: 4, layer, fill: '#ffe08a', noStroke: true, vector: { anchors: [{ p: { x: 40, y: 80 } }, { p: { x: 200, y: 80 } }, { p: { x: 200, y: 140 } }, { p: { x: 40, y: 140 } }], closed: true }, points: at([[40, 80], [200, 80], [200, 140], [40, 140], [40, 80]]) },
+    { id: 'e', tool: 'eraser', color: '#000000', width: 16, layer, points: at([[120, 30], [120, 150]]) },
+  ];
+  const written = sketchToInstructions(source, { decimals: null });
+  assert.ok(lines(written).includes('tool eraser'), 'the eraser is written as one');
+  assert.deepEqual(written.notes, [
+    "1 eraser mark is written as `tool eraser`, which a script reads as the cut it paints in the marks before it on its layer, as the app's Eraser cuts: no eraser mark is left, and a cut shape's outline follows the cut.",
+  ]);
+  const back = drawBack(written, 'eraser').sketches[0];
+  assert.deepEqual(back.strokes.map((s) => s.tool), ['pen', 'pen'], 'the two marks, cut, and no eraser mark');
+  assert.ok(back.strokes.every((s) => s.vector?.anchors.some((a) => a.move)), 'each cut in two');
+  // The fill is cut exactly where the eraser painted it out. The line's cut ends are drawn
+  // rather than painted out, so only the columns at the swath's edges may differ.
+  const one = decodePng(renderSketch(source, { format: 'png' }));
+  const two = decodePng(renderSketch(back, { format: 'png' }));
+  for (let i = 0; i < one.data.length; i++) {
+    const x = (i >> 2) % one.width;
+    const edge = Math.abs(x - 112) <= 3 || Math.abs(x - 128) <= 3;
+    if (!edge) assert.equal(two.data[i], one.data[i], `the pixel at x ${x}, y ${Math.floor((i >> 2) / one.width)}`);
   }
-  assert.deepEqual(pen.effects, [{ type: 'blur', radius: 2 }], 'the effect waited for the next mark that shows');
 });
 
 // ---- The writer's style, held to a file ------------------------------------------------------------

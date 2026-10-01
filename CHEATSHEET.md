@@ -14,34 +14,42 @@ Edit Keyboard Shortcuts** changes them for you alone.
 <!-- shortcut-tools:start -->
 | Tool | Key | Notes |
 | :--- | :-- | :---- |
-| Pen | `P` | Pressure-aware variable width |
+| Brush | `B` | Pressure-aware variable width |
 | Marker | `M` |  |
 | Copic marker | `K` | Flat broad nib, rotatable |
-| Eraser | `E` | Reveals the paper beneath; cuts only its own layer |
+| Pencil | `N` | Graphite and charcoal by hardness, through the paper's grain; press for the drawing kit |
+| Smear | `Shift+N` | A blending stump: drag over pencil marks to spread their graphite; Quick Width sizes it, Quick Opacity sets its strength |
+| Eraser | `E` | Cuts the selection, or every mark it touches, out of the drawing |
+| Shape Eraser | `Shift+E` | Drag a shape to cut it out of the selected marks; press for the shapes |
+| Shape Stacker | `Shift+M` | Drag across the pieces of the selected shapes to merge them, Alt to take them away; press for the Wipe Stacks |
+| Split | `J` | Click a path to cut it where you click, as scissors do; a closed one opens there |
 | Select | `S` | Black arrow; active at launch |
 | Direct Select | `A` | White arrow; drags anchor points |
 | Text | `T` | Click = auto-sizing box, drag = fixed width with wrap |
 | Rectangle | `R` | Hold `Shift` for a square |
 | Ellipse | `L` | Hold `Shift` for a circle |
 | Curve | `V` | Click and hold the button for the free-ends variant |
+| Vector Path | `P` | Click = corner, drag = smooth Bezier point |
 | Paint Bucket | `G` | Fills the enclosed shape under the click |
 | Fill Color | toolbar | Fills the element under the click, else the selection |
 | Eyedropper | `I` | Hold `Ctrl` to pick a shape instead |
-| Vector Path | `B` | Click = corner, drag = smooth Bezier point |
 | Mesh Warp | toolbar | Click art to mesh it, then drag its pins to bend it |
+| Liquify | `Shift+R` | Bend the marks under a brush - Warp, Twirl, Pucker or Bloat; press for the four |
 <!-- shortcut-tools:end -->
 
 ## Drawing
 
 | Action                        | Shortcut                                        |
 | :---------------------------- | :---------------------------------------------- |
-| Straight line                 | Hold `Space` and drag                           |
-| Lock line to 90 degrees       | `Shift` mid-drag (release to free)              |
-| Quick curve (ellipse)         | Hold `Ctrl + Space` and drag                    |
-| Quick curve (circle)          | Hold `Ctrl + Space + Alt` and drag              |
+| Straight line                 | Press, then hold `Space`                        |
+| Lock a line to 45 degrees     | `Shift` mid-drag (release to free)              |
+| Shift-click line              | Click or draw, then `Shift` + click             |
+| Quick curve (ellipse)         | Press, then hold `Ctrl + Space`                 |
+| Quick curve (circle)          | Press, then hold `Ctrl + Space + Alt`           |
 | Swing a quick curve apex      | `Shift`, 90 degrees clockwise per press         |
 | Endpoint snap                 | Hold `Shift` while drawing                      |
-| Rotate the Copic nib          | Hold `Ctrl` 1s, then `Alt` (CW) / `Shift` (CCW) |
+| Select with a drawing tool    | Hold `Ctrl` (the last selection tool chosen)    |
+| Rotate the Copic nib          | Hold `Ctrl` still 1s, then `Alt` (CW) / `Shift` (CCW) |
 | Cancel the stroke in progress | `Esc`                                           |
 | Sharpen all                   | `H`                                             |
 | Sharpen Selection             | Transform > Sharpen, or the toolbar button      |
@@ -60,11 +68,14 @@ Edit Keyboard Shortcuts** changes them for you alone.
 | Action                       | Shortcut                                    |
 | :--------------------------- | :------------------------------------------ |
 | Fit All in View              | `Ctrl + 0`                                  |
+| Zoom In / Zoom Out           | `Ctrl + +` / `Ctrl + -`                     |
 | Zoom (mouse)                 | Hold `Alt` and scroll                       |
 | Pan (mouse)                  | Scroll; `Ctrl + Shift` + scroll pans across |
-| Pan (Select / Direct Select) | Hold `Space` and drag                       |
+| Pan (any tool)               | Hold `Space` and drag                       |
 | Pan / zoom (touch)           | Two-finger gesture                          |
+| Open the menu bar            | `Alt` alone, after 5 s with no other key    |
 | Toggle Pages panel           | `Ctrl + B`                                  |
+| Previous / next page         | `PageUp` / `PageDown`                       |
 | Toggle Layers panel          | `Ctrl + L`                                  |
 | Toggle Properties panel      | `Ctrl + P`                                  |
 | Quick Settings               | `Ctrl + ,`                                  |
@@ -89,6 +100,10 @@ Edit Keyboard Shortcuts** changes them for you alone.
 | Rotate                         | `Ctrl + R`, Transform > Rotate, or the Rotate button |
 | Snap a rotation to 15 degrees  | `Shift` while dragging, or the Snap toggle |
 | Join strokes                   | `Ctrl + J`                                 |
+| Combine shapes, as Pathfinder  | Transform > Wipe Stacks, or right-click the canvas |
+| Merge pieces, as Shape Builder | Shape Stacker (`Shift + M`): drag across them; `Alt` takes them away |
+| Cut a path, as Scissors       | Split (`J`): click it where it should come apart |
+| Blend pencil into shading     | Smear (`Shift + N`): drag across it; `W` sizes the stump, `Q` sets its strength |
 | Undo                           | `Ctrl + Z`                                 |
 | Redo                           | `Ctrl + Y` or `Ctrl + Shift + Z`           |
 
@@ -103,7 +118,8 @@ With the Vector Path tool active, click a committed path to open its anchors.
 | Move an anchor or handle   | Hold `Ctrl` and drag                                |
 | Round a corner             | Hold `Ctrl`, drag the target icon, or type a Radius |
 | Toggle an anchor's handles | `Alt` + click the anchor                            |
-| Close the path             | Click the first point                               |
+| Hold a point to 45 degrees | Hold `Shift` while placing it or pulling a handle   |
+| Close the path             | Click the first point where the close ring shows    |
 | Finish it open             | `Enter`, double-click, or switch tools              |
 | Abandon the path           | `Esc`                                               |
 | Put an edited path down    | Click empty canvas, or `Esc`                        |
@@ -116,6 +132,8 @@ With the Vector Path tool active, click a committed path to open its anchors.
 | Rename the active layer   | `F2` or double-click the row             |
 | Group the selected layers | `Ctrl + G`                               |
 | Ungroup                   | `Ctrl + Shift + G`                       |
+| Make a clipping mask      | `Ctrl + 7`; the closed path on top clips |
+| Release a clipping mask   | `Ctrl + Alt + 7`                         |
 | Move layer up / down      | `Ctrl + ]` / `Ctrl + [`                  |
 | Multi-select rows         | `Shift` + click                          |
 | Restack or nest           | Drag the row (drop onto a group to nest) |
@@ -228,6 +246,8 @@ napkin-sketch verbs --category shapes                # one category
 | `npm test`                                     | Run the unit test suites                                          |
 | `npm test -- --keep-graphics`                  | Keep the graphics the graphic-design suite draws                  |
 | `npm test -- --update-golden`                  | Rewrite the golden SVGs in `test/scripts/`                        |
+| `npm run gui-check`                            | Drive the built app and check what it shows (build first)         |
+| `npm run gui-check -- --background`            | The same, off the screen and out of the focus                     |
 | `npm start`                                    | Build, then launch a new sketch                                   |
 | `npm run clean`                                | Remove `dist/`                                                    |
 | `npm run icon`                                 | Generate the app icon from `assets/icon.svg`                      |
@@ -385,10 +405,13 @@ JPEG and GIF have no decoder and say so rather than returning an empty result.
 | Active tool at launch               | Select                                 |
 | Live sharpen                        | Off                                    |
 | Window                              | Maximized; 1280x860 when restored down |
+| Zoom range                          | 20% to one page pixel across the canvas |
 | Endpoint snap sensitivity           | 10px (range 1-20)                      |
 | Join stroke on snap                 | Off                                    |
-| Eyedropper select pixel sensitivity | 10px (range 1-36)                      |
-| Direct Select grab radius           | 3px                                    |
+| Select sensitivity                  | 4px (range 1-20)                       |
+| Direct Select sensitivity           | 8px (range 1-20)                       |
+| Eyedropper sensitivity              | 10px (range 1-36)                      |
+| Freehand fidelity                   | 1.5px (range 0.5-8)                    |
 | Copic nib hold time                 | 1s (range 0.5-2)                       |
 | Copic rotate width multiplier       | 2x (range 1-4, capped at 40px)         |
 | Show selection borders              | On                                     |

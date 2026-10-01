@@ -25,21 +25,30 @@ written from the Markdown in [`docs/site-src/`](docs/site-src/).
 
 ## [Features](https://isocialpractice.github.io/napkin-sketch/guide/index.html)
 
-- **Draws like a pen** - pressure-aware pen and marker, a Copic marker with a
-  turnable nib, an eraser that reveals the paper, and text:
+- **Draws like a pen** - a pressure-aware brush and marker, a Copic marker with a
+  turnable nib, a pencil with a drawing class's kit of graphite and charcoal
+  drawn through the paper's grain and a stump to blend it, erasers that cut
+  the marks themselves, and text:
   [Tools](https://isocialpractice.github.io/napkin-sketch/guide/tools.html),
   [Gestures and input](https://isocialpractice.github.io/napkin-sketch/guide/gestures.html).
 - **Sharpens by hand** - squares up boxes and rounds out circles, and keeps a
   wobble: [Sharpening](https://isocialpractice.github.io/napkin-sketch/guide/sharpen.html).
 - **Edits like a vector editor** - anchors and handles, stroke profiles, the
-  Transform box, Rotate, Mirror and Mesh Warp:
+  Transform box, Rotate, Mirror, Mesh Warp, Liquify, which bends marks as
+  Illustrator's Warp tools do, and the Wipe Stacks, the Shape Stacker and
+  Split, which combine and cut shapes as Illustrator's Pathfinder, Shape
+  Builder and Scissors do:
   [Vector paths](https://isocialpractice.github.io/napkin-sketch/guide/vector-paths.html),
-  [Transform](https://isocialpractice.github.io/napkin-sketch/guide/transform.html).
-- **Keeps things in order** - layers and groups, and pages of any size:
+  [Transform](https://isocialpractice.github.io/napkin-sketch/guide/transform.html),
+  [the Shape Stacker](https://isocialpractice.github.io/napkin-sketch/guide/tools.html#shape-stacker),
+  [Split](https://isocialpractice.github.io/napkin-sketch/guide/tools.html#split).
+- **Keeps things in order** - layers and groups, clipping masks, and pages
+  of any size:
   [Layers](https://isocialpractice.github.io/napkin-sketch/guide/layers.html),
+  [Clipping masks](https://isocialpractice.github.io/napkin-sketch/guide/layers.html#clipping-masks),
   [Pages](https://isocialpractice.github.io/napkin-sketch/guide/pages.html).
-- **Round-trips SVG** - imports another editor's layers, curves and gradients,
-  and exports them small, with PNG, JPEG and PDF beside:
+- **Round-trips SVG** - imports another editor's layers, curves, gradients and
+  clipping masks, and exports them small, with PNG, JPEG and PDF beside:
   [Import and export](https://isocialpractice.github.io/napkin-sketch/guide/import-export.html).
 - **Nine menus and your own keys** - every command in the menu bar, every key
   changeable:
@@ -47,7 +56,9 @@ written from the Markdown in [`docs/site-src/`](docs/site-src/).
 - **Writes scripts** - a file, the selected layers or the session's history as
   napkin script: [Automate](https://isocialpractice.github.io/napkin-sketch/guide/automate.html).
 - **Draws from scripts** - from a shell, from Node or from any language, with
-  no window: [Drawing from a script](#drawing-from-a-script).
+  no window, and the engines behind the tools are functions a program calls:
+  [Drawing from a script](#drawing-from-a-script),
+  [The drawing engines](docs/api/engines/README.md).
 - **Embeds** - the editor, or only its engine, in a page of your own:
   [Embedding the editor](#embedding-the-editor).
 - **Animates, optionally** - an add-on that draws frames with an AI helper:
@@ -91,7 +102,7 @@ see [Drawing from a script](#drawing-from-a-script).
 
 | Do this                 | Press              |
 | :---------------------- | :----------------- |
-| Draw with the pen       | `P`                |
+| Draw with the brush     | `B`                |
 | Select                  | `S`                |
 | Sharpen the whole page  | `H`                |
 | Undo / redo             | `Ctrl+Z` / `Ctrl+Shift+Z` |
@@ -103,6 +114,13 @@ Every command's keys are in the
 and in [CHEATSHEET.md](CHEATSHEET.md); **Edit > Edit Keyboard Shortcuts**
 changes them. **Help > Verbose** opens this documentation inside the app,
 with no network, and **Help > Tool Types** each menu's quickstart.
+
+### [The Shape Eraser](https://isocialpractice.github.io/napkin-sketch/guide/tools.html#shape-eraser)
+
+`Shift+E`, beside the Eraser: select the layers to cut, choose a rectangle,
+ellipse, square or circle from the panel under its button, and drag it over
+them - what it covers is gone from all of them, in one undo step. **Top
+Path** cuts them with the closed path on top instead.
 
 ### [Animation Mode](https://isocialpractice.github.io/napkin-sketch/guide/animation-mode.html)
 
@@ -174,6 +192,7 @@ npm run dist
 ```bash
 npm test
 npm run build && npm run gui-check
+npm run gui-check -- --background   # the same, with the computer still in use
 ```
 
 ## [Project structure](https://isocialpractice.github.io/napkin-sketch/develop/project-structure.html)

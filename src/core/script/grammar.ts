@@ -24,6 +24,7 @@ import {
   type WordPart,
 } from './instructions.js';
 import { isColor, isExpr, isIdentifier, isKnownUnit, readLengthLiteral, RESERVED_NAMES, UNITS_SENTENCE } from './values.js';
+import { parsePencil } from '../pencil.js';
 
 export const isSlotPart = (part: FormPart): part is SlotPart => 'slot' in part;
 export const isWordPart = (part: FormPart): part is WordPart => 'word' in part;
@@ -83,6 +84,8 @@ export function describeSlot(slot: SlotPart): string {
       return `one of ${(slot.choices ?? []).map((c) => `\`${c}\``).join(', ')}`;
     case 'switch':
       return '`on` or `off`';
+    case 'pencil':
+      return 'a pencil: a graphite grade from `9H` to `9B`, or `charcoal`, `compressed` or `vine` and its grade, such as `charcoal 4B` or `vine soft`';
     case 'points':
       return 'a list of points, `x y, x y, ...`';
     case 'stops':
@@ -100,6 +103,7 @@ export const EXPECTED_CODES: Readonly<Record<SlotType, DiagnosticCode>> = {
   color: 'expected-color',
   choice: 'expected-choice',
   switch: 'expected-choice',
+  pencil: 'expected-choice',
   points: 'expected-points',
   stops: 'expected-stops',
 };
@@ -200,6 +204,10 @@ export function checkValue(slot: SlotPart, value: unknown): ValueProblem | null 
         : { code: 'expected-choice', message: `\`${String(value)}\` is not ${describeSlot(slot)}.` };
     case 'switch':
       return typeof value === 'boolean' ? null : { code: 'expected-choice', message: '`true` or `false` was expected.' };
+    case 'pencil':
+      return typeof value === 'string' && parsePencil(value)
+        ? null
+        : { code: 'expected-choice', message: `\`${String(value)}\` is not ${describeSlot(slot)}.` };
     case 'points': {
       if (!Array.isArray(value)) return { code: 'expected-points', message: 'A list of points was expected.' };
       const min = slot.minItems ?? 1;
@@ -290,6 +298,20 @@ export const VERB_ALIASES: Readonly<Record<string, string>> = {
   bezier: 'curve',
   closepath: 'close',
   spline: 'through',
+  pathfinder: 'wipe',
+  unite: 'wipe',
+  union: 'wipe',
+  combine: 'wipe',
+  intersect: 'wipe',
+  subtract: 'wipe',
+  exclude: 'wipe',
+  divide: 'wipe',
+  builder: 'stack',
+  merge: 'stack',
+  scissors: 'split',
+  slice: 'split',
+  mask: 'clip',
+  clipping: 'clip',
   loop: 'repeat',
   for: 'repeat',
   times: 'repeat',

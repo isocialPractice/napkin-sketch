@@ -7,6 +7,7 @@
  */
 
 import type { Effect } from './effects.js';
+import type { PencilChoice } from './pencil.js';
 
 /** A single sampled point along a stroke. */
 export interface Point {
@@ -31,8 +32,11 @@ export interface Point {
  * Tool used to lay down a stroke or interact with the canvas.
  *
  * The Sketch Support tools (`rect`, `ellipse`, `curve`, `vector`, `bucket`,
- * `fill`, `eyedrop`), the Direct Select tool (`point`) and Mesh Warp (`warp`)
- * are UI-only: they never persist on a stroke. Shape tools and the Vector Path commit their
+ * `fill`, `eyedrop`), the Direct Select tool (`point`), Mesh Warp (`warp`),
+ * Liquify,
+ * the Shape Eraser, the Shape Stacker, Split and the Smear are UI-only:
+ * they never
+ * persist on a stroke. Shape tools and the Vector Path commit their
  * outlines as `pen` strokes, the bucket commits a filled `pen` shape, Fill
  * Color recolors existing strokes, Direct Select edits anchor points, and
  * the eyedropper commits nothing.
@@ -41,6 +45,7 @@ export type Tool =
   | 'pen'
   | 'marker'
   | 'copic'
+  | 'pencil'
   | 'eraser'
   | 'select'
   | 'point'
@@ -53,7 +58,28 @@ export type Tool =
   | 'bucket'
   | 'fill'
   | 'eyedrop'
-  | 'warp';
+  | 'warp'
+  | 'shape-eraser'
+  | 'shape-stacker'
+  | 'split'
+  | 'smear'
+  | 'liquify';
+
+/**
+ * Other names a tool is known by, taken wherever a tool is named on the way
+ * in - a script's `tool`, the embedded editor's `setTool`. The app calls the
+ * `pen` the Brush; files, the scripts the app writes, settings and saved
+ * shortcuts keep the id, so nothing saved before the rename changes.
+ */
+export const TOOL_ALIASES = { brush: 'pen' } as const satisfies Record<string, Tool>;
+
+/** Another name for a tool (see {@link TOOL_ALIASES}). */
+export type ToolAlias = keyof typeof TOOL_ALIASES;
+
+/** The tool a name means: an id as it is, another name as the tool it names. */
+export function toolId<T extends Tool>(name: T | ToolAlias): T | (typeof TOOL_ALIASES)[ToolAlias] {
+  return Object.prototype.hasOwnProperty.call(TOOL_ALIASES, name) ? TOOL_ALIASES[name as ToolAlias] : (name as T);
+}
 
 /**
  * A single layer in a sketch's layer stack. Layers paint in array order
@@ -84,6 +110,12 @@ export interface Layer {
    * are in page pixels.
    */
   effects?: Effect[];
+  /**
+   * A group's clipping mask: the id of a closed mark inside it, whose
+   * interior is all the group shows; the mark paints nothing while it clips
+   * (see `core/clip.ts`).
+   */
+  clip?: string;
 }
 
 /**
@@ -107,6 +139,12 @@ export interface VectorAnchor {
    * anchor is implied, never stored.
    */
   move?: true;
+  /**
+   * The pen's pressure at this anchor (0-1), on a stroke fitted from freehand
+   * samples: the points sampled back from the anchors run it evenly from one
+   * anchor to the next. A Vector Path's anchors have none.
+   */
+  pressure?: number;
 }
 
 /** One color stop along a gradient fill. */
@@ -147,6 +185,18 @@ export type StrokeProfile = 'uniform' | 'rounded' | 'tapered' | 'wave';
 
 /** Every stroke profile, in the order the Stroke Profile list shows them. */
 export const STROKE_PROFILES: StrokeProfile[] = ['uniform', 'rounded', 'tapered', 'wave'];
+
+/**
+ * One pass of the Smear, a blending stump, over a Pencil mark
+ * (`core/smudge.ts`): the drag's fitted anchors in page units - from where it
+ * first reached the mark to as far as it carried graphite past it - with the
+ * pen's pressure at each, the stump's width, and its strength, 0 to 1.
+ */
+export interface Smudge {
+  path: VectorAnchor[];
+  width: number;
+  strength: number;
+}
 
 /**
  * A continuous drawing stroke, a text item when `tool === 'text'`, or a
@@ -209,6 +259,18 @@ export interface Stroke {
    * increasing clockwise on screen). Only present when `tool === 'copic'`.
    */
   nibAngle?: number;
+  /**
+   * The pencil a Pencil mark was drawn with - graphite HB, vine charcoal soft -
+   * which sets its grain, density and pressure response (`core/pencil.ts`).
+   * Its tone is the mark's `color`. Only present when `tool === 'pencil'`.
+   */
+  pencil?: PencilChoice;
+  /**
+   * The Smear's passes over a Pencil mark, in the order made
+   * (`core/smudge.ts`): each spreads its graphite along the drag. Only
+   * present on a Pencil mark.
+   */
+  smudges?: Smudge[];
   /** Text content (only present when `tool === 'text'`). */
   text?: string;
   /** Font size in pixels (text items). */
@@ -231,7 +293,17 @@ export interface Stroke {
    * Path tool edits these anchors and resamples `points` from them; strokes
    * without this field are plain freehand polylines.
    */
-  vector?: { anchors: VectorAnchor[]; closed?: boolean };
+  vector?: {
+    anchors: VectorAnchor[];
+    closed?: boolean;
+    /**
+     * The anchors were fitted to a Pen, Marker or Copic stroke's samples
+     * (`core/fit-curve.ts`) rather than placed with the Vector Path tool.
+     * Direct Select and the writers treat both alike; Sharpen sharpens a
+     * fitted stroke and fits its result again.
+     */
+    fitted?: true;
+  };
   /** Image data URL (only present when `tool === 'image'`). */
   image?: string;
   /** Rendered image width in pixels (image items). `points[0]` is the top-left anchor. */
@@ -339,6 +411,18 @@ export function defaultOpacityFor(tool: Tool): number {
   if (tool === 'marker') return 0.38;
   if (tool === 'copic') return 0.5;
   return 1;
+}
+
+/**
+ * The share of its width a line has at `pressure` (a mouse's 0.5 when it
+ * carries none). The Brush and the Copic swell from 0.4 of it to all of it;
+ * a Pencil's lead barely spreads, from 0.8, since pressure darkens a pencil
+ * line rather than widening it (`core/pencil.ts`). A marker, an eraser and a
+ * dashed line are even, which their painters decide.
+ */
+export function widthAtPressure(tool: Tool, pressure: number | undefined): number {
+  const floor = tool === 'pencil' ? 0.8 : 0.4;
+  return floor + (1 - floor) * (pressure ?? 0.5);
 }
 
 /**

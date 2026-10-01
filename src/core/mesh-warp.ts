@@ -25,6 +25,7 @@
  */
 
 import { sampleVectorPathPoints, splitCubicBezier } from '../sharpen/geometry.js';
+import { fittedPressureAt } from './fit-curve.js';
 import {
   DEFAULT_NIB_ANGLE,
   isImageStroke,
@@ -1354,11 +1355,23 @@ export class ArapSolver {
 // ---- Carrying the art ---------------------------------------------------------------
 
 /**
+ * A map of the plane that art is carried through ({@link mapStrokeGeometry}):
+ * where a point goes, and how far the map turns there, in degrees clockwise
+ * on screen. A {@link MeshMap} is one; so is each of Liquify's brushes
+ * (core/liquify.ts). Where a map leaves a point where it was, it should give
+ * that point back exactly, so the art it does not move is not touched.
+ */
+export interface PointMap {
+  point(p: Vec): Vec;
+  rotation(p: Vec): number;
+}
+
+/**
  * The map from the rest mesh onto a deformed one: a point goes where its
  * triangle takes it. A triangle that did not move maps its points exactly,
  * to the last bit, so art under a mesh nobody has pulled comes back as it was.
  */
-export class MeshMap {
+export class MeshMap implements PointMap {
   constructor(
     private readonly mesh: Mesh,
     private readonly locator: MeshLocator,
@@ -1423,6 +1436,8 @@ export interface WarpedGeometry {
   points: Point[];
   vector?: Stroke['vector'];
   nibAngle?: number;
+  /** The Smear's passes over a Pencil mark, carried with it. */
+  smudges?: Stroke['smudges'];
 }
 
 /** How far a carried curve may stray from the image of the curve it was, in sketch pixels. */
@@ -1431,8 +1446,9 @@ export const WARP_TOLERANCE = 0.2;
 const MAX_SPLITS = 6;
 
 /**
- * A stroke carried onto the deformed mesh. Widths are left alone - the point
- * of as-rigid-as-possible is that nothing stretches.
+ * A stroke carried onto the deformed mesh, or through any other
+ * {@link PointMap} - a Liquify brush's. Widths are left alone - the point of
+ * as-rigid-as-possible is that nothing stretches.
  *
  * - Text and images move with the point that anchors them, unbent.
  * - A freehand stroke moves point by point.
@@ -1440,8 +1456,9 @@ const MAX_SPLITS = 6;
  *   triangle's map cannot carry is split until each piece can; its points are
  *   then sampled afresh from the new anchors.
  * - A Copic nib turns with the mesh under the stroke's first point.
+ * - A Pencil mark's Smear passes are carried as its anchors are.
  */
-export function mapStrokeGeometry(stroke: Stroke, map: MeshMap, tolerance = WARP_TOLERANCE): WarpedGeometry {
+export function mapStrokeGeometry(stroke: Stroke, map: PointMap, tolerance = WARP_TOLERANCE): WarpedGeometry {
   const first = stroke.points[0];
   if (!first) return { points: [] };
   if (isTextStroke(stroke) || isImageStroke(stroke)) {
@@ -1466,6 +1483,10 @@ export function mapStrokeGeometry(stroke: Stroke, map: MeshMap, tolerance = WARP
     const turned = (stroke.nibAngle ?? DEFAULT_NIB_ANGLE) + map.rotation(first);
     out.nibAngle = ((turned % 360) + 360) % 360;
   }
+  // A smear goes where its mark goes: its passes' anchors through the same map.
+  if (stroke.smudges && stroke.smudges.length > 0) {
+    out.smudges = stroke.smudges.map((smudge) => ({ ...smudge, path: smudge.path.length >= 2 ? carryAnchors(smudge.path, false, map, tolerance) : smudge.path.map((a) => ({ ...a, p: map.point(a.p) })) }));
+  }
   return out;
 }
 
@@ -1476,9 +1497,11 @@ interface CarriedPiece {
   /** In-handle at the piece's end; null where the segment had none. */
   hIn: Vec | null;
   to: Vec;
+  /** Where the piece ends along the segment it was cut from, 0 to 1: where a fitted stroke's pressure is read. */
+  t: number;
 }
 
-function carryAnchors(anchors: VectorAnchor[], closed: boolean, map: MeshMap, tolerance: number): VectorAnchor[] {
+function carryAnchors(anchors: VectorAnchor[], closed: boolean, map: PointMap, tolerance: number): VectorAnchor[] {
   const out: VectorAnchor[] = [];
   let start = 0;
   for (let i = 1; i <= anchors.length; i++) {
@@ -1490,16 +1513,17 @@ function carryAnchors(anchors: VectorAnchor[], closed: boolean, map: MeshMap, to
   return out;
 }
 
-function carrySubpath(sub: VectorAnchor[], closed: boolean, map: MeshMap, tolerance: number): VectorAnchor[] {
+function carrySubpath(sub: VectorAnchor[], closed: boolean, map: PointMap, tolerance: number): VectorAnchor[] {
   const head: VectorAnchor = { p: map.point(sub[0].p) };
   if (sub[0].move) head.move = true;
+  if (sub[0].pressure !== undefined) head.pressure = sub[0].pressure;
   const result: VectorAnchor[] = [head];
   const segments = closed ? sub.length : sub.length - 1;
   for (let s = 0; s < segments; s++) {
     const from = sub[s];
     const to = sub[(s + 1) % sub.length];
     const pieces: CarriedPiece[] = [];
-    carrySegment(map, from.p, from.hOut ?? null, to.hIn ?? null, to.p, tolerance, 0, pieces);
+    carrySegment(map, from.p, from.hOut ?? null, to.hIn ?? null, to.p, tolerance, 0, pieces, 0, 1);
     let current = result[result.length - 1];
     pieces.forEach((piece, k) => {
       if (piece.hOut) current.hOut = piece.hOut;
@@ -1510,6 +1534,10 @@ function carrySubpath(sub: VectorAnchor[], closed: boolean, map: MeshMap, tolera
       }
       const next: VectorAnchor = { p: piece.to };
       if (piece.hIn) next.hIn = piece.hIn;
+      // A fitted stroke's pressure runs evenly between its anchors; a new one
+      // the bend needed takes it from where it falls.
+      const pressure = fittedPressureAt(from, to, piece.t);
+      if (pressure !== undefined) next.pressure = pressure;
       result.push(next);
       current = next;
     });
@@ -1533,7 +1561,7 @@ function carrySubpath(sub: VectorAnchor[], closed: boolean, map: MeshMap, tolera
  * A handle that was absent stays absent at the segment's own ends.
  */
 function carrySegment(
-  map: MeshMap,
+  map: PointMap,
   p0: Vec,
   c1: Vec | null,
   c2: Vec | null,
@@ -1541,17 +1569,19 @@ function carrySegment(
   tolerance: number,
   depth: number,
   out: CarriedPiece[],
+  t0: number,
+  t1: number,
 ): void {
   const q0 = map.point(p0);
   const q3 = map.point(p3);
   if (!c1 && !c2) {
     if (depth >= MAX_SPLITS || faithful(map, (t) => lerp(p0, p3, t), (t) => lerp(q0, q3, t), tolerance)) {
-      out.push({ hOut: null, hIn: null, to: q3 });
+      out.push({ hOut: null, hIn: null, to: q3, t: t1 });
       return;
     }
     // A line the map bends becomes a curve: the same line as a cubic, which
     // has handles to bend with.
-    carrySegment(map, p0, lerp(p0, p3, 1 / 3), lerp(p0, p3, 2 / 3), p3, tolerance, depth, out);
+    carrySegment(map, p0, lerp(p0, p3, 1 / 3), lerp(p0, p3, 2 / 3), p3, tolerance, depth, out, t0, t1);
     return;
   }
   const k1 = c1 ?? p0;
@@ -1562,16 +1592,18 @@ function carrySegment(
     depth >= MAX_SPLITS ||
     faithful(map, (t) => cubicAt(p0, k1, k2, p3, t), (t) => cubicAt(q0, d1, d2, q3, t), tolerance)
   ) {
-    out.push({ hOut: c1 ? d1 : null, hIn: c2 ? d2 : null, to: q3 });
+    out.push({ hOut: c1 ? d1 : null, hIn: c2 ? d2 : null, to: q3, t: t1 });
     return;
   }
+  // Halving a piece halves its range along the segment it was cut from.
   const half = splitCubicBezier(p0, k1, k2, p3, 0.5);
-  carrySegment(map, p0, c1 ? half.left.c1 : null, half.left.c2, half.point, tolerance, depth + 1, out);
-  carrySegment(map, half.point, half.right.c1, c2 ? half.right.c2 : null, p3, tolerance, depth + 1, out);
+  const mid = (t0 + t1) / 2;
+  carrySegment(map, p0, c1 ? half.left.c1 : null, half.left.c2, half.point, tolerance, depth + 1, out, t0, mid);
+  carrySegment(map, half.point, half.right.c1, c2 ? half.right.c2 : null, p3, tolerance, depth + 1, out, mid, t1);
 }
 
 /** True when a carried curve stays within `tolerance` of the image of the curve it carries, at seven places along it. */
-function faithful(map: MeshMap, source: (t: number) => Vec, carried: (t: number) => Vec, tolerance: number): boolean {
+function faithful(map: PointMap, source: (t: number) => Vec, carried: (t: number) => Vec, tolerance: number): boolean {
   for (let k = 1; k < 8; k++) {
     const t = k / 8;
     const want = map.point(source(t));

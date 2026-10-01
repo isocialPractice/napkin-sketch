@@ -13,9 +13,12 @@ import {
   quarterArcPoints,
   quarterArcCubic,
   cubicBezierPoints,
+  extendWithLine,
+  sampleVectorPathPoints,
   splitCubicBezier,
   roundedCornerAnchors,
 } from '../src/sharpen/geometry.js';
+import type { VectorAnchor } from '../src/core/types.js';
 
 test('distance is Euclidean', () => {
   assert.equal(distance({ x: 0, y: 0 }, { x: 3, y: 4 }), 5);
@@ -390,4 +393,76 @@ test('constrainDrag carries the point through unchanged apart from x and y', () 
   const held = constrainDrag(O, { x: 180, y: 112, pressure: 0.42, move: true as const });
   assert.equal(held.pressure, 0.42);
   assert.equal(held.move, true);
+});
+
+// ---- extendWithLine: the Shift-click line ---------------------------------
+
+const at = (x: number, y: number, extra: Partial<VectorAnchor> = {}): VectorAnchor => ({ p: { x, y }, ...extra });
+
+test('a line added to a dot, then another, is a polyline of bare points', () => {
+  const dot = { points: [{ x: 0, y: 0, pressure: 0.5 }] };
+  const once = extendWithLine(dot, [at(50, 0)]);
+  assert.deepEqual(
+    once.points.map((p) => [p.x, p.y]),
+    [
+      [0, 0],
+      [50, 0],
+    ],
+  );
+  assert.equal(once.vector, undefined, 'no anchors: every point is a corner already');
+  const twice = extendWithLine(once, [at(50, 40)]);
+  assert.deepEqual(
+    twice.points.map((p) => [p.x, p.y]),
+    [
+      [0, 0],
+      [50, 0],
+      [50, 40],
+    ],
+  );
+});
+
+test('a line added to a fitted curve keeps its anchors and adds a corner', () => {
+  const anchors: VectorAnchor[] = [at(0, 0, { hOut: { x: 20, y: -30 }, pressure: 0.5 }), at(60, 0, { hIn: { x: 40, y: -30 }, pressure: 0.5 })];
+  const curve = { points: sampleVectorPathPoints(anchors, false), vector: { anchors, fitted: true as const } };
+  const out = extendWithLine(curve, [at(60, 50, { pressure: 0.5 })]);
+  const got = out.vector!.anchors;
+  assert.equal(got.length, 3);
+  assert.deepEqual(got[0], anchors[0]);
+  assert.deepEqual(got[1].hIn, anchors[1].hIn, 'the curve arrives as it did');
+  assert.equal(got[1].hOut, undefined, 'and leaves it straight');
+  assert.deepEqual(got[2], { p: { x: 60, y: 50 }, pressure: 0.5 });
+  assert.equal(out.vector!.fitted, true);
+  // The points are the anchors sampled, the curve's as they were.
+  assert.deepEqual(out.points, sampleVectorPathPoints(got, false));
+  assert.deepEqual(out.points.slice(0, curve.points.length), curve.points);
+  // The original is untouched.
+  assert.equal(anchors.length, 2);
+});
+
+test('a freehand run after the line gives a polyline its points as corner anchors', () => {
+  const line = { points: [{ x: 0, y: 0, pressure: 0.5 }, { x: 50, y: 0, pressure: 0.5 }] };
+  const run = [at(50, 40, { hOut: { x: 70, y: 40 } }), at(90, 80, { hIn: { x: 90, y: 60 } })];
+  const out = extendWithLine(line, run);
+  const got = out.vector!.anchors;
+  assert.deepEqual(
+    got.map((a) => [a.p.x, a.p.y]),
+    [
+      [0, 0],
+      [50, 0],
+      [50, 40],
+      [90, 80],
+    ],
+  );
+  assert.ok(!got[0].hOut && !got[1].hIn && !got[1].hOut && !got[2].hIn, 'the lines have no handles');
+  assert.deepEqual(got[2].hOut, { x: 70, y: 40 }, 'the run leaves point 2 as it was drawn');
+});
+
+test('a run that begins on the very end draws no line of nothing', () => {
+  const line = { points: [{ x: 0, y: 0, pressure: 0.5 }, { x: 50, y: 0, pressure: 0.5 }] };
+  assert.equal(extendWithLine(line, [at(50, 0), at(80, 0)]).points.length, 3);
+  const anchors: VectorAnchor[] = [at(0, 0), at(50, 0, { hIn: { x: 30, y: -20 } })];
+  const curve = { points: sampleVectorPathPoints(anchors, false), vector: { anchors } };
+  const out = extendWithLine(curve, [at(50, 0, { hOut: { x: 70, y: 20 } }), at(100, 0, { hIn: { x: 80, y: 20 } })]);
+  assert.equal(out.vector!.anchors.length, 3, 'the end takes the run on');
+  assert.deepEqual(out.vector!.anchors[1].hOut, { x: 70, y: 20 });
 });

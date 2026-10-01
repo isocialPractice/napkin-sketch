@@ -97,11 +97,11 @@ export const SITE_PAGES: readonly SitePage[] = [
   page('quickstart/automate.html', SRC('quickstart/automate.md'), 'Quickstart: automating', 'Automate', 'quickstarts', 'Write a script from a drawing, record a session, and draw with no window at all.'),
 
   page('guide/index.html', SRC('guide/index.md'), 'Using the app', 'Overview', 'guide', 'The manual, in the order it is best read, one line per page.'),
-  page('guide/tools.html', SRC('guide/tools.md'), 'Tools', 'Tools', 'guide', 'The drawing tools, the Copic marker and its nib, and the Sketch Support toolbar.'),
+  page('guide/tools.html', SRC('guide/tools.md'), 'Tools', 'Tools', 'guide', 'The drawing tools, the Copic marker and its nib, the Pencil, its kit and the Smear, and the Sketch Support toolbar.'),
   page('guide/gestures.html', SRC('guide/gestures.md'), 'Gestures and input', 'Gestures', 'guide', 'Pen, touch and mouse; pan and zoom; the straight line, the quick curve, endpoint snap and the held keys.'),
   page('guide/vector-paths.html', SRC('guide/vector-paths.md'), 'Vector paths and stroke profiles', 'Vector paths', 'guide', 'Editing anchors and handles, rounding corners, Sharpen Selection, and the four stroke profiles.'),
   page('guide/selection.html', SRC('guide/selection.md'), 'Selecting and editing', 'Selection and editing', 'guide', 'Selecting, filling, widening, the clipboard, and what a press on a selection does.'),
-  page('guide/transform.html', SRC('guide/transform.md'), 'Transform, Rotate, Mirror and Mesh Warp', 'Transform', 'guide', 'The Transform box, Rotate, Mirror, Mesh Warp, and docking their panels.'),
+  page('guide/transform.html', SRC('guide/transform.md'), 'Transform, Rotate, Mirror, Mesh Warp, Liquify and Wipe Stacks', 'Transform', 'guide', 'The Transform box, Rotate, Mirror, Mesh Warp, Liquify, the Wipe Stacks, and docking their panels.'),
   page('guide/layers.html', SRC('guide/layers.md'), 'Layers and the Properties panel', 'Layers', 'guide', 'The Layers panel, groups, restacking, and editing a selection in the Properties panel.'),
   page('guide/pages.html', SRC('guide/pages.md'), 'Pages', 'Pages', 'guide', 'The pages panel, page sizes, and the three ways to add a page.'),
   page('guide/import-export.html', SRC('guide/import-export.md'), 'Import and export', 'Import and export', 'guide', 'What SVG, PDF and pictures arrive as, and what PNG, JPEG, SVG and PDF exports keep.'),
@@ -113,7 +113,7 @@ export const SITE_PAGES: readonly SitePage[] = [
   page('guide/skbk-format.html', SRC('guide/skbk-format.md'), 'The .skbk file format', 'The .skbk format', 'guide', 'What a saved sketch book holds, and how older files open.'),
   page('guide/command-line.html', SRC('guide/command-line.md'), 'The command line', 'Command line', 'guide', 'Opening the app from a shell: every option, and the four commands that need no window.'),
 
-  page('api/index.html', HUB_PAGES[0], 'Drawing from a script', 'Overview', 'api', 'napkin script and its API: what it is, the eight categories of pages, and where to start.'),
+  page('api/index.html', HUB_PAGES[0], 'Drawing from a script', 'Overview', 'api', 'napkin script and its API: what it is, the nine categories of pages, and where to start.'),
   page('api/quickstart.html', HUB_PAGES[1], 'API quickstart', 'Quickstart', 'api', 'The whole API in five steps.'),
   page('api/cheatsheet.html', HUB_PAGES[2], 'API cheatsheet', 'Cheatsheet', 'api', 'Every verb, command, import, option and exit code on one page.'),
   ...DOC_CATEGORIES.flatMap((category) => [

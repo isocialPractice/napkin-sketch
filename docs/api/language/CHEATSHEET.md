@@ -9,13 +9,9 @@ Reminders for the language: syntax, values, the verbs that shape a script, funct
 | Write | Means |
 | --- | --- |
 | `napkin 1` | The first line: the language version. Without it, a `version-missing` warning. |
-| `rect 20 20 100 50` | One instruction a line: the verb, then its arguments. |
-| `line 0 0 10 10; line 10 10 20 0` | `;` ends an instruction too. |
-| `color #1f2328 width 3 fill #ffe08a` | Paint verbs share a line; nothing else does. |
-| `group "Figure" { ... }` | A block, for `group`, `define`, `repeat` and `path`. |
-| `# a comment` | `#` and a space, to the end of the line. |
-| `(i * 40 + 20)` | An expression, anywhere a number or a length goes. |
-| `Rect`, `RECT` | Verbs, keywords and choices ignore case. |
+| `line 0 0 10 10; line 10 10 20 0`, `color #1f2328 width 3` | One instruction a line - the verb, then its arguments - or several with `;` between; paint verbs share a line, nothing else does. |
+| `group "Figure" { ... }` | A block, for `group`, `clip`, `define`, `repeat`, `wipe`, `stack` and `path`. |
+| `# a comment`, `RECT` | `#` and a space comments to the end of the line (`#note` with no space is read as an argument); verbs, keywords and choices ignore case. |
 
 ## Values
 
@@ -23,7 +19,7 @@ Reminders for the language: syntax, values, the verbs that shape a script, funct
 | --- | --- | --- |
 | Number | `12`, `-3.5`, `1e3` | `12` |
 | Length | `120`, `10mm`, `0.5in`, `12pt`, `4px`, `50%` | `120`, `"10mm"`, `"50%"` |
-| Expression | `(width / 2)` | `{ "expr": "width / 2" }` |
+| Expression, anywhere a number or a length goes | `(width / 2)`, `(i * 40 + 20)` | `{ "expr": "width / 2" }` |
 | String | `"Acme Corp"`, `"one\ntwo"` | `"Acme Corp"` |
 | Color | `#1f2328`, `steelblue`, `rgb(31, 35, 40)` | `"#1f2328"` |
 | Switch | `on`, `off` | `true`, `false` |
@@ -54,8 +50,7 @@ Reminders for the language: syntax, values, the verbs that shape a script, funct
 | Control | `repeat` | `repeat <count> [as <name>] { ... }` | Runs a block a number of times, counting from 0 in the name given with as. |
 <!-- language-verbs:end -->
 
-- What the other verbs draw: [the drawing cheatsheet](../drawing/CHEATSHEET.md).
-- Every verb on one line: [API-CHEATSHEET.md](../../../API-CHEATSHEET.md).
+- What the other verbs draw: [the drawing cheatsheet](../drawing/CHEATSHEET.md); every verb on one line: [API-CHEATSHEET.md](../../../API-CHEATSHEET.md).
 
 ## Functions
 
@@ -83,17 +78,15 @@ Reminders for the language: syntax, values, the verbs that shape a script, funct
 | `marks` | 50,000 | Marks drawn |
 | `anchors` | 250,000 | Bezier anchors, across every mark |
 | `points` | 1,000,000 | Points sampled from those anchors for the canvas to paint |
-| `depth` | 64 | Blocks open at once: groups, placed definitions and repeats |
+| `depth` | 64 | Blocks open at once: groups and clips, placed definitions, repeats, wipes and stacks |
 <!-- limits:end -->
 
 ## In code
 
 | Call | Gives |
 | --- | --- |
-| `parseScript(text, { fragment })` | `{ ok, script, diagnostics }`; never throws |
-| `validateScript(json, { fragment })` | The same, for the object form |
-| `formatScript(script)` | The script as canonical text |
-| `formatDiagnostic(d, 'card.napkin')` | `card.napkin:3:1: error unknown-verb: ...` |
+| `parseScript(text)`, `validateScript(json)` | `{ ok, script, diagnostics }` from text or the object form, `{ fragment }` for a piece of one; never throws |
+| `formatScript(script)`, `formatDiagnostic(d, 'card.napkin')` | The script as canonical text; a diagnostic as `card.napkin:3:1: error unknown-verb: ...` |
 
 ## Diagnostic codes
 
@@ -101,7 +94,7 @@ Reminders for the language: syntax, values, the verbs that shape a script, funct
 | Code | Level | Meaning |
 | --- | --- | --- |
 | `unknown-verb` | error | A line starts with a word that is not a verb. |
-| `misplaced-verb` | error | A verb where it cannot appear: a path step outside a path block, a napkin line after the first, a layer inside a path, a newpage inside a group or a definition. |
+| `misplaced-verb` | error | A verb where it cannot appear: a path step outside a path block, a napkin line after the first, a layer inside a path, a newpage inside a group or a definition, a layer, group, clip or use inside a wipe or a stack. |
 | `unsupported-verb` | error | The verb, or this way of writing it, is known but not drawn by this build or by the host running the script; the instruction is skipped. |
 | `expected-number` | error | A number, or an expression in parentheses, was expected. |
 | `expected-length` | error | A length was expected: a number, a number with a unit (10mm, 0.5in, 12pt, 4px), a percentage, or an expression. |
@@ -138,13 +131,20 @@ Reminders for the language: syntax, values, the verbs that shape a script, funct
 | `duplicate-definition` | warning | A second define replaces an earlier one of the same name. |
 | `link-unresolved` | warning | A linked file could not be read for an output that has to draw it, so its placeholder was drawn instead. |
 | `unused-effect` | warning | An effect nothing took: no layer, group or mark followed it before its block, its page or the script ended. |
+| `wipe-skipped` | warning | A wipe's or a stack's block drew marks it cannot combine - text, pictures, linked files, eraser marks - and they are drawn as they are. |
+| `wipe-empty` | warning | A wipe or a stack left nothing: out-front's bottom mark wholly covered by the rest, say, or a stack remove taking every piece. |
+| `wipe-failed` | warning | A wipe or a stack could not combine its block's marks - fewer than two it can combine, more than it takes, or geometry it could not make - so they are drawn as they are. |
+| `stack-missed` | warning | A stack point is on none of the pieces its block's marks make, so it picks nothing; the message says which. |
+| `split-missed` | warning | A split point is within 4 px of no path drawn so far, or lands on the end of an open one, so nothing is cut. |
+| `clip-open` | warning | A clip block drew no closed shape to clip with, so it is a plain group. |
+| `smear-missed` | warning | A smear reaches no pencil mark drawn so far, so it spreads nothing. |
+| `liquify-missed` | warning | A warp, twirl, pucker or bloat reaches no mark it bends drawn so far, so it bends nothing. |
+| `erase-skipped` | warning | An eraser line reaches text or a picture, which it cannot cut, and passes over it. |
 <!-- diagnostics:end -->
 
 ## Common mistakes
 
 | Wrong | Right | Why |
 | --- | --- | --- |
-| `circle i*40 50 10` | `circle (i * 40) 50 10` | Arithmetic goes in parentheses. |
-| `rect 0 0 gap gap` | `rect 0 0 (gap) (gap)` | So does a name where a number goes. |
-| `rect 0 0 10 10 #note` | `rect 0 0 10 10 # note` | A comment needs a space after `#`; `#note` is read as an argument. |
+| `circle i*40 50 gap` | `circle (i * 40) 50 (gap)` | Arithmetic goes in parentheses, and so does a name where a number goes. |
 | A script with no `napkin 1` | `napkin 1` first | A `version-missing` warning, which `--strict` fails. |

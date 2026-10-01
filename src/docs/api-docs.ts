@@ -32,7 +32,7 @@ export interface DocPage {
   text: string;
 }
 
-/** The eight categories the documentation is in, in the order the hub lists them. */
+/** The nine categories the documentation is in, in the order the hub lists them. */
 export const DOC_CATEGORIES: ReadonlyArray<{ id: string; title: string; summary: string }> = [
   {
     id: 'language',
@@ -63,6 +63,12 @@ export const DOC_CATEGORIES: ReadonlyArray<{ id: string; title: string; summary:
     id: 'node',
     title: 'Using napkin-sketch from code',
     summary: 'The two entries, ES modules and CommonJS, types, the result object, and what throws.',
+  },
+  {
+    id: 'engines',
+    title: 'The drawing engines',
+    summary:
+      "The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify.",
   },
   {
     id: 'interop',

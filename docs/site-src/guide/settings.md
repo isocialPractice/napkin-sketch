@@ -8,14 +8,16 @@
   the **Verbose Settings** window (`Ctrl+Alt+,`, Edit menu, or the gear icon)
   which holds those same Quick Settings plus zoom/pan sensitivity, inverted
   zoom, the quick-feature timer, endpoint snap and Join stroke, the
-  eyedropper's select pixel sensitivity, **Show selection borders**, the
-  Direct Select grab radius, the Copic quick nib-rotate options
+  Select sensitivity, the Direct Select sensitivity, the Eyedropper
+  sensitivity, the Freehand fidelity, **Show selection borders**, the Copic
+  quick nib-rotate options
   (on/off, hold time, hold/rotate keys, rotation speed), Quick Access Color
   count and values, toolbar placement (top / side / both) with drag-and-drop
   **rearrange mode** (covers every tool in both toolbar groups — tools can
   even move between the groups — plus the Quick Access Colors), a light /
-  dark / sepia **theme**, auto-save, and Track History with its History
-  Limit. Settings
+  dark / sepia **theme**, auto-save, the **Wipe animation** (the napkin that
+  wipes over a Wipe Stacks result; on by default, and skipped under reduced
+  motion), and Track History with its History Limit. Settings
   persist across launches and can be exported to and imported from a JSON file.
 
 ## Every setting
@@ -32,11 +34,14 @@
 | `quickTimerMs` | `1000` | 500 to 3000, in steps of 100 |
 | `endpointSnap` | `true` |  |
 | `endpointSnapPx` | `10` | 1 to 20, in steps of 1 |
-| `directSelectSensitivityPx` | `3` | 1 to 20, in steps of 1 |
+| `selectSensitivityPx` | `4` | 1 to 20, in steps of 1 |
+| `directSelectSensitivityPx` | `8` | 1 to 20, in steps of 1 |
 | `showSelectionBorders` | `true` |  |
 | `joinStrokeOnSnap` | `false` |  |
+| `wipeAnimation` | `true` |  |
 | `warpShowMesh` | `true` |  |
 | `eyedropSensitivityPx` | `10` | 1 to 36, in steps of 1 |
+| `freehandFidelityPx` | `1.5` | 0.5 to 8, in steps of 0.5 |
 | `liveSharpen` | `false` |  |
 | `sharpenWobble` | `1.1` | 0 to 4, in steps of 0.1 |
 | `sharpenSmoothing` | `2.5` | 0.5 to 8, in steps of 0.5 |
@@ -47,7 +52,7 @@
 | `quickColorCount` | `6` | 2 to 20, in steps of 1 |
 | `quickColors` | 6 values |  |
 | `menuPlacement` | `top` |  |
-| `toolOrder` | 13 values |  |
+| `toolOrder` | 19 values |  |
 | `rememberSettings` | `true` |  |
 | `theme` | `light` |  |
 | `autoSaveIntervalSec` | `0` | 0 to 600, in steps of 5 |

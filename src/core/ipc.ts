@@ -404,7 +404,7 @@ export interface NapkinBridge {
   onHistoryStatsChanged(handler: (stats: HistoryStats) => void): () => void;
   /** Subscribes to requests to show a section of the settings window; returns an unsubscribe function. */
   onShowSettingsSection(handler: (section: string) => void): () => void;
-  /** The app's version, as its package.json gives it: `1.0.0-alpha.4.5.0`. */
+  /** The app's version, as its package.json gives it: `1.0.0-alpha.4.6.0`. */
   getAppVersion(): Promise<string>;
 }
 

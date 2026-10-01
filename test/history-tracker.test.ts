@@ -12,7 +12,7 @@
  * listener the store keeps nothing.
  *
  * Steps are named from the real menu files: a press on the canvas by its
- * tool ("Pen stroke"), a command by its row, and a step nothing named by what
+ * tool ("Brush stroke"), a command by its row, and a step nothing named by what
  * it changed. The list keeps the newest steps to its limit and never reuses
  * an index until a new document clears it.
  */
@@ -179,7 +179,7 @@ test('a stroke that needs a layer of its own brings the layer in the same step',
 
 test('a press on the canvas is named by its tool, as the menu files type it', () => {
   const pen = describeStep(step({ ...EMPTY, added: [mark('s1')] }, 'tool:pen'), lookup);
-  assert.deepEqual(pen, { command: 'tool:pen', type: 'Draw:Add:mark', label: 'Pen stroke' });
+  assert.deepEqual(pen, { command: 'tool:pen', type: 'Draw:Add:mark', label: 'Brush stroke' });
   assert.deepEqual(describeStep(step(EMPTY, 'tool:eraser'), lookup), { command: 'tool:eraser', type: 'Draw:Subtract:mark', label: 'Eraser stroke' });
   assert.deepEqual(describeStep(step(EMPTY, 'tool:select'), lookup), { command: 'tool:select', type: 'Draw:Modify:element', label: 'Select' });
   assert.deepEqual(describeStep(step(EMPTY, 'tool:point'), lookup), { command: 'tool:point', type: 'Draw:Modify:vector', label: 'Direct Select' });
@@ -228,7 +228,7 @@ test('a step nothing named is named by the tool of the marks it only added, or e
 
 test('the list keeps the newest steps to its limit, and an index is never reused', () => {
   const tracker = new HistoryTracker(3);
-  const recorded = [1, 2, 3, 4, 5].map((n) => tracker.pushStep(step({ ...EMPTY, added: [mark(`s${n}`)] }, 'tool:pen'), { command: 'tool:pen', type: 'Draw:Add:mark', label: 'Pen stroke' }));
+  const recorded = [1, 2, 3, 4, 5].map((n) => tracker.pushStep(step({ ...EMPTY, added: [mark(`s${n}`)] }, 'tool:pen'), { command: 'tool:pen', type: 'Draw:Add:mark', label: 'Brush stroke' }));
   assert.deepEqual(recorded.map((s) => s.index), [1, 2, 3, 4, 5]);
   assert.deepEqual(tracker.steps.map((s) => s.index), [3, 4, 5], 'the oldest go first');
   assert.equal(tracker.count, 3);
@@ -249,7 +249,7 @@ test('a recorded step carries the store step and its name', () => {
   const recorded = tracker.pushStep({ ...step(diff, 'tool:pen'), page: 2 }, describeStep(step(diff, 'tool:pen'), lookup));
   assert.deepEqual(
     [recorded.page, recorded.kind, recorded.command, recorded.type, recorded.label, recorded.at],
-    [2, 'edit', 'tool:pen', 'Draw:Add:mark', 'Pen stroke', '2026-09-26T12:00:00.000Z'],
+    [2, 'edit', 'tool:pen', 'Draw:Add:mark', 'Brush stroke', '2026-09-26T12:00:00.000Z'],
   );
   assert.equal(recorded.bytes, JSON.stringify(diff).length);
 });

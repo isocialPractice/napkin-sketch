@@ -61,7 +61,7 @@ try {
   const state = () => page.evalIn(STATE);
 
   // ---- Tooltips and the menu bar -----------------------------------------------------------
-  c.eq('a shipped shortcut is in its tooltip', await page.evalIn(title('tool-pen')), 'Pen (P)');
+  c.eq('a shipped shortcut is in its tooltip', await page.evalIn(title('tool-pen')), 'Brush (B)');
   c.eq('Redo shows its main shortcut', await page.evalIn(title('redo')), 'Redo (Ctrl+Shift+Z)');
   c.eq(
     'a command with no shortcut loses the slot in its tooltip',
@@ -98,13 +98,42 @@ try {
   await sleep(300);
   c.eq('and Escape closes it', (await state()).mirror, false);
 
+  // ---- The Transform button, beside Mirror --------------------------------------------------------
+  const transformButton = () =>
+    page.evalIn(`
+      const b = document.getElementById('transform-selection');
+      if (!b) return null;
+      const r = b.getBoundingClientRect();
+      return { title: b.title, pressed: b.classList.contains('is-open'), aria: b.getAttribute('aria-pressed'), x: r.left + r.width / 2, y: r.top + r.height / 2, afterMirror: b.previousElementSibling?.id === 'mirror-selection' };`);
+  let transform = await transformButton();
+  c.ok('the toolbar has a Transform button beside Mirror', transform?.afterMirror === true, JSON.stringify(transform));
+  c.ok("and its tooltip shows Transform Box's shortcut", !!transform && transform.title.includes('(Ctrl+T)'), transform?.title);
+  if (transform) {
+    await page.evalIn(clearToast);
+    await page.click(transform.x, transform.y);
+    await sleep(400);
+    transform = await transformButton();
+    c.ok('a click puts the box up round the selection', (await state()).toast.startsWith('Transform: drag a handle'), (await state()).toast);
+    c.ok('and presses the button', transform.pressed && transform.aria === 'true', JSON.stringify(transform));
+    await page.click(transform.x, transform.y);
+    await sleep(400);
+    transform = await transformButton();
+    c.ok('a second click takes the box away and lets the button up', !transform.pressed && transform.aria === 'false', JSON.stringify(transform));
+  }
+
   // ---- Letters choose tools ---------------------------------------------------------------------
   await page.chord(69, 'e'); // E
   await sleep(300);
   c.eq('E takes the eraser', (await state()).tool, 'eraser');
-  await page.chord(80, 'P', 8); // Shift+P
+  await page.chord(66, 'b'); // B
   await sleep(300);
-  c.eq('Shift+P still takes the pen, as it always has', (await state()).tool, 'pen');
+  c.eq('B takes the brush', (await state()).tool, 'pen');
+  await page.chord(80, 'p'); // P
+  await sleep(300);
+  c.eq('P takes Vector Path', (await state()).tool, 'vector');
+  await page.chord(66, 'B', 8); // Shift+B
+  await sleep(300);
+  c.eq('Shift+B still takes the brush, as Shift+P took the pen', (await state()).tool, 'pen');
   await page.chord(77, 'm'); // M
   await sleep(300);
   c.eq('M takes the marker', (await state()).tool, 'marker');

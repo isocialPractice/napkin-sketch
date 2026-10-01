@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Three filled circles, each overlapping the other two and all three a
+  middle, for the Wipe Stacks check: Clean Wipe cuts them into seven faces.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 280">
+  <g id="circles" data-name="circles">
+    <circle id="left" cx="110" cy="110" r="70" fill="#d0342c"/>
+    <circle id="right" cx="190" cy="110" r="70" fill="#27486d"/>
+    <circle id="low" cx="150" cy="180" r="70" fill="#2e7d5b"/>
+  </g>
+</svg>

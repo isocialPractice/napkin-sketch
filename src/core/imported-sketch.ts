@@ -21,6 +21,8 @@ export interface ImportedTreeNode {
   children?: ImportedTreeNode[];
   /** Effects the layer carried in the file. */
   effects?: Effect[];
+  /** A clip group's clip mark: one of the strokes somewhere in its children (core/clip.ts). */
+  clip?: Stroke;
 }
 
 /** A file read as one page: its size, its paper when it had one, and its layers. */
@@ -51,6 +53,8 @@ export function buildImportedLayers(nodes: readonly ImportedTreeNode[]): BuiltLa
   const layers: Layer[] = [];
   const strokes: Stroke[] = [];
   let active: string | null = null;
+  // Each imported stroke's new id, for a clip group to name its clip mark by.
+  const ids = new Map<Stroke, string>();
   const leaf = (
     item: ImportedTreeNode,
     parent: string | undefined,
@@ -63,7 +67,11 @@ export function buildImportedLayers(nodes: readonly ImportedTreeNode[]): BuiltLa
     layer.parent = parent;
     if (effects) layer.effects = effects;
     layers.push(layer);
-    for (const stroke of item.strokes) strokes.push({ ...stroke, id: createId('st'), layer: layer.id });
+    for (const stroke of item.strokes) {
+      const id = createId('st');
+      ids.set(stroke, id);
+      strokes.push({ ...stroke, id, layer: layer.id });
+    }
     active = layer.id;
   };
   const add = (item: ImportedTreeNode, parent?: string): void => {
@@ -74,6 +82,8 @@ export function buildImportedLayers(nodes: readonly ImportedTreeNode[]): BuiltLa
       if (item.effects) group.effects = item.effects;
       for (const child of item.children) add(child, group.id);
       if (item.strokes.length > 0) leaf(item, group.id, 1, `${item.name} contents`, undefined);
+      const clip = item.clip ? ids.get(item.clip) : undefined;
+      if (clip) group.clip = clip;
       layers.push(group);
     } else {
       leaf(item, parent);

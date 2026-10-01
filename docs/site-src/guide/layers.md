@@ -11,15 +11,20 @@
   deleting an element deletes its emptied layer (deleting a layer deletes its
   elements). Renaming a layer is `F2` or a **double-click** on its row, and
   the name arrives **highlighted** so a new one can be typed straight over
-  it. Drawing, erasing, and selection respect the active layer, and
-  the eraser only cuts holes in its own layer. The panel is **in view by
+  it. Drawing and selection respect the active layer; the Eraser
+  cuts the selected marks, or every mark it touches, wherever they are, and
+  adds no layer. The panel is **in view by
   default**, **resizable** (drag its inner edge), and offers a **right-click
   menu** with the menu bar's **Layers** rows (Add Layer, Group Layer, Ungroup,
-  Rename, Delete Layer, a **Move** submenu of Layer Up and Layer Down, Hide
-  Layers Panel) and the clipboard rows between them.
+  Rename, Delete Layer, a **Move** submenu of Layer Up and Layer Down, a
+  **Clipping Mask** submenu of Make and Release, Hide Layers Panel) and the
+  clipboard rows between them.
 - **Layer groups** — `Ctrl+G` groups the active layer (nesting allowed);
   group visibility, lock, and opacity apply to every layer inside, and
   `Ctrl+Shift+G` ungroups.
+- **Clipping masks** — `Ctrl+7` groups the selection into a **Clip Group**
+  that shows only inside the closed path on top, which paints nothing while
+  it clips; `Ctrl+Alt+7` releases it.
 - **Layer restacking moves the whole selection.** The panel's move buttons
   (and `Ctrl+]` / `Ctrl+[`) shift every selected row one step, not just the
   active one; the selection keeps its own order, unselected rows keep theirs,
@@ -39,8 +44,8 @@
 ## The Layers panel
 
 **Layers panel:** every **new drawn element gets its own layer** named after
-the tool (an empty active layer is reused; eraser strokes stay on the active
-layer so they keep cutting its content). *Click* a row to make it active and
+the tool (an empty active layer is reused). The Eraser adds no layer and no
+mark: it cuts the marks themselves ([Eraser](tools.md#eraser)). *Click* a row to make it active and
 highlight its elements on the canvas; *`Shift`-click* to multi-select rows;
 *drag* a row to reposition it in the stack, or drop it onto a group row to
 nest it inside. **Rename** the active layer with `F2`, or *double-click* any
@@ -63,6 +68,39 @@ visibility, lock, and opacity apply to every layer inside it, the panel
 indents grouped layers under a collapsible header (click the caret to
 expand/collapse), and `Ctrl+Shift+G` dissolves the active group while
 keeping its layers. Deleting a group deletes the layers inside it.
+
+## Clipping masks
+
+**Clipping masks:** select what to clip and, on top of it, the closed path to
+clip it with, then choose **Layers > Clipping Mask > Make** (`Ctrl+7`). The
+layers the selection is on go into a new group, a **Clip Group**, and
+everything in it shows only inside the topmost path, its **clipping path**,
+which paints nothing while it clips. The clipping path's layer moves to the
+top of the group. In the Layers panel the group's row carries a ◘ and the
+clipping path's row a **clip** badge, its name underlined in dots.
+
+- **What is hidden cannot be picked.** A click outside the clipping path picks
+  nothing in the group, a click inside it picks what shows there, and a
+  selection box takes a mark only where it shows. Direct Select (`A`) still
+  reaches every mark, the clipping path included, so its anchors can be
+  edited where they are.
+- **The dashed boxes box what shows**: a selected mark's box is cut to the
+  clipping path's bounds.
+- **Release** (`Ctrl+Alt+7`) takes the clip off the clip group around the
+  selection, or around the selected or active layer. The group stays a group
+  and the clipping path paints again; `Ctrl+Shift+G` then ungroups it. Make
+  and Release are one undo step each.
+- **One mark selected, or an open path on top**, does nothing, and a notice
+  says why.
+- **A clip group can hold another**: the inner one shows only where both
+  clipping paths overlap.
+- **Effects come after the clip**, so a clip group's drop shadow falls under
+  what shows, not under the whole of what it holds.
+- **Every export keeps it**: the SVG clips the group with a `<clipPath>`,
+  the PDF with a clipping path, the Illustrator script with a clipped group
+  ([Import and export](import-export.md#clipping-masks-travel-with-the-file)).
+  A script makes one with `clip { ... }`
+  ([Drawing with napkin script](../api/drawing/README.md#clipping-masks)).
 
 ## The Properties panel
 

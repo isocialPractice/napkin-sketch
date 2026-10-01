@@ -845,3 +845,24 @@ test('a mirrored profile says so, so the mirror image comes back as one', () => 
   assert.match(svg, /<path [^>]*data-profile="wave"[^>]*data-profile-mirrored="1"/);
   assert.doesNotMatch(Surface.toSVG(paintedSketch({ profile: 'wave' })), /data-profile-mirrored/);
 });
+
+test('a fitted freehand stroke exports as its few curves, not its samples', () => {
+  const sketch = createSketch('fitted');
+  const anchors: VectorAnchor[] = [
+    { p: { x: 0, y: 0 }, hOut: { x: 30, y: -40 }, pressure: 0.4 },
+    { p: { x: 100, y: 0 }, hIn: { x: 70, y: 40 }, hOut: { x: 130, y: -40 }, pressure: 0.8 },
+    { p: { x: 200, y: 0 }, hIn: { x: 170, y: 40 }, pressure: 0.4 },
+  ];
+  sketch.strokes.push({
+    id: 'fit',
+    tool: 'pen',
+    color: '#000000',
+    width: 3,
+    // What the fit samples back: 48 points along the two cubics.
+    points: Array.from({ length: 49 }, (_, i) => ({ x: (200 * i) / 48, y: 0, pressure: 0.5 })),
+    vector: { anchors, fitted: true },
+  });
+  const d = pathDataOf(Surface.toSVG(sketch));
+  assert.equal((d.match(/[Cc]/g) ?? []).length + (d.match(/[Ss]/g) ?? []).length, 2, d);
+  assert.ok(!/[Ll]/.test(d), `no sampled line segments: ${d}`);
+});

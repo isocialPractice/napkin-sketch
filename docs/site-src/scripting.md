@@ -93,7 +93,7 @@ frames** draws the same in the app (see [Animation Mode](guide/animation-mode.md
 script for a file or for the selected layers, and shows it before you copy,
 save or open it (see [Generating a script](guide/automate.md#generating-a-script)).
 
-[API.md](../../API.md) maps the documentation - eight categories, each with a
+[API.md](../../API.md) maps the documentation - nine categories, each with a
 reference, a quickstart and a cheatsheet - [API-QUICKSTART.md](../../API-QUICKSTART.md)
 is the whole API in five steps, and [API-CHEATSHEET.md](../../API-CHEATSHEET.md) puts
 every verb, flag and exit code on one page.

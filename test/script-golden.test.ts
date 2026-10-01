@@ -15,7 +15,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { evaluate, formatDiagnostic, renderBook } from '../src/core/script/index.js';
+import { evaluate, formatDiagnostic, parseScript, renderBook, VERBS } from '../src/core/script/index.js';
+import type { Instruction } from '../src/core/script/instructions.js';
 import { fixtureSketch } from './helpers/fixture-sketch.js';
 import { repoRoot } from './helpers/repo-root.js';
 import { SCRIPT_FIXTURES } from './helpers/script-fixtures.js';
@@ -70,8 +71,20 @@ if (process.env.NAPKIN_GOLDEN_CHILD === '1') {
   // and hand the SVG back on standard output.
   process.stdout.write(JSON.stringify(Object.fromEntries(SCRIPTS.map((file) => [file, draw(file).files]))));
 } else {
-  test('there are six golden scripts, the plan\'s goal among them', () => {
-    assert.deepEqual(SCRIPTS, ['deck.napkin', 'goal.napkin', 'holes.napkin', 'rough.napkin', 'shapes.napkin', 'use.napkin']);
+  test('there are ten golden scripts, the plan\'s goal among them', () => {
+    assert.deepEqual(SCRIPTS, ['deck.napkin', 'every-verb.napkin', 'goal.napkin', 'holes.napkin', 'pencil.napkin', 'rough.napkin', 'shapes.napkin', 'stack.napkin', 'use.napkin', 'wipe.napkin']);
+  });
+
+  test('every-verb.napkin uses every verb in the table, so a new verb joins it', () => {
+    const used = new Set<string>();
+    const walk = (instructions: readonly Instruction[]): void => {
+      for (const instruction of instructions) {
+        used.add(instruction.verb);
+        if ('body' in instruction && Array.isArray(instruction.body)) walk(instruction.body as Instruction[]);
+      }
+    };
+    walk(parseScript(readFileSync(join(DIR, 'every-verb.napkin'), 'utf-8')).script);
+    assert.deepEqual(VERBS.map((verb) => verb.name).filter((name) => !used.has(name)), [], 'the verbs it does not use');
   });
 
   for (const file of SCRIPTS) {

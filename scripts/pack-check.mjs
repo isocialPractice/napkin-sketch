@@ -9,8 +9,10 @@
  *
  * It fails when the tarball holds a file it must not - the local Animation
  * Mode install record - or lacks one the entries need, when the install brings
- * Electron with it, or when `napkin-sketch draw -`, `napkin-sketch` or
- * `napkin-sketch/node` does not draw. Run `npm run build` and
+ * Electron with it, when `napkin-sketch draw -`, `napkin-sketch` or
+ * `napkin-sketch/node` does not draw, or when the installed package cannot
+ * run the verbs that combine, cut, clip, smear and bend, or call the engines
+ * behind them by name. Run `npm run build` and
  * `npm run build:types` first: it packs what `dist/` holds. It needs no
  * network, since the package has no dependencies to fetch.
  */
@@ -25,6 +27,27 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const keep = process.argv.includes('--keep');
 
 const SCRIPT = 'napkin 1\npage 200 120\nlayer "Card"\ncolor #1f2328 width 3 fill #ffe08a\nrect 10 10 180 100 r 12\n';
+
+/** The verbs that run the drawing engines - wipe, stack, split, clip, the eraser, the Pencil, the Smear and Liquify - in one script. */
+const ENGINE_SCRIPT = [
+  'napkin 1',
+  'page 320 200',
+  'fill #27486d',
+  'wipe in {', '  rect 20 20 80 80', '  circle 100 60 40', '}',
+  'stack remove 140 60 {', '  rect 120 20 80 80', '  circle 200 60 40', '}',
+  'fill none',
+  'line 20 140 300 140',
+  'split 160 140',
+  'clip {', '  rect 220 120 80 60', '  circle 260 150 25', '}',
+  'tool eraser', 'width 10', 'line 60 120 60 160',
+  'pencil 2B', 'line 20 180 120 180', 'smear 12 0.5 20 180, 120 180',
+  'tool brush', 'circle 260 60 30',
+  'warp 230 60 20 10 0', 'twirl 260 60 30 45', 'pucker 260 60 30 0.2', 'bloat 260 60 30 0.2',
+  '',
+].join('\n');
+
+/** The engines' exports a program calls by name. */
+const ENGINES = ['booleanOp', 'eraseMarks', 'eraseRegionOf', 'wipeMarks', 'arrangeFaces', 'stackFaces', 'nearestOnMark', 'splitMark', 'makeClip', 'clipIndex', 'pencilPaint', 'grainTile', 'smudgeBuffer', 'liquifyField', 'liquifyMarks'];
 
 /** Files the entries need, which a tarball without them would install broken. */
 const REQUIRED = [
@@ -135,9 +158,36 @@ function check(dir) {
   const library = JSON.parse(lib.stdout);
   if (!library.ok || library.svg === 0 || library.files.length !== 2) fail(`the entries did not draw: ${lib.stdout}`);
 
+  // 5. The engines, from the installed package: the verbs that run them,
+  //    and each called by name.
+  writeFileSync(
+    join(project, 'engines.mjs'),
+    [
+      `import { drawSvg, PENCIL_GRADES, ${ENGINES.join(', ')} } from 'napkin-sketch';`,
+      `const drawn = drawSvg(${JSON.stringify(ENGINE_SCRIPT)});`,
+      'const square = (x, y, s) => [[{ x, y }, { x: x + s, y }, { x: x + s, y: y + s }, { x, y: y + s }]];',
+      'const answers = [',
+      "  booleanOp(square(0, 0, 10), square(5, 5, 10), 'union')?.length === 1,",
+      '  PENCIL_GRADES.length === 30,',
+      "  pencilPaint('2B').label === 'Graphite 2B',",
+      '  grainTile().length === 128 * 128,',
+      "  liquifyField({ mode: 'bloat', x: 0, y: 0, radius: 10, amount: 0.5 }).point({ x: 20, y: 0 }).x === 20,",
+      '];',
+      `const named = [${ENGINES.join(', ')}].every((call) => typeof call === 'function');`,
+      'console.log(JSON.stringify({ ok: drawn.ok, codes: drawn.diagnostics.map((d) => d.code), answers: answers.every(Boolean), named }));',
+      '',
+    ].join('\n'),
+  );
+  const run = spawnSync(process.execPath, ['engines.mjs'], { cwd: project, encoding: 'utf-8' });
+  if (run.status !== 0) fail(`calling the engines failed:\n${run.stderr}`);
+  const engines = JSON.parse(run.stdout);
+  if (!engines.ok || engines.codes.length > 0) fail(`the engines' verbs did not draw clean: ${run.stdout}`);
+  if (!engines.answers || !engines.named) fail(`the engines did not answer by name: ${run.stdout}`);
+
   console.log(
     `pack-check: ${packed.filename} (${packed.entryCount} files) installs with no electron, and draws: ` +
-      `${report.files[0].path} from the command line, ${library.files.join(' and ')} from the entries.`,
+      `${report.files[0].path} from the command line, ${library.files.join(' and ')} from the entries, ` +
+      `and the engines' verbs and ${ENGINES.length} engines by name.`,
   );
 }
 

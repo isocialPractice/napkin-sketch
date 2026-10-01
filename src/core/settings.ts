@@ -59,7 +59,16 @@ export interface AppSettings {
   endpointSnap: boolean;
   /** Endpoint snap: search radius around the pointer, in screen pixels (1-20). */
   endpointSnapPx: number;
-  /** Direct Select: anchor/handle grab radius around the pointer (1-20px). */
+  /**
+   * Select: how far from a mark's painted ink a click may land and still
+   * pick it, in screen pixels (1-20), so the reach is the same at every zoom.
+   */
+  selectSensitivityPx: number;
+  /**
+   * Direct Select: how far from an anchor, a handle or a path's ink a click may
+   * land and still grab it, in screen pixels (1-20). The Vector Path tool's
+   * anchors and its closing click use it too.
+   */
   directSelectSensitivityPx: number;
   /**
    * Draw the dashed blue border around each selected element. On by default.
@@ -82,12 +91,24 @@ export interface AppSettings {
    */
   joinStrokeOnSnap: boolean;
   /**
+   * Wipe animation: a napkin wipes over a Wipe Stacks result for a quarter of
+   * a second. Off - or with the system asking for reduced motion - the result
+   * shows at once.
+   */
+  wipeAnimation: boolean;
+  /**
    * Mesh Warp: draw the triangle mesh over the art being warped. Off, only
    * the pins show, so the bend can be judged on the art alone.
    */
   warpShowMesh: boolean;
   /** Eyedropper: color-sampling radius around the click, in screen pixels (1-36). */
   eyedropSensitivityPx: number;
+  /**
+   * Freehand fidelity: how far a Pen, Marker or Copic stroke's fitted curves
+   * may stray from what was drawn, in screen pixels (0.5-8). Smaller keeps
+   * more of the hand's detail, in more anchors; larger smooths more, in fewer.
+   */
+  freehandFidelityPx: number;
   /** Quick Settings: auto-sharpen each stroke on pen-up. */
   liveSharpen: boolean;
   /** Quick Settings: hand-drawn wobble amplitude (px) for sharpened strokes. */
@@ -171,13 +192,19 @@ export const DEFAULT_TOOL_ORDER = [
   'tool-pen',
   'tool-marker',
   'tool-copic',
+  'tool-pencil',
+  'tool-smear',
   'tool-eraser',
+  'tool-shape-eraser',
+  'tool-shape-stacker',
+  'tool-split',
   'tool-select',
   'tool-point',
   'tool-text',
   'tool-rect',
   'tool-ellipse',
   'tool-curve',
+  'tool-vector',
   'tool-bucket',
   'tool-fill',
   'tool-eyedrop',
@@ -189,8 +216,10 @@ export const SETTINGS_LIMITS = {
   panSensitivity: { min: 0.25, max: 4, step: 0.05 },
   quickTimerMs: { min: 500, max: 3000, step: 100 },
   endpointSnapPx: { min: 1, max: 20, step: 1 },
+  selectSensitivityPx: { min: 1, max: 20, step: 1 },
   directSelectSensitivityPx: { min: 1, max: 20, step: 1 },
   eyedropSensitivityPx: { min: 1, max: 36, step: 1 },
+  freehandFidelityPx: { min: 0.5, max: 8, step: 0.5 },
   sharpenWobble: { min: 0, max: 4, step: 0.1 },
   sharpenSmoothing: { min: 0.5, max: 8, step: 0.5 },
   sharpenCircleSnap: { min: 0.02, max: 0.3, step: 0.01 },
@@ -216,11 +245,14 @@ export function defaultSettings(): AppSettings {
     quickTimerMs: 1000,
     endpointSnap: true,
     endpointSnapPx: 10,
-    directSelectSensitivityPx: 3,
+    selectSensitivityPx: 4,
+    directSelectSensitivityPx: 8,
     showSelectionBorders: true,
     joinStrokeOnSnap: false,
+    wipeAnimation: true,
     warpShowMesh: true,
     eyedropSensitivityPx: 10,
+    freehandFidelityPx: 1.5,
     liveSharpen: false,
     sharpenWobble: 1.1,
     sharpenSmoothing: 2.5,
@@ -269,6 +301,18 @@ export function normalizeHexColor(value: unknown): string | null {
 }
 
 /**
+ * The Direct Select sensitivity a settings object holds. Before Select had a
+ * sensitivity of its own, Direct Select's default was 3 px, which a floor of 8
+ * hid on every path with Bezier anchors; with the floor gone, a 3 saved then
+ * is the old default rather than a choice, and reads as today's 8. A file
+ * that has the Select setting was saved since, so its 3 was picked.
+ */
+function legacyDirectSelect(raw: Record<string, unknown>): unknown {
+  const saved = raw.directSelectSensitivityPx;
+  return saved === 3 && !('selectSensitivityPx' in raw) ? defaultSettings().directSelectSensitivityPx : saved;
+}
+
+/**
  * Validates and clamps an arbitrary (possibly partial / untrusted) object into a
  * complete, valid {@link AppSettings}. Unknown fields are dropped and invalid
  * values are replaced with defaults so the result is always safe to use.
@@ -294,9 +338,17 @@ export function normalizeSettings(input: unknown): AppSettings {
     endpointSnapPx: Math.round(
       clampNumber(raw.endpointSnapPx, lim.endpointSnapPx.min, lim.endpointSnapPx.max, base.endpointSnapPx),
     ),
+    selectSensitivityPx: Math.round(
+      clampNumber(
+        raw.selectSensitivityPx,
+        lim.selectSensitivityPx.min,
+        lim.selectSensitivityPx.max,
+        base.selectSensitivityPx,
+      ),
+    ),
     directSelectSensitivityPx: Math.round(
       clampNumber(
-        raw.directSelectSensitivityPx,
+        legacyDirectSelect(raw),
         lim.directSelectSensitivityPx.min,
         lim.directSelectSensitivityPx.max,
         base.directSelectSensitivityPx,
@@ -308,6 +360,7 @@ export function normalizeSettings(input: unknown): AppSettings {
         : base.showSelectionBorders,
     joinStrokeOnSnap:
       typeof raw.joinStrokeOnSnap === 'boolean' ? raw.joinStrokeOnSnap : base.joinStrokeOnSnap,
+    wipeAnimation: typeof raw.wipeAnimation === 'boolean' ? raw.wipeAnimation : base.wipeAnimation,
     warpShowMesh: typeof raw.warpShowMesh === 'boolean' ? raw.warpShowMesh : base.warpShowMesh,
     eyedropSensitivityPx: Math.round(
       clampNumber(
@@ -316,6 +369,12 @@ export function normalizeSettings(input: unknown): AppSettings {
         lim.eyedropSensitivityPx.max,
         base.eyedropSensitivityPx,
       ),
+    ),
+    freehandFidelityPx: clampNumber(
+      raw.freehandFidelityPx,
+      lim.freehandFidelityPx.min,
+      lim.freehandFidelityPx.max,
+      base.freehandFidelityPx,
     ),
     liveSharpen: typeof raw.liveSharpen === 'boolean' ? raw.liveSharpen : base.liveSharpen,
     sharpenWobble: clampNumber(
@@ -447,8 +506,22 @@ function normalizeToolOrder(value: unknown): string[] {
       if (typeof id === 'string' && known.has(id) && !order.includes(id)) order.push(id);
     }
   }
-  // Append any tools missing from a partial/stale order so none disappear.
-  for (const id of DEFAULT_TOOL_ORDER) if (!order.includes(id)) order.push(id);
+  // A tool missing from a saved order - one added since the order was saved,
+  // since a saved order holds every tool there was - goes in after the tool
+  // it follows by default, so it turns up beside its neighbours rather than
+  // at the end of the toolbar. Missing from the front, it goes first.
+  DEFAULT_TOOL_ORDER.forEach((id, i) => {
+    if (order.includes(id)) return;
+    let at = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      const before = order.indexOf(DEFAULT_TOOL_ORDER[j]);
+      if (before >= 0) {
+        at = before + 1;
+        break;
+      }
+    }
+    order.splice(at, 0, id);
+  });
   return order;
 }
 

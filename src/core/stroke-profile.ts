@@ -33,8 +33,10 @@ import {
   type Point,
   type Stroke,
   type StrokeProfile,
+  widthAtPressure,
 } from './types.js';
 import { clockwise, disc, signedArea } from './graphic-design/geometry.js';
+import { booleanOp } from './boolean.js';
 
 type Vec = { x: number; y: number };
 
@@ -174,8 +176,10 @@ export interface ProfileInput {
   profile: StrokeProfile | undefined;
   /** Every subpath closes on itself: no caps, and the profile runs once round. */
   closed: boolean;
-  /** Width follows pen pressure the way the painter's line does: 0.4 + 0.6 × pressure. */
+  /** Width follows pen pressure the way the painter's line does: 0.4 + 0.6 × pressure, or from {@link floor}. */
   pressure: boolean;
+  /** The share of the width a line keeps at no pressure: 0.4 unless given - a Pencil's 0.8 (`widthAtPressure`). */
+  floor?: number;
   /** Dash and gap lengths as `dashPatternFor` gives them; empty for a solid line. */
   dash: number[];
   /** The two sides swapped, for a stroke that is a mirror image (`Stroke.profileMirrored`). */
@@ -201,6 +205,7 @@ export function profileInputOf(stroke: Stroke): ProfileInput {
     profile: activeProfile(stroke),
     closed: stroke.vector?.closed === true || rejoins,
     pressure: stroke.tool !== 'marker',
+    ...(stroke.tool === 'pencil' ? { floor: widthAtPressure('pencil', 0) } : {}),
     dash: dashPatternFor(stroke.strokeStyle, stroke.width),
     mirrored: stroke.profileMirrored === true,
   };
@@ -266,7 +271,8 @@ function frameOf(run: Point[], input: ProfileInput, half: number): Frame | null 
   const along = [0];
   for (let i = 1; i < n; i++) along.push(along[i - 1] + distance(pts[i - 1], pts[i]));
   const total = along[n - 1] + (closed ? distance(pts[n - 1], pts[0]) : 0);
-  const scale = (p: Point): number => (input.pressure ? 0.4 + 0.6 * (p.pressure ?? 0.5) : 1);
+  const floor = input.floor ?? 0.4;
+  const scale = (p: Point): number => (input.pressure ? floor + (1 - floor) * (p.pressure ?? 0.5) : 1);
 
   // A mirror image's left is the original's right.
   const sidesAt = (t: number): ProfileSides => {
@@ -628,304 +634,16 @@ function chainOf(f: Frame): Vec[][] {
   ];
 }
 
-/** An edge of the chain, and where other edges cross it (as fractions along it). */
-interface Edge {
-  a: Vec;
-  b: Vec;
-  cuts: Array<{ t: number; p: Vec }>;
-}
-
-/** Beyond this many edges the boundary is not worth its time; the chain fills the same. */
-const BOUNDARY_EDGE_LIMIT = 40000;
-
 /**
  * The boundary of the region some contours fill under the non-zero rule, as
- * contours of its own, wound with the fill on their right: every edge is cut
- * where another crosses it, and a cut piece is kept only where it has fill on
- * one side and none on the other. Null when floating point leaves the kept
- * pieces unable to close into contours, or the input is too big to be worth
- * it - the caller then keeps its contours, which fill the same.
+ * contours of its own, wound with the fill on their right: the union of the
+ * contours with nothing (`boolean.ts`, whose engine this was). Null when
+ * floating point leaves the kept pieces unable to close into contours, or the
+ * input is too big to be worth it - the caller then keeps its contours, which
+ * fill the same.
  */
 function boundaryOf(contours: Vec[][]): Vec[][] | null {
-  const edges: Edge[] = [];
-  for (const c of contours) {
-    for (let i = 0; i < c.length; i++) {
-      const a = c[i];
-      const b = c[(i + 1) % c.length];
-      if (distance(a, b) > 1e-9) edges.push({ a, b, cuts: [] });
-    }
-  }
-  if (edges.length === 0) return [];
-  if (edges.length > BOUNDARY_EDGE_LIMIT) return null;
-
-  findCrossings(edges);
-  const winding = windingField(edges);
-
-  // Vertices by number. The same point object is met again and again - an
-  // edge's end is the next edge's start, a crossing lies on two edges - so
-  // each is looked up by identity first and keyed by position only once.
-  const byKey = new Map<string, number>();
-  const byPoint = new Map<Vec, number>();
-  const vertexOf = (p: Vec): number => {
-    let id = byPoint.get(p);
-    if (id === undefined) {
-      const key = pointKey(p);
-      id = byKey.get(key);
-      if (id === undefined) {
-        id = byKey.size;
-        byKey.set(key, id);
-      }
-      byPoint.set(p, id);
-    }
-    return id;
-  };
-
-  // The cut pieces with fill on exactly one side, turned to keep it on their
-  // right. Two pieces laid over each other the same way would count that
-  // side twice, so only one is kept.
-  const kept: Array<{ a: Vec; b: Vec; from: number; to: number }> = [];
-  const seen = new Set<number>();
-  const nudge = 1e-7;
-  for (const e of edges) {
-    e.cuts.sort((m, n) => m.t - n.t);
-    let from = e.a;
-    let fromId = vertexOf(from);
-    for (let c = 0; c <= e.cuts.length; c++) {
-      const to = c < e.cuts.length ? e.cuts[c].p : e.b;
-      const toId = vertexOf(to);
-      if (toId === fromId) continue;
-      const len = distance(from, to);
-      const mx = (from.x + to.x) / 2;
-      const my = (from.y + to.y) / 2;
-      const nx = ((to.y - from.y) / len) * nudge;
-      const ny = (-(to.x - from.x) / len) * nudge;
-      const onLeft = winding(mx + nx, my + ny) !== 0;
-      const onRight = winding(mx - nx, my - ny) !== 0;
-      if (onLeft !== onRight) {
-        const piece = onRight
-          ? { a: from, b: to, from: fromId, to: toId }
-          : { a: to, b: from, from: toId, to: fromId };
-        const pair = piece.from * 2 ** 26 + piece.to;
-        if (!seen.has(pair)) {
-          seen.add(pair);
-          kept.push(piece);
-        }
-      }
-      from = to;
-      fromId = toId;
-    }
-  }
-
-  // Every vertex a boundary passes through is left as often as it is reached.
-  const outgoing: number[][] = Array.from({ length: byKey.size }, () => []);
-  const balance = new Int32Array(byKey.size);
-  kept.forEach((e, i) => {
-    outgoing[e.from].push(i);
-    balance[e.from] += 1;
-    balance[e.to] -= 1;
-  });
-  if (balance.some((count) => count !== 0)) return null;
-
-  // Walk them into contours. Where boundaries touch at a point, the sharpest
-  // turn towards the fill keeps each contour round its own patch.
-  const used = new Uint8Array(kept.length);
-  const out: Vec[][] = [];
-  for (let s = 0; s < kept.length; s++) {
-    if (used[s]) continue;
-    const home = kept[s].from;
-    const loop: Vec[] = [];
-    let e = s;
-    for (;;) {
-      used[e] = 1;
-      loop.push(kept[e].a);
-      const here = kept[e].to;
-      if (here === home) break;
-      let next = -1;
-      const options = outgoing[here];
-      if (options.length === 1) {
-        if (!used[options[0]]) next = options[0];
-      } else {
-        const heading = { x: kept[e].b.x - kept[e].a.x, y: kept[e].b.y - kept[e].a.y };
-        let sharpest = -Infinity;
-        for (const i of options) {
-          if (used[i]) continue;
-          const turn = turnBetween(heading, { x: kept[i].b.x - kept[i].a.x, y: kept[i].b.y - kept[i].a.y });
-          if (turn > sharpest) {
-            sharpest = turn;
-            next = i;
-          }
-        }
-      }
-      if (next < 0) return null;
-      e = next;
-    }
-    const contour = tidy(loop);
-    if (contour.length >= 3 && Math.abs(signedArea(contour)) > 1e-9) out.push(contour);
-  }
-  return out;
-}
-
-/**
- * A vertex's identity, to a millionth of a pixel: two pieces meet where
- * their ends share one.
- */
-function pointKey(p: Vec): string {
-  return `${Math.round(p.x * 1e6)},${Math.round(p.y * 1e6)}`;
-}
-
-/**
- * Records every place two edges meet on both of them: where they cross, and
- * where an end of one lands on the other - a vertex of zero width sitting
- * exactly on another edge, as the seam of a closed Wave does. The edges are
- * swept along the longer side of their bounds, so only neighbours along the
- * stroke are ever compared.
- */
-function findCrossings(edges: Edge[]): void {
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  for (const e of edges) {
-    minX = Math.min(minX, e.a.x, e.b.x);
-    maxX = Math.max(maxX, e.a.x, e.b.x);
-    minY = Math.min(minY, e.a.y, e.b.y);
-    maxY = Math.max(maxY, e.a.y, e.b.y);
-  }
-  const along = maxX - minX >= maxY - minY ? 'x' : 'y';
-  const across = along === 'x' ? 'y' : 'x';
-  const lo = edges.map((e) => Math.min(e.a[along], e.b[along]));
-  const hi = edges.map((e) => Math.max(e.a[along], e.b[along]));
-  const side0 = edges.map((e) => Math.min(e.a[across], e.b[across]));
-  const side1 = edges.map((e) => Math.max(e.a[across], e.b[across]));
-  const order = edges.map((_, i) => i).sort((i, j) => lo[i] - lo[j]);
-  for (let s = 0; s < order.length; s++) {
-    const i = order[s];
-    for (let u = s + 1; u < order.length; u++) {
-      const j = order[u];
-      if (lo[j] > hi[i]) break;
-      if (side0[j] > side1[i] || side1[j] < side0[i]) continue;
-      const e = edges[i];
-      const f = edges[j];
-      // Touching edges meet only where they touch, unless they lie along each other.
-      const touched = [touch(e, f.a), touch(e, f.b), touch(f, e.a), touch(f, e.b)].some(Boolean);
-      if (touched) continue;
-      const hit = crossing(e.a, e.b, f.a, f.b);
-      if (!hit) continue;
-      e.cuts.push({ t: hit.t, p: hit.p });
-      f.cuts.push({ t: hit.u, p: hit.p });
-    }
-  }
-}
-
-/** Cuts `e` at `p` when `p` lies on its interior, and says whether it did. */
-function touch(e: Edge, p: Vec): boolean {
-  const dx = e.b.x - e.a.x;
-  const dy = e.b.y - e.a.y;
-  const t = ((p.x - e.a.x) * dx + (p.y - e.a.y) * dy) / (dx * dx + dy * dy);
-  if (!(t > 0 && t < 1)) return false;
-  if (Math.hypot(e.a.x + t * dx - p.x, e.a.y + t * dy - p.y) > 1e-7) return false;
-  const k = pointKey(p);
-  if (k === pointKey(e.a) || k === pointKey(e.b)) return false;
-  e.cuts.push({ t, p });
-  return true;
-}
-
-/**
- * How many times the edges wind about a point: a ray cast from it, across
- * whichever of its row or its column of the bounds holds fewer edges. Only
- * whether the count is zero is ever asked, so the two rays need not agree on
- * its sign.
- */
-function windingField(edges: Edge[]): (x: number, y: number) => number {
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  for (const e of edges) {
-    minX = Math.min(minX, e.a.x, e.b.x);
-    maxX = Math.max(maxX, e.a.x, e.b.x);
-    minY = Math.min(minY, e.a.y, e.b.y);
-    maxY = Math.max(maxY, e.a.y, e.b.y);
-  }
-  const count = Math.max(1, Math.min(1024, Math.ceil(Math.sqrt(edges.length) * 4)));
-  const rowSize = (maxY - minY) / count || 1;
-  const colSize = (maxX - minX) / count || 1;
-  const rowOf = (y: number): number => Math.min(count - 1, Math.max(0, Math.floor((y - minY) / rowSize)));
-  const colOf = (x: number): number => Math.min(count - 1, Math.max(0, Math.floor((x - minX) / colSize)));
-  const rows: Edge[][] = Array.from({ length: count }, () => []);
-  const cols: Edge[][] = Array.from({ length: count }, () => []);
-  for (const e of edges) {
-    if (e.a.y !== e.b.y) {
-      const last = rowOf(Math.max(e.a.y, e.b.y));
-      for (let r = rowOf(Math.min(e.a.y, e.b.y)); r <= last; r++) rows[r].push(e);
-    }
-    if (e.a.x !== e.b.x) {
-      const last = colOf(Math.max(e.a.x, e.b.x));
-      for (let c = colOf(Math.min(e.a.x, e.b.x)); c <= last; c++) cols[c].push(e);
-    }
-  }
-  return (x, y) => {
-    if (x < minX || x > maxX || y < minY || y > maxY) return 0;
-    const row = rows[rowOf(y)];
-    const col = cols[colOf(x)];
-    let w = 0;
-    if (row.length <= col.length) {
-      for (const e of row) {
-        if (e.a.y <= y === e.b.y <= y) continue;
-        const cx = e.a.x + ((y - e.a.y) / (e.b.y - e.a.y)) * (e.b.x - e.a.x);
-        if (cx > x) w += e.b.y > e.a.y ? 1 : -1;
-      }
-    } else {
-      for (const e of col) {
-        if (e.a.x <= x === e.b.x <= x) continue;
-        const cy = e.a.y + ((x - e.a.x) / (e.b.x - e.a.x)) * (e.b.y - e.a.y);
-        if (cy > y) w += e.b.x > e.a.x ? 1 : -1;
-      }
-    }
-    return w;
-  };
-}
-
-/** Where two segments cross each other's interiors, as fractions along both, or null. */
-function crossing(a: Vec, b: Vec, c: Vec, d: Vec): { t: number; u: number; p: Vec } | null {
-  const rx = b.x - a.x;
-  const ry = b.y - a.y;
-  const sx = d.x - c.x;
-  const sy = d.y - c.y;
-  const den = rx * sy - ry * sx;
-  if (Math.abs(den) < 1e-12) return null;
-  const qx = c.x - a.x;
-  const qy = c.y - a.y;
-  const t = (qx * sy - qy * sx) / den;
-  const u = (qx * ry - qy * rx) / den;
-  if (t <= 1e-9 || t >= 1 - 1e-9 || u <= 1e-9 || u >= 1 - 1e-9) return null;
-  return { t, u, p: { x: a.x + t * rx, y: a.y + t * ry } };
-}
-
-/**
- * Drops the vertices a contour does not need: every one that sits on the
- * straight line between its neighbours, which a straight stretch of the
- * stroke leaves one of per sample.
- */
-function tidy(loop: Vec[]): Vec[] {
-  const out: Vec[] = [];
-  for (const p of loop) {
-    while (out.length >= 2 && straight(out[out.length - 2], out[out.length - 1], p)) out.pop();
-    out.push(p);
-  }
-  while (out.length >= 3 && straight(out[out.length - 2], out[out.length - 1], out[0])) out.pop();
-  while (out.length >= 3 && straight(out[out.length - 1], out[0], out[1])) out.shift();
-  return out;
-}
-
-/** True when `b` lies on the way from `a` to `c`, within a millionth of a pixel. */
-function straight(a: Vec, b: Vec, c: Vec): boolean {
-  const abx = b.x - a.x;
-  const aby = b.y - a.y;
-  const bcx = c.x - b.x;
-  const bcy = c.y - b.y;
-  if (abx * bcx + aby * bcy <= 0) return false;
-  return Math.abs(abx * bcy - aby * bcx) <= 1e-6 * Math.hypot(c.x - a.x, c.y - a.y);
+  return booleanOp(contours, [], 'union');
 }
 
 // ---- Pictures ----------------------------------------------------------------------

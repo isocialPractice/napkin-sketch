@@ -161,7 +161,7 @@ function skbkOf(book: SketchBook): string {
 
 function pngOf(sketch: Sketch, box: Box | null, options: RenderSketchOptions): Uint8Array {
   const warn = (message: string): void => options.onWarning?.(`page "${sketch.name}": ${message}`);
-  const doc = sketchToComposition(sketch, { crop: box ?? undefined, transparent: options.transparent, onWarning: warn });
+  const doc = sketchToComposition(sketch, { crop: box ?? undefined, transparent: options.transparent, onWarning: warn, scale: options.scale });
   const png = renderPng(doc, { scale: options.scale, resolveLink: options.resolveLink, decodeImage: options.decodeImage });
   for (const warning of png.warnings) warn(warning);
   return png.data;

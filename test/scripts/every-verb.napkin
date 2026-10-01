@@ -1,0 +1,143 @@
+napkin 1
+# Every verb the language has, at least once, in one script: the golden a new
+# verb joins, so a change to what any verb draws is a change a person looked
+# at. test/script-golden.test.ts holds it to the verb table.
+units px
+seed 7
+page 640 480
+name "every-verb"
+background #fcfaf5
+let gap 24
+
+layer "Shapes"
+tool brush
+color #1f2328
+width 3
+opacity 1
+stroke on
+style solid
+profile uniform
+fill #ffe08a
+rect 20 20 120 80 r 10
+circle 210 60 40
+ellipse 320 60 50 30
+polygon 480 30, 540 30, 510 90
+fill none
+line 380 30 460 90
+polyline 560 30, 600 60, 620 30
+star 60 160 40 18 5
+arc 160 160 40 0 180
+spiral 260 160 36 2
+shape "hexagon" at 320 120 size 80
+
+layer "Paint"
+gradient linear 90 (#ffe08a 0, #ff8a65 1)
+rect 420 120 90 80
+gradient none
+style dashed
+rect 530 120 90 80
+style solid
+tool marker
+profile tapered
+line 20 230 200 250
+tool copic
+nib 30
+line 20 270 200 290
+tool pen
+profile uniform
+rough 0.4
+circle 260 260 30
+rough off
+
+layer "Paths"
+path "M320 220 C360 180 400 260 440 220"
+path {
+  move 460 220
+  to 500 240
+  by 20 -20
+  curve 540 260 560 200 600 230
+  smooth 620 260 630 230
+  close
+}
+through 20 330, 60 300, 100 340, 140 300
+line 160 320 300 320
+split 230 320
+
+layer "Combine"
+fill #27486d
+wipe in {
+  rect 320 300 60 60
+  circle 390 330 30
+}
+stack merge 470 330, 500 330 {
+  fill #d0342c
+  rect 440 300 60 60
+  fill #2e7d5b
+  circle 510 330 30
+}
+clip "Window" {
+  fill #ffe08a
+  rect 560 290 70 80
+  fill none
+  circle 595 330 30
+}
+group "Group" opacity 0.9 {
+  layer "Erase"
+  fill none
+  line 20 380 200 380
+  tool eraser
+  width 16
+  line 110 360 110 400
+  tool pen
+  width 3
+}
+
+layer "Pencil"
+pencil 4B
+repeat 6 as i {
+  line (230 + i * 8) 360 (240 + i * 8) 420
+}
+smear 20 0.6 220 390, 290 390
+tool pen
+color #1f2328
+
+layer "Liquify"
+rect 320 380 80 60
+warp 360 380 20 0 12
+circle 450 410 28
+bloat 470 410 20 0.4
+line 500 410 560 410
+twirl 530 410 30 90
+rect 570 385 50 50
+pucker 595 410 40 0.3
+
+layer "Transforms"
+push
+translate 0 4
+rotate 10 at 60 450
+scale 1.1 at 60 450
+mirror x at 60
+rect 20 430 80 30
+pop
+define "dot" {
+  circle 0 0 6
+}
+place "dot" at (120 + gap) 450
+repeat 3 as k {
+  place "dot" at (180 + k * gap) 450
+}
+
+layer "Media"
+font "Georgia" 16
+text "Every verb" at 260 440 size 14
+image "logo" at 360 440 size 40
+use "badge" at 420 430 scale 0.25
+effect drop-shadow 2 2 3 #00000044
+rect 500 440 40 30
+link "assets/logo.svg" at 560 440 size 40 20 name "Logo"
+
+crop auto pad 12
+registration 0 0 640 480
+
+newpage "every-verb-2"
+circle 100 100 40

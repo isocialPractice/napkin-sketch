@@ -8,7 +8,7 @@
  * difference in place of the broken one; at once Ctrl+M opens Mirror, O does
  * nothing, and Mirror's tooltip and menu bar row say Ctrl+M. Opened again, the
  * editor warns in amber on both rows when Move is given Ctrl+M, puts Move
- * back on Escape, refuses Enter for Pen, and with Reset to defaults puts O
+ * back on Escape, refuses Enter for Brush, and with Reset to defaults puts O
  * back in the table; accepted, the file is gone and O opens Mirror again.
  * Cancel saves nothing, and the shipped shortcuts file is never written.
  *
@@ -147,8 +147,11 @@ try {
   let v = await view();
   c.ok('and opens the editor over every tool', v.open && v.title === 'Edit Keyboard Shortcuts' && v.count === TOOL_COUNT, `${v.title}, ${v.count} rows of ${TOOL_COUNT}`);
   c.eq('with a radio for each main type', v.filters.join(' '), 'All App Composition GUI Draw API docs');
+  const fullScreen = await cellOf('Toggle Full Screen');
+  c.ok("Electron's own rows show their key, greyed", fullScreen?.disabled === true && fullScreen?.value === 'F11', JSON.stringify(fullScreen));
+  // Zoom In zooms the canvas since 1.0.0-alpha.4.6.0: the app's own row, whose key can change.
   const zoom = await cellOf('Zoom In');
-  c.ok("Electron's own rows show their key, greyed", zoom?.disabled === true && zoom?.value === 'Ctrl++', JSON.stringify(zoom));
+  c.ok("Zoom In's key is the app's to change", zoom?.disabled === false && zoom?.value === 'Ctrl++', JSON.stringify(zoom));
   let cell = await cellOf('Mirror');
   c.ok("Mirror's row: its type greyed beside its key", cell?.type === 'Draw:Modify:element' && cell?.value === 'O', JSON.stringify(cell));
 
@@ -209,14 +212,14 @@ try {
   await page.chord(27, 'Escape');
   await sleep(250);
   c.ok('Escape puts Move back on Enter, and both warnings go', (await cellOf('Move')).value === 'Enter' && (await cellOf('Mirror')).level === '');
-  await clickKey('Pen');
+  await clickKey('Brush');
   await page.chord(13, 'Enter');
   await sleep(250);
-  cell = await cellOf('Pen');
+  cell = await cellOf('Brush');
   v = await view();
   c.ok(
-    'Enter for Pen is refused in place, with the reason',
-    cell.value === 'P' && cell.level === 'refuse' && v.status === 'Enter finishes a path and applies an open palette, so only Move can have it',
+    'Enter for Brush is refused in place, with the reason',
+    cell.value === 'B' && cell.level === 'refuse' && v.status === 'Enter finishes a path and applies an open palette, so only Move can have it',
     JSON.stringify({ cell, status: v.status }),
   );
   await page.chord(27, 'Escape');
@@ -250,16 +253,16 @@ try {
 
   // ---- Cancel ----------------------------------------------------------------------------------------
   await openEditor();
-  await clickKey('Pen');
+  await clickKey('Brush');
   await page.chord(80, 'p', 2 | 8); // Ctrl+Shift+P
   await sleep(250);
-  c.eq('Ctrl+Shift+P goes into the table', (await cellOf('Pen')).value, 'Ctrl+Shift+P');
+  c.eq('Ctrl+Shift+P goes into the table', (await cellOf('Brush')).value, 'Ctrl+Shift+P');
   await clickOn('#config-dialog .config-cancel');
   await sleep(400);
   c.ok('Cancel closes and saves nothing', !(await state()).editor && !existsSync(userFile));
-  await page.chord(80, 'p'); // P
+  await page.chord(66, 'b'); // B
   await sleep(300);
-  c.eq('P still takes the pen', (await state()).tool, 'pen');
+  c.eq('B still takes the brush', (await state()).tool, 'pen');
 
   c.ok('the shipped shortcuts file is never written', readFileSync(SHIPPED, 'utf8') === shippedBefore);
 

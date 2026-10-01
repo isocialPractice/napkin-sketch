@@ -79,7 +79,7 @@ const LIMIT_MEANINGS: { readonly [K in keyof ScriptLimits]: string } = {
   marks: 'Marks drawn',
   anchors: 'Bezier anchors, across every mark',
   points: 'Points sampled from those anchors for the canvas to paint',
-  depth: 'Blocks open at once: groups, placed definitions and repeats',
+  depth: 'Blocks open at once: groups and clips, placed definitions, repeats, wipes and stacks',
 };
 
 /** The budget one run has, and what each limit counts. */

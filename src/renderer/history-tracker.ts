@@ -5,7 +5,7 @@
  * The store says when a step closes and what it changed (`Store.onHistory`);
  * this names it and keeps it. A step is named by the command that made it -
  * a menu row's id, with the type and name the menu files give that row - or
- * by the tool whose press on the canvas made it, as `tool:pen` and "Pen
+ * by the tool whose press on the canvas made it, as `tool:pen` and "Brush
  * stroke". A step nothing named, such as a change in the Layers panel or the
  * properties panel, is named by what it changed: "Changed 2 marks". The list
  * keeps the newest steps up to the History Limit and lets the oldest go.
@@ -31,7 +31,7 @@ export interface TrackedStep {
   readonly command: string;
   /** The command's tool type, as the menu files give it: `Draw:Add:mark`. */
   readonly type: string;
-  /** What the popup calls it: "Rotate", "Pen stroke", "Undo". */
+  /** What the popup calls it: "Rotate", "Brush stroke", "Undo". */
   readonly label: string;
   readonly diff: SnapshotDiff;
   /** The length of the diff as JSON: what the step costs, for the estimate. */
@@ -56,6 +56,7 @@ const TOOL_ROWS: Readonly<Record<Tool, string | null>> = {
   pen: 'tool-pen',
   marker: 'tool-marker',
   copic: 'tool-copic',
+  pencil: 'tool-pencil',
   eraser: 'tool-eraser',
   select: 'tool-select',
   point: 'tool-point',
@@ -69,13 +70,19 @@ const TOOL_ROWS: Readonly<Record<Tool, string | null>> = {
   fill: 'tool-fill',
   eyedrop: 'tool-eyedrop',
   warp: 'tool-warp',
+  'shape-eraser': 'tool-shape-eraser',
+  'shape-stacker': 'tool-shape-stacker',
+  split: 'tool-split',
+  smear: 'tool-smear',
+  liquify: 'tool-liquify',
 };
 
 /** A tool's name when the menu files do not give one. */
 const TOOL_NAMES: Readonly<Record<Tool, string>> = {
-  pen: 'Pen',
+  pen: 'Brush',
   marker: 'Marker',
   copic: 'Copic marker',
+  pencil: 'Pencil',
   eraser: 'Eraser',
   select: 'Select',
   point: 'Direct Select',
@@ -89,10 +96,15 @@ const TOOL_NAMES: Readonly<Record<Tool, string>> = {
   fill: 'Fill Color',
   eyedrop: 'Eyedropper',
   warp: 'Mesh Warp',
+  'shape-eraser': 'Shape Eraser',
+  'shape-stacker': 'Shape Stacker',
+  split: 'Split',
+  smear: 'Smear',
+  liquify: 'Liquify',
 };
 
 /** The tools whose press draws a line, which the popup calls a stroke. */
-const STROKE_TOOLS: ReadonlySet<string> = new Set(['pen', 'marker', 'copic', 'eraser']);
+const STROKE_TOOLS: ReadonlySet<string> = new Set(['pen', 'marker', 'copic', 'pencil', 'eraser']);
 
 function isTool(name: string): name is Tool {
   return Object.prototype.hasOwnProperty.call(TOOL_NAMES, name);

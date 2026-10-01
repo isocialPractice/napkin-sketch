@@ -24,6 +24,9 @@ import { activeProfile, profileInputOf, profileOutline } from './stroke-profile.
 import { simplify } from '../sharpen/geometry.js';
 import { wrapText } from './graphic-design/font.js';
 import { strokeBounds } from './bounds.js';
+import { clipIndex } from './clip.js';
+import { GRAIN_TEXELS_PER_PX, GRAIN_TILE_SIZE, grainTilePng, meanPressure, pencilCoverage, pencilPaint, pencilPicture, pencilRegion, pngDataUrl } from './pencil.js';
+import { encodePng } from './graphic-design/png.js';
 import { EXPORT_SIMPLIFY_EPSILON, PathData, pathD } from './svg-path.js';
 
 /** How much of the page {@link Surface.toSVG} writes, and on what. */
@@ -92,6 +95,29 @@ export function sketchToSvg(sketch: Sketch, options: SvgExportOptions = {}): str
   const orderOf = (stroke: Stroke): number => paintOrder.get(stroke.id) ?? 0;
   const byLayer = strokesByLayer(sketch);
   const defaults = paintDefaults(sketch);
+  // Clip groups: each clips with a mark that paints nothing while it does.
+  const clips = clipIndex(sketch);
+
+  // The Pencil's grain: the paper's tooth carried once, as a PNG, and one
+  // paint for each tone, pencil and pressure the page draws with - the tile
+  // put through the coverage rule by a filter's table, tiled as a pattern.
+  const pencilPaints = new Map<string, string>();
+  const pencilFill = (stroke: Stroke): string => {
+    const paint = pencilPaint(stroke.pencil);
+    const pressure = Math.round(meanPressure(stroke.points) * 20) / 20;
+    const key = `${stroke.color}|${paint.name}|${pressure}`;
+    let id = pencilPaints.get(key);
+    if (!id) {
+      if (pencilPaints.size === 0) {
+        const side = fmt(GRAIN_TILE_SIZE / GRAIN_TEXELS_PER_PX);
+        defs.push(`<image id="pencil-tooth" width="${side}" height="${side}" preserveAspectRatio="none" href="${pngDataUrl(grainTilePng())}"/>`);
+      }
+      id = `pencil-${pencilPaints.size + 1}`;
+      pencilPaints.set(key, id);
+      defs.push(svgPencilPaint(id, stroke.color, paint, pressure));
+    }
+    return `url(#${id})`;
+  };
 
   // One filter for each effect list over each region, shared when two ask for the same one.
   const filterIds = new Map<string, string>();
@@ -178,10 +204,29 @@ export function sketchToSvg(sketch: Sketch, options: SvgExportOptions = {}): str
         .map(emitLayer)
         .filter((g): g is string => g !== null);
       if (inner.length === 0) return null;
+      // A clip group: its clip mark written into a <clipPath> - its own path,
+      // paint and all, which a clip ignores and napkin's importer reads back -
+      // and the group clipped by it, keeping its name and id.
+      const clip = clips.byGroup.get(layer.id);
+      if (clip) {
+        const clipId = uniqueId(`clip-${li}`, usedIds);
+        const clipLayer = byId.get(clip.mark.layer ?? '');
+        const named = clipLayer ? ` data-name="${escXml(clipLayer.name)}"` : '';
+        defs.push(`<clipPath id="${clipId}"${named}>${svgPath(clip.mark, orderOf(clip.mark), defaults, undefined, defs)}</clipPath>`);
+        // SVG filters a group before it clips it, and the canvas cuts the
+        // picture before its effects: with effects, the clip goes on a group
+        // of its own inside, which the importer reads back as this one.
+        if (layerEffects) {
+          return `<g ${attrs.join(' ')}>\n<g clip-path="url(#${clipId})" data-clip-inner="1">\n${inner.join('\n')}\n</g>\n</g>`;
+        }
+        attrs.push(`clip-path="url(#${clipId})"`);
+      }
       return `<g ${attrs.join(' ')}>\n${inner.join('\n')}\n</g>`;
     }
 
-    const strokes = byLayer.get(layer.id) ?? [];
+    // A clip mark paints nothing while it clips: it is in its group's <clipPath>.
+    const own = byLayer.get(layer.id) ?? [];
+    const strokes = clips.any ? own.filter((s) => !clips.marks.has(s.id)) : own;
     if (strokes.length === 0) return null;
 
     const erasers = strokes.filter((s) => s.tool === 'eraser');
@@ -204,6 +249,7 @@ export function sketchToSvg(sketch: Sketch, options: SvgExportOptions = {}): str
         if (isTextStroke(s)) markup = svgText(s, order);
         else if (isImageStroke(s)) markup = svgImage(s, order);
         else if (s.tool === 'copic') markup = svgCopic(s, order);
+        else if (s.tool === 'pencil') markup = s.smudges?.length ? svgSmearedPencil(s, order) : svgPencil(s, order, pencilFill(s));
         else if (activeProfile(s) && !s.noStroke) markup = svgProfiled(s, order, defs);
         else markup = svgPath(s, order, defaults, undefined, defs);
         // A mark's effects go on its outermost element, which is the whole mark.
@@ -297,7 +343,7 @@ interface SvgPaintDefaults {
 function paintDefaults(sketch: Sketch): SvgPaintDefaults {
   const counts = new Map<number, number>();
   for (const stroke of sketch.strokes) {
-    if (isTextStroke(stroke) || isImageStroke(stroke) || stroke.tool === 'copic') continue;
+    if (isTextStroke(stroke) || isImageStroke(stroke) || stroke.tool === 'copic' || stroke.tool === 'pencil') continue;
     // A profiled outline is filled, never stroked, so its width is no default.
     if (activeProfile(stroke) && !stroke.noStroke) continue;
     const width = round2(stroke.width);
@@ -520,6 +566,80 @@ function svgCopic(stroke: Stroke, order: number): string {
   const pts = stroke.points.map((p) => `${fmt(p.x)},${fmt(p.y)}`).join(' ');
   const nib = fmt(stroke.nibAngle ?? DEFAULT_NIB_ANGLE);
   return `<path d="${d}" fill="${escXml(stroke.color)}" fill-rule="nonzero"${opacity} data-tool="copic" data-i="${order}" data-nib="${nib}" data-width="${stroke.width}" data-pts="${pts}"/>`;
+}
+
+/**
+ * The paint a Pencil mark is filled with: the paper's tooth, as a pattern
+ * of the one tile the file carries, whose heights a filter turns into the
+ * lead's tone at the coverage the rule gives for them at `pressure` - the
+ * canvas's grain, at the mark's mean pressure.
+ */
+function svgPencilPaint(id: string, color: string, paint: ReturnType<typeof pencilPaint>, pressure: number): string {
+  const rgb = /^#([0-9a-f]{6})$/i.exec(color) ? color : paint.tone;
+  const channel = (i: number): string => fmt(parseInt(rgb.slice(1 + i * 2, 3 + i * 2), 16) / 255);
+  const table: string[] = [];
+  for (let i = 0; i <= 32; i++) table.push(String(Math.round(pencilCoverage(paint, i / 32, pressure) * 1000) / 1000));
+  const side = fmt(GRAIN_TILE_SIZE / GRAIN_TEXELS_PER_PX);
+  return (
+    `<filter id="${id}-grain" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">` +
+    `<feColorMatrix type="matrix" values="0 0 0 0 ${channel(0)} 0 0 0 0 ${channel(1)} 0 0 0 0 ${channel(2)} 1 0 0 0 0"/>` +
+    `<feComponentTransfer><feFuncA type="table" tableValues="${table.join(' ')}"/></feComponentTransfer>` +
+    `</filter>` +
+    `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${side}" height="${side}">` +
+    `<use href="#pencil-tooth" filter="url(#${id}-grain)"/>` +
+    `</pattern>`
+  );
+}
+
+/**
+ * A Pencil mark: the outline the canvas fills for it, filled with its
+ * grain (`fill`, from {@link svgPencilPaint}), so a browser shows the same
+ * tooth. The stroke itself rides along as data, as a profiled one's does -
+ * its centreline in `data-d`, its width, tone and pencil - which is what
+ * napkin's importer rebuilds it from.
+ */
+function svgPencil(stroke: Stroke, order: number, fill: string): string {
+  if (stroke.points.length === 0) return '';
+  const raw = stroke.opacity ?? defaultOpacityFor(stroke.tool);
+  const alpha = raw === 1 ? '' : ` opacity="${raw}"`;
+  const outline = new PathData();
+  for (const contour of profileOutline(profileInputOf(stroke))) {
+    simplify(contour, EXPORT_SIMPLIFY_EPSILON).forEach((p, i) => (i === 0 ? outline.moveTo(p.x, p.y) : outline.lineTo(p.x, p.y)));
+    outline.close();
+  }
+  const dash = stroke.strokeStyle ? ` data-dash="${stroke.strokeStyle}"` : '';
+  const data =
+    `data-tool="pencil" data-i="${order}" data-pencil="${escXml(pencilPaint(stroke.pencil).name)}" ` +
+    `data-width="${stroke.width}" data-color="${escXml(stroke.color)}" data-d="${pathD(stroke)}"${dash}`;
+  return `<path d="${outline}" fill="${fill}"${alpha} ${data}/>`;
+}
+
+/** How many image pixels a page pixel gets in a smeared Pencil mark's picture. */
+const SMEARED_SCALE = 2;
+
+/**
+ * A smeared Pencil mark: SVG has no paint for graphite pushed about by a
+ * stump, so the mark is written as the picture the canvas paints of it - a
+ * PNG at twice the page's resolution, over its box. The mark rides along as
+ * data, as a plain Pencil mark's does, and its Smear passes with it
+ * (`data-smudges`), so napkin's importer brings back the mark and not the
+ * picture.
+ */
+function svgSmearedPencil(stroke: Stroke, order: number): string {
+  const region = pencilRegion(stroke, SMEARED_SCALE);
+  if (!region) return '';
+  const png = encodePng(pencilPicture(stroke, region), region.width, region.height);
+  const raw = stroke.opacity ?? defaultOpacityFor(stroke.tool);
+  const alpha = raw === 1 ? '' : ` opacity="${raw}"`;
+  const dash = stroke.strokeStyle ? ` data-dash="${stroke.strokeStyle}"` : '';
+  const data =
+    `data-tool="pencil" data-i="${order}" data-pencil="${escXml(pencilPaint(stroke.pencil).name)}" ` +
+    `data-width="${stroke.width}" data-color="${escXml(stroke.color)}" data-d="${pathD(stroke)}"${dash} ` +
+    `data-smudges="${escXml(JSON.stringify(stroke.smudges))}"`;
+  return (
+    `<image x="${fmt(region.x / SMEARED_SCALE)}" y="${fmt(region.y / SMEARED_SCALE)}" width="${fmt(region.width / SMEARED_SCALE)}" height="${fmt(region.height / SMEARED_SCALE)}" ` +
+    `preserveAspectRatio="none" href="${pngDataUrl(png)}"${alpha} ${data}/>`
+  );
 }
 
 /**

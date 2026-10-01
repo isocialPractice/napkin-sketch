@@ -61,18 +61,35 @@ export const COMMAND_IDS = [
   'close-shape',
   'close-shape-sharp',
   'close-shape-smooth',
+  'wipe-stacks',
+  'wipe-in',
+  'wipe-out',
+  'wipe-out-front',
+  'wipe-out-back',
+  'wipe-mid',
+  'wipe-outer',
+  'wipe-clean',
   'mirror',
   'sharpen',
   'sharpen-selection',
   'sharpen-all',
   'tool-warp',
+  'tool-liquify',
   'tool-pen',
   'tool-marker',
   'tool-eraser',
+  'tool-shape-eraser',
+  'tool-shape-stacker',
+  'tool-split',
+  'apply-erasers',
   'tool-text',
   'tool-copic',
+  'tool-pencil',
+  'tool-smear',
   'tool-point',
   'stroke-profile',
+  'fill-in-front',
+  'swap-fill-stroke',
   'add-layer',
   'group-layer',
   'ungroup-layer',
@@ -81,12 +98,17 @@ export const COMMAND_IDS = [
   'move-layer',
   'layer-up',
   'layer-down',
+  'clipping-mask',
+  'clip-make',
+  'clip-release',
   'hide-layers',
   'add-page',
   'add-page-default',
   'add-page-custom',
   'add-page-from-selection',
   'delete-page',
+  'prev-page',
+  'next-page',
   'page-settings',
   'hide-pages',
   'generate-script',
@@ -119,7 +141,7 @@ export const COMMAND_IDS = [
 export type CommandId = (typeof COMMAND_IDS)[number];
 
 /** The rows Electron draws and runs by their role: no handler of the app's runs them. */
-export const ROLE_COMMAND_IDS = ['quit', 'toggle-dev-tools', 'zoom-in', 'zoom-out', 'toggle-full-screen'] as const;
+export const ROLE_COMMAND_IDS = ['quit', 'toggle-dev-tools', 'toggle-full-screen'] as const;
 
 /** A row Electron runs by its role. */
 export type RoleCommandId = (typeof ROLE_COMMAND_IDS)[number];
@@ -129,8 +151,11 @@ export const SUBMENU_COMMAND_IDS = [
   'export',
   'export-selection',
   'close-shape',
+  'wipe-stacks',
+  'wipe-out',
   'sharpen',
   'move-layer',
+  'clipping-mask',
   'add-page',
   'generate-script',
   'help-tool-types',
@@ -212,6 +237,10 @@ export const MENU_PREDICATES = [
   'notGroup',
   /** The book has one page, which cannot be deleted. */
   'onePage',
+  /** The page in view is the book's first, so there is none before it. */
+  'firstPage',
+  /** The page in view is the book's last, so there is none after it. */
+  'lastPage',
   'layersHidden',
   'pagesHidden',
   /** Animation Mode has no install record, so it has no menu row. */
@@ -224,6 +253,14 @@ export const MENU_PREDICATES = [
   'noHistory',
   /** The Transform box is up on the canvas. */
   'transformBox',
+  /** The page holds no eraser marks from a file made before 1.0.0-alpha.4.6.0. */
+  'noLegacyErasers',
+  /** The fill is in front: the colors paint the fill. */
+  'fillInFront',
+  /** Fewer than two of the selected marks are shapes a wipe can take (core/wipe.ts). */
+  'fewerThanTwoShapes',
+  /** Neither the selection nor the active layer is in a clip group: there is no clipping mask to release (core/clip.ts). */
+  'noClipGroup',
 ] as const;
 
 /** A question a menu row can ask. */
@@ -255,7 +292,7 @@ export function menuStateFrom(raw: unknown): MenuState {
 export const OVERRIDES_VERSION = 1;
 
 /** The Electron menu roles the menus use. Electron labels them and owns their keys. */
-export const ELECTRON_ROLES = ['quit', 'toggleDevTools', 'zoomIn', 'zoomOut', 'togglefullscreen'] as const;
+export const ELECTRON_ROLES = ['quit', 'toggleDevTools', 'togglefullscreen'] as const;
 
 /** An Electron menu role. */
 export type ElectronRole = (typeof ELECTRON_ROLES)[number];

@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  DEFAULT_TOOL_ORDER,
   defaultSettings,
   normalizeSettings,
   normalizeHexColor,
@@ -15,6 +16,39 @@ test('defaultSettings is internally consistent', () => {
   assert.equal(s.quickColors.length, s.quickColorCount);
   assert.equal(s.menuPlacement, 'top');
   assert.equal(s.theme, 'light');
+});
+
+test('Select has a sensitivity of its own, in screen pixels, and Direct Select reaches 8 by default', () => {
+  const s = defaultSettings();
+  assert.equal(s.selectSensitivityPx, 4);
+  assert.equal(s.directSelectSensitivityPx, 8);
+  assert.equal(s.eyedropSensitivityPx, 10, 'the eyedropper keeps its setting, under its own name');
+  assert.deepEqual(SETTINGS_LIMITS.selectSensitivityPx, { min: 1, max: 20, step: 1 });
+  assert.equal(normalizeSettings({ selectSensitivityPx: 50 }).selectSensitivityPx, 20);
+  assert.equal(normalizeSettings({ selectSensitivityPx: 0 }).selectSensitivityPx, 1);
+  assert.equal(normalizeSettings({ selectSensitivityPx: 7.4 }).selectSensitivityPx, 7);
+});
+
+test('a Direct Select 3 saved before Select had a sensitivity is the old default, and reads as 8', () => {
+  assert.equal(normalizeSettings({ directSelectSensitivityPx: 3 }).directSelectSensitivityPx, 8);
+  assert.equal(normalizeSettings({ directSelectSensitivityPx: 5 }).directSelectSensitivityPx, 5, 'a choice is kept');
+  // Saved since, alongside the Select setting: a 3 there was picked.
+  const since = normalizeSettings({ directSelectSensitivityPx: 3, selectSensitivityPx: 4 });
+  assert.equal(since.directSelectSensitivityPx, 3);
+  // Once read, it stays what it was read as: a round trip through the file keeps it.
+  const roundTrip = parseSettings(serializeSettings(normalizeSettings({ directSelectSensitivityPx: 3 })));
+  assert.equal(roundTrip.directSelectSensitivityPx, 8);
+  const kept = parseSettings(serializeSettings({ ...defaultSettings(), directSelectSensitivityPx: 3 }));
+  assert.equal(kept.directSelectSensitivityPx, 3);
+});
+
+test('Freehand fidelity is 1.5 screen pixels unless a saved setting says otherwise, from 0.5 to 8', () => {
+  assert.equal(defaultSettings().freehandFidelityPx, 1.5);
+  assert.deepEqual(SETTINGS_LIMITS.freehandFidelityPx, { min: 0.5, max: 8, step: 0.5 });
+  assert.equal(normalizeSettings({ freehandFidelityPx: 3 }).freehandFidelityPx, 3);
+  assert.equal(normalizeSettings({ freehandFidelityPx: 20 }).freehandFidelityPx, 8);
+  assert.equal(normalizeSettings({ freehandFidelityPx: 0 }).freehandFidelityPx, 0.5);
+  assert.equal(normalizeSettings({ freehandFidelityPx: 'fine' }).freehandFidelityPx, 1.5);
 });
 
 test('normalizeSettings clamps out-of-range numbers', () => {
@@ -49,9 +83,37 @@ test('normalizeSettings tolerates non-object input', () => {
 
 test('toolOrder is de-duplicated and back-filled', () => {
   const s = normalizeSettings({ toolOrder: ['tool-text', 'tool-text', 'bogus', 'tool-pen'] });
-  assert.deepEqual(s.toolOrder.slice(0, 2), ['tool-text', 'tool-pen']);
+  assert.ok(s.toolOrder.indexOf('tool-text') < s.toolOrder.indexOf('tool-pen'), 'the saved order is kept');
   assert.equal(new Set(s.toolOrder).size, s.toolOrder.length);
   assert.ok(s.toolOrder.includes('tool-eraser'));
+  assert.equal(s.toolOrder.length, DEFAULT_TOOL_ORDER.length);
+});
+
+test('a tool added since an order was saved goes in after the tool it follows by default', () => {
+  // An order saved before the Shape Eraser and Vector Path were in it, rearranged a little.
+  const saved = DEFAULT_TOOL_ORDER.filter((id) => id !== 'tool-shape-eraser' && id !== 'tool-vector');
+  [saved[0], saved[1]] = [saved[1], saved[0]];
+  const s = normalizeSettings({ toolOrder: saved });
+  assert.equal(s.toolOrder[s.toolOrder.indexOf('tool-eraser') + 1], 'tool-shape-eraser');
+  assert.equal(s.toolOrder[s.toolOrder.indexOf('tool-curve') + 1], 'tool-vector');
+  assert.deepEqual(s.toolOrder.slice(0, 2), [saved[0], saved[1]], 'and the rearranging stays');
+});
+
+test('the default tool order holds every tool button, the Shape Eraser and Vector Path among them', () => {
+  assert.ok(DEFAULT_TOOL_ORDER.includes('tool-shape-eraser'));
+  assert.ok(DEFAULT_TOOL_ORDER.includes('tool-vector'));
+  assert.equal(DEFAULT_TOOL_ORDER[DEFAULT_TOOL_ORDER.indexOf('tool-eraser') + 1], 'tool-shape-eraser');
+  assert.equal(DEFAULT_TOOL_ORDER[DEFAULT_TOOL_ORDER.indexOf('tool-shape-eraser') + 1], 'tool-shape-stacker');
+});
+
+test('an order saved before the Shape Stacker gains it right after the Shape Eraser, wherever that was put', () => {
+  const saved = DEFAULT_TOOL_ORDER.filter((id) => id !== 'tool-shape-stacker');
+  // The Shape Eraser moved to the front.
+  saved.splice(saved.indexOf('tool-shape-eraser'), 1);
+  saved.unshift('tool-shape-eraser');
+  const s = normalizeSettings({ toolOrder: saved });
+  assert.deepEqual(s.toolOrder.slice(0, 2), ['tool-shape-eraser', 'tool-shape-stacker']);
+  assert.equal(s.toolOrder.length, DEFAULT_TOOL_ORDER.length);
 });
 
 test('normalizeHexColor accepts shorthand and rejects junk', () => {

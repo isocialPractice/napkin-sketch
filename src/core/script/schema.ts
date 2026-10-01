@@ -12,6 +12,7 @@
  */
 
 import { INSTRUCTION_FIELDS, SCRIPT_VERSION, VERBS, type FormPart, type SlotPart, type VerbSpec } from './instructions.js';
+import { PENCIL_GRADES } from '../pencil.js';
 
 /** A JSON Schema document or fragment. */
 export type JsonSchema = Record<string, unknown>;
@@ -46,6 +47,8 @@ function slotSchema(slot: SlotPart): JsonSchema {
       return { type: 'string', enum: [...(slot.choices ?? [])] };
     case 'switch':
       return { type: 'boolean' };
+    case 'pencil':
+      return { type: 'string', enum: PENCIL_GRADES.map((grade) => grade.name) };
     case 'points':
       return { type: 'array', minItems: slot.minItems ?? 1, items: { $ref: '#/definitions/point' } };
     case 'stops':

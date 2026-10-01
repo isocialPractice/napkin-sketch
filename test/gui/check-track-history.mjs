@@ -2,9 +2,9 @@
  * Automate > Track History, in the running app.
  *
  * Tracking starts off, with its menu row unchecked and From Session History
- * greyed. The row turns it on and says so. Two pen strokes drawn with real
+ * greyed. The row turns it on and says so. Two brush strokes drawn with real
  * pointer events, one of them turned 90 degrees in the Rotate dialog, and an
- * undo are four steps, read back through the check hook: two "Pen stroke"
+ * undo are four steps, read back through the check hook: two "Brush stroke"
  * steps that each added a mark, a "Rotate" and an "Undo" that each changed
  * one. From Session History is no longer greyed once there is history.
  *
@@ -96,8 +96,8 @@ try {
   await drag(page, { x: cx - 200, y: cy + 60 }, { x: cx - 40, y: cy + 60 });
   let steps = await hook('trackedSteps()');
   c.ok(
-    'each pen stroke is a step, named for the pen',
-    steps.length === 2 && steps.every((s) => s.command === 'tool:pen' && s.label === 'Pen stroke' && s.type === 'Draw:Add:mark' && s.added === 1),
+    'each brush stroke is a step, named for the brush',
+    steps.length === 2 && steps.every((s) => s.command === 'tool:pen' && s.label === 'Brush stroke' && s.type === 'Draw:Add:mark' && s.added === 1),
     JSON.stringify(steps),
   );
 

@@ -152,7 +152,7 @@ try {
   await sleep(300);
   const keyed = await page.evalIn(state);
   c.ok('End then Enter chooses Wave from the keyboard', !keyed.open && keyed.label === 'Stroke profile: Wave', JSON.stringify(keyed));
-  c.ok('and, with nothing to apply it to, says new strokes take it', /New pen and marker strokes: Wave/.test(keyed.toast), keyed.toast);
+  c.ok('and, with nothing to apply it to, says new strokes take it', /New brush and marker strokes: Wave/.test(keyed.toast), keyed.toast);
   await drag(page, at(0.25, 0.7), at(0.75, 0.7));
   await sleep(400);
   const wave = await page.evalIn(measure([0.55, 0.9]));

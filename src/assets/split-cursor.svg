@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Split's cursor: a crosshair at the hotspot (5, 5), where the cut lands,
+     and a pair of scissors pointing at it - light under dark, to read on any
+     paper. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#ffffff" stroke-width="3.6">
+      <path d="M5 1.5V8.5M1.5 5H8.5" />
+      <path d="M9.5 12.5 20.86 19.31M12.5 9.5 19.31 20.86" />
+      <circle cx="23.6" cy="20.96" r="3.2" />
+      <circle cx="20.96" cy="23.6" r="3.2" />
+    </g>
+    <g stroke="#1f2328" stroke-width="1.5">
+      <path d="M5 1.5V8.5M1.5 5H8.5" />
+      <path d="M9.5 12.5 20.86 19.31M12.5 9.5 19.31 20.86" />
+      <circle cx="23.6" cy="20.96" r="3.2" />
+      <circle cx="20.96" cy="23.6" r="3.2" />
+    </g>
+  </g>
+</svg>

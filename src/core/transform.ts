@@ -31,6 +31,7 @@ import {
   type Stroke,
 } from './types.js';
 import { profileIsSymmetric } from './stroke-profile.js';
+import { mapSmudges } from './smudge.js';
 
 /** The eight grab points of a selection box, named by compass point. */
 export type TransformHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
@@ -326,6 +327,13 @@ export function mirrorStroke(stroke: Stroke, m: Mirror, box?: TransformBox | nul
       if (anchor.hIn) mirrorPoint(anchor.hIn, m);
       if (anchor.hOut) mirrorPoint(anchor.hOut, m);
     }
+  }
+  if (stroke.smudges) {
+    stroke.smudges = mapSmudges(stroke.smudges, (p) => {
+      const q = { x: p.x, y: p.y };
+      mirrorPoint(q, m);
+      return q;
+    });
   }
   if (stroke.tool === 'copic') {
     stroke.nibAngle = mirrorAngle(stroke.nibAngle ?? DEFAULT_NIB_ANGLE, m);

@@ -30,15 +30,18 @@ The window opens **maximized**, which still shows the title bar. Pass
 
 ## 2. Draw something
 
-The **Select** tool is active on launch, so press `P` first to pick up the pen.
+The **Select** tool is active on launch, so press `B` first to pick up the brush.
 
-1. `P` - pen. Draw a wobbly box and a lopsided circle.
+1. `B` - brush. Draw a wobbly box and a lopsided circle.
 2. `W` then `5` - set the stroke width to 5.
 3. `C` - cycle to the next Quick Access Color; `Shift + C` goes back.
-4. Hold `Space` and drag - a clean straight line. Add `Shift` mid-drag to lock
-   it horizontal or vertical.
-5. Hold `Ctrl + Space` and drag - a quarter-ellipse curve. Add `Alt` for a
-   quarter circle, tap `Shift` to swing the apex 90 degrees.
+4. Start a stroke, then hold `Space` - it becomes a clean straight line. Add
+   `Shift` mid-drag to hold it level, plumb or at 45 degrees. Or click, then
+   hold `Shift` and click again: a line joins the two clicks.
+5. Start a stroke, then hold `Ctrl + Space` - a quarter-ellipse curve. Add
+   `Alt` for a quarter circle, tap `Shift` to swing the apex 90 degrees.
+6. Before a stroke, hold `Space` and drag to pan, or hold `Ctrl` to pick
+   something up with the selection tool.
 
 ## 3. Sharpen it
 
@@ -70,8 +73,9 @@ Click a row to make it active; `Shift`-click to multi-select; drag a row to
 restack it, or drop it onto a group row to nest it inside. Selecting on the
 canvas highlights the matching rows, and the other way round.
 
-Press `S` for the Select tool, click a stroke, then click a Quick Access Color
-to **fill** it. Press `A` for Direct Select and drag an anchor point to reshape
+Press `S` for the Select tool, click a shape, press `X` to put the fill in
+front, then click a Quick Access Color to **fill** it (with the stroke in front,
+the color goes to its outline). Press `A` for Direct Select and drag an anchor point to reshape
 a path.
 
 ## 5. Save and export
@@ -115,7 +119,7 @@ so `--sharpen` produces the same result on disk as the GUI does on screen.
 - **[CHEATSHEET.md](CHEATSHEET.md)** - every shortcut, CLI flag, and npm
   script on one page.
 - **Sketch Support tools** - Rectangle (`R`), Ellipse (`L`), Curve (`V`),
-  Vector Path (`B`), Paint Bucket (`G`), Eyedropper (`I`), Rotate
+  Vector Path (`P`), Paint Bucket (`G`), Eyedropper (`I`), Rotate
   (`Ctrl + R`), Join strokes (`Ctrl + J`).
 - **Verbose Settings** (`Ctrl + Alt + ,`) - everything in Quick Settings plus
   zoom and pan sensitivity, endpoint snap, toolbar placement and rearrange
@@ -135,7 +139,7 @@ so `--sharpen` produces the same result on disk as the GUI does on screen.
 | :------------------------------------------- | :------------------------------------------------------------------------ |
 | `napkin-sketch` is not found                 | Run `npm run build` then `npm link`, or use `npm start`                   |
 | Strokes are not being cleaned up as you draw | Live sharpen is off by default; enable it in `Ctrl + ,` or press `H`      |
-| Nothing draws                                | The Select tool is active at launch; press `P` for the pen                |
+| Nothing draws                                | The Select tool is active at launch; press `B` for the brush              |
 | `Ctrl + Shift + N` does nothing              | Animation Mode is not installed; run `npm run animation-mode -- --status` |
 | The cursor is a crosshair, not a circle      | CapsLock is on; that is the precision cursor                              |
 | A change to the source is not showing        | Rebuild with `npm run build`, or leave `npm run build:watch` running      |

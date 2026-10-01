@@ -12,7 +12,7 @@ toolbar button that opens it.
 ## 2. Draw, and watch the rows
 
 Draw two or three strokes. Every new element gets **its own layer**, named
-after the tool that drew it - `Pen 1`, `Pen 2` - and the panel lists the top
+after the tool that drew it - `Brush 1`, `Brush 2` - and the panel lists the top
 of the stack first.
 
 ## 3. Pick rows
@@ -32,18 +32,27 @@ Press `F2`, or double-click the row, type the name and press `Enter`.
    which folds and opens with the caret beside its name.
 2. `Ctrl + Shift + G` ungroups the active group.
 
-## 6. Restack
+## 6. Clip with a shape
+
+1. Draw a filled rectangle, then a circle over it, and select both.
+2. Press `Ctrl + 7`, or choose **Layers > Clipping Mask > Make**: the two go
+   into a Clip Group, and the rectangle shows only inside the circle, which
+   paints nothing while it clips.
+3. `Ctrl + Alt + 7` releases it: the rectangle shows all of itself again,
+   and the circle with it.
+
+## 7. Restack
 
 1. `Ctrl + ]` moves the lit rows up the stack, `Ctrl + [` down.
 2. Or drag a row: between two rows to move it there, onto a group row to
    put it inside.
 
-## 7. Hide, lock and fade
+## 8. Hide, lock and fade
 
 Each row has an eye to hide the layer and a lock to keep it from being drawn
 on or selected; the slider under the list sets the active layer's opacity.
 
-## 8. Edit in the Properties panel
+## 9. Edit in the Properties panel
 
 `Ctrl + P` opens the Properties panel for the selection: its position and
 size in any unit, its fill and gradient, and its outline's width and style.

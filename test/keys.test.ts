@@ -47,7 +47,7 @@ test("every shortcut the app ships reaches its command, and a role row's key is 
 });
 
 test('Shift with a letter or a named key no shortcut uses means the key alone, as it always has', () => {
-  assert.equal(commandForEvent(registry, press('P', { code: 'KeyP', shiftKey: true })), 'tool-pen');
+  assert.equal(commandForEvent(registry, press('B', { code: 'KeyB', shiftKey: true })), 'tool-pen');
   assert.equal(commandForEvent(registry, press('C', { code: 'KeyC', ctrlKey: true, shiftKey: true })), 'copy');
   assert.equal(commandForEvent(registry, press('Enter', { shiftKey: true })), 'move-selection');
   assert.equal(commandForEvent(registry, press('F2', { shiftKey: true })), 'rename-layer');
@@ -58,10 +58,10 @@ test("an event whose fields are getters, as a KeyboardEvent's are, falls back th
   // A spread of a real KeyboardEvent copies none of these; the lookup must not rely on one.
   class GetterEvent {
     get key(): string {
-      return 'P';
+      return 'B';
     }
     get code(): string {
-      return 'KeyP';
+      return 'KeyB';
     }
     get ctrlKey(): boolean {
       return false;
@@ -102,8 +102,18 @@ test('Alt is not dropped: Alt and a letter is not the letter', () => {
   assert.equal(commandForEvent(registry, press('p', { code: 'KeyP', altKey: true })), null);
 });
 
+test('B takes the Brush and P Vector Path, the keys of the tools Illustrator calls the Paintbrush and the Pen', () => {
+  assert.equal(commandForEvent(registry, press('b', { code: 'KeyB' })), 'tool-pen');
+  assert.equal(commandForEvent(registry, press('p', { code: 'KeyP' })), 'tool-vector');
+});
+
+test('J takes Split, the pair of Join on Ctrl+J', () => {
+  assert.equal(commandForEvent(registry, press('j', { code: 'KeyJ' })), 'tool-split');
+  assert.equal(commandForEvent(registry, press('j', { code: 'KeyJ', ctrlKey: true })), 'join-strokes');
+});
+
 test('a key nothing holds runs nothing', () => {
-  assert.equal(commandForEvent(registry, press('j', { code: 'KeyJ' })), null);
+  assert.equal(commandForEvent(registry, press('y', { code: 'KeyY' })), null);
   assert.equal(commandForEvent(registry, press('Control', { ctrlKey: true })), null);
   assert.equal(commandForEvent(registry, press(' ', { code: 'Space' })), null);
 });
@@ -115,8 +125,8 @@ test('a changed shortcut moves the key, and the key it had goes dead', () => {
   assert.equal(commandForEvent(registry, press('o', { code: 'KeyO' })), 'mirror', 'the shipped registry is untouched');
 
   const unbound = loadRegistry({ shortcuts: { version: 1, shortcuts: { 'tool-pen': null } } });
-  assert.equal(commandForEvent(unbound, press('p', { code: 'KeyP' })), null);
-  assert.equal(commandForEvent(unbound, press('P', { code: 'KeyP', shiftKey: true })), null, 'nor Shift+P, which fell back to it');
+  assert.equal(commandForEvent(unbound, press('b', { code: 'KeyB' })), null);
+  assert.equal(commandForEvent(unbound, press('B', { code: 'KeyB', shiftKey: true })), null, 'nor Shift+B, which fell back to it');
 });
 
 test('the keys Chromium acts on are known, with or without Shift', () => {
@@ -133,4 +143,11 @@ test('the keys Chromium acts on are known, with or without Shift', () => {
   assert.ok(isNewTabKey(press('t', { code: 'KeyT', ctrlKey: true })));
   assert.ok(isNewTabKey(press('T', { code: 'KeyT', ctrlKey: true, shiftKey: true })));
   assert.ok(!isNewTabKey(press('t', { code: 'KeyT' })));
+});
+
+test('PageUp and PageDown turn back and on a page, as the page bar arrows do', () => {
+  assert.equal(commandForEvent(registry, press('PageUp', { code: 'PageUp' })), 'prev-page');
+  assert.equal(commandForEvent(registry, press('PageDown', { code: 'PageDown' })), 'next-page');
+  // No row holds Shift with them, so with Shift held they still turn the page.
+  assert.equal(commandForEvent(registry, press('PageUp', { code: 'PageUp', shiftKey: true })), 'prev-page');
 });

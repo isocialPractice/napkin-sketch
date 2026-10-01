@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The drawing engines: cheatsheet - napkin-sketch</title>
+<meta name="description" content="The drawing engines, as tables to look things up in.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.6.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>The drawing engines</summary><ul><li><a href="index.html">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html" aria-current="page">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">The drawing engines</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
+<h1 id="the-drawing-engines-cheatsheet">The drawing engines: cheatsheet<a class="anchor" href="#the-drawing-engines-cheatsheet" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#regions">Regions</a></li><li><a href="#erasing">Erasing</a></li><li><a href="#wipes-and-stacks">Wipes and stacks</a></li><li><a href="#splitting">Splitting</a></li><li><a href="#clipping-masks">Clipping masks</a></li><li><a href="#pencils-and-the-smear">Pencils and the Smear</a></li><li><a href="#liquify">Liquify</a></li><li><a href="#limits">Limits</a></li><li><a href="#one-line-each">One line each</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <a href="quickstart.html">Quickstart</a> · <strong>Cheatsheet</strong></p>
+<p>Reminders for the engines: what each call takes, what it gives back, and where it stops.</p>
+<h2 id="regions">Regions<a class="anchor" href="#regions" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>booleanOp(a, b, op, { ruleA, ruleB })</code></td><td>The contours of <code>union</code>, <code>difference</code> or <code>intersection</code>, or null</td></tr>
+<tr><td><code>booleanRegions(a, b, op, options)</code></td><td>The same, with <code>junctions</code>: the corners a cut made</td></tr>
+<tr><td>A region</td><td>Closed contours of <code>{ x, y }</code>, page pixels, filled non-zero unless <code>evenodd</code></td></tr>
+</tbody></table></div>
+<h2 id="erasing">Erasing<a class="anchor" href="#erasing" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>eraseRegionOf(eraser)</code></td><td>An eraser mark's swath as a region, round at the ends</td></tr>
+<tr><td><code>eraseMarks(page, ids, region)</code></td><td><code>{ changed, removed, skipped, raster }</code></td></tr>
+<tr><td><code>eraseKind(mark)</code></td><td><code>area</code> (a shape, a Copic or a profiled stroke), <code>line</code> or <code>skip</code></td></tr>
+</tbody></table></div>
+<h2 id="wipes-and-stacks">Wipes and stacks<a class="anchor" href="#wipes-and-stacks" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>wipeMarks(page, ids, op)</code></td><td>An edit: <code>changed</code>, <code>removed</code>, <code>added</code>, <code>skipped</code>, <code>problem</code>, <code>empty</code></td></tr>
+<tr><td><code>WIPE_OPS</code></td><td><code>in</code>, <code>out-front</code>, <code>out-back</code>, <code>mid</code>, <code>outer</code>, <code>clean</code></td></tr>
+<tr><td><code>wipeOperand(mark)</code></td><td>What a wipe takes a mark as - its inside or its ink - or null</td></tr>
+<tr><td><code>arrangeFaces(regions)</code></td><td><code>{ faces: [{ contours, covers }], junctions, problem }</code></td></tr>
+<tr><td><code>stackFaces(page, ids, points, mode)</code></td><td>A wipe's edit for <code>merge</code> or <code>remove</code>, with <code>missed</code></td></tr>
+<tr><td><code>stackArrangement</code>, <code>faceAt</code>, <code>facesAlong</code>, <code>facesInBox</code>, <code>stackEdit</code></td><td>The Shape Stacker's steps, one at a time</td></tr>
+</tbody></table></div>
+<h2 id="splitting">Splitting<a class="anchor" href="#splitting" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>nearestOnMark(mark, point, { anchorReach })</code></td><td><code>{ subpath, segment, t, point, distance }</code>, or null</td></tr>
+<tr><td><code>splitMark(mark, at)</code></td><td><code>{ first, second }</code>: <code>second</code> null when a closed path opened</td></tr>
+<tr><td><code>splitTarget(marks, point, reach)</code></td><td>The topmost mark a point reaches, and where, or null</td></tr>
+<tr><td><code>isSplittable(mark)</code></td><td>Whether a mark has a path to cut</td></tr>
+</tbody></table></div>
+<h2 id="clipping-masks">Clipping masks<a class="anchor" href="#clipping-masks" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>makeClip(page, ids)</code></td><td><code>{ clip, layers }</code>, or <code>{ problem }</code>: <code>too-few</code> or <code>open</code></td></tr>
+<tr><td><code>releaseClip(page, layerId)</code></td><td>The clip group to take the clip off, or null</td></tr>
+<tr><td><code>canClip(mark)</code></td><td>Whether a mark is a closed path that can clip</td></tr>
+<tr><td><code>clipIndex(page)</code></td><td><code>{ marks, any, byGroup, of(layer) }</code>, worked out once</td></tr>
+<tr><td><code>clippedAt(page, mark, point, index)</code></td><td>Whether the mark is clipped away there</td></tr>
+<tr><td><code>clipMarkOf</code>, <code>clipRegionOf(page, group)</code></td><td>A group's clip mark, and its inside</td></tr>
+<tr><td><code>shownBounds(page, mark, bounds, index)</code></td><td>The box cut to its clips, or null</td></tr>
+<tr><td><code>normalizeClips(page)</code></td><td>Takes off clips that name no closed mark inside</td></tr>
+</tbody></table></div>
+<h2 id="pencils-and-the-smear">Pencils and the Smear<a class="anchor" href="#pencils-and-the-smear" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>PENCIL_GRADES</code>, <code>PENCIL_KIT</code></td><td>The 30 grades; the kit as the panel shows it</td></tr>
+<tr><td><code>pencilPaint(choice)</code></td><td>The grade a choice or a name gives, graphite HB for none</td></tr>
+<tr><td><code>parsePencil(name)</code></td><td><code>{ medium, grade }</code>, or null</td></tr>
+<tr><td><code>pencilCoverage(grade, tooth, pressure)</code></td><td>What one pass lays down on that tooth</td></tr>
+<tr><td><code>grainTile(seed)</code>, <code>GRAIN_TILE_SIZE</code></td><td>The paper's tooth, 128 by 128 heights, seamless</td></tr>
+<tr><td><code>pencilRegion(mark, scale)</code></td><td>The box a mark's picture covers</td></tr>
+<tr><td><code>rasterizePencil(mark, region)</code>, <code>pencilPicture</code></td><td>Its pixels, straight RGBA; with its smears</td></tr>
+<tr><td><code>smudgeBuffer(data, region, pass, rgb, from)</code></td><td>One stump pass over a picture, in place; where it got to</td></tr>
+<tr><td><code>smudgeFor(mark, drag, width, strength)</code></td><td>The pass a drag leaves on a mark, or null</td></tr>
+</tbody></table></div>
+<h2 id="liquify">Liquify<a class="anchor" href="#liquify" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Call</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td><code>liquifyField(dab)</code></td><td><code>{ point(p), rotation(p) }</code> for one dab</td></tr>
+<tr><td>A dab</td><td><code>{ mode, x, y, radius, amount, dx, dy }</code>: <code>warp</code>, <code>twirl</code>, <code>pucker</code> or <code>bloat</code></td></tr>
+<tr><td><code>liquifyMarks(marks, dabs, { tolerance, refit })</code></td><td>The marks bent, by id</td></tr>
+<tr><td><code>refitLiquified(mark, tolerance, before)</code></td><td>A bent mark fitted again, its meant lines kept</td></tr>
+<tr><td><code>liquifiable(mark)</code>, <code>liquifyReaches(mark, dab)</code></td><td>Whether it bends; whether a dab reaches it</td></tr>
+<tr><td><code>liquifyFalloff(distance, radius)</code></td><td>1 at the centre to 0 at the rim</td></tr>
+</tbody></table></div>
+<h2 id="limits">Limits<a class="anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Limit</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td><code>BOOLEAN_EDGE_LIMIT</code></td><td>40,000 edges, past which <code>booleanOp</code> gives null</td></tr>
+<tr><td><code>WIPE_OPERAND_LIMIT</code></td><td>32 marks a wipe or a stack takes</td></tr>
+<tr><td><code>WIPE_FACE_LIMIT</code></td><td>512 faces an arrangement holds</td></tr>
+<tr><td><code>SPLIT_REACH_PX</code></td><td>4 px: how near a script's <code>split</code> must land</td></tr>
+<tr><td>Pucker and Bloat</td><td><code>amount</code> held to 0 to 1</td></tr>
+</tbody></table></div>
+<h2 id="one-line-each">One line each<a class="anchor" href="#one-line-each" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Want</th><th>Write</th></tr></thead>
+<tbody>
+<tr><td>Two shapes as one</td><td><code>wipeMarks(page, [a.id, b.id], 'in')</code></td></tr>
+<tr><td>The top shape cut out of the bottom</td><td><code>wipeMarks(page, ids, 'out-front')</code></td></tr>
+<tr><td>A gap through the marks under a line</td><td><code>eraseMarks(page, ids, eraseRegionOf(eraser))</code></td></tr>
+<tr><td>A path cut where a point lands</td><td><code>splitMark(mark, nearestOnMark(mark, point))</code></td></tr>
+<tr><td>Is it clipped here</td><td><code>clippedAt(page, mark, point, clipIndex(page))</code></td></tr>
+<tr><td>A pencil's tone</td><td><code>pencilPaint('2B').tone</code></td></tr>
+<tr><td>A dent pushed into the marks</td><td><code>liquifyMarks(marks, [{ mode: 'warp', x, y, radius, dx, dy }], { refit: 0.5 })</code></td></tr>
+<tr><td>An edit made</td><td>changed in place, removed gone, added on <code>above</code> (<a href="index.html#applying-an-edit">the helper</a>)</td></tr>
+</tbody></table></div>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="quickstart.html" rel="prev"><span>Previous</span>The drawing engines: quickstart</a><a href="../interop/index.html" rel="next"><span>Next</span>Working with other programs</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/engines/CHEATSHEET.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

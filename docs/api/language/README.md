@@ -228,7 +228,7 @@ program that ran it:
 | `marks` | 50,000 | Marks drawn |
 | `anchors` | 250,000 | Bezier anchors, across every mark |
 | `points` | 1,000,000 | Points sampled from those anchors for the canvas to paint |
-| `depth` | 64 | Blocks open at once: groups, placed definitions and repeats |
+| `depth` | 64 | Blocks open at once: groups and clips, placed definitions, repeats, wipes and stacks |
 <!-- limits:end -->
 
 A run that reaches a limit stops with a `budget-exceeded` error at the
@@ -275,7 +275,7 @@ with a `verb` and the fields that verb has; the [verb tables](#verbs) list them,
 - **Values** are encoded as the [Values](#values) table shows: a length is a
   number, or a string when it carries a unit or a `%`; an expression is
   `{ "expr": "..." }`, its source without the parentheses.
-- **Blocks** are arrays: `body` of a `group`, `define`, `repeat` or `path`.
+- **Blocks** are arrays: `body` of a `group`, `clip`, `define`, `repeat`, `wipe`, `stack` or `path`.
 - **`at`**, `{ "line": 3, "column": 5 }`, is where a parsed instruction came
   from. It is optional, and a program building JSON leaves it out.
 - **What a form implies is a field.** `fill none` is `{ "verb": "fill",
@@ -317,6 +317,7 @@ Named layers and nested groups, with opacity, visibility and lock.
 | --- | --- | --- | --- |
 | `layer` | `layer "<name>" [opacity <0-1>] [hidden] [locked]` | `name, opacity?, hidden?, locked?` | A drawing layer. Marks after it go on it until the next layer. |
 | `group` | `group "<name>" [opacity <0-1>] [hidden] [locked] { ... }` | `name, opacity?, hidden?, locked?, body` | A group layer. The layer and group lines in its block become its children. |
+| `clip` | `clip ["<name>"] { ... }` | `name?, body` | A clip group: everything its block draws shows only inside the block's last closed shape, in paint order, which paints nothing while it clips - the app's Make Clipping Mask. Without a closed shape in it, the block is a plain group. |
 
 #### Paint
 
@@ -324,7 +325,7 @@ What every mark after it is drawn with: tool, color, width, opacity, fill, gradi
 
 | Verb | Written | Fields in JSON | What it does |
 | --- | --- | --- | --- |
-| `tool` | `tool pen\|marker\|copic\|eraser` | `tool` | The kind of mark: pen, marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib) or eraser (takes away what is under it, on its own layer only). |
+| `tool` | `tool pen\|marker\|copic\|pencil\|eraser\|brush` | `tool` | The kind of mark: pen (the app's Brush; brush is taken for it), marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib), pencil (a lead through the paper's grain; pencil picks one) or eraser (cuts its line's swath out of the marks drawn before it on its layer, as the app's Eraser does, and draws nothing of its own). |
 | `color` | `color <color>` | `color` | The ink color of every mark after it. |
 | `width` | `width <length>` | `width` | The stroke width of every mark after it. |
 | `opacity` | `opacity <0-1>` | `opacity` | The opacity of every mark after it, from 0 to 1. |
@@ -332,14 +333,15 @@ What every mark after it is drawn with: tool, color, width, opacity, fill, gradi
 | `gradient` | `gradient linear <angle> (<color> <offset>, ...)`<br>`gradient radial (<color> <offset>, ...)`<br>`gradient none` | `type, angle?, stops?` | A gradient fill for closed shapes after it: linear at an angle, or radial from the centre out, or none. |
 | `stroke` | `stroke on\|off` | `on` | Turns the outline on or off. With it off, a closed shape is its fill alone. |
 | `style` | `style solid\|dashed\|dotted` | `style` | The outline's dash: solid, dashed or dotted. |
-| `profile` | `profile uniform\|rounded\|tapered\|wave` | `profile` | How the width runs along a pen or marker stroke: uniform, rounded, tapered or wave. |
+| `profile` | `profile uniform\|rounded\|tapered\|wave` | `profile` | How the width runs along a brush or marker stroke: uniform, rounded, tapered or wave. |
 | `nib` | `nib <degrees>` | `angle` | The angle of the copic nib, in degrees. |
+| `pencil` | `pencil <grade> [<color>]` | `pencil, color?` | Takes up the Pencil at a grade: graphite alone, 9H to 9B, or charcoal (HB to 6B), compressed (2B to 6B) or vine (hard, medium, soft) and its grade. Every mark after it is drawn with that lead through the paper's grain, in its tone - or in the color given, a colored pencil. The width is the line's own; the app's softer leads draw broader at one tool width. |
 | `rough` | `rough <0-1> [passes 1\|2] [overshoot <length>]`<br>`rough off` | `amount, passes?, overshoot?` | The hand-drawn pass for every mark after it: 0 is exact, 1 is clearly drawn by hand, and off is 0. Seeded, so it draws the same way every run. |
 | `font` | `font "<family>" [<size>]`<br>`font <size>` | `family?, size?` | The font family and size of text after it. |
 
 #### Shapes
 
-Marks built from Bezier anchors: rectangles, circles, ellipses, lines, polygons, stars, arcs, spirals and the shape library.
+Marks built from Bezier anchors: rectangles, circles, ellipses, lines, polygons, stars, arcs, spirals and the shape library, and marks combined as the Wipe Stacks and the Shape Stacker combine them.
 
 | Verb | Written | Fields in JSON | What it does |
 | --- | --- | --- | --- |
@@ -353,10 +355,12 @@ Marks built from Bezier anchors: rectangles, circles, ellipses, lines, polygons,
 | `arc` | `arc <cx> <cy> <r> <from> <to>` | `cx, cy, r, from, to` | An open arc of a circle between two angles, in degrees clockwise from three o'clock. |
 | `spiral` | `spiral <cx> <cy> <r> <turns>` | `cx, cy, r, turns` | A spiral winding out from its centre to the radius over the given number of turns. |
 | `shape` | `shape "<name>" at <x> <y> size <width> [<height>]` | `name, x, y, width, height?` | A named shape from the built-in library, drawn in a box from x, y. With one size its longer side is that long and it keeps its proportions; with a width and a height it is stretched to fill them. |
+| `wipe` | `wipe in\|out-front\|out-back\|mid\|outer\|clean { ... }` | `op, body` | Combines the marks its block draws, as the app's Wipe Stacks do, and draws what is left in their place: in (Wipe In, their union), out-front (Subtract Top from Below: the bottom one less the rest), out-back (Subtract Below from Top: the top one less the rest), mid (Mid Wipe: where all of them overlap), outer (Outer Wipes: where an odd number overlap) or clean (Clean Wipe: every piece of their overlaps, a mark each). What is left is painted as the topmost mark, or as the bottom one for out-front; text, pictures and eraser marks in the block are passed over. The block keeps its paint and transforms to itself, as a group does, and effects written just before it go on what it leaves. |
+| `stack` | `stack merge\|remove <points> { ... }` | `mode, points, body` | Stacks the marks its block draws as the app's Shape Stacker does, at the pieces under its points - the places where the marks overlap and where they do not: merge makes those pieces one shape, painted as the topmost mark over the first point, and each mark keeps what was not merged; remove takes them away from every mark. Text, pictures and eraser marks in the block are passed over. The block keeps its paint and transforms to itself, as a group does, and the points are where the stack line is. |
 
 #### Paths
 
-Marks written segment by segment, from SVG path data or from a block of steps, and curves through points.
+Marks written segment by segment, from SVG path data or from a block of steps, curves through points, and paths cut where a point lands on them.
 
 | Verb | Written | Fields in JSON | What it does |
 | --- | --- | --- | --- |
@@ -368,6 +372,12 @@ Marks written segment by segment, from SVG path data or from a block of steps, a
 | `smooth` | `smooth <c2x> <c2y> <x> <y>` | `c2x, c2y, x, y` | A cubic curve whose first handle mirrors the last one, so the join stays smooth. |
 | `through` | `through <x> <y>, <x> <y>, ...` | `points` | A smooth curve through a list of points. Inside a path block it continues the subpath; outside one it is an open mark of its own. |
 | `close` | `close` | `none` | Closes the current subpath back to its start. |
+| `split` | `split <x> <y>` | `x, y` | Cuts the topmost mark drawn so far whose path passes within 4 px of a point, where the point lands on it, as the app's Split does: an open path becomes two, a closed one opens there, and a compound shape gives up the ring that was cut, as an open mark of its own. Nothing moves, and the pieces take the mark's place on its layer. In a wipe or a stack block it cuts among the marks the block has drawn. |
+| `smear` | `smear <width> <strength> <x> <y>, <x> <y>, ...` | `width, strength, points` | A pass of the Smear, a blending stump, along a list of points: it spreads the graphite of every pencil mark drawn so far that it reaches, along the drag, as the app's Smear does. The width is the stump's, scaled by the transform as a width is, and the strength from 0 to 1. In a wipe or a stack block it smears among the marks the block has drawn. |
+| `warp` | `warp <x> <y> <radius> <dx> <dy>` | `x, y, radius, dx, dy` | Liquify's Warp, as the app's Liquify does it: a brush pushed from the point by dx and dy, carrying what is under its centre the whole way, like clay. The brush reaches the marks drawn so far whose outline passes within its radius of the point, under the transform as a mark drawn there would be, and its effect falls off smoothly to nothing at the rim; the radius scales with the transform. Pencil marks are the Smear's, and text, pictures and eraser marks have no outline to bend: all are left as they are. Each mark it bends is fitted again after, so its anchors stay few. In a wipe or a stack block it bends among the marks the block has drawn. |
+| `twirl` | `twirl <x> <y> <radius> <degrees>` | `x, y, radius, amount` | Liquify's Twirl: turns what is under a brush at the point about its centre, by the angle in degrees there - clockwise on the screen, as rotate turns - and less toward the rim, so distances from the centre are kept. The brush reaches the marks drawn so far whose outline passes within its radius of the point, under the transform as a mark drawn there would be, and its effect falls off smoothly to nothing at the rim; the radius scales with the transform. Pencil marks are the Smear's, and text, pictures and eraser marks have no outline to bend: all are left as they are. Each mark it bends is fitted again after, so its anchors stay few. In a wipe or a stack block it bends among the marks the block has drawn. |
+| `pucker` | `pucker <x> <y> <radius> <amount>` | `x, y, radius, amount` | Liquify's Pucker: draws what is under a brush at the point in toward its centre, a point near the centre by the amount, 0 to 1, of its distance. The brush reaches the marks drawn so far whose outline passes within its radius of the point, under the transform as a mark drawn there would be, and its effect falls off smoothly to nothing at the rim; the radius scales with the transform. Pencil marks are the Smear's, and text, pictures and eraser marks have no outline to bend: all are left as they are. Each mark it bends is fitted again after, so its anchors stay few. In a wipe or a stack block it bends among the marks the block has drawn. |
+| `bloat` | `bloat <x> <y> <radius> <amount>` | `x, y, radius, amount` | Liquify's Bloat: pushes what is under a brush at the point out from its centre, a point near the centre by the amount, 0 to 1, of its distance. The brush reaches the marks drawn so far whose outline passes within its radius of the point, under the transform as a mark drawn there would be, and its effect falls off smoothly to nothing at the rim; the radius scales with the transform. Pencil marks are the Smear's, and text, pictures and eraser marks have no outline to bend: all are left as they are. Each mark it bends is fitted again after, so its anchors stay few. In a wipe or a stack block it bends among the marks the block has drawn. |
 
 #### Transforms
 
@@ -399,7 +409,7 @@ Text, placed images, linked files, and documents the host supplied.
 
 | Verb | Written | Fields in JSON | What it does |
 | --- | --- | --- | --- |
-| `text` | `text "<text>" at <x> <y> [size <size>] [box <width>] [align left\|center\|right] [as marks]` | `text, x, y, size?, box?, align?, asMarks?` | A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as pen strokes instead. |
+| `text` | `text "<text>" at <x> <y> [size <size>] [box <width>] [align left\|center\|right] [as marks]` | `text, x, y, size?, box?, align?, asMarks?` | A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as brush strokes instead. |
 | `image` | `image "<asset or data URL>" at <x> <y> [size <width> [<height>]]` | `src, x, y, width?, height?` | Places an image: an asset the host supplied, by name, or a data URL. Nothing is read from disk. |
 | `link` | `link "<path>" at <x> <y> [size <width> [<height>]] [name "<layer name>"]` | `href, x, y, width?, height?, name?` | Places a linked file: one selectable element that references the file instead of drawing its contents into the page. |
 | `use` | `use "<document>" [at <x> <y>] [scale <s>] [layer "<name>"]` | `name, x?, y?, scale?, layer?` | Copies in a document the host supplied, as a group, with its layers and anchors. |
@@ -442,7 +452,7 @@ card.napkin.json[1][0]: error expected-length: `x` of `rect` at [1][0]: `ten` is
 | Code | Level | Meaning |
 | --- | --- | --- |
 | `unknown-verb` | error | A line starts with a word that is not a verb. |
-| `misplaced-verb` | error | A verb where it cannot appear: a path step outside a path block, a napkin line after the first, a layer inside a path, a newpage inside a group or a definition. |
+| `misplaced-verb` | error | A verb where it cannot appear: a path step outside a path block, a napkin line after the first, a layer inside a path, a newpage inside a group or a definition, a layer, group, clip or use inside a wipe or a stack. |
 | `unsupported-verb` | error | The verb, or this way of writing it, is known but not drawn by this build or by the host running the script; the instruction is skipped. |
 | `expected-number` | error | A number, or an expression in parentheses, was expected. |
 | `expected-length` | error | A length was expected: a number, a number with a unit (10mm, 0.5in, 12pt, 4px), a percentage, or an expression. |
@@ -479,6 +489,15 @@ card.napkin.json[1][0]: error expected-length: `x` of `rect` at [1][0]: `ten` is
 | `duplicate-definition` | warning | A second define replaces an earlier one of the same name. |
 | `link-unresolved` | warning | A linked file could not be read for an output that has to draw it, so its placeholder was drawn instead. |
 | `unused-effect` | warning | An effect nothing took: no layer, group or mark followed it before its block, its page or the script ended. |
+| `wipe-skipped` | warning | A wipe's or a stack's block drew marks it cannot combine - text, pictures, linked files, eraser marks - and they are drawn as they are. |
+| `wipe-empty` | warning | A wipe or a stack left nothing: out-front's bottom mark wholly covered by the rest, say, or a stack remove taking every piece. |
+| `wipe-failed` | warning | A wipe or a stack could not combine its block's marks - fewer than two it can combine, more than it takes, or geometry it could not make - so they are drawn as they are. |
+| `stack-missed` | warning | A stack point is on none of the pieces its block's marks make, so it picks nothing; the message says which. |
+| `split-missed` | warning | A split point is within 4 px of no path drawn so far, or lands on the end of an open one, so nothing is cut. |
+| `clip-open` | warning | A clip block drew no closed shape to clip with, so it is a plain group. |
+| `smear-missed` | warning | A smear reaches no pencil mark drawn so far, so it spreads nothing. |
+| `liquify-missed` | warning | A warp, twirl, pucker or bloat reaches no mark it bends drawn so far, so it bends nothing. |
+| `erase-skipped` | warning | An eraser line reaches text or a picture, which it cannot cut, and passes over it. |
 <!-- diagnostics:end -->
 
 ### Functions

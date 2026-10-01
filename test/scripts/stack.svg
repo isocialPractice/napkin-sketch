@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="520" height="320" viewBox="0 0 520 320" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" data-generator="napkin-sketch">
+<rect width="520" height="320" fill="#ffffff"/>
+<g id="Stacks" data-name="Stacks" inkscape:label="Stacks" inkscape:groupmode="layer">
+<path d="M20 20H90V90H20V20Z" stroke="#1f2328" fill="#d0342c" data-fill="#d0342c" data-tool="pen" data-i="0"/>
+<path d="M50 90H90V50c22.09 0 40 17.91 40 40s-17.91 40-40 40-40-17.91-40-40Z" stroke="#1f2328" fill="#27486d" data-fill="#27486d" data-tool="pen" data-i="1"/>
+<path d="M215 50c-22.09 0-40 17.91-40 40H145V20h70V50Z" stroke="#1f2328" fill="#d0342c" data-fill="#d0342c" data-tool="pen" data-i="2"/>
+<path d="M175 90h40V50c22.09 0 40 17.91 40 40s-17.91 40-40 40-40-17.91-40-40Z" stroke="#1f2328" fill="#27486d" data-fill="#27486d" data-tool="pen" data-i="3"/>
+<path d="M215 50V90H175c0-22.09 17.91-40 40-40Z" stroke="#1f2328" fill="#27486d" data-fill="#27486d" data-tool="pen" data-i="4"/>
+<path d="M340 50c-22.09 0-40 17.91-40 40H270V20h70V50Z" stroke="#1f2328" fill="#d0342c" data-fill="#d0342c" data-tool="pen" data-i="5"/>
+<path d="M300 90h40V50c22.09 0 40 17.91 40 40s-17.91 40-40 40-40-17.91-40-40Z" stroke="#1f2328" fill="#27486d" data-fill="#27486d" data-tool="pen" data-i="6"/>
+<path d="M465 50c22.09 0 40 17.91 40 40s-17.91 40-40 40-40-17.91-40-40H395V20h70V50Z" stroke="#1f2328" fill="#d0342c" data-fill="#d0342c" data-tool="pen" data-i="7"/>
+<path d="M100 210.35c-5.89-3.4-12.72-5.35-20-5.35s-14.11 1.95-20 5.35c.13 14.66 8.14 27.44 20 34.3-5.88 3.4-12.71 5.35-20 5.35-22.09 0-40-17.91-40-40s17.91-40 40-40 40 17.91 40 40c0 .12 0 .24 0 .35Z" stroke="#1f2328" fill="#d0342c" data-fill="#d0342c" data-tool="pen" data-i="8"/>
+<path d="M80 244.65c11.86-6.86 19.87-19.64 20-34.29-5.89-3.41-12.72-5.36-20-5.36s-14.11 1.95-20 5.35c0-.11 0-.23 0-.35 0-22.09 17.91-40 40-40s40 17.91 40 40-17.91 40-40 40c-7.29 0-14.12-1.95-20-5.35Z" stroke="#1f2328" fill="#27486d" data-fill="#27486d" data-tool="pen" data-i="9"/>
+<path d="M60 210.36c.13 14.65 8.14 27.43 20 34.29 11.86-6.86 19.87-19.64 20-34.29 11.95 6.91 20 19.83 20 34.64 0 22.09-17.91 40-40 40s-40-17.91-40-40c0-14.81 8.05-27.73 20-34.64Z" stroke="#1f2328" fill="#2e7d5b" data-fill="#2e7d5b" data-tool="pen" data-i="10"/>
+<path d="M190 244.65c-11.95-6.92-20-19.84-20-34.65 0-22.09 17.91-40 40-40 7.29 0 14.12 1.95 20 5.35-11.96 6.92-20 19.85-20 34.65 0 .12 0 .24 0 .36-11.86 6.85-19.87 19.63-20 34.29Z" stroke="#1f2328" fill="#d0342c" data-fill="#d0342c" data-tool="pen" data-i="11"/>
+<path d="M270 244.64c-.13-14.65-8.14-27.43-20-34.29 0-.11 0-.23 0-.35 0-14.8-8.04-27.73-20-34.65 5.88-3.4 12.71-5.35 20-5.35 22.09 0 40 17.91 40 40 0 14.81-8.05 27.73-20 34.64Z" stroke="#1f2328" fill="#27486d" data-fill="#27486d" data-tool="pen" data-i="12"/>
+<path d="M190 244.65c5.89 3.4 12.72 5.35 20 5.35 7.29 0 14.12-1.95 20-5.35 5.88 3.4 12.71 5.35 20 5.35 7.28 0 14.11-1.95 20-5.35 0 .11 0 .23 0 .35 0 22.09-17.91 40-40 40s-40-17.91-40-40c0-.12 0-.24 0-.35Z" stroke="#1f2328" fill="#2e7d5b" data-fill="#2e7d5b" data-tool="pen" data-i="13"/>
+<path d="M230 244.65c-5.88 3.4-12.71 5.35-20 5.35-7.28 0-14.11-1.95-20-5.35.13-14.66 8.14-27.44 20-34.3 0-.11 0-.23 0-.35 0-14.8 8.04-27.73 20-34.65 11.96 6.92 20 19.85 20 34.65 0 .12 0 .24 0 .36 11.86 6.85 19.87 19.63 20 34.28-5.89 3.41-12.72 5.36-20 5.36-7.29 0-14.12-1.95-20-5.35Z" stroke="#1f2328" fill="#2e7d5b" data-fill="#2e7d5b" data-tool="pen" data-i="14"/>
+<path d="M440 230.1H330V180H440v50.1Zm0 9.8V290H330V239.9H440Z" stroke="#1f2328" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="15"/>
+<path d="M330 230.1v9.8H320c-2.67-.04-4.9-2.2-4.9-4.9l.66-2.45 1.79-1.79 2.45-.66h10Zm110 0h10c2.67.04 4.9 2.2 4.9 4.9l-.66 2.45-1.79 1.79-2.45.66H440v-9.8Z" stroke="none" fill="#1f2328" data-fill="#1f2328" data-tool="pen" data-i="16" data-nostroke="1" data-color="#1f2328" data-width="14"/>
+</g>
+</svg>

@@ -4,6 +4,535 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-alpha.4.6.0] - 2026-10-01
+
+Pressing that always lets go, and the tools a vector editor reaches for next,
+make this a minor release; it was planned as a 4.5.1 patch until the tools
+joined it. A press no longer sticks and stops every tool, the Eraser cuts
+what it covers with no mark or layer of its own, Select and Direct Select
+pick the mark under the pointer, and translucent ink lies flat rather than
+as a string of overlapping circles. `Space` and `Ctrl` give the hand and
+the last selection tool with any drawing tool in hand, and View > Zoom In
+and Zoom Out now zoom the canvas, in as far as one page pixel. New are the
+Shape Eraser and Apply Erasers, Shift-click lines, the Vector Path's close
+indicator, the Transform button, Previous and Next Page, and three settings
+(Select sensitivity, Freehand fidelity and Wipe animation). So are the Shape
+Stacker and the Wipe Stacks, a vector editor's Shape Builder and Pathfinder;
+Split; clipping masks; a Pencil with a drawing class's kit, and the Smear to
+shade with it; Liquify; and `X` and `Shift+X` for the fill and the stroke.
+The Pen is now the Brush, on `B`, and Vector Path is on `P`. Each tool runs
+on an engine the API exports and napkin script has a verb for, written up in
+[The drawing engines](docs/api/engines/README.md). The `.skbk` format stays
+at version 3, and an older file's eraser marks still paint as they did.
+
+### Added
+
+- **Read-outs for the GUI checks of the input and the marks.** The
+  `window.napkinCheck` hook, which the page puts up only when the app is
+  started for a check, gains five: `inputState()` (the pointer a press
+  owns, every per-press field still set, the held keys and the tool),
+  `strokeSummary()` and `layerRows()` (the page's marks and layers),
+  `selectionBoxes()` (the dashed boxes around the selection) and
+  `viewState()` (zoom, pan and the zoom limits). The canvas now paints the
+  selection's boxes from the same function the hook reads, so a check reads
+  what is on the screen. Nothing changes for anyone using the app; the
+  checks that come next use them to prove that a press always lets go of
+  the pointer.
+
+- **Select sensitivity.** A setting in Verbose Settings > Sketch Support:
+  how far from a mark's ink a click with the Select tool may land and still
+  pick it, in screen pixels, so it reaches as far at every zoom. 4 unless
+  changed, from 1 to 20. Before, the reach was 8 page units, which no setting
+  changed and which grew on screen with the zoom.
+- **A Transform button in the toolbar**, beside Mirror: it puts the
+  Transform box round the selection, as `Ctrl+T` and Transform > Transform
+  Box do, and stays pressed while the box is up. Its tooltip shows the
+  shortcut, which follows Edit Keyboard Shortcuts like every other.
+- **Pages > Previous Page and Next Page, on `PageUp` and `PageDown`.** The
+  page bar's arrows have turned pages since the first release, but the menus
+  never had rows for it - the one gap a read of every Added entry in this log
+  found against the menus 1.0.0-alpha.4.5.0 generated. Each row is greyed at
+  its end of the book, and the arrows' tooltips show the keys.
+- **Freehand fidelity.** A setting in Verbose Settings > Sketch Support: how
+  far a Brush, Marker or Copic stroke's fitted curves may stray from what was
+  drawn, in screen pixels - 1.5 unless changed, from 0.5 to 8. Smaller keeps
+  more of the hand's detail, in more anchors.
+- **The Shift-click line.** Click or draw with the Brush, Marker or Copic, then
+  hold `Shift` and click: a straight line joins the end of what was drawn to
+  the click at once, as part of the same mark - so a translucent line does
+  not darken where the two meet - and each Shift-click after it adds another,
+  a polyline, one undo per line. A Shift-press that goes on as a drag carries
+  on freehand from the click, and `Space` or `Ctrl + Space` during it gives
+  a straight line or a quick curve from there. The line starts a mark of its
+  own instead when the mark is painted otherwise than the tool paints now,
+  is on another layer, is closed, or symmetry copies are being made; a page
+  turn, an undo or redo, another tool taken in hand or the mark moved
+  forgets where the next line would start (`src/renderer/held-keys.ts`).
+- **`Shift` while placing a Vector Path.** It keeps the next point, and the
+  rubber band that previews it, level, plumb or at 45 degrees from the last
+  point, and a handle being pulled out of a smooth point to the same eight
+  directions about that point - a horizontal, vertical or 45-degree tangent.
+  Going down or up, it moves the band or the handle at once.
+- **The Vector Path close indicator.** Once a path has two points, the
+  pointer within reach of the first - the Direct Select sensitivity, 8 screen
+  pixels unless changed, which is where a click has always closed it - shows
+  `src/assets/close-path-indicator.svg` on that point, 20 screen pixels
+  across, and the rubber band ends there, previewing the closing segment. A
+  click closes the path, `Shift` or not.
+- **Sketch > Apply Erasers.** A file made before this release may hold the
+  old Eraser's marks. They still paint as they did; Apply Erasers turns every
+  one into the cut it paints - each cut out of the marks before it on its own
+  layer, what the canvas showed - and takes it away, in one undo step. An
+  eraser mark on a locked or hidden layer is left as it is.
+- **Erasing as geometry, in the core.** `src/core/boolean.ts` joins, subtracts
+  and intersects regions under either fill rule - the stroke profiles'
+  boundary engine, lifted out with a second operand, their outlines the same
+  to the last digit - and `src/core/erase.ts` says what an eraser, a swath
+  or a closed shape, leaves of each mark, as plain marks with no mask: a
+  filled shape, a Copic stroke or a profiled one less the eraser's region,
+  its surviving outline cut from its own curves and the eraser's edge
+  fitted; a plain line taken away wherever its painted width would reach
+  into the region, what is left the subpaths of the same line. The Eraser
+  is built on it next.
+- **The wipes, in the core.** `src/core/wipe.ts` combines marks as regions,
+  as a vector editor's Pathfinder does: Wipe In (the union), Subtract Top
+  from Below, Subtract Below from Top, Mid Wipe (where all of them overlap),
+  Outer Wipes (where an odd number do) and Clean Wipe (every face of their
+  arrangement, a mark each). A shape - filled, or a closed outline - is its
+  inside, and a line, a Copic stroke or a profiled one its painted ink; a
+  result keeps the paint of the mark it is painted as, an ink's as a filled
+  shape in its colour, and what the wipe never reached keeps its anchors
+  exactly, the rest fitted as the Eraser fits a cut. The page takes a wipe
+  as one undo step, each face of a Clean Wipe on a layer of its own. The
+  Wipe Stacks are built on it next; `wipeMarks` and `arrangeFaces` join the
+  API, and so do the boolean engine (`booleanOp`, `booleanRegions`) and
+  erasing (`eraseMarks`, `eraseRegionOf`).
+- **The Shape Eraser** (`Shift+E`, beside the Eraser). Select the marks to
+  cut, choose a Rectangle, Ellipse, Square or Circle from the panel that
+  opens under its button, and drag it over them: what it covers is cut out
+  of every selected mark by the Eraser's rules - the cut already showing
+  before the release - in one undo step, with no mark or layer added.
+  **Top Path**, across the bottom of the panel, cuts the other selected
+  marks with the topmost closed one and takes it away. `Shift` squares a
+  Rectangle and rounds an Ellipse; the arrow keys, `Enter` and `Escape`
+  work the panel.
+- **Notices that say why nothing happened.** With nothing selected, only
+  the one path, or an open path on top, the Shape Eraser says so in a small
+  dialog with **Do not show this notice again**; ticked, the notice is a
+  toast for the rest of the session, and a new session shows it again.
+  `npm run gui-check -- shape-eraser` runs the Shape Eraser and its notices.
+- **Fill and stroke, and `X`.** The color well in the toolbar is a fill and
+  stroke control: the fill box and the stroke box, overlapping, the one in
+  front being the one the colors paint, as a vector editor's toolbar has
+  them. `X` (**Sketch > Fill in Front**) puts the other one in front, and so
+  does a click on the box behind; a click on the box in front opens the color
+  picker. `C` and `Shift+C` step the one in front through the Quick Access
+  Colors - the fill's steps take in None - and a swatch or the picker sets
+  it. A new Rectangle, Ellipse or closed Vector Path is filled with the fill,
+  and the Paint Bucket and Fill Color paint with it; the fill is none until
+  one is picked. `Shift+X` (**Sketch > Swap Fill and Stroke**, or the arrow
+  at the control's corner) swaps the two: the selected closed shapes' fill
+  and outline, or with nothing selected the tool's ink and fill. `paintPatch`
+  and `swapPaint` join the API. `npm run gui-check -- fill-stroke` runs it.
+- **The Wipe Stacks** (Transform > Wipe Stacks, after Close Shape, and the
+  canvas's right-click menu). Six rows combine the selected shapes as
+  Illustrator's Pathfinder does: **Wipe In** unites them, **Wipe Out >
+  Subtract Top from Below** and **Subtract Below from Top** take one from
+  the rest, **Mid Wipe** keeps where all of them overlap, **Outer Wipes**
+  where an odd number do, and **Clean Wipe** cuts every piece of their
+  overlaps into a shape of its own, each on a layer of its own. The rows are
+  greyed until two shapes are selected, and have no keys, as Pathfinder's
+  have none. A wipe is one undo step, made at once; then a paper-coloured
+  napkin wipes across the result in a quarter of a second, the picture from
+  before ahead of it. A press, a key or the wheel ends it, reduced motion
+  skips it, and **Wipe animation** in Verbose Settings > Extras turns it
+  off. In the right-click menu Wipe Out's two rows are laid out in the Wipe
+  Stacks panel, since the window opens one panel beside a menu. Scripts get
+  the block verb `wipe in|out-front|out-back|mid|outer|clean { ... }`, which
+  combines the marks its block draws and draws what is left in their place,
+  with the warnings `wipe-skipped`, `wipe-empty` and `wipe-failed`.
+  `npm run gui-check -- wipe-stacks` runs it, with `wipeState()` for the
+  check.
+- **The Shape Stacker** (`Shift+M`, beside the Shape Eraser). A vector
+  editor's Shape Builder: with two or more shapes selected it sees their
+  pieces - every place where they overlap and every place where they do not
+  - and shades the one under the pointer with a light mesh. A drag across
+  pieces merges them into one shape, painted as the topmost shape where the
+  drag began, each shape keeping the rest; a click makes one piece a shape of
+  its own; `Alt` at the press - the cursor's plus turns to a minus - takes
+  the pieces away from every shape instead; `Shift` drags a box that takes
+  every piece it touches. One undo step each, `Escape` drops a drag, and a
+  shape's own curves are kept wherever a piece runs along them. Its panel
+  holds the Wipe Stacks as six tiles, greyed with fewer than two shapes
+  selected, and with fewer than two a press says so in a notice. Scripts get
+  `stack merge|remove <points> { ... }`, which stacks the marks its block
+  draws at the pieces under its points, with a `stack-missed` warning for a
+  point on none; the wipe's warnings cover it too. `stackFaces`,
+  `stackArrangement`, `stackEdit`, `faceAt`, `facesAlong` and `facesInBox`
+  join the API. `npm run gui-check -- shape-stacker` runs it, with
+  `shapeStackerState()` for the check.
+- **Split** (`J`, beside the Shape Stacker). A vector editor's Scissors: a
+  click on a path cuts it where it lands, and nothing moves. An open path
+  becomes two, the second piece on a new layer just above; a closed one opens
+  there, one open path starting and ending at the click, which a second click
+  divides; a shape with holes gives up the ring that was clicked, as an open
+  mark of its own. A click on an anchor cuts there and adds none; anywhere
+  else a curve is divided by de Casteljau, so both pieces trace it exactly,
+  and a freehand stroke's pressure carries through the cut. The pointer is a
+  pair of scissors, a small ring marks where a click would cut, and both
+  pieces keep every paint property, selected, in one undo step. Text,
+  pictures and an older file's eraser marks say "Split cuts paths and
+  lines." Scripts get `split <x> <y>`, which cuts the topmost mark drawn so
+  far within 4 px of the point, with a `split-missed` warning when there is
+  none. `nearestOnMark`, `splitMark` and `splitTarget` join the API.
+  `npm run gui-check -- split` runs it, with `splitState()` for the check.
+- **Clipping masks** (Layers > Clipping Mask, `Ctrl+7` and `Ctrl+Alt+7`).
+  As a vector editor's Make Clipping Mask: the layers the selection is on go
+  into a Clip Group that shows only inside the closed path on top, its
+  clipping path, which paints nothing while it clips and moves to the top of
+  the group. What is hidden cannot be picked or caught in a selection box,
+  and the dashed boxes box what shows; Direct Select still reaches every
+  mark. Release takes the clip off and keeps the group, the clipping path
+  painting again; each is one undo step. One mark selected, or an open path
+  on top, gives a notice. The layers panel marks the group with a ◘ and the
+  clipping path with a **clip** badge. A clip group can hold another, and a
+  clip group's effects come after its clip. The SVG export clips the group
+  with a `<clipPath>`, the PDF with a clipping path, the Illustrator script
+  with a clipped group and the composition with the group's `clip`; an SVG
+  group with a `clip-path` imports as a clip group, its `<clipPath>`'s
+  shapes the clipping path. The file saves it as the group's `clip`.
+  Scripts get `clip ["<name>"] { ... }`, clipped by the last closed shape its
+  block draws, with a `clip-open` warning when there is none. `canClip`,
+  `clipIndex`, `clipMarkOf`, `clipRegionOf`, `clippedAt`, `makeClip`,
+  `normalizeClips`, `releaseClip`, `shownBounds` and `CLIP_GROUP_NAME`
+  join the API. `npm run gui-check -- clipping` runs it, with each row's
+  `clip` in `layerRows()` and the page's SVG from `pageSvg()` for the check.
+- **The Pencil** (`N`, after the Copic). A pencil from a drawing class's
+  kit, modelled on a real one rather than on any editor's tool: its button
+  opens the drawing kit - graphite 4H to 8B, charcoal pencils HB to 6B, vine
+  charcoal hard, medium and soft, compressed charcoal 2B to 6B - each chip
+  drawing its own lead; `N` takes it up, and `N` again opens the kit. Each
+  grade has a tone, graphite a cool grey that never reaches black and
+  charcoal a warm matte black, and a lead a softer grade wears broader. Every
+  line is drawn through the paper's tooth, a seeded tile fixed to the page:
+  pressure darkens it far more than it widens it, and passes laid over one
+  another catch the same tooth and build tone toward the grade's darkest,
+  never past it. The ink color does not change a pencil; a recolored Pencil
+  mark is a colored pencil. The canvas works out each mark's picture once a
+  scale, and a live stroke only where it grew, so 500 pencil circles redraw in
+  about the time 500 Brush circles take. The SVG fills each line with the
+  grain, carrying the tooth once a file, and napkin reads it back as Pencil
+  marks; a PNG has the canvas's pixels; PDF and the Illustrator script draw
+  the mean tone. Files keep the mark's `pencil`, and an older app reads it
+  as a Brush mark in its tone. Scripts get `tool pencil` and
+  `pencil <grade> [<color>]`. `PENCIL_GRADES`, `PENCIL_KIT`, `pencilPaint`,
+  `pencilCoverage`, `grainTile`, `rasterizePencil` and their kin join the
+  API. `npm run gui-check -- pencil` runs it, with `pencilState()` and
+  `renderTime()` for the check.
+- **The Smear** (`Shift+N`, after the Pencil). A blending stump for the
+  Pencil's graphite: dragged over pencil marks - the selected ones, or with
+  none selected every one it passes - it spreads their graphite along the
+  drag, so tone moves from where it is thick to where it is thin, the
+  paper's tooth fills in, edges soften, and hatching turns into shading. The
+  stump trades graphite with the paper as density, so the darkness is kept.
+  With the Smear in hand Quick Width sizes the stump and Quick Opacity sets
+  its strength, and a stylus pressed harder smears more. Each mark keeps its
+  pass (`Stroke.smudges`), cut to the part of the drag that reached it: no
+  mark or layer is added, the mark's box grows to take in its graphite, and
+  the pass moves, turns, mirrors, scales and warps with the mark - one undo
+  step. Other marks are left alone, with a toast once a session. The SVG
+  and the PDF write a smeared mark as its picture at twice the page's
+  resolution, which napkin's importer reads back as the mark; a PNG has the
+  canvas's pixels. Scripts get `smear <width> <strength> <points>`, with a
+  `smear-missed` warning. `smudgeBuffer`, `smudgeFor`, `mapSmudges` and
+  `pencilPicture` join the API. `npm run gui-check -- smear` runs it, with
+  `smearState()` for the check.
+- **Liquify** (`Shift+R`, Transform > Liquify, or its button after Mesh
+  Warp's). Illustrator's Warp tools, for every mark but a pencil's: a brush,
+  drawn as a ring round the pointer, bends the marks under it. Its panel has
+  four: **Warp** pushes the outline along the drag, like clay; **Twirl**
+  turns what is under the brush about its centre; **Pucker** draws it in
+  toward the centre, and **Bloat** pushes it out. Twirl, Pucker and Bloat
+  keep working while the press is held, faster under a pen pressed harder.
+  The bend falls off smoothly to nothing at the ring. `Alt`-drag sizes the
+  brush, and so do `[` and `]`. It bends the selected marks, or with none
+  selected every mark under it. Pencil marks are left to the Smear, which a
+  toast says once a session; the Smear's own toast now names Liquify. Marks
+  ride on Mesh Warp's carrier, so anchors and handles move and a segment is
+  split only where it must be; a drawn rectangle or ellipse bends as a path,
+  its straight sides too. At the release each bent mark is fitted again at
+  the Freehand fidelity, so its anchors stay few; a straight side, or the
+  part of one the brush never reached, stays dead straight, and a Vector
+  Path the brush never split keeps its own anchors. One drag is one undo step, and `Escape`
+  during it puts everything back. Scripts get `warp <x> <y> <radius> <dx>
+  <dy>`, `twirl`, `pucker` and `bloat <x> <y> <radius> <amount>`, with a
+  `liquify-missed` warning. `liquifyField`, `liquifyMarks`,
+  `refitLiquified` and their kin join the API, and Mesh Warp's carrier
+  takes any `PointMap`. `npm run gui-check -- liquify` runs it, with
+  `liquifyState()` for the check.
+- **Six more read-outs for the GUI checks.** `hitAt()` gives the mark a
+  Select click at a point would pick, `directSelectState()` what Direct
+  Select is editing, `strokeGeometry(id)` a mark's points and anchors,
+  `lineStart()` where the next Shift-click line starts, `vectorPathState()`
+  the Vector Path being placed and whether a click would close it, and
+  `strokeSummary()` now gives where each mark starts and ends, its ink, and
+  whether its outline is off.
+  `npm run gui-check -- vector-path` runs the Vector Path's `Shift` and its
+  close indicator.
+- **GUI checks in the background** (`npm run gui-check -- --background`).
+  The checks can run while the computer is in use. Every window they open -
+  the drawing window, Settings and the documentation window - is shown
+  without the focus, past the left edge of every screen and out of the
+  taskbar, where neither the mouse nor the keyboard reaches it, and it
+  keeps drawing there. Each page is told it has the focus, and the drawing
+  window's page is pinned to the size and pixel scale the checks were
+  measured at - 1494 by 837 at 150%, which `NAPKIN_GUI_SIZE` and
+  `NAPKIN_GUI_SCALE` change - so a check's numbers hold on any screen. The
+  three held-keys sequences that watch a bare `Alt` hand the real focus to
+  the menu bar cannot run there; they are listed as skipped, and the
+  summary counts them. A plain `npm run gui-check` runs as before.
+- **The drawing engines, written up.** A ninth category of the API
+  documentation, [The drawing engines](docs/api/engines/README.md), with its
+  quickstart and cheatsheet. It has a section for each engine the app's tools
+  stand on, each with a worked example that runs as it is: `booleanOp`,
+  `eraseMarks`, `wipeMarks`, `arrangeFaces` and `stackFaces`,
+  `splitMark`, the clipping helpers, `PENCIL_GRADES`, `pencilPaint` and
+  `grainTile`, `smudgeBuffer`, and `liquifyField` and `liquifyMarks`. There
+  is also a helper that applies an engine's edit to a page.
+  `test/api-engines.test.ts` runs every example, and checks it prints what
+  its page says. The hub and `docs/api/INDEX.json` list the category, and the
+  drawing reference gains an "Erasing" section. The scripting helper's skill
+  knows the verbs that combine, cut, clip, smear and bend.
+- **A golden script of every verb.** `test/scripts/every-verb.napkin` draws
+  with each of the language's 66 verbs at least once, on two pages, and the
+  golden test fails when a verb is missing from it. `npm run pack-check` now
+  draws the new verbs and calls fifteen engines by name from the installed
+  package. `npm run test:graphic-design-api` checks them in the built API.
+
+### Changed
+
+- **The Pen is called the Brush, on `B`, with a brush for its icon, and
+  Vector Path is on `P`.** Nothing it draws changes, and nothing saved does:
+  files, scripts, settings and shortcut files still name it `pen`, and a
+  script's `tool` and the embedded editor's `setTool` take `brush` for it.
+  New marks land on layers named "Brush N"; a file's "Pen N" layers keep
+  their names. A key you gave either tool yourself stays yours.
+  `npm run gui-check -- brush` runs the rename.
+- **A color picked with a selection paints the one of fill and stroke in
+  front.** Fill Shape filled the selected closed shapes and recolored the
+  rest, whatever was meant. With the stroke in front - as the app starts - a
+  swatch or the color picker recolors every selected outline and text, and a
+  shape with no outline gains one; with the fill in front (`X`) it fills the
+  selected closed shapes, in place of a gradient, and leaves open lines as
+  they are. `npm run gui-check -- color-picker` runs both.
+- **A tool chosen during a press takes over once the press is released.** A
+  shortcut key pressed during a drag waits for the release, and so does the
+  drawing tool `Ctrl` gives back when it comes up during a drag begun with
+  the selection tool it lent (below): the drag finishes with the tool it began
+  with. A press also cancels the Copic nib-rotate's hold, which used to fire
+  under a drag and change the tool beneath it - one of the ways every tool
+  could stop working (see Fixed).
+- **Losing the window ends a press where it stands.** Switching to another
+  program, a dialog from another program, the Task Manager or a minimised
+  window keeps a stroke as far as it was drawn, places a line or a shape as
+  far as it went, and leaves a drag where it was put; a curve is dropped, as
+  `Esc` drops it. `Space`, `Ctrl` and `Alt` are let go with the window, since
+  their release goes to the other one: a `Space` left held turned every brush
+  stroke into a straight line.
+- **`Space` and `Ctrl` before a press mean what they mean in most drawing
+  programs.** With no press under way, holding `Space` gives the hand on
+  every tool - a drag pans the canvas, over a Transform box or with the Rotate
+  dialog open too - and holding `Ctrl` on a drawing tool gives Select or
+  Direct Select, whichever was chosen last, until `Ctrl` comes up. It comes
+  up once the pointer moves or presses, or after a fifth of a second, so a
+  chord such as `Ctrl+Z` leaves the drawing tool in hand. The eyedropper's own
+  `Ctrl`-for-Select is now this rule; Vector Path and Mesh Warp keep their
+  own `Ctrl`. **The straight line and the quick curve moved after the
+  press**: start a stroke, then hold `Space` for a line from where it began,
+  or `Ctrl + Space` for the quick curve. Before, they were `Space` or
+  `Ctrl + Space` held before the press, which is now the hand.
+- **The Copic nib-rotate's `Ctrl` hold is a still hold.** It arms only with a
+  drawing tool in hand and no press under way, and moving the pointer,
+  pressing or typing another key cancels it, so aiming the selection tool
+  with `Ctrl` never turns the nib. Held still for the hold time, it takes
+  over from the selection tool as before.
+- **A bare `Alt` hands the keyboard to the menu bar only when it was meant
+  for it**: when no other key was pressed in the five seconds before it and
+  nothing was done with it - no scroll, drag or press. `Alt` + scroll to
+  zoom, `Alt` + drag to copy, and an `Alt` a moment after other keys used to
+  take the keyboard away from the drawing. `Alt` with a menu's underlined
+  letter still opens that menu.
+- **A click picks the mark whose ink is under it, the one on top first.** A
+  line is as wide as it is painted, pressure included, and so are a Copic's
+  nib and a profiled stroke; a fill counts as the shape, and text and images
+  count by their boxes. Where marks overlap, the one painted over the others
+  wins: the order is the Layers panel's stack, so a layer moved up picks on
+  top as it paints on top. Failing that, the nearest mark within the Select
+  sensitivity is picked. It used to be the first mark in the page's list
+  within reach of its centre line, which after a layer was moved was often
+  the one underneath. The right-click menu, Fill Color, the Paint Bucket and
+  Mesh Warp pick in the same order (`src/core/hit-test.ts`,
+  `src/core/paint-order.ts`).
+- **A rubber band takes every mark whose ink its box meets**, a line it only
+  crosses included. It used to need one of a mark's points inside the box, so
+  a box across the edge of a rectangle, which has only its corners, took
+  nothing.
+- **Direct Select's reach is its setting, at every pick.** The Direct Select
+  sensitivity reaches the first click that picks a stroke, every anchor,
+  handle and path, and the Vector Path tool's anchors and closing click. It
+  used to be held to at least 8 pixels on a path with Bezier anchors, so the
+  slider did nothing below 8 there. Its default is now 8, and a 3 saved
+  before this release - the old default - reads as 8. A path is grabbed by its
+  painted edge as well as its middle, and a click inside a filled shape takes
+  the whole path.
+- **A Direct Select click is not an edit.** Nothing moves and no undo step is
+  added until the pointer has travelled 4 screen pixels, as with the Select
+  tool. A click that only picked an anchor used to leave an undo step that
+  undid nothing.
+- **The eyedropper's setting is called Eyedropper sensitivity.** It was
+  labelled "Select pixel sensitivity", which it never was.
+- **The canvas zooms in until one page pixel spans its shorter side**: on a
+  canvas 900 pixels tall, 90,000%. It stopped at 800%, which a canvas too
+  small to go deeper still reaches, and a window made smaller zooms out to
+  what its canvas can show. `Alt` + wheel zooms 10% a notch as before; a
+  trackpad zooms by as much of a notch as it scrolls, and a fast wheel that
+  sends several notches at once zooms that much further, where it used to
+  count every event as one notch (`src/renderer/zoom.ts`).
+- **View > Zoom In and Zoom Out zoom the canvas**, by a quarter about its
+  middle, and say where the zoom stands. They were Electron's own rows,
+  which zoom the whole window - the panels and the toolbar with the drawing.
+  `Ctrl++` and `Ctrl+-` run them as before, and their shortcuts can now be
+  changed in Edit Keyboard Shortcuts.
+- **What is meant as a distance on the screen is one at any zoom.** A brush
+  stroke keeps a sample every three quarters of a screen pixel, where it kept
+  one every three quarters of a page pixel - so a stroke drawn at 400 times
+  kept two points. The Curve tool's and the quick curve's shortest chord, the
+  Vector Path tool's handle drag and double click, the rubber band's and a
+  text box's least drag, and a selection's dashed box, 6 screen pixels off
+  its mark and drawn thin, are measured on the screen too.
+- **A magnified image shows its pixels.** Once one of its pixels covers 4
+  screen pixels, an image is drawn with them crisp rather than smoothed.
+- **A freehand stroke is kept as a few Bézier curves.** When a Brush, Marker or
+  Copic stroke is lifted, its samples - one every three quarters of a screen
+  pixel, 150 to 400 across the page - are fitted with the fewest cubic
+  curves within the Freehand fidelity of every one (Schneider's method,
+  `src/core/fit-curve.ts`): a drawn S curve keeps four anchors. Direct
+  Select shows those anchors with their handles, and the Vector Path tool can
+  edit them; the SVG and the other exports write the curves; a drawn corner
+  stays a corner; and a stylus's pressure is kept at every anchor, with an
+  anchor more wherever it swells or eases, so its width still follows the
+  hand. The stroke's points are sampled back from the anchors. Two-point
+  lines, shapes and erasers stay as they were, and so do strokes drawn
+  before this release.
+- **Sharpen keeps a few anchors too.** The auto-sharpen rebuild, and Sharpen
+  Selection's, drew ten points for every one they kept; each result is now
+  fitted within a third of a pixel, which keeps the hand-drawn wobble. A
+  joined stroke, a stroke joined on an endpoint snap, and a symmetry copy
+  stay fitted.
+- **The Eraser cuts the drawing.** It adds no mark of its own and no layer:
+  what the swath covers is cut out of the marks - every selected one, a
+  selected group's included, or with nothing selected every mark it touches
+  on a layer that can be drawn on - in one undo step, and the canvas shows
+  the cut as the swath goes. A filled shape, a Copic stroke or a profiled
+  one loses the area; a plain line is cut short wherever its painted width
+  would reach the swath and stays a line, in pieces. Text and images are
+  passed over, with a toast. An older file's eraser marks still paint, but
+  are never picked, boxed or counted in a box; they ride along with their
+  layer's selection, so a move takes their cuts with it.
+- **`Shift` holds a straight line to 45 degrees as well.** Under `Shift` the
+  straight line (a press, then `Space`) kept to level or plumb; it now keeps
+  to the nearest of eight directions, its end where the pointer falls along
+  that line.
+- **A script's `tool eraser` cuts, as the Eraser does.** The lines drawn
+  after it cut their swath out of the marks drawn before them on their
+  layer, and draw nothing of their own. Before, they drew the old kind of
+  eraser mark, which the app now shows only from older files. In a `wipe`
+  or a `stack` block, an eraser cuts the block's own marks. Text and pictures
+  are passed over, with a new `erase-skipped` warning, and where the
+  geometry cannot make a cut the old mark is drawn, so the picture still
+  shows it. Generate Script still writes an older file's eraser mark as
+  `tool eraser`, now with a note that it reads back as the cut it paints.
+- **Generate Script keeps clipping masks.** A clip group is written as a
+  `clip` block, and the script draws it back clipped. Where a `clip` cannot
+  say the group - its clip mark is not the last closed shape in it, or the
+  group has an opacity, is hidden or is locked - it is written as a plain
+  group, with a note.
+
+### Fixed
+
+- **The tools no longer stop working after a quick curve.** `Esc` during a
+  `Ctrl + Space` or `Ctrl + Shift + Space` quick curve, or losing the window
+  during one, left the canvas holding a pointer that had gone, and from then
+  on every press on the canvas was ignored, whatever the tool, until the app
+  was restarted. The same happened when `Ctrl` was held through a Select or
+  a Text drag long enough for the Copic nib-rotate to switch the tool, when a
+  shortcut key chose another tool mid-drag, and when `Esc` closed a Transform
+  box, a Rotate drag or a Mesh Warp in the middle of a drag. A press is now a
+  record of what it is doing and the tool it began with
+  (`src/renderer/press-state.ts`): its release acts on that record, whatever
+  ends a press lets go of the pointer, and a press still on record when a new
+  one arrives is finished rather than turning the new one away. The pointer
+  capture taken away mid-press and the page being hidden end the press too.
+  `npm run gui-check -- held-keys` runs each of these sequences.
+- **A click where an eraser has cut a mark away picks nothing.** It used to
+  pick the eraser's own mark, which is invisible, and a click beside the cut
+  could still pick the mark whose ink was gone. Erasers are never picked now.
+- **A rectangle no longer tears open when Direct Select drags the corner it
+  began at.** That corner is the rectangle's first point and its last; the
+  drag moved only the last. Both move now, on any closed shape whose ends
+  meet.
+- **`Shift` constrains every Direct Select drag.** It pinned a vector path's
+  anchors and handles to the nearest axis or diagonal, but not a freehand
+  stroke's points or tangent handles.
+  `npm run gui-check -- select-accuracy` runs these and the changes above.
+- **A blur or a shadow at the edge of the canvas no longer fades out.** A
+  layer, a group or a mark with effects was worked on a picture cut off at
+  the canvas's edge, so a blurred layer thinned toward the edges, more the
+  further in the zoom; at the new deepest zoom it would have vanished. Such
+  a picture is now painted past the view by as far as its effects reach, at
+  most half the view's diagonal, with a blur held to a third of that; and it
+  is not painted at all when nothing it holds reaches the view, where deep
+  in its blur cost as much as on the screen.
+- **No grey line along the bottom of the canvas.** At a device pixel ratio
+  of 1.5 a canvas 617.67 pixels tall has a last row the paper only half
+  covered, over black; a group's drop shadow reaching it made it darker
+  still. The paper now covers every pixel of the canvas.
+  `npm run gui-check -- zoom` runs these and the zoom changes above.
+- **Translucent ink lies flat.** A plain stroke was painted a segment at a
+  time, each with its own round ends at the stroke's opacity, so wherever two
+  met they overlapped and darkened: below full opacity a line read as a
+  string of beads. A stroke is now one mark - one path, or one filled outline
+  where a stylus changes its width - so its tone is even from end to end.
+- **Join no longer keeps the first stroke's curve.** Joining a stroke with
+  Bézier anchors (a Vector Path's, and now any freehand stroke's) to others
+  kept the first one's anchors, so the joined stroke exported as the first
+  piece alone. The joined run is fitted afresh.
+  `npm run gui-check -- freehand` runs the freehand changes above.
+- **An erase cuts every mark it is aimed at.** The Eraser's mark went on the
+  layer in use and cut only that layer, and every mark has a layer of its
+  own, so one erase cut one mark at most - and often not the one under it.
+- **Erasing with a group row picked adds no layer.** It made an empty "Layer
+  N" inside the group for the eraser's mark, which cut nothing.
+- **Eraser marks draw no boxes.** Selecting a layer selected its eraser
+  marks too, each with a dashed box of its own, and every box built on the
+  selection - Transform, Rotate, Move, the X and Y fields, Fit All in View -
+  stretched over the ground they had erased. A layer left with only eraser
+  marks is empty now, and goes with them.
+  `npm run gui-check -- eraser` runs the Eraser's changes.
+- **A tool added in a release keeps its place in a rearranged toolbar.** The
+  Vector Path button's place was never saved: the default tool order left it
+  out, and a saved order kept only the tools it listed. It is listed now,
+  with the Shape Eraser, and a tool a saved order does not know yet goes in
+  after the tool it follows by default rather than at the end.
+- **A straight line's end and a quick curve's far end snap to a stroke's end
+  again.** They stopped when `Shift` became the line's axis lock and the
+  curve's apex key. They now snap whenever `Shift` is not held, within the
+  snap sensitivity and with its ring, as a freehand stroke's end does - and
+  never back onto their own start. The Curve tool's Free variant still keeps
+  its ends where they fall.
+  `npm run gui-check -- lines` runs these, the 45 degrees and the Shift-click
+  line.
+
 ## [1.0.0-alpha.4.5.0] - 2026-09-26
 
 Menus made from the tools' own types, and scripts made from the drawing,

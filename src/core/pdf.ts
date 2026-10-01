@@ -22,6 +22,10 @@
  * - Image items are embedded only when their data URL is a JPEG
  *   (`image/jpeg`); callers should pre-convert other formats.
  *
+ * - A clip group's layers paint inside its clip: each clip's contours a path
+ *   made the clipping path (`W n`) inside the layer's `q ... Q`, nested clips
+ *   cutting in turn, and the clip mark itself left out, as it paints nothing.
+ *
  * What a page holds that the PDF cannot print - an image that is not a JPEG,
  * a color that is not a color, a gradient, an effect - is reported through
  * `PdfOptions.onWarning`.
@@ -42,6 +46,9 @@ import {
   type Stroke,
 } from './types.js';
 import { copicNibPolygons } from './nib.js';
+import { meanPressure, pencilMeanCoverage, pencilPaint, pencilPicture, pencilRegion } from './pencil.js';
+import { zlibDeflate } from './graphic-design/deflate.js';
+import { clipIndex } from './clip.js';
 import { linkName } from './link.js';
 import { activeProfile, profileInputOf, profileOutline } from './stroke-profile.js';
 import { parseColor } from './graphic-design/color.js';
@@ -214,6 +221,43 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
     return entry;
   };
 
+  /**
+   * A smeared Pencil mark's picture as an image: its color, and its alpha as
+   * a soft mask, both deflated. PDF has no paint for graphite a stump has
+   * pushed about, so the picture is what prints, at twice the page's
+   * resolution - as the SVG export writes it.
+   */
+  const pictureFor = (stroke: Stroke): { name: string; x: number; y: number; width: number; height: number } | null => {
+    const region = pencilRegion(stroke, 2);
+    if (!region) return null;
+    const data = pencilPicture(stroke, region);
+    const n = region.width * region.height;
+    const rgb = new Uint8Array(n * 3);
+    const alpha = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      rgb[i * 3] = data[i * 4];
+      rgb[i * 3 + 1] = data[i * 4 + 1];
+      rgb[i * 3 + 2] = data[i * 4 + 2];
+      alpha[i] = data[i * 4 + 3];
+    }
+    const latin1 = (bytes: Uint8Array): string => {
+      let out = '';
+      for (let i = 0; i < bytes.length; i += 8192) out += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      return out;
+    };
+    const mask = latin1(zlibDeflate(alpha));
+    const color = latin1(zlibDeflate(rgb));
+    const maskObj = addObject(
+      `<< /Type /XObject /Subtype /Image /Width ${region.width} /Height ${region.height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${mask.length} >>\nstream\n${mask}\nendstream`,
+    );
+    const obj = addObject(
+      `<< /Type /XObject /Subtype /Image /Width ${region.width} /Height ${region.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /SMask ${maskObj} 0 R /Filter /FlateDecode /Length ${color.length} >>\nstream\n${color}\nendstream`,
+    );
+    const name = `Im${images.size + 1}`;
+    images.set(`pencil:${obj}`, { name, obj, width: region.width, height: region.height });
+    return { name, x: region.x / 2, y: region.y / 2, width: region.width / 2, height: region.height / 2 };
+  };
+
   interface PendingPage {
     /** The media box, in PDF points: left, bottom, right, top. */
     media: [number, number, number, number];
@@ -236,6 +280,7 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
     // strokesByLayer and effectiveLayers).
     const byLayer = strokesByLayer(sketch);
     const effectiveOf = effectiveLayers(sketch);
+    const clips = clipIndex(sketch);
     const page = `page "${sketch.name}"`;
     const layerById = new Map(sketch.layers.map((l) => [l.id, l]));
     const effectsAbove = (layer: Layer): boolean => {
@@ -268,7 +313,20 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
       const effective = effectiveOf.get(layer.id);
       if (!effective || !effective.visible) continue;
       if (effectsAbove(layer)) warn(`${page}: an effect is not drawn in a PDF, so what carries it prints plain`);
-      for (const stroke of byLayer.get(layer.id) ?? []) {
+      // A clip mark paints nothing while it clips; a layer left with nothing is passed by.
+      const marks = clips.any ? (byLayer.get(layer.id) ?? []).filter((s) => !clips.marks.has(s.id)) : (byLayer.get(layer.id) ?? []);
+      if (marks.length === 0) continue;
+      // In a clip group the layer paints inside every clip above it: each one's
+      // contours a path, made the clip (W) and drawn nothing (n).
+      const above = clips.of(layer);
+      if (above.length > 0) {
+        ops.push('q');
+        for (const clip of above) {
+          const outline = clip.region.map((ring) => ring.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 ? 'm' : 'l'}`).join(' ') + ' h');
+          ops.push(...outline, 'W n');
+        }
+      }
+      for (const stroke of marks) {
         if (stroke.effects && stroke.effects.length > 0) {
           warn(`${page}: an effect is not drawn in a PDF, so what carries it prints plain`);
         }
@@ -401,6 +459,29 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
           continue;
         }
 
+        // Pencil: the outline the canvas fills, at the lead's mean tone over
+        // the paper's tooth - a PDF has no grain paint (open question 32).
+        if (stroke.tool === 'pencil' && stroke.smudges?.length && !stroke.noStroke) {
+          // A smeared one prints as its picture.
+          const picture = pictureFor(stroke);
+          if (picture) {
+            ops.push('q', ...alphaOps(alpha), `${num(picture.width)} 0 0 ${num(picture.height)} ${num(picture.x)} ${num(H - picture.y - picture.height)} cm`, `/${picture.name} Do`, 'Q');
+          }
+          continue;
+        }
+        if (stroke.tool === 'pencil') {
+          if (stroke.noStroke) continue;
+          const contours = profileOutline(profileInputOf(stroke));
+          if (contours.length === 0) continue;
+          const lays = pencilMeanCoverage(pencilPaint(stroke.pencil), meanPressure(pts));
+          const fillPath =
+            contours
+              .map((contour) => contour.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 ? 'm' : 'l'}`).join(' ') + ' h')
+              .join(' ') + ' f';
+          ops.push('q', ...alphaOps(alpha * (ink?.alpha ?? 1) * lays), `${col(r)} ${col(g)} ${col(b)} rg`, fillPath, 'Q');
+          continue;
+        }
+
         // A stroke profile: fill the outline the SVG export writes, the
         // boundary of what the canvas paints. A switched-off outline paints
         // nothing here, its fill having been painted above.
@@ -442,6 +523,7 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
           'Q',
         );
       }
+      if (above.length > 0) ops.push('Q');
     }
 
     // A crop is the media box: page pixels, flipped to PDF's upward y.

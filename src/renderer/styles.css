@@ -337,14 +337,106 @@ body {
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary);
 }
 
-.custom-color input[type="color"] {
-  width: 28px;
-  height: 28px;
+/* Fill and stroke (fill-stroke.ts): the fill box and the stroke box
+   overlapping, the one in front on top, as a vector editor's toolbar draws
+   them. It takes the color well's place: 34px where the well was 28, and row
+   2 of the toolbar had 46 to spare. */
+.fill-stroke {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 34px;
+}
+
+.fs-box {
+  position: absolute;
+  width: 22px;
+  height: 22px;
   padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
-  background: var(--surface);
+  border-radius: 3px;
   cursor: pointer;
+}
+
+.fs-fill {
+  left: 0;
+  top: 0;
+  z-index: 1;
+  border: 1px solid var(--border-strong);
+  background: var(--fs-color, transparent);
+}
+
+/* None: white with a red slash. */
+.fs-fill.is-none {
+  background:
+    linear-gradient(
+      to top right,
+      transparent calc(50% - 1px),
+      #d0342c calc(50% - 1px),
+      #d0342c calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ),
+    #ffffff;
+}
+
+/* The stroke is a ring: the fill behind shows through it. */
+.fs-stroke {
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  border: 6px solid var(--fs-color, var(--ink));
+  background: transparent;
+  box-shadow: 0 0 0 1px var(--border-strong), inset 0 0 0 1px var(--border-strong);
+}
+
+.fill-stroke[data-front="fill"] .fs-fill {
+  z-index: 3;
+}
+
+.fs-box:focus-visible,
+.fs-swap:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.fs-swap {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 11px;
+  height: 11px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.fs-swap:hover {
+  color: var(--ink);
+}
+
+.fs-swap svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The color well is the picker the box in front opens; it has no place of its own. */
+.fs-well {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Width slider */
@@ -1234,6 +1326,232 @@ body {
 .warp-glyph circle {
   fill: currentColor;
   stroke: none;
+}
+
+/* Liquify's glyph: a line bent where the brush - the dashed ring - is over it. */
+.liquify-glyph {
+  display: block;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.liquify-glyph .brush {
+  stroke-width: 1;
+  stroke-dasharray: 1.6 1.3;
+}
+
+/* Liquify's panel is the Shape Eraser's - four tiles, two by two - with no
+   Top Path row; Warp's tile draws the brush's ring finer, and dashed. */
+.liquify-panel .shape-tile .brush {
+  stroke-width: 1;
+  stroke-dasharray: 2 1.5;
+}
+
+/* The drawn button glyphs: the Brush's - a handle, a ferrule and a tuft -
+   the Shape Eraser's, a shape with a cut across it, the Shape Stacker's, two
+   circles and the piece they share, and Split's scissors. */
+.brush-glyph,
+.pencil-glyph,
+.smear-glyph,
+.shape-eraser-glyph,
+.shape-stacker-glyph,
+.split-glyph {
+  display: block;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* The ferrule is the one solid part: it keeps the handle and the tuft apart at 15 px. */
+.brush-glyph .ferrule,
+.pencil-glyph .lead,
+.smear-glyph .tip,
+.shape-stacker-glyph .lens {
+  fill: currentColor;
+}
+
+/* The Smear's glyph: a tortillon, its tip dark with graphite, and the soft
+   smudge it leaves. */
+.smear-glyph .smudge {
+  stroke-width: 2;
+  opacity: 0.45;
+}
+
+/* The Pencil's drawing kit: a row of chips for each medium, each drawing a
+   short line with its own lead (core/pencil.ts), its grade under it. */
+.tool-flyout.pencil-kit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pencil-kit .pencil-kit-medium {
+  margin: var(--s1) var(--s1) 0;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.pencil-kit .pencil-kit-row {
+  display: flex;
+  gap: 3px;
+}
+
+.pencil-kit .pencil-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 48px;
+  padding: 3px 4px;
+  font-size: 11px;
+  text-align: center;
+}
+
+.pencil-kit .pencil-sample {
+  display: block;
+  background: #fcfaf5;
+  border-radius: 2px;
+}
+
+.pencil-kit button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* The Shape Eraser's panel: the four shapes as outline tiles, two by two,
+   and Top Path across the bottom (the mockup's layout). */
+.tool-flyout.shape-eraser-panel {
+  display: grid;
+  grid-template-columns: repeat(2, 72px);
+  gap: 4px;
+}
+
+.shape-eraser-panel .shape-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--s2);
+  text-align: center;
+  font-size: 12px;
+}
+
+.shape-eraser-panel .shape-tile svg {
+  width: 34px;
+  height: 26px;
+  fill: none;
+  stroke: #000;
+  stroke-width: 1.6;
+}
+
+.shape-eraser-panel .top-path {
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
+.shape-eraser-panel button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* The Shape Stacker's panel: the six Wipe Stacks as tiles, three by two - a
+   vector editor's Pathfinder icons, drawn again - and a line on stacking. */
+.tool-flyout.shape-stacker-panel {
+  display: grid;
+  grid-template-columns: repeat(3, 76px);
+  gap: 4px;
+}
+
+.shape-stacker-panel .shape-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--s2);
+  text-align: center;
+  font-size: 12px;
+}
+
+.shape-stacker-panel .shape-tile svg {
+  width: 34px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+/* What a wipe keeps is solid; what it takes away is a dashed outline. */
+.shape-stacker-panel .shape-tile .kept {
+  fill: currentColor;
+  stroke: none;
+}
+
+.shape-stacker-panel .shape-tile .gone {
+  stroke-dasharray: 2 1.5;
+  opacity: 0.7;
+}
+
+.shape-stacker-panel .shape-tile .piece {
+  fill: currentColor;
+  fill-opacity: 0.3;
+}
+
+.shape-stacker-panel .shape-tile.is-disabled {
+  opacity: 0.45;
+}
+
+.shape-stacker-panel .stacker-hint {
+  grid-column: 1 / -1;
+  margin: var(--s1) var(--s2) 0;
+  max-width: 236px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.shape-stacker-panel button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* A clip group's row and its clipping path's (core/clip.ts): an icon on the
+   group, a small word on the path that paints nothing while it clips. */
+.layer-clip-icon,
+.layer-clip-badge {
+  flex: none;
+  margin-left: var(--s1);
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.layer-clip-badge {
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.layer-row.is-clip-path .layer-name {
+  text-decoration: underline dotted;
+}
+
+/* The session notice's check box (notice.ts). */
+.notice-again {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: var(--s2) 0 var(--s3);
+  font-size: 13px;
 }
 
 /* "(click to select art)", beside the pointer while it is over art. */

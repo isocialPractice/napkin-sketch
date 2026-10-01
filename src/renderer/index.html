@@ -14,8 +14,8 @@
     <div id="app" class="app">
       <header id="toolbar" class="toolbar" role="toolbar" aria-label="Sketch tools">
         <section id="tool-group" class="group" aria-label="Tools">
-          <button id="tool-pen" class="tool" type="button" data-command="tool-pen" title="Pen ({key})" aria-label="Pen">
-            <span class="icon" aria-hidden="true">✎</span><span class="label">Pen</span>
+          <button id="tool-pen" class="tool" type="button" data-command="tool-pen" title="Brush ({key})" aria-label="Brush">
+            <span class="icon" aria-hidden="true"><svg class="brush-glyph" viewBox="0 0 16 16"><path d="M14.3 1.7 9.1 6.9" /><path class="ferrule" d="M8.04 5.84 10.16 7.96 8.89 9.23 6.77 7.11Z" /><path d="M6.77 7.11C4.29 8.03 3.16 11.14 3.02 13.55 4.72 13.26 7.62 11.64 8.89 9.23" /></svg></span><span class="label">Brush</span>
           </button>
           <button id="tool-marker" class="tool" type="button" data-command="tool-marker" title="Marker ({key})" aria-label="Marker">
             <span class="icon" aria-hidden="true">▰</span><span class="label">Marker</span>
@@ -23,8 +23,23 @@
           <button id="tool-copic" class="tool" type="button" data-command="tool-copic" title="Copic marker ({key})" aria-label="Copic marker">
             <span class="icon" aria-hidden="true">◪</span><span class="label">Copic</span>
           </button>
+          <button id="tool-pencil" class="tool has-flyout" type="button" data-command="tool-pencil" title="Pencil ({key}) - press for the drawing kit" aria-label="Pencil" aria-haspopup="menu">
+            <span class="icon" aria-hidden="true"><svg class="pencil-glyph" viewBox="0 0 16 16"><path d="M11.4 1.9 14.1 4.6 5.6 13.1 2.2 13.8 2.9 10.4Z" /><path d="M2.9 10.4 5.6 13.1M10.1 3.2 12.8 5.9" /><path class="lead" d="M2.2 13.8 2.55 12.1 3.9 13.45Z" /></svg></span><span class="label">Pencil</span>
+          </button>
+          <button id="tool-smear" class="tool" type="button" data-command="tool-smear" title="Smear ({key}) - a blending stump: drag over pencil marks to spread their graphite" aria-label="Smear">
+            <span class="icon" aria-hidden="true"><svg class="smear-glyph" viewBox="0 0 16 16"><path d="M12.9 1.9 14.1 3.1 6.3 10.9 5.1 9.7Z" /><path d="M10.9 3.9 12.1 5.1" /><path class="tip" d="M5.1 9.7 6.3 10.9 2.3 13.7Z" /><path class="smudge" d="M1.6 15.2C3 14.4 4.6 14.9 6 14.5 7.2 14.2 8.1 13.4 9.3 13.6" /></svg></span><span class="label">Smear</span>
+          </button>
           <button id="tool-eraser" class="tool" type="button" data-command="tool-eraser" title="Eraser ({key})" aria-label="Eraser">
             <span class="icon" aria-hidden="true">⌫</span><span class="label">Eraser</span>
+          </button>
+          <button id="tool-shape-eraser" class="tool has-flyout" type="button" data-command="tool-shape-eraser" title="Shape Eraser ({key}) - drag a rectangle to cut it out of the selected marks; press for the shapes" aria-label="Shape Eraser" aria-haspopup="menu">
+            <span class="icon" aria-hidden="true"><svg class="shape-eraser-glyph" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1.5" /><path d="M5.5 10.5 10.5 5.5" /></svg></span><span class="label">Shape Eraser</span>
+          </button>
+          <button id="tool-shape-stacker" class="tool has-flyout" type="button" data-command="tool-shape-stacker" title="Shape Stacker ({key}) - drag across the pieces of the selected shapes to merge them; Alt takes them away, Shift drags a box; press for the Wipe Stacks" aria-label="Shape Stacker" aria-haspopup="menu">
+            <span class="icon" aria-hidden="true"><svg class="shape-stacker-glyph" viewBox="0 0 16 16"><circle cx="6" cy="8" r="4.5" /><circle cx="10" cy="8" r="4.5" /><path class="lens" d="M8 3.97A4.5 4.5 0 0 1 8 12.03 4.5 4.5 0 0 1 8 3.97Z" /></svg></span><span class="label">Shape Stacker</span>
+          </button>
+          <button id="tool-split" class="tool" type="button" data-command="tool-split" title="Split ({key}) - click a path to cut it there, as scissors do; a closed one opens there" aria-label="Split">
+            <span class="icon" aria-hidden="true"><svg class="split-glyph" viewBox="0 0 16 16"><circle cx="4.5" cy="11.5" r="2.3" /><circle cx="11.5" cy="11.5" r="2.3" /><path d="M6.2 9.8 12.3 1.5M9.8 9.8 3.7 1.5" /></svg></span><span class="label">Split</span>
           </button>
           <button id="tool-select" class="tool" type="button" data-command="tool-select" title="Select ({key})" aria-label="Select">
             <span class="icon" aria-hidden="true">⤢</span><span class="label">Select</span>
@@ -41,6 +56,9 @@
           <span class="warp-rule" aria-hidden="true"></span>
           <button id="tool-warp" class="tool" type="button" data-command="tool-warp" title="Mesh Warp ({key}) - click art to mesh it, then drag its pins to bend it. Click the mesh to add a pin, Delete takes the selected pins out, Enter keeps the warp and Esc throws it away" aria-label="Mesh Warp">
             <span class="icon" aria-hidden="true"><svg class="warp-glyph" viewBox="0 0 16 16"><path d="M1.5 12.5 8 2.5l6.5 10ZM4.75 7.5h6.5M8 2.5l-3.25 10M8 2.5l3.25 10" /><circle cx="8" cy="7.5" r="1.7" /></svg></span><span class="label">Mesh Warp</span>
+          </button>
+          <button id="tool-liquify" class="tool" type="button" data-command="tool-liquify" title="Liquify ({key}) - Warp pushes the outline along the drag, like clay. Alt-drag, or [ and ], sizes the brush; press for the four" aria-label="Liquify">
+            <span class="icon" aria-hidden="true"><svg class="liquify-glyph" viewBox="0 0 16 16"><path d="M1.5 10C4.5 10 5 5.5 8 5.5S11.5 10 14.5 10" /><circle class="brush" cx="8" cy="8" r="5.5" /></svg></span><span class="label">Liquify</span>
           </button>
         </section>
 
@@ -86,13 +104,20 @@
 
         <section class="group" aria-label="Ink color">
           <div id="swatches" class="swatches"></div>
-          <label class="custom-color" title="Custom ink color">
-            <input id="color-custom" type="color" value="#1f2328" aria-label="Custom ink color" />
-          </label>
+          <!-- Fill and stroke (fill-stroke.ts): the box in front is the one the
+               colors paint. A click on the other brings it forward, one on
+               the box in front opens the color well on its color, and the
+               corner arrow swaps them. -->
+          <div id="fill-stroke" class="fill-stroke" role="group" aria-label="Fill and stroke" data-front="stroke" data-fill="none" data-stroke="#1f2328">
+            <button id="fill-stroke-fill" class="fs-box fs-fill is-none" type="button" data-command="fill-in-front" aria-pressed="false" aria-label="Fill: none" title="Fill: none - click to put it in front ({key})"></button>
+            <button id="fill-stroke-stroke" class="fs-box fs-stroke" type="button" data-command="fill-in-front" aria-pressed="true" aria-label="Stroke: #1f2328" title="Stroke: #1f2328, in front - click to pick its color; Fill in Front ({key})"></button>
+            <button id="fill-stroke-swap" class="fs-swap" type="button" data-command="swap-fill-stroke" aria-label="Swap fill and stroke" title="Swap Fill and Stroke ({key})"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5h6L6 2M8.5 6.5h-6L4 8" /></svg></button>
+            <input id="color-custom" class="fs-well" type="color" value="#1f2328" tabindex="-1" aria-label="The color in front" />
+          </div>
         </section>
 
         <section class="group group-stack" aria-label="Stroke width">
-          <button id="stroke-profile" class="btn btn-profile" type="button" data-command="stroke-profile" aria-haspopup="dialog" aria-label="Stroke profile: Default" title="Stroke Profile - how the width runs along new pen and marker strokes ({key})">
+          <button id="stroke-profile" class="btn btn-profile" type="button" data-command="stroke-profile" aria-haspopup="dialog" aria-label="Stroke profile: Default" title="Stroke Profile - how the width runs along new brush and marker strokes ({key})">
             <span>Stroke Profile</span>
             <span class="profile-pill" aria-hidden="true">
               <svg id="stroke-profile-picture" viewBox="0 0 48 10"><path d="" /></svg>
@@ -123,7 +148,7 @@
           <button id="clear" class="btn" type="button" data-command="clear-page" title="Clear page ({key})">Clear</button>
         </section>
 
-        <section id="mirror-group" class="group" aria-label="Mirror">
+        <section id="mirror-group" class="group" aria-label="Mirror and Transform">
           <button id="mirror-selection" class="btn btn-with-glyph" type="button" data-command="mirror" title="Mirror the selection horizontally or vertically, in place or as a copy ({key})">
             <svg class="btn-glyph mirror-glyph" viewBox="0 0 48 26" aria-hidden="true">
               <polygon points="3,3 19,13 3,23" />
@@ -131,6 +156,9 @@
               <line class="mirror-glyph-axis" x1="24" y1="1" x2="24" y2="25" />
             </svg>
             Mirror
+          </button>
+          <button id="transform-selection" class="btn" type="button" data-command="toggle-transform" aria-pressed="false" title="Transform the selection ({key}) - drag the box's handles to resize it; Shift keeps its shape, Alt works from the centre">
+            Transform
           </button>
         </section>
 
@@ -282,7 +310,7 @@
                 </div>
                 <div class="prop-row">
                   <label class="prop-field" for="prop-stroke-profile"><span>Profile</span></label>
-                  <select id="prop-stroke-profile" class="prop-unit prop-unit-wide" aria-label="Stroke profile" title="How the width runs along the outline. Pen and marker strokes take one; a Copic nib is its own width.">
+                  <select id="prop-stroke-profile" class="prop-unit prop-unit-wide" aria-label="Stroke profile" title="How the width runs along the outline. Brush and marker strokes take one; a Copic nib is its own width.">
                     <option value="uniform">Default</option>
                     <option value="rounded">Rounded</option>
                     <option value="tapered">Tapered</option>
@@ -375,9 +403,9 @@
           <span id="status-dirty" class="status-dirty">Saved</span>
         </div>
         <div class="pages" aria-label="Page navigation">
-          <button id="prev-page" class="btn btn-ghost" type="button" title="Previous page">‹</button>
+          <button id="prev-page" class="btn btn-ghost" type="button" data-command="prev-page" title="Previous page ({key})">‹</button>
           <span id="page-indicator" class="page-indicator">Page 1 / 1</span>
-          <button id="next-page" class="btn btn-ghost" type="button" title="Next page">›</button>
+          <button id="next-page" class="btn btn-ghost" type="button" data-command="next-page" title="Next page ({key})">›</button>
         </div>
       </footer>
 
@@ -558,6 +586,19 @@
             <button id="anim-step3-redraw" class="btn btn-ghost is-hidden" type="button" title="Discard this frame and draw it again">Redraw</button>
             <button id="anim-step3-done" class="btn is-hidden" type="button" title="Keep this frame and end the sequence">Done</button>
             <button id="anim-step3-next" class="btn btn-primary is-hidden" type="button" title="Keep this frame and draw the next one from it">Keep and draw next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- A session notice: why an action did nothing (notice.ts). Ticked
+           away, it stays away for the session and shows as a toast. -->
+      <div id="notice-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-labelledby="notice-title">
+        <div class="export-dialog-inner">
+          <p id="notice-title" class="export-dialog-title"></p>
+          <p id="notice-text" class="anim-dialog-msg"></p>
+          <label class="notice-again"><input id="notice-again" type="checkbox" /> Do not show this notice again</label>
+          <div class="export-dialog-actions">
+            <button id="notice-ok" class="btn btn-primary" type="button">OK</button>
           </div>
         </div>
       </div>
@@ -750,7 +791,7 @@
         <div class="export-dialog-inner">
           <p id="profile-title" class="export-dialog-title">Stroke Profile</p>
           <div id="profile-list" class="profile-list" role="listbox" tabindex="0" aria-labelledby="profile-title"></div>
-          <p class="anim-dialog-note">New pen and marker strokes are drawn with the profile you select. With the Select tool, the selected strokes take it too.</p>
+          <p class="anim-dialog-note">New brush and marker strokes are drawn with the profile you select. With the Select tool, the selected strokes take it too.</p>
           <div class="export-dialog-actions profile-actions">
             <button id="profile-cancel" class="btn btn-ghost" type="button">Cancel</button>
             <button id="profile-apply" class="btn btn-primary" type="button">Select</button>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The drawing engines - napkin-sketch</title>
+<meta name="description" content="The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.4.6.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>The drawing engines</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Reference</span></nav>
+<h1 id="the-drawing-engines">The drawing engines<a class="anchor" href="#the-drawing-engines" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p>The app's tools stand on engines that run as plain functions: regions
+combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split,
+clipping masks, the Pencil's grades and grain, the Smear and Liquify. This page
+is the reference for each as a program calls it from <code>napkin-sketch</code>, with a
+worked example for each that runs as it is.</p>
+<p><strong>Contents</strong></p>
+<ul>
+<li><a href="#what-this-is">What this is</a></li>
+<li><a href="#the-mental-model">The mental model</a></li>
+<li><a href="#reference">Reference</a>
+<ul>
+<li><a href="#regions">Regions</a></li>
+<li><a href="#combining-regions-booleanop">Combining regions: booleanOp</a></li>
+<li><a href="#erasing-erasemarks">Erasing: eraseMarks</a></li>
+<li><a href="#wiping-wipemarks">Wiping: wipeMarks</a></li>
+<li><a href="#faces-and-stacking-arrangefaces-stackfaces">Faces and stacking: arrangeFaces, stackFaces</a></li>
+<li><a href="#splitting-splitmark">Splitting: splitMark</a></li>
+<li><a href="#clipping-masks">Clipping masks</a></li>
+<li><a href="#pencils-pencil_grades-pencilpaint-graintile">Pencils: PENCIL_GRADES, pencilPaint, grainTile</a></li>
+<li><a href="#smearing-smudgebuffer">Smearing: smudgeBuffer</a></li>
+<li><a href="#liquify-liquifyfield-liquifymarks">Liquify: liquifyField, liquifyMarks</a></li>
+<li><a href="#applying-an-edit">Applying an edit</a></li>
+</ul></li>
+<li><a href="#worked-examples">Worked examples</a></li>
+<li><a href="#limits">Limits</a></li>
+<li><a href="#for-agents">For agents</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+<h2 id="what-this-is">What this is<a class="anchor" href="#what-this-is" aria-label="Link to this section">#</a></h2>
+<p>What the Eraser cuts, what a wipe leaves, where Split cuts and how a Liquify
+brush bends are not drawing-window code: each is a function in the core, which
+the window calls on a press and a napkin script calls for its verbs. The same
+functions are exported from <code>napkin-sketch</code>, so a program can do to a sketch
+what the tools do, with no window, no DOM and no disk.</p>
+<p>None of them changes what it is given. An engine that edits marks gives back
+the edit - which marks changed, which went, which were added - and the caller
+applies it; one that draws gives back pixels or points. The sketches they read
+are the app's own: a page from <code>evaluate</code>, from a <code>.skbk</code>, or from the
+importer.</p>
+<h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-text"> marks --&gt; regions (closed contours) --&gt; booleanOp --&gt; contours
+ a page + mark ids --&gt; eraseMarks, wipeMarks, stackFaces --&gt; an edit: changed, removed, added
+ a mark + a point --&gt; nearestOnMark --&gt; splitMark --&gt; two marks, or one opened
+ a page --&gt; clipIndex --&gt; what each layer is clipped by
+ a pencil mark --&gt; rasterizePencil, smudgeBuffer --&gt; its picture's pixels
+ marks + dabs --&gt; liquifyMarks --&gt; the marks bent</code></pre>
+<p>Coordinates are page pixels, <code>y</code> running down, as everywhere in the app.</p>
+<h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
+<h3 id="regions">Regions<a class="anchor" href="#regions" aria-label="Link to this section">#</a></h3>
+<p>A region is the inside of closed contours: an array of contours, each an
+array of points <code>{ x, y }</code>, filled under the non-zero rule unless a call says
+<code>evenodd</code>. A square is one contour of four points; a ring is two, the hole
+wound against the outside. Every engine that cuts or combines works on
+regions, and gives back marks rebuilt from them, with their curves kept where
+a result runs along a mark's own outline.</p>
+<h3 id="combining-regions-booleanop">Combining regions: booleanOp<a class="anchor" href="#combining-regions-booleanop" aria-label="Link to this section">#</a></h3>
+<p><code>booleanOp(a, b, op, options?)</code> combines two regions: <code>union</code> (in either),
+<code>difference</code> (in <code>a</code> and not in <code>b</code>) or <code>intersection</code> (in both). It gives
+back the result's contours, or null when the operands have more than
+<code>BOOLEAN_EDGE_LIMIT</code> edges between them or floating point leaves pieces that
+will not close. <code>options.ruleA</code> and <code>options.ruleB</code> say how each operand
+fills; <code>booleanRegions</code> gives the same result with the vertices where it
+passes from one operand's edge to the other's, which a refit keeps as corners.</p>
+<pre><code class="language-js">import { booleanOp } from 'napkin-sketch';
+
+const square = (x, y, size) =&gt; [[{ x, y }, { x: x + size, y }, { x: x + size, y: y + size }, { x, y: y + size }]];
+const ring = booleanOp(square(0, 0, 100), square(25, 25, 50), 'difference');
+console.log(ring.length);
+// → 2
+const overlap = booleanOp(square(0, 0, 100), square(50, 50, 100), 'intersection');
+console.log(JSON.stringify(overlap[0].map((p) =&gt; [p.x, p.y]).sort()));
+// → [[100,100],[100,50],[50,100],[50,50]]</code></pre>
+<h3 id="erasing-erasemarks">Erasing: eraseMarks<a class="anchor" href="#erasing-erasemarks" aria-label="Link to this section">#</a></h3>
+<p><code>eraseMarks(sketch, ids, region)</code> cuts a region out of the marks of <code>ids</code>, as
+the app's Eraser does, and gives back <code>{ changed, removed, skipped, raster }</code>:
+each changed mark whole, by id; the ids of marks it left nothing of; the marks
+in reach it passes over - text, pictures and placed files; and the marks whose
+cut the geometry could not make. <code>eraseRegionOf(eraser)</code> is the region an
+eraser mark takes away: its swath, the width it is drawn at all along, with
+round ends. <code>eraseKind(mark)</code> says how a mark is cut: <code>area</code> for a filled
+shape, a Copic stroke or a profiled one, <code>line</code> for the rest, <code>skip</code> for what
+it passes over.</p>
+<ul>
+<li>A <strong>line</strong> is cut along its length into a mark of several pieces, one
+subpath each; its width stays.</li>
+<li>An <strong>area</strong> has the region taken out of it, and the cut edge is refitted
+into curves, a corner kept wherever the cut met its edge.</li>
+</ul>
+<pre><code class="language-js">import { evaluate, eraseMarks, eraseRegionOf } from 'napkin-sketch';
+
+const page = evaluate('napkin 1\nline 0 50 200 50\n').book.sketches[0];
+const eraser = { id: 'e', tool: 'eraser', color: '#000000', width: 20, points: [{ x: 100, y: 0 }, { x: 100, y: 100 }] };
+const cut = eraseMarks(page, page.strokes.map((s) =&gt; s.id), eraseRegionOf(eraser));
+const [line] = cut.changed.values();
+console.log(JSON.stringify(line.vector.anchors.map((a) =&gt; [Math.round(a.p.x), a.p.y])));
+// → [[0,50],[89,50],[111,50],[200,50]]</code></pre>
+<p>The line is cut where the eraser's swath, 20 wide, meets its own width.</p>
+<h3 id="wiping-wipemarks">Wiping: wipeMarks<a class="anchor" href="#wiping-wipemarks" aria-label="Link to this section">#</a></h3>
+<p><code>wipeMarks(sketch, ids, op)</code> combines the marks of <code>ids</code> as the app's Wipe
+Stacks - a vector editor's Pathfinder - do, taking them in paint order, the
+first at the bottom. <code>op</code> is one of <code>WIPE_OPS</code>:</p>
+<div class="table-wrap"><table>
+<thead><tr><th><code>op</code></th><th>Pathfinder</th><th>What is left</th><th>Painted as</th></tr></thead>
+<tbody>
+<tr><td><code>in</code></td><td>Unite</td><td>everything the marks cover</td><td>the topmost mark</td></tr>
+<tr><td><code>out-front</code></td><td>Minus Front</td><td>the bottom mark, less the rest</td><td>the bottom mark</td></tr>
+<tr><td><code>out-back</code></td><td>Minus Back</td><td>the top mark, less the rest</td><td>the top mark</td></tr>
+<tr><td><code>mid</code></td><td>Intersect</td><td>where all of them overlap</td><td>the topmost mark</td></tr>
+<tr><td><code>outer</code></td><td>Exclude</td><td>where an odd number overlap</td><td>the topmost mark</td></tr>
+<tr><td><code>clean</code></td><td>Divide</td><td>every piece of their overlaps, a mark each</td><td>the topmost mark over the piece</td></tr>
+</tbody></table></div>
+<p>It gives back an edit, <code>{ changed, removed, added, skipped, problem, empty }</code>:
+the mark a result is painted as is changed in place, the others are removed,
+and <code>clean</code>'s pieces are added, each <code>{ stroke, above }</code>, <code>above</code> the id of the
+layer it goes over. <code>problem</code> is <code>too-few</code>, <code>too-many</code> or <code>failed</code> when the
+wipe did nothing, and <code>empty</code> says the result left nothing at all.
+<code>wipeOperand(mark)</code> says what a mark is to a wipe: a filled mark or a closed
+outline is its inside, anything else the ink it paints.</p>
+<pre><code class="language-js">import { evaluate, wipeMarks } from 'napkin-sketch';
+
+const page = evaluate('napkin 1\nfill #27486d\nrect 0 0 100 100\ncircle 100 50 50\n').book.sketches[0];
+const [square, circle] = page.strokes;
+const union = wipeMarks(page, [square.id, circle.id], 'in');
+console.log(union.problem, union.changed.has(circle.id), union.removed.has(square.id));
+// → null true true</code></pre>
+<h3 id="faces-and-stacking-arrangefaces-stackfaces">Faces and stacking: arrangeFaces, stackFaces<a class="anchor" href="#faces-and-stacking-arrangefaces-stackfaces" aria-label="Link to this section">#</a></h3>
+<p><code>arrangeFaces(regions)</code> cuts regions into their faces: every piece some of
+them cover and the rest do not, each <code>{ contours, covers }</code>, <code>covers</code> the
+indices of the regions it lies in. It is what the Shape Stacker shows under
+the pointer, and what <code>clean</code> makes marks of. Past <code>WIPE_FACE_LIMIT</code> faces it
+gives none, with <code>problem</code> saying why.</p>
+<p><code>stackFaces(sketch, ids, at, mode)</code> is the Shape Stacker's drag as one call:
+the faces of the marks of <code>ids</code> under the points <code>at</code> are merged into one
+shape (<code>merge</code>), painted as the topmost mark over the first point's face, or
+taken away from every mark (<code>remove</code>). It gives back a wipe's edit, with
+<code>missed</code>, the points on no face. <code>stackArrangement</code>, <code>faceAt</code>, <code>facesAlong</code>,
+<code>facesInBox</code> and <code>stackEdit</code> are its steps, for a caller that picks faces
+itself.</p>
+<pre><code class="language-js">import { arrangeFaces, evaluate, stackFaces } from 'napkin-sketch';
+
+const square = (x, y, size) =&gt; [[{ x, y }, { x: x + size, y }, { x: x + size, y: y + size }, { x, y: y + size }]];
+const { faces } = arrangeFaces([square(0, 0, 100), square(50, 0, 100)]);
+console.log(faces.map((face) =&gt; face.covers.join('+')).join(' '));
+// → 0+1 0 1
+const page = evaluate('napkin 1\nfill #d0342c\nrect 0 0 100 100\nfill #27486d\nrect 50 0 100 100\n').book.sketches[0];
+const taken = stackFaces(page, page.strokes.map((s) =&gt; s.id), [{ x: 75, y: 50 }], 'remove');
+console.log(taken.changed.size, taken.missed.length);
+// → 2 0</code></pre>
+<p>The overlap taken away leaves both squares with a notch where they met.</p>
+<h3 id="splitting-splitmark">Splitting: splitMark<a class="anchor" href="#splitting-splitmark" aria-label="Link to this section">#</a></h3>
+<p><code>nearestOnMark(mark, point, options?)</code> finds where on a mark's path a point
+lands, <code>{ subpath, segment, t, point, distance }</code>, or null for a mark with no
+path; with <code>anchorReach</code>, an anchor that near wins over any segment, so a cut
+there adds none. <code>splitMark(mark, at)</code> cuts the mark there, as the app's Split
+does, into <code>{ first, second }</code>: an open path becomes two marks, the first
+keeping the mark's id, and a closed one opens there, <code>second</code> null. It is null
+where there is nothing to cut, such as the end of an open path.
+<code>splitTarget(marks, point, reach)</code> finds the topmost of marks given in paint
+order whose path passes within <code>reach</code> of a point, and <code>SPLIT_REACH_PX</code> is the
+reach a script's <code>split</code> uses.</p>
+<pre><code class="language-js">import { evaluate, nearestOnMark, splitMark } from 'napkin-sketch';
+
+const line = evaluate('napkin 1\nline 0 0 200 0\n').book.sketches[0].strokes[0];
+const at = nearestOnMark(line, { x: 80, y: 3 });
+const { first, second } = splitMark(line, at);
+console.log(first.vector.anchors.map((a) =&gt; a.p.x).join(','), second.vector.anchors.map((a) =&gt; a.p.x).join(','));
+// → 0,80 80,200</code></pre>
+<h3 id="clipping-masks">Clipping masks<a class="anchor" href="#clipping-masks" aria-label="Link to this section">#</a></h3>
+<p>A clip group is a group layer whose <code>clip</code> names a closed mark inside it: the
+group shows only inside that mark, which shows nowhere while it clips.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Function</th><th>What it gives</th></tr></thead>
+<tbody>
+<tr><td><code>makeClip(sketch, ids)</code></td><td>What Make Clipping Mask does with the marks of <code>ids</code>: <code>{ clip, layers }</code> - the topmost of them, which clips, and the layers to group - or <code>{ problem }</code>, <code>too-few</code> or <code>open</code></td></tr>
+<tr><td><code>releaseClip(sketch, layerId)</code></td><td>The clip group Release Clipping Mask takes the clip off for a layer, or null</td></tr>
+<tr><td><code>canClip(mark)</code></td><td>Whether a mark can clip: a closed path the Eraser can cut</td></tr>
+<tr><td><code>clipIndex(sketch)</code></td><td>Every clip on a page, worked out once: <code>marks</code>, the clip marks, and <code>of(layer)</code>, the clips a layer sits under, innermost first</td></tr>
+<tr><td><code>clippedAt(sketch, mark, point, index?)</code></td><td>Whether a mark is clipped away at a point</td></tr>
+<tr><td><code>clipMarkOf</code>, <code>clipRegionOf(sketch, group)</code></td><td>A group's clip mark, and its inside as a region</td></tr>
+<tr><td><code>shownBounds(sketch, mark, bounds, index?)</code></td><td>A mark's box cut to every clip it sits under, or null</td></tr>
+<tr><td><code>normalizeClips(sketch)</code></td><td>Takes <code>clip</code> off every layer it does not name a closed mark inside; says whether it took any off</td></tr>
+</tbody></table></div>
+<p><code>CLIP_GROUP_NAME</code> is the name Make Clipping Mask gives the group.</p>
+<pre><code class="language-js">import { clipIndex, clippedAt, evaluate, makeClip } from 'napkin-sketch';
+
+const page = evaluate('napkin 1\nclip &quot;Window&quot; {\n  rect 0 0 200 100\n  circle 100 50 40\n}\n').book.sketches[0];
+const [rect] = page.strokes;
+const index = clipIndex(page);
+console.log(clippedAt(page, rect, { x: 100, y: 50 }, index), clippedAt(page, rect, { x: 10, y: 10 }, index));
+// → false true
+const loose = evaluate('napkin 1\nrect 0 0 200 100\nline 0 0 10 10\n').book.sketches[0];
+console.log(JSON.stringify(makeClip(loose, loose.strokes.map((s) =&gt; s.id))));
+// → {&quot;problem&quot;:&quot;open&quot;}</code></pre>
+<p>The line is on top, and an open path cannot clip.</p>
+<h3 id="pencils-pencil_grades-pencilpaint-graintile">Pencils: PENCIL_GRADES, pencilPaint, grainTile<a class="anchor" href="#pencils-pencil_grades-pencilpaint-graintile" aria-label="Link to this section">#</a></h3>
+<p><code>PENCIL_GRADES</code> is the drawing kit, 30 pencils by hardness: graphite 9H to
+9B, charcoal pencils, and vine and compressed charcoal. Each grade has its
+<code>label</code> and script <code>name</code>, the <code>tone</code> it lays down at its darkest, its <code>lead</code>
+width, <code>density</code>, <code>grain</code> and <code>soft</code>ness, and the <code>response</code> of its pressure.
+<code>pencilPaint(choice)</code> gives the grade a choice names - <code>{ medium, grade }</code>, or
+a name as a script writes it - and graphite HB for one it does not know;
+<code>parsePencil(name)</code> gives the choice or null. <code>pencilCoverage(grade, tooth,
+pressure)</code> is what one pass lays down on paper of a tooth height.</p>
+<p><code>grainTile(seed?)</code> is the paper's tooth: a <code>GRAIN_TILE_SIZE</code> square of
+heights, 0 a valley and 255 a peak, that wraps without a seam; the same seed
+gives the same bytes everywhere. <code>pencilRegion(mark, scale)</code> is the box a
+mark's picture covers, and <code>rasterizePencil(mark, region)</code> its pixels through
+that tooth, straight RGBA; <code>pencilPicture</code> adds the mark's Smear passes.</p>
+<pre><code class="language-js">import { GRAIN_TILE_SIZE, PENCIL_GRADES, grainTile, pencilPaint } from 'napkin-sketch';
+
+console.log(PENCIL_GRADES.length, pencilPaint('2B').label, '|', pencilPaint('vine-soft').label);
+// → 30 Graphite 2B | Vine charcoal, soft
+console.log(pencilPaint('nonsense').label, grainTile().length === GRAIN_TILE_SIZE ** 2);
+// → Graphite HB true</code></pre>
+<h3 id="smearing-smudgebuffer">Smearing: smudgeBuffer<a class="anchor" href="#smearing-smudgebuffer" aria-label="Link to this section">#</a></h3>
+<p><code>smudgeBuffer(data, region, pass, rgb, from?)</code> runs one pass of the Smear's
+stump over a pencil mark's picture, in place: <code>pass</code> is <code>{ points, width,
+strength }</code>, the drag in page pixels, the stump's width and its strength from
+0 to 1, and <code>rgb</code> the color the graphite is. It trades graphite with the
+paper as density, so the darkness is kept and tone moves along the drag. It
+gives back where it got to, which a later call takes as <code>from</code> to go on with
+a drag that has grown. <code>smudgeFor(mark, drag, width, strength)</code> is the pass a
+drag leaves on one mark, which the app keeps in the mark's <code>smudges</code>, and
+<code>DEFAULT_SMEAR_STRENGTH</code> the strength a new stump has.</p>
+<pre><code class="language-js">import { evaluate, rasterizePencil, smudgeBuffer } from 'napkin-sketch';
+
+const mark = evaluate('napkin 1\npencil 4B\nline 50 0 50 100\n').book.sketches[0].strokes[0];
+const region = { scale: 1, x: 20, y: 0, width: 70, height: 100 };
+const picture = rasterizePencil(mark, region);
+const reached = () =&gt; picture.filter((value, i) =&gt; i % 4 === 3 &amp;&amp; value &gt; 0).length;
+const before = reached();
+smudgeBuffer(picture, region, { points: [{ x: 30, y: 50 }, { x: 80, y: 50 }], width: 16, strength: 0.6 }, [0x4a, 0x4d, 0x52]);
+console.log(reached() &gt; before);
+// → true</code></pre>
+<p>The stump carried graphite off the line along the drag, so more of the
+picture holds some.</p>
+<h3 id="liquify-liquifyfield-liquifymarks">Liquify: liquifyField, liquifyMarks<a class="anchor" href="#liquify-liquifyfield-liquifymarks" aria-label="Link to this section">#</a></h3>
+<p><code>liquifyField(dab)</code> is a Liquify brush's field: where it takes each point,
+<code>point(p)</code>, and how far it turns the plane there, <code>rotation(p)</code>. A dab is
+<code>{ mode, x, y, radius, amount?, dx?, dy? }</code>: <code>warp</code> pushes by <code>dx</code>, <code>dy</code>;
+<code>twirl</code> turns by <code>amount</code> degrees, clockwise on the screen; <code>pucker</code> and
+<code>bloat</code> draw in or push out by <code>amount</code>, 0 to 1, of a point's distance. The
+effect falls off smoothly to nothing at the radius, as <code>liquifyFalloff</code> says,
+and a point past it comes back exactly.</p>
+<p><code>liquifyMarks(marks, dabs, options?)</code> is a drag: each dab bends the marks it
+reaches, and the next bends what the last left. It gives back the marks bent,
+by id; pencil marks, text, pictures and eraser marks are left alone
+(<code>liquifiable</code>). With <code>options.refit</code>, each bent mark is fitted again within
+that many pixels so its anchors stay few, as <code>refitLiquified</code> does.</p>
+<pre><code class="language-js">import { evaluate, liquifyField, liquifyMarks } from 'napkin-sketch';
+
+const twirl = liquifyField({ mode: 'twirl', x: 100, y: 100, radius: 50, amount: 90 });
+const p = twirl.point({ x: 120, y: 100 });
+console.log(Math.round(Math.hypot(p.x - 100, p.y - 100)), JSON.stringify(twirl.point({ x: 200, y: 100 })));
+// → 20 {&quot;x&quot;:200,&quot;y&quot;:100}
+const page = evaluate('napkin 1\nrect 20 20 160 100\n').book.sketches[0];
+const bent = liquifyMarks(page.strokes, [{ mode: 'warp', x: 100, y: 20, radius: 30, dx: 0, dy: 20 }], { refit: 0.5 });
+const [rect] = bent.values();
+console.log(bent.size, Math.round(Math.max(...rect.points.filter((q) =&gt; q.y &lt; 60).map((q) =&gt; q.y))));
+// → 1 40</code></pre>
+<p>A twirl keeps every point's distance from its centre; the warp pushed the
+rectangle's top down by its 20 at the brush's centre.</p>
+<h3 id="applying-an-edit">Applying an edit<a class="anchor" href="#applying-an-edit" aria-label="Link to this section">#</a></h3>
+<p><code>eraseMarks</code>, <code>wipeMarks</code> and <code>stackFaces</code> give back an edit and change
+nothing. The app applies one as one undo step; a program applies it to a page
+the same way: changed marks in their place, keeping their ids and layers,
+removed ones gone, and added ones on the layer <code>above</code> names.</p>
+<pre><code class="language-js">import { evaluate, wipeMarks } from 'napkin-sketch';
+
+/** A page with an edit made: what the app's store does with one, as one undo step. */
+function applyEdit(page, edit) {
+  const kept = page.strokes
+    .filter((mark) =&gt; !edit.removed.has(mark.id))
+    .map((mark) =&gt; (edit.changed.has(mark.id) ? { ...edit.changed.get(mark.id), id: mark.id, layer: mark.layer } : mark));
+  const added = edit.added.map(({ stroke, above }, i) =&gt; ({ ...stroke, id: stroke.id || `added-${i}`, layer: above }));
+  return { ...page, strokes: [...kept, ...added] };
+}
+
+const page = evaluate('napkin 1\nfill #27486d\nrect 0 0 100 100\ncircle 100 50 50\n').book.sketches[0];
+const after = applyEdit(page, wipeMarks(page, page.strokes.map((s) =&gt; s.id), 'clean'));
+console.log(page.strokes.length, after.strokes.length);
+// → 2 3</code></pre>
+<p>The app puts each added mark on a new layer of its own above <code>above</code>; here
+they join that layer.</p>
+<h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
+<p>A gap through every line on a page: the Eraser's cut made with a program, and
+the page written out as SVG.</p>
+<pre><code class="language-js">import { eraseMarks, eraseRegionOf, evaluate, renderSketch } from 'napkin-sketch';
+
+const page = evaluate('napkin 1\npage 240 160\nwidth 4\nrepeat 4 as i {\n  line 20 (30 + i * 30) 220 (30 + i * 30)\n}\n').book.sketches[0];
+const swath = eraseRegionOf({ id: 'gap', tool: 'eraser', color: '#000000', width: 24, points: [{ x: 120, y: 0 }, { x: 120, y: 160 }] });
+const cut = eraseMarks(page, page.strokes.map((s) =&gt; s.id), swath);
+const strokes = page.strokes.map((mark) =&gt; cut.changed.get(mark.id) ?? mark).filter((mark) =&gt; !cut.removed.has(mark.id));
+const svg = renderSketch({ ...page, strokes }, { format: 'svg' });
+console.log(cut.changed.size, svg.startsWith('&lt;?xml'));
+// → 4 true</code></pre>
+<p>A Liquify drag from a program: a Warp pushed across a circle in ten small
+dabs, as a pointer moving across it gives them, then fitted again once.</p>
+<pre><code class="language-js">import { evaluate, liquifyMarks } from 'napkin-sketch';
+
+const page = evaluate('napkin 1\ncircle 100 100 60\n').book.sketches[0];
+const dabs = Array.from({ length: 10 }, (_, k) =&gt; ({ mode: 'warp', x: 40 + k * 4, y: 100, radius: 40, dx: 4, dy: 0 }));
+const [circle] = liquifyMarks(page.strokes, dabs, { refit: 0.5 }).values();
+console.log(Math.round(Math.min(...circle.points.map((p) =&gt; p.x))), circle.vector.closed);
+// → 52 true</code></pre>
+<p>The left of the circle was pushed in toward its middle - its leftmost point,
+once at 40, is at 52 - and the circle is still one closed path.</p>
+<h2 id="limits">Limits<a class="anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Edits are not made.</strong> Every engine that edits marks gives the edit back;
+nothing changes until the caller applies it (<a href="#applying-an-edit">Applying an edit</a>).</li>
+<li><strong>A cut can fail.</strong> <code>booleanOp</code> gives null past <code>BOOLEAN_EDGE_LIMIT</code> edges
+(40,000) or where floating point leaves pieces that will not close; an
+erase lists the marks it could not cut in <code>raster</code>; a wipe or a stack says
+<code>failed</code>. The app draws an older-style eraser mark where an erase cannot
+cut.</li>
+<li><strong>Wipes take at most <code>WIPE_OPERAND_LIMIT</code> marks</strong> (32) and
+<code>WIPE_FACE_LIMIT</code> faces (512), and say <code>too-many</code> past them.</li>
+<li><strong>Text, pictures and placed files are not cut, wiped or bent</strong>: an eraser
+passes over them, a wipe lists them in <code>skipped</code>, and Liquify leaves them,
+with pencil marks, which are the Smear's.</li>
+<li><strong>A pencil picture costs its pixels.</strong> A region is worked out pixel by
+pixel at its scale, and a smear works on all of it: keep a region to the
+mark and its passes, as <code>pencilRegion</code> gives it.</li>
+<li><strong>Liquify's amounts are held</strong> to 0 to 1 for Pucker and Bloat, where neither
+folds the plane; a long push or a wide turn is taken in steps.</li>
+</ul>
+<h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Every call is pure and DOM-free</strong>, and none changes its arguments but
+<code>smudgeBuffer</code>, which works on the picture it is given in place.</li>
+<li><strong>Get marks from <code>evaluate</code></strong>, or from a <code>.skbk</code>, and pass ids, not marks,
+to the calls that take a page: they look the marks up and take them in paint
+order.</li>
+<li><strong>Check what came back before using it</strong>: null from <code>booleanOp</code> and
+<code>splitMark</code>, <code>problem</code> from a wipe, a stack or <code>makeClip</code>, <code>raster</code> and
+<code>skipped</code> from an erase.</li>
+<li><strong>Apply an edit as one step</strong>, with the <a href="#applying-an-edit">helper above</a>:
+changed marks keep their ids and layers.</li>
+<li><strong>Prefer the verbs in a script</strong> when the drawing is written as one:
+<a href="../drawing/index.html#erasing"><code>tool eraser</code>, <code>wipe</code>, <code>stack</code>, <code>split</code>, <code>clip</code>, <code>pencil</code>, <code>smear</code>,
+<code>warp</code>, <code>twirl</code>, <code>pucker</code> and <code>bloat</code></a> run
+these same engines and keep the drawing one file.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../drawing/index.html">Drawing with napkin script</a>: the verbs that run these
+engines - <a href="../drawing/index.html#erasing">erasing</a>,
+<a href="../drawing/index.html#combining-shapes">combining</a>,
+<a href="../drawing/index.html#stacking-shapes">stacking</a>,
+<a href="../drawing/index.html#splitting-paths">splitting</a>,
+<a href="../drawing/index.html#clipping-masks">clipping</a>,
+<a href="../drawing/index.html#pencils">pencils</a>,
+<a href="../drawing/index.html#smearing">smearing</a> and
+<a href="../drawing/index.html#liquify">Liquify</a>.</li>
+<li><a href="../node/index.html">Using napkin-sketch from code</a>: the two entries, and the
+result <code>evaluate</code> gives.</li>
+<li><a href="../output/index.html">Writing a drawing out</a>: what a page with its edits
+made is written as.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/boolean.ts"><code>src/core/boolean.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/erase.ts"><code>erase.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/wipe.ts"><code>wipe.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/split.ts"><code>split.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/clip.ts"><code>clip.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/pencil.ts"><code>pencil.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/smudge.ts"><code>smudge.ts</code></a> and
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/liquify.ts"><code>liquify.ts</code></a>: the engines.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../node/cheatsheet.html" rel="prev"><span>Previous</span>Using napkin-sketch from code: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>The drawing engines: quickstart</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/engines/README.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

@@ -22,7 +22,8 @@
  * reports `unknown-verb` on an older build rather than drawing something else.
  */
 
-import { DEFAULT_SURFACE, type StrokeProfile, type StrokeStyle } from '../types.js';
+import { DEFAULT_SURFACE, TOOL_ALIASES, type StrokeProfile, type StrokeStyle, type ToolAlias } from '../types.js';
+import type { StackMode, WipeOp } from '../wipe.js';
 import type { LengthUnit } from '../units.js';
 import verbTable from './verbs.json';
 
@@ -77,10 +78,16 @@ export interface StopArg {
  * its own layer, as the app's eraser does, and takes no fill, outline style,
  * profile or effect.
  */
-export const SCRIPT_TOOLS = ['pen', 'marker', 'copic', 'eraser'] as const;
+export const SCRIPT_TOOLS = ['pen', 'marker', 'copic', 'pencil', 'eraser'] as const;
 
 /** A tool a script can draw with. */
 export type ScriptTool = (typeof SCRIPT_TOOLS)[number];
+
+/**
+ * Every name `tool` takes: the tools, then their other names - `brush` for
+ * `pen`, the app's Brush. A script the app writes names the tool itself.
+ */
+export const SCRIPT_TOOL_NAMES: readonly string[] = [...SCRIPT_TOOLS, ...Object.keys(TOOL_ALIASES)];
 
 /** Named page sizes. */
 export type PaperName =
@@ -198,12 +205,23 @@ export interface GroupInstruction extends InstructionBase, LayerFields {
   body: DocumentInstruction[];
 }
 
+/**
+ * `clip "Window" { ... }`: a group whose content shows only inside the
+ * block's last closed shape, which paints nothing while it clips.
+ */
+export interface ClipInstruction extends InstructionBase {
+  verb: 'clip';
+  /** The group's name; "Clip Group" unless given. */
+  name?: string;
+  body: DocumentInstruction[];
+}
+
 // Paint
 
-/** `tool marker`. */
+/** `tool marker`; `tool brush` is `tool pen`. */
 export interface ToolInstruction extends InstructionBase {
   verb: 'tool';
-  tool: ScriptTool;
+  tool: ScriptTool | ToolAlias;
 }
 
 /** `color #1f2328`: the ink color. */
@@ -263,6 +281,15 @@ export interface ProfileInstruction extends InstructionBase {
 export interface NibInstruction extends InstructionBase {
   verb: 'nib';
   angle: NumberArg;
+}
+
+/** `pencil 2B`, `pencil charcoal 4B`, `pencil vine soft #3b6e8f`: the Pencil at a grade, in its tone or a color. */
+export interface PencilInstruction extends InstructionBase {
+  verb: 'pencil';
+  /** The pencil as the API names it (`core/pencil.ts`): `2B`, `charcoal-4B`, `vine-soft`. */
+  pencil: string;
+  /** A colored pencil's color; absent, the grade's own tone. */
+  color?: string;
 }
 
 /** `rough 0.6 passes 2`, `rough off`: the hand-drawn pass. */
@@ -380,6 +407,31 @@ export interface ShapeInstruction extends InstructionBase {
   width: LengthArg;
   /** The box's height: given, the shape is stretched to `width` by `height`. */
   height?: LengthArg;
+}
+
+/**
+ * `wipe out-front { circle 100 100 60  circle 150 100 60 }`: the marks the
+ * block draws, combined as the Wipe Stacks combine them, with what is left
+ * drawn in their place.
+ */
+export interface WipeInstruction extends InstructionBase {
+  verb: 'wipe';
+  /** Which wipe: Wipe In, Wipe Out's two, Mid Wipe, Outer Wipes or Clean Wipe (`core/wipe.ts`'s ops). */
+  op: WipeOp;
+  body: DocumentInstruction[];
+}
+
+/**
+ * `stack merge 60 100, 125 100 { ... }`: the marks the block draws stacked as
+ * the Shape Stacker stacks them, at the pieces under the points.
+ */
+export interface StackInstruction extends InstructionBase {
+  verb: 'stack';
+  /** Merge the pieces under the points into one shape, or take them away. */
+  mode: StackMode;
+  /** Where the pieces are, as the `stack` line's transform places them. */
+  points: PointArg[];
+  body: DocumentInstruction[];
 }
 
 // Paths
@@ -621,6 +673,45 @@ export interface RegistrationInstruction extends InstructionBase {
   height: LengthArg;
 }
 
+/** `split 120 60`: the topmost path drawn so far within 4 px of the point, cut there. */
+export interface SplitInstruction extends InstructionBase {
+  verb: 'split';
+  x: LengthArg;
+  y: LengthArg;
+}
+
+/** `smear 24 0.6 10 80, 150 80`: a pass of the Smear, a blending stump, over the pencil marks drawn so far. */
+export interface SmearInstruction extends InstructionBase {
+  verb: 'smear';
+  /** The stump's width. */
+  width: LengthArg;
+  /** Its strength, 0 to 1. */
+  strength: NumberArg;
+  points: PointArg[];
+}
+
+/** `warp 120 40 30 0 24`: Liquify's Warp, a brush pushed from the point by `dx`, `dy`, over the marks drawn so far. */
+export interface WarpInstruction extends InstructionBase {
+  verb: 'warp';
+  x: LengthArg;
+  y: LengthArg;
+  /** The brush's radius. */
+  radius: LengthArg;
+  dx: LengthArg;
+  dy: LengthArg;
+}
+
+/** `twirl 120 100 70 90`: one of Liquify's brushes pressed once at the point, over the marks drawn so far. */
+export interface LiquifyInstruction extends InstructionBase {
+  verb: 'twirl' | 'pucker' | 'bloat';
+  x: LengthArg;
+  y: LengthArg;
+  /** The brush's radius. */
+  radius: LengthArg;
+  /** Twirl's turn at the centre, in degrees; Pucker's and Bloat's share of a point's distance, 0 to 1. */
+  amount: NumberArg;
+}
+
 /** Instructions that only make sense inside a `path` block. */
 export type PathOnlyInstruction =
   | MoveInstruction
@@ -644,6 +735,7 @@ export type Instruction =
   | NewPageInstruction
   | LayerInstruction
   | GroupInstruction
+  | ClipInstruction
   | ToolInstruction
   | ColorInstruction
   | WidthInstruction
@@ -654,6 +746,7 @@ export type Instruction =
   | StyleInstruction
   | ProfileInstruction
   | NibInstruction
+  | PencilInstruction
   | RoughInstruction
   | FontInstruction
   | RectInstruction
@@ -666,6 +759,8 @@ export type Instruction =
   | ArcInstruction
   | SpiralInstruction
   | ShapeInstruction
+  | WipeInstruction
+  | StackInstruction
   | PathInstruction
   | MoveInstruction
   | ToInstruction
@@ -674,6 +769,10 @@ export type Instruction =
   | SmoothInstruction
   | ThroughInstruction
   | CloseInstruction
+  | SplitInstruction
+  | SmearInstruction
+  | WarpInstruction
+  | LiquifyInstruction
   | PushInstruction
   | PopInstruction
   | TranslateInstruction
@@ -732,6 +831,7 @@ export const INSTRUCTION_FIELDS: {
   newpage: { name: 'optional' },
   layer: { name: 'required', opacity: 'optional', hidden: 'optional', locked: 'optional' },
   group: { name: 'required', opacity: 'optional', hidden: 'optional', locked: 'optional', body: 'required' },
+  clip: { name: 'optional', body: 'required' },
   tool: { tool: 'required' },
   color: { color: 'required' },
   width: { width: 'required' },
@@ -742,6 +842,7 @@ export const INSTRUCTION_FIELDS: {
   style: { style: 'required' },
   profile: { profile: 'required' },
   nib: { angle: 'required' },
+  pencil: { pencil: 'required', color: 'optional' },
   rough: { amount: 'required', passes: 'optional', overshoot: 'optional' },
   font: { family: 'optional', size: 'optional' },
   rect: { x: 'required', y: 'required', width: 'required', height: 'required', radius: 'optional' },
@@ -754,6 +855,8 @@ export const INSTRUCTION_FIELDS: {
   arc: { cx: 'required', cy: 'required', r: 'required', from: 'required', to: 'required' },
   spiral: { cx: 'required', cy: 'required', r: 'required', turns: 'required' },
   shape: { name: 'required', x: 'required', y: 'required', width: 'required', height: 'optional' },
+  wipe: { op: 'required', body: 'required' },
+  stack: { mode: 'required', points: 'required', body: 'required' },
   path: { d: 'optional', body: 'optional' },
   move: { x: 'required', y: 'required' },
   to: { x: 'required', y: 'required' },
@@ -762,6 +865,12 @@ export const INSTRUCTION_FIELDS: {
   smooth: { c2x: 'required', c2y: 'required', x: 'required', y: 'required' },
   through: { points: 'required' },
   close: {},
+  split: { x: 'required', y: 'required' },
+  smear: { width: 'required', strength: 'required', points: 'required' },
+  warp: { x: 'required', y: 'required', radius: 'required', dx: 'required', dy: 'required' },
+  twirl: { x: 'required', y: 'required', radius: 'required', amount: 'required' },
+  pucker: { x: 'required', y: 'required', radius: 'required', amount: 'required' },
+  bloat: { x: 'required', y: 'required', radius: 'required', amount: 'required' },
   push: {},
   pop: {},
   translate: { dx: 'required', dy: 'required' },
@@ -851,7 +960,16 @@ export type DiagnosticCode =
   | 'unbalanced-push'
   | 'duplicate-definition'
   | 'link-unresolved'
-  | 'unused-effect';
+  | 'unused-effect'
+  | 'wipe-skipped'
+  | 'wipe-empty'
+  | 'wipe-failed'
+  | 'stack-missed'
+  | 'split-missed'
+  | 'clip-open'
+  | 'smear-missed'
+  | 'liquify-missed'
+  | 'erase-skipped';
 
 /** Every diagnostic code, and the level it is reported at. */
 export const DIAGNOSTIC_LEVELS: { readonly [C in DiagnosticCode]: DiagnosticLevel } = {
@@ -893,6 +1011,15 @@ export const DIAGNOSTIC_LEVELS: { readonly [C in DiagnosticCode]: DiagnosticLeve
   'duplicate-definition': 'warning',
   'link-unresolved': 'warning',
   'unused-effect': 'warning',
+  'wipe-skipped': 'warning',
+  'wipe-empty': 'warning',
+  'wipe-failed': 'warning',
+  'stack-missed': 'warning',
+  'split-missed': 'warning',
+  'clip-open': 'warning',
+  'smear-missed': 'warning',
+  'liquify-missed': 'warning',
+  'erase-skipped': 'warning',
 };
 
 /** Something a script did that the reader should know about. */
@@ -935,7 +1062,7 @@ export interface ScriptLimits {
    * this, not the mark count, is what bounds memory and file size.
    */
   points: number;
-  /** Blocks open at once: groups, definitions being placed, repeats. */
+  /** Blocks open at once: groups, clips, definitions being placed, repeats, wipes, stacks. */
   depth: number;
 }
 
@@ -994,6 +1121,7 @@ export type SlotType =
   | 'color'
   | 'choice'
   | 'switch'
+  | 'pencil'
   | 'points'
   | 'stops';
 

@@ -15,7 +15,9 @@
  *   written as `to` steps through its points, pruned to within a tenth of a
  *   pixel as the SVG export prunes them. A Copic line or a profiled one keeps
  *   every point, since its outline is drawn from each of them.
- * - An eraser: `tool eraser`, then its path.
+ * - An eraser: `tool eraser`, then its path - which a script reads as the
+ *   cut it paints in the marks before it on its layer, as the app's Eraser
+ *   cuts, rather than as an eraser mark.
  * - Text: `font` and `color` where they change, then `text "..." at x y`, with
  *   `box` for a fixed width. The point is the text's top left, so it is
  *   written left-aligned.
@@ -23,6 +25,10 @@
  *   a layer of its own, so a layer whose first mark is a linked file is made
  *   by that `link`.
  * - Effects: `effect` lines just before the mark, layer or group they belong to.
+ * - A clipping mask: a `clip` block, whose last closed shape clips the rest,
+ *   when the group's clip mark is its last closed shape and it has no opacity,
+ *   hiding or lock of its own, which a `clip` cannot say; a plain `group`,
+ *   with a note, when it is not.
  *
  * Paint is written only where it changes, the way the evaluator's running
  * state holds it, so a drawing in one color says `color` once. An `opacity`
@@ -47,6 +53,8 @@ import type { Effect } from '../effects.js';
 import { linkName } from '../link.js';
 import { EXPORT_SIMPLIFY_EPSILON } from '../svg-path.js';
 import { activeProfile } from '../stroke-profile.js';
+import { DEFAULT_PENCIL, pencilPaint } from '../pencil.js';
+import { canClip } from '../clip.js';
 import {
   DEFAULT_FONT_FAMILY,
   DEFAULT_NIB_ANGLE,
@@ -149,6 +157,9 @@ interface Paint {
   style: StrokeStyle;
   profile: StrokeProfile;
   nib: number;
+  /** The pencil as the API names it, and a colored pencil's color - null for the grade's tone. */
+  pencil: string;
+  pencilColor: string | null;
   family: string;
   size: number;
 }
@@ -166,6 +177,8 @@ function startingPaint(): Paint {
     style: 'solid',
     profile: 'uniform',
     nib: DEFAULT_NIB_ANGLE,
+    pencil: pencilPaint(DEFAULT_PENCIL).name,
+    pencilColor: null,
     family: DEFAULT_FONT_FAMILY,
     size: DEFAULT_TEXT_SIZE,
   };
@@ -228,6 +241,15 @@ class Notes {
     }
     if (n('mirrored') > 0) {
       out.push(`${marks(n('mirrored'), 'mark with a mirrored Wave profile is', 'marks with a mirrored Wave profile are')} written unmirrored: the language cannot mirror a profile.`);
+    }
+    if (n('smear') > 0) {
+      out.push(`${marks(n('smear'), 'smeared pencil mark is', 'smeared pencil marks are')} written unsmeared: a script's smear passes over every pencil mark it reaches, not over one alone.`);
+    }
+    if (n('eraser') > 0) {
+      out.push(`${marks(n('eraser'), 'eraser mark is', 'eraser marks are')} written as \`tool eraser\`, which a script reads as the cut it paints in the marks before it on its layer, as the app's Eraser cuts: no eraser mark is left, and a cut shape's outline follows the cut.`);
+    }
+    if (n('clip') > 0) {
+      out.push(`${marks(n('clip'), 'clipping mask is', 'clipping masks are')} written as a plain group: a \`clip\` block clips with the last closed shape it draws, and takes no opacity, hiding or lock.`);
     }
     if (n('gap') > 0) {
       out.push(`${marks(n('gap'), 'filled shape is', 'filled shapes are')} closed with a straight line across a gap in its outline, since a script fills only a closed path.`);
@@ -474,6 +496,21 @@ class ScriptWriter {
     makeThrough(children.length - 1);
   }
 
+  /**
+   * Whether a group's clip mark is the last closed shape drawn in it, in
+   * paint order, as a `clip` block's is: the shape a `clip` clips with.
+   */
+  private clipsWithLast(node: LayerNode): boolean {
+    const marks: Stroke[] = [];
+    const gather = (at: LayerNode): void => {
+      marks.push(...at.strokes);
+      at.children.forEach(gather);
+    };
+    gather(node);
+    const last = marks.sort((a, b) => (this.order.get(b) ?? 0) - (this.order.get(a) ?? 0)).find(canClip);
+    return last !== undefined && last.id === node.layer.clip;
+  }
+
   /** Makes one child: a group written whole, or a layer named with its own properties. */
   private make(node: LayerNode, name: string, index: number, top: boolean, scope: Scope, written: Set<Stroke>): void {
     const layer = node.layer;
@@ -512,7 +549,11 @@ class ScriptWriter {
     this.closePush();
     this.effects(node.layer.effects);
     const body: DocumentInstruction[] = [];
-    this.add({ verb: 'group', name, ...layerProps(node.layer), body });
+    const props = layerProps(node.layer);
+    const clips = node.layer.clip !== undefined;
+    const asClip = clips && Object.keys(props).length === 0 && this.clipsWithLast(node);
+    if (clips && !asClip) this.notes.count('clip');
+    this.add(asClip ? { verb: 'clip', name, body } : { verb: 'group', name, ...props, body });
     const outer = this.body;
     // A group's block puts the paint back when it ends, as the evaluator does.
     const paint = copyPaint(this.paint);
@@ -535,7 +576,7 @@ class ScriptWriter {
   private mark(stroke: Stroke, layer: string | null): void {
     if (isTextStroke(stroke)) return this.text(stroke);
     if (isImageStroke(stroke)) return stroke.link ? this.link(stroke, layer) : this.image(stroke);
-    if (stroke.tool === 'pen' || stroke.tool === 'marker' || stroke.tool === 'copic' || stroke.tool === 'eraser') this.line(stroke);
+    if (stroke.tool === 'pen' || stroke.tool === 'marker' || stroke.tool === 'copic' || stroke.tool === 'pencil' || stroke.tool === 'eraser') this.line(stroke);
   }
 
   private line(stroke: Stroke): void {
@@ -543,8 +584,12 @@ class ScriptWriter {
     if (!shape) return;
     const tool = stroke.tool as ScriptTool;
     this.setOpacity(stroke.opacity);
-    this.setTool(tool);
-    this.setColor(stroke.color);
+    // A Pencil mark's color is its pencil's: `pencil` sets both, and the tool.
+    if (tool === 'pencil') this.setPencil(stroke);
+    else {
+      this.setTool(tool);
+      this.setColor(stroke.color);
+    }
     if (Number.isFinite(stroke.width) && stroke.width > 0) this.setWidth(stroke.width);
     if (tool !== 'eraser') {
       if (shape.closed) {
@@ -559,7 +604,12 @@ class ScriptWriter {
       this.effects(stroke.effects);
     }
     if (stroke.profileMirrored && stroke.profile === 'wave') this.notes.count('mirrored');
-    if (!stroke.vector && stroke.points.some((p) => p.pressure !== undefined && p.pressure !== 0.5)) this.notes.count('pressure');
+    if (stroke.smudges && stroke.smudges.length > 0) this.notes.count('smear');
+    if (tool === 'eraser') this.notes.count('eraser');
+    // A script draws at one width. A Vector Path's points all sample at the
+    // mouse's 0.5; a fitted freehand stroke's carry the stylus's pressure, as
+    // a raw one's do, and that is what a script cannot say.
+    if (stroke.points.some((p) => p.pressure !== undefined && p.pressure !== 0.5)) this.notes.count('pressure');
     this.add({ verb: 'path', body: shape.steps });
     this.marks++;
   }
@@ -819,6 +869,17 @@ class ScriptWriter {
     if (this.paint.profile === profile) return;
     this.add({ verb: 'profile', profile });
     this.paint.profile = profile;
+  }
+
+  /** `pencil <grade> [<color>]` for a Pencil mark: its pencil, and its color when that is not the grade's tone. */
+  private setPencil(stroke: Stroke): void {
+    const paint = pencilPaint(stroke.pencil);
+    const color = stroke.color.toLowerCase() === paint.tone ? null : this.color(stroke.color);
+    if (this.paint.tool === 'pencil' && this.paint.pencil === paint.name && this.paint.pencilColor === color) return;
+    this.add({ verb: 'pencil', pencil: paint.name, ...(color ? { color } : {}) });
+    this.paint.tool = 'pencil';
+    this.paint.pencil = paint.name;
+    this.paint.pencilColor = color;
   }
 
   private setNib(angle: number): void {

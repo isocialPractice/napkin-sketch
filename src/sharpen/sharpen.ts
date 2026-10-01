@@ -9,6 +9,8 @@
  *   3. Rebuild an idealized version of that shape.
  *   4. Re-introduce subtle, organic imperfection (wobble, end taper, slight
  *      corner overshoot) so the result reads as hand-drawn rather than vector.
+ *   5. Fit the result as a few cubic anchors (`core/fit-curve.ts`), close
+ *      enough to keep the wobble, so the rebuild is not a thicket of points.
  *
  * The engine is pure and deterministic given a stroke id, so re-sharpening a
  * stroke yields the same result and the same stroke can be sharpened in either
@@ -16,6 +18,7 @@
  */
 
 import type { Point, Stroke } from '../core/types.js';
+import { fitCurve } from '../core/fit-curve.js';
 import {
   angleAt,
   boundingBox,
@@ -27,6 +30,7 @@ import {
   normal,
   pathLength,
   resample,
+  sampleVectorPathPoints,
   simplify,
   type Vec2,
 } from './geometry.js';
@@ -321,6 +325,12 @@ export function sharpenPoints(
   return { points: result, kind };
 }
 
+/**
+ * How closely Sharpen's fit follows the curve it rebuilt, in page pixels:
+ * under a third of its hand-drawn wobble, so the wobble survives the fit.
+ */
+export const SHARPEN_FIT_TOLERANCE = 0.35;
+
 /** Returns a new, sharpened copy of a stroke (the original is not mutated). */
 export function sharpenStroke(stroke: Stroke, options: Partial<SharpenOptions> = {}): Stroke {
   // Eraser strokes are masks, not marks: never reshape them.
@@ -329,7 +339,56 @@ export function sharpenStroke(stroke: Stroke, options: Partial<SharpenOptions> =
   }
   const seed = seedFromId(stroke.id);
   const { points } = sharpenPoints(stroke.points, seed, options);
-  return { ...stroke, points, sharpened: true };
+  // The anchors a stroke came with describe its old shape, not this one.
+  const sharpened: Stroke = { ...stroke, points, sharpened: true };
+  delete sharpened.vector;
+  return fitStroke(sharpened, SHARPEN_FIT_TOLERANCE);
+}
+
+/**
+ * True for freehand ink a fit can take: a Pen, Marker or Copic mark of three
+ * samples or more, in one contour. A two-point straight line stays a line of
+ * two points, which Direct Select bends by its tangent handles.
+ */
+export function fitsFreehand(stroke: Stroke): boolean {
+  return (
+    (stroke.tool === 'pen' || stroke.tool === 'marker' || stroke.tool === 'copic' || stroke.tool === 'pencil') &&
+    stroke.points.length >= 3 &&
+    !stroke.points.some((p) => p.move)
+  );
+}
+
+/**
+ * Samples as the fewest cubics within `tolerance` of them (`core/fit-curve.ts`),
+ * and the points sampled back from those cubics, pressure and all. A run
+ * whose ends meet is fitted as a closed loop. Null when the fit cannot take
+ * them.
+ */
+export function fitPoints(
+  points: readonly Point[],
+  tolerance: number,
+): { points: Point[]; vector: NonNullable<Stroke['vector']> } | null {
+  if (points.length < 3) return null;
+  const first = points[0];
+  const last = points[points.length - 1];
+  const closed = points.length > 3 && Math.hypot(first.x - last.x, first.y - last.y) < 1e-6;
+  const anchors = fitCurve(points, { tolerance, closed });
+  if (!anchors || anchors.length < 2) return null;
+  return {
+    points: sampleVectorPathPoints(anchors, closed),
+    vector: { anchors, ...(closed ? { closed: true as const } : {}), fitted: true },
+  };
+}
+
+/**
+ * A freehand stroke with its samples fitted: `vector` holds the anchors,
+ * marked `fitted`, and `points` are sampled back from them. A stroke the
+ * fit cannot take comes back as it was.
+ */
+export function fitStroke(stroke: Stroke, tolerance: number): Stroke {
+  if (!fitsFreehand(stroke)) return stroke;
+  const fitted = fitPoints(stroke.points, tolerance);
+  return fitted ? { ...stroke, points: fitted.points, vector: fitted.vector } : stroke;
 }
 
 /** Sharpens every (not-yet-sharpened) stroke in a list, returning a new array. */

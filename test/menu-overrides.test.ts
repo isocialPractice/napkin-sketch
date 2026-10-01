@@ -61,7 +61,7 @@ test('a chord given to one tool is taken from the tool that shipped with it', ()
 test('null leaves a tool with no shortcut', () => {
   const registry = loadRegistry(shortcuts({ 'tool-pen': null }));
   assert.equal(registry.tool('tool-pen')!.chord, null);
-  assert.equal(registry.toolForChord('P'), null);
+  assert.equal(registry.toolForChord('B'), null);
   assert.deepEqual(registry.problems, []);
 });
 
@@ -69,7 +69,7 @@ test('a shortcut entry that cannot be used is left out, each with a sentence', (
   const registry = loadRegistry(
     shortcuts({
       nope: 'Ctrl+M',
-      'zoom-in': 'Ctrl+M',
+      'toggle-full-screen': 'Ctrl+M',
       sharpen: 'Ctrl+M',
       'tool-pen': 'Ctrl+Q+W',
       'tool-marker': 'Space',
@@ -79,14 +79,14 @@ test('a shortcut entry that cannot be used is left out, each with a sentence', (
   );
   assert.deepEqual(registry.problems, [
     'The shortcuts file names "nope", which is not a tool, so that entry was left out.',
-    'The shortcut of Zoom In cannot be changed: Electron draws this row and owns its shortcut. That entry was left out.',
+    'The shortcut of Toggle Full Screen cannot be changed: Electron draws this row and owns its shortcut. That entry was left out.',
     'The shortcut of Sharpen cannot be changed: it opens a submenu. That entry was left out.',
-    '"Ctrl+Q+W" is not a shortcut, so Pen keeps P.',
+    '"Ctrl+Q+W" is not a shortcut, so Brush keeps B.',
     'Space cannot be a shortcut: Space is held to pan and to draw straight lines and quick curves. Marker keeps M.',
     'Ctrl+Shift+I belongs to Toggle Developer Tools, which Electron draws, so Text keeps T.',
     '"42" is not a shortcut, so Copic marker keeps K.',
   ]);
-  for (const id of ['zoom-in', 'tool-pen', 'tool-marker', 'tool-text', 'tool-copic']) {
+  for (const id of ['toggle-full-screen', 'tool-pen', 'tool-marker', 'tool-text', 'tool-copic']) {
     assert.equal(registry.tool(id)!.chord, registry.tool(id)!.shippedChord, id);
   }
   assert.equal(registry.toolForChord('Ctrl+M'), null);
@@ -154,15 +154,15 @@ test('a toolbar tool put in a menu joins the block of its type', () => {
   const registry = loadRegistry(toolTypes({ 'tool-rect': 'Draw:Add:vector', 'clear-page': 'Composition:Subtract:element' }));
   assert.deepEqual(registry.problems, []);
   assert.deepEqual(labels(topMenu(registry, 'transform')).slice(0, 3), ['Vector Path', 'Rectangle', '---']);
-  assert.deepEqual(labels(contextItems(registry, 'canvas')).slice(5), ['---', 'Delete', 'Clear', '---', 'Select All', 'Deselect All']);
+  assert.deepEqual(labels(contextItems(registry, 'canvas')).slice(5), ['---', 'Delete', 'Clear', '---', 'Select All', 'Deselect All', '---', 'Wipe Stacks']);
   assert.deepEqual(labels(topMenu(registry, 'edit')).slice(9, 13), ['Delete', 'Select All', 'Clear', '---']);
 });
 
 test('a type no menu shows a row of yet opens a block of its own at the end', () => {
   const registry = loadRegistry(toolTypes({ 'tool-pen': 'Draw:Subtract:vector' }));
   const transform = labels(topMenu(registry, 'transform'));
-  assert.deepEqual(transform.slice(-2), ['---', 'Pen']);
-  assert.ok(!labels(topMenu(registry, 'sketch')).includes('Pen'));
+  assert.deepEqual(transform.slice(-2), ['---', 'Brush']);
+  assert.ok(!labels(topMenu(registry, 'sketch')).includes('Brush'));
 });
 
 test('null takes a tool out of every menu, and a whole submenu moves with its row', () => {
@@ -198,7 +198,7 @@ test('a tool that stays where it is, or a type no tool can be given, is refused 
     '"Draw:Wiggle:vector" is not a type a tool can be given, so Mirror keeps its place.',
     'The tool types file names "join", which is not a tool, so that entry was left out.',
     '"Draw:Add:layer" is not a type a tool can be given, so Join keeps its place.',
-    '"7" is not a type a tool can be given, so Pen keeps its place.',
+    '"7" is not a type a tool can be given, so Brush keeps its place.',
   ]);
   for (const tool of registry.tools) assert.equal(tool.placement, tool.shippedPlacement, tool.id);
 });
@@ -316,7 +316,7 @@ test('saving refuses a result the registry would refuse or quietly rewrite, and 
   // Taking a chord without the tool that held it letting go would be settled at
   // every start, with a toast each time; the editor's Accept lets go for it.
   assert.deepEqual(planUserFiles({}, { shortcuts: { 'tool-pen': 'Ctrl+R' } }).problems, [
-    'Ctrl+R now belongs to Pen, so Rotate has no shortcut.',
+    'Ctrl+R now belongs to Brush, so Rotate has no shortcut.',
   ]);
   assert.deepEqual(planUserFiles({}, { shortcuts: { 'tool-pen': 'Ctrl+R', rotate: null } }).problems, []);
   assert.equal(planUserFiles({}, { toolTypes: { rotate: 'Draw:nothing' } }).problems.length, 1);

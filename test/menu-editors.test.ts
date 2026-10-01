@@ -70,7 +70,8 @@ test('every tool is a row, toolbar-only ones too, in the order of the menu files
   assert.equal(row(rows, 'deselect-all').where, 'Canvas right-click menu > Deselect All');
   assert.equal(row(rows, 'tool-select').where, 'Not in a menu: the toolbar or its key runs it');
   assert.deepEqual(row(rows, 'redo').aliases, ['Ctrl+Y']);
-  assert.equal(row(rows, 'zoom-in').fixed, 'Electron draws this row and owns its shortcut');
+  assert.equal(row(rows, 'toggle-dev-tools').fixed, 'Electron draws this row and owns its shortcut');
+  assert.equal(row(rows, 'zoom-in').fixed, null, 'Zoom In zooms the canvas now, so its shortcut is the page\'s');
   assert.equal(row(rows, 'export').fixed, 'it opens a submenu');
   assert.equal(row(rows, 'undo').fixed, null, "Undo's place is fixed; its shortcut is not");
 });
@@ -83,7 +84,7 @@ test('Reset to defaults proposes the shipped chords, and leaves the rows Electro
   assert.equal(row(reset, 'mirror').key, 'O');
   assert.equal(row(reset, 'rotate').key, 'Ctrl+R');
   assert.equal(row(reset, 'mirror').original, 'Ctrl+M', 'what the table is compared with does not move');
-  assert.equal(row(reset, 'zoom-in'), row(rows, 'zoom-in'));
+  assert.equal(row(reset, 'toggle-dev-tools'), row(rows, 'toggle-dev-tools'));
 });
 
 test('a free chord is fine, and one another tool holds warns that Accept takes it', () => {
@@ -98,7 +99,7 @@ test('a free chord is fine, and one another tool holds warns that Accept takes i
   const after = edited(rows, { 'tool-pen': 'Ctrl+R' });
   assert.deepEqual(check(row(after, 'rotate'), 'Ctrl+R', after), {
     level: 'warn',
-    message: 'Pen takes Ctrl+R on Accept, so Rotate will have no shortcut',
+    message: 'Brush takes Ctrl+R on Accept, so Rotate will have no shortcut',
   });
   // And the taking row, checked again as it stands, still warns.
   assert.equal(check(row(after, 'tool-pen'), 'Ctrl+R', after)?.level, 'warn');
@@ -110,22 +111,26 @@ test('two rows both taking one chord cannot be settled, so the second is refused
   const rows = edited(shortcutRows(registry), { 'tool-pen': 'Ctrl+R' });
   assert.deepEqual(shortcutValidator(registry)(row(rows, 'mirror'), 'Ctrl+R', rows), {
     level: 'refuse',
-    message: 'Pen is already given Ctrl+R here; clear it there first',
+    message: 'Brush is already given Ctrl+R here; clear it there first',
   });
 });
 
 test("Electron's own keys, and Enter for anything but Move, are refused", () => {
   const rows = shortcutRows(registry);
   const check = shortcutValidator(registry);
-  assert.deepEqual(check(row(rows, 'tool-pen'), 'Ctrl+Plus', rows), {
+  assert.deepEqual(check(row(rows, 'tool-pen'), 'Ctrl+Shift+I', rows), {
     level: 'refuse',
-    message: 'Ctrl++ belongs to Zoom In, which Electron draws',
+    message: 'Ctrl+Shift+I belongs to Toggle Developer Tools, which Electron draws',
   });
   assert.deepEqual(check(row(rows, 'tool-pen'), 'F11', rows), {
     level: 'refuse',
     message: 'F11 belongs to Toggle Full Screen, which Electron draws',
   });
-  assert.deepEqual(check(row(rows, 'tool-pen'), 'Ctrl+Shift+I', rows)?.level, 'refuse');
+  // Zoom In is the app's own row since it zooms the canvas: its chord can be taken, with the warning.
+  assert.deepEqual(check(row(rows, 'tool-pen'), 'Ctrl+Plus', rows), {
+    level: 'warn',
+    message: 'Used by Zoom In - Accept will take it from Zoom In',
+  });
   assert.deepEqual(check(row(rows, 'tool-pen'), 'Enter', rows), {
     level: 'refuse',
     message: 'Enter finishes a path and applies an open palette, so only Move can have it',
@@ -135,8 +140,8 @@ test("Electron's own keys, and Enter for anything but Move, are refused", () => 
   assert.equal(check(row(rows, 'tool-pen'), 'F5', rows), null);
   // On a Mac the message names the keys the Mac way.
   assert.equal(
-    shortcutValidator(registry, { mac: true })(row(rows, 'tool-pen'), 'Ctrl+Plus', rows)?.message,
-    'Cmd++ belongs to Zoom In, which Electron draws',
+    shortcutValidator(registry, { mac: true })(row(rows, 'tool-pen'), 'Ctrl+Shift+I', rows)?.message,
+    'Cmd+Shift+I belongs to Toggle Developer Tools, which Electron draws',
   );
 });
 
@@ -144,7 +149,7 @@ test("another tool's hidden second shortcut warns that it will run this tool alo
   const rows = shortcutRows(registry);
   assert.deepEqual(shortcutValidator(registry)(row(rows, 'tool-pen'), 'Ctrl+Y', rows), {
     level: 'warn',
-    message: 'Redo also answers Ctrl+Y - Accept gives it to Pen alone',
+    message: 'Redo also answers Ctrl+Y - Accept gives it to Brush alone',
   });
 });
 
@@ -159,9 +164,9 @@ test('Accept takes a chord from the row that held it, and leaves the rows Electr
   assert.equal(taken['tool-pen'], 'Ctrl+R');
   assert.equal(taken.rotate, null, 'Rotate is left with none');
   // A swap needs nothing taken: each has the other's chord and neither holds its own.
-  const swapped = resolveShortcuts(edited(rows, { 'tool-pen': 'Ctrl+R', rotate: 'P' }));
+  const swapped = resolveShortcuts(edited(rows, { 'tool-pen': 'Ctrl+R', rotate: 'B' }));
   assert.equal(swapped['tool-pen'], 'Ctrl+R');
-  assert.equal(swapped.rotate, 'P');
+  assert.equal(swapped.rotate, 'B');
 });
 
 test('what Accept saves holds only the differences, and reads back as the edit with nothing to say', () => {
@@ -209,9 +214,9 @@ test('the spec: three columns, the six main types as radios, and Reset beside Ac
   assert.ok(type.kind === 'text' && type.editable?.(rows[0]) === false, 'the type is shown in a greyed box');
   const key = spec.columns[2];
   assert.ok(key.kind === 'key');
-  assert.equal(key.disabled?.(row(rows, 'zoom-in')), true);
+  assert.equal(key.disabled?.(row(rows, 'toggle-dev-tools')), true);
   assert.equal(key.disabled?.(row(rows, 'mirror')), false);
-  assert.equal(key.title?.(row(rows, 'zoom-in')), 'This shortcut cannot change: Electron draws this row and owns its shortcut.');
+  assert.equal(key.title?.(row(rows, 'toggle-dev-tools')), 'This shortcut cannot change: Electron draws this row and owns its shortcut.');
   assert.equal(key.title?.(row(rows, 'redo')), 'Ctrl+Y also runs it. Click here, then press the keys for the shortcut.');
   assert.equal(spec.columns[0].title?.(row(rows, 'mirror')), 'Transform > Mirror');
   const search = spec.search!;
@@ -258,7 +263,7 @@ test('the rows the brief says may not move cannot, and say why', () => {
   for (const id of ['edit-tool-types', 'edit-shortcuts']) {
     assert.equal(typeRow(rows, id).fixed, 'an editor stays in the Edit menu, where it can always be found', id);
   }
-  assert.equal(typeRow(rows, 'zoom-in').fixed, 'Electron draws this row');
+  assert.equal(typeRow(rows, 'toggle-dev-tools').fixed, 'Electron draws this row');
   assert.equal(typeRow(rows, 'undo').fixed, 'it belongs to the Edit menu');
   assert.equal(typeRow(rows, 'export-png').fixed, 'it moves with the Export submenu');
   assert.equal(typeRow(rows, 'quick-width').fixed, 'it starts a typed entry, so it stays on the keyboard');
@@ -294,7 +299,7 @@ test('a type choice says where the tool would be listed, and warns when a tool l
 test('Accept saves the rows that can move, with null for no menu, and the menus follow', () => {
   const rows = retyped(toolTypeRows(registry), { rotate: 'Composition:edit:mixed', 'tool-rect': 'Draw:Add:vector', 'join-strokes': '' });
   const mapping = resolveToolTypes(rows);
-  assert.equal('zoom-in' in mapping, false, 'a row that cannot move is left out');
+  assert.equal('toggle-dev-tools' in mapping, false, 'a row that cannot move is left out');
   assert.equal(mapping.rotate, 'Composition:edit:mixed');
   assert.equal(mapping['tool-rect'], 'Draw:Add:vector');
   assert.equal(mapping['join-strokes'], null);
@@ -352,7 +357,7 @@ test('the spec: a drop-down of the types the menus take, "Not in a menu" first, 
     [
       'App: App:Add:layer App:Modify:layer App:Subtract:layer',
       'Composition: Composition:edit:mixed Composition:Subtract:element Composition:edit:selection',
-      'Draw: Draw:Add:vector Draw:Modify:element Draw:Subtract:vector Draw:Add:mark Draw:Modify:vector Draw:Subtract:mark',
+      'Draw: Draw:Add:vector Draw:Modify:element Draw:Combine:element Draw:Subtract:vector Draw:Add:mark Draw:Modify:vector Draw:Subtract:mark',
       'API: API:automate:mixed',
     ],
   );

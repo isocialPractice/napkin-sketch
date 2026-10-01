@@ -136,7 +136,7 @@ try {
   );
   c.ok(
     'a row per step - index, tool type, command - every one ticked',
-    JSON.stringify(v.rows.map((r) => r.cells)) === JSON.stringify([['1', 'Draw:Add:mark', 'Pen stroke'], ['2', 'Draw:Add:mark', 'Pen stroke'], ['3', 'Draw:Modify:element', 'Rotate']]) && v.rows.every((r) => r.ticked),
+    JSON.stringify(v.rows.map((r) => r.cells)) === JSON.stringify([['1', 'Draw:Add:mark', 'Brush stroke'], ['2', 'Draw:Add:mark', 'Brush stroke'], ['3', 'Draw:Modify:element', 'Rotate']]) && v.rows.every((r) => r.ticked),
     JSON.stringify(v.rows),
   );
   c.eq('with a radio button for the one main type', v.filters.join(), 'All,Draw');
@@ -165,7 +165,7 @@ try {
   );
   c.ok(
     'a comment for each stroke and none for the rotation',
-    /^# 1 {2}Draw:Add:mark {2}Pen stroke {2}\(/m.test(text) && /^# 2 {2}Draw:Add:mark {2}Pen stroke {2}\(/m.test(text) && !/Rotate|modified mark/.test(text),
+    /^# 1 {2}Draw:Add:mark {2}Brush stroke {2}\(/m.test(text) && /^# 2 {2}Draw:Add:mark {2}Brush stroke {2}\(/m.test(text) && !/Rotate|modified mark/.test(text),
     text.split('\n').filter((line) => line.startsWith('#')).join(' | '),
   );
   c.eq('the line under the title counts two marks', /, 2 marks, /.test(s.stats), true);

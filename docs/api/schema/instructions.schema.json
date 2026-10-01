@@ -37,6 +37,9 @@
             "$ref": "#/definitions/verbs/group"
           },
           {
+            "$ref": "#/definitions/verbs/clip"
+          },
+          {
             "$ref": "#/definitions/verbs/tool"
           },
           {
@@ -65,6 +68,9 @@
           },
           {
             "$ref": "#/definitions/verbs/nib"
+          },
+          {
+            "$ref": "#/definitions/verbs/pencil"
           },
           {
             "$ref": "#/definitions/verbs/rough"
@@ -103,10 +109,34 @@
             "$ref": "#/definitions/verbs/shape"
           },
           {
+            "$ref": "#/definitions/verbs/wipe"
+          },
+          {
+            "$ref": "#/definitions/verbs/stack"
+          },
+          {
             "$ref": "#/definitions/verbs/path"
           },
           {
             "$ref": "#/definitions/verbs/through"
+          },
+          {
+            "$ref": "#/definitions/verbs/split"
+          },
+          {
+            "$ref": "#/definitions/verbs/smear"
+          },
+          {
+            "$ref": "#/definitions/verbs/warp"
+          },
+          {
+            "$ref": "#/definitions/verbs/twirl"
+          },
+          {
+            "$ref": "#/definitions/verbs/pucker"
+          },
+          {
+            "$ref": "#/definitions/verbs/bloat"
           },
           {
             "$ref": "#/definitions/verbs/push"
@@ -638,10 +668,41 @@
         ],
         "additionalProperties": false
       },
+      "clip": {
+        "type": "object",
+        "title": "clip",
+        "description": "A clip group: everything its block draws shows only inside the block's last closed shape, in paint order, which paints nothing while it clips - the app's Make Clipping Mask. Without a closed shape in it, the block is a plain group.",
+        "properties": {
+          "verb": {
+            "const": "clip"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "$ref": "#/definitions/body"
+          }
+        },
+        "required": [
+          "verb",
+          "body"
+        ],
+        "additionalProperties": false
+      },
       "tool": {
         "type": "object",
         "title": "tool",
-        "description": "The kind of mark: pen, marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib) or eraser (takes away what is under it, on its own layer only).",
+        "description": "The kind of mark: pen (the app's Brush; brush is taken for it), marker (translucent, so overlapping passes build up like ink), copic (a broad, angled nib), pencil (a lead through the paper's grain; pencil picks one) or eraser (cuts its line's swath out of the marks drawn before it on its layer, as the app's Eraser does, and draws nothing of its own).",
         "properties": {
           "verb": {
             "const": "tool"
@@ -655,7 +716,9 @@
               "pen",
               "marker",
               "copic",
-              "eraser"
+              "pencil",
+              "eraser",
+              "brush"
             ]
           }
         },
@@ -888,7 +951,7 @@
       "profile": {
         "type": "object",
         "title": "profile",
-        "description": "How the width runs along a pen or marker stroke: uniform, rounded, tapered or wave.",
+        "description": "How the width runs along a brush or marker stroke: uniform, rounded, tapered or wave.",
         "properties": {
           "verb": {
             "const": "profile"
@@ -937,6 +1000,70 @@
         "required": [
           "verb",
           "angle"
+        ],
+        "additionalProperties": false
+      },
+      "pencil": {
+        "type": "object",
+        "title": "pencil",
+        "description": "Takes up the Pencil at a grade: graphite alone, 9H to 9B, or charcoal (HB to 6B), compressed (2B to 6B) or vine (hard, medium, soft) and its grade. Every mark after it is drawn with that lead through the paper's grain, in its tone - or in the color given, a colored pencil. The width is the line's own; the app's softer leads draw broader at one tool width.",
+        "properties": {
+          "verb": {
+            "const": "pencil"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "pencil": {
+            "type": "string",
+            "enum": [
+              "9H",
+              "8H",
+              "7H",
+              "6H",
+              "5H",
+              "4H",
+              "3H",
+              "2H",
+              "H",
+              "F",
+              "HB",
+              "B",
+              "2B",
+              "3B",
+              "4B",
+              "5B",
+              "6B",
+              "7B",
+              "8B",
+              "9B",
+              "charcoal-HB",
+              "charcoal-2B",
+              "charcoal-4B",
+              "charcoal-6B",
+              "vine-hard",
+              "vine-medium",
+              "vine-soft",
+              "compressed-2B",
+              "compressed-4B",
+              "compressed-6B"
+            ]
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "pencil"
         ],
         "additionalProperties": false
       },
@@ -1771,6 +1898,76 @@
         ],
         "additionalProperties": false
       },
+      "wipe": {
+        "type": "object",
+        "title": "wipe",
+        "description": "Combines the marks its block draws, as the app's Wipe Stacks do, and draws what is left in their place: in (Wipe In, their union), out-front (Subtract Top from Below: the bottom one less the rest), out-back (Subtract Below from Top: the top one less the rest), mid (Mid Wipe: where all of them overlap), outer (Outer Wipes: where an odd number overlap) or clean (Clean Wipe: every piece of their overlaps, a mark each). What is left is painted as the topmost mark, or as the bottom one for out-front; text, pictures and eraser marks in the block are passed over. The block keeps its paint and transforms to itself, as a group does, and effects written just before it go on what it leaves.",
+        "properties": {
+          "verb": {
+            "const": "wipe"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "in",
+              "out-front",
+              "out-back",
+              "mid",
+              "outer",
+              "clean"
+            ]
+          },
+          "body": {
+            "$ref": "#/definitions/body"
+          }
+        },
+        "required": [
+          "verb",
+          "op",
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "stack": {
+        "type": "object",
+        "title": "stack",
+        "description": "Stacks the marks its block draws as the app's Shape Stacker does, at the pieces under its points - the places where the marks overlap and where they do not: merge makes those pieces one shape, painted as the topmost mark over the first point, and each mark keeps what was not merged; remove takes them away from every mark. Text, pictures and eraser marks in the block are passed over. The block keeps its paint and transforms to itself, as a group does, and the points are where the stack line is.",
+        "properties": {
+          "verb": {
+            "const": "stack"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "merge",
+              "remove"
+            ]
+          },
+          "points": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/point"
+            }
+          },
+          "body": {
+            "$ref": "#/definitions/body"
+          }
+        },
+        "required": [
+          "verb",
+          "mode",
+          "points",
+          "body"
+        ],
+        "additionalProperties": false
+      },
       "path": {
         "type": "object",
         "title": "path",
@@ -2172,6 +2369,415 @@
         },
         "required": [
           "verb"
+        ],
+        "additionalProperties": false
+      },
+      "split": {
+        "type": "object",
+        "title": "split",
+        "description": "Cuts the topmost mark drawn so far whose path passes within 4 px of a point, where the point lands on it, as the app's Split does: an open path becomes two, a closed one opens there, and a compound shape gives up the ring that was cut, as an open mark of its own. Nothing moves, and the pieces take the mark's place on its layer. In a wipe or a stack block it cuts among the marks the block has drawn.",
+        "properties": {
+          "verb": {
+            "const": "split"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "smear": {
+        "type": "object",
+        "title": "smear",
+        "description": "A pass of the Smear, a blending stump, along a list of points: it spreads the graphite of every pencil mark drawn so far that it reaches, along the drag, as the app's Smear does. The width is the stump's, scaled by the transform as a width is, and the strength from 0 to 1. In a wipe or a stack block it smears among the marks the block has drawn.",
+        "properties": {
+          "verb": {
+            "const": "smear"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT])?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "points": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "$ref": "#/definitions/point"
+            }
+          }
+        },
+        "required": [
+          "verb",
+          "width",
+          "strength",
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "warp": {
+        "type": "object",
+        "title": "warp",
+        "description": "Liquify's Warp, as the app's Liquify does it: a brush pushed from the point by dx and dy, carrying what is under its centre the whole way, like clay. The brush reaches the marks drawn so far whose outline passes within its radius of the point, under the transform as a mark drawn there would be, and its effect falls off smoothly to nothing at the rim; the radius scales with the transform. Pencil marks are the Smear's, and text, pictures and eraser marks have no outline to bend: all are left as they are. Each mark it bends is fitted again after, so its anchors stay few. In a wipe or a stack block it bends among the marks the block has drawn.",
+        "properties": {
+          "verb": {
+            "const": "warp"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT])?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "dx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "dy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "x",
+          "y",
+          "radius",
+          "dx",
+          "dy"
+        ],
+        "additionalProperties": false
+      },
+      "twirl": {
+        "type": "object",
+        "title": "twirl",
+        "description": "Liquify's Twirl: turns what is under a brush at the point about its centre, by the angle in degrees there - clockwise on the screen, as rotate turns - and less toward the rim, so distances from the centre are kept. The brush reaches the marks drawn so far whose outline passes within its radius of the point, under the transform as a mark drawn there would be, and its effect falls off smoothly to nothing at the rim; the radius scales with the transform. Pencil marks are the Smear's, and text, pictures and eraser marks have no outline to bend: all are left as they are. Each mark it bends is fitted again after, so its anchors stay few. In a wipe or a stack block it bends among the marks the block has drawn.",
+        "properties": {
+          "verb": {
+            "const": "twirl"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT])?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "x",
+          "y",
+          "radius",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "pucker": {
+        "type": "object",
+        "title": "pucker",
+        "description": "Liquify's Pucker: draws what is under a brush at the point in toward its centre, a point near the centre by the amount, 0 to 1, of its distance. The brush reaches the marks drawn so far whose outline passes within its radius of the point, under the transform as a mark drawn there would be, and its effect falls off smoothly to nothing at the rim; the radius scales with the transform. Pencil marks are the Smear's, and text, pictures and eraser marks have no outline to bend: all are left as they are. Each mark it bends is fitted again after, so its anchors stay few. In a wipe or a stack block it bends among the marks the block has drawn.",
+        "properties": {
+          "verb": {
+            "const": "pucker"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT])?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "x",
+          "y",
+          "radius",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "bloat": {
+        "type": "object",
+        "title": "bloat",
+        "description": "Liquify's Bloat: pushes what is under a brush at the point out from its centre, a point near the centre by the amount, 0 to 1, of its distance. The brush reaches the marks drawn so far whose outline passes within its radius of the point, under the transform as a mark drawn there would be, and its effect falls off smoothly to nothing at the rim; the radius scales with the transform. Pencil marks are the Smear's, and text, pictures and eraser marks have no outline to bend: all are left as they are. Each mark it bends is fitted again after, so its anchors stay few. In a wipe or a stack block it bends among the marks the block has drawn.",
+        "properties": {
+          "verb": {
+            "const": "bloat"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "radius": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT])?$"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/definitions/expression"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "x",
+          "y",
+          "radius",
+          "amount"
         ],
         "additionalProperties": false
       },
@@ -2664,7 +3270,7 @@
       "text": {
         "type": "object",
         "title": "text",
-        "description": "A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as pen strokes instead.",
+        "description": "A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as brush strokes instead.",
         "properties": {
           "verb": {
             "const": "text"

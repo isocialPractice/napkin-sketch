@@ -184,13 +184,22 @@ function withoutIds(items: readonly NativeItem[]): NativeRow[] {
   });
 }
 
-test('File, Edit and View are the old menus with exactly the three documented changes', () => {
+/** View > Zoom In and Zoom Out zoom the canvas since 1.0.0-alpha.4.6.0: the app's own rows, where Electron's were. */
+function zoomRowsTheApps(rows: NativeRow[]): NativeRow[] {
+  return rows.map((row) => {
+    if ('role' in row && row.role === 'zoomIn') return { label: 'Zoom In', accelerator: 'CmdOrCtrl+Plus' };
+    if ('role' in row && row.role === 'zoomOut') return { label: 'Zoom Out', accelerator: 'CmdOrCtrl+-' };
+    return row;
+  });
+}
+
+test('File, Edit and View are the old menus with exactly the four documented changes', () => {
   for (const animation of [true, false]) {
     const menus = nativeMenus(registry, { animationNotInstalled: !animation });
     const menu = (label: string) => withoutIds(menus.find((m) => m.label === label)!.submenu);
     assert.deepEqual(menu('File'), exportInNewOrder(TODAY_FILE), `File, animation ${animation}`);
     assert.deepEqual(menu('Edit'), editorsAdded(rotateAndMirrorMoved(todayEdit(animation))), `Edit, animation ${animation}`);
-    assert.deepEqual(menu('View'), TODAY_VIEW, `View, animation ${animation}`);
+    assert.deepEqual(menu('View'), zoomRowsTheApps(TODAY_VIEW), `View, animation ${animation}`);
   }
 });
 
@@ -250,6 +259,15 @@ const TODAY_LAYERS_PANEL: Shape[] = [
   item('Hide Layers Panel'),
 ];
 
+/** The Wipe Stacks' rows, each greyed with fewer than two shapes selected. */
+const WIPE_STACKS: Shape[] = [
+  item('Wipe In', 'fewerThanTwoShapes'),
+  sub('Wipe Out', [item('Subtract Top from Below', 'fewerThanTwoShapes'), item('Subtract Below from Top', 'fewerThanTwoShapes')], 'fewerThanTwoShapes'),
+  item('Mid Wipe', 'fewerThanTwoShapes'),
+  item('Outer Wipes', 'fewerThanTwoShapes'),
+  item('Clean Wipe', 'fewerThanTwoShapes'),
+];
+
 const TODAY_CANVAS: Shape[] = [
   ...TODAY_CLIPBOARD,
   '---',
@@ -282,24 +300,40 @@ const TODAY_CLOSE_SHAPE_BUTTON: Shape[] = [
 const NEW_FORMATS = [item('PNG Image…'), item('SVG Vector…'), item('JPEG Image…'), item('PDF Document…')];
 const NEW_ADD_PAGE = [item('Default New Page'), item('Custom New Page…'), item('From Selection', 'noSelection')];
 
+/**
+ * Previous Page and Next Page, a block after Delete Page since
+ * 1.0.0-alpha.4.6.0: the page bar's arrows always had them, and the menus
+ * did not.
+ */
+function withPageTurns(rows: Shape[]): Shape[] {
+  const at = rows.findIndex((row) => typeof row !== 'string' && row.label === 'Delete Page');
+  return [...rows.slice(0, at + 1), '---', item('Previous Page', 'firstPage'), item('Next Page', 'lastPage'), ...rows.slice(at + 1)];
+}
+
 test('the right-click menus and dropdowns are the old ones with exactly the documented changes', () => {
   const expected: Record<string, Shape[]> = {
-    // The new Layers menu: "Delete Layer", and the two restack rows in a Move submenu.
-    // Hide gains a question that is never yes inside the open panel, and is there for the menu bar.
+    // The new Layers menu: "Delete Layer", the two restack rows in a Move submenu, and the
+    // Clipping Mask's two after it. Hide gains a question that is never yes inside the open
+    // panel, and is there for the menu bar.
     layers: replace(
       replace(
         replace(replace(TODAY_LAYERS_PANEL, 'Delete Layer(s)', item('Delete Layer')), 'Move Layer(s) Up', sub('Move', [item('Layer Up'), item('Layer Down')])),
         'Move Layer(s) Down',
+        sub('Clipping Mask', [item('Make', 'noMarksSelected'), item('Release', 'noClipGroup')]),
       ),
       'Hide Layers Panel',
       item('Hide Layers Panel', 'layersHidden'),
     ),
-    canvas: TODAY_CANVAS,
-    // The new Pages menu: Add Page opens the three ways to start a page.
-    pages: replace(
-      replace(TODAY_PAGES_PANEL, 'Add Page', sub('Add Page', NEW_ADD_PAGE)),
-      'Hide Pages Panel',
-      item('Hide Pages Panel', 'pagesHidden'),
+    // The Wipe Stacks, a block of their own at the end, greyed with fewer than two shapes.
+    canvas: [...TODAY_CANVAS, '---', sub('Wipe Stacks', WIPE_STACKS, 'fewerThanTwoShapes')],
+    // The new Pages menu: Add Page opens the three ways to start a page, and
+    // Previous and Next Page have a block of their own.
+    pages: withPageTurns(
+      replace(
+        replace(TODAY_PAGES_PANEL, 'Add Page', sub('Add Page', NEW_ADD_PAGE)),
+        'Hide Pages Panel',
+        item('Hide Pages Panel', 'pagesHidden'),
+      ),
     ),
     // The hamburger shows Add Page's submenu, so it takes that submenu's order.
     'pages-button': NEW_ADD_PAGE,
@@ -310,8 +344,8 @@ test('the right-click menus and dropdowns are the old ones with exactly the docu
   for (const [context, rows] of Object.entries(expected)) {
     assert.deepEqual(shape(contextItems(registry, context)), rows, context);
   }
-  // The old lists, for the record of what changed: these two did not.
-  assert.deepEqual(expected.canvas, TODAY_CANVAS);
+  // The old lists, for the record of what changed: this one did not.
+  assert.notDeepEqual(expected.canvas, TODAY_CANVAS);
   assert.deepEqual(expected['close-shape-button'], TODAY_CLOSE_SHAPE_BUTTON);
   assert.notDeepEqual(expected['pages-button'], TODAY_PAGES_BUTTON);
   assert.notDeepEqual(expected['export-button'], TODAY_EXPORT_BUTTON);
@@ -403,7 +437,7 @@ const MENU_BAR = [
   '  ---',
   '  Toggle Full Screen (F11)',
   'Transform',
-  '  Vector Path (B)',
+  '  Vector Path (P)',
   '  ---',
   '  [ ] Transform Box (Ctrl+T)',
   '  Move… (Enter)',
@@ -412,21 +446,38 @@ const MENU_BAR = [
   '  Close Shape',
   '    Sharp',
   '    Smooth',
+  '  Wipe Stacks',
+  '    Wipe In',
+  '    Wipe Out',
+  '      Subtract Top from Below',
+  '      Subtract Below from Top',
+  '    Mid Wipe',
+  '    Outer Wipes',
+  '    Clean Wipe',
   '  Mirror… (O)',
   '  ---',
   '  Sharpen',
   '    Sharpen Selection…',
   '    Sharpen All (H)',
   '  Mesh Warp',
+  '  Liquify (Shift+R)',
   'Sketch',
-  '  Pen (P)',
+  '  Brush (B)',
   '  Marker (M)',
   '  Eraser (E)',
+  '  Shape Eraser (Shift+E)',
+  '  Shape Stacker (Shift+M)',
+  '  Split (J)',
+  '  Apply Erasers',
   '  Text (T)',
   '  Copic (K)',
+  '  Pencil (N)',
+  '  Smear (Shift+N)',
   '  Direct (A)',
   '  ---',
   '  Stroke Profile…',
+  '  [ ] Fill in Front (X)',
+  '  Swap Fill and Stroke (Shift+X)',
   'Layers',
   '  Add Layer',
   '  Group Layer (Ctrl+G)',
@@ -437,6 +488,9 @@ const MENU_BAR = [
   '  Move Layer',
   '    Layer Up (Ctrl+])',
   '    Layer Down (Ctrl+[)',
+  '  Clipping Mask',
+  '    Make (Ctrl+7)',
+  '    Release (Ctrl+Alt+7)',
   '  ---',
   '  Hide Layers Panel',
   'Pages',
@@ -445,6 +499,9 @@ const MENU_BAR = [
   '    Custom New Page…',
   '    From Selection',
   '  Delete Page',
+  '  ---',
+  '  Previous Page (PageUp)',
+  '  Next Page (PageDown)',
   '  ---',
   '  Page Settings…',
   '  ---',
@@ -529,6 +586,8 @@ test('the menu bar claims only the chords it claimed before; the page keeps the 
     'toggle-settings',
     'undo',
     'verbose-settings',
+    'zoom-in',
+    'zoom-out',
   ]);
   // Every row the six new menus bring with a chord was handled by the page's key handler, and still is.
   for (const id of ['tool-vector', 'move-selection', 'rotate', 'join-strokes', 'mirror', 'sharpen-all', 'tool-pen', 'tool-point', 'group-layer', 'rename-layer', 'layer-up']) {
@@ -614,14 +673,22 @@ test('the tools a user can move to another type are the ones the plan lists', ()
     'rotate',
     'join-strokes',
     'close-shape',
+    'wipe-stacks',
     'mirror',
     'sharpen',
     'tool-warp',
+    'tool-liquify',
     'tool-pen',
     'tool-marker',
     'tool-eraser',
+    'tool-shape-eraser',
+    'tool-shape-stacker',
+    'tool-split',
+    'apply-erasers',
     'tool-text',
     'tool-copic',
+    'tool-pencil',
+    'tool-smear',
     'tool-point',
     'add-layer',
     'group-layer',
@@ -629,6 +696,7 @@ test('the tools a user can move to another type are the ones the plan lists', ()
     'rename-layer',
     'delete-layer',
     'move-layer',
+    'clipping-mask',
     'tool-select',
     'tool-rect',
     'tool-ellipse',
@@ -659,12 +727,13 @@ test("every shortcut can be changed but a role row's and a submenu's", () => {
     'export-selection',
     'quit',
     'toggle-dev-tools',
-    'zoom-in',
-    'zoom-out',
     'toggle-full-screen',
     'close-shape',
+    'wipe-stacks',
+    'wipe-out',
     'sharpen',
     'move-layer',
+    'clipping-mask',
     'add-page',
     'generate-script',
     'help-tool-types',
@@ -677,7 +746,7 @@ test('the types a tool can be moved to are the sub-types the menus accept, by ma
     { main: 'Composition', types: ['Composition:edit:mixed', 'Composition:Subtract:element', 'Composition:edit:selection'] },
     {
       main: 'Draw',
-      types: ['Draw:Add:vector', 'Draw:Modify:element', 'Draw:Subtract:vector', 'Draw:Add:mark', 'Draw:Modify:vector', 'Draw:Subtract:mark'],
+      types: ['Draw:Add:vector', 'Draw:Modify:element', 'Draw:Combine:element', 'Draw:Subtract:vector', 'Draw:Add:mark', 'Draw:Modify:vector', 'Draw:Subtract:mark'],
     },
     { main: 'API', types: ['API:automate:mixed'] },
   ]);

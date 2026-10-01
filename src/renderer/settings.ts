@@ -84,7 +84,9 @@ class SettingsApp {
     this.setRange('pan-sensitivity', lim.panSensitivity);
     this.setRange('quick-timer', lim.quickTimerMs);
     this.setRange('endpoint-snap-px', lim.endpointSnapPx);
+    this.setRange('select-px', lim.selectSensitivityPx);
     this.setRange('eyedrop-px', lim.eyedropSensitivityPx);
+    this.setRange('freehand-fidelity', lim.freehandFidelityPx);
     this.setRange('direct-select-px', lim.directSelectSensitivityPx);
     this.setRange('qs-wobble', lim.sharpenWobble);
     this.setRange('qs-smoothing', lim.sharpenSmoothing);
@@ -152,8 +154,17 @@ class SettingsApp {
     el<HTMLInputElement>('join-stroke').addEventListener('change', (e) =>
       this.patch({ joinStrokeOnSnap: (e.target as HTMLInputElement).checked }),
     );
+    el<HTMLInputElement>('wipe-animation').addEventListener('change', (e) =>
+      this.patch({ wipeAnimation: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('select-px').addEventListener('input', (e) =>
+      this.patch({ selectSensitivityPx: Number((e.target as HTMLInputElement).value) }),
+    );
     el<HTMLInputElement>('eyedrop-px').addEventListener('input', (e) =>
       this.patch({ eyedropSensitivityPx: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('freehand-fidelity').addEventListener('input', (e) =>
+      this.patch({ freehandFidelityPx: Number((e.target as HTMLInputElement).value) }),
     );
     el<HTMLInputElement>('direct-select-px').addEventListener('input', (e) =>
       this.patch({ directSelectSensitivityPx: Number((e.target as HTMLInputElement).value) }),
@@ -289,7 +300,12 @@ class SettingsApp {
     this.setValue('endpoint-snap-px', s.endpointSnapPx);
     el('endpoint-snap-px-value').textContent = `${s.endpointSnapPx}px`;
     el<HTMLInputElement>('join-stroke').checked = s.joinStrokeOnSnap;
+    el<HTMLInputElement>('wipe-animation').checked = s.wipeAnimation;
 
+    this.setValue('select-px', s.selectSensitivityPx);
+    el('select-px-value').textContent = `${s.selectSensitivityPx}px`;
+    this.setValue('freehand-fidelity', s.freehandFidelityPx);
+    el('freehand-fidelity-value').textContent = `${s.freehandFidelityPx}px`;
     this.setValue('eyedrop-px', s.eyedropSensitivityPx);
     el('eyedrop-px-value').textContent = `${s.eyedropSensitivityPx}px`;
     this.setValue('direct-select-px', s.directSelectSensitivityPx);

@@ -39,6 +39,7 @@ import {
 } from './instructions.js';
 import { tokenize, type Token } from './tokenize.js';
 import { checkVersion } from './version.js';
+import { PENCIL_MEDIUM_LABELS, parsePencil, pencilPaint } from '../pencil.js';
 import { formatNumber, IDENTIFIER, isColor, isKnownUnit, RESERVED_NAMES, UNITS_SENTENCE } from './values.js';
 
 /** How to read a script. */
@@ -467,11 +468,44 @@ class Parser {
         if (word === 'off') return { kind: 'ok', value: false, next: i + 1 };
         return NOFIT;
       }
+      case 'pencil':
+        return this.readPencil(spec, i, end);
       case 'points':
         return this.readPoints(spec, slot, i, end);
       case 'stops':
         return this.readStops(spec, i, end);
     }
+  }
+
+  /**
+   * A pencil: a graphite grade alone - `2B` and `4H` read as a number and a
+   * unit, `HB` and `F` as words - or a medium and its grade, as two words
+   * (`charcoal 4B`, `vine soft`) or one (`vine-soft`), or a string.
+   */
+  private readPencil(spec: VerbSpec, i: number, end: number): SlotResult {
+    if (i >= end) return NOFIT;
+    const text = (token: Token): string | null => {
+      if (token.kind === 'number' && token.unit && Number.isInteger(token.value)) return `${token.value as number}${token.unit}`;
+      if (token.kind === 'word') return token.text;
+      if (token.kind === 'string') return token.value as string;
+      return null;
+    };
+    const token = this.tokens[i];
+    const first = text(token);
+    if (first === null) return NOFIT;
+    if (token.kind === 'word' && Object.prototype.hasOwnProperty.call(PENCIL_MEDIUM_LABELS, token.text.toLowerCase()) && i + 1 < end) {
+      const grade = text(this.tokens[i + 1]);
+      const both = grade === null ? null : parsePencil(`${token.text}-${grade}`);
+      if (both) return { kind: 'ok', value: pencilPaint(both).name, next: i + 2 };
+    }
+    const one = parsePencil(first);
+    if (one) return { kind: 'ok', value: pencilPaint(one).name, next: i + 1 };
+    return this.problem(
+      'expected-choice',
+      `\`${token.text}\` is not a pencil there is: \`${spec.name}\` takes a graphite grade from \`9H\` to \`9B\`, or \`charcoal\`, \`compressed\` or \`vine\` and its grade.`,
+      token,
+      spec.name,
+    );
   }
 
   private readLength(spec: VerbSpec, slot: SlotPart, axis: string, i: number, end: number): SlotResult {

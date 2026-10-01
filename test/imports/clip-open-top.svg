@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  For the clipping check's notices: a filled blue rectangle under an open red
+  line, which cannot clip it.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 220">
+  <g id="art" data-name="art">
+    <rect x="20" y="20" width="200" height="160" fill="#27486d"/>
+  </g>
+  <g id="cut" data-name="cut">
+    <path d="M 30 170 L 210 30" fill="none" stroke="#d0342c" stroke-width="3"/>
+  </g>
+</svg>

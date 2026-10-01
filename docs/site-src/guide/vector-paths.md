@@ -3,7 +3,7 @@
 ## At a glance
 
 - **Stroke Profiles** - the **Stroke Profile** control above the Width slider
-  sets how the width runs along new pen and marker strokes: **Default**,
+  sets how the width runs along new brush and marker strokes: **Default**,
   **Rounded**, **Tapered** or **Wave**. With the Select tool it reshapes the
   selection too, and the Properties panel's **Profile** select sets one
   element's. A profiled stroke exports to SVG and PDF as the shape it is and
@@ -42,6 +42,10 @@ active and no path in progress, *click such a stroke* to open it for editing
   toggling.
 - Clicking empty canvas or pressing `Esc` puts the path down; every change
   re-draws the stroke from its anchors immediately.
+- **Cutting a path** is [Split](tools.md#split)'s (`J`): a click cuts it where
+  it lands - on an anchor, or between two, by de Casteljau, so the pieces
+  trace the curve exactly - and a closed path opens there first. **Join**
+  (`Ctrl+J`) puts two open ends back together.
 
 ## Direct Select
 
@@ -51,8 +55,11 @@ to show its **anchor points**, then *drag* an anchor to reshape the path. A
 stroke drawn by the Vector Path, Curve, or quick-curve tools shows **just
 its few Bézier anchors** (a quick curve is two), and the selected anchor's
 **curvature handles** — drag a handle to bend the curve, with the opposite
-handle staying collinear so the bend is smooth; freehand strokes show their
-sampled points as before. Hold `Space` and drag
+handle staying collinear so the bend is smooth. A freehand stroke drawn since
+1.0.0-alpha.4.6.0 is fitted with a few Bézier anchors when it is lifted (see
+[Tools](tools.md)), so it shows those and edits like a curve; the Vector
+Path tool can edit it too. Older freehand strokes, two-point lines and shapes
+show their sampled points as before. Hold `Space` and drag
 to **pan the canvas**, exactly as with the Select tool, and the other quick
 keys (quick zoom, width, opacity, colors) work here too. *`Shift`-click* selects
 multiple anchors to move together; *click the path* (not an anchor) to select
@@ -63,8 +70,26 @@ stroke around the anchor: the anchor stays pinned, the span between anchor
 and handle turns rigidly so the handle tracks the pointer exactly, and the
 bend fades smoothly into the rest of the stroke beyond it. Pulling a handle
 longer or shorter stretches that span too. Selected anchors and paths render
-blue, the grab sensitivity is configurable (Sketch Support, default 3px),
-and `Esc` drops the edit (`Ctrl+Z` restores the shape).
+blue, and `Esc` drops the edit (`Ctrl+Z` restores the shape).
+
+- **The grab reach is the Direct Select sensitivity**, in screen pixels:
+  8 unless changed in Verbose Settings > Sketch Support (1 to 20). It reaches
+  every anchor, handle and path, the first click that picks a stroke
+  included, and the Vector Path tool's anchors and closing click. It used to
+  be held to at least 8 on a path with Bezier anchors, so the slider did
+  nothing below 8 there. A setting of 3 saved before 1.0.0-alpha.4.6.0, the
+  old default, reads as 8.
+- **A path is as wide as it is painted**, so a thick stroke is grabbed by its
+  edge as well as its middle. A click inside a filled shape, with nothing
+  painted over it, takes the whole path.
+- **A click is not an edit.** Nothing moves, and no undo step is added, until
+  the pointer has travelled 4 screen pixels, as with the Select tool. A click
+  that picks an anchor leaves the drawing alone.
+- **A closed shape's seam moves as one corner.** A rectangle's first and last
+  points sit on the same corner; a drag there carries both, so the shape stays
+  shut.
+- **Shift pins every drag** to the nearest axis or 45-degree diagonal: raw
+  points and tangent handles as well as a vector path's anchors.
 
 ## Sharpen Selection
 
@@ -92,15 +117,15 @@ control shows a picture of the current profile, and clicking it opens the
   described by eye, and every picture of one - in the control and in the
   picker - is drawn by the code that draws the canvas.
 - **Select**, a double-click or `Enter` makes the highlighted profile the one
-  new pen and marker strokes are drawn with. Like the width, it is tool state:
+  new brush and marker strokes are drawn with. Like the width, it is tool state:
   it lasts while the app runs and is not saved as a setting. With the Select
   tool and a selection, the selected strokes take it too, as one undo step.
   The arrow keys, `Home` and `End` move through the list; **Cancel**,
   `Escape` or a press beside the picker closes it.
 - The **Properties** panel's **Profile** select, under Stroke, changes the
   selected elements alone and leaves the tool's profile as it was.
-- Pen and marker marks take a profile, and so does everything that commits as
-  a pen stroke: Rectangle, Ellipse, Curve, straight lines and Vector Path. A
+- Brush and marker marks take a profile, and so does everything that commits as
+  a brush stroke: Rectangle, Ellipse, Curve, straight lines and Vector Path. A
   Copic stroke's nib is its own width, and the eraser always cuts at full
   width.
 - A profile runs once along each subpath from where it starts, so a closed

@@ -9,6 +9,7 @@
  * disagree about the tree a file makes.
  */
 
+import { isBlended, type BlendModeId } from './blend.js';
 import type { Effect } from './effects.js';
 import type { ImportedPdfPage } from './pdf-import.js';
 import { createGroupLayer, createId, createLayer, createSketch, type Layer, type Sketch, type Stroke } from './types.js';
@@ -23,6 +24,10 @@ export interface ImportedTreeNode {
   effects?: Effect[];
   /** A clip group's clip mark: one of the strokes somewhere in its children (core/clip.ts). */
   clip?: Stroke;
+  /** The layer's blend in the file (core/blend.ts). */
+  blend?: BlendModeId;
+  /** A group's Isolate Blending in the file. */
+  isolate?: boolean;
 }
 
 /** A file read as one page: its size, its paper when it had one, and its layers. */
@@ -55,17 +60,19 @@ export function buildImportedLayers(nodes: readonly ImportedTreeNode[]): BuiltLa
   let active: string | null = null;
   // Each imported stroke's new id, for a clip group to name its clip mark by.
   const ids = new Map<Stroke, string>();
+  // A leaf's own properties are given outright, never defaulted: an argument
+  // left `undefined` takes a default, which once gave the marks kept on a
+  // group the group's effects a second time.
   const leaf = (
     item: ImportedTreeNode,
     parent: string | undefined,
-    opacity = item.opacity,
-    name = item.name,
-    effects = item.effects,
+    own: { opacity: number; name: string; effects?: Effect[]; blend?: BlendModeId },
   ): void => {
-    const layer = createLayer(name);
-    layer.opacity = opacity;
+    const layer = createLayer(own.name);
+    layer.opacity = own.opacity;
     layer.parent = parent;
-    if (effects) layer.effects = effects;
+    if (own.effects) layer.effects = own.effects;
+    if (isBlended(own.blend)) layer.blend = own.blend;
     layers.push(layer);
     for (const stroke of item.strokes) {
       const id = createId('st');
@@ -80,13 +87,17 @@ export function buildImportedLayers(nodes: readonly ImportedTreeNode[]): BuiltLa
       group.opacity = item.opacity;
       group.parent = parent;
       if (item.effects) group.effects = item.effects;
+      if (isBlended(item.blend)) group.blend = item.blend;
+      if (item.isolate) group.isolate = true;
       for (const child of item.children) add(child, group.id);
-      if (item.strokes.length > 0) leaf(item, group.id, 1, `${item.name} contents`, undefined);
+      // The marks a file kept on the group itself are inside its picture, so
+      // they take neither its effects nor its blend a second time.
+      if (item.strokes.length > 0) leaf(item, group.id, { opacity: 1, name: `${item.name} contents` });
       const clip = item.clip ? ids.get(item.clip) : undefined;
       if (clip) group.clip = clip;
       layers.push(group);
     } else {
-      leaf(item, parent);
+      leaf(item, parent, { opacity: item.opacity, name: item.name, effects: item.effects, blend: item.blend });
     }
   };
   for (const node of nodes) add(node);

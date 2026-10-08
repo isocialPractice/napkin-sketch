@@ -146,7 +146,7 @@ try {
   c.eq('Edit > Edit Keyboard Shortcuts runs from the menu bar', await openEditor(), true);
   let v = await view();
   c.ok('and opens the editor over every tool', v.open && v.title === 'Edit Keyboard Shortcuts' && v.count === TOOL_COUNT, `${v.title}, ${v.count} rows of ${TOOL_COUNT}`);
-  c.eq('with a radio for each main type', v.filters.join(' '), 'All App Composition GUI Draw API docs');
+  c.eq('with a radio for each main type', v.filters.join(' '), 'All App Composition GUI Draw Effect Type API docs');
   const fullScreen = await cellOf('Toggle Full Screen');
   c.ok("Electron's own rows show their key, greyed", fullScreen?.disabled === true && fullScreen?.value === 'F11', JSON.stringify(fullScreen));
   // Zoom In zooms the canvas since 1.0.0-alpha.4.6.0: the app's own row, whose key can change.

@@ -47,12 +47,32 @@ import { eraseMarks, eraseRegionOf } from '../erase.js';
 import { fromPx, isLengthUnit, toPx } from '../units.js';
 import { IDENTITY, apply, meanScale, multiply, rotation, scaling, translation, type Matrix } from '../graphic-design/geometry.js';
 import { SubpathBuilder, parsePathD, sampleOutline } from '../path-data.js';
+import { strokeBounds } from '../bounds.js';
+import {
+  AUTO_LEADING,
+  applyChar,
+  mapTypesetAnchors,
+  paragraphRanges,
+  rectangleAnchors,
+  sameConfigName,
+  scaleTypeset,
+  typesetIsShape,
+  withTypeset,
+  type CharAttrs,
+  type ParaAttrs,
+  type TextConfig,
+  type TypeSpec,
+} from '../type/model.js';
+import { applyTextConfig, canonicalConfig, syncBookConfigs } from '../type/configs.js';
+import { withMarkdownConfigs } from '../type/markdown-flow.js';
+import { accentLanguage } from '../type/accents.js';
 import { linkKind, linkName, linkPlaceholder, type LinkResolver } from '../link.js';
 import { hasErrors, makeDiagnostic, sortDiagnostics, suggest, type Where } from './diagnostics.js';
 import { ExpressionError, evaluateExpression, parseExpression, type ExprNode, type ExprScope } from './expr.js';
 import { formSlots } from './grammar.js';
 import { effectOf } from './effects.js';
-import type { Effect } from '../effects.js';
+import { MARK_ONLY_EFFECT_TYPES, type Effect } from '../effects.js';
+import { blendModeOf, type BlendModeId } from '../blend.js';
 import {
   PAPER_SIZES,
   SCRIPT_LIMITS,
@@ -66,6 +86,11 @@ import {
   type Diagnostic,
   type DiagnosticCode,
   type EffectInstruction,
+  type AccentInstruction,
+  type BlendInstruction,
+  type CharacterFields,
+  type TextConfigInstruction,
+  type CharacterInstruction,
   type Expr,
   type FontInstruction,
   type GradientInstruction,
@@ -78,6 +103,7 @@ import {
   type NewPageInstruction,
   type NumberArg,
   type PageInstruction,
+  type ParagraphInstruction,
   type PathInstruction,
   type PathStep,
   type PercentAxis,
@@ -86,6 +112,7 @@ import {
   type RegistrationInstruction,
   type RepeatInstruction,
   type RoughInstruction,
+  type RunArg,
   type ScriptLimits,
   type ShapeInstruction,
   type TextInstruction,
@@ -132,7 +159,7 @@ import {
   starOutline,
   type Outline,
 } from './shapes.js';
-import { measureTextBlock, missingGlyphs, textOutline } from './text.js';
+import { missingGlyphs, textOutline } from './text.js';
 import { throughAnchors } from './through.js';
 
 /** How to run a script. */
@@ -222,6 +249,8 @@ export interface RunResult {
   stats: ScriptStats;
   output: OutputHints;
   seed: number;
+  /** The Text Configurations `textconfig` defined, in the order it first defined them, for the book's list. */
+  textConfigs: TextConfig[];
 }
 
 type P = { x: number; y: number };
@@ -327,12 +356,18 @@ class Evaluator {
   private readonly resolveLink: LinkResolver | undefined;
   /** Effects written and waiting for the next layer, group or mark, each with where it was written. */
   private pending: Array<{ effect: Effect; where: Where }> = [];
+  /** A blend written and waiting for the next layer or group, with where it was written. */
+  private pendingBlend: { blend: BlendModeId; where: Where } | null = null;
+  /** An accent written and waiting for the next `text`, with where it was written. */
+  private pendingAccent: { language: string; where: Where } | null = null;
   /**
    * The `wipe` or `stack` blocks under way, the innermost last, each with the
    * marks it has drawn: its operands, held back from the sink until it
    * combines them.
    */
   private readonly combining: Array<{ verb: 'wipe' | 'stack'; held: Stroke[] }> = [];
+  /** The Text Configurations `textconfig` has defined, in order: the book's list once the run ends. */
+  readonly textConfigs: TextConfig[] = [];
 
   constructor(
     private readonly sink: ScriptSink,
@@ -434,9 +469,16 @@ class Evaluator {
     this.hoist(list, path, scope);
     this.scopes.push(scope);
     this.pushes.push([]);
-    // An effect waits inside its own block: one left waiting when the block ends is reported there.
+    // An effect, a blend and an accent wait inside their own block: one left
+    // waiting when the block ends is reported there.
     const outer = scoped ? this.pending : null;
-    if (scoped) this.pending = [];
+    const outerBlend = this.pendingBlend;
+    const outerAccent = this.pendingAccent;
+    if (scoped) {
+      this.pending = [];
+      this.pendingBlend = null;
+      this.pendingAccent = null;
+    }
     try {
       this.runList(list, path);
       if (scoped) this.dropEffects('its block ended');
@@ -446,6 +488,10 @@ class Evaluator {
       this.scopes.pop();
       if (saved) this.frame = saved;
       if (outer) this.pending = outer;
+      if (scoped) {
+        this.pendingBlend = outerBlend;
+        this.pendingAccent = outerAccent;
+      }
     }
   }
 
@@ -556,8 +602,12 @@ class Evaluator {
   }
 
   private fraction(value: number, what: string, where: Where, verb: string): number {
-    if (!(value >= 0 && value <= 1)) {
-      throw this.problem('invalid-value', `${what} runs from 0 to 1, and is ${shown(value)}.`, where, verb);
+    return this.between(value, 0, 1, what, where, verb);
+  }
+
+  private between(value: number, lo: number, hi: number, what: string, where: Where, verb: string): number {
+    if (!(value >= lo && value <= hi)) {
+      throw this.problem('invalid-value', `${what} runs from ${lo} to ${hi}, and is ${shown(value)}.`, where, verb);
     }
     return value;
   }
@@ -594,9 +644,28 @@ class Evaluator {
     // its own when it takes effects, so they work on the whole mark at once -
     // except in a wipe or a stack, whose marks are its operands, each carrying them.
     const effects = erasing ? undefined : this.takeEffects();
-    const ownLayer = effects !== undefined && pieces.length > 1 && this.combining.length === 0;
+    // Its pieces are its parts: an effect aimed at the fill goes on the fill
+    // piece, one aimed at the stroke on each pass of the line, and the rest -
+    // the whole mark's - on the layer of its own, where a Warp bends the
+    // pieces as one. A Splatter draws on a shape, which a layer has none of:
+    // the whole mark's goes on the piece it hatches, the fill, or each pass of
+    // the line when there is no fill (core/geometry-effects.ts).
+    const split = effects !== undefined && pieces.length > 1 && this.combining.length === 0;
+    const onWhole = (effect: Effect): boolean => effect.target === undefined || effect.target === 'object';
+    const hatchesFill = pieces.some((piece) => piece.fill);
+    const whole = split ? effects.filter((effect) => onWhole(effect) && !MARK_ONLY_EFFECT_TYPES.has(effect.type)) : effects;
+    const aimed = (piece: RoughPiece): Effect[] =>
+      split
+        ? effects.filter(
+            (effect) =>
+              (effect.target === 'fill' && piece.fill) ||
+              (effect.target === 'stroke' && piece.stroke) ||
+              (onWhole(effect) && MARK_ONLY_EFFECT_TYPES.has(effect.type) && (hatchesFill ? piece.fill : piece.stroke)),
+          )
+        : [];
+    const ownLayer = split && whole !== undefined && whole.length > 0;
     const cursor = ownLayer ? this.sink.cursor() : null;
-    if (ownLayer) this.sink.newLayer(verb, { effects });
+    if (ownLayer) this.sink.newLayer(verb, { effects: whole });
     pieces.forEach((piece, k) => {
       const stroke: Stroke = {
         id: '',
@@ -622,7 +691,10 @@ class Evaluator {
         stroke.pencil = { ...paint.pencil };
         stroke.color = paint.pencilColor ?? pencilPaint(paint.pencil).tone;
       }
-      if (effects && !ownLayer) stroke.effects = effects;
+      if (split) {
+        const own = aimed(piece);
+        if (own.length > 0) stroke.effects = own;
+      } else if (effects) stroke.effects = effects;
       if (erasing) this.eraseWith(stroke, where, verb);
       else this.put(stroke);
     });
@@ -759,11 +831,18 @@ class Evaluator {
   // ---- Text and media --------------------------------------------------------
 
   /**
-   * A text item, measured with the built-in face and aligned on `at`, which
-   * is the top of its first line: its left end, its middle or its right end.
-   * It stays upright under a turn, as the app keeps text. `as marks` draws
-   * the letters as pen strokes instead, which turn with the drawing and take
-   * the paint and the hand-drawn pass like any other mark.
+   * A text item, set by the type layout and aligned on `at`, which is the top
+   * of its first line: its left end, its middle or its right end. `box` is
+   * Sheet Typing in a rectangle that grows to fit, and `inside` in a shape;
+   * `along` is Path Typing; `vertical` sets it in columns. Its characters
+   * take what `character` set, its paragraphs what `paragraph` set, and
+   * each run its own. It stays upright under a turn, as the app keeps text,
+   * though a path or a shape turns with the drawing. `markdown` makes it
+   * Markdown Flow: its text is Markdown, shown as it renders, and it carries
+   * the Markdown configurations - those the script defined by name, the rest
+   * as they are first made. `as marks` draws the letters as pen strokes
+   * instead, which turn with the drawing and take the paint and the
+   * hand-drawn pass like any other mark.
    */
   private text(instruction: TextInstruction, where: Where): void {
     const verb = 'text';
@@ -774,36 +853,210 @@ class Evaluator {
     const box = instruction.box === undefined ? undefined : this.positive(length('box', instruction.box), 'A text box', where, verb);
     const x = length('x', instruction.x);
     const y = length('y', instruction.y);
-    const align = instruction.align ?? 'left';
+    const align = instruction.align ?? paint.paragraph.align ?? 'left';
+    const kinds = [box !== undefined ? 'box' : '', instruction.inside !== undefined ? 'inside' : '', instruction.along !== undefined ? 'along' : ''].filter(Boolean);
+    if (kinds.length > 1) {
+      throw this.problem('invalid-value', `A text is set in a box, inside a shape or along a path, one of them: this one says ${kinds.map((k) => `\`${k}\``).join(' and ')}.`, where, verb);
+    }
+    if (instruction.along === undefined && (instruction.start !== undefined || instruction.flip || instruction.effect !== undefined)) {
+      throw this.problem('invalid-value', '`start`, `flip` and `effect` are Path Typing\'s: give the text `along` a path.', where, verb);
+    }
+    // The accent written for it: every paragraph colored as the language reads it.
+    const accent = this.takeAccent();
     if (instruction.asMarks) {
+      if (accent && accent !== 'none') this.warn('unused-accent', `\`accent ${accent}\` did nothing: \`as marks\` draws the text as strokes, which take no accent.`, where, verb);
+      if (instruction.inside !== undefined || instruction.along !== undefined || instruction.vertical || instruction.runs || instruction.markdown) {
+        throw this.problem('invalid-value', '`as marks` draws the text as strokes on its lines: it takes no `inside`, `along`, `vertical`, `runs` or `markdown`.', where, verb);
+      }
       const missing = missingGlyphs(instruction.text);
       if (missing.length > 0) {
         const named = missing.map((char) => `\`${char}\``).join(', ');
         this.warn('glyph-missing', `The built-in face has no ${named}; ${missing.length === 1 ? 'it is' : 'they are'} left as a gap.`, where, verb);
       }
-      const outline = textOutline(instruction.text, x, y, size, align, box);
+      const outline = textOutline(instruction.text, x, y, size, align === 'justify' ? 'left' : align, box);
       if (!outline) throw this.problem('invalid-value', 'This `text` has no letter the built-in face can draw.', where, verb);
       return this.emit(outline, where, verb);
     }
-    const block = measureTextBlock(instruction.text, size, box);
-    const left = align === 'center' ? x - block.width / 2 : align === 'right' ? x - block.width : x;
-    const m = this.frame.matrix;
-    const k = meanScale(m);
-    const placed = uprightBox({ x: left, y, width: block.width, height: block.height }, m, k, k);
-    const stroke: Stroke = {
-      id: '',
-      tool: 'text',
-      color: paint.color,
-      width: 1,
-      points: [{ x: placed.x, y: placed.y, pressure: 0.5 }],
-      text: instruction.text,
-      fontSize: round6(size * k),
-      fontFamily: paint.font.family,
-      sharpened: true,
-    };
-    if (box !== undefined) stroke.textBoxWidth = round6(box * k);
+    const text = instruction.text;
+    // Its kind: point type at its anchor, a box or a shape, or a path; both of the last from `at`.
+    let spec: TypeSpec = { kind: 'point', ...(instruction.vertical ? { orientation: 'vertical' as const } : {}) };
+    let anchor = { x, y };
+    if (box !== undefined) {
+      spec = { ...spec, kind: 'area', frame: { anchors: rectangleAnchors(box, size * AUTO_LEADING), autoHeight: true } };
+      anchor = { x: align === 'center' ? x - box / 2 : align === 'right' ? x - box : x, y };
+    } else if (instruction.inside !== undefined) {
+      spec = { ...spec, kind: 'area', frame: { anchors: this.textShape(instruction.inside, 'inside', where, verb).anchors } };
+    } else if (instruction.along !== undefined) {
+      const along = this.textShape(instruction.along, 'along', where, verb);
+      const start = instruction.start === undefined ? 0 : this.nonNegative(length('start', instruction.start), 'Where a text starts along its path', where, verb);
+      spec = {
+        ...spec,
+        kind: 'path',
+        path: {
+          anchors: along.anchors,
+          ...(along.closed ? { closed: true } : {}),
+          start,
+          end: Number.MAX_SAFE_INTEGER,
+          ...(instruction.flip ? { flip: true } : {}),
+          align: 'baseline',
+          effect: instruction.effect ?? 'rainbow',
+        },
+      };
+    }
+    // What `character` and `paragraph` set, on the whole text.
+    const character = paint.character;
+    const paragraph: Partial<ParaAttrs> = { ...paint.paragraph, ...(align !== 'left' || paint.paragraph.align !== undefined ? { align } : {}) };
+    if (Object.keys(character).length > 0) spec.runs = [{ start: 0, end: text.length, attrs: { ...character } }];
+    if (Object.keys(paragraph).length > 0) spec.paras = paragraphRanges(text).map(() => ({ ...paragraph }));
+    if (accent && accent !== 'none') spec.paras = paragraphRanges(text).map((_, p) => ({ ...(spec.paras?.[p] ?? {}), accent }));
+    if (instruction.markdown) spec.flow = 'markdown';
+    let stroke = withTypeset(
+      { id: '', tool: 'text', color: paint.color, width: 1, points: [{ x: anchor.x, y: anchor.y, pressure: 0.5 }], text, fontSize: size, fontFamily: paint.font.family, sharpened: true },
+      spec,
+    );
+    // The configuration the whole text follows, what `character` set overriding it.
+    if (instruction.config !== undefined) stroke = applyTextConfig(stroke, { start: 0, end: text.length }, this.configNamed(instruction.config, where, verb));
+    // Each run its own configuration and attributes, on top.
+    for (const run of instruction.runs ?? []) {
+      if (run.end > text.length) {
+        throw this.problem('invalid-value', `A run from ${run.start} to ${run.end} reaches past the ${text.length} characters of the text.`, where, verb);
+      }
+      if (run.config !== undefined) stroke = applyTextConfig(stroke, run, this.configNamed(run.config, where, verb));
+      stroke = applyChar(stroke, run, this.charAttrs(run, where, verb));
+    }
+    stroke = withMarkdownConfigs(stroke, this.textConfigs);
+    stroke = this.placeText(stroke);
     if (paint.opacity !== undefined) stroke.opacity = paint.opacity;
     this.addItem(stroke, where, verb);
+  }
+
+  /** The path data a text is set `inside` or `along`, as anchors from its `at`, read in the script's units. */
+  private textShape(d: string, clause: 'inside' | 'along', where: Where, verb: string): { anchors: VectorAnchor[]; closed: boolean } {
+    const subpaths = parsePathD(d);
+    if (!subpaths || subpaths.length === 0 || subpaths[0].anchors.length < 2) {
+      throw this.problem('invalid-value', `\`${clause}\` takes SVG path data, such as \`"M0 0 L200 0 L200 120 L0 120 Z"\`.`, where, verb);
+    }
+    const unit = this.length(1, 'none', where, verb);
+    const scale = (p: { x: number; y: number }): { x: number; y: number } => ({ x: p.x * unit, y: p.y * unit });
+    const map = (a: VectorAnchor): VectorAnchor => ({ p: scale(a.p), ...(a.hIn ? { hIn: scale(a.hIn) } : {}), ...(a.hOut ? { hOut: scale(a.hOut) } : {}) });
+    if (clause === 'along') return { anchors: subpaths[0].anchors.map(map), closed: subpaths[0].closed };
+    // A frame's contours are one shape, each later one a `move` away.
+    const anchors = subpaths.flatMap((sub, k) => sub.anchors.map((a, j) => ({ ...map(a), ...(k > 0 && j === 0 ? { move: true as const } : {}) })));
+    return { anchors, closed: true };
+  }
+
+  /**
+   * A text item placed under the transform: upright, its box's middle where
+   * the transform takes it, its sizes scaled by the transform's mean scale -
+   * or, for a path or a frame that is not a rectangle, its path or frame
+   * turned and scaled with the drawing.
+   */
+  private placeText(stroke: Stroke): Stroke {
+    const m = this.frame.matrix;
+    const anchor = stroke.points[0];
+    if (!anchor || (m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1 && m[4] === 0 && m[5] === 0)) return stroke;
+    const k = meanScale(m);
+    let out: Stroke;
+    if (stroke.typeset && typesetIsShape(stroke.typeset)) {
+      const moved = apply(m, anchor);
+      const turned = mapTypesetAnchors(stroke.typeset, (p) => ({ x: (m[0] * p.x + m[2] * p.y) / k, y: (m[1] * p.x + m[3] * p.y) / k }));
+      out = { ...stroke, points: [{ ...anchor, x: round6(moved.x), y: round6(moved.y) }], typeset: scaleTypeset(turned, k, k) };
+    } else {
+      const box = strokeBounds(stroke) ?? { minX: anchor.x, minY: anchor.y, maxX: anchor.x, maxY: anchor.y };
+      const placed = uprightBox({ x: box.minX, y: box.minY, width: box.maxX - box.minX, height: box.maxY - box.minY }, m, k, k);
+      out = {
+        ...stroke,
+        points: [{ ...anchor, x: round6(placed.x + (anchor.x - box.minX) * k), y: round6(placed.y + (anchor.y - box.minY) * k) }],
+        ...(stroke.typeset ? { typeset: scaleTypeset(stroke.typeset, k, k) } : {}),
+      };
+    }
+    out.fontSize = round6((stroke.fontSize ?? 24) * k);
+    if (stroke.textBoxWidth) out.textBoxWidth = round6(stroke.textBoxWidth * k);
+    return out;
+  }
+
+  /**
+   * A Text Configuration, kept for the book: its attributes as `character`
+   * reads them, with a size, a family and a color. Defined again under its
+   * name - in any case - it keeps its id and takes the new attributes, and
+   * every text that follows it, before or after, has them.
+   */
+  private textConfig(instruction: TextConfigInstruction, where: Where): void {
+    const verb = 'textconfig';
+    const name = instruction.name.trim();
+    if (name === '') throw this.problem('invalid-value', 'A Text Configuration needs a name.', where, verb);
+    const attrs = canonicalConfig({ id: '-', name: '-', attrs: this.charAttrs(instruction, where, verb) }).attrs;
+    const at = this.textConfigs.findIndex((config) => sameConfigName(config.name, name));
+    if (at >= 0) this.textConfigs[at] = { ...this.textConfigs[at], attrs };
+    else this.textConfigs.push(canonicalConfig({ id: `tc_n${(this.textConfigs.length + 1).toString(36)}`, name, attrs }));
+  }
+
+  /** The Text Configuration a `config` names, which a `textconfig` before it defined. */
+  private configNamed(name: string, where: Where, verb: string): TextConfig {
+    const found = this.textConfigs.find((config) => sameConfigName(config.name, name));
+    if (found) return found;
+    const guess = suggest(name, this.textConfigs.map((config) => config.name));
+    const hint = guess ? ` Did you mean \`${guess}\`?` : ' Define it first with `textconfig`.';
+    throw this.problem('unknown-config', `There is no Text Configuration named \`${name}\`.${hint}`, where, verb);
+  }
+
+  /** The character attributes of text after it; with `reset`, none. */
+  private character(instruction: CharacterInstruction, where: Where): void {
+    const paint = this.frame.paint;
+    paint.character = instruction.reset ? {} : { ...paint.character, ...this.charAttrs(instruction, where, 'character') };
+  }
+
+  /** Character attributes as the type model holds them, from `character`'s fields or a run's. */
+  private charAttrs(fields: CharacterFields & Partial<Pick<RunArg, 'size' | 'family' | 'color'>>, where: Where, verb: string): Partial<CharAttrs> {
+    const n = (value: NumberArg): number => this.number(value, where, verb);
+    const px = (value: LengthArg): number => this.length(value, 'min', where, verb);
+    const out: Partial<CharAttrs> = {};
+    if (fields.face !== undefined) out.fontStyle = fields.face;
+    if (fields.tracking !== undefined) out.tracking = n(fields.tracking);
+    if (fields.kern !== undefined) out.kern = n(fields.kern);
+    if (fields.kerning !== undefined) out.kerning = fields.kerning;
+    if (fields.leading !== undefined) out.leading = this.nonNegative(px(fields.leading), 'A leading', where, verb);
+    if (fields.spacing !== undefined) out.wordSpacing = this.nonNegative(n(fields.spacing), 'A word spacing', where, verb);
+    if (fields.caps !== undefined) out.caps = fields.caps;
+    if (fields.hscale !== undefined) out.hScale = this.positive(n(fields.hscale), 'A horizontal scale', where, verb);
+    if (fields.vscale !== undefined) out.vScale = this.positive(n(fields.vscale), 'A vertical scale', where, verb);
+    if (fields.shift !== undefined) out.baselineShift = px(fields.shift);
+    if (fields.rotate !== undefined) out.rotation = n(fields.rotate);
+    if (fields.highlight !== undefined) out.highlight = fields.highlight.trim().toLowerCase();
+    if (fields.position !== undefined) out.position = fields.position;
+    if (fields.underline !== undefined) out.underline = fields.underline;
+    if (fields.strike !== undefined) out.strike = fields.strike;
+    if (fields.size !== undefined) out.fontSize = this.positive(px(fields.size), 'A text size', where, verb);
+    if (fields.family !== undefined) out.fontFamily = fields.family;
+    if (fields.color !== undefined) out.color = fields.color.trim().toLowerCase();
+    return out;
+  }
+
+  /** The paragraph attributes of text after it; with `reset`, none. */
+  private paragraph(instruction: ParagraphInstruction, where: Where): void {
+    const verb = 'paragraph';
+    const paint = this.frame.paint;
+    if (instruction.reset) {
+      paint.paragraph = {};
+      return;
+    }
+    const px = (value: LengthArg, axis: PercentAxis): number => this.length(value, axis, where, verb);
+    const next: Partial<ParaAttrs> = { ...paint.paragraph };
+    if (instruction.align !== undefined) next.align = instruction.align;
+    if (instruction.indent !== undefined) next.leftIndent = px(instruction.indent, 'x');
+    if (instruction.indentRight !== undefined) next.rightIndent = px(instruction.indentRight, 'x');
+    if (instruction.first !== undefined) next.firstIndent = px(instruction.first, 'x');
+    if (instruction.before !== undefined) next.spaceBefore = this.nonNegative(px(instruction.before, 'y'), 'The space before a paragraph', where, verb);
+    if (instruction.after !== undefined) next.spaceAfter = this.nonNegative(px(instruction.after, 'y'), 'The space after a paragraph', where, verb);
+    if (instruction.hyphenate !== undefined) next.hyphenate = instruction.hyphenate;
+    if (instruction.list === 'none') delete next.list;
+    else if (instruction.list !== undefined) next.list = { kind: instruction.list, level: next.list?.level ?? 1 };
+    if (instruction.level !== undefined) {
+      if (!next.list) throw this.problem('invalid-value', 'A `level` is a list\'s: give `list bullet` or `list number` with it, or before it.', where, verb);
+      if (instruction.level < 1 || instruction.level > 9) throw this.problem('invalid-value', `A list's level is from 1 to 9, and this one is ${instruction.level}.`, where, verb);
+      next.list = { ...next.list, level: instruction.level };
+    }
+    paint.paragraph = next;
   }
 
   /**
@@ -974,7 +1227,6 @@ class Evaluator {
     const scale = instruction.scale === undefined ? 1 : this.number(instruction.scale, where, verb);
     if (scale === 0) throw this.problem('invalid-value', 'A `use` at scale 0 would draw nothing.', where, verb);
     const m = multiply(this.frame.matrix, multiply(translation(x, y), scaling(scale, scale)));
-    const measure = (text: Stroke): { width: number; height: number } => measureTextBlock(text.text ?? '', text.fontSize ?? 24, text.textBoxWidth);
     const tree = layerTree(page);
     const copies = new Map<Stroke, Stroke>();
     let anchors = 0;
@@ -982,7 +1234,7 @@ class Evaluator {
     const copyAll = (nodes: readonly LayerNode[]): void => {
       for (const node of nodes) {
         for (const stroke of node.strokes) {
-          const copy = copyStroke(stroke, m, measure);
+          const copy = copyStroke(stroke, m);
           copies.set(stroke, copy);
           anchors += copy.vector?.anchors.length ?? 0;
           points += copy.points.length;
@@ -997,6 +1249,8 @@ class Evaluator {
       if (layer.opacity < 1) out.opacity = layer.opacity;
       if (!layer.visible) out.hidden = true;
       if (layer.locked) out.locked = true;
+      if (layer.blend) out.blend = layer.blend;
+      if (layer.group && layer.isolate) out.isolate = true;
       return out;
     };
     const build = (nodes: readonly LayerNode[]): void => {
@@ -1115,6 +1369,12 @@ class Evaluator {
         return this.rough(instruction, where);
       case 'font':
         return this.font(instruction, where);
+      case 'character':
+        return this.character(instruction, where);
+      case 'textconfig':
+        return this.textConfig(instruction, where);
+      case 'paragraph':
+        return this.paragraph(instruction, where);
       case 'rect': {
         const width = this.positive(length('width', instruction.width), 'The width of a `rect`', where, verb);
         const height = this.positive(length('height', instruction.height), 'The height of a `rect`', where, verb);
@@ -1241,6 +1501,10 @@ class Evaluator {
         return this.repeat(instruction, path, where);
       case 'effect':
         return this.effect(instruction, where);
+      case 'blend':
+        return this.blend(instruction, where);
+      case 'accent':
+        return this.accent(instruction, where);
       case 'crop':
         this.output.crop = this.crop(instruction, where);
         return;
@@ -1306,6 +1570,7 @@ class Evaluator {
         number: (value) => this.number(value, where, verb),
         nonNegative: (value, what) => this.nonNegative(value, what, where, verb),
         fraction: (value, what) => this.fraction(value, what, where, verb),
+        between: (value, lo, hi, what) => this.between(value, lo, hi, what, where, verb),
       },
       this.frame.matrix,
     );
@@ -1320,18 +1585,76 @@ class Evaluator {
     return effects;
   }
 
-  /** The effects waiting, as the properties of the layer or group taking them. */
+  /** The effects and the blend waiting, as the properties of the layer or group taking them. */
   private effectProps(): LayerProps {
     const effects = this.takeEffects();
-    return effects ? { effects } : {};
+    const blend = this.takeBlend();
+    return { ...(effects ? { effects } : {}), ...(blend ? { blend } : {}) };
   }
 
-  /** Reports each effect still waiting when its block, its page or the script ends, and lets it go. */
+  /**
+   * A `blend` line: the mode the next layer or group takes, by any of its
+   * names. A second one before anything took the first takes its place, and
+   * the first is reported.
+   */
+  private blend(instruction: BlendInstruction, where: Where): void {
+    const blend = blendModeOf(instruction.mode);
+    if (!blend) return;
+    if (this.pendingBlend) this.dropBlend('the next `blend`');
+    this.pendingBlend = { blend, where };
+  }
+
+  /** The blend waiting, handed over; undefined when none is. */
+  private takeBlend(): BlendModeId | undefined {
+    const waiting = this.pendingBlend;
+    this.pendingBlend = null;
+    return waiting?.blend;
+  }
+
+  /** Reports the blend still waiting, and lets it go. */
+  private dropBlend(ended: string): void {
+    const waiting = this.pendingBlend;
+    if (!waiting) return;
+    this.warn('unused-blend', `\`blend ${waiting.blend}\` did nothing: no layer or group followed it before ${ended}. A blend is a layer's: write it before a layer or a group.`, waiting.where, 'blend');
+    this.pendingBlend = null;
+  }
+
+  /** Reports each effect, the blend and the accent still waiting when its block, its page or the script ends, and lets them go. */
   private dropEffects(ended: string): void {
     for (const { effect, where } of this.pending) {
       this.warn('unused-effect', `\`effect ${effect.type}\` did nothing: no layer, group or mark followed it before ${ended}.`, where, 'effect');
     }
     this.pending = [];
+    this.dropBlend(ended);
+    this.dropAccent(ended);
+  }
+
+  /**
+   * An `accent` line: the language the next `text`'s paragraphs are colored
+   * as - a language's id, `auto` or `none`. A second one before a text took
+   * the first takes its place, and the first is reported.
+   */
+  private accent(instruction: AccentInstruction, where: Where): void {
+    const wanted = instruction.language.trim().toLowerCase();
+    const language = wanted === 'auto' || wanted === 'none' ? wanted : accentLanguage(wanted)?.id;
+    if (!language) throw this.problem('expected-choice', `\`${instruction.language}\` is not a language highlight.js reads.`, where, 'accent');
+    if (this.pendingAccent) this.dropAccent('the next `accent`');
+    this.pendingAccent = { language, where };
+  }
+
+  /** The accent waiting, handed over; undefined when none is. */
+  private takeAccent(): string | undefined {
+    const waiting = this.pendingAccent;
+    this.pendingAccent = null;
+    return waiting?.language;
+  }
+
+  /** Reports the accent still waiting, and lets it go. */
+  private dropAccent(ended: string): void {
+    const waiting = this.pendingAccent;
+    if (!waiting) return;
+    this.warn('unused-accent', `\`accent ${waiting.language}\` did nothing: no \`text\` followed it before ${ended}.`, waiting.where, 'accent');
+    this.pendingAccent = null;
   }
 
   private layerProps(instruction: { opacity?: NumberArg; hidden?: boolean; locked?: boolean }, where: Where, verb: string): LayerProps {
@@ -1722,11 +2045,19 @@ class Evaluator {
     const parts = [...fitShape(found, length('x', instruction.x), length('y', instruction.y), width, height)].filter(
       (part) => (part.fill && part.outline.closed && (paint.fill !== null || paint.gradient !== null)) || (part.stroke && paint.stroke),
     );
-    // A shape of several parts takes its effects on a layer of its own, so they see the shape whole.
-    const effects = parts.length > 1 ? this.takeEffects() : undefined;
+    // A shape of several parts takes its effects on a layer of its own, so they
+    // see the shape whole - a Warp bends it as one - but a Splatter draws on a
+    // shape, which a layer has none of, so each part takes it as a mark would.
+    const taken = parts.length > 1 ? this.takeEffects() : undefined;
+    const geometry = paint.tool === 'eraser' ? [] : (taken ?? []).filter((effect) => MARK_ONLY_EFFECT_TYPES.has(effect.type));
+    const rest = (taken ?? []).filter((effect) => !geometry.includes(effect));
+    const effects = rest.length > 0 ? rest : undefined;
     const cursor = effects ? this.sink.cursor() : null;
     if (effects) this.sink.newLayer(instruction.name, { effects });
-    for (const part of parts) this.emit(part.outline, where, verb, { fill: part.fill, stroke: part.stroke });
+    for (const part of parts) {
+      for (const effect of geometry) this.pending.push({ effect, where });
+      this.emit(part.outline, where, verb, { fill: part.fill, stroke: part.stroke });
+    }
     if (cursor) this.sink.restore(cursor);
   }
 
@@ -1886,15 +2217,17 @@ class Evaluator {
     this.enter(where, 'place');
     const saved = copyFrame(this.frame);
     const cursor = this.sink.cursor();
-    // A placement that takes effects is drawn as a group of its own, which carries them.
+    // A placement that takes effects, or a blend, is drawn as a group of its
+    // own, which carries them.
     const effects = this.takeEffects();
+    const blend = this.takeBlend();
     const outer = this.pending;
     this.pending = [];
     this.placing.push(name);
     try {
       // The definition's origin lands at the placing point, turned and scaled about itself.
       this.transform(multiply(multiply(translation(x, y), rotation(r)), scaling(s, s)));
-      if (effects) this.sink.beginGroup(name, { effects });
+      if (effects || blend) this.sink.beginGroup(name, { ...(effects ? { effects } : {}), ...(blend ? { blend } : {}) });
       this.block(entry.instruction.body, entry.path, false);
       this.dropEffects('its definition ended');
     } finally {
@@ -1965,7 +2298,27 @@ class Evaluator {
 export function runScript(script: readonly Instruction[], sink: ScriptSink, options: EvaluateOptions = {}): RunResult {
   const evaluator = new Evaluator(sink, { ...SCRIPT_LIMITS, ...options.limits }, options);
   evaluator.run(script);
-  return { diagnostics: evaluator.diagnostics, stats: evaluator.stats, output: evaluator.output, seed: evaluator.seed };
+  return { diagnostics: evaluator.diagnostics, stats: evaluator.stats, output: evaluator.output, seed: evaluator.seed, textConfigs: evaluator.textConfigs };
+}
+
+/**
+ * The book a run drew, with the Text Configurations it defined as its list:
+ * each text carries the list's definition of those it follows - one defined
+ * again changed for all of them - and one a copied-in document brought joins
+ * the list, by name as a paste would. Ids are counted, as the sink's are, so
+ * one script gives the same book every time.
+ */
+function withScriptConfigs(book: SketchBook, configs: readonly TextConfig[]): SketchBook {
+  const taken = new Set(configs.map((config) => config.id));
+  let n = configs.length;
+  const nextId = (): string => {
+    let id = `tc_n${(++n).toString(36)}`;
+    while (taken.has(id)) id = `tc_n${(++n).toString(36)}`;
+    taken.add(id);
+    return id;
+  };
+  const { createdAt, updatedAt, ...head } = syncBookConfigs({ ...book, ...(configs.length > 0 ? { textConfigs: [...configs] } : {}) }, nextId);
+  return { ...head, createdAt, updatedAt };
 }
 
 /**
@@ -1982,7 +2335,7 @@ export function evaluate(source: ScriptSource, options: EvaluateOptions = {}): S
   const diagnostics = sortDiagnostics([...read.diagnostics, ...run.diagnostics]);
   return {
     ok: !hasErrors(diagnostics),
-    book: sink.finish(),
+    book: withScriptConfigs(sink.finish(), run.textConfigs),
     diagnostics,
     stats: run.stats,
     output: run.output,

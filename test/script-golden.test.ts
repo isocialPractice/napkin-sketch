@@ -15,8 +15,11 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { decodePng } from '../src/core/graphic-design/png.js';
 import { evaluate, formatDiagnostic, parseScript, renderBook, VERBS } from '../src/core/script/index.js';
 import type { Instruction } from '../src/core/script/instructions.js';
+// Markdown read with marked and code with highlight.js, as the command line draws a script.
+import '../src/markdown/core.js';
 import { fixtureSketch } from './helpers/fixture-sketch.js';
 import { repoRoot } from './helpers/repo-root.js';
 import { SCRIPT_FIXTURES } from './helpers/script-fixtures.js';
@@ -42,6 +45,21 @@ const OPTIONS = {
 const SCRIPTS = readdirSync(DIR)
   .filter((file) => file.endsWith('.napkin'))
   .sort();
+
+/**
+ * The goldens drawn to PNG as well, for the effects the raster draws pixel by
+ * pixel: `<name>.png` beside the SVG, a page of one.
+ */
+const PNG_SCRIPTS = ['type-and-appearance.napkin'];
+
+/**
+ * How far a PNG golden's pixel may move before it counts as changed, and how
+ * many may: a channel by 2 of 255, at most one pixel in a thousand. The
+ * raster is deterministic; the slack is for a floating-point library that
+ * rounds a blur's last bit another way.
+ */
+const PNG_CHANNEL_SLACK = 2;
+const PNG_PIXEL_SHARE = 0.001;
 
 interface Drawn {
   diagnostics: string[];
@@ -71,8 +89,20 @@ if (process.env.NAPKIN_GOLDEN_CHILD === '1') {
   // and hand the SVG back on standard output.
   process.stdout.write(JSON.stringify(Object.fromEntries(SCRIPTS.map((file) => [file, draw(file).files]))));
 } else {
-  test('there are ten golden scripts, the plan\'s goal among them', () => {
-    assert.deepEqual(SCRIPTS, ['deck.napkin', 'every-verb.napkin', 'goal.napkin', 'holes.napkin', 'pencil.napkin', 'rough.napkin', 'shapes.napkin', 'stack.napkin', 'use.napkin', 'wipe.napkin']);
+  test('there are eleven golden scripts, the plan\'s goal among them', () => {
+    assert.deepEqual(SCRIPTS, [
+      'deck.napkin',
+      'every-verb.napkin',
+      'goal.napkin',
+      'holes.napkin',
+      'pencil.napkin',
+      'rough.napkin',
+      'shapes.napkin',
+      'stack.napkin',
+      'type-and-appearance.napkin',
+      'use.napkin',
+      'wipe.napkin',
+    ]);
   });
 
   test('every-verb.napkin uses every verb in the table, so a new verb joins it', () => {
@@ -101,6 +131,43 @@ if (process.env.NAPKIN_GOLDEN_CHILD === '1') {
       }
     });
   }
+
+  for (const file of PNG_SCRIPTS) {
+    test(`${file} draws its golden PNG, every pixel within a step of it`, () => {
+      const name = file.replace(/\.napkin$/, '');
+      const result = evaluate(readFileSync(join(DIR, file), 'utf-8'), { ...OPTIONS, name });
+      const pages = renderBook(result.book, { format: 'png', ...result.output });
+      assert.equal(pages.length, 1, 'a page of one');
+      const golden = join(DIR, `${name}.png`);
+      if (UPDATE) writeFileSync(golden, pages[0]);
+      assert.ok(existsSync(golden), `${name}.png is missing: npm test -- --update-golden writes it`);
+      const want = decodePng(new Uint8Array(readFileSync(golden)));
+      const got = decodePng(pages[0]);
+      assert.deepEqual([got.width, got.height], [want.width, want.height], 'the same size');
+      let moved = 0;
+      let worst = 0;
+      for (let i = 0; i < got.data.length; i += 4) {
+        let most = 0;
+        for (let c = 0; c < 4; c++) most = Math.max(most, Math.abs(got.data[i + c] - want.data[i + c]));
+        worst = Math.max(worst, most);
+        if (most > PNG_CHANNEL_SLACK) moved++;
+      }
+      const allowed = Math.floor(got.width * got.height * PNG_PIXEL_SHARE);
+      assert.ok(moved <= allowed, `${moved} pixels moved, ${allowed} may (the worst by ${worst}): look at the change, then npm test -- --update-golden`);
+    });
+  }
+
+  test('every golden is XML a strict reader takes: no element says an attribute twice', () => {
+    for (const file of SCRIPTS) {
+      for (const [golden, svg] of Object.entries(draw(file).files)) {
+        for (const tag of svg.matchAll(/<([A-Za-z][\w:.-]*)((?:\s+[\w:.-]+="[^"]*")*)\s*\/?>/g)) {
+          const names = [...tag[2].matchAll(/\s([\w:.-]+)="/g)].map((m) => m[1]);
+          const twice = names.filter((attribute, i) => names.indexOf(attribute) !== i);
+          assert.deepEqual(twice, [], `${golden}: a <${tag[1]}> says ${twice.join(', ')} twice`);
+        }
+      }
+    }
+  });
 
   test('every golden draws the same bytes twice in one process', () => {
     for (const file of SCRIPTS) assert.deepEqual(draw(file).files, draw(file).files, file);

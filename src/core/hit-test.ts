@@ -20,21 +20,23 @@
  * Select's does.
  *
  * Nothing here touches the DOM; a host that can measure text passes a
- * measure.
+ * measure (core/type/measure.ts). Text is picked by the box its lines cover,
+ * and Path Typing by its characters and its path.
  */
 
 import { strokeBounds } from './bounds.js';
 import { clipIndex, clippedAt, shownBounds } from './clip.js';
+import { bindGeometry, drawnMarks } from './geometry-effects.js';
 import { copicNibPolygons } from './nib.js';
 import { paintLeaves } from './paint-order.js';
 import { activeProfile, profileInputOf, profilePieces, profileReach } from './stroke-profile.js';
 import { dashPatternFor, isImageStroke, isTextStroke, type Layer, type Point, type Sketch, type Stroke, widthAtPressure } from './types.js';
+import { sampleOutline } from './path-data.js';
+import { glyphCorners, layoutType } from './type/layout.js';
+import type { TypeMeasure } from './type/measure.js';
 
 type Vec = { x: number; y: number };
 type Box = { minX: number; minY: number; maxX: number; maxY: number };
-
-/** Measures a text item's box, where the host can. */
-export type MeasureText = (stroke: Stroke) => { width: number; height: number };
 
 export interface HitOptions {
   /** Screen pixels to one sketch unit. */
@@ -45,7 +47,7 @@ export interface HitOptions {
   editable?: ReadonlySet<string>;
   /** Which layers paint, so the order is the canvas's; every layer when absent. */
   paints?: (layer: Layer) => boolean;
-  measure?: MeasureText;
+  measure?: TypeMeasure;
   /** Picks through clips: Direct Select reaches every anchor in a clip group, shown or not, the clip mark's too. */
   ignoreClips?: boolean;
 }
@@ -63,7 +65,7 @@ const INSIDE: Nearest = { distance: 0, at: null };
  * The distance from `pt` to the ink `stroke` paints, in sketch units: 0
  * inside it. Infinity for an eraser, and for a mark with nothing to paint.
  */
-export function inkDistance(stroke: Stroke, pt: Vec, measure?: MeasureText): number {
+export function inkDistance(stroke: Stroke, pt: Vec, measure?: TypeMeasure): number {
   return inkNearest(stroke, pt, measure).distance;
 }
 
@@ -89,6 +91,8 @@ export function outlineDistance(stroke: Stroke, pt: Vec): number {
  * pick the mark, and nor does one near it whose nearest ink is gone.
  */
 export function hitMark(sketch: Sketch, pt: Vec, options: HitOptions): Stroke | null {
+  // A group's Warp bends its marks: they are found where it bends them.
+  bindGeometry(sketch);
   const tolerance = options.tolerancePx / options.zoom;
   let nearest: Stroke | null = null;
   let nearestDistance = Infinity;
@@ -135,8 +139,9 @@ export function hitMark(sketch: Sketch, pt: Vec, options: HitOptions): Stroke | 
 export function marksInBox(
   sketch: Sketch,
   whole: Box,
-  options: { editable?: ReadonlySet<string>; measure?: MeasureText } = {},
+  options: { editable?: ReadonlySet<string>; measure?: TypeMeasure } = {},
 ): Stroke[] {
+  bindGeometry(sketch);
   const clips = clipIndex(sketch);
   return sketch.strokes.filter((stroke) => {
     if (stroke.tool === 'eraser' || clips.marks.has(stroke.id)) return false;
@@ -177,9 +182,30 @@ export function marksInBox(
 // ---- The ink ---------------------------------------------------------------------
 
 /** How far `pt` is from the ink `stroke` paints, by the same rules the canvas paints it with. */
-function inkNearest(stroke: Stroke, pt: Vec, measure?: MeasureText): Nearest {
+function inkNearest(stroke: Stroke, pt: Vec, measure?: TypeMeasure): Nearest {
   if (stroke.tool === 'eraser') return OUTSIDE;
-  if (isImageStroke(stroke) || isTextStroke(stroke)) {
+  // A mark a geometry effect draws anew is where it is drawn: bent by a Warp,
+  // or a Splatter's hatch, not the fill it stands for.
+  const drawn = drawnMarks(stroke);
+  if (drawn) return drawn.reduce((best, mark) => nearer(best, inkNearest(mark, pt, measure)), OUTSIDE);
+  if (isTextStroke(stroke) && stroke.points[0]) {
+    const layout = layoutType(stroke, measure);
+    if (!layout.path) return boxNearest(pt, layout.bounds);
+    // Path Typing: its characters, and its path as a hairline.
+    const glyphs = piecesNearest(
+      pt,
+      layout.glyphs.filter((g) => g.ch !== ' ').map((g) => glyphCorners(g)),
+    );
+    if (glyphs.distance <= 0) return INSIDE;
+    let best = glyphs;
+    const line = sampleOutline(layout.path.anchors, layout.path.closed);
+    for (let i = 1; i < line.length; i++) {
+      if (line[i].move) continue;
+      best = nearer(best, discNearest(pt, segmentNearest(pt, line[i - 1], line[i]), 0.5));
+    }
+    return best;
+  }
+  if (isImageStroke(stroke)) {
     const box = strokeBounds(stroke, measure);
     return box ? boxNearest(pt, box) : OUTSIDE;
   }
@@ -253,7 +279,7 @@ export function inkReach(stroke: Stroke): number {
 }
 
 /** A cheap first look: whether `pt` is inside the mark's bounds grown by its reach and the tolerance. */
-function withinReach(stroke: Stroke, pt: Vec, tolerance: number, measure?: MeasureText): boolean {
+function withinReach(stroke: Stroke, pt: Vec, tolerance: number, measure?: TypeMeasure): boolean {
   const box = strokeBounds(stroke, measure);
   if (!box) return false;
   const grow = tolerance + (isImageStroke(stroke) || isTextStroke(stroke) ? 0 : inkReach(stroke));

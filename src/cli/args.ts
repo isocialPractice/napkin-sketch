@@ -36,6 +36,10 @@ export interface CommandArgs {
   assets: Record<string, string>;
   /** `--use <name>=<book.skbk>`, by name. */
   documents: Record<string, string>;
+  /** `--font <family>=<file>`, by family: a family may take several, its faces. */
+  fonts: Record<string, string[]>;
+  /** `--composition-style <file>`: a style every page is restyled by once drawn. */
+  compositionStyle: string | undefined;
   seed: number | undefined;
   scale: number | undefined;
   crop: CropArg | undefined;
@@ -77,6 +81,8 @@ export const FLAG_SUMMARIES: { readonly [flag: string]: { value?: string; summar
   '--base': { value: '<dir>', summary: 'The folder linked files are read inside.' },
   '--asset': { value: '<name>=<file>', summary: 'An image the script places by name; repeatable.' },
   '--use': { value: '<name>=<book.skbk>', summary: 'A book the script copies in with use; repeatable.' },
+  '--font': { value: '<family>=<file>', summary: "A font file text in that family is drawn from: its outlines in a PNG and a PDF, its advances in every format; repeatable, a family's faces each once." },
+  '--composition-style': { value: '<style.json>', summary: "Restyle every page by its layers' names with a composition style once it is drawn; a rule that matched nothing is a warning." },
   '--seed': { value: '<n>', summary: 'The seed for the hand-drawn pass.' },
   '--scale': { value: '<n>', summary: 'PNG pixels a page pixel.' },
   '--crop': { value: 'auto|none|<x,y,w,h>', summary: 'What every file is cut to.' },
@@ -95,14 +101,14 @@ export const FLAG_SUMMARIES: { readonly [flag: string]: { value?: string; summar
 
 /** The flags each subcommand takes, besides `-h` and `--help`. */
 export const COMMAND_FLAGS: { readonly [C in Command]: readonly string[] } = {
-  draw: ['--to', '--out', '--name', '--base', '--asset', '--use', '--seed', '--scale', '--crop', '--limit', '--prompt', '--helper', '--json', '--strict', '--quiet'],
+  draw: ['--to', '--out', '--name', '--base', '--asset', '--use', '--font', '--composition-style', '--seed', '--scale', '--crop', '--limit', '--prompt', '--helper', '--json', '--strict', '--quiet'],
   check: ['--base', '--asset', '--use', '--seed', '--limit', '--json', '--strict', '--quiet'],
-  render: ['--to', '--page', '--animate', '--frames', '--facing', '--out', '--name', '--base', '--scale', '--crop', '--json', '--strict', '--quiet'],
+  render: ['--to', '--page', '--animate', '--frames', '--facing', '--out', '--name', '--base', '--font', '--scale', '--crop', '--json', '--strict', '--quiet'],
   verbs: ['--category', '--json'],
 };
 
 /** The flags that take a value: the next token, or what follows `=` in `--flag=value`. */
-const VALUE_FLAGS = new Set(['--to', '--out', '--name', '--base', '--asset', '--use', '--seed', '--scale', '--crop', '--limit', '--page', '--category', '--prompt', '--helper', '--animate', '--frames', '--facing']);
+const VALUE_FLAGS = new Set(['--to', '--out', '--name', '--base', '--asset', '--use', '--font', '--composition-style', '--seed', '--scale', '--crop', '--limit', '--page', '--category', '--prompt', '--helper', '--animate', '--frames', '--facing']);
 
 /** A `--crop` value, or a sentence saying what is wrong with it. */
 function readCrop(value: string): { crop: CropArg } | { error: string } {
@@ -140,6 +146,9 @@ function readFlag(args: CommandArgs, flag: string, value: string): void {
     case '--base':
       args.base = value;
       break;
+    case '--composition-style':
+      args.compositionStyle = value;
+      break;
     case '--asset':
     case '--use': {
       const eq = value.indexOf('=');
@@ -147,6 +156,16 @@ function readFlag(args: CommandArgs, flag: string, value: string): void {
         args.errors.push(`${flag} takes <name>=<file>; not "${value}"`);
       } else {
         (flag === '--asset' ? args.assets : args.documents)[value.slice(0, eq)] = value.slice(eq + 1);
+      }
+      break;
+    }
+    case '--font': {
+      const eq = value.indexOf('=');
+      if (eq <= 0 || eq === value.length - 1) {
+        args.errors.push(`--font takes <family>=<file>; not "${value}"`);
+      } else {
+        const family = value.slice(0, eq);
+        (args.fonts[family] ??= []).push(value.slice(eq + 1));
       }
       break;
     }
@@ -227,6 +246,8 @@ export function parseCommand(command: Command, argv: readonly string[]): Command
     base: undefined,
     assets: {},
     documents: {},
+    fonts: {},
+    compositionStyle: undefined,
     seed: undefined,
     scale: undefined,
     crop: undefined,

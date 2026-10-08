@@ -32,6 +32,7 @@ import {
 } from './types.js';
 import { profileIsSymmetric } from './stroke-profile.js';
 import { mapSmudges } from './smudge.js';
+import { mirrorTypeset, typesetIsShape } from './type/model.js';
 
 /** The eight grab points of a selection box, named by compass point. */
 export type TransformHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
@@ -294,9 +295,19 @@ export function mirrorAngle(degrees: number, m: Mirror): number {
  * is measured from its placed size and text moves by its anchor alone. An
  * image's pixels are mirrored by the caller, which has a canvas to do it
  * with; this moves the image, it does not redraw it.
+ *
+ * Path type, and area type in a frame that is not a rectangle, are shapes:
+ * the path or the frame mirrors whole and the text follows it, still
+ * readable (core/type/model.ts's mirrorTypeset).
  */
 export function mirrorStroke(stroke: Stroke, m: Mirror, box?: TransformBox | null): void {
   if (!m.flipX && !m.flipY) return;
+
+  if (isTextStroke(stroke) && stroke.typeset && typesetIsShape(stroke.typeset)) {
+    for (const p of stroke.points) mirrorPoint(p, m);
+    stroke.typeset = mirrorTypeset(stroke.typeset, m.flipX, m.flipY);
+    return;
+  }
 
   if (isTextStroke(stroke) || isImageStroke(stroke)) {
     const anchor = stroke.points[0];

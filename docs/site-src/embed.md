@@ -33,6 +33,11 @@ const svg = editor.toSVG();  // lossless vector export
 const pdf = editor.toPDF();  // latin1-safe byte string; save with binary encoding
 ```
 
+A [composition style](guide/composition-styles.md) restyles the drawing by its
+layers' names: `editor.applyCompositionStyle(style)` applies one and gives the
+report, the rules that matched no layer among it. The editor's undo holds its
+marks, so a change to them can be undone, and a change to a layer cannot.
+
 Via a plain `<script>` tag (the IIFE build exposes a global `napkin`):
 
 ```html

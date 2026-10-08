@@ -8,17 +8,20 @@
  *   npm run pack-check -- --keep  # leave the folder, and print where it is
  *
  * It fails when the tarball holds a file it must not - the local Animation
- * Mode install record - or lacks one the entries need, when the install brings
- * Electron with it, when `napkin-sketch draw -`, `napkin-sketch` or
- * `napkin-sketch/node` does not draw, or when the installed package cannot
- * run the verbs that combine, cut, clip, smear and bend, or call the engines
- * behind them by name. Run `npm run build` and
- * `npm run build:types` first: it packs what `dist/` holds. It needs no
- * network, since the package has no dependencies to fetch.
+ * Mode install record - or lacks one the entries need, when the package names
+ * a dependency or the install brings anything with it, Electron included,
+ * when `napkin-sketch draw -`, with a composition style or without,
+ * `napkin-sketch` or `napkin-sketch/node` does not draw, or when the
+ * installed package cannot run the verbs that combine, cut, clip, smear, bend,
+ * blend, lay effects and set type, or call the engines behind them by name,
+ * with `napkin-sketch/markdown` reading Markdown and coloring code for them.
+ * Run `npm run build` and `npm run build:types` first: it packs what
+ * `dist/` holds. It needs no network, since the package has no dependencies
+ * to fetch.
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,10 +31,15 @@ const keep = process.argv.includes('--keep');
 
 const SCRIPT = 'napkin 1\npage 200 120\nlayer "Card"\ncolor #1f2328 width 3 fill #ffe08a\nrect 10 10 180 100 r 12\n';
 
-/** The verbs that run the drawing engines - wipe, stack, split, clip, the eraser, the Pencil, the Smear and Liquify - in one script. */
+/**
+ * The verbs that run the drawing engines - wipe, stack, split, clip, the
+ * eraser, the Pencil, the Smear and Liquify; the effects, Splatter, Warp, 3D
+ * and a blend; and type, with a Text Configuration, Markdown and a code
+ * accent - in one script.
+ */
 const ENGINE_SCRIPT = [
   'napkin 1',
-  'page 320 200',
+  'page 320 240',
   'fill #27486d',
   'wipe in {', '  rect 20 20 80 80', '  circle 100 60 40', '}',
   'stack remove 140 60 {', '  rect 120 20 80 80', '  circle 200 60 40', '}',
@@ -43,11 +51,35 @@ const ENGINE_SCRIPT = [
   'pencil 2B', 'line 20 180 120 180', 'smear 12 0.5 20 180, 120 180',
   'tool brush', 'circle 260 60 30',
   'warp 230 60 20 10 0', 'twirl 260 60 30 45', 'pucker 260 60 30 0.2', 'bloat 260 60 30 0.2',
+  'tool pen', 'width 2', 'fill #8ecae6',
+  'effect blur 1', 'effect outer-glow 6 #ffcc00', 'rect 20 196 30 30',
+  'effect splatter seed 2', 'rect 60 196 30 30',
+  'effect warp arc bend 30%', 'rect 100 196 30 30',
+  'effect extrude 12', 'rect 140 196 30 30',
+  'blend stack', 'layer "Band"', 'rect 0 190 320 6',
+  'textconfig "Callout" face "Bold" color #c0392b',
+  'character tracking 20', 'paragraph align center',
+  'text "Acme Corp" at 160 4 config "Callout"',
+  'character reset', 'paragraph reset',
+  'text "**Widgets**\\n\\n- one" at 190 196 size 10 markdown',
+  'accent python', 'text "x = 1" at 250 196 size 10',
   '',
 ].join('\n');
 
+/** A composition style for the drawing command: a rule its script's layer matches, and one it does not. */
+const STYLE = { napkinCompositionStyle: 1, name: 'Muted', layers: { Card: { opacity: 0.5 }, Titel: { opacity: 0.2 } } };
+
 /** The engines' exports a program calls by name. */
-const ENGINES = ['booleanOp', 'eraseMarks', 'eraseRegionOf', 'wipeMarks', 'arrangeFaces', 'stackFaces', 'nearestOnMark', 'splitMark', 'makeClip', 'clipIndex', 'pencilPaint', 'grainTile', 'smudgeBuffer', 'liquifyField', 'liquifyMarks'];
+const ENGINES = [
+  'booleanOp', 'eraseMarks', 'eraseRegionOf', 'wipeMarks', 'arrangeFaces', 'stackFaces', 'nearestOnMark', 'splitMark', 'makeClip', 'clipIndex', 'pencilPaint',
+  'grainTile', 'smudgeBuffer', 'liquifyField', 'liquifyMarks',
+  'blendModeOf', 'blendPixel', 'addEffect', 'appearanceSections', 'runEffects', 'splatterPaths', 'warpStyleMap', 'extrudeMesh', 'revolveMesh', 'render3d',
+  'lengthTable', 'pointAtLength', 'layoutType', 'hyphenate', 'openSfnt', 'glyphOutline', 'outlineText', 'newTextConfig', 'applyTextConfig', 'resolveRunAttrs',
+  'markdownToType', 'accentRuns', 'applyCompositionStyle', 'captureCompositionStyle',
+];
+
+/** The fields that would make an install fetch something: the package has none, and promises none. */
+const DEPENDENCY_FIELDS = ['dependencies', 'peerDependencies', 'optionalDependencies', 'bundleDependencies', 'bundledDependencies'];
 
 /** Files the entries need, which a tarball without them would install broken. */
 const REQUIRED = [
@@ -56,9 +88,12 @@ const REQUIRED = [
   'dist/api/index.d.ts',
   'dist/node/index.js',
   'dist/api/node.d.ts',
+  'dist/markdown/index.js',
+  'dist/markdown/index.d.ts',
   'docs/api/INDEX.json',
   'API.md',
   'API-CHEATSHEET.md',
+  'THIRD-PARTY-NOTICES.md',
 ];
 
 /** Files that are one machine's state, never the package's. */
@@ -120,6 +155,12 @@ function check(dir) {
   npm(['install', join(dir, packed.filename), '--no-audit', '--no-fund', '--no-package-lock'], project, env);
   const installed = join(project, 'node_modules', 'napkin-sketch');
   if (existsSync(join(project, 'node_modules', 'electron'))) fail('the install brought electron with it');
+  // No runtime dependencies: none named, and nothing installed beside the package.
+  const manifest = JSON.parse(readFileSync(join(installed, 'package.json'), 'utf-8'));
+  const named = DEPENDENCY_FIELDS.filter((field) => manifest[field] !== undefined && Object.keys(manifest[field]).length > 0);
+  if (named.length > 0) fail(`the package names ${named.map((field) => `${field} (${Object.keys(manifest[field]).join(', ')})`).join(' and ')}: it promises none`);
+  const beside = readdirSync(join(project, 'node_modules')).filter((name) => !name.startsWith('.') && name !== 'napkin-sketch');
+  if (beside.length > 0) fail(`the install brought ${beside.join(', ')} with it`);
   const bin = join(project, 'node_modules', '.bin', process.platform === 'win32' ? 'napkin-sketch.cmd' : 'napkin-sketch');
   if (!existsSync(bin)) fail(`the install made no ${bin}`);
 
@@ -140,6 +181,25 @@ function check(dir) {
   const drawn = join(project, report.files[0].path);
   if (!/<svg[\s>]/.test(readFileSync(drawn, 'utf-8'))) fail(`${drawn} is not an SVG`);
 
+  // And with a composition style: its rule restyles the layer it names, and
+  // the one that names nothing is reported, not fatal.
+  writeFileSync(join(project, 'style.json'), `${JSON.stringify(STYLE)}\n`);
+  const styledRun = spawnSync(process.execPath, [join(installed, 'dist', 'cli', 'index.js'), 'draw', '-', '--composition-style', 'style.json', '--json', '--out', 'styled'], {
+    cwd: project,
+    input: SCRIPT,
+    encoding: 'utf-8',
+  });
+  let styled;
+  try {
+    styled = JSON.parse(styledRun.stdout);
+  } catch {
+    fail(`napkin-sketch draw --composition-style printed no report:\n${styledRun.stdout}${styledRun.stderr}`);
+  }
+  if (styledRun.status !== 0 || !styled.ok) fail(`napkin-sketch draw --composition-style exited ${styledRun.status}:\n${styledRun.stdout}${styledRun.stderr}`);
+  const restyled = readFileSync(join(project, styled.files[0].path), 'utf-8');
+  if (!/<g id="Card"[^>]*opacity="0\.5"/.test(restyled)) fail(`the composition style did not restyle the Card layer: ${styled.files[0].path}`);
+  if (styled.warnings.length !== 1 || !/Titel/.test(styled.warnings[0])) fail(`the style's report is not what its rules make it: ${JSON.stringify(styled.warnings)}`);
+
   // 4. Draw with both entries, imported by name.
   writeFileSync(
     join(project, 'check.mjs'),
@@ -159,11 +219,13 @@ function check(dir) {
   if (!library.ok || library.svg === 0 || library.files.length !== 2) fail(`the entries did not draw: ${lib.stdout}`);
 
   // 5. The engines, from the installed package: the verbs that run them,
-  //    and each called by name.
+  //    and each called by name, Markdown and code read by the subpath that
+  //    gives the core its readers.
   writeFileSync(
     join(project, 'engines.mjs'),
     [
       `import { drawSvg, PENCIL_GRADES, ${ENGINES.join(', ')} } from 'napkin-sketch';`,
+      "import 'napkin-sketch/markdown';",
       `const drawn = drawSvg(${JSON.stringify(ENGINE_SCRIPT)});`,
       'const square = (x, y, s) => [[{ x, y }, { x: x + s, y }, { x: x + s, y: y + s }, { x, y: y + s }]];',
       'const answers = [',
@@ -172,6 +234,12 @@ function check(dir) {
       "  pencilPaint('2B').label === 'Graphite 2B',",
       '  grainTile().length === 128 * 128,',
       "  liquifyField({ mode: 'bloat', x: 0, y: 0, radius: 10, amount: 0.5 }).point({ x: 20, y: 0 }).x === 20,",
+      "  blendModeOf('multiply') === 'stack',",
+      "  hyphenate('composition').join('-') === 'com-po-si-tion',",
+      '  extrudeMesh({ rings: square(0, 0, 40), closed: true }, 20, true).faces.length === 6,',
+      '  lengthTable([{ p: { x: 0, y: 0 } }, { p: { x: 100, y: 0 } }]).total === 100,',
+      "  markdownToType('**Acme**').text === 'Acme',",
+      "  accentRuns('x = 1', 'python').runs.length > 0,",
       '];',
       `const named = [${ENGINES.join(', ')}].every((call) => typeof call === 'function');`,
       'console.log(JSON.stringify({ ok: drawn.ok, codes: drawn.diagnostics.map((d) => d.code), answers: answers.every(Boolean), named }));',
@@ -185,9 +253,9 @@ function check(dir) {
   if (!engines.answers || !engines.named) fail(`the engines did not answer by name: ${run.stdout}`);
 
   console.log(
-    `pack-check: ${packed.filename} (${packed.entryCount} files) installs with no electron, and draws: ` +
-      `${report.files[0].path} from the command line, ${library.files.join(' and ')} from the entries, ` +
-      `and the engines' verbs and ${ENGINES.length} engines by name.`,
+    `pack-check: ${packed.filename} (${packed.entryCount} files) installs alone, with no dependencies, and draws: ` +
+      `${report.files[0].path} from the command line, and ${styled.files[0].path} with a composition style, ` +
+      `${library.files.join(' and ')} from the entries, and the engines' verbs and ${ENGINES.length} engines by name.`,
   );
 }
 

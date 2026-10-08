@@ -2,19 +2,20 @@
 
 [API hub](../../../API.md) · **Reference** · [Quickstart](QUICKSTART.md) · [Cheatsheet](CHEATSHEET.md)
 
-The package has two entries. `napkin-sketch` holds everything that runs
-anywhere - the editor, the data model, the composition API and the napkin
-script language - and reads no file. `napkin-sketch/node` holds what reads
-and writes files, for Node. This page is the reference for both as a program
-uses them: importing them, drawing a script, writing files, the result object,
-and what is an error value and what throws.
+The package has three entries. `napkin-sketch` holds everything that runs
+anywhere - the editor, the data model, the engines, the composition API and
+the napkin script language - and reads no file. `napkin-sketch/node` holds
+what reads and writes files, for Node. `napkin-sketch/markdown` gives the
+first its Markdown and code readers. This page is the reference for them as a
+program uses them: importing them, drawing a script, writing files, the
+result object, and what is an error value and what throws.
 
 **Contents**
 
 - [What this is](#what-this-is)
 - [The mental model](#the-mental-model)
 - [Reference](#reference)
-  - [The two entries](#the-two-entries)
+  - [The entries](#the-entries)
   - [Getting the package](#getting-the-package)
   - [ES modules, CommonJS and TypeScript](#es-modules-commonjs-and-typescript)
   - [Drawing a script](#drawing-a-script)
@@ -57,16 +58,29 @@ the result it gives back is the object a command line prints.
 
 ## Reference
 
-### The two entries
+### The entries
 
 | Import | Runs in | Holds |
 | --- | --- | --- |
 | `napkin-sketch` | a browser, Node, any bundler | The editor, the data model, the sharpen engine, the composition API, and the language: reading, checking and writing scripts, `evaluate`, `drawSvg`, the render calls, and the verb and diagnostic tables. |
-| `napkin-sketch/node` | Node 18 and later | Files: `drawFile`, `drawToFiles`, `writeBook`, `readScript`, `loadAssets` and `loadDocuments`, and the composition API's file helpers, `imageDataUrl`, `writeComposition`, `resolveLinkFromDir` and `mediaTypeOf`. |
+| `napkin-sketch/node` | Node 18 and later | Files: `drawFile`, `drawToFiles`, `writeBook`, `readScript`, `loadAssets` and `loadDocuments`, and the composition API's file helpers, `imageDataUrl`, `writeComposition`, `resolveLinkFromDir` and `mediaTypeOf`. It reads Markdown Flow text with marked's lexer. |
+| `napkin-sketch/markdown` | a browser, Node, any bundler | Markdown Flow's and Clean Language Accents' readers: importing it gives `napkin-sketch` marked's lexer and highlight.js, so a Markdown Flow text draws as its Markdown renders and code is colored. Its `markdownToType` reads with the lexer, and `registerAccentLanguage` installs a language beyond the 36 common ones. |
 
 `napkin-sketch/graphic-design/files`, the composition helpers' own entry,
 keeps working; `napkin-sketch/node` gives the same functions, so a Node
 program has one import for files.
+
+`napkin-sketch` holds no Markdown reader of its own: a Markdown Flow text -
+`text "# Notes" at 40 60 markdown` - shows its Markdown as typed until one is
+given. `napkin-sketch/markdown` imports `napkin-sketch` rather than holding a
+copy of it, so the reader it registers is the one the API reads with:
+
+```ts
+import { drawSvg } from 'napkin-sketch';
+import 'napkin-sketch/markdown';
+
+const { svg } = drawSvg('napkin 1\ntext "# Notes\\n\\n- one" at 40 60 markdown\n');
+```
 
 ### Getting the package
 
@@ -83,7 +97,7 @@ links it with `npm link`, and imports it by name.
 
 ### ES modules, CommonJS and TypeScript
 
-Both entries are ES modules:
+Every entry is an ES module:
 
 ```ts
 import { evaluate, renderSketch } from 'napkin-sketch';

@@ -15,8 +15,18 @@
   take one from the others, keep their overlap or all but it, or cut them into
   every piece of their overlaps - in one undo step, with a quarter-second
   napkin wiping over the result.
+- **Expand Text to Shape** (`Ctrl+Shift+O`), in Transform and in Type: turn the
+  selected text into a group of its glyphs' shapes, as Illustrator's Create
+  Outlines does - see [Type](type.md#expand-text-to-shape).
+- **Effects follow the mark** - while **Scale Strokes and Effects** is on, as
+  it is to begin with, a scale, a turn or a mirror carries a mark's stroke
+  width and its effects with it: a blur scales, and a shadow's offset turns -
+  see [Effects](effects.md#effects-and-transforms).
 
 ## The Transform box
+
+*Changed in 1.0.0-alpha.5.0.0: the box scaled the characters of a text in a
+box too, and a mark's stroke width but none of its effects.*
 
 **Transform (`Ctrl+T`, the **Transform** button beside Mirror in the toolbar,
 or Transform > Transform Box; the button is pressed and the row checked while
@@ -45,6 +55,10 @@ underneath, so the selection can be changed without dismissing the box first.
   re-read from where it started rather than bent from where it had got to.
 - A whole drag is **one undo step**, and a press that grabs a handle and lets go
   without moving costs none at all.
+- **A text in a box, in a shape or along a path keeps its size.** The box
+  scales its frame or its path and the text reflows in it, as area and path
+  type do in a vector editor; a text that grows as it is typed scales its
+  characters.
 - **Dragging a handle through its anchor stops at 1%** rather than flipping the
   selection inside out. Flipping is what **Mirror** (`O`) is for; letting a
   handle do it too is in `TODO.md`, along with skew, distort, perspective, and

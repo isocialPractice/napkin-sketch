@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Composition Styles - napkin-sketch</title>
+<meta name="description" content="Rules by layer name that restyle a page in one click: the panel, editing a style, the report, and the style file.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="effects.html">Effects</a></li><li><a href="type.html">Type</a></li><li><a href="layers.html">Layers</a></li><li><a href="composition-styles.html" aria-current="page">Composition Styles</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Markdown Flow and Clean Language Accents</summary><ul><li><a href="../api/markdown/index.html">Reference</a></li><li><a href="../api/markdown/quickstart.html">Quickstart</a></li><li><a href="../api/markdown/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The drawing engines</summary><ul><li><a href="../api/engines/index.html">Reference</a></li><li><a href="../api/engines/quickstart.html">Quickstart</a></li><li><a href="../api/engines/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li><li><a href="../third-party-notices.html">Third-party notices</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Composition Styles</span></nav>
+<h1 id="composition-styles">Composition Styles<a class="anchor" href="#composition-styles" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#the-panel">The panel</a></li><li><a href="#editing-a-style">Editing a style</a></li><li><a href="#what-a-rule-sets">What a rule sets</a></li><li><a href="#matching-a-name">Matching a name</a></li><li><a href="#the-report">The report</a></li><li><a href="#the-file">The file</a></li><li><a href="#on-the-command-line-and-in-code">On the command line and in code</a></li></ul></details>
+<p><em>New in 1.0.0-alpha.5.0.0.</em></p>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>A composition style restyles a page by its layers' names.</strong> Each rule
+names a layer and says what to set there: the layer's own opacity, blend and
+effects, the text on it, or its paths. So a composition whose layers are
+named to match - an SVG from another program, one a script drew, or this
+page - wears one style, then another, each a click away.</li>
+<li><strong>The Composition Styles panel</strong> (<code>Shift+F5</code>, View &gt; Toggle Composition
+Styles Panel) lists your styles, each with a thumbnail of this page as the
+style would make it. A click applies one, as one undo step.</li>
+<li><strong>New</strong> records the page's named layers as a style, and <strong>Edit</strong> names it
+and sets its rules. <strong>Import</strong> and <strong>Export</strong> read and write a style as a
+JSON file, which the command line and the API read too.</li>
+<li><strong>A rule that matches no layer</strong> is said in a report at the bottom right,
+with the nearest layer name, and <strong>Rename layer</strong> gives that layer the
+rule's name and applies the style again.</li>
+</ul>
+<h2 id="the-panel">The panel<a class="anchor" href="#the-panel" aria-label="Link to this section">#</a></h2>
+<p><strong>View &gt; Toggle Composition Styles Panel</strong> (<code>Shift+F5</code>) opens it, docked the
+first time beside the other panels; it moves, docks and closes as they do.</p>
+<ul>
+<li><strong>A click on a style applies it</strong> to the page in view: every layer it
+names, restyled, as one undo step. The style last applied to the page is
+marked <strong>Applied</strong>.</li>
+<li><strong>The arrow keys</strong> choose a style without applying it, <strong>Enter</strong> applies the
+one chosen, <strong>F2</strong> or a double-click edits it, and <strong>Delete</strong> deletes it.</li>
+<li><strong>Each thumbnail</strong> is the page in view as the style would make it, drawn
+again a moment after the page stops changing.</li>
+</ul>
+<p>The buttons under the list:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Button</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td>New</td><td>Records the page's named layers as a new style: for each name, the layer's opacity, blend, visibility and effects, what every text under it shares, and what every path under it shares. Names the app gave (<code>Layer 3</code>, <code>Group 1</code>, <code>Brush 12</code>) are left out.</td></tr>
+<tr><td>Duplicate</td><td>A copy of the chosen style, to change without losing the first.</td></tr>
+<tr><td>Delete</td><td>Takes the chosen style out of your library. The report it leaves offers <strong>Put it back</strong> while it is up.</td></tr>
+<tr><td>Import</td><td>Adds a style from a file. A file that is not a style is reported, a row for each problem.</td></tr>
+<tr><td>Export</td><td>Saves the chosen style as a JSON file.</td></tr>
+<tr><td>Edit</td><td>The chosen style's name and its rules, in the editor below.</td></tr>
+</tbody></table></div>
+<p>Your styles are yours, not a sketch book's: they live in the app's own folder,
+one file a style, and every book can use them.</p>
+<h2 id="editing-a-style">Editing a style<a class="anchor" href="#editing-a-style" aria-label="Link to this section">#</a></h2>
+<p><strong>Edit</strong> opens the style in the configuration popup: its <strong>Name</strong> over the
+table, and a row for each rule.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Column</th><th>Holds</th></tr></thead>
+<tbody>
+<tr><td>Kind</td><td><strong>Layer</strong>, <strong>Text</strong> or <strong>Stroke</strong>: what the rule styles.</td></tr>
+<tr><td>Layer name</td><td>The layer the rule names. The names on this page are suggested as you type.</td></tr>
+<tr><td>Styles</td><td>What the rule sets, in a few words, and <strong>Edit...</strong>, which opens the rule's fields.</td></tr>
+<tr><td>From Selection</td><td>Fills the rule from the selected mark's layer, or the active layer: what a capture of that layer would set.</td></tr>
+<tr><td>x</td><td>Takes the rule out.</td></tr>
+</tbody></table></div>
+<p><strong>Add Rule</strong> adds a row, and <strong>Save</strong> writes the style; a rule with no layer
+name is left out. A rule's <strong>Edit...</strong> lists every field its kind may set,
+each with a check: a checked field is one the rule sets, and an unchecked one
+stays as it is. Effects, a gradient and a list are written as the style file
+writes them.</p>
+<h2 id="what-a-rule-sets">What a rule sets<a class="anchor" href="#what-a-rule-sets" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Kind</th><th>Reaches</th><th>Sets</th></tr></thead>
+<tbody>
+<tr><td>Layer</td><td>The layer it names</td><td>Opacity, blend, Isolate Blending (a group's), visibility and effects. A <strong>fill</strong> and a <strong>stroke</strong> color for every mark under it too, unless a text or stroke rule names the same layer.</td></tr>
+<tr><td>Text</td><td>The text on the layer and every layer under it</td><td>Any character or paragraph attribute (font, style, size, leading, tracking, capitals, color, alignment, indents, spacing, lists and the rest), a <strong>Text Configuration</strong> by name, <strong>Markdown Flow</strong> on or off, a <strong>Clean Language Accent</strong>, effects and a blend.</td></tr>
+<tr><td>Stroke</td><td>The paths on the layer and every layer under it</td><td>The outline's color, width, style and profile, <strong>No Stroke</strong>, the fill or a gradient, opacity, effects and a blend.</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>What a rule leaves out stays as it was.</strong></li>
+<li><strong>The nearer rule wins.</strong> A rule on a group reaches every layer in it; a rule
+on a layer inside the group, where it says something, says it instead.</li>
+<li><strong>A fill only fills a closed shape</strong>, as picking a fill does: an open line
+keeps none.</li>
+<li><strong>A blend is a layer's.</strong> A text or stroke rule's blend goes on the layer
+each of its marks sits on.</li>
+<li><strong>A Text Configuration</strong> is named as the Type panel names it; <code>Default
+Configuration</code> is none, and the Markdown configurations can be named too.</li>
+<li><strong>Pictures keep their look.</strong></li>
+</ul>
+<h2 id="matching-a-name">Matching a name<a class="anchor" href="#matching-a-name" aria-label="Link to this section">#</a></h2>
+<p>A rule matches a layer whose name is the same once both are trimmed, in any
+case: <code>background</code> matches <code>Background</code>. Every layer of that name matches, and
+a rule reaches the layers under it.</p>
+<h2 id="the-report">The report<a class="anchor" href="#the-report" aria-label="Link to this section">#</a></h2>
+<p>A style that does not go wholly as asked raises a report at the bottom right
+(see <a href="settings.html">Settings</a> for how long it stays): <strong>Midnight: 2 rules did
+not match</strong>, with a row for each thing. A row says:</p>
+<ul>
+<li>a rule that matched no layer, with the nearest layer name - two letters
+swapped count as one slip - and <strong>Rename layer</strong>, which gives that layer the
+rule's name and applies the style again, as one undo step;</li>
+<li>a text rule on a layer with no text, and a stroke rule on one with no paths;</li>
+<li>a configuration the book does not have, the rule's other styles applied;</li>
+<li>a value past its range, held to it.</li>
+</ul>
+<p>A style that goes as asked says <strong>Applied Midnight</strong>, and nothing else.</p>
+<h2 id="the-file">The file<a class="anchor" href="#the-file" aria-label="Link to this section">#</a></h2>
+<p>A style is JSON, the same in the app, on the command line and in code:</p>
+<pre><code class="language-json">{
+  &quot;napkinCompositionStyle&quot;: 1,
+  &quot;name&quot;: &quot;Midnight&quot;,
+  &quot;layers&quot;: {
+    &quot;Background&quot;: { &quot;fill&quot;: &quot;#000133&quot; },
+    &quot;Badge&quot;: { &quot;blend&quot;: &quot;stack&quot;, &quot;effects&quot;: [{ &quot;type&quot;: &quot;outer-glow&quot;, &quot;blur&quot;: 6, &quot;color&quot;: &quot;#4cae50&quot; }] }
+  },
+  &quot;text&quot;: { &quot;Title&quot;: { &quot;config&quot;: &quot;Heading&quot;, &quot;color&quot;: &quot;#ffffff&quot;, &quot;align&quot;: &quot;center&quot; } },
+  &quot;strokes&quot;: { &quot;Outline&quot;: { &quot;color&quot;: &quot;#4cae50&quot;, &quot;width&quot;: 2, &quot;strokeStyle&quot;: &quot;dashed&quot; } }
+}</code></pre>
+<p>Every field is optional. The format is
+<a href="../api/schema/composition-style.schema.json">a JSON Schema</a> too, and the
+<a href="../api/compose/index.html#composition-styles">compose reference</a> lists every
+field.</p>
+<h2 id="on-the-command-line-and-in-code">On the command line and in code<a class="anchor" href="#on-the-command-line-and-in-code" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>The command line</strong> restyles every page a script draws:
+<code>napkin-sketch draw card.napkin --composition-style midnight.json</code>. A rule
+that matched nothing is a warning; see <a href="../api/cli/index.html#draw">the CLI reference</a>.</li>
+<li><strong>The API</strong> has <code>applyCompositionStyle</code>, for a page or a composition, and
+<code>captureCompositionStyle</code> and <code>validateCompositionStyle</code> beside it.</li>
+<li><strong>The embedded editor</strong> has <code>applyCompositionStyle(style)</code>, which gives the
+report.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="layers.html" rel="prev"><span>Previous</span>Layers and the Properties panel</a><a href="pages.html" rel="next"><span>Next</span>Pages</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/composition-styles.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

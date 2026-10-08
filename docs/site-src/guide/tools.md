@@ -15,8 +15,9 @@
   moves/deletes existing
   strokes (with rubber-band and `Shift`-click multi-selection), the **Direct
   Select** tool (`A`) drags individual **anchor points** to reshape a stroke,
-  and the Text tool supports both **click-to-type** (auto-sizing box) and
-  **drag-to-draw** (fixed-width box with word-wrap).
+  and the Text tool types a text that grows as it is typed, a text in a box
+  or in a selected shape, or a text along a selected path, and edits a text
+  it clicks on, on the canvas (see [Type](type.md)).
 - **A freehand stroke is a few Bézier curves.** When a Brush, Marker, Copic or
   Pencil stroke is lifted, its samples - one every three quarters of a screen pixel
   - are fitted with the fewest cubic curves that stay within the **Freehand
@@ -245,8 +246,20 @@ before.
 
 ## Text tool
 
-**Text tool:** *click* to place an auto-sizing text box; *drag* to draw a
-fixed-width text box (text wraps to fit the drawn width).
+*Changed in 1.0.0-alpha.5.0.0: text was typed in a box laid over the canvas,
+`Enter` put it down, `Esc` threw it away, and a text once put down could
+not be edited again.*
+
+**Text tool:** *click* to begin a text that grows as it is typed; *drag* to
+draw a text box, its lines wrapped inside it; *click inside a selected shape*
+to set the text in the shape, or *on a selected path* to set it along the
+path, `Alt` swapping the two; *click a text* to edit it, the caret where you
+clicked. The pointer shows which a click makes. A path that is not selected
+stays a path, and the text is typed beside it. A double-click on a text with the
+Select or Direct Select tool edits it too. The text is typed on the canvas
+itself: `Enter` makes a new line, `Esc` puts the text down, and a burst of
+typing is one undo step. [Type](type.md) has the typing modes, the caret,
+selecting, the clipboard, the Type menu and the editor keys.
 
 ## Copic marker
 

@@ -31,6 +31,8 @@ export type PressKind =
   | 'chord'
   | 'shape'
   | 'text'
+  | 'type-select'
+  | 'type-bracket'
   | 'vector-place'
   | 'vector-edit'
   | 'select-drag'
@@ -39,6 +41,7 @@ export type PressKind =
   | 'pan'
   | 'warp'
   | 'transform'
+  | 'gumball'
   | 'rotate'
   | 'stack'
   | 'smear'
@@ -52,6 +55,8 @@ export const PRESS_KINDS: readonly PressKind[] = [
   'chord',
   'shape',
   'text',
+  'type-select',
+  'type-bracket',
   'vector-place',
   'vector-edit',
   'select-drag',
@@ -60,6 +65,7 @@ export const PRESS_KINDS: readonly PressKind[] = [
   'pan',
   'warp',
   'transform',
+  'gumball',
   'rotate',
   'stack',
   'smear',

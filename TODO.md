@@ -16,8 +16,12 @@ back without losing where it started. The last is the documentation site's
 deployment check, which the agent note below it carries to the run that can
 make it.
 
-- [ ] **Text editor UX**: commit on `Esc`, keep caret styling in sync with the
-  selected font size, and reposition on window resize.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **Text editor UX**: commit on `Esc`, keep caret styling in sync with the
+  selected font size, and reposition on window resize. The type editor draws
+  the text, the caret and the selection on the canvas: `Esc` puts the text
+  down, the caret is as tall as the text typing there would set, and it
+  keeps its place through a pan, a zoom or a resized window. A text can be
+  edited again, and a burst of typing is one undo step.
   - From: Patch
 - [ ] **Icon rasterization**: ship multi-resolution `.ico`/`.icns` instead of a
   single PNG.
@@ -50,6 +54,11 @@ make it.
     clipping masks, the Pencil, the Smear and Liquify. There are thirty-seven
     now, and `npm run gui-check -- --background` runs them off the screen,
     with the computer still in use; page flows are still not covered.
+  - 1.0.0-alpha.5.0.0 added sixteen: the report toast, blends, the Appearance
+    panel, Splatter, the Warp effect, 3D, the gumball, the type layout, the
+    type editor, the Type panel, the typing modes, glyph outlines, Text
+    Configurations, Markdown Flow, Clean Language Accents and Composition
+    Styles. There are fifty-three now; page flows are still not covered.
   - From: Patch
 - [ ] **Docs**: API reference for the embeddable package and a WordPress block
   example.
@@ -85,7 +94,7 @@ For the **Verify the documentation site deployment** item under Current.
 
 ## Found Issues
 
-Defects noticed while working and not yet scheduled. Twenty-nine sit here,
+Defects noticed while working and not yet scheduled. Thirty sit here,
 and each later entry says where it was found; the first eighteen came six
 from 1.0.0-alpha.4.1.0, four from the Animation Mode work, two the 1.0.0-alpha.4.1.2 source
 review turned up, one the popup pass found, four from surveying the transform
@@ -98,7 +107,7 @@ and a panel positioned against the wrong box reads the same either way - and
 the four in the middle came out of generating frames, where the failures show
 up in the artifacts rather than in the code.
 
-Sixteen are open. The thirteen that have been resolved are stamped rather than
+Sixteen are open. The fourteen that have been resolved are stamped rather than
 deleted, so the record of what was found stays with the record of what fixed
 it; the 1.0.0-alpha.4.1.2 source review, including the reasoning behind the calls it
 made, is in `reviews/source-code-09-01-2026.log`.
@@ -397,6 +406,13 @@ made, is in `reviews/source-code-09-01-2026.log`.
   Apply Erasers follows, would carry the mask in. (Left as it was by Phase E
   of the 1.0.0-alpha.4.5.1 plan, which made the Eraser cut geometry, and
   filed as the plan said.)
+
+- [ ] **The built-in face sets a wide gap in `Acme`**: the single-stroke face
+  the headless renderers draw text in when no font is given sets `Acme` with
+  a gap between its `m` and its `e` that a real face does not have, bold or
+  not, tracked or not. Its metrics measure every layout made without a font,
+  so a fix moves every text golden at once. (Found drawing the
+  `type-and-appearance` golden's PNG, in 1.0.0-alpha.5.0.0's API sweep.)
 
 ## Things to Improve
 
@@ -1372,6 +1388,142 @@ file keeps its 4.5.1 name.
     - Checked: 1384 unit tests, the GUI suite (37 of 37 files), pack-check
       and the graphic-design suite, all passing.
 
+## Blends, effects, type and styles (1.0.0-alpha.5.0.0)
+
+Planned 2026-10-01 in `.claude/prompts/feature-1.0.0-alpha.5.0.0.md`
+(gitignored, like the earlier plans) from `.claude/prompt.md`: Illustrator's
+blend modes under napkin names; the effects a vector editor reaches for and
+an Appearance panel to apply them; 3D Extrude and Revolve with a gumball;
+real typography; Markdown Flow with Clean Language Accents for code; and
+Composition Styles that restyle a page by its layers' names - each on an
+engine the API exports. Twenty entries, one per phase, built in this order
+and one phase per run; the plan holds each phase's spec, files, tests and
+decisions, and thirty-two open questions, each settled by its
+recommendation. Shipped 2026-10-05 as `1.0.0-alpha.5.0.0`.
+
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **Phase 0 - spikes, the dependencies, check hooks**: what a blend sees under the art,
+  whether the canvas's blends can match their export, whether the drawing
+  window can read this computer's fonts, and the packages Markdown and code
+  coloring need; plus the check hooks the new GUI checks read.
+  - Built 2026-10-01: a blend sees the page - the ink is seeded with the
+    paper as the paper step paints it - and matches the plain SVG to one
+    level; `queryLocalFonts()` answers with no prompt, so the main process
+    gets no font code; and `marked` 18.0.14, `marked-highlight` 2.2.4 and
+    highlight.js 11.12.0 are exact devDependencies esbuild bundles.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **R - the report toast**: a notice in the bottom-right corner for what an action
+  could not do, line by line: three at most, each closable, held while the
+  pointer or the focus is on it, and gone after `reportToastSeconds`.
+  - Built 2026-10-01: `src/renderer/report-toast.ts`, its rules pure
+    (`ReportToastStack`) and its drawing apart (`ReportToasts`).
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **B - Napkin Blends**: the sixteen blend modes of a vector editor's Transparency
+  panel under napkin names - Stack Blend for Multiply - on layers and groups,
+  with Isolate Blending, drawn alike by the canvas, the SVG, the PNG, the PDF
+  and the Illustrator script, and napkin script's `blend`.
+  - Built 2026-10-01: `src/core/blend.ts`, the table and the W3C's math;
+    `Shift+Plus` and `Shift+-` step through the modes.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **E - the appearance effects engine**: Feather, Bevel, Emboss, Inner Shadow, Outer
+  Glow and Inner Glow beside the CSS filter functions, with Outer Shadow's
+  spread, opacity and blend, each able to aim at a mark's fill or stroke; one
+  pass an effect for the canvas and the PNG, the SVG's filter graph its spec.
+  - Built 2026-10-01: `src/core/effects.ts` gained the types and their
+    defaults, and `src/core/appearance-fx.ts` holds the pixel passes.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **A - the Appearance panel and the Effect menu**: an Appearance panel (`Shift+F6`)
+  listing a selection's effects in the order they draw, an Effect menu with
+  Apply Last Effect, one options popup for every effect, Expand and Clear
+  Appearance, and effects that follow Transform and Mirror while Scale
+  Strokes and Effects is on.
+  - Built 2026-10-01: `src/core/appearance.ts` holds the stack and its pure
+    edits, and `src/renderer/appearance-panel.ts` and `effect-options.ts`
+    draw them.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **S - Splatter**: a vector editor's Scribble as Effect > Stylize > Splatter: a
+  mark's fill drawn as one loose hatch, with Scribble's options and presets,
+  the same hatch from the same seed.
+  - Built 2026-10-02: `src/core/splatter.ts`, on `random.ts`'s seeded
+    numbers.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **W - Warp styles**: Effect > Warp's twelve styles over the box of what they warp -
+  a mark, or a layer's or a group's marks as one - its anchors and handles
+  carried through, as Mesh Warp carries them.
+  - Built 2026-10-02: `src/core/warp-styles.ts`, each style a closed-form
+    map of the plane over a box.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **V - 3D: the engine, Extrude and Revolve**: a vector editor's Classic 3D: Effect >
+  3D > Extrude and Revolve build a mark in depth and draw it as shaded vector
+  faces, in every format.
+  - Built 2026-10-02: `src/core/three-d/mesh.ts` builds and triangulates the
+    solid, and `render.ts` lights it and draws it, far faces first.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **G - the gumball and 3D Options**: the gumball, in place of the Transform Box on a
+  3D mark, moves, turns and scales it in depth, and Effect > 3D > 3D Options
+  edits a selection's 3D live.
+  - Built 2026-10-02: `src/renderer/gumball.ts`, its sums DOM-free and
+    exported, and `three-d-panel.ts`.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **K - the type model and the layout engine**: a text's runs of character attributes
+  and its paragraphs, set as point, area or path type, horizontal or
+  vertical, with en-US hyphenation, by one layout every output draws from;
+  `.skbk` version 4.
+  - Built 2026-10-02: `src/core/type/`'s `model.ts`, `layout.ts`,
+    `measure.ts` and `hyphenate.ts`, and `src/core/arc-length.ts`.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **Y - the type editor**: text typed and edited where it stands on the canvas,
+  with its caret, its selection, the clipboard and the editor keys; `Enter`
+  makes a new line, `Esc` puts the text down, and a burst of typing is one
+  undo step.
+  - Built 2026-10-03: `src/core/type/caret.ts` and
+    `src/renderer/type-editor.ts`, in place of the textarea.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **C - the Type panel: Character and Paragraph**: a vector editor's Character and
+  Paragraph panels as the Type panel's tabs (`Ctrl+Shift+T`, `Ctrl+Alt+T`),
+  with this computer's fonts, searched as typed, and a report of a book's
+  fonts that are not installed.
+  - Built 2026-10-03: `src/core/type/panel.ts`,
+    `src/renderer/type-panel.ts` and `font-list.ts`.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **P - typing modes: Sideless, Sheet, Path**: the Text tool types a text that grows,
+  a text in a box or in a selected shape, or a text along a selected path,
+  as a vector editor's three type tools do between them, with the Type
+  menu's options.
+  - Built 2026-10-03: `src/core/type/tool.ts` and `options.ts`, and
+    `src/renderer/type-options.ts`.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **O - glyph outlines and Expand Text to Shape**: a font file read as outlines with
+  no dependency; Expand Text to Shape (`Ctrl+Shift+O`) makes a text its
+  glyphs' shapes, and a PDF draws text as them.
+  - Built 2026-10-03: `src/core/type/sfnt.ts` and `outline.ts`,
+    `src/renderer/type-faces.ts`, and two OFL test fonts in `test/fonts/`.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **F - Text Configurations**: a vector editor's Character Styles: named character
+  attributes the book keeps, which a run follows with overrides of its own,
+  in the Type panel's third tab and napkin script's `textconfig`.
+  - Built 2026-10-03: `src/core/type/configs.ts`.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **M - Markdown Flow**: a text typed as Markdown and shown as it renders -
+  headings, emphasis, code, lists, task lists, quotes, rules, links and
+  tables - while it is edited (`Ctrl+Alt+M`).
+  - Built 2026-10-03: `src/core/type/markdown-flow.ts`, with no Markdown
+    reader of its own; `src/markdown/` gives it `marked`'s lexer, and
+    `napkin-sketch/markdown` gives a program the same.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **L - Clean Language Accents**: code colored as its language reads it, in Napkin
+  Light or Napkin Dark, in Markdown Flow's code blocks and in any text
+  (`Ctrl+Alt+L`): highlight.js's 36 common languages, and any of its 193
+  installed from the Languages dialog.
+  - Built 2026-10-04: `src/core/type/accents.ts` and its catalog, which
+    `npm run accent-languages` writes.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **N - Composition Styles**: rules keyed by layer name that restyle a page in one
+  click, from the Composition Styles panel (`Shift+F5`), from
+  `--composition-style` and from the API, with a report of the rules that
+  matched nothing.
+  - Built 2026-10-04: `src/core/composition-style.ts`, and the panel and the
+    rule form in `src/renderer/`.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **I - the API sweep**: every engine exported by name and written up where the API
+  is read, the AI helpers' skills brought up to the language, and the
+  golden scripts, the package check and the API surface tests made to cover
+  them.
+  - Built 2026-10-04: two new goldens found an SVG writer bug - a scaled
+    character said its font twice - which is fixed, and the script writer now
+    says when it leaves out a list's own bullet.
+- [x] **DONE (1.0.0-alpha.5.0.0)** - **D - docs sweep and the release**: the CHANGELOG's section, the version, the guide,
+  the README and QUICKSTART, Help > About napkin-sketch, the third-party
+  notices, and this section.
+  - Built 2026-10-05: the version is in `package.json`, the three plugin
+    manifests and the CLI reference's JSON example; the CHANGELOG's
+    `[Unreleased]` became its section, with the release's own paragraph;
+    and the manual's new pages and sections carry "New in" and "Changed in"
+    notes. Checked: 1,747 of 1,748 unit tests (the known `docs/.nojekyll`),
+    the GUI suite (53 of 53 files, 1,659 checks), pack-check and the
+    graphic-design suite.
+
 ## Chores
 
 Housekeeping with no user-visible result: dead code left by a replacement,
@@ -1507,8 +1659,9 @@ rest are quick-feature shortcuts.
 Follow-on shortcuts in the spirit of Quick Width (`W`) and Quick Opacity (`Q`):
 press a letter, type a value within the quick-feature timer, and it applies.
 
-- [ ] **Quick Size** (`Z`): type a font size to retarget the text tool without
-  reaching for the size slider.
+- [x] **RESOLVED (1.0.0-alpha.5.0.0)** - **Quick Size** (`Z`): type a font size to retarget the text tool without
+  reaching for the size slider. Covered by the Type panel's size field, which
+  with no text selected sets the next text's size; `Z` is Quick Zoom.
 - [ ] **Quick Symmetry** (`Y`): type a mandala axis count (1 disables) to change
   rotational symmetry mid-drawing.
 - [ ] **Quick Page** (`G`): type a page number to jump straight to that page in the
@@ -1520,10 +1673,10 @@ press a letter, type a value within the quick-feature timer, and it applies.
 
 ## Minor (backward-compatible features → next `x.++.z`)
 
-Backward-compatible features: fourteen entries, of which the four largest - the
+Backward-compatible features: fifteen entries, of which the five largest - the
 three features 1.0.0-alpha.4.3.0 shipped, the animation preset cycles, the
-`vector-graphics` skill follow-ons and the napkin script follow-ons - carry
-thirty sub-items between them.
+`vector-graphics` skill follow-ons, the napkin script follow-ons and the
+1.0.0-alpha.5.0.0 follow-ons - carry thirty-seven sub-items between them.
 Most of the animation entries need a skeleton drawn into
 `character-wireframes.svg` before any code is written; the two object types that
 come apart are drawn in `object-animations.svg` instead.
@@ -1638,14 +1791,19 @@ come apart are drawn in `object-animations.svg` instead.
     store could be a second one, so a script could draw into the open sketch
     with undo. That is the replay path the **Automation and Scripting Tool**
     section needs, as a second sink rather than a second evaluator.
-  - [ ] **Blend modes**: `multiply`, `screen` and the rest are the next
+  - [x] **DONE (1.0.0-alpha.5.0.0)** - **Blend modes**: `multiply`, `screen` and the rest are the next
     thing to lay over a picture after effects, as SVG's `feBlend`; the
     rasterizer composites source-over only, so it needs a compositing
-    change first.
-  - [ ] **Effects in the app's own controls**: the app draws a mark's, a
+    change first. Napkin Blends are the sixteen, under napkin names, on
+    layers and groups, in every format and in napkin script's `blend`, and
+    the rasterizer mixes each the W3C's way.
+  - [x] **DONE (1.0.0-alpha.5.0.0)** - **Effects in the app's own controls**: the app draws a mark's, a
     layer's and a group's effects but has nothing to add or change one,
     and Transform and Mirror move a mark without resizing its effects or
-    turning a shadow's offset.
+    turning a shadow's offset. The Effect menu, the Appearance panel
+    (`Shift+F6`) and one options popup for every effect add and change
+    them now, and a scale, a turn or a mirror takes them with the mark while
+    Scale Strokes and Effects is on.
   - [ ] **Run the Illustrator script in Illustrator**: `--to jsx` is tested
     against a stand-in for Illustrator's scripting objects, not in
     Illustrator. Run the goal script's `.jsx` and the `test/scripts/` ones in
@@ -1672,6 +1830,37 @@ come apart are drawn in `object-animations.svg` instead.
     command outside the mode - on the Edit menu, beside Animation Mode - would
     draw a selected figure's frames with nothing installed, as
     `napkin-sketch render --animate` already does from a shell.
+
+- [ ] **1.0.0-alpha.5.0.0 follow-ons**: what the effects, type and styles release
+  left for later.
+  - [ ] **Threaded text frames**: a text that runs on from one frame into the
+    next, as a vector editor threads area type. Sheet Typing sets a text in
+    one frame, and what does not fit shows the red plus.
+  - [ ] **Third-party accent grammars**: a language grammar from outside
+    highlight.js's catalog is code that would run in the renderer, so the
+    Languages dialog installs only the catalog's 193. One of the user's own
+    needs a way to run that cannot reach the app.
+  - [ ] **Raytraced 3D**: 3D is a vector editor's Classic 3D, flat shaded
+    faces in every format. Its newer 3D and Materials, raytraced and raster,
+    is not planned yet.
+  - [ ] **Raster effects in a PDF**: a PDF leaves blurs, shadows, glows and
+    the other raster effects out, and names each one it leaves out. An image
+    of each effected mark would be exact, at the cost of a partly raster
+    page (the plan's open question 22).
+  - [ ] **Fonts for a headless PNG by default**: the command line and
+    `napkin-sketch/node` draw text in the built-in face unless the host
+    gives font files (`--font`, a render's `fonts`); reading this
+    computer's fonts by default would draw it as the app does.
+  - [ ] **Inline an SVG's gradients as gradients**: `inlineSvg` and
+    `placeBrand` draw a gradient as its first stop's color, and their note
+    says "this API paints solids only", which the composition API no longer
+    is. A gradient placed by end points of its own needs the composition's
+    gradients to take end points first.
+  - [ ] **Words for what the script writer notes**: paragraphs set apart, a
+    path's spacing, alignment and end, a frame's inset and paint, a list's
+    own bullet or numbering, Isolate Blending, and a Text Configuration's
+    auto leading, normal position, or a line it turns off. Each is written as
+    near as the language goes, and said.
 
 ## Animation Mode (new features → next `x.++.z`)
 

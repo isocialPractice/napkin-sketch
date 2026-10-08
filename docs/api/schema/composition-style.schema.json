@@ -1,0 +1,487 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/isocialPractice/napkin-sketch/docs/api/schema/composition-style.schema.json",
+  "title": "Napkin composition style",
+  "description": "Rules keyed by layer name that restyle a page or a composition whose layers are named to match.",
+  "type": "object",
+  "required": [
+    "napkinCompositionStyle",
+    "name"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "napkinCompositionStyle": {
+      "const": 1,
+      "description": "The format: 1."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "The style's name."
+    },
+    "layers": {
+      "type": "object",
+      "description": "Layer rules by layer name.",
+      "additionalProperties": {
+        "$ref": "#/definitions/layerRule"
+      }
+    },
+    "text": {
+      "type": "object",
+      "description": "Text rules by layer name.",
+      "additionalProperties": {
+        "$ref": "#/definitions/textRule"
+      }
+    },
+    "strokes": {
+      "type": "object",
+      "description": "Stroke rules by layer name.",
+      "additionalProperties": {
+        "$ref": "#/definitions/strokeRule"
+      }
+    }
+  },
+  "definitions": {
+    "layerRule": {
+      "type": "object",
+      "description": "A layer rule: what it sets on the layers it names.",
+      "additionalProperties": false,
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "The layer's opacity, 0 to 1."
+        },
+        "blend": {
+          "$ref": "#/definitions/blend",
+          "description": "The layer's blend mode, by its napkin name or a CSS one."
+        },
+        "isolate": {
+          "type": "boolean",
+          "description": "A group's Isolate Blending."
+        },
+        "visible": {
+          "type": "boolean",
+          "description": "Whether the layer shows."
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/effect"
+          },
+          "description": "The layer's effects, in place of its own; an empty list takes them away."
+        },
+        "fill": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/color"
+            },
+            {
+              "const": "none"
+            }
+          ],
+          "description": "Every closed shape's fill and every text's color under the layer; none takes the fills away."
+        },
+        "stroke": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/color"
+            },
+            {
+              "const": "none"
+            }
+          ],
+          "description": "Every path's outline color under the layer, turned on; none turns closed shapes' outlines off."
+        }
+      }
+    },
+    "textRule": {
+      "type": "object",
+      "description": "A text rule: what it sets on the layers it names.",
+      "additionalProperties": false,
+      "properties": {
+        "config": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A Text Configuration by name, or Default Configuration for none."
+        },
+        "fontFamily": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The font family."
+        },
+        "fontStyle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The face: Regular, Bold, Italic and so on."
+        },
+        "fontSize": {
+          "type": "number",
+          "minimum": 0.13333333333333333,
+          "maximum": 1728,
+          "description": "The size, in pixels."
+        },
+        "leading": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "const": "auto"
+            }
+          ],
+          "description": "The line spacing in pixels, or auto."
+        },
+        "kerning": {
+          "enum": [
+            "auto",
+            "none"
+          ],
+          "description": "The font's kerning, or none."
+        },
+        "tracking": {
+          "type": "number",
+          "minimum": -1000,
+          "maximum": 10000,
+          "description": "The space between letters, in thousandths of an em."
+        },
+        "wordSpacing": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "The space between words, as a share of the font's."
+        },
+        "caps": {
+          "enum": [
+            "normal",
+            "all",
+            "small"
+          ],
+          "description": "All capitals, small capitals, or as typed."
+        },
+        "position": {
+          "enum": [
+            "normal",
+            "superscript",
+            "subscript"
+          ],
+          "description": "Superscript, subscript, or on the line."
+        },
+        "hScale": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10000,
+          "description": "The width of the letters, in percent."
+        },
+        "vScale": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10000,
+          "description": "The height of the letters, in percent."
+        },
+        "baselineShift": {
+          "type": "number",
+          "minimum": -1296,
+          "maximum": 1296,
+          "description": "How far the letters sit above their line."
+        },
+        "rotation": {
+          "type": "number",
+          "description": "Each letter turned, in degrees."
+        },
+        "underline": {
+          "type": "boolean",
+          "description": "A line under the letters."
+        },
+        "strike": {
+          "type": "boolean",
+          "description": "A line through the letters."
+        },
+        "color": {
+          "$ref": "#/definitions/color",
+          "description": "The letters' color."
+        },
+        "highlight": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/color"
+            },
+            {
+              "const": "none"
+            }
+          ],
+          "description": "A highlight behind the letters, or none."
+        },
+        "align": {
+          "enum": [
+            "left",
+            "center",
+            "right",
+            "justify"
+          ],
+          "description": "The paragraphs' alignment."
+        },
+        "leftIndent": {
+          "type": "number",
+          "minimum": -1728,
+          "maximum": 1728,
+          "description": "The indent on the left, in pixels."
+        },
+        "rightIndent": {
+          "type": "number",
+          "minimum": -1728,
+          "maximum": 1728,
+          "description": "The indent on the right, in pixels."
+        },
+        "firstIndent": {
+          "type": "number",
+          "minimum": -1728,
+          "maximum": 1728,
+          "description": "The first line's indent, in pixels."
+        },
+        "spaceBefore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1728,
+          "description": "The space before each paragraph, in pixels."
+        },
+        "spaceAfter": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1728,
+          "description": "The space after each paragraph, in pixels."
+        },
+        "hyphenate": {
+          "type": "boolean",
+          "description": "Whether long words break with a hyphen."
+        },
+        "list": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/list"
+            },
+            {
+              "const": "none"
+            }
+          ],
+          "description": "A bulleted or numbered list, or none."
+        },
+        "shade": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/color"
+            },
+            {
+              "const": "none"
+            }
+          ],
+          "description": "A shade behind each paragraph, or none."
+        },
+        "flow": {
+          "enum": [
+            "markdown",
+            "plain"
+          ],
+          "description": "Markdown Flow on, or the text shown as typed."
+        },
+        "accent": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A language's id or alias, auto, or none."
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/effect"
+          },
+          "description": "The text's effects, in place of its own; an empty list takes them away."
+        },
+        "blend": {
+          "$ref": "#/definitions/blend",
+          "description": "The blend mode of the layer each text sits on."
+        }
+      }
+    },
+    "strokeRule": {
+      "type": "object",
+      "description": "A stroke rule: what it sets on the layers it names.",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "$ref": "#/definitions/color",
+          "description": "The outline's color."
+        },
+        "width": {
+          "type": "number",
+          "minimum": 0.01,
+          "maximum": 10000,
+          "description": "The outline's width, in pixels."
+        },
+        "strokeStyle": {
+          "enum": [
+            "solid",
+            "dashed",
+            "dotted"
+          ],
+          "description": "Solid, dashed or dotted."
+        },
+        "noStroke": {
+          "type": "boolean",
+          "description": "A closed shape's outline off, or on."
+        },
+        "profile": {
+          "enum": [
+            "uniform",
+            "rounded",
+            "tapered",
+            "wave"
+          ],
+          "description": "A brush or marker line's width profile."
+        },
+        "fill": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/color"
+            },
+            {
+              "const": "none"
+            }
+          ],
+          "description": "A closed shape's flat fill, or none."
+        },
+        "gradient": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/gradient"
+            },
+            {
+              "const": "none"
+            }
+          ],
+          "description": "A closed shape's gradient: a type and two or more stops, or none."
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "The mark's opacity, 0 to 1."
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/effect"
+          },
+          "description": "The mark's effects, in place of its own; an empty list takes them away."
+        },
+        "blend": {
+          "$ref": "#/definitions/blend",
+          "description": "The blend mode of the layer each path sits on."
+        }
+      }
+    },
+    "color": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A CSS color: #rrggbb, rgb(), hsl() or a name."
+    },
+    "blend": {
+      "type": "string",
+      "description": "A blend mode: normal, soak, stack, scorch, dry, sheer, bleach, fold, light, heavy, messy, avoidance, tidy, bright, dye, cover, or a CSS name such as multiply."
+    },
+    "effect": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "blur",
+            "brightness",
+            "contrast",
+            "saturate",
+            "grayscale",
+            "sepia",
+            "invert",
+            "hue-rotate",
+            "opacity",
+            "drop-shadow",
+            "feather",
+            "bevel",
+            "emboss",
+            "inner-shadow",
+            "outer-glow",
+            "inner-glow",
+            "splatter",
+            "warp",
+            "3d"
+          ]
+        }
+      },
+      "description": "An effect as napkin's .skbk and API write it."
+    },
+    "gradient": {
+      "type": "object",
+      "required": [
+        "type",
+        "stops"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "linear",
+            "radial"
+          ]
+        },
+        "angle": {
+          "type": "number"
+        },
+        "stops": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": [
+              "offset",
+              "color"
+            ],
+            "properties": {
+              "offset": {
+                "type": "number"
+              },
+              "color": {
+                "$ref": "#/definitions/color"
+              }
+            }
+          }
+        }
+      }
+    },
+    "list": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "bullet",
+            "number"
+          ]
+        },
+        "level": {
+          "type": "number"
+        },
+        "marker": {
+          "type": "string"
+        },
+        "start": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

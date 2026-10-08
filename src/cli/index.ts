@@ -35,6 +35,8 @@ import {
   writeSketchBook,
 } from '../core/sketchbook.js';
 import { sharpenStrokes } from '../sharpen/sharpen.js';
+// Markdown Flow text is drawn as its Markdown renders, and code accented: marked's lexer and highlight.js registered.
+import '../markdown/core.js';
 import { COMMAND_SUMMARIES, COMMANDS, parseArgs } from './args.js';
 import { runCommand } from './draw.js';
 

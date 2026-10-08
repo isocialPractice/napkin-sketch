@@ -12,7 +12,9 @@
  */
 
 import { INSTRUCTION_FIELDS, SCRIPT_VERSION, VERBS, type FormPart, type SlotPart, type VerbSpec } from './instructions.js';
+import { runForm } from './grammar.js';
 import { PENCIL_GRADES } from '../pencil.js';
+import { ACCENT_LANGUAGES } from '../type/accents.js';
 
 /** A JSON Schema document or fragment. */
 export type JsonSchema = Record<string, unknown>;
@@ -49,11 +51,39 @@ function slotSchema(slot: SlotPart): JsonSchema {
       return { type: 'boolean' };
     case 'pencil':
       return { type: 'string', enum: PENCIL_GRADES.map((grade) => grade.name) };
+    case 'language':
+      return { type: 'string', enum: ['auto', 'none', ...ACCENT_LANGUAGES.flatMap((language) => [language.id, ...language.aliases])] };
     case 'points':
       return { type: 'array', minItems: slot.minItems ?? 1, items: { $ref: '#/definitions/point' } };
     case 'stops':
       return { type: 'array', minItems: 2, items: { $ref: '#/definitions/stop' } };
+    case 'runs':
+      return { type: 'array', items: { $ref: '#/definitions/run' } };
   }
+}
+
+/** A run of a text: its start and end, counting characters from 0, and the attributes the run form gives it. */
+function runSchema(): JsonSchema {
+  const properties: Record<string, JsonSchema> = { start: { type: 'integer', minimum: 0 }, end: { type: 'integer', minimum: 1 } };
+  const walk = (parts: readonly FormPart[]): void => {
+    for (const part of parts) {
+      if ('slot' in part) properties[part.slot] = slotSchema(part);
+      else if ('clause' in part) walk(part.parts);
+      else if ('flag' in part) {
+        const value: JsonSchema = typeof part.value === 'boolean' ? { type: 'boolean' } : { const: part.value };
+        const known = properties[part.field];
+        properties[part.field] = known && JSON.stringify(known) !== JSON.stringify(value) ? { anyOf: [...((known.anyOf as JsonSchema[] | undefined) ?? [known]), value] } : value;
+      }
+    }
+  };
+  walk(runForm().parts);
+  return {
+    type: 'object',
+    description: 'A run of a text: from start to end (not included), and the character attributes it has.',
+    properties,
+    required: ['start', 'end'],
+    additionalProperties: false,
+  };
 }
 
 /** Every value a verb's forms can give each field: a slot's, a flag's, or one a form implies. */
@@ -140,6 +170,7 @@ export function instructionsSchema(): JsonSchema {
         required: ['color', 'offset'],
         additionalProperties: false,
       },
+      run: runSchema(),
       position: {
         type: 'object',
         description: 'Where a parsed instruction came from. A program building JSON leaves it out.',

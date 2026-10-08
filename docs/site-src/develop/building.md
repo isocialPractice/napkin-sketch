@@ -77,6 +77,7 @@ named **Napkin Sketch** and lets the user choose the install directory.
 | `npm run shape-library` | `node scripts/shape-library.mjs` |
 | `npm run api-docs` | `node scripts/api-docs.mjs` |
 | `npm run menu-docs` | `node scripts/menu-docs.mjs` |
+| `npm run accent-languages` | `node scripts/accent-languages.mjs` |
 | `npm run site` | `node scripts/site.mjs` |
 | `npm run pack-check` | `node scripts/pack-check.mjs` |
 | `npm run illustrated-frames` | `node scripts/illustrated-frames.mjs` |

@@ -20,6 +20,7 @@ Reminders for trading drawings with other editors: what the SVG carries, how an 
 | `data-text`, `data-box` | a wrapped text | Its words and its box's width |
 | `href`, `data-link="true"` | a linked `<image>` | The file's path |
 | `filter`, `data-effects` | a mark, a layer's `<g>` | Its effects, as a filter and as the list |
+| `data-napkin-split`, `data-napkin-part` | a mark drawn as its two parts | Its fill and its stroke apart; a Splatter's hatched part carries the mark it stands for |
 
 ## How an import names a row
 
@@ -49,6 +50,9 @@ Reminders for trading drawings with other editors: what the SVG carries, how an 
 | An image | An embedded `RasterItem` |
 | A link | A `PlacedItem` linked to the file, found from the script's folder |
 | An effect | Left off, with a warning |
+| A Splatter | Its lines, as open `PathItem`s |
+| A Warp | The bent `PathItem` |
+| 3D | A `GroupItem` of its faces |
 | An eraser | A stroke in the paper's color, with a warning |
 
 ## What survives
@@ -64,6 +68,9 @@ Reminders for trading drawings with other editors: what the SVG carries, how an 
 | Images | Embedded | Embedded | Embedded |
 | Links | As links | As linked images | As placed items linked to the file |
 | Effects | Yes | As SVG filters | No |
+| A Splatter | Yes, live | As its lines | As its lines |
+| A Warp | Yes, live | As the bent shape | As the bent paths |
+| 3D | Yes, live | As its faces | As a group of its faces |
 
 ## Link, import or embed
 

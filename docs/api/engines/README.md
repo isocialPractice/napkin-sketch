@@ -4,9 +4,12 @@
 
 The app's tools stand on engines that run as plain functions: regions
 combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split,
-clipping masks, the Pencil's grades and grain, the Smear and Liquify. This page
-is the reference for each as a program calls it from `napkin-sketch`, with a
-worked example for each that runs as it is.
+clipping masks, the Pencil's grades and grain, the Smear and Liquify; the
+blend modes, the effects and the appearance stack, Splatter, Warp and 3D;
+measuring along a path; setting type, hyphenating it and drawing it from font
+files; Text Configurations and Composition Styles. This page is the reference
+for each as a program calls it from `napkin-sketch`, with a worked example
+for each that runs as it is.
 
 **Contents**
 
@@ -24,6 +27,17 @@ worked example for each that runs as it is.
   - [Smearing: smudgeBuffer](#smearing-smudgebuffer)
   - [Liquify: liquifyField, liquifyMarks](#liquify-liquifyfield-liquifymarks)
   - [Applying an edit](#applying-an-edit)
+  - [Blending: BLEND_MODES, blendPixel](#blending-blend_modes-blendpixel)
+  - [The appearance stack: addEffect, appearanceSections](#the-appearance-stack-addeffect-appearancesections)
+  - [Effects as pixels: runEffects](#effects-as-pixels-runeffects)
+  - [Splatter: splatterPaths](#splatter-splatterpaths)
+  - [Warp: warpStyleMap](#warp-warpstylemap)
+  - [3D: extrudeMesh, revolveMesh, render3d](#3d-extrudemesh-revolvemesh-render3d)
+  - [Measuring along a path: lengthTable, pointAtLength](#measuring-along-a-path-lengthtable-pointatlength)
+  - [Setting type: layoutType, hyphenate](#setting-type-layouttype-hyphenate)
+  - [Fonts as shapes: openSfnt, glyphOutline, outlineText](#fonts-as-shapes-opensfnt-glyphoutline-outlinetext)
+  - [Text Configurations: applyTextConfig, resolveRunAttrs](#text-configurations-applytextconfig-resolverunattrs)
+  - [Composition styles on a page: applyCompositionStyle](#composition-styles-on-a-page-applycompositionstyle)
 - [Worked examples](#worked-examples)
 - [Limits](#limits)
 - [For agents](#for-agents)
@@ -37,10 +51,11 @@ the window calls on a press and a napkin script calls for its verbs. The same
 functions are exported from `napkin-sketch`, so a program can do to a sketch
 what the tools do, with no window, no DOM and no disk.
 
-None of them changes what it is given. An engine that edits marks gives back
-the edit - which marks changed, which went, which were added - and the caller
-applies it; one that draws gives back pixels or points. The sketches they read
-are the app's own: a page from `evaluate`, from a `.skbk`, or from the
+None of them changes what it is given but the pixel passes, which work on
+the picture they are handed. An engine that edits marks gives back the edit -
+which marks changed, which went, which were added - and the caller applies
+it; one that draws gives back pixels, points or shapes. The sketches they
+read are the app's own: a page from `evaluate`, from a `.skbk`, or from the
 importer.
 
 ## The mental model
@@ -52,6 +67,14 @@ importer.
  a page --> clipIndex --> what each layer is clipped by
  a pencil mark --> rasterizePencil, smudgeBuffer --> its picture's pixels
  marks + dabs --> liquifyMarks --> the marks bent
+ two pixels + a mode --> blendPixel --> one pixel
+ a picture + effects --> runEffects --> the picture drawn, and what lies under it
+ a region + options --> splatterPaths --> hatch paths
+ a box + a style --> warpStyleMap --> a map of points
+ an outline --> extrudeMesh, revolveMesh --> a mesh;  a mark + 3D --> render3d --> faces
+ a path --> lengthTable --> points, directions and bends by distance
+ a text --> layoutType --> lines and glyphs --> outlineText + font files --> shapes
+ a page + a composition style --> applyCompositionStyle --> the page restyled, and a report
 ```
 
 Coordinates are page pixels, `y` running down, as everywhere in the app.
@@ -354,6 +377,244 @@ console.log(page.strokes.length, after.strokes.length);
 The app puts each added mark on a new layer of its own above `above`; here
 they join that layer.
 
+### Blending: BLEND_MODES, blendPixel
+
+The sixteen blend modes of a vector editor's Transparency panel, under
+napkin's names - Stack for Multiply, Sheer for Screen - as the canvas, the PNG
+and every file draw them. `blendModeOf` reads any of a mode's names, napkin's,
+a vector editor's or CSS's; `blendPixel` mixes two straight RGBA pixels,
+channels 0 to 1, the source over the backdrop, as `blendColor` mixes two
+colors and `blendChannel` one channel of a separable mode.
+
+```js
+import { BLEND_MODES, blendModeOf, blendPixel } from 'napkin-sketch';
+
+console.log(BLEND_MODES.length, blendModeOf('multiply'), blendModeOf('Color Dodge'));
+// → 16 stack bleach
+console.log(blendPixel('stack', [1, 0.8, 0.4, 1], [0.5, 0.5, 0.5, 1]));
+// → [0.5,0.4,0.2,1]
+```
+
+### The appearance stack: addEffect, appearanceSections
+
+A mark's effects are one list, in the order they apply; the Appearance panel
+shows it in three sections - those aimed at the stroke, at the fill, and at
+the whole - and edits it with pure calls that give a new list and never
+change the one given: `addEffect`, `replaceEffect`, `removeEffect`,
+`duplicateEffect`, `toggleEffect`, `retargetEffect` and `moveEffect`.
+`defaultEffect(type)` is an effect with a vector editor's defaults, and
+`effectsAfterTransform` is a list scaled, turned or mirrored with its mark.
+
+```js
+import { addEffect, appearanceSections, defaultEffect, toggleEffect } from 'napkin-sketch';
+
+let effects = addEffect([], defaultEffect('outer-glow'));
+effects = addEffect(effects, defaultEffect('bevel'), 'fill');
+effects = toggleEffect(effects, 0);
+const sections = appearanceSections(effects);
+console.log(sections.fill.length, sections.object.length, effects[0].on);
+// → 1 1 false
+```
+
+### Effects as pixels: runEffects
+
+An effect list drawn over a picture as the PNG draws it. `fromRgba8` reads
+8-bit pixels into the engine's image; `runEffects` works on that image in
+place - the matrix is the one the picture is drawn under, which sizes a blur
+and turns a shadow's offset - and gives back what is laid under it apart, an
+Outer Shadow or Glow that blends; `toRgba8` writes the image back.
+`blankImage` and `layOnto` make a picture and lay one on another in a blend
+mode.
+
+```js
+import { fromRgba8, runEffects, toRgba8 } from 'napkin-sketch';
+
+// A 9 by 9 picture: its middle pixel white, the rest clear.
+const data = new Uint8ClampedArray(9 * 9 * 4);
+data.set([255, 255, 255, 255], (4 * 9 + 4) * 4);
+const img = fromRgba8(data, 9, 9);
+const under = runEffects(img, [{ type: 'blur', radius: 1 }], [1, 0, 0, 1, 0, 0], () => {});
+const out = toRgba8(img);
+console.log(under.length, out[(4 * 9 + 4) * 4 + 3] < 255, out[(4 * 9 + 5) * 4 + 3] > 0);
+// → 0 true true
+```
+
+### Splatter: splatterPaths
+
+A region's fill redrawn as a loose hatch, as a pen scribbles a shape in: the
+region is closed contours, and the options a vector editor's Scribble Options,
+which `SPLATTER_PRESETS` gives by name, and a seed that draws the same hatch
+every time. Each path is cubic anchors.
+
+```js
+import { SPLATTER_PRESETS, splatterPaths } from 'napkin-sketch';
+
+const square = [[{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 60, y: 60 }, { x: 0, y: 60 }]];
+const paths = splatterPaths(square, { ...SPLATTER_PRESETS.sharp, seed: 1 });
+console.log(paths.length, paths[0].length);
+// → 1 16
+```
+
+### Warp: warpStyleMap
+
+One of the twelve Warp styles laid over a box: where a point goes, how far
+the map turns there and its derivative, which the Warp effect bends a mark's
+anchors and handles by. `WARP_STYLES` names them; the options are a vector
+editor's Warp Options.
+
+```js
+import { WARP_STYLES, warpStyleMap } from 'napkin-sketch';
+
+const box = { minX: 0, minY: 0, maxX: 200, maxY: 100 };
+const arc = warpStyleMap('arc', box, { orientation: 'horizontal', bend: 50, distortH: 0, distortV: 0, part: 'whole' });
+const at = (p) => {
+  const q = arc.point(p);
+  return [Math.round(q.x), Math.round(q.y)];
+};
+console.log(WARP_STYLES.length, at({ x: 0, y: 0 }), at({ x: 100, y: 0 }), at({ x: 200, y: 0 }));
+// → 12 [-25,52] [100,0] [225,52]
+```
+
+The arc keeps the box's middle where it was and swings its corners out and
+down, as the top of an arch does.
+
+### 3D: extrudeMesh, revolveMesh, render3d
+
+An outline built in depth, pushed back into a solid or turned round an axis,
+and a mark's 3D effect drawn as shaded faces, far ones first: each a flat fill
+a renderer draws as it draws any shape. `triangulate` cuts a polygon with
+holes into triangles; `threeDView` and `projectPoint` put a point of the solid
+on the page.
+
+```js
+import { defaultEffect, extrudeMesh, render3d, revolveMesh } from 'napkin-sketch';
+
+const square = { rings: [[{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 40 }, { x: 0, y: 40 }]], closed: true };
+const block = extrudeMesh(square, 20, true);
+console.log(block.faces.length, block.faces.filter((face) => face.kind === 'cap').length, block.closed);
+// → 6 2 true
+const ring = revolveMesh(square, { angle: 360, offset: 10, axis: 'left', segments: 12 }, 0.5);
+console.log(ring.faces.length);
+// → 48
+const mark = { id: 'm', tool: 'pen', color: '#27486d', width: 2, fill: '#ffcc00', points: [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 40 }, { x: 0, y: 40 }, { x: 0, y: 0 }] };
+const faces = render3d(mark, defaultEffect('3d'));
+console.log(faces.length > 0, faces.every((face) => face.points.length > 0));
+// → true true
+```
+
+The block is six faces, two of them its caps; turned round an axis 10 off
+its left edge, the square is a ring of 48 faces, its four edges at twelve
+steps.
+
+### Measuring along a path: lengthTable, pointAtLength
+
+A path walked by distance rather than by its curves' own parameter: a table
+of a path's lengths, then the point, the direction, the normal and the bend
+so far along, and the nearest length to a point. Text on a path, Splatter and
+Warp measure by it.
+
+```js
+import { lengthTable, pointAtLength, tangentAtLength } from 'napkin-sketch';
+
+const line = lengthTable([{ p: { x: 0, y: 0 } }, { p: { x: 100, y: 0 } }]);
+console.log(line.total, pointAtLength(line, 25), tangentAtLength(line, 25));
+// → 100 {"x":25,"y":0} {"x":1,"y":0}
+const arch = lengthTable([
+  { p: { x: 0, y: 0 }, hOut: { x: 0, y: -55 } },
+  { p: { x: 100, y: 0 }, hIn: { x: 100, y: -55 } },
+]);
+const middle = pointAtLength(arch, arch.total / 2);
+console.log(Math.round(arch.total), Math.round(middle.x), Math.round(middle.y));
+// → 145 50 -41
+```
+
+Halfway along the arch by distance is its top, 41 above the line it stands
+on.
+
+### Setting type: layoutType, hyphenate
+
+A text mark set as the app sets it - point, area or path type, horizontal or
+vertical - into lines and glyphs, each glyph placed by its own matrix, with
+whatever did not fit said in `overset`. With no measure it is set in the
+built-in face; the app passes the canvas's. `hyphenate` breaks a word where
+the en-US patterns allow, as a paragraph with hyphenation on does.
+
+```js
+import { hyphenate, layoutType } from 'napkin-sketch';
+
+const text = { id: 't', tool: 'text', color: '#1f2328', width: 1, points: [{ x: 20, y: 40 }], text: 'Acme Corp\nannual report', fontSize: 24 };
+const layout = layoutType(text);
+console.log(layout.lines.length, layout.glyphs.length, layout.overset);
+// → 2 22 false
+console.log(hyphenate('composition').join('-'));
+// → com-po-si-tion
+```
+
+### Fonts as shapes: openSfnt, glyphOutline, outlineText
+
+A font file read with no dependency - TrueType and CFF outlines, the
+character map, advances and kerning - and a text drawn as its glyphs'
+outlines, a mark a glyph, as Expand Text to Shape and a PNG with fonts given
+draw it. `fileOutlineSource` turns font files by family into the measure a
+text is set by and the faces it is drawn from.
+
+```js
+import { HEADLESS_MEASURE, fileOutlineSource, glyphOutline, isSfntProblem, layoutType, openSfnt, outlineText } from 'napkin-sketch';
+import { readFile } from 'node:fs/promises';
+
+const bytes = new Uint8Array(await readFile('fonts/acme-sans.ttf'));
+const face = openSfnt(bytes);
+if (isSfntProblem(face)) throw new Error(face.problem);
+const a = glyphOutline(face, face.glyphId('A'.codePointAt(0)));
+console.log(face.format, a.contours.length > 0);
+// → truetype true
+const source = fileOutlineSource({ 'Acme Sans': bytes }, HEADLESS_MEASURE);
+const text = { id: 't', tool: 'text', color: '#1f2328', width: 1, points: [{ x: 20, y: 60 }], text: 'AVTo', fontSize: 48, fontFamily: 'Acme Sans' };
+const shapes = outlineText(text, layoutType(text, source.measure), source);
+console.log(shapes.marks.map((made) => made.label).join(' '));
+// → A V T o
+```
+
+### Text Configurations: applyTextConfig, resolveRunAttrs
+
+A book's named character attributes: a run follows one by its id, and what
+it sets beyond it is its own, an override. `newTextConfig` makes one,
+`applyTextConfig` puts a stretch of a text on it - the text carrying a copy
+of its definition - and `resolveRunAttrs` is what a run draws as: its base,
+then the configuration, then its overrides.
+
+```js
+import { applyTextConfig, baseAttrs, newTextConfig, resolveRunAttrs, styleSegments } from 'napkin-sketch';
+
+const heading = newTextConfig([], { fontSize: 40, fontStyle: 'Bold' }, 'tc_heading', 'Heading');
+const text = { id: 't', tool: 'text', color: '#1f2328', width: 1, points: [{ x: 20, y: 60 }], text: 'Acme Corp', fontSize: 24 };
+const styled = applyTextConfig(text, { start: 0, end: 4 }, heading);
+console.log(styleSegments(styled).map((segment) => `${segment.end}:${segment.attrs.fontSize}`).join(' '));
+// → 4:40 9:24
+console.log(resolveRunAttrs(baseAttrs(text), heading, { color: '#c0392b' }).fontStyle);
+// → Bold
+```
+
+### Composition styles on a page: applyCompositionStyle
+
+A page restyled by its layers' names, as the Composition Styles panel does
+it, with the report of what did not match. `captureCompositionStyle` records
+a page's named layers as a style; the
+[compose reference](../compose/README.md#composition-styles) has the format.
+
+```js
+import { applyCompositionStyle, captureCompositionStyle, compositionReportTitle, evaluate } from 'napkin-sketch';
+
+const page = evaluate('napkin 1\nlayer "Background"\nfill #f4f1ea\nrect 0 0 200 100\nlayer "Title"\ntext "Acme Corp" at 20 50\n').book.sketches[0];
+const day = captureCompositionStyle(page, 'Day');
+console.log(Object.keys(day.layers), Object.keys(day.text));
+// → ["Title","Background"] ["Title"]
+const night = { napkinCompositionStyle: 1, name: 'Night', strokes: { Background: { fill: '#000133' } }, text: { Titel: { color: '#ffffff' } } };
+const { report } = applyCompositionStyle(page, night);
+console.log(compositionReportTitle(report), report.items[0].suggestions);
+// → Night: 1 rule did not match ["Title"]
+```
+
 ## Worked examples
 
 A gap through every line on a page: the Eraser's cut made with a program, and
@@ -409,8 +670,12 @@ once at 40, is at 52 - and the circle is still one closed path.
 
 ## For agents
 
-- **Every call is pure and DOM-free**, and none changes its arguments but
-  `smudgeBuffer`, which works on the picture it is given in place.
+- **Every call is DOM-free, and nearly every one is pure.** `smudgeBuffer`,
+  `runEffects`, `blurPixels` and `layOnto` work on the picture they are
+  given in place. `registerGeometryEffect`, `bindGeometry`,
+  `setOutlineSource` and `setAccentPage` set state every later call reads,
+  and `layoutType` and `render3d` keep what they worked out for a mark that
+  has not changed.
 - **Get marks from `evaluate`**, or from a `.skbk`, and pass ids, not marks,
   to the calls that take a page: they look the marks up and take them in paint
   order.
@@ -435,7 +700,7 @@ once at 40, is at 52 - and the circle is still one closed path.
   [pencils](../drawing/README.md#pencils),
   [smearing](../drawing/README.md#smearing) and
   [Liquify](../drawing/README.md#liquify).
-- [Using napkin-sketch from code](../node/README.md): the two entries, and the
+- [Using napkin-sketch from code](../node/README.md): the package's entries, and the
   result `evaluate` gives.
 - [Writing a drawing out](../output/README.md): what a page with its edits
   made is written as.
@@ -445,5 +710,15 @@ once at 40, is at 52 - and the circle is still one closed path.
   [`split.ts`](../../../src/core/split.ts),
   [`clip.ts`](../../../src/core/clip.ts),
   [`pencil.ts`](../../../src/core/pencil.ts),
-  [`smudge.ts`](../../../src/core/smudge.ts) and
-  [`liquify.ts`](../../../src/core/liquify.ts): the engines.
+  [`smudge.ts`](../../../src/core/smudge.ts),
+  [`liquify.ts`](../../../src/core/liquify.ts),
+  [`blend.ts`](../../../src/core/blend.ts),
+  [`appearance.ts`](../../../src/core/appearance.ts),
+  [`appearance-fx.ts`](../../../src/core/appearance-fx.ts),
+  [`splatter.ts`](../../../src/core/splatter.ts),
+  [`warp-styles.ts`](../../../src/core/warp-styles.ts),
+  [`three-d/`](../../../src/core/three-d/),
+  [`arc-length.ts`](../../../src/core/arc-length.ts),
+  [`type/`](../../../src/core/type/) and
+  [`composition-style.ts`](../../../src/core/composition-style.ts): the
+  engines.

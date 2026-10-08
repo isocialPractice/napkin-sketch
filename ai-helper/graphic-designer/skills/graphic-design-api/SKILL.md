@@ -1,6 +1,6 @@
 ---
 name: graphic-design-api
-description: 'Compose finished graphics in code through the napkin-sketch graphic-design API, with the visual judgment to make them good. Use when generating or editing a static graphic - a card, poster, banner, social post, badge, diagram, certificate, thumbnail, or template - from a script rather than by hand; when a composition must be produced in both SVG and PNG; when an existing composition script needs its hierarchy, palette, type scale, or spacing improved; or when a design language has to be turned into a working script; and when a project has already registered one, in which case a request like "make a html cheatsheet" or a bare "generate" is drawn by the skill that was generated for it, with its brand assets already wired in. Covers the element vocabulary (rectangles, circles, ellipses, triangles, polygons, paths, styled text, placed media, groups, clipping masks), the 360x360 default page and unit system, the shared text layout both renderers measure with, the 60-30-10 color ratio, type scales, WCAG contrast on a static page, and the limits the API is honest about.'
+description: 'Compose finished graphics in code through the napkin-sketch graphic-design API, with the visual judgment to make them good. Use when generating or editing a static graphic - a card, poster, banner, social post, badge, diagram, certificate, thumbnail, or template - from a script rather than by hand; when a composition must be produced in both SVG and PNG; when an existing composition script needs its hierarchy, palette, type scale, or spacing improved; or when a design language has to be turned into a working script; and when a project has already registered one, in which case a request like "make a html cheatsheet" or a bare "generate" is drawn by the skill that was generated for it, with its brand assets already wired in. Covers the element vocabulary (rectangles, circles, ellipses, triangles, polygons, paths, styled text, placed media, groups, clipping masks), gradients, effects and blend modes, restyling a composition by its names with a Composition Style, the 360x360 default page and unit system, the shared text layout both renderers measure with, the 60-30-10 color ratio, type scales, WCAG contrast on a static page, and the limits the API is honest about.'
 ---
 
 # Graphic Design API
@@ -97,6 +97,11 @@ design.text({ x: 180, y: 78, text: 'Acme Corp', align: 'center', fontSize: 28, f
 design.image({ src: dataUrl, x: 116, y: 156, width: 128, height: 128, fit: 'cover', clip: 'badge' });
 design.group({ translate: { x: 0, y: 240 } }, (g) => { /* children */ });
 design.defineClip('badge', { type: 'circle', cx: 180, cy: 220, r: 64 });
+
+// Depth and mixing: an effect list, and a blend mode by napkin's name (stack is Multiply).
+design.rect({ name: 'Card', x: 24, y: 160, width: 140, height: 80, rx: 8, fill: '#ffffff',
+  effects: [{ type: 'drop-shadow', dx: 0, dy: 4, blur: 12, color: 'rgba(0, 0, 0, 0.25)' }] });
+design.circle({ cx: 300, cy: 300, r: 40, fill: '#fdc83a', blend: 'stack' });
 
 // A vector asset, inlined as shapes so the PNG draws it too.
 placeBrand(design, { x: 292, y: 13, width: 45, height: 24 }, { kind: 'vector', svg: logoMarkup }, { fit: 'contain' });
@@ -204,6 +209,21 @@ What follows from that:
 - **Place media by its box, and let `fit` do the rest.** `cover` fills and
   crops, `contain` fits and letterboxes. Choosing the wrong one is the most
   common way a placed logo ends up distorted.
+- **Shadows and glows are effects, and elevation is a scale.** An element's
+  `effects` - `drop-shadow`, `inner-shadow`, `outer-glow`, `bevel` and
+  the rest - are drawn by both renderers. Pick three to five shadow tiers and
+  use them by role, as any design system does: a shadow per element by eye
+  is the composition's version of `padding: 13px`.
+- **A blend mode is a tint that keeps what is under it.** `blend: 'stack'`
+  (Multiply) darkens through to the texture below, `'sheer'` (Screen)
+  lightens; `isolate: true` on a group keeps its children's blends inside
+  it. Both renderers mix them the same way.
+- **Name what a theme would change.** `name: 'Title'` on an element or a
+  group is what a Composition Style keys its rules by: a JSON file of
+  `layers`, `text` and `strokes` rules that `applyCompositionStyle` turns
+  into a new composition, with a report of any rule that matched nothing. One
+  script and two styles is a light and a dark version that cannot drift
+  apart. `docs/api/compose/README.md#composition-styles` has the format.
 - **Place a vector by inlining it, not by linking it.** `placeBrand` reads an
   SVG asset's shapes into the composition:
 
@@ -225,8 +245,10 @@ What follows from that:
 
 Named plainly, because designing around a limit beats discovering it:
 
-- **No gradients, filters, or patterns.** Solid paint, opacity, and clipping
-  masks are the palette. A gradient has to be a placed image.
+- **No patterns.** Solid and gradient paint, effects, blend modes, opacity,
+  clipping masks and erase shapes are the palette. A gradient runs along an
+  angle or out from the middle of its shape's box; one placed by end points
+  of its own has to be a placed image.
 - **No elliptical arcs in path data.** `M L H V C S Q T Z` only. Rounded
   corners are generated as Beziers, so nothing needs arcs.
 - **Raster text uses the built-in alphabet** (above).
@@ -234,10 +256,12 @@ Named plainly, because designing around a limit beats discovering it:
   the SVG with no help; the PNG path decodes PNG only, and reports the rest in
   `warnings` rather than failing the whole render. For SVG there is a way
   around it that costs nothing: `inlineSvg` / `placeBrand` turn the asset into
-  elements, which both renderers draw. Gradients, patterns, filters, `<use>`
-  and elliptical arcs do not survive that translation and are reported in
-  `notes` rather than approximated.
-- **No shadows.** Depth comes from contrast, scale, and overlap.
+  elements, which both renderers draw. Patterns, filters, `<use>` and
+  elliptical arcs do not survive that translation, and a gradient comes
+  through as its first stop's color; each is reported in `notes`.
+- **An effect is drawn, not laid out.** A shadow or a glow reaches past its
+  element's box and nothing moves to make room for it, so leave the margin
+  it needs. Depth still comes first from contrast, scale and overlap.
 
 ## Gotchas
 

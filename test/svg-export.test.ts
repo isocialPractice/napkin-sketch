@@ -8,8 +8,12 @@ import {
   createLayer,
   createSketch,
   type Sketch,
+  type Stroke,
   type VectorAnchor,
 } from '../src/core/types.js';
+import { sketchToSvg } from '../src/core/sketch-svg.js';
+import type { TypeMeasure } from '../src/core/type/measure.js';
+import { withTypeset } from '../src/core/type/model.js';
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
@@ -121,7 +125,8 @@ test('toSVG exports copic strokes as filled nib outlines with round-trip data', 
 test('toSVG writes coordinates without a redundant trailing .0', () => {
   const svg = Surface.toSVG(layeredSketch());
   assert.match(svg, /d="M0 0 10 10"/);
-  assert.match(svg, /<text x="20" y="30"/);
+  // The text's anchor, and its first line's start on its baseline.
+  assert.match(svg, /<text x="20" y="[\d.]+"[^>]*data-anchor="20 30"/);
 });
 
 test('toSVG states the paint every mark shares once, on the root element', () => {
@@ -865,4 +870,57 @@ test('a fitted freehand stroke exports as its few curves, not its samples', () =
   const d = pathDataOf(Surface.toSVG(sketch));
   assert.equal((d.match(/[Cc]/g) ?? []).length + (d.match(/[Ss]/g) ?? []).length, 2, d);
   assert.ok(!/[Ll]/.test(d), `no sampled line segments: ${d}`);
+});
+
+/** A page of text marks, as the SVG writer writes it with `measure`. */
+function textSvg(strokes: Stroke[], measure?: TypeMeasure): string {
+  const sketch = createSketch('type');
+  sketch.strokes = strokes.map((s) => ({ ...s, layer: sketch.layers[0].id }));
+  return sketchToSvg(sketch, measure ? { typeMeasure: measure } : {});
+}
+
+const typeMark = (text: string, extra: Partial<Stroke> = {}): Stroke => ({ id: 't', tool: 'text', color: '#1f2328', width: 1, points: [{ x: 10, y: 20 }], text, fontSize: 20, fontFamily: 'Georgia', ...extra });
+
+/** Every character half an em wide, its ascent 0.8 em: a measure whose widths are the face's own. */
+const EXACT: TypeMeasure = { id: 'exact', exact: true, smallCaps: false, width: (t, f) => [...t].length * f.size * 0.5, extent: (f) => ({ ascent: f.size * 0.8, descent: f.size * 0.2 }) };
+
+test("a text's runs are tspans saying what differs; an exact measure pins each character, and the text carries what napkin reads back", () => {
+  const styled = withTypeset(typeMark('Hello world'), { kind: 'point', runs: [{ start: 6, end: 11, attrs: { fontStyle: 'Bold', underline: true, color: '#c0392b' } }] });
+  const svg = textSvg([styled], EXACT);
+  // The first stretch at the anchor's baseline, an x a character; the run its own face, color and decoration.
+  assert.match(svg, /<tspan x="10 20 30 40 50 60" y="36">Hello <\/tspan>/);
+  assert.match(svg, /<tspan x="70 80 90 100 110" y="36" font-weight="700" fill="#c0392b" text-decoration="underline">world<\/tspan>/);
+  assert.match(svg, /data-anchor="10 20" data-text="Hello world" data-typeset="\{&quot;kind&quot;:&quot;point&quot;,&quot;runs&quot;/);
+  // Without an exact measure, a stretch is placed from its start and the viewer sets the rest.
+  assert.match(textSvg([styled]), /<tspan x="10" y="[\d.]+">Hello <\/tspan>/);
+});
+
+test('rainbow Path Typing is a textPath; another effect, a turn or a scale sets a character alone; a frame paints under the text', () => {
+  const path = { anchors: [{ p: { x: 0, y: 0 } }, { p: { x: 200, y: 0 } }], start: 20, end: Number.MAX_SAFE_INTEGER, align: 'baseline' as const, effect: 'rainbow' as const };
+  const rainbow = textSvg([withTypeset(typeMark('Along'), { kind: 'path', path })], EXACT);
+  assert.match(rainbow, /<defs>[\s\S]*<path id="type-path-0" d="M10 20L210 20"\/>/);
+  assert.match(rainbow, /<textPath href="#type-path-0" startOffset="20"><tspan>Along<\/tspan><\/textPath>/);
+  const skewed = textSvg([withTypeset(typeMark('Al'), { kind: 'path', path: { ...path, anchors: [{ p: { x: 0, y: 0 } }, { p: { x: 100, y: 100 } }], effect: 'skew' } })], EXACT);
+  assert.equal((skewed.match(/<text transform="matrix\(/g) ?? []).length, 2, 'each character a text of its own');
+  assert.match(skewed, /<g data-tool="text"/);
+  const turned = textSvg([withTypeset(typeMark('ab'), { kind: 'point', runs: [{ start: 1, end: 2, attrs: { rotation: 30 } }] })], EXACT);
+  assert.match(turned, /<tspan x="[\d.]+" y="[\d.]+" rotate="30">b<\/tspan>/);
+  const framed = textSvg([withTypeset(typeMark('Boxed'), { kind: 'area', frame: { anchors: [{ p: { x: 0, y: 0 } }, { p: { x: 100, y: 0 } }, { p: { x: 100, y: 60 } }, { p: { x: 0, y: 60 } }], fill: '#ffe08a' } })], EXACT);
+  assert.match(framed, /<g data-tool="text"[^>]*><path d="M10 20L110 20L110 80L10 80Z" fill="#ffe08a"\/><text /);
+  // Vertical text is its characters upright, each at its place down the column: no writing mode to read differently.
+  const vertical = textSvg([withTypeset(typeMark('Up'), { kind: 'point', orientation: 'vertical' })], EXACT);
+  // The column's middle a half size left of the anchor; each em's middle a size apart down it.
+  assert.deepEqual([...vertical.matchAll(/<tspan x="(-?[\d.]+)" y="(-?[\d.]+)">(\w)<\/tspan>/g)].map((m) => [m[3], Number(m[1]), Number(m[2])]), [['U', -5, 36], ['p', -5, 56]]);
+  assert.doesNotMatch(vertical, /writing-mode/);
+});
+
+test('a character set alone states its font once: its own size, family and color, not the text\'s as well', () => {
+  // Scaled, so a text of its own; a subscript in another family and color, struck through.
+  const styled = withTypeset(typeMark('ab'), { kind: 'point', runs: [{ start: 1, end: 2, attrs: { hScale: 90, position: 'subscript', fontFamily: 'Arial', color: '#c0392b', strike: true } }] });
+  const alone = textSvg([styled], EXACT).match(/<text transform="matrix\([^"]*\)"[^>]*>b<\/text>/)?.[0] ?? '';
+  assert.ok(alone, 'the scaled character is a text of its own');
+  // An attribute twice on one element is not XML: a strict reader refuses the file.
+  for (const name of ['font-size', 'font-family', 'fill']) assert.equal(alone.split(` ${name}="`).length - 1, 1, `${name} once: ${alone}`);
+  assert.match(alone, /font-size="11\.66" font-family="Arial" fill="#c0392b"/);
+  assert.match(alone, /text-decoration="line-through"/);
 });

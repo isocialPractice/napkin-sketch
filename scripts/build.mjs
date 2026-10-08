@@ -3,7 +3,7 @@
 // renderer (browser/IIFE), then copies static renderer assets to dist/.
 
 import { build, context } from 'esbuild';
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -22,6 +22,19 @@ const nodeCommon = {
   logLevel: 'info',
   // electron is provided by the runtime, never bundle it.
   external: ['electron'],
+};
+
+/**
+ * `napkin-sketch/markdown` registers its lexer with the API a program imports:
+ * it imports `../api/index.js` - beside it in `dist/` as in `src/` - rather
+ * than bundling a second copy of the API, whose lexer would be another's.
+ * @type {import('esbuild').Plugin}
+ */
+const apiExternal = {
+  name: 'api-external',
+  setup(b) {
+    b.onResolve({ filter: /^\.\.\/api\/index\.js$/ }, () => ({ path: '../api/index.js', external: true }));
+  },
 };
 
 /** @type {import('esbuild').BuildOptions[]} */
@@ -101,6 +114,19 @@ const configs = [
     entryPoints: [resolve(root, 'src/api/node.ts')],
     outfile: resolve(root, 'dist/node/index.js'),
   },
+  // `napkin-sketch/markdown`: marked's lexer for Markdown Flow, registered with
+  // the API above when imported - marked bundled in, the API imported.
+  {
+    bundle: true,
+    platform: 'browser',
+    target: 'chrome120',
+    format: 'esm',
+    sourcemap: true,
+    logLevel: 'info',
+    plugins: [apiExternal],
+    entryPoints: [resolve(root, 'src/markdown/index.ts')],
+    outfile: resolve(root, 'dist/markdown/index.js'),
+  },
   // Embeddable API as a global IIFE for <script> tags (WordPress / plain HTML).
   {
     bundle: true,
@@ -114,6 +140,41 @@ const configs = [
     outfile: resolve(root, 'dist/embed/napkin-sketch.js'),
   },
 ];
+
+/**
+ * The languages beyond highlight.js's common set, each a script of its own in
+ * `dist/renderer/accents/` - minified, as the page loads one only when the
+ * language is installed - that hands its definition to
+ * `globalThis.napkinAccents.register`. The page's content security policy lets
+ * a script of the app's own run, from `dist/` and from inside the asar alike.
+ */
+async function buildAccentLanguages() {
+  const catalog = JSON.parse(await readFile(resolve(root, 'src/core/type/accent-languages.json'), 'utf8'));
+  const ids = catalog.filter((language) => !language.common).map((language) => language.id);
+  await build({
+    entryPoints: ids.map((id) => ({ in: `accent:${id}`, out: id })),
+    outdir: resolve(root, 'dist/renderer/accents'),
+    bundle: true,
+    platform: 'browser',
+    target: 'chrome120',
+    format: 'iife',
+    minify: true,
+    logLevel: 'warning',
+    plugins: [
+      {
+        name: 'accent-languages',
+        setup(b) {
+          b.onResolve({ filter: /^accent:/ }, (args) => ({ path: args.path.slice('accent:'.length), namespace: 'accent' }));
+          b.onLoad({ filter: /.*/, namespace: 'accent' }, (args) => ({
+            contents: `import definition from 'highlight.js/lib/languages/${args.path}';\nglobalThis.napkinAccents?.register(${JSON.stringify(args.path)}, definition);\n`,
+            resolveDir: root,
+            loader: 'js',
+          }));
+        },
+      },
+    ],
+  });
+}
 
 async function copyStatic() {
   await mkdir(resolve(root, 'dist/renderer'), { recursive: true });
@@ -146,8 +207,8 @@ async function copyStatic() {
   await mkdir(resolve(root, 'dist/api'), { recursive: true });
   await writeFile(resolve(root, 'dist/api/package.json'), `${JSON.stringify({ type: 'module' }, null, 2)}\n`, 'utf-8');
 
-  // Same reason, for the two Node-only entries.
-  for (const folder of ['dist/graphic-design', 'dist/node']) {
+  // Same reason, for the two Node-only entries and the Markdown reader.
+  for (const folder of ['dist/graphic-design', 'dist/node', 'dist/markdown']) {
     await mkdir(resolve(root, folder), { recursive: true });
     await writeFile(resolve(root, folder, 'package.json'), `${JSON.stringify({ type: 'module' }, null, 2)}\n`, 'utf-8');
   }
@@ -161,10 +222,11 @@ async function run() {
   if (watch) {
     const contexts = await Promise.all(configs.map((c) => context(c)));
     await Promise.all(contexts.map((ctx) => ctx.watch()));
+    await buildAccentLanguages();
     await copyStatic();
     console.log('napkin-sketch: watching for changes...');
   } else {
-    await Promise.all(configs.map((c) => build(c)));
+    await Promise.all([...configs.map((c) => build(c)), buildAccentLanguages()]);
     await copyStatic();
     console.log('napkin-sketch: build complete.');
   }

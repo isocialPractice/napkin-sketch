@@ -70,8 +70,12 @@ before drawing.
 3. `P` - a vector path: click for corners, drag for smooth points, hold `Shift`
    for 45-degree steps; `Enter` finishes it open, and a click on the first
    point, where a ring shows, closes it.
-4. `T` - text: click for a box that grows as you type, or drag a box of a
-   fixed width.
+4. `T` - text: click for a text that grows as you type, or drag a box for
+   its lines to wrap in. `Enter` starts a new line and `Esc` puts the text
+   down; click a text with `T`, or double-click it with the Select tool, to
+   edit it again. A click inside a selected shape sets the text in the
+   shape, and one on a selected path sets it along the path (see
+   [Type](../guide/type.md)).
 
 ## 6. Sharpen it
 

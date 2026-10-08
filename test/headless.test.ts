@@ -42,6 +42,8 @@ import { eventChords } from '../src/core/menu/chords.js';
 import { repoRoot } from './helpers/repo-root.js';
 import { BADGE, pngDataUrl as fixturePng } from './helpers/script-fixtures.js';
 import * as napkin from '../src/api/index.js';
+// Markdown Flow's reader, marked's lexer, registered with the barrel: it too runs with no DOM.
+import * as markdown from '../src/markdown/index.js';
 
 /** A 2 by 2 PNG as a data URL, made without a canvas. */
 function pngDataUrl(): string {
@@ -284,6 +286,34 @@ test('a sketch renders to every format without a DOM', () => {
   assert.match(warnings.join('\n'), /gradient fill prints as the shape's flat fill/);
 });
 
+test('Markdown Flow text reads with marked and renders to every format without a DOM', () => {
+  assert.equal(napkin.markdownLexer(), markdown.markedLexer, 'the subpath registered its lexer with the barrel');
+  assert.equal(markdown.markdownToType('# Notes\n\n- one\n- **two**').text, 'Notes\none\ntwo');
+  const sketch = createSketch('markdown');
+  sketch.strokes.push({
+    id: 'md',
+    tool: 'text',
+    color: '#1f2328',
+    width: 1,
+    layer: sketch.layers[0].id,
+    points: [{ x: 20, y: 20 }],
+    text: '# Notes\n\n> a **quote**\n\n| a | b |\n|---|---|\n| 1 | 2 |',
+    fontSize: 16,
+    typeset: { kind: 'point', flow: 'markdown' },
+  });
+  const svg = renderSketch(sketch, { format: 'svg' });
+  assert.match(svg, />Notes</);
+  assert.doesNotMatch(svg, />[^<]*\*\*/, 'what it shows is rendered');
+  assert.ok(isPng(renderSketch(sketch, { format: 'png' })));
+  assert.ok(renderSketch(sketch, { format: 'pdf' }).startsWith('%PDF-1.4'));
+  assert.match(renderSketch(sketch, { format: 'jsx' }), /text\("Notes\\r/, 'Illustrator gets the rendered text');
+  // Fenced code is colored by highlight.js, which touches no DOM either.
+  assert.equal(napkin.accentHighlighter(), markdown.hljsHighlighter);
+  const code = { ...sketch.strokes[0], id: 'code', text: '```python\ndef f():\n    return 1\n```' };
+  const colored = renderSketch({ ...sketch, strokes: [code] }, { format: 'svg' });
+  assert.match(colored, new RegExp(`fill="${napkin.ACCENT_THEMES.light.colors.keyword}"[^>]*>def<`), 'its keyword in the keyword color');
+});
+
 test('a sketch lowers into a composition that code adds to and renders, without a DOM', () => {
   const doc = napkin.sketchToComposition(everyMark());
   assert.ok(doc.elements.length > 0, 'the marks arrive as elements');
@@ -321,9 +351,9 @@ test('the menu registry loads the user files and builds every menu without a DOM
   assert.deepEqual(validateMenuData(), []);
   const registry = loadRegistry({ shortcuts: { version: 1, shortcuts: { mirror: 'Ctrl+M' } } });
   assert.equal(registry.tool('mirror')?.chord, 'Ctrl+M');
-  assert.equal(menuTree(registry).length, 9, 'the nine menus of the menu bar');
-  assert.equal(nativeMenus(registry, { animationNotInstalled: true }).length, 9);
-  for (const id of ['layers', 'pages', 'canvas', 'export-button', 'pages-button', 'close-shape-button']) {
+  assert.equal(menuTree(registry).length, 11, 'the eleven menus of the menu bar');
+  assert.equal(nativeMenus(registry, { animationNotInstalled: true }).length, 11);
+  for (const id of ['layers', 'pages', 'canvas', 'export-button', 'pages-button', 'close-shape-button', 'effect-button']) {
     assert.ok(contextItems(registry, id).length > 0, id);
   }
   assert.deepEqual(eventChords({ key: 'm', code: 'KeyM', ctrlKey: true, altKey: false, shiftKey: false }), ['Ctrl+M']);
@@ -346,6 +376,8 @@ test('the DOM-free core imports nothing from the renderer, the main process or N
       join(root, 'src', 'core', `${name}.ts`),
     ),
     ...listed(scriptDir),
+    // The type model and its layout, Markdown Flow among them: it reads Markdown with the lexer it is given.
+    ...listed(join(root, 'src', 'core', 'type')),
     // The menu registry: the main process and the renderer both build from it.
     ...listed(menuDir),
     // `files.ts` is the composition's Node-only half, kept apart for exactly this reason.
@@ -356,7 +388,7 @@ test('the DOM-free core imports nothing from the renderer, the main process or N
     for (const specifier of specifiers) {
       assert.doesNotMatch(
         specifier,
-        /^node:|^electron$|\/renderer\/|\/main\//,
+        /^node:|^electron$|^marked$|\/renderer\/|\/main\//,
         `${file.slice(root.length + 1)} imports ${specifier}`,
       );
     }

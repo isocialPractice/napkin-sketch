@@ -1,0 +1,54 @@
+napkin 1
+# A styled poster: a headline, Sheet Typing body, type along a path, a warped
+# banner, an extruded block, a blended band and a glowing badge. It is drawn
+# to a golden SVG, as every golden is, and to a golden PNG as well, so the
+# effects the raster draws pixel by pixel are a change a person looked at.
+page 360 480
+name "type-and-appearance"
+background #f4efe6
+
+layer "Sun"
+color #e76f51 width 2 fill #f4a261
+circle 284 136 62
+
+blend stack
+layer "Band"
+color #2a9d8f fill #8ecae6
+rect 0 150 360 90
+
+layer "Headline"
+font "Georgia" 36
+color #264653
+character face "Bold" tracking 20
+text "Acme Corp" at 28 36
+character reset
+
+layer "Along"
+font "Georgia" 13
+text "SPRING SHOWCASE" at 40 236 along "M0 0 C60 -64 220 -64 280 0" start 40
+
+layer "Body"
+font "Georgia" 12
+paragraph align justify first 12 after 6 hyphenate
+text "Widgets, gadgets and gizmos from every team, set in one column that wraps and hyphenates as a printed page does.\nDoors open at nine." at 28 270 box 168
+paragraph reset
+
+effect warp windy bend 30%
+layer "Banner"
+color #264653 width 2 fill #e9c46a
+rect 216 268 116 44
+font "Georgia" 16
+text "OPEN DAY" at 274 280 align center
+
+layer "Block"
+color #264653 width 2 fill #e76f51
+effect extrude 28 rotate -18 -26 8
+rect 236 360 64 64
+
+layer "Badge"
+color #264653 width 2 fill #264653
+effect outer-glow 10 #e9c46a spread 20 opacity 0.9
+circle 84 412 34
+font "Georgia" 13
+color #ffffff
+text "NEW" at 84 404 align center

@@ -13,6 +13,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { wrapText } from '../src/core/graphic-design/font.js';
 import { sketchToComposition } from '../src/core/sketch-composition.js';
 import { sketchToSvg } from '../src/core/sketch-svg.js';
 import { pathD } from '../src/core/svg-path.js';
@@ -196,7 +197,7 @@ test('a Copic mark is the footprint of its chisel nib', () => {
   assert.equal(nib.opacity, defaultOpacityFor('copic'));
 });
 
-test('text is set from its top and wraps in its box, an image fills its box, and a link is a linked image', () => {
+test('text is set on its baselines and wraps in its box, an image fills its box, and a link is a linked image', () => {
   const [text, boxed, image, link] = marksOf(
     page(
       { id: 't', tool: 'text', color: '#1f2328', width: 1, text: 'Acme Corp', fontSize: 18, points: [{ x: 10, y: 10 }] },
@@ -215,12 +216,15 @@ test('text is set from its top and wraps in its box, an image fills its box, and
       },
     ),
   );
+  // The type layout sets it: its first baseline the built-in face's ascent below its top.
   assert.equal(text.type, 'text');
-  assert.equal((text as { baseline?: string }).baseline, 'top');
-  assert.equal((text as { lineHeight?: number }).lineHeight, 1.25);
-  assert.equal((text as { maxWidth?: number }).maxWidth, undefined);
-  assert.equal((boxed as { maxWidth?: number }).maxWidth, 80, 'a text box wraps at its width');
+  assert.deepEqual([(text as { baseline?: string }).baseline, text.x, text.y], ['alphabetic', 10, 10 + 18 * (11 / 15)]);
+  // A box wraps at its width: a line a text element, a line and a quarter apart, under the mark's one opacity.
+  assert.equal(boxed.type, 'group');
   assert.equal(boxed.opacity, 0.6);
+  const lines = (boxed as GroupElement).children as Array<{ text: string; y: number }>;
+  assert.deepEqual(lines.map((l) => l.text.trimEnd()), wrapText('Acme Corp makes anvils', 80, { fontSize: 18 }), 'where the built-in face breaks it');
+  assert.deepEqual(lines.map((l, i) => Math.round((l.y - lines[0].y) * 100) / 100 - i * 22.5), lines.map(() => 0));
   assert.deepEqual(
     { ...image, src: undefined },
     { type: 'image', src: undefined, x: 120, y: 10, width: 40, height: 30, fit: 'fill' },

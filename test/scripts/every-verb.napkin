@@ -130,14 +130,135 @@ repeat 3 as k {
 layer "Media"
 font "Georgia" 16
 text "Every verb" at 260 440 size 14
+character face "Bold" tracking 40 underline
+paragraph align center hyphenate
+text "Hi there" at 600 420 size 10 runs (0 2 color #c0392b super)
+character reset
+paragraph reset
+text "Around" at 580 400 size 9 along "M0 0 C10 -12 30 -12 40 0" start 2
+text "In a shape" at 500 372 size 8 inside "M0 0 L60 0 L50 30 L10 30 Z"
+text "Up" at 632 8 size 8 vertical
+textconfig "Callout" face "Bold" color #c0392b
+text "Called out" at 260 412 size 10 runs (0 6 config "Callout" underline)
+accent python
+text "x = 1  # one" at 340 396 size 9
 image "logo" at 360 440 size 40
 use "badge" at 420 430 scale 0.25
 effect drop-shadow 2 2 3 #00000044
 rect 500 440 40 30
 link "assets/logo.svg" at 560 440 size 40 20 name "Logo"
 
+blend multiply
+layer "Blended"
+circle 520 455 22
+
+layer "Raised"
+push
+fill #ffe08a
+effect bevel size 4 on fill
+effect inner-glow 6 #ffffff center on stroke
+effect drop-shadow 3 3 4 #000000 blend multiply
+rect 580 400 40 30
+pop
+
+layer "Scribbled"
+push
+fill #8ab4ff
+effect splatter preset sketch angle 45 seed 3
+circle 610 462 12
+pop
+
+layer "Warped"
+push
+fill #c3e88d
+effect warp arc bend 40% part lower
+rect 520 440 50 28
+pop
+
+layer "Built"
+push
+fill #f4a261
+effect extrude 16 rotate -20 30 0
+rect 450 440 40 28
+pop
+
 crop auto pad 12
 registration 0 0 640 480
 
 newpage "every-verb-2"
 circle 100 100 40
+
+# The forms the first page leaves out: every effect, the blends by napkin
+# name and before a group or a clip, and every way of setting text.
+layer "Filters"
+fill #8ab4ff
+effect blur 1
+rect 20 160 40 30
+effect brightness 1.2
+effect contrast 0.9
+effect saturate 1.5
+rect 70 160 40 30
+effect grayscale
+effect sepia 0.5
+effect invert 0.2
+rect 120 160 40 30
+effect hue-rotate 90
+effect opacity 0.8
+rect 170 160 40 30
+
+layer "Appearance"
+effect feather 4
+rect 220 160 40 30
+effect emboss pillow size 3
+rect 270 160 40 30
+effect inner-shadow 2 2 3 #000000 choke 10
+effect outer-glow 6 #ffcc00 spread 20 opacity 0.6
+rect 320 160 40 30
+effect blur 2 hidden
+rect 370 160 40 30
+effect blur 3
+effect none
+rect 420 160 40 30
+fill #f4a261
+effect revolve angle 360 offset 4 segments 8
+rect 500 160 20 30
+
+blend stack
+group "Stacked" {
+  layer "Stacked shapes"
+  fill #d0342c
+  circle 552 175 20
+}
+blend sheer
+clip "Lit" {
+  fill #ffe08a
+  rect 582 160 50 40
+  fill none
+  circle 607 180 18
+}
+blend normal
+layer "Type"
+font "Georgia" 12
+fill none
+text "A box of words that wraps" at 20 230 box 120 align justify
+text "Flipped" at 160 270 along "M0 0 C20 -20 60 -20 80 0" flip effect skew
+text "Ribbon" at 160 300 along "M0 0 C20 -20 60 -20 80 0" effect ribbon
+textconfig "Quiet" family "Georgia" size 11 color #555555 caps small
+text "Quiet words" at 260 230 config "Quiet"
+text "# Notes\n\n- **one**\n- two" at 360 220 size 10 markdown
+text "ink" at 480 230 size 14 as marks
+character kern 20 kerning none leading 14 spacing 120% caps all hscale 90% vscale 110% shift 2 rotate 5 highlight #fff3b0 sub strike
+text "Every clause" at 20 330 size 10
+character reset
+paragraph indent 10 4 first 12 before 4 after 6 nohyphenate
+paragraph list bullet
+text "Widgets\nGadgets" at 160 330 size 10
+paragraph list number level 2
+text "Order\nShip" at 260 330 size 10
+paragraph reset
+accent auto
+text "SELECT name FROM users" at 360 330 size 9
+accent "c++"
+text "int main() { return 0; }" at 360 350 size 9
+accent none
+text "plain" at 360 370 size 9

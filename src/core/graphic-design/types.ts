@@ -14,7 +14,8 @@
  * frame SVG uses, so what is written here is what the SVG says.
  */
 
-import type { Effect } from '../effects.js';
+import type { BlendModeId } from '../blend.js';
+import type { EffectInput } from '../effects.js';
 import type { LengthUnit } from '../units.js';
 
 /** A point in composition units. */
@@ -96,12 +97,22 @@ export interface CommonProps {
   /** Clipping mask: an id defined with `defineClip`, or an inline shape. */
   clip?: string | ClipShape;
   /**
-   * CSS filter effects - `blur`, `drop-shadow`, `sepia` and the rest - drawn
-   * over the element's finished picture, a group's as one, in order and
-   * before its clip and its opacity, as SVG orders a filter. Lengths are in
-   * composition units. See `core/effects.ts`.
+   * Effects - the CSS filter functions (`blur`, `drop-shadow`, `sepia` and
+   * the rest) and the appearance effects (`feather`, `bevel`, `emboss`,
+   * `inner-shadow`, `outer-glow`, `inner-glow`) - drawn over the element's
+   * finished picture, a group's as one, in order and before its clip and its
+   * opacity, as SVG orders a filter. An appearance effect needs only the
+   * fields it changes; an effect may aim at a shape's `fill` or `stroke`.
+   * Lengths are in composition units. See `core/effects.ts`.
    */
-  effects?: Effect[];
+  effects?: EffectInput[];
+  /**
+   * How the element's finished picture - a group's as one - mixes with what
+   * is drawn under it, the page's background included: a Napkin Blend by its
+   * napkin id (`stack`) or its Illustrator name (`multiply`). Absent is
+   * normal. See `core/blend.ts`.
+   */
+  blend?: BlendModeId;
   /** Set false to keep an element in the model but out of every render. */
   visible?: boolean;
 }
@@ -285,6 +296,11 @@ export interface GroupElement extends CommonProps {
    * and their colors do not matter.
    */
   erase?: Element[];
+  /**
+   * Isolate Blending: the group is drawn as one picture first, so the blends
+   * of what it holds mix only with each other, not with what is under it.
+   */
+  isolate?: boolean;
 }
 
 /** One color of a gradient, and where along it the color sits, from 0 to 1. */

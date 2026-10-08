@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_TOOL_ORDER,
+  FONT_NAME_MAX,
   defaultSettings,
   normalizeSettings,
   normalizeHexColor,
@@ -220,4 +221,46 @@ test('the History Limit is held to 50 to 5000, in steps of 50', () => {
   assert.equal(limit(Number.NaN), 500);
   const kept = parseSettings(serializeSettings({ ...defaultSettings(), trackHistory: true, historyLimit: 2500 }));
   assert.deepEqual([kept.trackHistory, kept.historyLimit], [true, 2500], 'both survive a save and a load');
+});
+
+test('a report toast stays 15 seconds, or until closed at 0, and otherwise 5 to 60 in steps of 5', () => {
+  assert.equal(defaultSettings().reportToastSeconds, 15);
+  assert.deepEqual(SETTINGS_LIMITS.reportToastSeconds, { min: 0, max: 60, step: 5 });
+  const seconds = (value: unknown): number => normalizeSettings({ reportToastSeconds: value }).reportToastSeconds;
+  assert.equal(seconds(0), 0, '0 keeps reports until they are closed');
+  assert.equal(seconds(-4), 0);
+  assert.equal(seconds(2), 5, 'a positive number means fade, so it never rounds down to never');
+  assert.equal(seconds(7), 5, 'the nearest step down');
+  assert.equal(seconds(8), 10, 'the nearest step up');
+  assert.equal(seconds(45), 45);
+  assert.equal(seconds(61), 60);
+  assert.equal(seconds(1e9), 60);
+  assert.equal(seconds('30'), 30, 'a number written as text is still the number');
+  for (const nonsense of ['soon', '', null, undefined, Number.NaN]) {
+    assert.equal(seconds(nonsense), 15, `${String(nonsense)} leaves the default`);
+  }
+  const kept = parseSettings(serializeSettings({ ...defaultSettings(), reportToastSeconds: 0 }));
+  assert.equal(kept.reportToastSeconds, 0, 'until closed survives a save and a load');
+});
+
+test('the 3D gumball shows by default, and a file that switched it off keeps it off', () => {
+  assert.equal(defaultSettings().show3dGumball, true);
+  assert.equal(normalizeSettings({ show3dGumball: false }).show3dGumball, false);
+  for (const nonsense of ['no', 0, null, undefined]) {
+    assert.equal(normalizeSettings({ show3dGumball: nonsense }).show3dGumball, true, `${String(nonsense)} leaves the default`);
+  }
+  assert.equal(parseSettings(serializeSettings({ ...defaultSettings(), show3dGumball: false })).show3dGumball, false, 'off survives a save and a load');
+});
+
+test('the Type panel shows with the text tool by default; the next text is in the app font until a font is chosen', () => {
+  assert.equal(defaultSettings().typePanelAutoShow, true);
+  assert.equal(normalizeSettings({ typePanelAutoShow: false }).typePanelAutoShow, false);
+  assert.equal(normalizeSettings({ typePanelAutoShow: 'no' }).typePanelAutoShow, true);
+  assert.equal(defaultSettings().textFont, '');
+  assert.equal(normalizeSettings({ textFont: '  Acme Serif ' }).textFont, 'Acme Serif');
+  assert.equal(normalizeSettings({ textFont: 'Acme\u0000\nSerif' }).textFont, 'AcmeSerif', 'no control characters');
+  assert.equal(normalizeSettings({ textFont: 'x'.repeat(500) }).textFont.length, FONT_NAME_MAX);
+  assert.equal(normalizeSettings({ textFont: 42 }).textFont, '');
+  const kept = parseSettings(serializeSettings({ ...defaultSettings(), typePanelAutoShow: false, textFont: 'Acme Serif' }));
+  assert.deepEqual([kept.typePanelAutoShow, kept.textFont], [false, 'Acme Serif'], 'both survive a save and a load');
 });

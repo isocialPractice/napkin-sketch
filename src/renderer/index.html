@@ -231,6 +231,10 @@
               <input id="layer-opacity" type="range" min="5" max="100" step="1" value="100" />
               <span id="layer-opacity-value">100%</span>
             </label>
+            <label class="layers-blend" for="layer-blend">
+              <span>Blend</span>
+              <select id="layer-blend" title="How the selected layers mix with what is under them, the paper included (Shift+Plus and Shift+- step through)"></select>
+            </label>
           </div>
         </aside>
 
@@ -316,6 +320,17 @@
                     <option value="tapered">Tapered</option>
                     <option value="wave">Wave</option>
                   </select>
+                </div>
+
+                <p class="prop-subtitle">Opacity</p>
+                <div class="prop-row">
+                  <input id="prop-opacity" class="prop-num" type="number" min="0" max="100" step="1" aria-label="Opacity, percent" title="The opacity of the selection's layers" />
+                  <span class="prop-unit-static">%</span>
+                  <select id="prop-blend" class="prop-unit prop-unit-wide" aria-label="Blend" title="How the selection's layers mix with what is under them"></select>
+                </div>
+                <div class="prop-row">
+                  <button id="prop-fx" class="btn btn-ghost prop-fx" type="button" title="Add an effect: the Effect menu's rows" aria-label="Add New Effect">fx</button>
+                  <button id="prop-effects" class="btn btn-ghost prop-effects" type="button" data-command="toggle-appearance" title="Open the Appearance panel ({key})">No effects</button>
                 </div>
               </section>
 
@@ -421,6 +436,10 @@
         <span id="nib-indicator-value" class="nib-indicator-value">45°</span>
       </div>
 
+      <!-- Report toasts (report-toast.ts): what an action could not do, line
+           by line; each report is added here as a .report-toast -->
+      <div id="report-toasts" class="report-toasts" role="status" aria-live="polite" aria-relevant="additions" aria-label="Reports"></div>
+
       <!-- Sharpen Selection dialog: sits in a corner so the live preview on
            the canvas stays visible while the sliders move -->
       <div id="sharpen-dialog" class="export-dialog dialog-corner is-hidden" role="dialog" aria-label="Sharpen Selection">
@@ -437,6 +456,151 @@
           <div class="export-dialog-actions">
             <button id="sharpen-apply-btn" class="btn btn-primary" type="button">Apply</button>
             <button id="sharpen-cancel-btn" class="btn btn-ghost" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Appearance panel (appearance-panel.ts): the selection's stroke, fill and effects, in the order they are applied -->
+      <div id="appearance-dialog" class="export-dialog is-hidden" data-panel="persistent" role="dialog" aria-label="Appearance">
+        <div class="export-dialog-inner appearance-panel">
+          <p class="export-dialog-title">Appearance<button id="appearance-close" class="popup-close-btn" type="button" title="Close the Appearance panel" aria-label="Close the Appearance panel">✕</button></p>
+          <p id="appearance-title" class="appearance-heading">No Selection</p>
+          <div id="appearance-rows" class="appearance-rows" role="listbox" aria-label="Appearance attributes, in the order they are applied"></div>
+          <div class="appearance-opacity-row">
+            <label for="appearance-opacity">Opacity:</label>
+            <input id="appearance-opacity" class="prop-num" type="number" min="0" max="100" step="1" aria-label="Opacity, percent" title="The opacity of the selection's layers" />
+            <span class="prop-unit-static">%</span>
+            <select id="appearance-blend" aria-label="Blend" title="How the selection's layers mix with what is under them"></select>
+          </div>
+          <div class="appearance-foot">
+            <button id="appearance-add" class="btn btn-ghost appearance-fx-add" type="button" title="Add New Effect: the Effect menu's rows, for the selected row" aria-label="Add New Effect">fx</button>
+            <button id="appearance-clear" class="btn btn-ghost" type="button" title="Clear Appearance: take every effect off the selection" aria-label="Clear Appearance">Clear</button>
+            <button id="appearance-duplicate" class="btn btn-ghost" type="button" title="Duplicate Selected Item: a copy of the selected effect" aria-label="Duplicate Selected Item">Duplicate</button>
+            <button id="appearance-delete" class="btn btn-ghost" type="button" title="Delete Selected Item: the selected effect" aria-label="Delete Selected Item">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3D Options (three-d-panel.ts): the selection's 3D, edited live, with a cube that turns -->
+      <div id="three-d-dialog" class="export-dialog is-hidden" data-panel="persistent" role="dialog" aria-label="3D Options">
+        <div class="export-dialog-inner three-d-panel">
+          <p class="export-dialog-title">3D Options<button id="three-d-close" class="popup-close-btn" type="button" title="Close the 3D Options panel" aria-label="Close the 3D Options panel">✕</button></p>
+          <p id="three-d-title" class="appearance-heading">No Selection</p>
+          <p id="three-d-note" class="three-d-note is-hidden"></p>
+          <div id="three-d-add" class="three-d-add is-hidden">
+            <button id="three-d-extrude" class="btn" type="button" title="Build the selection in depth: Effect &gt; 3D &gt; Extrude">Extrude</button>
+            <button id="three-d-revolve" class="btn" type="button" title="Sweep the selection round an upright axis: Effect &gt; 3D &gt; Revolve">Revolve</button>
+          </div>
+          <div id="three-d-body" class="three-d-body is-hidden">
+            <canvas id="three-d-cube" class="three-d-cube" width="132" height="132" tabindex="0" role="img" aria-label="The turn" title="Drag to turn the 3D, or use the arrow keys; Shift turns 15 degrees a press"></canvas>
+            <div id="three-d-fields" class="effect-options-fields three-d-fields"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- The Type panel (type-panel.ts): Character and Paragraph, as a vector editor's; its controls are built from their specs -->
+      <div id="type-dialog" class="export-dialog is-hidden" data-panel="persistent" role="dialog" aria-label="Type">
+        <div class="export-dialog-inner type-panel">
+          <p class="export-dialog-title">Type<button id="type-close" class="popup-close-btn" type="button" title="Close the Type panel" aria-label="Close the Type panel">✕</button></p>
+          <div id="type-tabs" class="type-tabs" role="tablist" aria-label="Type panel"></div>
+          <p id="type-target" class="appearance-heading type-target">Next Text</p>
+          <div id="type-character" class="type-page" role="tabpanel"></div>
+          <div id="type-paragraph" class="type-page is-hidden" role="tabpanel"></div>
+          <div id="type-configs" class="type-page is-hidden" role="tabpanel"></div>
+        </div>
+      </div>
+
+      <!-- Composition Styles (composition-styles-panel.ts): the user's library; a click restyles the page by its layers' names -->
+      <div id="composition-styles-dialog" class="export-dialog is-hidden" data-panel="persistent" role="dialog" aria-label="Composition Styles">
+        <div class="export-dialog-inner composition-styles-panel">
+          <p class="export-dialog-title">Composition Styles<button id="composition-styles-close" class="popup-close-btn" type="button" title="Close the Composition Styles panel" aria-label="Close the Composition Styles panel">✕</button></p>
+          <p class="appearance-heading composition-styles-heading">Click a style to restyle this page by its layers' names.</p>
+          <div id="composition-styles-list" class="composition-styles-list" role="listbox" aria-label="Composition Styles" tabindex="0"></div>
+          <p id="composition-styles-empty" class="composition-styles-empty is-hidden">No styles yet. New records this page's named layers as one, and Import reads a style file.</p>
+          <div class="appearance-foot composition-styles-foot">
+            <button id="composition-styles-new" class="btn btn-ghost" type="button" title="A new style from this page's named layers">New</button>
+            <button id="composition-styles-duplicate" class="btn btn-ghost" type="button" title="A copy of the chosen style">Duplicate</button>
+            <button id="composition-styles-delete" class="btn btn-ghost" type="button" title="Delete the chosen style">Delete</button>
+            <button id="composition-styles-import" class="btn btn-ghost" type="button" title="Add a style from a file">Import</button>
+            <button id="composition-styles-export" class="btn btn-ghost" type="button" title="Save the chosen style as a file">Export</button>
+            <button id="composition-styles-edit" class="btn btn-ghost" type="button" title="The chosen style's name and rules">Edit</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deleting a Text Configuration that text follows (the Type panel's third tab): that text keeps its look, or goes back to its own -->
+      <div id="text-config-delete-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-labelledby="text-config-delete-title">
+        <div class="export-dialog-inner">
+          <p id="text-config-delete-title" class="export-dialog-title">Delete Text Configuration</p>
+          <p id="text-config-delete-text" class="anim-dialog-msg"></p>
+          <div class="export-dialog-actions">
+            <button id="text-config-delete-break" class="btn btn-primary" type="button" title="The text that follows it keeps its look, as attributes of its own">Break Link</button>
+            <button id="text-config-delete-revert" class="btn" type="button" title="The text that follows it goes back to its own attributes, keeping its overrides">Revert to Default</button>
+            <button id="text-config-delete-cancel" class="btn btn-ghost" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clean Language Accents > Apply (renderer.ts): the language the selected text's paragraphs are colored as -->
+      <div id="accent-apply-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-labelledby="accent-apply-title">
+        <div class="export-dialog-inner">
+          <p id="accent-apply-title" class="export-dialog-title">Clean Language Accents</p>
+          <p class="anim-dialog-msg">Colors the code in the selected text's paragraphs as a language reads it, and keeps coloring it as it is edited.</p>
+          <label class="settings-field">
+            <span>Language</span>
+            <select id="accent-apply-language" class="settings-text" title="An installed language, or Auto: the one the code reads most like"></select>
+          </label>
+          <label class="settings-field move-preview-field" title="The paragraphs follow Markdown Code: a monospaced face on a light highlight">
+            <input id="accent-apply-mono" type="checkbox" checked />
+            <span>Use a monospace font</span>
+          </label>
+          <div class="export-dialog-actions">
+            <button id="accent-apply-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="accent-apply-ok" class="btn btn-primary" type="button">Apply</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Markdown Flow off (renderer.ts): the text keeps what it shows, and its Markdown goes -->
+      <div id="markdown-off-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-labelledby="markdown-off-title">
+        <div class="export-dialog-inner">
+          <p id="markdown-off-title" class="export-dialog-title">Turn Off Markdown Flow</p>
+          <p id="markdown-off-text" class="anim-dialog-msg"></p>
+          <div class="export-dialog-actions">
+            <button id="markdown-off-confirm" class="btn btn-primary" type="button" title="The text keeps its rendered look, as text and attributes of its own">Turn Off</button>
+            <button id="markdown-off-cancel" class="btn btn-ghost" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Effect options (effect-options.ts): one form for every effect, built from its fields -->
+      <div id="effect-options-dialog" class="export-dialog is-hidden" role="dialog" aria-labelledby="effect-options-title">
+        <div class="export-dialog-inner">
+          <p id="effect-options-title" class="export-dialog-title">Effect</p>
+          <div id="effect-options-fields" class="effect-options-fields"></div>
+          <label class="settings-field move-preview-field" title="Show the effect on the canvas as it is set">
+            <input id="effect-options-preview" type="checkbox" checked />
+            <span>Preview</span>
+          </label>
+          <div class="export-dialog-actions effect-options-actions">
+            <button id="effect-options-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="effect-options-ok" class="btn btn-primary" type="button">OK</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Type on a Path Options and Area Type Options (type-options.ts): the Type menu's forms, built from their fields -->
+      <div id="type-options-dialog" class="export-dialog is-hidden" role="dialog" aria-labelledby="type-options-title">
+        <div class="export-dialog-inner">
+          <p id="type-options-title" class="export-dialog-title">Type Options</p>
+          <div id="type-options-fields" class="effect-options-fields"></div>
+          <label class="settings-field move-preview-field" title="Show the options on the canvas as they are set">
+            <input id="type-options-preview" type="checkbox" checked />
+            <span>Preview</span>
+          </label>
+          <div class="export-dialog-actions effect-options-actions">
+            <button id="type-options-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="type-options-ok" class="btn btn-primary" type="button">OK</button>
           </div>
         </div>
       </div>
@@ -825,6 +989,20 @@
             <div class="config-extra"></div>
             <button class="btn btn-primary config-accept" type="button">Accept</button>
             <button class="btn config-cancel" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- One rule of a Composition Style (composition-rule-form.ts), from the rule editor's Styles button; after the editor, so it is drawn over it -->
+      <div id="composition-rule-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-labelledby="composition-rule-title">
+        <div class="export-dialog-inner composition-rule-panel">
+          <p id="composition-rule-title" class="export-dialog-title">Rule</p>
+          <p class="anim-dialog-msg">Check a field for the rule to set it. What is left unchecked stays as it is.</p>
+          <div id="composition-rule-fields" class="effect-options-fields composition-rule-fields"></div>
+          <p id="composition-rule-status" class="config-status" role="status" aria-live="polite"></p>
+          <div class="export-dialog-actions effect-options-actions">
+            <button id="composition-rule-cancel" class="btn btn-ghost" type="button">Cancel</button>
+            <button id="composition-rule-ok" class="btn btn-primary" type="button">OK</button>
           </div>
         </div>
       </div>

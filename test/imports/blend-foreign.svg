@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The blend check's foreign file: blends written the ways other editors write
+  them. A group screens and is isolated by inline CSS; a mark inside it burns
+  by a class rule; a mark at the top multiplies by its own inline style.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 220">
+  <style>.burn { mix-blend-mode: color-burn; }</style>
+  <g id="base" data-name="base">
+    <rect x="20" y="20" width="200" height="160" fill="#27486d"/>
+  </g>
+  <g id="glow" data-name="glow" style="mix-blend-mode: screen; isolation: isolate">
+    <circle id="sun" cx="120" cy="100" r="60" fill="#ffcc00"/>
+    <rect id="ember" x="200" y="20" width="60" height="60" fill="#3399ff" class="burn"/>
+  </g>
+  <rect id="shade" x="40" y="120" width="120" height="60" fill="#d0342c" style="mix-blend-mode:multiply"/>
+</svg>

@@ -47,6 +47,10 @@ export const COMMAND_IDS = [
   'toggle-pages',
   'toggle-layers',
   'toggle-properties',
+  'toggle-appearance',
+  'toggle-composition-styles',
+  'toggle-character',
+  'toggle-paragraph',
   'toggle-settings',
   'toggle-dev-tools',
   'fit-view',
@@ -75,6 +79,81 @@ export const COMMAND_IDS = [
   'sharpen-all',
   'tool-warp',
   'tool-liquify',
+  'apply-last-effect',
+  'last-effect',
+  'effect-blur',
+  'effect-gaussian-blur',
+  'effect-adjust',
+  'effect-brightness',
+  'effect-contrast',
+  'effect-saturate',
+  'effect-grayscale',
+  'effect-sepia',
+  'effect-invert',
+  'effect-hue-rotate',
+  'effect-opacity',
+  'effect-stylize',
+  'effect-feather',
+  'effect-drop-shadow',
+  'effect-inner-shadow',
+  'effect-outer-glow',
+  'effect-inner-glow',
+  'effect-bevel',
+  'effect-emboss',
+  'effect-splatter',
+  'effect-warp',
+  'effect-warp-arc',
+  'effect-warp-arch',
+  'effect-warp-unroll',
+  'effect-warp-shell',
+  'effect-warp-windy',
+  'effect-warp-breezy',
+  'effect-warp-curvy',
+  'effect-warp-chart',
+  'effect-warp-puffy',
+  'effect-warp-expand',
+  'effect-warp-cram',
+  'effect-warp-twirl',
+  'effect-3d',
+  'effect-3d-extrude',
+  'effect-3d-revolve',
+  'effect-3d-options',
+  'expand-appearance',
+  'clear-appearance',
+  'type-font',
+  'type-size',
+  'type-size-6',
+  'type-size-7',
+  'type-size-8',
+  'type-size-9',
+  'type-size-10',
+  'type-size-11',
+  'type-size-12',
+  'type-size-14',
+  'type-size-18',
+  'type-size-21',
+  'type-size-24',
+  'type-size-36',
+  'type-size-48',
+  'type-size-60',
+  'type-size-72',
+  'type-size-other',
+  'type-character',
+  'type-paragraph',
+  'type-configs',
+  'type-on-path',
+  'type-path-options',
+  'type-path-flip',
+  'type-orientation',
+  'type-horizontal',
+  'type-vertical',
+  'type-area-options',
+  'type-markdown',
+  'type-accents',
+  'type-accents-apply',
+  'type-accents-remove',
+  'type-accents-languages',
+  'expand-text',
   'tool-pen',
   'tool-marker',
   'tool-eraser',
@@ -101,6 +180,26 @@ export const COMMAND_IDS = [
   'clipping-mask',
   'clip-make',
   'clip-release',
+  'layer-blend',
+  'blend-next',
+  'blend-previous',
+  'blend-normal',
+  'blend-soak',
+  'blend-stack',
+  'blend-scorch',
+  'blend-dry',
+  'blend-sheer',
+  'blend-bleach',
+  'blend-fold',
+  'blend-light',
+  'blend-heavy',
+  'blend-messy',
+  'blend-avoidance',
+  'blend-tidy',
+  'blend-bright',
+  'blend-dye',
+  'blend-cover',
+  'blend-isolate',
   'hide-layers',
   'add-page',
   'add-page-default',
@@ -121,6 +220,7 @@ export const COMMAND_IDS = [
   'help-tool-types',
   'help-source-code',
   'help-source-docs',
+  'help-about',
   'tool-select',
   'tool-rect',
   'tool-ellipse',
@@ -129,6 +229,7 @@ export const COMMAND_IDS = [
   'tool-fill',
   'tool-eyedrop',
   'clear-page',
+  'composition-style-apply',
   'toggle-selection-borders',
   'quick-width',
   'quick-opacity',
@@ -154,8 +255,18 @@ export const SUBMENU_COMMAND_IDS = [
   'wipe-stacks',
   'wipe-out',
   'sharpen',
+  'effect-blur',
+  'effect-adjust',
+  'effect-stylize',
+  'effect-warp',
+  'effect-3d',
+  'type-size',
+  'type-on-path',
+  'type-orientation',
+  'type-accents',
   'move-layer',
   'clipping-mask',
+  'layer-blend',
   'add-page',
   'generate-script',
   'help-tool-types',
@@ -171,7 +282,7 @@ export type RunnableCommandId = Exclude<CommandId, RoleCommandId | SubmenuComman
  * The commands the main process runs itself (`host: "main"`): they open a
  * window or a browser, which the drawing window cannot do.
  */
-export const MAIN_COMMAND_IDS = ['verbose-settings', 'history-limit', 'help-verbose', 'help-source-code', 'help-source-docs'] as const;
+export const MAIN_COMMAND_IDS = ['verbose-settings', 'history-limit', 'help-verbose', 'help-source-code', 'help-source-docs', 'help-about'] as const;
 
 /** A command the main process runs. */
 export type MainCommandId = (typeof MAIN_COMMAND_IDS)[number];
@@ -261,10 +372,96 @@ export const MENU_PREDICATES = [
   'fewerThanTwoShapes',
   /** Neither the selection nor the active layer is in a clip group: there is no clipping mask to release (core/clip.ts). */
   'noClipGroup',
+  /**
+   * The layers a blend acts on - the lit layer rows, or the active layer when
+   * none is lit - all have this blend (core/blend.ts): the Blend submenu's
+   * check marks, one a mode.
+   */
+  'blendNormal',
+  'blendSoak',
+  'blendStack',
+  'blendScorch',
+  'blendDry',
+  'blendSheer',
+  'blendBleach',
+  'blendFold',
+  'blendLight',
+  'blendHeavy',
+  'blendMessy',
+  'blendAvoidance',
+  'blendTidy',
+  'blendBright',
+  'blendDye',
+  'blendCover',
+  /** Every group a blend acts on has Isolate Blending. */
+  'isolateBlending',
+  /** Nothing the Appearance panel acts on has an effect: Clear Appearance has nothing to take off. */
+  'noEffects',
+  /** No effect has been applied from its options popup yet, so there is no last effect to repeat. */
+  'noLastEffect',
+  /** Nothing the Appearance panel acts on has an effect that bends its geometry, which is all Expand Appearance bakes. */
+  'noGeometryEffects',
+  /**
+   * Nothing the Appearance panel acts on has a shape a Warp can bend, a
+   * Splatter hatch or 3D build from: nothing is selected, or only pictures,
+   * which have none. A text has its glyphs' outlines, and a group its
+   * marks'.
+   */
+  'noShapes',
+  /**
+   * What the Type menu acts on - the characters selected in the text being
+   * typed, or its caret's typing; else the selected texts, as the Type panel
+   * does - has this size, in points: the Size submenu's check marks. With no
+   * text, the next text's size.
+   */
+  'typeSize6',
+  'typeSize7',
+  'typeSize8',
+  'typeSize9',
+  'typeSize10',
+  'typeSize11',
+  'typeSize12',
+  'typeSize14',
+  'typeSize18',
+  'typeSize21',
+  'typeSize24',
+  'typeSize36',
+  'typeSize48',
+  'typeSize60',
+  'typeSize72',
+  /** Every text the Type menu acts on is set horizontally, or every one vertically: Type Orientation's check marks. */
+  'typeHorizontal',
+  'typeVertical',
+  /** No text the Type menu acts on can turn: there is none, or one runs along a path, which has no vertical. */
+  'noOrientableText',
+  /** No text the Type menu acts on runs along a path: Path Typing. */
+  'noPathText',
+  /** No text the Type menu acts on is set in a shape: Sheet Typing. */
+  'noAreaText',
+  /** No text for the Type menu to act on: none being typed, none selected. */
+  'noText',
+  /** The text the Type menu acts on - the one being typed, else the first selected - is Markdown Flow: its check mark. */
+  'typeMarkdown',
+  /** No paragraph the Type menu acts on has a Clean Language Accent: Remove Accents. */
+  'noAccents',
 ] as const;
 
 /** A question a menu row can ask. */
 export type MenuPredicate = (typeof MENU_PREDICATES)[number];
+
+/**
+ * Why a row a question disables is greyed, where that is not plain from the
+ * row: the in-page menus show it as the row's tooltip. A native menu has no
+ * tooltip on every system, so the reason is said there too where it matters.
+ */
+export const MENU_PREDICATE_REASONS: Partial<Record<MenuPredicate, string>> = {
+  noShapes: 'Select a mark, a text or a group. Pictures take no Warp, Splatter or 3D.',
+  noPathText: 'Select a text along a path. Click a selected path with the Text tool to make one.',
+  noAreaText: 'Select a text set in a shape. Click inside a selected closed shape with the Text tool, or drag a box, to make one.',
+  noOrientableText: 'Select a text that does not run along a path.',
+  noText: 'Select a text.',
+  noAccents: 'Select a text with code colored by Clean Language Accents.',
+};
 
 /** The host's answers. A question left out is answered no. */
 export type MenuState = Partial<Record<MenuPredicate, boolean>>;

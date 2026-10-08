@@ -48,13 +48,12 @@ import {
 import { MEASURED_CYCLES } from '../animation-cycles.js';
 import { strokeBounds } from '../bounds.js';
 import { readEffects } from '../effects.js';
-import { descendantLayerIds, layerOf, strokesByLayer, type Layer, type Sketch, type Stroke } from '../types.js';
+import { descendantLayerIds, layerOf, strokesByLayer, type Layer, type Sketch } from '../types.js';
 import { formatDiagnostic } from './diagnostics.js';
 import { evaluate, type Box } from './evaluate.js';
 import { SCRIPT_VERSION, type DocumentInstruction, type Instruction } from './instructions.js';
 import { formatScript } from './format.js';
 import { inkBox } from './render.js';
-import { measureTextBlock } from './text.js';
 
 /** The animation types a cycle was measured for, which are the ones this module can draw. */
 export const MEASURED_ANIMATION_TYPES: readonly string[] = Object.keys(MEASURED_CYCLES);
@@ -116,12 +115,6 @@ export interface MeasuredFrames {
 /** Why a figure cannot be drawn from a measured cycle, in a sentence that says what to do. */
 export class MeasuredFramesError extends Error {}
 
-/** Measures a text item with the built-in face, as the render calls do. */
-function measureText(stroke: Stroke): { width: number; height: number } {
-  const block = measureTextBlock(stroke.text ?? '', stroke.fontSize ?? 24, stroke.textBoxWidth);
-  return { width: block.width, height: block.height };
-}
-
 /** Rounds to hundredths, so totals of two-decimal steps do not drift. */
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
@@ -176,7 +169,7 @@ function measureFigure(sketch: Sketch, parts: readonly Layer[], assemblies: Read
     for (const layer of layers) {
       for (const id of [layer.id, ...descendantLayerIds(sketch, layer.id)]) {
         for (const stroke of byLayer.get(id) ?? []) {
-          const b = strokeBounds(stroke, measureText);
+          const b = strokeBounds(stroke);
           if (!b) continue;
           minX = Math.min(minX, b.minX);
           minY = Math.min(minY, b.minY);

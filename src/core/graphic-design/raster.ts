@@ -15,7 +15,9 @@
  * one document byte-identical.
  */
 
-import { effectReach, readEffects, type Effect } from '../effects.js';
+import type { FxImage } from '../appearance-fx.js';
+import { activeEffects, effectReach, type Effect } from '../effects.js';
+import { blendColor, blendModeOf, isBlended, type BlendModeId, type Rgb } from '../blend.js';
 import { toPx } from '../units.js';
 import { parsePaint, type Rgba } from './color.js';
 import {
@@ -38,6 +40,7 @@ import {
 import { fontMetrics, layoutText, lineContours, transformText } from './font.js';
 import { decodePng, isPng, type RgbaImage } from './png.js';
 import { fitInto, inlineSvg, type InlinedVector } from './brand.js';
+import { canSeparate, resolveAppearance } from './appearance.js';
 import { applyEffects } from './effects.js';
 import { colorAt, flatPaint, gradientAxis, gradientOffset, isGradientPaint, paintStops, type GradientAxis } from './gradient.js';
 import { linkName, linkPlaceholderSvg, type LinkResolver } from '../link.js';
@@ -144,9 +147,13 @@ class Framebuffer {
     }
   }
 
-  /** Composites another buffer over this one, source-over, at `alpha` and through `clip`. */
-  composite(source: Framebuffer, alpha: number, clip: Float32Array | null): void {
+  /** Composites another buffer over this one at `alpha` and through `clip`: source-over, or through a blend. */
+  composite(source: Framebuffer, alpha: number, clip: Float32Array | null, blend: BlendModeId = 'normal'): void {
     if (alpha <= 0) return;
+    if (isBlended(blend)) {
+      this.compositeBlended(source, 0, 0, alpha, clip, blend);
+      return;
+    }
     const src = source.pixels;
     for (let i = 0; i < this.width * this.height; i++) {
       const p = i * 4;
@@ -166,8 +173,12 @@ class Framebuffer {
    * Composites a larger buffer over this one, source-over, reading it from
    * `(ox, oy)` on: how a padded layer an effect worked on is laid down.
    */
-  compositeAt(source: Framebuffer, ox: number, oy: number, alpha: number, clip: Float32Array | null): void {
+  compositeAt(source: Framebuffer, ox: number, oy: number, alpha: number, clip: Float32Array | null, blend: BlendModeId = 'normal'): void {
     if (alpha <= 0) return;
+    if (isBlended(blend)) {
+      this.compositeBlended(source, ox, oy, alpha, clip, blend);
+      return;
+    }
     const src = source.pixels;
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
@@ -183,6 +194,90 @@ class Framebuffer {
         this.pixels[p + 1] = src[s + 1] * k + this.pixels[p + 1] * inv;
         this.pixels[p + 2] = src[s + 2] * k + this.pixels[p + 2] * inv;
         this.pixels[p + 3] = a + this.pixels[p + 3] * inv;
+      }
+    }
+  }
+
+  /**
+   * Lays a picture smaller than this one over it with its top-left pixel at
+   * (`left`, `top`), at `alpha` and through `clip`, mixed by `blend`: how a
+   * shadow an effect list lays under its element on its own is laid down.
+   */
+  layOver(image: FxImage, left: number, top: number, alpha: number, clip: Float32Array | null, blend: BlendModeId): void {
+    if (alpha <= 0) return;
+    const src = image.pixels;
+    const dst = this.pixels;
+    const cb: Rgb = [0, 0, 0];
+    const cs: Rgb = [0, 0, 0];
+    const mixed: Rgb = [0, 0, 0];
+    const blended = isBlended(blend);
+    for (let y = Math.max(0, -top); y < image.height && y + top < this.height; y++) {
+      for (let x = Math.max(0, -left); x < image.width && x + left < this.width; x++) {
+        const s = (y * image.width + x) * 4;
+        if (src[s + 3] <= 0) continue;
+        const i = (y + top) * this.width + x + left;
+        const k = alpha * (clip ? Math.min(1, clip[i]) : 1);
+        if (k <= 0) continue;
+        const p = i * 4;
+        const as = src[s + 3] * k;
+        const ab = dst[p + 3];
+        if (!blended || ab <= 0) {
+          const inv = 1 - as;
+          dst[p] = src[s] * k + dst[p] * inv;
+          dst[p + 1] = src[s + 1] * k + dst[p + 1] * inv;
+          dst[p + 2] = src[s + 2] * k + dst[p + 2] * inv;
+          dst[p + 3] = as + ab * inv;
+          continue;
+        }
+        cs[0] = src[s] / src[s + 3];
+        cs[1] = src[s + 1] / src[s + 3];
+        cs[2] = src[s + 2] / src[s + 3];
+        cb[0] = dst[p] / ab;
+        cb[1] = dst[p + 1] / ab;
+        cb[2] = dst[p + 2] / ab;
+        blendColor(blend, cb, cs, mixed);
+        for (let c = 0; c < 3; c++) dst[p + c] = cs[c] * as * (1 - ab) + dst[p + c] * (1 - as) + as * ab * mixed[c];
+        dst[p + 3] = as + ab - as * ab;
+      }
+    }
+  }
+
+  /**
+   * Composites a buffer, read from `(ox, oy)` on, through a blend mode: the
+   * W3C formula in premultiplied form, `co = cs (1 - ab) + cb (1 - as) +
+   * as ab B(Cb, Cs)`, where the mix B sees the two colors unpremultiplied.
+   * Where nothing is under the source the mix has nothing to work on, and the
+   * source lies as it is.
+   */
+  private compositeBlended(source: Framebuffer, ox: number, oy: number, alpha: number, clip: Float32Array | null, blend: BlendModeId): void {
+    const src = source.pixels;
+    const dst = this.pixels;
+    const cb: Rgb = [0, 0, 0];
+    const cs: Rgb = [0, 0, 0];
+    const mixed: Rgb = [0, 0, 0];
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        const i = y * this.width + x;
+        const s = ((y + oy) * source.width + x + ox) * 4;
+        const sa0 = src[s + 3];
+        if (sa0 <= 0) continue;
+        const k = alpha * (clip ? Math.min(1, clip[i]) : 1);
+        if (k <= 0) continue;
+        const p = i * 4;
+        const as = sa0 * k;
+        const ab = dst[p + 3];
+        if (ab > 0) {
+          for (let c = 0; c < 3; c++) {
+            cs[c] = src[s + c] / sa0;
+            cb[c] = dst[p + c] / ab;
+          }
+          blendColor(blend, cb, cs, mixed);
+        }
+        for (let c = 0; c < 3; c++) {
+          const sc = src[s + c] * k;
+          dst[p + c] = sc * (1 - ab) + dst[p + c] * (1 - as) + (ab > 0 ? as * ab * mixed[c] : 0);
+        }
+        dst[p + 3] = as + ab * (1 - as);
       }
     }
   }
@@ -756,25 +851,42 @@ function drawElement(ctx: RenderContext, el: Element, parent: Frame): void {
   const clip = el.clip ? clipMask(ctx, el.clip, matrix, parent.clip) : parent.clip;
   const frame: Frame = { matrix, clip, opacity };
 
-  if (el.effects && el.effects.length > 0) {
-    const effects = readEffects(el.effects) ?? [];
-    if (effects.length < el.effects.length) ctx.warnings.push(`${el.type}: an effect it does not know was left out`);
-    if (effects.length > 0) {
-      drawWithEffects(ctx, el, parent, effects, matrix, opacity, clip);
-      return;
+  // A blended element - a group as one - is drawn as it would be with no
+  // blend, effects and all, on a layer of its own, and that layer mixed with
+  // what is under it: how SVG composites an element with a mix-blend-mode.
+  const blend = blendModeOf(el.blend);
+  if (isBlended(blend)) {
+    const target = ctx.buffer;
+    const layer = new Framebuffer(ctx.width, ctx.height);
+    ctx.buffer = layer;
+    try {
+      drawElement(ctx, { ...el, blend: undefined, opacity: undefined, clip: undefined } as Element, { matrix: parent.matrix, clip: null, opacity: 1 });
+    } finally {
+      ctx.buffer = target;
     }
+    target.composite(layer, opacity, clip, blend);
+    return;
+  }
+
+  // The tree was resolved (graphic-design/appearance.ts), which said what it left out: what is left draws.
+  const effects = el.effects ? activeEffects(el.effects) : undefined;
+  if (effects) {
+    drawWithEffects(ctx, el, parent, effects, matrix, opacity, clip);
+    return;
   }
 
   if (el.type === 'group') {
     const erase = el.erase ?? [];
-    if ((el.opacity === undefined || el.opacity >= 1) && erase.length === 0) {
+    if ((el.opacity === undefined || el.opacity >= 1) && erase.length === 0 && el.isolate !== true && !el.clip) {
       for (const child of el.children) drawElement(ctx, child, frame);
       return;
     }
-    // A group with an opacity, or with shapes to erase, is drawn as one picture
-    // on a layer of its own and then laid down at its opacity - how SVG
-    // composites a group and the app a layer - so overlapping children do not
-    // show through each other, and an eraser clears only its own group.
+    // A group with an opacity, with shapes to erase, with Isolate Blending or
+    // with a clip is drawn as one picture on a layer of its own and then laid
+    // down at its opacity through its clip - how SVG composites a group and the
+    // app a layer - so overlapping children do not show through each other, an
+    // eraser clears only its own group, and the blends inside, a shadow's
+    // among them, mix only with each other.
     const target = ctx.buffer;
     const layer = new Framebuffer(ctx.width, ctx.height);
     ctx.buffer = layer;
@@ -848,17 +960,23 @@ function drawWithEffects(
   const erase = el.type === 'group' ? el.erase ?? [] : [];
   // The picture itself: the element as it is, less what is laid on afterwards.
   const plain = { ...el, effects: undefined, opacity: undefined, clip: undefined, ...(el.type === 'group' ? { erase: undefined } : {}) } as Element;
+  let unders: ReturnType<typeof applyEffects> = [];
   ctx.buffer = layer;
   ctx.width = layer.width;
   ctx.height = layer.height;
   try {
     drawElement(ctx, plain, { matrix: multiply(translation(pad, pad), parent.matrix), clip: null, opacity: 1 });
-    applyEffects(layer, effects, matrix, (message) => ctx.warnings.push(`${el.type}: ${message}`));
+    unders = applyEffects(layer, effects, matrix, (message) => ctx.warnings.push(`${el.type}: ${message}`), canSeparate(el));
     if (erase.length > 0) layer.cut(eraseCoverage(ctx, erase, multiply(translation(pad, pad), matrix)));
   } finally {
     ctx.buffer = target;
     ctx.width = size.width;
     ctx.height = size.height;
+  }
+  // A shadow laid under the element on its own mixes by its blend with what
+  // is already there, the last one cast lowest.
+  for (let k = unders.length - 1; k >= 0; k--) {
+    target.layOver(unders[k].image, unders[k].x - pad, unders[k].y - pad, opacity, clip, unders[k].blend);
   }
   target.compositeAt(layer, pad, pad, opacity, clip);
 }
@@ -900,7 +1018,7 @@ export function rasterizeComposition(
   }
 
   const root: Frame = { matrix: scaling(unitScale, unitScale), clip: null, opacity: 1 };
-  for (const el of doc.elements) drawElement(ctx, el, root);
+  for (const el of resolveAppearance(doc.elements, (message) => ctx.warnings.push(message))) drawElement(ctx, el, root);
 
   return { width, height, data: buffer.toRgba(), warnings: ctx.warnings };
 }

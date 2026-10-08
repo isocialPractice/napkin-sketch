@@ -6,8 +6,10 @@
  * list of sampled Points and belongs to one layer (via its `layer` id).
  */
 
+import type { BlendModeId } from './blend.js';
 import type { Effect } from './effects.js';
 import type { PencilChoice } from './pencil.js';
+import type { TextConfig, TypeSpec } from './type/model.js';
 
 /** A single sampled point along a stroke. */
 export interface Point {
@@ -116,6 +118,19 @@ export interface Layer {
    * (see `core/clip.ts`).
    */
   clip?: string;
+  /**
+   * How the layer's finished picture mixes with what is painted under it -
+   * the page's paper included - by a Napkin Blend (`core/blend.ts`): Stack
+   * Blend multiplies, Sheer Blend screens, and so on. Absent is Normal. A
+   * group with a blend paints what it holds as one picture and blends that.
+   */
+  blend?: BlendModeId;
+  /**
+   * A group's Isolate Blending, as Illustrator's Transparency panel has it:
+   * the blends of what it holds mix only with each other, not with what is
+   * under the group.
+   */
+  isolate?: boolean;
 }
 
 /**
@@ -279,9 +294,20 @@ export interface Stroke {
   fontFamily?: string;
   /**
    * Fixed width for a text box drawn by dragging (text items only).
-   * When 0 or absent the text box auto-sizes to its content.
+   * When 0 or absent the text box auto-sizes to its content. A text item set
+   * as Sheet Typing in a rectangle that grows to fit writes its width here
+   * too, for a build from before `typeset` to wrap it.
    */
   textBoxWidth?: number;
+  /**
+   * Everything a text item is beyond one style (text items only): its runs
+   * of character attributes, its paragraphs' attributes, and whether it is
+   * point, area or path type, with its frame or path. See
+   * `core/type/model.ts`. `text`, `fontSize`, `fontFamily` and `color` stay
+   * the base, kept in step with the first character, so a build that does
+   * not know this field still sets the text in the style it starts in.
+   */
+  typeset?: TypeSpec;
   /**
    * Id of the layer this stroke belongs to. When absent the stroke paints on
    * the sketch's first (bottom) layer.
@@ -374,6 +400,12 @@ export interface SketchBook {
   name: string;
   /** Pages in the book. */
   sketches: Sketch[];
+  /**
+   * The book's Text Configurations, a vector editor's Character Styles, in
+   * the order the Type panel lists them: named sets of character attributes
+   * that runs of text on any page follow (core/type/configs.ts).
+   */
+  textConfigs?: TextConfig[];
   /** ISO creation timestamp. */
   createdAt: string;
   /** ISO last-modified timestamp. */
@@ -382,9 +414,12 @@ export interface SketchBook {
 
 /**
  * Current on-disk schema version. Version 2 introduced the layer stack;
- * version 3 added layer groups (`group`/`parent`) and stroke fills (`fill`).
+ * version 3 added layer groups (`group`/`parent`) and stroke fills (`fill`);
+ * version 4 adds a text item's `typeset` and the book's `textConfigs`. A build
+ * that reads a version above its own still opens the file - reading what it
+ * knows and dropping the rest - and says the file is newer than it is.
  */
-export const SKETCHBOOK_VERSION = 3;
+export const SKETCHBOOK_VERSION = 4;
 
 /** Canonical sketch-book file extension (without the dot). */
 export const SKETCHBOOK_EXTENSION = 'skbk';

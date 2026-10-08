@@ -21,6 +21,7 @@ import { runCommand } from '../src/cli/draw.js';
 import { sketchesToJsx } from '../src/core/illustrator.js';
 import { drawFile, writeBook } from '../src/core/script-files.js';
 import { evaluate, RENDER_FORMATS, renderBook, renderBox, renderSketch, type EvaluateOptions } from '../src/core/script/index.js';
+import { withTypeset } from '../src/core/type/model.js';
 import { createLayer, createSketch, type Sketch, type SketchBook, type Stroke } from '../src/core/types.js';
 import {
   CompoundPathItem,
@@ -233,7 +234,7 @@ line 160 100 280 100
   assert.deepEqual([rgbOf((over instanceof CompoundPathItem ? [...over.paths][0] : over).fillColor)], [[51, 51, 51]]);
 });
 
-test('text is point text from its top-left or area text for a box, in the first family of its list Illustrator has', () => {
+test('text is point text on its first baseline or area text for a box, in the first family of its list Illustrator has', () => {
   const source = `napkin 1
 page 300 200
 color #1f2328
@@ -249,9 +250,10 @@ text "Default" at 200 60
   const run = runJsx(jsxOf(source));
   const [point, area, serif, fallback] = itemsOf(layersOf(run.documents[0])[1]) as TextFrame[];
   const attributes = point.textRange.characterAttributes;
+  // Its anchor is the top of its first line; Illustrator's is that line's baseline, the built-in face's ascent below.
   assert.deepEqual(
-    [point.kind, point.contents, r2(point.position), attributes.size, attributes.leading, attributes.autoLeading, rgbOf(attributes.fillColor)],
-    ['point', 'Hello\rWorld', [120, 670], 18, 22.5, false, [31, 35, 40]],
+    [point.kind, point.contents, r2(point.anchor), attributes.size, attributes.leading, attributes.autoLeading, rgbOf(attributes.fillColor)],
+    ['anchored', 'Hello\rWorld', [120, 656.8], 18, 22.5, false, [31, 35, 40]],
   );
   // Found by its family, since no likely PostScript name matched, and in its regular weight.
   assert.equal(attributes.textFont?.name, 'AcmeSans-Book');
@@ -265,6 +267,84 @@ text "Default" at 200 60
   // A font found nowhere is named when the script ends.
   assert.equal(run.alerts.length, 1);
   assert.match(run.alerts[0], /No font found for Nowhere Grotesk, so Illustrator's default was used\.$/);
+});
+
+test("a text's runs, paragraphs, frame and path are Illustrator's own: each run its characters, each paragraph its attributes", () => {
+  const base = { tool: 'text' as const, fontSize: 20, fontFamily: 'Arial' };
+  const styled = withTypeset({ id: 't', color: '#1f2328', width: 1, ...base, text: 'Bold move\nsecond', points: [{ x: 10, y: 10 }] }, {
+    kind: 'point',
+    runs: [{ start: 0, end: 4, attrs: { fontStyle: 'Bold', tracking: 50, rotation: 15, underline: true } }],
+    paras: [null, { align: 'center', spaceBefore: 6 }],
+  });
+  const circle = withTypeset({ id: 'c', color: '#1f2328', width: 1, ...base, text: 'round words', points: [{ x: 100, y: 100 }] }, {
+    kind: 'area',
+    frame: {
+      anchors: [
+        { p: { x: 0, y: -40 }, hIn: { x: -22, y: -40 }, hOut: { x: 22, y: -40 } },
+        { p: { x: 40, y: 0 }, hIn: { x: 40, y: -22 }, hOut: { x: 40, y: 22 } },
+        { p: { x: 0, y: 40 }, hIn: { x: 22, y: 40 }, hOut: { x: -22, y: 40 } },
+        { p: { x: -40, y: 0 }, hIn: { x: -40, y: 22 }, hOut: { x: -40, y: -22 } },
+      ],
+      fill: '#ffe08a',
+    },
+  });
+  const along = withTypeset({ id: 'p', color: '#1f2328', width: 1, ...base, text: 'along', points: [{ x: 20, y: 150 }] }, {
+    kind: 'path',
+    path: { anchors: [{ p: { x: 0, y: 0 } }, { p: { x: 100, y: 0 } }, { p: { x: 160, y: 0 } }], start: 50, end: 130, align: 'baseline', effect: 'skew' },
+  });
+  const warnings: string[] = [];
+  const run = runJsx(sketchesToJsx([pageOf([styled, circle, along])], { onWarning: (message) => warnings.push(message) }));
+  const [point, area, path] = itemsOf(layersOf(run.documents[0])[1]) as TextFrame[];
+  // The run: its four characters, in its face, tracked, turned the other way round and underlined.
+  const bold = point.ranges[0];
+  assert.deepEqual([bold.start, bold.length], [0, 4]);
+  assert.equal((bold.characterAttributes.textFont as { name: string }).name, 'Arial-BoldMT');
+  assert.deepEqual([bold.characterAttributes.tracking, bold.characterAttributes.rotation, bold.characterAttributes.underline], [50, -15, true]);
+  // The second paragraph's attributes; the first has none.
+  assert.deepEqual(point.paragraphs.map((p) => p.paragraphAttributes), [{}, { justification: 'CENTER', spaceBefore: 6 }]);
+  // Area type in the circle, its frame painted; type on a path from its start to its end, as segment positions.
+  assert.equal(area.kind, 'area');
+  assert.equal(area.textPath?.filled, true);
+  assert.equal(path.kind, 'path');
+  assert.deepEqual([path.startTValue, path.endTValue], [0.5, 1.5]);
+  assert.deepEqual(warnings, ["page \"marks\": Path Typing's skew effect is not written to an Illustrator script, so its text runs along its path as Rainbow does"]);
+});
+
+test("a run that follows a Text Configuration takes the document's Character Style of its name, made once, then its own attributes", () => {
+  const base = { tool: 'text' as const, fontSize: 20, fontFamily: 'Arial' };
+  const callout = { id: 'tc_callout', name: 'Callout', attrs: { fontFamily: 'Arial', fontStyle: 'Bold', color: '#cc0000' } };
+  const big = { id: 'tc_big', name: 'Big', attrs: { fontStyle: 'Bold', fontSize: 30 } };
+  const text = withTypeset({ id: 't', color: '#1f2328', width: 1, ...base, text: 'Hello brave world', points: [{ x: 10, y: 10 }] }, {
+    kind: 'point',
+    runs: [
+      { start: 6, end: 11, attrs: { config: 'tc_callout', underline: true } },
+      { start: 12, end: 17, attrs: { config: 'tc_big' } },
+    ],
+    configs: [callout, big],
+  });
+  const again = withTypeset({ id: 'u', color: '#1f2328', width: 1, ...base, text: 'Again', points: [{ x: 10, y: 60 }] }, {
+    kind: 'point',
+    runs: [{ start: 1, end: 5, attrs: { config: 'tc_callout' } }],
+    configs: [callout],
+  });
+  const run = runJsx(sketchesToJsx([pageOf([text, again])]));
+  const doc = run.documents[0];
+  assert.deepEqual(doc.characterStyleList.map((made) => made.name), ['Callout', 'Big'], 'each made once in the document');
+  const style = doc.characterStyleList[0].characterAttributes;
+  assert.equal((style.textFont as { name: string }).name, 'Arial-BoldMT');
+  assert.deepEqual(rgbOf(style.fillColor), [204, 0, 0]);
+  assert.equal(doc.characterStyleList[1].characterAttributes.size, 30);
+  assert.equal(doc.characterStyleList[1].characterAttributes.textFont, undefined, 'a face with no family stays out of the style');
+  const [first, second] = itemsOf(layersOf(doc)[1]) as TextFrame[];
+  const brave = first.ranges.find((range) => range.start === 6)!;
+  assert.deepEqual([brave.characterStyle, brave.clearing], ['Callout', true], 'applied clear of the text\'s own attributes');
+  assert.equal(brave.characterAttributes.underline, true, 'its override, its own');
+  assert.equal(brave.characterAttributes.size, 20, "the text's size, which the style does not set");
+  assert.equal(brave.characterAttributes.fillColor, undefined, 'and not the color, which the style does');
+  const world = first.ranges.find((range) => range.start === 12)!;
+  assert.equal(world.characterStyle, 'Big');
+  assert.equal((world.characterAttributes.textFont as { name: string }).name, 'Arial-BoldMT', "the face the style cannot carry is the run's, in the text's family");
+  assert.equal(second.ranges[0].characterStyle, 'Callout', 'the second text takes the style made for the first');
 });
 
 test('an image is written, placed and embedded; a link is placed by link, or drawn as its placeholder and named', () => {
@@ -385,7 +465,7 @@ test('what a script cannot make is said: an effect left off, an eraser in the pa
   );
   const run = runJsx(sketchesToJsx([sketch], { onWarning: (message) => warnings.push(message) }));
   assert.deepEqual(warnings, [
-    'page "marks": an effect is not written to an Illustrator script, so what carries it is drawn plain',
+    'page "marks": Gaussian Blur is not written to an Illustrator script, so what carries it is drawn without it',
     `page "marks": an eraser is drawn in the paper's color, since a script cannot cut a mask in Illustrator, so it covers what is under it on other layers too`,
     'page "marks": "nope" is not a color, so what it colors was left out',
   ]);

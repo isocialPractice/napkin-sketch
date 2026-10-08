@@ -25,6 +25,12 @@
  * held off while it is up, and `Tab` goes round its own controls. `Escape`
  * cancels and `Enter` in a field accepts.
  *
+ * An editor whose rows are its own - the rules of a Composition Style - can
+ * also give the popup a named field over the table, a text column names to
+ * suggest, and buttons in a row; and it can add, take out and fill rows as
+ * it goes ({@link ConfigDialog.addRow}, {@link ConfigDialog.removeRow},
+ * {@link ConfigDialog.editRow}).
+ *
  * The pure parts ({@link filterRows}, {@link chordCellState},
  * {@link withEdit}, {@link applyEdits}) touch no DOM and are tested on their
  * own. {@link ConfigDialog} is the page's side of them.
@@ -76,6 +82,8 @@ export interface TextColumn<Row> extends ColumnBase<Row> {
    */
   readonly format?: (row: Row) => string;
   readonly editable?: (row: Row) => boolean;
+  /** Words an editable cell suggests as it is typed in: the names a list offers. Read when the popup opens. */
+  readonly suggestions?: () => readonly string[];
 }
 
 /** One choice in a drop-down. */
@@ -124,7 +132,26 @@ export interface CheckColumn<Row> extends ColumnBase<Row> {
   readonly disabled?: (row: Row) => boolean;
 }
 
-export type ColumnSpec<Row> = TextColumn<Row> | SelectColumn<Row> | KeyColumn<Row> | CheckColumn<Row>;
+/**
+ * A button in each row: the words of `format`, when given, say what the row
+ * holds, and the button acts on it - opens a form for it, fills it from
+ * elsewhere, takes it out. `onClick` gets the row as edited so far and its
+ * index, and may call the popup's `editRow`, `removeRow` or `say`; a throw
+ * is said under the table.
+ */
+export interface ButtonColumn<Row> extends ColumnBase<Row> {
+  readonly kind: 'button';
+  /** The button's words, read again after every edit to the row. */
+  readonly label: (row: Row) => string;
+  /** What the row holds, before the button: a summary. */
+  readonly format?: (row: Row) => string;
+  /** The button's own tooltip and name for a reader, when its words are a mark. */
+  readonly buttonTitle?: (row: Row) => string;
+  readonly onClick: (row: Row, index: number) => void | Promise<void>;
+  readonly disabled?: (row: Row) => boolean;
+}
+
+export type ColumnSpec<Row> = TextColumn<Row> | SelectColumn<Row> | KeyColumn<Row> | CheckColumn<Row> | ButtonColumn<Row>;
 
 /** A radio button over the table, keeping the rows its test passes. */
 export interface RowFilter<Row> {
@@ -148,6 +175,8 @@ export interface ConfigDialogSpec<Row> {
   readonly hint?: string;
   /** A bar across the top of the table's frame: `History Limit : 500`. */
   readonly header?: string;
+  /** A text box over the table, such as the name of what the rows make up; Accept hands over what it holds. */
+  readonly field?: { readonly label: string; readonly value: string; readonly placeholder?: string; readonly title?: string };
   /** The search box, and the text of a row it looks in. */
   readonly search?: { readonly placeholder: string; readonly text: (row: Row) => string };
   /** The radio buttons after All, which always comes first and keeps every row. */
@@ -163,7 +192,7 @@ export interface ConfigDialogSpec<Row> {
    * closes once it returns. When it throws, the popup stays open and shows
    * the error's message under the table.
    */
-  readonly accept: { readonly label?: string; readonly onAccept: (rows: Row[]) => void | Promise<void> };
+  readonly accept: { readonly label?: string; readonly onAccept: (rows: Row[], field: string) => void | Promise<void> };
   readonly cancel?: { readonly label?: string; readonly onCancel?: () => void };
   readonly extra?: readonly ExtraButton[];
 }
@@ -373,6 +402,12 @@ export class ConfigDialog {
   private readonly extra: HTMLElement;
   private readonly acceptButton: HTMLButtonElement;
   private readonly cancelButton: HTMLButtonElement;
+  /** The spec's field over the table, made here rather than in the skeleton: most lists have none. */
+  private readonly fieldBox: HTMLLabelElement;
+  private readonly fieldLabel: HTMLSpanElement;
+  private readonly fieldInput: HTMLInputElement;
+  /** The suggestion lists of the open session's text columns. */
+  private readonly lists: HTMLDivElement;
 
   constructor(root: HTMLElement, options: ConfigDialogOptions = {}) {
     this.root = root;
@@ -401,6 +436,19 @@ export class ConfigDialog {
     this.extra = part('config-extra');
     this.acceptButton = part<HTMLButtonElement>('config-accept');
     this.cancelButton = part<HTMLButtonElement>('config-cancel');
+    this.fieldBox = document.createElement('label');
+    this.fieldBox.className = 'settings-field config-field is-hidden';
+    this.fieldLabel = document.createElement('span');
+    this.fieldInput = document.createElement('input');
+    this.fieldInput.type = 'text';
+    this.fieldInput.className = 'settings-text config-field-input';
+    this.fieldInput.spellcheck = false;
+    this.fieldInput.autocomplete = 'off';
+    this.fieldBox.append(this.fieldLabel, this.fieldInput);
+    this.find.before(this.fieldBox);
+    this.lists = document.createElement('div');
+    this.lists.hidden = true;
+    this.panel.append(this.lists);
     this.bind();
   }
 
@@ -430,6 +478,12 @@ export class ConfigDialog {
     this.heading.textContent = spec.title;
     this.fill(this.hint, spec.hint);
     this.fill(this.header, spec.header);
+    this.fieldBox.classList.toggle('is-hidden', !spec.field);
+    this.fieldLabel.textContent = spec.field?.label ?? '';
+    this.fieldInput.value = spec.field?.value ?? '';
+    this.fieldInput.placeholder = spec.field?.placeholder ?? '';
+    this.fieldBox.title = spec.field?.title ?? '';
+    this.buildLists();
     this.search.value = '';
     this.search.placeholder = spec.search?.placeholder ?? '';
     this.search.setAttribute('aria-label', spec.search?.placeholder ?? 'Search');
@@ -459,7 +513,7 @@ export class ConfigDialog {
     if (!s || s.busy) return;
     this.setBusy(true);
     try {
-      await s.spec.accept.onAccept(applyEdits(s.rows, s.edits));
+      await s.spec.accept.onAccept(applyEdits(s.rows, s.edits), this.fieldInput.value);
     } catch (err) {
       if (this.session === s) {
         this.setBusy(false);
@@ -510,6 +564,55 @@ export class ConfigDialog {
     this.applyView();
   }
 
+  /** Every row as edited so far, hidden or not: what Accept would hand over now. */
+  currentRows<Row extends object>(): Row[] {
+    const s = this.session;
+    return s ? (applyEdits(s.rows, s.edits) as unknown as Row[]) : [];
+  }
+
+  /** Changes cells of a row as edits, as typing into them would: a form a row's button opened, giving back what was set. */
+  editRow<Row extends object>(index: number, patch: Partial<Row>): void {
+    const s = this.session;
+    if (!s || index < 0 || index >= s.rows.length) return;
+    for (const [field, value] of Object.entries(patch)) s.edits = withEdit(s.edits, s.rows, index, field, value);
+    this.renderLine(index);
+    this.renderStates();
+    this.applyView();
+  }
+
+  /**
+   * Adds a row at the end, which Accept hands over with the rest, brings it
+   * into view and puts the focus in its first control.
+   */
+  addRow<Row extends object>(row: Row): void {
+    const s = this.session;
+    if (!s) return;
+    s.rows = [...s.rows, row as unknown as AnyRow];
+    this.buildLines();
+    this.applyView();
+    const line = s.lines[s.lines.length - 1];
+    line?.scrollIntoView({ block: 'nearest' });
+    line?.querySelector<HTMLElement>('input, select, button')?.focus();
+  }
+
+  /** Takes a row out; the rows after it keep their edits. */
+  removeRow(index: number): void {
+    const s = this.session;
+    if (!s || index < 0 || index >= s.rows.length) return;
+    s.rows = s.rows.filter((_, i) => i !== index);
+    const edits = new Map<number, Partial<AnyRow>>();
+    for (const [at, edit] of s.edits) {
+      if (at < index) edits.set(at, edit);
+      else if (at > index) edits.set(at - 1, edit);
+    }
+    s.edits = edits;
+    s.keyAtFocus = null;
+    this.buildLines();
+    this.applyView();
+    const next = s.lines[Math.min(index, s.lines.length - 1)];
+    (next?.querySelector<HTMLElement>('input, select, button') ?? this.acceptButton).focus();
+  }
+
   /** Says one sentence on the line under the table, coloured by `level`; an empty one clears it. */
   say(message: string, level: CellLevel | null = null): void {
     this.status.textContent = message;
@@ -553,6 +656,8 @@ export class ConfigDialog {
     this.body.addEventListener('click', (e) => {
       const button = e.target instanceof Element ? e.target.closest('.config-key-clear') : null;
       if (button instanceof HTMLButtonElement) this.clearKey(button);
+      const rowButton = e.target instanceof Element ? e.target.closest('.config-row-button') : null;
+      if (rowButton instanceof HTMLButtonElement) void this.runRowButton(rowButton);
     });
     this.body.addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLInputElement && e.target.classList.contains('config-key-input')) {
@@ -571,6 +676,25 @@ export class ConfigDialog {
     });
     this.acceptButton.addEventListener('click', () => void this.accept());
     this.cancelButton.addEventListener('click', () => this.cancel());
+  }
+
+  /** One suggestion list for each text column that offers some, which its cells name. */
+  private buildLists(): void {
+    const s = this.session;
+    if (!s) return;
+    this.lists.replaceChildren(
+      ...s.spec.columns.flatMap((column, c) => {
+        if (column.kind !== 'text' || !column.suggestions) return [];
+        const list = document.createElement('datalist');
+        list.id = `config-list-${c}`;
+        for (const word of new Set(column.suggestions())) {
+          const option = document.createElement('option');
+          option.value = word;
+          list.append(option);
+        }
+        return [list];
+      }),
+    );
   }
 
   private fill(node: HTMLElement, text: string | undefined): void {
@@ -644,6 +768,7 @@ export class ConfigDialog {
           input.type = 'text';
           input.spellcheck = false;
           input.autocomplete = 'off';
+          if (column.suggestions) input.setAttribute('list', `config-list-${c}`);
           cell.append(input);
         } else {
           const words = document.createElement('span');
@@ -695,6 +820,17 @@ export class ConfigDialog {
         const check = control('input', 'config-check');
         check.type = 'checkbox';
         cell.append(check);
+        break;
+      }
+      case 'button': {
+        if (column.format) {
+          const words = document.createElement('span');
+          words.className = 'config-text config-button-text';
+          cell.append(words);
+        }
+        const button = control('button', 'btn btn-ghost config-row-button');
+        button.type = 'button';
+        cell.append(button);
         break;
       }
     }
@@ -805,6 +941,19 @@ export class ConfigDialog {
         check.checked = row[column.field] === true;
         check.disabled = column.disabled?.(row) === true;
         check.title = tip ?? '';
+        break;
+      }
+      case 'button': {
+        const words = cell.querySelector('.config-button-text');
+        if (words && column.format) words.textContent = column.format(row);
+        const button = cell.querySelector<HTMLButtonElement>('.config-row-button');
+        if (!button) break;
+        button.textContent = column.label(row);
+        button.disabled = column.disabled?.(row) === true;
+        const named = column.buttonTitle?.(row);
+        button.title = named ?? tip ?? '';
+        if (named) button.setAttribute('aria-label', named);
+        cell.title = tip ?? '';
         break;
       }
     }
@@ -936,6 +1085,20 @@ export class ConfigDialog {
     this.say(verdict.message || `${this.rowName(this.rowAt(at.index), at.index)}: ${label}`, verdict.level);
   }
 
+  /** A row's button pressed: its column's `onClick`, with the row as edited so far. */
+  private async runRowButton(button: HTMLButtonElement): Promise<void> {
+    const s = this.session;
+    const at = this.cellOf(button);
+    if (!s || !at || s.busy) return;
+    const column = s.spec.columns[at.column];
+    if (column.kind !== 'button') return;
+    try {
+      await column.onClick(this.rowAt(at.index), at.index);
+    } catch (err) {
+      if (this.session === s) this.say(messageOf(err), 'refuse');
+    }
+  }
+
   private editFrom(control: HTMLElement, value: unknown): void {
     const at = this.cellOf(control);
     if (at) this.edit(at.index, at.column, value);
@@ -1045,8 +1208,9 @@ export class ConfigDialog {
     });
   }
 
-  /** Where the focus starts: the search box, else the first control in the table, else Accept. */
+  /** Where the focus starts: the field over the table, else the search box, else the first control in the table, else Accept. */
   private firstStop(): HTMLElement | null {
+    if (!this.fieldBox.classList.contains('is-hidden')) return this.fieldInput;
     if (!this.search.classList.contains('is-hidden')) return this.search;
     const inTable = this.tabStops().find((node) => this.tableBox.contains(node));
     return inTable ?? this.acceptButton;

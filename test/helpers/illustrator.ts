@@ -94,6 +94,10 @@ export abstract class Art {
   parent: Container | null = null;
   name = '';
   opacity = 100;
+  /** A `BlendModes` member, as the Transparency panel sets it. */
+  blendingMode = 'NORMAL';
+  /** The Transparency panel's Isolate Blending. */
+  isIsolated = false;
   hidden = false;
   locked = false;
   remove(): void {
@@ -163,20 +167,69 @@ export class CompoundPathItem extends Art {
   }
 }
 
+/** A stretch of a text frame's characters the script styled: where it starts, how long it is, and what it set. */
+export interface FakeRange {
+  start: number;
+  length: number;
+  characterAttributes: Record<string, unknown>;
+  /** The Character Style applied to it, by name, and whether it was applied clear of the attributes it had. */
+  characterStyle?: string;
+  clearing?: boolean;
+}
+
+/** A Character Style the script made in a document: its name and its attributes; applied, it marks the stretch. */
+export class FakeCharacterStyle {
+  readonly typename = 'CharacterStyle';
+  characterAttributes: Record<string, unknown> = {};
+  constructor(readonly name: string) {}
+  applyTo(range: FakeRange, clearingOverrides?: boolean): void {
+    range.characterStyle = this.name;
+    range.clearing = clearingOverrides === true;
+  }
+}
+
 export class TextFrame extends Art {
   readonly typename = 'TextFrame';
   contents = '';
   position: Pt | null = null;
   textPath: PathItem | null = null;
+  orientation = 'HORIZONTAL';
+  startTValue = 0;
+  endTValue = 0;
+  /** Every stretch the script took from `textRange.characters`, in order. */
+  readonly ranges: FakeRange[] = [];
+  private paragraphList: Array<{ paragraphAttributes: Record<string, unknown> }> = [];
   textRange = {
-    characterAttributes: { size: 12, leading: 14.4, autoLeading: true, fillColor: null as RGBColor | null, textFont: null as FakeFont | null },
+    characterAttributes: { size: 12, leading: 14.4, autoLeading: true, fillColor: null as RGBColor | null, textFont: null as FakeFont | null } as Record<string, unknown> & {
+      size: number;
+      leading: number;
+      autoLeading: boolean;
+      fillColor: RGBColor | null;
+      textFont: FakeFont | null;
+    },
     paragraphAttributes: { justification: 'LEFT' },
+    characters: new Proxy([] as FakeRange[], {
+      get: (target, key) => {
+        if (typeof key === 'string' && /^\d+$/.test(key)) {
+          const range: FakeRange = { start: Number(key), length: 1, characterAttributes: {} };
+          this.ranges.push(range);
+          return range;
+        }
+        return Reflect.get(target, key);
+      },
+    }),
   };
   constructor(
-    readonly kind: 'point' | 'area' | 'anchored',
+    readonly kind: 'point' | 'area' | 'anchored' | 'path',
     readonly anchor: Pt | null = null,
   ) {
     super();
+  }
+  /** Its paragraphs, a carriage return apart, each with the attributes the script gave it. */
+  get paragraphs(): Array<{ paragraphAttributes: Record<string, unknown> }> {
+    const count = this.contents.split('\r').length;
+    while (this.paragraphList.length < count) this.paragraphList.push({ paragraphAttributes: {} });
+    return this.paragraphList.slice(0, count);
   }
 }
 
@@ -284,6 +337,14 @@ export abstract class Container extends Art {
         frame.textPath = path;
         return this.adopt(frame);
       },
+      pathText: (path: PathItem, start = 0, end = 0): TextFrame => {
+        path.remove();
+        const frame = new TextFrame('path');
+        frame.textPath = path;
+        frame.startTValue = start;
+        frame.endTValue = end;
+        return this.adopt(frame);
+      },
     });
   }
   get placedItems() {
@@ -341,6 +402,8 @@ export class FakeDocument {
   /** Its layers, top first, as Illustrator keeps them. */
   layerList: Layer[];
   gradientList: FakeGradient[] = [];
+  /** The Character Styles made in it, in order. */
+  characterStyleList: FakeCharacterStyle[] = [];
   artboards: Array<{ artboardRect: [number, number, number, number]; name: string }>;
   constructor(
     private readonly env: Env,
@@ -361,6 +424,20 @@ export class FakeDocument {
         layer.name = `Layer ${this.layerList.length + 1}`;
         this.layerList.unshift(layer);
         return layer;
+      },
+    });
+  }
+  get characterStyles(): FakeCharacterStyle[] & { add(name: string): FakeCharacterStyle; getByName(name: string): FakeCharacterStyle } {
+    return collection([...this.characterStyleList], {
+      add: (name: string): FakeCharacterStyle => {
+        const made = new FakeCharacterStyle(name);
+        this.characterStyleList.push(made);
+        return made;
+      },
+      getByName: (name: string): FakeCharacterStyle => {
+        const found = this.characterStyleList.find((each) => each.name === name);
+        if (!found) throw new Error('No such element');
+        return found;
       },
     });
   }
@@ -464,7 +541,18 @@ export function runJsx(script: string, options: RunOptions = {}): JsxRun {
     StrokeCap: { ROUNDENDCAP: 'ROUNDENDCAP', BUTTENDCAP: 'BUTTENDCAP', PROJECTINGENDCAP: 'PROJECTINGENDCAP' },
     StrokeJoin: { ROUNDENDJOIN: 'ROUNDENDJOIN', MITERENDJOIN: 'MITERENDJOIN', BEVELENDJOIN: 'BEVELENDJOIN' },
     GradientType: { LINEAR: 'LINEAR', RADIAL: 'RADIAL' },
-    Justification: { LEFT: 'LEFT', CENTER: 'CENTER', RIGHT: 'RIGHT' },
+    Justification: { LEFT: 'LEFT', CENTER: 'CENTER', RIGHT: 'RIGHT', FULLJUSTIFYLASTLINELEFT: 'FULLJUSTIFYLASTLINELEFT' },
+    TextOrientation: { HORIZONTAL: 'HORIZONTAL', VERTICAL: 'VERTICAL' },
+    AutoKernType: { AUTO: 'AUTO', NOAUTOKERN: 'NOAUTOKERN' },
+    FontCapsOption: { NORMALCAPS: 'NORMALCAPS', ALLCAPS: 'ALLCAPS', SMALLCAPS: 'SMALLCAPS' },
+    FontBaselineOption: { NORMALBASELINE: 'NORMALBASELINE', SUPERSCRIPT: 'SUPERSCRIPT', SUBSCRIPT: 'SUBSCRIPT' },
+    // Illustrator's sixteen, by their scripting names.
+    BlendModes: Object.fromEntries(
+      [
+        'NORMAL', 'MULTIPLY', 'SCREEN', 'OVERLAY', 'SOFTLIGHT', 'HARDLIGHT', 'COLORDODGE', 'COLORBURN',
+        'DARKEN', 'LIGHTEN', 'DIFFERENCE', 'EXCLUSION', 'HUE', 'SATURATIONBLEND', 'COLORBLEND', 'LUMINOSITY',
+      ].map((name) => [name, name]),
+    ),
     CoordinateSystem: { DOCUMENTCOORDINATESYSTEM: 'DOCUMENTCOORDINATESYSTEM', ARTBOARDCOORDINATESYSTEM: 'ARTBOARDCOORDINATESYSTEM' },
     UserInteractionLevel: { DISPLAYALERTS: 'DISPLAYALERTS', DONTDISPLAYALERTS: 'DONTDISPLAYALERTS' },
   };

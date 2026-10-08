@@ -22,6 +22,8 @@
  * pieces, and the drawing window's store makes them one undo step.
  */
 
+// REUSE: core/arc-length.ts's Bezier evaluator, which path type measures its paths with.
+import { cubicAt } from './arc-length.js';
 import { strokeBounds } from './bounds.js';
 import { fittedPressureAt } from './fit-curve.js';
 import { createId, isImageStroke, isTextStroke, type Point, type Stroke, type VectorAnchor } from './types.js';
@@ -105,15 +107,6 @@ function subsOf(stroke: Stroke): Sub[] | null {
     subs.push({ anchors: kept.map((p) => ({ p: { x: p.x, y: p.y }, pressure: p.pressure })), closed });
   }
   return subs;
-}
-
-function cubicAt(p0: Vec, p1: Vec, p2: Vec, p3: Vec, t: number): Vec {
-  const u = 1 - t;
-  const a = u * u * u;
-  const b = 3 * u * u * t;
-  const c = 3 * u * t * t;
-  const d = t * t * t;
-  return { x: a * p0.x + b * p1.x + c * p2.x + d * p3.x, y: a * p0.y + b * p1.y + c * p2.y + d * p3.y };
 }
 
 /** The place on the segment from `a` to `b` nearest `p`: a line's by projection, a cubic's by sampling and a golden-section search. */

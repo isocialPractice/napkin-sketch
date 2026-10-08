@@ -14,7 +14,6 @@
  */
 
 import {
-  DEFAULT_FONT_FAMILY,
   dashPatternFor,
   defaultOpacityFor,
   effectiveLayers,
@@ -28,19 +27,33 @@ import {
   type Point,
   type Sketch,
   type Stroke,
+  type VectorAnchor,
 } from '../core/types.js';
-import { cssFilter, effectReach, readEffects, type Effect, type LinearTransform } from '../core/effects.js';
+import { blankImage, fromRgba8, layOnto, runEffects, toRgba8, type FxImage, type FxUnder } from '../core/appearance-fx.js';
+import { markEffectPlan, markOpacity, markUnders } from '../core/appearance.js';
+import { bindGeometry, drawnMark, drawnPart, geometryKey, geometryOf } from '../core/geometry-effects.js';
+import { activeEffects, cssFilter, effectLayout, effectPaintReach, effectReach, isCssEffect, type Effect, type EffectPlan, type LinearTransform } from '../core/effects.js';
+import type { Matrix } from '../core/graphic-design/geometry.js';
 import { copicNibPolygons } from '../core/nib.js';
 import { sketchToSvg, type SvgExportOptions } from '../core/sketch-svg.js';
 import { strokeBounds } from '../core/bounds.js';
-import { paintSteps, paintsAsPicture } from '../core/paint-order.js';
+import { pageBlends, paintSteps, pictureGroupIds } from '../core/paint-order.js';
+import { compositeOperation, isBlended, type BlendModeId } from '../core/blend.js';
 import { clipIndex, shownBounds, type ClipIndex } from '../core/clip.js';
 import { pencilPicture, pencilRegion, pencilRgb, rasterizePencil, type PencilRegion } from '../core/pencil.js';
 import { smudgeBuffer, type SmudgePass, type SmudgeState } from '../core/smudge.js';
 import { boxReachesView, clampView, clampZoom, zoomLimits, type ZoomLimits } from './zoom.js';
+import { GUMBALL_COLORS, sameHandle, type GumballHandle, type GumballLayout } from './gumball.js';
 
 export { strokeBounds, type SvgExportOptions };
 import { activeProfile, profileInputOf, profilePieces } from '../core/stroke-profile.js';
+import { withAccentPage } from '../core/type/accents.js';
+import { layoutType } from '../core/type/layout.js';
+import { canvasTypeMeasure, type CanvasTypeMeasure } from './type-measure.js';
+import { paintTypeLayout } from './type-paint.js';
+import type { TypeEditOverlay } from './type-editor.js';
+import type { PathBracket } from '../core/type/tool.js';
+import { anchorsToPathData } from '../core/path-data.js';
 
 /**
  * A live (in-progress) stroke being drawn by the user. One with the id of a
@@ -196,6 +209,12 @@ export interface Overlay {
     handles: { x: number; y: number }[];
     hover?: number;
   };
+  /**
+   * The gumball on a selected 3D mark (gumball.ts): its parts, placed in
+   * sketch coordinates at a constant size on the screen, and the handle under
+   * the pointer or in hand, which is lit.
+   */
+  gumball?: { layout: GumballLayout; lit: GumballHandle | null };
   /** Ring marking the endpoint the pointer will snap to (Shift held while drawing). */
   snapTarget?: Point;
   /**
@@ -265,6 +284,28 @@ export interface Overlay {
   };
   /** Mesh Warp's hover outline, mesh and pins. */
   warp?: WarpOverlay;
+  /**
+   * The type editor's caret, selection, IME composition and the frame or path
+   * the text is set in (type-editor.ts), in sketch coordinates. The text being
+   * edited gets no selection box.
+   */
+  typeEdit?: TypeEditOverlay;
+  /**
+   * Selected texts' frames and paths (core/type/tool.ts), in sketch
+   * coordinates: each shape as a faint line, a path text's three brackets,
+   * and the red plus where a text runs out of room.
+   */
+  typeShapes?: TypeShapeOverlay[];
+}
+
+/** One text's frame or path, as the canvas marks it when the text is selected. */
+export interface TypeShapeOverlay {
+  anchors: VectorAnchor[];
+  closed: boolean;
+  /** A path text's start, centre and end brackets, when they can be dragged. */
+  brackets?: PathBracket[];
+  /** Where a text that does not fit shows its red plus. */
+  overset?: Point | { x: number; y: number } | null;
 }
 
 /**
@@ -295,6 +336,30 @@ export const SELECTION_BOX_PAD = 6;
 
 /** The steps an effect picture's pad comes in, in device pixels, so zooming does not resize its canvas at every frame. */
 const EFFECT_PAD_STEP = 64;
+
+/** The most device pixels one mark's effect picture holds; a bigger mark is worked out for the part in view and round it. */
+const EFFECT_PICTURE_MAX = 4_000_000;
+
+/**
+ * A mark drawn through its appearance effects on the pixel passes
+ * (core/appearance-fx.ts), on the page's own pixel grid at a scale: kept per
+ * mark, and worked out again only when the mark, its effects or the scale
+ * change - a pan reuses it. Its shadows laid under it on their own, each by
+ * its blend, are kept beside it.
+ */
+interface EffectPicture {
+  /** The mark's paint, its effects and the scale, as a key. */
+  key: string;
+  /** The same less the scale, so a zoom under way can draw the last picture stretched. */
+  base: string;
+  points: Point[];
+  count: number;
+  sum: number;
+  region: PencilRegion;
+  body: HTMLCanvasElement;
+  /** Where each lies on the page's grid at the picture's scale, the last cast lowest. */
+  unders: Array<{ canvas: HTMLCanvasElement; x: number; y: number; blend: BlendModeId }>;
+}
 
 /** How magnified an image is, in screen pixels to one of its own, before it shows its pixels rather than smoothing them. */
 const IMAGE_PIXELS_AT = 4;
@@ -335,6 +400,19 @@ export class Surface {
   private pencilTimer: ReturnType<typeof setTimeout> | null = null;
   /** How many Pencil pictures were worked out, whole or in part, since the surface was made: for the checks. */
   pencilRasters = 0;
+  /** Each mark's picture through its appearance effects, while it, they and the scale are unchanged (see effectPicture). */
+  private readonly effectPictures = new WeakMap<Stroke, EffectPicture>();
+  /**
+   * The canvas's type measure: text is laid out with the fonts the system
+   * has (core/type/layout.ts), so it breaks where it is drawn.
+   */
+  readonly typeMeasure: CanvasTypeMeasure = canvasTypeMeasure();
+  /** How many effect pictures were worked out since the surface was made: for the checks. */
+  effectRasters = 0;
+  /** Use Preview Bounds: a selected mark is boxed round what its effects paint, not round its ink alone. */
+  usePreviewBounds = false;
+  /** A mark whose shadows its layer has laid down already, under the marks before it (see paintLeaf). */
+  private undersLaid: Stroke | null = null;
   /** The Smear drag under way, for the render in progress (see Overlay.liveSmear). */
   private liveSmear: Overlay['liveSmear'] | null = null;
   /**
@@ -482,6 +560,12 @@ export class Surface {
     };
   }
 
+  /** Converts a sketch-space point into client (event) coordinates: the inverse of {@link toSketchPoint}. */
+  toClientPoint(p: { x: number; y: number }): { x: number; y: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    return { x: rect.left + this.panX + p.x * this.zoom, y: rect.top + this.panY + p.y * this.zoom };
+  }
+
   // ---- Viewport (pan / zoom) ----------------------------------------------
 
   /** Returns a copy of the current pan/zoom viewport. */
@@ -531,6 +615,13 @@ export class Surface {
 
   /** Renders a full sketch plus an optional in-progress live stroke and overlay. */
   render(sketch: Sketch, live?: LiveStroke | null, overlay?: Overlay, options?: RenderOptions): void {
+    // Code is accented in the colors its paper suits (core/type/accents.ts).
+    withAccentPage(sketch.background, () => this.renderPage(sketch, live, overlay, options));
+  }
+
+  private renderPage(sketch: Sketch, live?: LiveStroke | null, overlay?: Overlay, options?: RenderOptions): void {
+    // A layer's Warp bends what it holds over the box of all of it, as it is now.
+    bindGeometry(sketch);
     const ctx = this.ctx;
     ctx.save();
     ctx.scale(this.dpr, this.dpr);
@@ -558,6 +649,13 @@ export class Surface {
     ink.save();
     ink.setTransform(1, 0, 0, 1, 0, 0);
     ink.clearRect(0, 0, this.ink.width, this.ink.height);
+    // A blend mixes with the paper, as the exports' background does: on a
+    // page with one, the ink starts as a copy of everything the paper step
+    // painted - background, texture, page outline, guide - so a Stack Blend
+    // darkens into the paper and its grain. A Normal layer covers that copy
+    // exactly as it covers the paper itself, so nothing else looks different;
+    // a page with no blend keeps its transparent ink and skips the copy.
+    if (!options?.transparent && pageBlends(sketch)) ink.drawImage(this.canvas, 0, 0);
     // One pass over the page, not one per layer: every mark commits to a
     // layer of its own, so rescanning the stroke list for each row made a
     // frame cost the square of the page's size.
@@ -571,7 +669,7 @@ export class Surface {
       byLayer: strokesByLayer(sketch),
       effectiveOf: effectiveLayers(sketch),
       byId: new Map(sketch.layers.map((layer) => [layer.id, layer])),
-      pictureGroups: new Set(sketch.layers.filter(paintsAsPicture).map((layer) => layer.id)),
+      pictureGroups: pictureGroupIds(sketch),
       clips: clipIndex(sketch),
       live: erasing ? null : (live ?? null),
       liveLayerId: live && !erasing ? layerOf(sketch, live).id : null,
@@ -602,7 +700,17 @@ export class Surface {
     this.applyWorld(ctx);
 
     if (overlay?.selectedIds && overlay.selectedIds.size > 0 && overlay.showSelectionBorders !== false) {
-      for (const box of this.selectionBoxes(sketch, overlay.selectedIds)) this.paintSelection(ctx, box);
+      for (const box of this.selectionBoxes(sketch, overlay.selectedIds)) {
+        if (box.id !== overlay.typeEdit?.id) this.paintSelection(ctx, box);
+      }
+    }
+
+    if (overlay?.typeShapes) {
+      for (const shape of overlay.typeShapes) this.paintTypeShape(ctx, shape);
+    }
+
+    if (overlay?.typeEdit) {
+      this.paintTypeEdit(ctx, overlay.typeEdit);
     }
 
     if (overlay?.liveTextBox) {
@@ -623,6 +731,10 @@ export class Surface {
 
     if (overlay?.transform) {
       this.paintTransformBox(ctx, overlay.transform);
+    }
+
+    if (overlay?.gumball) {
+      this.paintGumball(ctx, overlay.gumball);
     }
 
     if (overlay?.rotate) {
@@ -905,7 +1017,7 @@ export class Surface {
       ctx.lineWidth = px;
       for (const stroke of warp.outline) {
         if (isTextStroke(stroke) || isImageStroke(stroke)) {
-          const box = strokeBounds(stroke, (t) => this.measureText(t));
+          const box = strokeBounds(stroke, this.typeMeasure);
           if (box) ctx.strokeRect(box.minX, box.minY, box.maxX - box.minX, box.maxY - box.minY);
           continue;
         }
@@ -1010,7 +1122,7 @@ export class Surface {
     const liveHere = live && live.points.length > 0 && walk.liveLayerId === layer.id ? live : null;
     if (strokes.length === 0 && !liveHere) return;
 
-    const effects = readEffects(layer.effects);
+    const effects = activeEffects(layer.effects);
     let marks = liveHere ? [...strokes, liveHere] : strokes;
     // The Eraser at work cuts this layer when it holds a mark the release
     // will cut: painted over the layer's marks, it takes away what it covers
@@ -1032,15 +1144,42 @@ export class Surface {
     this.applyWorld(scratch);
     const framePad = this.framePad;
     this.framePad = pad;
+    const erases = erase !== null || marks.some((s) => s.tool === 'eraser');
+    // A plain layer - solid, Normal, with no effects and no eraser of its own
+    // - is what SVG draws straight onto what is under it, so a shadow a mark
+    // lays under itself on its own mixes with that, not with the layer's own
+    // canvas: the marks before it are laid down first, then its shadow, and
+    // the layer goes on from there (core/effects.ts's effectLayout).
+    const plain = !effects && !erases && opacity >= 1 && !isBlended(layer.blend);
+    const flush = (): void => {
+      this.layDown(target, { ctx: scratch, pad }, 1, undefined, walk.device);
+      scratch.save();
+      scratch.setTransform(1, 0, 0, 1, 0, 0);
+      scratch.clearRect(0, 0, canvas.width, canvas.height);
+      scratch.restore();
+    };
     try {
-      for (const stroke of marks) this.paintStroke(scratch, stroke);
+      for (const stroke of marks) {
+        if (plain && stroke.effects && markUnders(stroke).length > 0) {
+          flush();
+          this.layUnders(target, scratch, stroke);
+          this.undersLaid = stroke;
+          try {
+            this.paintStroke(scratch, stroke);
+          } finally {
+            this.undersLaid = null;
+          }
+          continue;
+        }
+        this.paintStroke(scratch, stroke);
+      }
       if (erase?.region) this.cutRegion(scratch, erase.region);
     } finally {
       this.framePad = framePad;
       scratch.restore();
     }
 
-    this.layDown(target, { ctx: scratch, pad }, opacity, effects, walk.device);
+    this.layDown(target, { ctx: scratch, pad }, opacity, effects, walk.device, layer.blend, erases);
   }
 
   /** Takes a region's interior out of what a layer's pass has painted so far: the Shape Eraser's cut, before the release makes it. */
@@ -1077,7 +1216,7 @@ export class Surface {
    * effects.
    */
   private paintGroupPicture(target: Frame, group: Layer, scope: Layer | null, walk: LayerWalk, depth: number): void {
-    const effects = readEffects(group.effects);
+    const effects = activeEffects(group.effects);
     if (effects && !this.contentReachesView(group, effectReach(effects), walk)) return;
     const pad = effects ? walk.pad : target.pad;
     const canvas = this.groupCanvas(depth, pad);
@@ -1088,7 +1227,7 @@ export class Surface {
     // A clip naming no closed mark in the group clips nothing.
     const clip = walk.clips.byGroup.get(group.id);
     if (clip) this.keepRegion(frame, clip.region);
-    this.layDown(target, frame, this.opacityBetween(group, scope, walk), effects, walk.device);
+    this.layDown(target, frame, this.opacityBetween(group, scope, walk), effects, walk.device, group.blend);
   }
 
   /** Keeps only a region's interior of what a picture's canvas holds: a clip group's clip. */
@@ -1112,9 +1251,9 @@ export class Surface {
 
   /**
    * Lays a picture painted on its own canvas onto `target` at `opacity`,
-   * through `effects` when it has any. The two frames' pads line their views
-   * up; a blur is held to a third of the picture's pad, so all it gathers
-   * was painted.
+   * through `effects` when it has any, mixing it with what is there by `blend`.
+   * The two frames' pads line their views up; a blur is held to a third of the
+   * picture's pad, so all it gathers was painted.
    */
   private layDown(
     target: Frame,
@@ -1122,13 +1261,89 @@ export class Surface {
     opacity: number,
     effects: Effect[] | undefined,
     device: LinearTransform,
+    blend?: BlendModeId,
+    erases = false,
   ): void {
+    if (effects) {
+      // Its shadows go under it on their own when it is laid down just as it
+      // is drawn: solid, by no blend of its own, with no eraser to cut them.
+      const layout = effectLayout(effects, opacity >= 1 && !isBlended(blend) && !erases);
+      if (layout.unders.length > 0 || !layout.chain.every(isCssEffect)) {
+        this.layDownWorked(target, picture, opacity, effects, device, blend, layout.unders.length > 0);
+        return;
+      }
+    }
     const ctx = target.ctx;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = opacity;
+    ctx.globalCompositeOperation = compositeOperation(blend);
     if (effects) ctx.filter = cssFilter(effects, device, blurCap(picture.pad));
     ctx.drawImage(picture.ctx.canvas, target.pad - picture.pad, target.pad - picture.pad);
+    ctx.restore();
+  }
+
+  /**
+   * Lays a layer's or a group's picture down through effects no CSS filter
+   * draws, on the pixel passes the exports run (core/appearance-fx.ts): the
+   * part of the picture holding ink, and as far round it as the effects
+   * reach, is read once and worked out every render - a layer's picture moves
+   * with the view - then laid down after the shadows it lays under itself on
+   * its own (`separate`), each mixed by its blend.
+   */
+  private layDownWorked(
+    target: Frame,
+    picture: Frame,
+    opacity: number,
+    effects: Effect[],
+    device: LinearTransform,
+    blend: BlendModeId | undefined,
+    separate: boolean,
+  ): void {
+    const source = picture.ctx.canvas;
+    const width = source.width;
+    const height = source.height;
+    if (width === 0 || height === 0) return;
+    const data = picture.ctx.getImageData(0, 0, width, height).data;
+    // The ink's box, read from the alpha, grown by the effects' reach.
+    let x0 = width;
+    let y0 = height;
+    let x1 = -1;
+    let y1 = -1;
+    for (let y = 0; y < height; y++) {
+      const row = y * width * 4;
+      for (let x = 0; x < width; x++) {
+        if (data[row + x * 4 + 3] === 0) continue;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        y1 = y;
+      }
+    }
+    if (x1 < 0) return;
+    const scale = Math.sqrt(Math.abs(device.a * device.d - device.b * device.c)) || 1;
+    const grow = Math.ceil(effectReach(effects) * scale) + 2;
+    const left = Math.max(0, x0 - grow);
+    const top = Math.max(0, y0 - grow);
+    const w = Math.min(width, x1 + 1 + grow) - left;
+    const h = Math.min(height, y1 + 1 + grow) - top;
+    const part = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) part.set(data.subarray(((top + y) * width + left) * 4, ((top + y) * width + left + w) * 4), y * w * 4);
+    const img = fromRgba8(part, w, h);
+    const m: Matrix = [device.a, device.b, device.c, device.d, 0, 0];
+    const unders = runEffects(img, effects, m, () => {}, separate);
+    const ctx = target.ctx;
+    const dx = target.pad - picture.pad + left;
+    const dy = target.pad - picture.pad + top;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = opacity;
+    for (let k = unders.length - 1; k >= 0; k--) {
+      ctx.globalCompositeOperation = compositeOperation(unders[k].blend);
+      ctx.drawImage(pixelCanvas(unders[k].image), dx + unders[k].x, dy + unders[k].y);
+    }
+    ctx.globalCompositeOperation = compositeOperation(blend);
+    ctx.drawImage(pixelCanvas(img), dx, dy);
     ctx.restore();
   }
 
@@ -1169,12 +1384,12 @@ export class Surface {
   private effectPad(sketch: Sketch, scale: number): number {
     let reach = 0;
     for (const layer of sketch.layers) {
-      const effects = readEffects(layer.effects);
+      const effects = activeEffects(layer.effects);
       if (effects) reach = Math.max(reach, effectReach(effects));
     }
     for (const stroke of sketch.strokes) {
       if (!stroke.effects || stroke.tool === 'eraser') continue;
-      const effects = readEffects(stroke.effects);
+      const effects = activeEffects(stroke.effects);
       if (effects) reach = Math.max(reach, effectReach(effects));
     }
     const px = reach * scale;
@@ -1192,9 +1407,9 @@ export class Surface {
     const scale = walk.device.a;
     const transform = { a: scale, b: 0, c: 0, d: scale, e: this.panX * this.dpr, f: this.panY * this.dpr };
     for (const stroke of strokes) {
-      const box = strokeBounds(stroke, (s) => this.measureText(s));
+      const box = strokeBounds(stroke, this.typeMeasure);
       if (!box) continue;
-      const effects = stroke.tool === 'eraser' ? undefined : readEffects(stroke.effects);
+      const effects = stroke.tool === 'eraser' ? undefined : activeEffects(stroke.effects);
       const own = inkMargin(stroke) + (effects ? effectReach(effects) : 0);
       if (boxReachesView(box, own + reach, transform, this.ink.width, this.ink.height)) return true;
     }
@@ -1205,13 +1420,13 @@ export class Surface {
   private contentReachesView(scope: Layer, reach: number, walk: LayerWalk): boolean {
     for (const step of paintSteps(walk.sketch, scope, walk, (layer) => this.layerPaints(layer, walk))) {
       if (step.kind === 'group') {
-        const effects = readEffects(step.group.effects);
+        const effects = activeEffects(step.group.effects);
         if (this.contentReachesView(step.group, reach + (effects ? effectReach(effects) : 0), walk)) return true;
         continue;
       }
       const strokes = walk.byLayer.get(step.layer.id) ?? [];
       const marks = walk.live && walk.liveLayerId === step.layer.id ? [...strokes, walk.live] : strokes;
-      const effects = readEffects(step.layer.effects);
+      const effects = activeEffects(step.layer.effects);
       if (this.marksReachView(marks, reach + (effects ? effectReach(effects) : 0), walk)) return true;
     }
     return false;
@@ -1478,6 +1693,108 @@ export class Surface {
     ctx.restore();
   }
 
+  /**
+   * Draws the gumball: the free-turn ring, the arcs, the plane squares, the
+   * arrows - the farthest first, and fainter where they point away - their
+   * scale boxes and the ball, each in its axis's color over a white halo so
+   * it reads over dark ink, a constant size on the screen. The handle under
+   * the pointer, or in hand, is amber, as Rhino lights its gumball's.
+   */
+  private paintGumball(ctx: CanvasRenderingContext2D, gumball: { layout: GumballLayout; lit: GumballHandle | null }): void {
+    const { layout, lit } = gumball;
+    const px = 1 / this.zoom;
+    const amber = '#f0a000';
+    const halo = 'rgba(255, 255, 255, 0.92)';
+    const colorOf = (handle: GumballHandle, color: string): string => (sameHandle(handle, lit) ? amber : color);
+    /** A path stroked twice: white and wider beneath, so a blue axis still reads on a blue solid, then in its color. */
+    const line = (trace: () => void, color: string, width: number): void => {
+      ctx.beginPath();
+      trace();
+      ctx.strokeStyle = halo;
+      ctx.lineWidth = width + 3.5 * px;
+      ctx.stroke();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    };
+    const polygon = (points: readonly { x: number; y: number }[]): void => {
+      points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+      ctx.closePath();
+    };
+    const { center } = layout;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // The ring, round it all: a free turn.
+    const ringLit = sameHandle({ kind: 'ring' }, lit);
+    line(() => ctx.arc(center.x, center.y, layout.ring, 0, Math.PI * 2), ringLit ? amber : 'rgba(39, 73, 109, 0.6)', (ringLit ? 2 : 1.25) * px);
+
+    // The arcs: a quarter turn round each axis, from one of the others to the next.
+    for (const arc of layout.arcs) {
+      const handle: GumballHandle = { kind: 'arc', axis: arc.axis };
+      line(() => arc.points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y))), colorOf(handle, GUMBALL_COLORS[arc.axis]), (sameHandle(handle, lit) ? 3.5 : 2.5) * px);
+    }
+
+    // The squares between two axes: a move in their plane.
+    for (const plane of layout.planes) {
+      const handle: GumballHandle = { kind: 'plane', axis: plane.axis };
+      const color = colorOf(handle, GUMBALL_COLORS[plane.axis]);
+      ctx.beginPath();
+      polygon(plane.corners);
+      ctx.strokeStyle = halo;
+      ctx.lineWidth = 3 * px;
+      ctx.stroke();
+      ctx.globalAlpha = sameHandle(handle, lit) ? 0.85 : 0.55;
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.25 * px;
+      ctx.stroke();
+    }
+
+    // The arrows, the farthest first: a move along each axis; the box past each point, a scale.
+    for (const arrow of layout.arrows) {
+      const handle: GumballHandle = { kind: 'arrow', axis: arrow.axis };
+      const color = colorOf(handle, GUMBALL_COLORS[arrow.axis]);
+      ctx.globalAlpha = layout.away[arrow.axis] ? 0.8 : 1;
+      line(() => {
+        ctx.moveTo(arrow.from.x, arrow.from.y);
+        ctx.lineTo(arrow.to.x, arrow.to.y);
+      }, color, (sameHandle(handle, lit) ? 3.5 : 2.5) * px);
+      ctx.beginPath();
+      polygon(arrow.head);
+      ctx.strokeStyle = halo;
+      ctx.lineWidth = 3 * px;
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.fill();
+      const tip = layout.tips.find((each) => each.axis === arrow.axis);
+      if (tip) {
+        const tipHandle: GumballHandle = { kind: 'tip', axis: tip.axis };
+        ctx.beginPath();
+        ctx.rect(tip.at.x - tip.half, tip.at.y - tip.half, tip.half * 2, tip.half * 2);
+        ctx.strokeStyle = halo;
+        ctx.lineWidth = 3 * px;
+        ctx.stroke();
+        ctx.fillStyle = colorOf(tipHandle, GUMBALL_COLORS[tip.axis]);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // The ball: a move across the view, or with Shift a scale of the whole.
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, layout.ball, 0, Math.PI * 2);
+    ctx.fillStyle = sameHandle({ kind: 'center' }, lit) ? amber : 'rgba(255, 255, 255, 0.95)';
+    ctx.fill();
+    ctx.strokeStyle = '#27496d';
+    ctx.lineWidth = 1.5 * px;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   /** Draws anchor squares and tangent handles at a constant on-screen size. */
   private paintAnchors(
     ctx: CanvasRenderingContext2D,
@@ -1560,14 +1877,22 @@ export class Surface {
   }
 
   /** Paints a mark; `bare` paints it without its effects, as `paintWithEffects` does first. */
-  private paintStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, bare = false): void {
-    const effects = bare || stroke.tool === 'eraser' ? undefined : readEffects(stroke.effects);
-    if (effects) {
-      this.paintWithEffects(ctx, stroke, effects);
+  private paintStroke(ctx: CanvasRenderingContext2D, mark: Stroke, bare = false): void {
+    const plan = bare ? null : markEffectPlan(mark);
+    if (plan) {
+      this.paintWithEffects(ctx, mark, plan);
       return;
     }
+    // A mark a Warp bent whole paints as it is bent, and one 3D built as its
+    // faces, far first (core/geometry-effects.ts).
+    const drawn = geometryOf(mark);
+    if (drawn?.faces) {
+      for (const face of drawn.faces) this.paintStroke(ctx, face, true);
+      return;
+    }
+    const stroke = drawn?.whole ?? mark;
     if (isTextStroke(stroke)) {
-      this.paintText(ctx, stroke);
+      this.paintType(ctx, stroke);
       return;
     }
     if (isImageStroke(stroke)) {
@@ -1716,15 +2041,31 @@ export class Surface {
    * overlap - matching how one pass of a real marker lays down flat color.
    */
   /**
-   * Paints a mark that carries effects: the mark itself on a canvas of its
-   * own, then that picture laid down through its effects, so they work on
-   * the whole mark - its fill and its outline as one - as the exports do.
+   * Paints a mark that carries effects, so they work on the whole mark - its
+   * fill and its outline as one - as the exports do. A list of CSS filter
+   * functions alone is drawn through `ctx.filter`; anything else - an
+   * appearance effect, an effect aimed at the fill or the stroke, a shadow
+   * laid under the mark on its own - is drawn from the mark's effect picture
+   * (see effectPicture), worked out on the pixel passes the exports run.
    */
-  private paintWithEffects(ctx: CanvasRenderingContext2D, stroke: Stroke, effects: Effect[]): void {
+  private paintWithEffects(ctx: CanvasRenderingContext2D, stroke: Stroke, plan: EffectPlan): void {
     const transform = ctx.getTransform();
+    const all = [...plan.fill, ...plan.stroke, ...plan.object];
     // Nothing it paints reaches the canvas: its blur would be worked for nothing.
-    const box = strokeBounds(stroke, (s) => this.measureText(s));
-    if (!box || !boxReachesView(box, inkMargin(stroke) + effectReach(effects), transform, ctx.canvas.width, ctx.canvas.height)) return;
+    const box = strokeBounds(stroke, this.typeMeasure);
+    if (!box || !boxReachesView(box, inkMargin(stroke) + effectReach(all), transform, ctx.canvas.width, ctx.canvas.height)) return;
+    const layout = effectLayout(plan.object, markOpacity(stroke) >= 1);
+    // A mark 3D built is one picture of its faces, laid down at the mark's opacity once.
+    if (plan.split || layout.unders.length > 0 || !layout.chain.every(isCssEffect) || geometryOf(stroke)?.faces) {
+      const picture = this.effectPicture(ctx, stroke, plan, box, all);
+      if (picture) this.layPicture(ctx, stroke, picture, this.undersLaid !== stroke);
+      return;
+    }
+    this.paintThroughFilter(ctx, stroke, layout.chain, transform);
+  }
+
+  /** Paints a mark through a list of CSS filter functions: the mark itself on a canvas of its own, laid down through `ctx.filter`. */
+  private paintThroughFilter(ctx: CanvasRenderingContext2D, stroke: Stroke, effects: Effect[], transform: DOMMatrix): void {
     // Painted past the view by the render's pad, as a layer's are (see
     // paintLeaf), so a blur at the view's edge gathers what lies beyond it.
     // A layer's canvas that is already that far out needs no more.
@@ -1748,6 +2089,161 @@ export class Surface {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.filter = cssFilter(effects, transform, blurCap(Math.max(this.renderPad, this.framePad)));
     ctx.drawImage(canvas, -pad, -pad);
+    ctx.restore();
+  }
+
+  /**
+   * A mark's effect picture: the mark drawn solid on the page's own pixel
+   * grid at this scale, and its effects run over it on the pixel passes the
+   * PNG and the SVG's graph share (core/appearance-fx.ts). A mark whose fill
+   * and stroke take effects of their own is drawn as its fill alone and its
+   * stroke alone, each through its own, the stroke laid over the fill - its
+   * blended shadows mixing with the fill - before the whole mark's run. The
+   * picture is kept per mark and worked out again only when the mark, its
+   * effects or the scale change, so a pan reuses it; a zoom under way draws
+   * the last one stretched until it holds still. A mark bigger than
+   * {@link EFFECT_PICTURE_MAX} pixels is worked out for the part in view and
+   * as far round it as the effects reach. Null when nothing it paints is in view.
+   */
+  private effectPicture(ctx: CanvasRenderingContext2D, stroke: Stroke, plan: EffectPlan, box: { minX: number; minY: number; maxX: number; maxY: number }, all: Effect[]): EffectPicture | null {
+    const t = ctx.getTransform();
+    const scale = Math.hypot(t.a, t.b);
+    if (!(scale > 0) || Math.abs(t.b) > 1e-9 || Math.abs(t.c) > 1e-9) return null;
+    const reach = effectReach(all);
+    const margin = inkMargin(stroke) + reach;
+    const x = Math.floor((box.minX - margin) * scale);
+    const y = Math.floor((box.minY - margin) * scale);
+    const whole: PencilRegion = { scale, x, y, width: Math.ceil((box.maxX + margin) * scale) - x, height: Math.ceil((box.maxY + margin) * scale) - y };
+    // The view on the page's grid, with as far round it as the effects gather from.
+    const reachPx = Math.ceil(reach * scale) + 2;
+    const view = { x: Math.floor(-t.e) - reachPx, y: Math.floor(-t.f) - reachPx, width: ctx.canvas.width + 2 * reachPx + 1, height: ctx.canvas.height + 2 * reachPx + 1 };
+    const shown = overlap(whole, view);
+    if (!shown) return null;
+
+    const image = stroke.image ? this.imageCache.get(stroke.image) : undefined;
+    const ready = !stroke.image || (image !== undefined && image.complete && image.naturalWidth > 0);
+    const base = `${markPaintKey(stroke)}|${smudgesKey(stroke)}|${ready}|${geometryKey(stroke)}`;
+    const key = `${base}|${scale}`;
+    const pts = stroke.points;
+    const sum = pointsChecksum(pts);
+    const kept = this.effectPictures.get(stroke);
+    const now = performance.now();
+    if (scale !== this.pencilScale) {
+      this.pencilScale = scale;
+      this.pencilScaleAt = now;
+    }
+    const same = kept !== undefined && kept.points === pts && kept.count === pts.length && kept.sum === sum;
+    if (same && kept.key === key && contains(kept.region, shown)) return kept;
+    // A zoom under way: the last picture, stretched, until the zoom holds still.
+    if (same && kept.base === base && kept.region.scale !== scale && now - this.pencilScaleAt < PENCIL_SETTLE_MS) {
+      this.repaintWhenSettled();
+      return kept;
+    }
+
+    let region = whole;
+    if (whole.width * whole.height > EFFECT_PICTURE_MAX) {
+      const around = { x: view.x - view.width / 2, y: view.y - view.height / 2, width: view.width * 2, height: view.height * 2 };
+      region = { scale, ...(overlap(whole, around) ?? shown) };
+    }
+    const m: Matrix = [scale, 0, 0, scale, 0, 0];
+    const warn = (): void => {};
+    const drawn = (mark: Stroke): FxImage => this.markPixels(mark, region);
+    let img: FxImage;
+    if (plan.split) {
+      img = blankImage(region.width, region.height);
+      for (const [part, effects] of [
+        ['fill', plan.fill],
+        ['stroke', plan.stroke],
+      ] as const) {
+        const own = drawn(drawnPart(stroke, part));
+        const under = runEffects(own, effects, m, warn, true);
+        for (let k = under.length - 1; k >= 0; k--) layOnto(img, under[k].image, under[k].x, under[k].y, under[k].blend);
+        layOnto(img, own, 0, 0, 'normal');
+      }
+    } else {
+      // A mark 3D built is its faces, laid one over the other, far first.
+      const faces = geometryOf(stroke)?.faces;
+      if (faces) {
+        img = blankImage(region.width, region.height);
+        for (const face of faces) layOnto(img, drawn(face), 0, 0, 'normal');
+      } else {
+        img = drawn({ ...drawnMark(stroke), opacity: 1, effects: undefined });
+      }
+    }
+    const unders = runEffects(img, plan.object, m, warn, markOpacity(stroke) >= 1);
+    const picture: EffectPicture = {
+      key,
+      base,
+      points: pts,
+      count: pts.length,
+      sum,
+      region,
+      body: pixelCanvas(img),
+      unders: unders.map((under: FxUnder) => ({ canvas: pixelCanvas(under.image), x: region.x + under.x, y: region.y + under.y, blend: under.blend })),
+    };
+    this.effectPictures.set(stroke, picture);
+    this.effectRasters++;
+    return picture;
+  }
+
+  /** A mark painted on a region of the page's grid, as a premultiplied picture: what the effect passes work on. */
+  private markPixels(stroke: Stroke, region: PencilRegion): FxImage {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, region.width);
+    canvas.height = Math.max(1, region.height);
+    const px = canvas.getContext('2d', { willReadFrequently: true });
+    if (!px) return blankImage(canvas.width, canvas.height);
+    px.setTransform(region.scale, 0, 0, region.scale, -region.x, -region.y);
+    this.paintStroke(px, stroke, true);
+    return fromRgba8(px.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+  }
+
+  /**
+   * Lays a mark's effect picture down at the mark's opacity, after - when
+   * `withUnders` - the shadows it lays under itself on its own, each mixed by
+   * its blend with what is already there, the last one cast lowest.
+   */
+  private layPicture(ctx: CanvasRenderingContext2D, stroke: Stroke, picture: EffectPicture, withUnders: boolean): void {
+    const t = ctx.getTransform();
+    const k = Math.hypot(t.a, t.b) / picture.region.scale;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = markOpacity(stroke);
+    if (withUnders) {
+      for (let i = picture.unders.length - 1; i >= 0; i--) {
+        const under = picture.unders[i];
+        ctx.globalCompositeOperation = compositeOperation(under.blend);
+        ctx.drawImage(under.canvas, under.x * k + t.e, under.y * k + t.f, under.canvas.width * k, under.canvas.height * k);
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    const r = picture.region;
+    ctx.drawImage(picture.body, r.x * k + t.e, r.y * k + t.f, r.width * k, r.height * k);
+    ctx.restore();
+  }
+
+  /**
+   * Lays down, onto `target`, the shadows a mark on a plain layer lays under
+   * itself on its own (see paintLeaf): from its effect picture, worked out on
+   * the layer's own canvas `onto`, which stands where `target` does.
+   */
+  private layUnders(target: Frame, onto: CanvasRenderingContext2D, stroke: Stroke): void {
+    const plan = markEffectPlan(stroke);
+    if (!plan) return;
+    const box = strokeBounds(stroke, this.typeMeasure);
+    if (!box) return;
+    const picture = this.effectPicture(onto, stroke, plan, box, [...plan.fill, ...plan.stroke, ...plan.object]);
+    if (!picture || picture.unders.length === 0) return;
+    const t = onto.getTransform();
+    const k = Math.hypot(t.a, t.b) / picture.region.scale;
+    const ctx = target.ctx;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    for (let i = picture.unders.length - 1; i >= 0; i--) {
+      const under = picture.unders[i];
+      ctx.globalCompositeOperation = compositeOperation(under.blend);
+      ctx.drawImage(under.canvas, under.x * k + t.e, under.y * k + t.f, under.canvas.width * k, under.canvas.height * k);
+    }
     ctx.restore();
   }
 
@@ -1960,28 +2456,19 @@ export class Surface {
     ctx.restore();
   }
 
-  private paintText(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
-    const anchor = stroke.points[0];
-    if (!anchor || !stroke.text) return;
-    const size = stroke.fontSize ?? 24;
-    const lineHeight = size * 1.25;
+  /**
+   * Paints a text mark as the type layout sets it with the canvas's measure:
+   * its frame's paint, its highlights, its characters, its list markers and
+   * its decorations (renderer/type-paint.ts).
+   */
+  private paintType(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
+    if (!stroke.points[0]) return;
+    const layout = layoutType(stroke, this.typeMeasure);
+    if (layout.glyphs.length === 0 && !layout.frame?.fill && !layout.frame?.stroke) return;
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = stroke.color;
     if (typeof stroke.opacity === 'number') ctx.globalAlpha = stroke.opacity;
-    ctx.textBaseline = 'top';
-    ctx.font = `${size}px ${stroke.fontFamily ?? DEFAULT_FONT_FAMILY}`;
-
-    const boxWidth = stroke.textBoxWidth ?? 0;
-    if (boxWidth > 0) {
-      // Word-wrap within the fixed text-box width.
-      const lines = wrapTextToLines(ctx, stroke.text, boxWidth);
-      lines.forEach((line, i) => ctx.fillText(line, anchor.x, anchor.y + i * lineHeight));
-    } else {
-      stroke.text.split('\n').forEach((line, i) => {
-        ctx.fillText(line, anchor.x, anchor.y + i * lineHeight);
-      });
-    }
+    paintTypeLayout(ctx, layout);
     ctx.restore();
   }
 
@@ -1999,19 +2486,154 @@ export class Surface {
       // An eraser mark from an older file rides along with its layer but is
       // no element of its own: no box.
       if (!selectedIds.has(stroke.id) || stroke.tool === 'eraser') continue;
-      const bounds = strokeBounds(stroke, (s) => this.measureText(s));
+      const bounds = strokeBounds(stroke, this.typeMeasure);
       // In a clip group a mark is boxed as it shows: cut to the clip's bounds.
       const box = bounds && shownBounds(sketch, stroke, bounds, clips);
       if (!box) continue;
+      // Use Preview Bounds: out as far as the mark's effects paint.
+      const reach = pad + (this.usePreviewBounds ? effectPaintReach(stroke.effects ?? []) : 0);
       boxes.push({
         id: stroke.id,
-        x: box.minX - pad,
-        y: box.minY - pad,
-        width: box.maxX - box.minX + pad * 2,
-        height: box.maxY - box.minY + pad * 2,
+        x: box.minX - reach,
+        y: box.minY - reach,
+        width: box.maxX - box.minX + reach * 2,
+        height: box.maxY - box.minY + reach * 2,
       });
     }
     return boxes;
+  }
+
+  /**
+   * The type editor's marks over the text it edits: the frame or path as a
+   * faint guide, the selection as a highlight - dimmed while another control
+   * has the keyboard - an IME composition underlined, and the caret, dark
+   * over a pale halo so it shows on any paper. Lines are a constant width on
+   * the screen; the caret's length is the text's.
+   */
+  private paintTypeEdit(ctx: CanvasRenderingContext2D, edit: TypeEditOverlay): void {
+    const px = 1 / this.zoom;
+    ctx.save();
+    if (edit.guide && edit.guide.anchors.length > 1) {
+      ctx.strokeStyle = 'rgba(47, 111, 235, 0.55)';
+      ctx.lineWidth = px;
+      ctx.setLineDash([3 * px, 3 * px]);
+      ctx.stroke(new Path2D(anchorsToPathData(edit.guide.anchors, edit.guide.closed)));
+      ctx.setLineDash([]);
+    }
+    if (edit.selection.length > 0) {
+      ctx.fillStyle = edit.focused ? 'rgba(47, 111, 235, 0.3)' : 'rgba(128, 128, 128, 0.25)';
+      for (const quad of edit.selection) {
+        ctx.beginPath();
+        quad.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    if (edit.composition.length > 0) {
+      ctx.strokeStyle = '#1f2328';
+      ctx.lineWidth = 1.5 * px;
+      ctx.beginPath();
+      for (const line of edit.composition) {
+        ctx.moveTo(line.from.x, line.from.y);
+        ctx.lineTo(line.to.x, line.to.y);
+      }
+      ctx.stroke();
+    }
+    if (edit.caret) {
+      const { top, bottom } = edit.caret;
+      ctx.lineCap = 'butt';
+      ctx.beginPath();
+      ctx.moveTo(top.x, top.y);
+      ctx.lineTo(bottom.x, bottom.y);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 3.5 * px;
+      ctx.stroke();
+      ctx.strokeStyle = '#1f2328';
+      ctx.lineWidth = 1.5 * px;
+      ctx.stroke();
+    }
+    // A line said under part of the text - a code block's language not installed - small and grey over a pale halo.
+    if (edit.hints.length > 0) {
+      ctx.font = `${11 * px}px "Segoe UI", system-ui, sans-serif`;
+      ctx.textBaseline = 'top';
+      ctx.lineJoin = 'round';
+      for (const hint of edit.hints) {
+        const y = hint.at.y + 2 * px;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.lineWidth = 3 * px;
+        ctx.strokeText(hint.text, hint.at.x, y);
+        ctx.fillStyle = '#57606a';
+        ctx.fillText(hint.text, hint.at.x, y);
+      }
+    }
+    ctx.restore();
+  }
+
+  /**
+   * A selected text's frame or path: the shape as a faint line; a path
+   * text's brackets, a vector editor's - the start and the end across the
+   * path with a tick toward the text between them, the centre on the side
+   * the text stands; and Illustrator's red plus where text runs out of room.
+   * All a constant size on the screen.
+   */
+  private paintTypeShape(ctx: CanvasRenderingContext2D, shape: TypeShapeOverlay): void {
+    const px = 1 / this.zoom;
+    ctx.save();
+    if (shape.anchors.length > 1) {
+      ctx.strokeStyle = 'rgba(47, 111, 235, 0.6)';
+      ctx.lineWidth = px;
+      ctx.stroke(new Path2D(anchorsToPathData(shape.anchors, shape.closed)));
+    }
+    const brackets = shape.brackets ?? [];
+    const middle = brackets.find((b) => b.which === 'center');
+    for (const bracket of brackets) {
+      const { at, side } = bracket;
+      const reach = (bracket.which === 'center' ? 12 : 16) * px;
+      const tail = 4 * px;
+      const from = { x: at.x - side.x * tail, y: at.y - side.y * tail };
+      const to = { x: at.x + side.x * reach, y: at.y + side.y * reach };
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      if (bracket.which !== 'center' && middle) {
+        // The tick at the far end points along the path toward the text.
+        const dx = middle.at.x - at.x;
+        const dy = middle.at.y - at.y;
+        const len = Math.hypot(dx, dy) || 1;
+        ctx.moveTo(to.x, to.y);
+        ctx.lineTo(to.x + (dx / len) * 5 * px, to.y + (dy / len) * 5 * px);
+      }
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 4 * px;
+      ctx.stroke();
+      ctx.strokeStyle = '#2f6feb';
+      ctx.lineWidth = 2 * px;
+      ctx.stroke();
+      if (bracket.which === 'center') {
+        ctx.beginPath();
+        ctx.arc(to.x, to.y, 2.5 * px, 0, Math.PI * 2);
+        ctx.fillStyle = '#2f6feb';
+        ctx.fill();
+      }
+    }
+    if (shape.overset) {
+      // The out port: a small box with a red plus, as a vector editor marks text that does not fit.
+      const half = 5 * px;
+      const { x, y } = shape.overset;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x - half, y - half, half * 2, half * 2);
+      ctx.strokeStyle = '#d1242f';
+      ctx.lineWidth = 1.5 * px;
+      ctx.strokeRect(x - half, y - half, half * 2, half * 2);
+      ctx.beginPath();
+      ctx.moveTo(x - half * 0.6, y);
+      ctx.lineTo(x + half * 0.6, y);
+      ctx.moveTo(x, y - half * 0.6);
+      ctx.lineTo(x, y + half * 0.6);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   private paintSelection(ctx: CanvasRenderingContext2D, box: SelectionBox): void {
@@ -2022,31 +2644,6 @@ export class Surface {
     ctx.setLineDash([5 * px, 4 * px]);
     ctx.strokeRect(box.x, box.y, box.width, box.height);
     ctx.restore();
-  }
-
-  /** Measures a text item's rendered width/height in CSS pixels. */
-  measureText(stroke: Stroke): { width: number; height: number } {
-    const size = stroke.fontSize ?? 24;
-    const lineHeight = size * 1.25;
-    const ctx = this.inkCtx;
-    ctx.save();
-    ctx.font = `${size}px ${stroke.fontFamily ?? DEFAULT_FONT_FAMILY}`;
-
-    const boxWidth = stroke.textBoxWidth ?? 0;
-    let width = 0;
-    let lineCount = 0;
-    if (boxWidth > 0) {
-      const lines = wrapTextToLines(ctx, stroke.text ?? '', boxWidth);
-      lineCount = lines.length;
-      width = boxWidth;
-    } else {
-      const rawLines = (stroke.text ?? '').split('\n');
-      lineCount = rawLines.length;
-      for (const line of rawLines) width = Math.max(width, ctx.measureText(line).width);
-    }
-
-    ctx.restore();
-    return { width, height: lineCount * lineHeight };
   }
 
   /**
@@ -2091,7 +2688,8 @@ export class Surface {
   /**
    * Serialises a sketch to an SVG string (lossless vector). The writer lives
    * in `core/sketch-svg.ts`, where code with no DOM reaches it too; see
-   * {@link sketchToSvg}.
+   * {@link sketchToSvg}. It touches no DOM: the app passes its canvas's
+   * type measure in the options, so the file breaks lines where the app does.
    */
   static toSVG(sketch: Sketch, options: SvgExportOptions = {}): string {
     return sketchToSvg(sketch, options);
@@ -2347,6 +2945,52 @@ function contains(
   return inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.width <= outer.x + outer.width && inner.y + inner.height <= outer.y + outer.height;
 }
 
+/**
+ * A mark's paint and its effects as a key: everything its effect picture is
+ * drawn from but its points, which are checked apart (see effectPicture). An
+ * image counts by its data's length and end, which change when it does.
+ */
+function markPaintKey(stroke: Stroke): string {
+  return JSON.stringify([
+    stroke.tool,
+    stroke.color,
+    stroke.width,
+    stroke.opacity ?? null,
+    stroke.fill ?? null,
+    stroke.gradient ?? null,
+    stroke.strokeStyle ?? null,
+    stroke.profile ?? null,
+    stroke.profileMirrored === true,
+    stroke.noStroke === true,
+    stroke.nibAngle ?? null,
+    stroke.pencil ?? null,
+    stroke.text ?? null,
+    stroke.fontSize ?? null,
+    stroke.fontFamily ?? null,
+    stroke.textBoxWidth ?? null,
+    // Text breaks by the canvas's measure, which changes as fonts load.
+    stroke.typeset ?? null,
+    isTextStroke(stroke) ? canvasTypeMeasure().id : null,
+    stroke.vector?.closed === true,
+    stroke.image ? `${stroke.image.length}:${stroke.image.slice(-32)}` : null,
+    stroke.imageWidth ?? null,
+    stroke.imageHeight ?? null,
+    stroke.link ?? null,
+    stroke.effects ?? null,
+  ]);
+}
+
+/** A premultiplied picture on a canvas of its own. */
+function pixelCanvas(img: FxImage): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, img.width);
+  canvas.height = Math.max(1, img.height);
+  if (img.width > 0 && img.height > 0) {
+    canvas.getContext('2d')?.putImageData(new ImageData(toRgba8(img), img.width, img.height), 0, 0);
+  }
+  return canvas;
+}
+
 function pointsChecksum(pts: readonly Point[]): number {
   let sum = 0;
   for (let i = 0; i < pts.length; i++) {
@@ -2380,28 +3024,3 @@ function tracePoints(ctx: CanvasRenderingContext2D, pts: Point[]): void {
   pts.forEach((p, i) => (i === 0 || p.move ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
 }
 
-// ---- Word-wrap helper -------------------------------------------------------
-
-/**
- * Breaks `text` into display lines that fit within `maxWidth` CSS pixels.
- * Respects explicit newlines and wraps on word boundaries.
- */
-function wrapTextToLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const result: string[] = [];
-  for (const para of text.split('\n')) {
-    if (!para) { result.push(''); continue; }
-    const words = para.split(' ');
-    let line = '';
-    for (const word of words) {
-      const candidate = line ? `${line} ${word}` : word;
-      if (line && ctx.measureText(candidate).width > maxWidth) {
-        result.push(line);
-        line = word;
-      } else {
-        line = candidate;
-      }
-    }
-    result.push(line);
-  }
-  return result;
-}

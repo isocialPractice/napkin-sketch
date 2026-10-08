@@ -17,14 +17,18 @@
   default**, **resizable** (drag its inner edge), and offers a **right-click
   menu** with the menu bar's **Layers** rows (Add Layer, Group Layer, Ungroup,
   Rename, Delete Layer, a **Move** submenu of Layer Up and Layer Down, a
-  **Clipping Mask** submenu of Make and Release, Hide Layers Panel) and the
-  clipboard rows between them.
+  **Clipping Mask** submenu of Make and Release, a **Blend** submenu of the
+  blend modes, Hide Layers Panel) and the clipboard rows between them.
 - **Layer groups** — `Ctrl+G` groups the active layer (nesting allowed);
   group visibility, lock, and opacity apply to every layer inside, and
   `Ctrl+Shift+G` ungroups.
 - **Clipping masks** — `Ctrl+7` groups the selection into a **Clip Group**
   that shows only inside the closed path on top, which paints nothing while
   it clips; `Ctrl+Alt+7` releases it.
+- **Blend modes** - the **Blend** select under Opacity, or **Layers > Blend**,
+  sets how the selected layers mix with what is under them, the paper
+  included: a vector editor's sixteen blend modes under napkin names, such as
+  **Stack Blend** for Multiply. `Shift+Plus` and `Shift+-` step through them.
 - **Layer restacking moves the whole selection.** The panel's move buttons
   (and `Ctrl+]` / `Ctrl+[`) shift every selected row one step, not just the
   active one; the selection keeps its own order, unselected rows keep theirs,
@@ -102,6 +106,58 @@ clipping path's row a **clip** badge, its name underlined in dots.
   A script makes one with `clip { ... }`
   ([Drawing with napkin script](../api/drawing/README.md#clipping-masks)).
 
+## Blend modes
+
+*New in 1.0.0-alpha.5.0.0.*
+
+**Napkin Blends:** a layer's blend decides how what it paints mixes with what
+is under it - the layers below it and the paper. Set it for the selected layer
+rows, or the active layer, with the **Blend** select under Opacity at the foot
+of the Layers panel or with **Layers > Blend**, or step through the list with
+`Shift+Plus` and `Shift+-`. A blended layer's row carries a mark of two
+circles, with the mode's name in its tooltip.
+
+The sixteen modes are a vector editor's, in its order, under napkin names,
+with the vector editor's name beside each:
+
+| Napkin Blend | Vector editor | What it does |
+| --- | --- | --- |
+| Normal | Normal | Covers what is under it |
+| Soak Blend | Darken | Keeps the darker of the two colors |
+| Stack Blend | Multiply | Multiplies, as ink stacks on paper: always darker |
+| Scorch Blend | Color Burn | Darkens what is under it, with more contrast |
+| Dry Blend | Lighten | Keeps the lighter of the two colors |
+| Sheer Blend | Screen | The opposite of Stack Blend: always lighter |
+| Bleach Blend | Color Dodge | Brightens what is under it, with less contrast |
+| Fold Blend | Overlay | Multiplies the darks and screens the lights of what is under it |
+| Light Blend | Soft Light | A soft light shone on what is under it |
+| Heavy Blend | Hard Light | A hard light shone on what is under it |
+| Messy Blend | Difference | The difference between the two colors |
+| Avoidance Blend | Exclusion | Messy Blend with less contrast |
+| Tidy Blend | Hue | Its hue, with the lightness and saturation of what is under it |
+| Bright Blend | Saturation | Its saturation, with the hue and lightness of what is under it |
+| Dye Blend | Color | Its hue and saturation, with the lightness of what is under it |
+| Cover Blend | Luminosity | Its lightness, with the hue and saturation of what is under it |
+
+- **The paper takes part.** A Stack Blend over the paper darkens into it,
+  grain and all, as ink soaks into a napkin; a layer at Normal covers the
+  paper as it always did. An export with no paper - a transparent export of a
+  selection - has no paper to mix with, so a blend there mixes only with the
+  layers under it.
+- **A group with a blend** paints what it holds as one picture and blends
+  that. **Isolate Blending** (Layers > Blend, on a group) keeps the blends
+  inside a group from reaching past it: they mix only with each other. A group
+  with an opacity below 100% that holds a blended layer is isolated as well,
+  as SVG and PDF composite such a group.
+- **Each change is one undo step**, for every selected layer at once.
+- **Every export keeps it**: the SVG as `mix-blend-mode` with the napkin name
+  in `data-blend`, the PDF as a transparency group with `/BM`, the Illustrator
+  script as each layer's `blendingMode`, and a PNG made without the app by the
+  same math - the W3C's, which vector editors, photo editors, CSS and PDF
+  share. An SVG from another editor brings its `mix-blend-mode`, written inline
+  or in a `<style>` rule, and its `isolation` in with it. A script sets one with
+  `blend` ([Drawing with napkin script](../api/drawing/README.md#blend-modes)).
+
 ## The Properties panel
 
 **Properties panel (`Ctrl+P`):** edits the current selection, element by
@@ -127,6 +183,11 @@ collapsed group are not swept up with them.
   style whose dash pattern scales with the width, and **No stroke** for a
   fill-only shape (the color and width are kept, so the button turns back into
   **Add stroke**).
+- **Appearance / Opacity** - the opacity and the blend of the selection's
+  layers, as the Layers panel sets them; an **fx** button that drops the
+  Effect menu's rows down, to add an effect; and how many effects the
+  selection has, which opens the Appearance panel (see
+  [Effects and the Appearance panel](effects.md)).
 - **Scale** - with the default `%` unit each field is a factor to apply (`150`
   enlarges by half); with `px`, `in`, `mm`, or `pt` it is the size the
   selection should end up. **Uniform scaling** (on by default) applies one

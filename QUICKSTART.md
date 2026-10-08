@@ -121,6 +121,16 @@ so `--sharpen` produces the same result on disk as the GUI does on screen.
 - **Sketch Support tools** - Rectangle (`R`), Ellipse (`L`), Curve (`V`),
   Vector Path (`P`), Paint Bucket (`G`), Eyedropper (`I`), Rotate
   (`Ctrl + R`), Join strokes (`Ctrl + J`).
+- **Effects and blends** - Effect > Stylize, Warp and 3D, and the Appearance
+  panel (`Shift + F6`), put shadows, glows, bevels, Splatter, Warp and 3D
+  Extrude and Revolve on a mark; Layers > Blend gives a layer one of sixteen
+  blend modes, such as Stack Blend, which is Multiply.
+- **Type** (`T`) - click to type, drag a box, or click a selected shape or
+  path to type in it or along it; the Type panel (`Ctrl + Shift + T`) sets
+  the characters and paragraphs, and Type > Markdown Flow (`Ctrl + Alt + M`)
+  shows Markdown as it renders, with Clean Language Accents coloring its code.
+- **Composition Styles** (`Shift + F5`) - restyle a page by its layers' names
+  in one click, from styles of your own.
 - **Verbose Settings** (`Ctrl + Alt + ,`) - everything in Quick Settings plus
   zoom and pan sensitivity, endpoint snap, toolbar placement and rearrange
   mode, theme, Quick Access Colors, and auto-save. Settings persist across

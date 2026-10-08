@@ -1,6 +1,6 @@
 ---
 name: napkin-script
-description: 'Write napkin scripts - the drawing language of napkin-sketch - that the parser accepts the first time. Use when a request asks for a drawing, diagram, flowchart, chart, card, badge, icon or layout made with napkin-sketch; when `napkin-sketch draw --prompt` or the `/scripting:draw` command hands over a form in `_temp/script-form.txt`; when a `.napkin` file has to be written, extended, or fixed from its diagnostics; or when a drawing has to come out as SVG, PNG, PDF, a `.skbk` the app opens, or an Illustrator script. Covers the two rules the parser holds a script to, pages and layers, paint, shapes, paths, text, images and links, repeat and define, transforms and units, the diagnostic codes and what each asks for, and three complete scripts to start from.'
+description: 'Write napkin scripts - the drawing language of napkin-sketch - that the parser accepts the first time. Use when a request asks for a drawing, diagram, flowchart, chart, card, badge, icon or layout made with napkin-sketch; when `napkin-sketch draw --prompt` or the `/scripting:draw` command hands over a form in `_temp/script-form.txt`; when a `.napkin` file has to be written, extended, or fixed from its diagnostics; or when a drawing has to come out as SVG, PNG, PDF, a `.skbk` the app opens, or an Illustrator script. Covers the two rules the parser holds a script to, pages and layers, paint, shapes, paths, text and type - character and paragraph attributes, lists, Text Configurations, Markdown and code accents - images and links, effects and blend modes, repeat and define, transforms and units, the diagnostic codes and what each asks for, and three complete scripts to start from.'
 ---
 
 # Napkin script
@@ -76,13 +76,38 @@ The parser holds every script to these, and most first-try errors break one.
 - **Text**: `text "<words>" at <x> <y> [size <n>] [box <width>] [align center]`.
   `x y` is the top-left of the text, or the top-centre with `align center`.
   `font "<family>" <size>` sets the face for what follows; `box` wraps.
+  `inside "<path data>"` sets it in a shape, `along "<path data>"` on a path
+  (`start`, `flip` and `effect skew` move and turn it there), and
+  `vertical` in columns. `markdown` reads the text as Markdown - `**bold**`,
+  `# Title`, `- item` - and shows it as it renders.
+  `runs (0 4 face "Bold", 5 9 color #c0392b)` styles stretches of it by
+  character, and `as marks` draws the letters as brush strokes.
+- **Type**: `character face "Bold" tracking 50 underline` sets the character
+  attributes of the text after it, and `paragraph align justify first 18
+  hyphenate` its paragraphs'; `paragraph list bullet` - or `number`, with
+  `level 2` - makes each line a list item, and `reset` puts either back.
+  `textconfig "Callout" face "Bold" color #cc0000` names a set of character
+  attributes, which a text follows with `config "Callout"` and a run with
+  `config "Callout"` among its clauses. `accent python` colors the next
+  text's code as the language reads it; `accent auto` picks the language.
 - **Repeats and parts**: `repeat 4 as i { ... }` counts `i` from 0;
   `define "<name>" { ... }` records a part, and `place "<name>" at <x> <y>`
   draws it.
 - **Transforms**: `push` and `pop` around `translate`, `rotate <degrees> at <x> <y>`,
   `scale` and `mirror`, which apply to what is drawn after them.
-- **Looks**: `rough 0.5` for a hand-drawn line, `rough off` to stop;
-  `effect drop-shadow 2 3 4 #00000044` before a layer, a group or a mark.
+- **Looks**: `rough 0.5` for a hand-drawn line, `rough off` to stop.
+- **Effects**: `effect drop-shadow 2 3 4 #00000044` before a layer, a group
+  or a mark gives it that effect. The rest are `blur`, the color filters -
+  `grayscale`, `sepia`, `hue-rotate` and the others - `inner-shadow`,
+  `outer-glow`, `inner-glow`, `bevel`, `emboss` and `feather`;
+  `splatter` draws a mark's fill as a scribbled hatch, `warp arc bend 40`
+  bends what takes it, and `extrude 30` and `revolve` build a mark in 3D.
+  Several stack in order; `on fill` or `on stroke` aims one at that part of
+  a mark, and `effect none` clears what is waiting.
+- **Blend modes**: `blend stack` - Multiply - or `blend sheer` - Screen - or
+  any of the sixteen, by napkin's name or Illustrator's, before a `layer`, a
+  `group` or a `clip` mixes it with what is under it. A blend is a layer's:
+  a mark alone does not take one.
 - **Output**: `crop auto pad 12` cuts every file to the ink with room around it.
 
 ## Laying out a page
@@ -115,6 +140,8 @@ same as data. A warning alone still draws.
 | `unclosed-string`, `unclosed-block` | A missing `"` or `}`. |
 | `unknown-asset`, `unknown-document` | An image or a document the host did not hand over. Draw it instead. |
 | `unknown-shape`, `unknown-definition`, `unknown-variable` | A library shape, a `define` or a `let` name that is not there: check the spelling, or define it first. |
+| `unknown-config` | A `config` naming a Text Configuration no `textconfig` defined: check the spelling, or define it first. |
+| `unused-effect`, `unused-blend`, `unused-accent` | An `effect`, `blend` or `accent` nothing took. A warning: write it right before the layer, group, mark or text it is for. |
 | `version-missing` | No `napkin 1` on the first line. A warning, but add it. |
 
 ## Answering a form

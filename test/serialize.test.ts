@@ -4,11 +4,12 @@ import assert from 'node:assert/strict';
 import {
   serializeSketchBook,
   parseSketchBook,
+  parseSketchBookFile,
   normalizeSketchBook,
   withSketchBookExtension,
   deriveName,
 } from '../src/core/serialize.js';
-import { createSketchBook } from '../src/core/types.js';
+import { createSketchBook, SKETCHBOOK_VERSION } from '../src/core/types.js';
 
 test('withSketchBookExtension appends .skbk only when needed', () => {
   assert.equal(withSketchBookExtension('notes'), 'notes.skbk');
@@ -270,4 +271,28 @@ test('page sizeMode survives the round-trip and junk values are dropped', () => 
     'demo',
   );
   assert.equal(junk.sketches[0].sizeMode, undefined);
+});
+
+test("a text's typeset is read made sound for its text, and a book a newer napkin-sketch saved says so", () => {
+  const book = createSketchBook('type');
+  const text = {
+    id: 't',
+    tool: 'text',
+    color: '#1f2328',
+    width: 1,
+    points: [{ x: 10, y: 10 }],
+    text: 'Hello',
+    fontSize: 20,
+    typeset: { kind: 'point', runs: [{ start: 1, end: 99, attrs: { tracking: 99999, underline: true } }, { start: 0, end: 0, attrs: {} }], wobble: 1 },
+  };
+  const raw = JSON.parse(serializeSketchBook(book));
+  raw.sketches[0].strokes = [text];
+  const read = parseSketchBook(JSON.stringify(raw)).sketches[0].strokes[0];
+  assert.deepEqual(read.typeset, { kind: 'point', runs: [{ start: 1, end: 5, attrs: { tracking: 10000, underline: true } }] }, 'cut to the text, held to its range');
+  assert.equal(SKETCHBOOK_VERSION, 4);
+  assert.equal(parseSketchBookFile(JSON.stringify(raw)).newer, false);
+  raw.version = SKETCHBOOK_VERSION + 1;
+  const newer = parseSketchBookFile(JSON.stringify(raw));
+  assert.equal(newer.newer, true, 'a version past this build');
+  assert.equal(newer.book.sketches[0].strokes[0].text, 'Hello', 'and it still opens');
 });

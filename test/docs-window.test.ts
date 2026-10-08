@@ -47,7 +47,7 @@ test('a page name reaches its file under the root, and no other name reaches any
 
 test('Help > Verbose and every Tool Types row open a page the site publishes', () => {
   const pages = [DOCS_INDEX_PAGE, ...helpTopics(defaultRegistry()).map((topic) => topic.page)];
-  assert.equal(pages.length, 6);
+  assert.equal(pages.length, 8);
   for (const page of pages) {
     assert.ok(SITE_PAGES.some((site) => site.out === docsPageFile(page)), `${page} is a page of the site`);
     const file = docsPagePath(join(repoRoot(), SITE_DIR), page);

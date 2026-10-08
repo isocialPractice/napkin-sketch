@@ -90,14 +90,52 @@ import type {
   MenuConfig,
 } from '../core/ipc.js';
 import type { LaunchOptions } from '../core/launch.js';
-import { scaleEffects } from '../core/effects.js';
+import {
+  activeEffects,
+  defaultEffect,
+  EFFECT_LABELS,
+  effectPaintReach,
+  MARK_ONLY_EFFECT_TYPES,
+  readEffect,
+  scaleEffects,
+  type Effect,
+  type EffectOf,
+  type EffectType,
+} from '../core/effects.js';
+import { expandLayerWarps, setThreeDDrafts, setTypingText, threeDBuildOf } from '../core/geometry-effects.js';
+import { warpPartFor, type WarpStyle } from '../core/warp-styles.js';
+import {
+  addEffect,
+  aimedAt,
+  EFFECT_FIELDS,
+  effectFieldValue,
+  effectName,
+  expandAppearance,
+  hasGeometryEffects,
+  markOpacity,
+  markParts,
+  replaceEffect,
+  sameEffects,
+  targetOf,
+  withEffectField,
+  type AppearanceTarget,
+} from '../core/appearance.js';
+import {
+  BLEND_MODE_IDS,
+  BLEND_MODES,
+  blendModeInfo,
+  blendModeOf,
+  compositeOperation,
+  isBlended,
+  type BlendModeId,
+} from '../core/blend.js';
 import { hitMark, marksInBox, outlineDistance } from '../core/hit-test.js';
 import { paintOrder } from '../core/paint-order.js';
 import { PENCIL_KIT, pencilGrade, pencilPaint, pencilRegion, pencilWidth, rasterizePencil, samePencil, type PencilChoice } from '../core/pencil.js';
 import { DEFAULT_SMEAR_STRENGTH, mapSmudges, smearReaches, smudgeFor } from '../core/smudge.js';
 import { LIQUIFY_MODES, liquifyMarks, liquifyReaches, refitLiquified, type LiquifyDab, type LiquifyMode } from '../core/liquify.js';
 import { isSplittable, splitMark, splitTarget, type SplitPoint } from '../core/split.js';
-import { sketchesToPdf } from '../core/pdf.js';
+import { sketchesToPdf, type PdfOptions } from '../core/pdf.js';
 import { defaultSettings, type AppSettings, type QuickModifier } from '../core/settings.js';
 import {
   catmullRom,
@@ -113,17 +151,33 @@ import {
   snapRotation,
   splitCubicBezier,
 } from '../sharpen/geometry.js';
-import { PopupManager } from './popup.js';
+import { PopupManager, type PopupState } from './popup.js';
 import { importedToSketch, pdfPagesToSketches, withNewIds } from '../core/imported-sketch.js';
 import { basename } from '../core/paths.js';
 import { rasterScript, scriptFromHistory, scriptFromPages, type GeneratedScript } from '../core/script/generate.js';
 import { inkBox } from '../core/script/render.js';
 import { ScriptDialog } from './script-dialog.js';
+import { AppearancePanel, fillBlendSelect, type AppearancePaint, type AppearanceView } from './appearance-panel.js';
+import { EffectOptions } from './effect-options.js';
+import { ThreeDPanel, type ThreeDPanelView } from './three-d-panel.js';
+import {
+  dragGumball,
+  gumballGrips,
+  gumballHit,
+  gumballLayout,
+  gumballMoved,
+  sameHandle,
+  startGumballDrag,
+  type GumballDrag,
+  type GumballHandle,
+  type GumballLayout,
+  type GumballObject,
+} from './gumball.js';
 import { Commands, type CommandHandlers } from './commands.js';
 import { describeStep, HistoryTracker, localMinute, type CommandInfo } from './history-tracker.js';
 import { contextMenuItems, inlineDeeperSubmenus, type ContextMenuItem } from './menus.js';
 import { contextItems, defaultRegistry, loadRegistry, type MenuRegistry } from '../core/menu/registry.js';
-import type { MenuCommand, MenuState } from '../core/menu/ids.js';
+import type { MenuCommand, MenuPredicate, MenuState } from '../core/menu/ids.js';
 import { displayChord } from '../core/menu/chords.js';
 import { commandForEvent, isNewTabKey, isReloadKey } from './keys.js';
 import { ConfigDialog, type ConfigDialogSpec } from './config-dialog.js';
@@ -141,6 +195,59 @@ import {
 } from './editors.js';
 import { fitPoints, fitsFreehand, fitStroke, SHARPEN_FIT_TOLERANCE, sharpenStroke } from '../sharpen/sharpen.js';
 import { Surface, strokeBounds, type LiveStroke, type Overlay, type WarpOverlay, type WipeSnapshot } from './surface.js';
+import type { SvgExportOptions } from '../core/sketch-svg.js';
+import { layoutForEditing, layoutType } from '../core/type/layout.js';
+import { MARKDOWN_CONFIG_NAMES, markdownConfig, markdownShown, withMarkdownConfigs, withoutMarkdownReveal } from '../core/type/markdown-flow.js';
+import { ACCENT_LANGUAGES, applyAccent, hasAccent, setAccentOptions, type AccentLanguage } from '../core/type/accents.js';
+// Markdown Flow text is read with marked's lexer, and code with highlight.js: the core holds neither of its own.
+import { readers as markdownReaders } from '../markdown/core.js';
+import type { AccentLanguageDefinition } from '../markdown/highlight.js';
+import { sampleOutline } from '../core/path-data.js';
+import { AUTO_LEADING, DEFAULT_CHAR, DEFAULT_PARA, baseAttrs, charAttrsAt, paraAttrsOf, paragraphAt, rectangleAnchors, typeSpecOf, withTypeset, type TextConfig } from '../core/type/model.js';
+import {
+  applyTextConfig,
+  breakTextConfigLink,
+  captureConfigAttrs,
+  clearTextOverrides,
+  configInUse,
+  configsOf,
+  DEFAULT_CONFIG_NAME,
+  detachTextConfig,
+  duplicateTextConfig,
+  mergeTextConfigs,
+  newTextConfig,
+  overridesOf,
+  readConfigTargets,
+  replaceTextConfig,
+  resolveRunAttrs,
+  revertTextConfig,
+  withConfigDefinitions,
+} from '../core/type/configs.js';
+import {
+  dragBracket,
+  oversetPort,
+  pathBrackets,
+  pathHitAt,
+  typeOnPath,
+  typeToolAction,
+  typeToolCursor,
+  typeablePath,
+  type PathBracket,
+  type TypeToolHit,
+  type TypeablePath,
+} from '../core/type/tool.js';
+import type { TypeShapeOverlay } from './surface.js';
+import {
+  applyTypeChange,
+  nextTextReading,
+  primaryFamily,
+  readTargets,
+  setsTyping,
+  typingAttrsAt,
+  typingPatch,
+  type TypeChange,
+  type TypeTarget,
+} from '../core/type/panel.js';
 import {
   faceAt,
   facesAlong,
@@ -185,10 +292,53 @@ import { fitCurve } from '../core/fit-curve.js';
 import { bandEnd, closesAt, nextAnchorAt, pulledHandles } from './vector-place.js';
 import { eraseKind, eraseMarks, eraseRegionOf } from '../core/erase.js';
 import { CLIP_NOTICES, SessionNotices, SHAPE_ERASER_NOTICES, SHAPE_STACKER_NOTICES } from './notice.js';
+import { ReportToasts, type ReportSpec } from './report-toast.js';
+import { CompositionStylesPanel, type CompositionStylesCommand } from './composition-styles-panel.js';
+import { CompositionRuleForm } from './composition-rule-form.js';
+import {
+  applyCompositionStyle,
+  captureCompositionStyle,
+  captureLayerRule,
+  COMPOSITION_RULE_FIELDS,
+  COMPOSITION_RULE_KEYS,
+  COMPOSITION_RULE_KINDS,
+  COMPOSITION_RULE_LABELS,
+  compositionReportTitle,
+  compositionRuleSummary,
+  compositionStyleFileName,
+  compositionStyleRuleCount,
+  isDefaultLayerName,
+  layerNameKey,
+  renameLayers,
+  serializeCompositionStyle,
+  uniqueStyleName,
+  validateCompositionStyle,
+  type CompositionRuleKind,
+  type CompositionStyle,
+  type CompositionStyleReport,
+} from '../core/composition-style.js';
+import type { CompositionStyleFile } from '../core/ipc.js';
 import { clipIndex, releaseClip, shownBounds } from '../core/clip.js';
 import { frontColor, nextQuickColor, otherTarget, swapToolPaint } from './fill-stroke.js';
 import type { ColorTarget } from '../core/paint.js';
 import { AltMenuRule } from './alt-menu.js';
+import { TypeEditor } from './type-editor.js';
+import { TypePanel, type ConfigCommand, type TypePanelScope, type TypePanelTab, type TypePanelView } from './type-panel.js';
+import { TypeOptions } from './type-options.js';
+import { TypeFaces } from './type-faces.js';
+import { outlineText, setOutlineSource } from '../core/type/outline.js';
+import type { TypeFont } from '../core/type/measure.js';
+import {
+  configOptionValues,
+  configWithOptions,
+  typeOptionDisabled,
+  typeOptionValues,
+  typeOptionsKindOf,
+  withTypeOptions,
+  type TypeOptionValues,
+  type TypeOptionsKind,
+} from '../core/type/options.js';
+import { FontList } from './font-list.js';
 import {
   ArapSolver,
   MeshLocator,
@@ -238,6 +388,13 @@ const TRANSFORM_GRAB_PX = 11;
 
 /** Minimum drag distance (px) before a text-tool press becomes a box draw. */
 const TEXT_DRAG_THRESHOLD = 10;
+
+/** How near the text being edited, in screen pixels, a press still lands on it. */
+const TYPE_EDIT_SLOP_PX = 4;
+
+/** How soon a press must follow the last, ms, and how near it, screen pixels, to count with it: Windows' double-click. */
+const MULTI_CLICK_MS = 500;
+const MULTI_CLICK_SLOP_PX = 4;
 
 /**
  * Pinch deviation (px) tolerated before a two-finger gesture switches from
@@ -341,6 +498,17 @@ const PAGE_TURN_MS = 360;
 const THUMB_WIDTH = 150;
 const THUMB_CHROME_PX = 28;
 
+/** How long the page must be still before the Composition Styles panel draws its thumbnails again. */
+const STYLE_THUMBNAIL_WAIT_MS = 250;
+
+/** A style's rules counted by kind, for its row: `2 layer, 1 text rules`. */
+function styleSummary(style: CompositionStyle): string {
+  const parts = COMPOSITION_RULE_KINDS.map((kind) => [kind, Object.keys(style[COMPOSITION_RULE_KEYS[kind]] ?? {}).length] as const).filter(([, n]) => n > 0);
+  const total = parts.reduce((sum, [, n]) => sum + n, 0);
+  if (total === 0) return 'No rules';
+  return `${parts.map(([kind, n]) => `${n} ${kind}`).join(', ')} ${total === 1 ? 'rule' : 'rules'}`;
+}
+
 /** How long the mandala symmetry guide takes to fade in or out. */
 const SYMMETRY_FADE_MS = 220;
 
@@ -441,6 +609,22 @@ const CURSOR_ROTATE = "url('../assets/rotate-popup.svg') 16 16, grab";
 /** Split's scissors, their hotspot the crosshair where the cut lands. */
 const CURSOR_SPLIT = "url('../assets/split-cursor.svg') 5 5, crosshair";
 
+/**
+ * The Text tool's three pointers, a vector editor's: the I-beam for Sideless
+ * Typing; in a dotted box over a selected closed shape, for Sheet Typing; on
+ * a wavy line over a selected path, for Path Typing.
+ */
+const TEXT_CURSORS = {
+  point: "url('../assets/type-cursor.svg') 12 12, text",
+  edit: "url('../assets/type-cursor.svg') 12 12, text",
+  spring: "url('../assets/type-cursor.svg') 12 12, text",
+  area: "url('../assets/type-area-cursor.svg') 12 12, text",
+  path: "url('../assets/type-path-cursor.svg') 12 18, text",
+} as const;
+
+/** How near a selected path, in screen pixels, a Text tool press lands on it. */
+const TYPE_PATH_REACH_PX = 6;
+
 /** KeyboardEvent.key value produced by each configurable quick-feature modifier. */
 const MODIFIER_EVENT_KEYS: Record<QuickModifier, string> = {
   ctrl: 'Control',
@@ -501,6 +685,165 @@ const TOOL_IDS = [
 /** How long a toast stays up. */
 const TOAST_MS = 2400;
 
+/** The menu question each blend mode's row asks to be checked (Layers > Blend). */
+const BLEND_PREDICATES: Readonly<Record<BlendModeId, MenuPredicate>> = {
+  normal: 'blendNormal',
+  soak: 'blendSoak',
+  stack: 'blendStack',
+  scorch: 'blendScorch',
+  dry: 'blendDry',
+  sheer: 'blendSheer',
+  bleach: 'blendBleach',
+  fold: 'blendFold',
+  light: 'blendLight',
+  heavy: 'blendHeavy',
+  messy: 'blendMessy',
+  avoidance: 'blendAvoidance',
+  tidy: 'blendTidy',
+  bright: 'blendBright',
+  dye: 'blendDye',
+  cover: 'blendCover',
+};
+
+/** Type > Size's rows: a vector editor's sizes, in points, each with the question its check mark asks. */
+const TYPE_MENU_SIZES: ReadonlyArray<readonly [number, MenuPredicate]> = [
+  [6, 'typeSize6'],
+  [7, 'typeSize7'],
+  [8, 'typeSize8'],
+  [9, 'typeSize9'],
+  [10, 'typeSize10'],
+  [11, 'typeSize11'],
+  [12, 'typeSize12'],
+  [14, 'typeSize14'],
+  [18, 'typeSize18'],
+  [21, 'typeSize21'],
+  [24, 'typeSize24'],
+  [36, 'typeSize36'],
+  [48, 'typeSize48'],
+  [60, 'typeSize60'],
+  [72, 'typeSize72'],
+];
+
+/** A text's first words, for the group it expands into: as a vector editor names a text's layer, up to 24 characters. */
+function firstWords(text: string): string {
+  const words = text.replace(/\s+/g, ' ').trim().split(' ');
+  let name = '';
+  for (const word of words) {
+    if (name !== '' && name.length + 1 + word.length > 24) break;
+    name = name === '' ? word : `${name} ${word}`;
+  }
+  if (name === '') return 'Text';
+  return name.length > 24 ? `${name.slice(0, 23)}…` : name;
+}
+
+/** The Text Configuration the options form is open on: its Options. */
+interface ConfigOptionsSession {
+  /** It as the form found it: every preview starts again from it. */
+  readonly config: TextConfig;
+  /** A preview has opened the form's undo step. */
+  previewing: boolean;
+}
+
+/** The texts the Type menu's options form is open on. */
+interface TypeOptionsSession {
+  readonly kind: TypeOptionsKind;
+  /** Each text as the form found it, by id: every preview starts again from it. */
+  readonly originals: ReadonlyMap<string, Stroke>;
+  /** A preview has opened the form's undo step. */
+  previewing: boolean;
+}
+
+/** What the Appearance panel and the Effect menu act on: the lit group rows, or the selected marks. */
+type AppearanceTargets = { kind: 'groups'; layers: Layer[] } | { kind: 'marks'; strokes: Stroke[] };
+
+/** The effect the options popup is open on. */
+interface EffectSession {
+  readonly targets: AppearanceTargets;
+  /** Each target's list as the popup found it, by id: every preview starts again from it. */
+  readonly originals: ReadonlyMap<string, readonly Effect[]>;
+  /** The effect's place in the lists it changes, or null when OK adds it. */
+  readonly index: number | null;
+  /** The command the step is recorded as. */
+  readonly command: string;
+  /** True while a preview is up, in a store transaction. */
+  previewing: boolean;
+}
+
+/** Each effect's row in the Effect menu. */
+const EFFECT_COMMANDS: Record<EffectType, string> = {
+  blur: 'effect-gaussian-blur',
+  brightness: 'effect-brightness',
+  contrast: 'effect-contrast',
+  saturate: 'effect-saturate',
+  grayscale: 'effect-grayscale',
+  sepia: 'effect-sepia',
+  invert: 'effect-invert',
+  'hue-rotate': 'effect-hue-rotate',
+  opacity: 'effect-opacity',
+  'drop-shadow': 'effect-drop-shadow',
+  feather: 'effect-feather',
+  bevel: 'effect-bevel',
+  emboss: 'effect-emboss',
+  'inner-shadow': 'effect-inner-shadow',
+  'outer-glow': 'effect-outer-glow',
+  'inner-glow': 'effect-inner-glow',
+  splatter: 'effect-splatter',
+  warp: 'effect-warp-arc',
+  '3d': 'effect-3d-extrude',
+};
+
+/**
+ * Where a list's 3D is: its first switched-on one, which is the one that
+ * builds, else its first; -1 for none. What 3D Options, Effect > 3D and the
+ * gumball change.
+ */
+function threeDIndex(effects: readonly Effect[]): number {
+  const on = effects.findIndex((effect) => effect.type === '3d' && effect.on !== false);
+  return on >= 0 ? on : effects.findIndex((effect) => effect.type === '3d');
+}
+
+/** A mark's 3D as {@link threeDIndex} finds it, every field read; null for none. */
+function threeDOf(stroke: Stroke): EffectOf<'3d'> | null {
+  const effects = stroke.effects ?? [];
+  const index = threeDIndex(effects);
+  const effect = index >= 0 ? readEffect(effects[index]) : null;
+  return effect?.type === '3d' ? effect : null;
+}
+
+/** A blend mode as the panel, the menus and the toasts name it: "Stack Blend (Multiply)", or "Normal". */
+function blendName(id: BlendModeId): string {
+  const mode = blendModeInfo(id);
+  return id === 'normal' ? mode.label : `${mode.label} (${mode.illustrator})`;
+}
+
+/** The layer row's blend mark: two circles overlapping, the overlap filled where they mix. */
+function blendBadgeIcon(): SVGSVGElement {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 12');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const [cx, fill] of [
+    [5.5, 'none'],
+    [10.5, 'none'],
+  ] as const) {
+    const circle = document.createElementNS(ns, 'circle');
+    circle.setAttribute('cx', String(cx));
+    circle.setAttribute('cy', '6');
+    circle.setAttribute('r', '4.5');
+    circle.setAttribute('fill', fill);
+    circle.setAttribute('stroke', 'currentColor');
+    circle.setAttribute('stroke-width', '1.2');
+    svg.appendChild(circle);
+  }
+  // The lens where the two cross, filled: what a blend is about.
+  const lens = document.createElementNS(ns, 'path');
+  // The circles cross at x 8, 6 +/- sqrt(4.5^2 - 2.5^2) = 6 +/- 3.742.
+  lens.setAttribute('d', 'M8 2.258a4.5 4.5 0 0 1 0 7.484a4.5 4.5 0 0 1 0-7.484z');
+  lens.setAttribute('fill', 'currentColor');
+  svg.appendChild(lens);
+  return svg;
+}
+
 /** Shortcuts read the Mac way on a Mac: `Cmd` and `Option`. */
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
 
@@ -538,6 +881,73 @@ class App {
 
   /** Automate > Generate Script's dialog: the script shown whole, before anything uses it. See script-dialog.ts. */
   private readonly scriptDialog: ScriptDialog;
+
+  /** The Appearance panel: the selection's stroke, fill and effects, in the order they are applied. See appearance-panel.ts. */
+  private readonly appearancePanel: AppearancePanel;
+
+  /** The effect options popup: one form for every effect. See effect-options.ts. */
+  private readonly effectOptions: EffectOptions;
+
+  /** The effect the options popup is open on, while it is up. */
+  private effectSession: EffectSession | null = null;
+
+  /** The effect OK kept last: what Apply Last Effect adds again, and Last Effect opens on. */
+  private lastEffect: Effect | null = null;
+
+  /** Whether the next options popup opens with Preview on: as the last one was left. */
+  private effectPreview = true;
+
+  /** Whether the Appearance panel is up. */
+  private appearanceOpen = false;
+
+  /** Whether it has been up this session: the first time, it opens docked. */
+  private appearanceOpened = false;
+
+  /** The targets the panel last showed, so a new selection clears its selected row. */
+  private appearanceKey = '';
+
+  /** The Composition Styles panel: the user's library, a click restyling the page. See composition-styles-panel.ts. */
+  private readonly compositionStylesPanel: CompositionStylesPanel;
+
+  /** One rule's fields, from the rule editor's Styles button. See composition-rule-form.ts. */
+  private readonly compositionRuleForm: CompositionRuleForm;
+
+  /** The user's Composition Styles as the library holds them, by name: each style and its file. */
+  private compositionStyles: Array<{ file: string; style: CompositionStyle }> = [];
+
+  /** Whether the Composition Styles panel is up, and whether it has been this session: the first time, it opens docked. */
+  private compositionStylesOpen = false;
+  private compositionStylesOpened = false;
+
+  /** The style last applied to each page, by the page's id: the one the panel marks Applied. */
+  private readonly appliedStyles = new Map<string, string>();
+
+  /** Each style's thumbnail, by its file: the page and the style it was drawn from, and the picture. */
+  private readonly styleThumbnails = new Map<string, { key: string; url: string }>();
+
+  /** The wait before the thumbnails are drawn again, while the page changes. */
+  private styleThumbnailTimer: number | null = null;
+
+  /** The 3D Options panel: the selection's 3D, edited live, with a cube that turns. See three-d-panel.ts. */
+  private readonly threeDPanel: ThreeDPanel;
+
+  /** Whether the 3D Options panel is up, and whether it has been this session: the first time, it opens docked. */
+  private threeDOpen = false;
+  private threeDOpened = false;
+
+  /**
+   * True while a change to the selection's 3D is shown live in a store
+   * transaction - a gumball drag, a number being typed into 3D Options, its
+   * cube or a dial turned - until it is kept as one undo step or thrown away
+   * (see changeThreeD).
+   */
+  private threeDLive = false;
+
+  /** The gumball's handle under the pointer: lit, and the cursor says what it does (gumball.ts). */
+  private gumballHover: GumballHandle | null = null;
+
+  /** A gumball drag in hand: its pointer, the mark it turns, and the drag so far. */
+  private gumballDrag: { pointerId: number; id: string; state: GumballDrag } | null = null;
 
   /**
    * Every command, by the id the menu files give it. The menu bar, the
@@ -647,12 +1057,65 @@ class App {
   private rubberBandStart: Point | null = null;
   private rubberBandBox: { x1: number; y1: number; x2: number; y2: number } | null = null;
 
-  // Text-tool drag-to-draw state.
+  // Text-tool drag-to-draw state, and what the press found under it - a
+  // selected path it turns into type, other art, or nothing - with Alt as it
+  // was (core/type/tool.ts).
   private textDragStart: Point | null = null;
   private textDragLive: { x1: number; y1: number; x2: number; y2: number } | null = null;
+  private textPressHit: TypeToolHit | null = null;
+  private textPressAlt = false;
+  /**
+   * A path text's bracket in hand (core/type/tool.ts): which, and the text as
+   * the drag found it, each move worked from it; `moved` once the drag has
+   * opened its undo step. `overBracket` lights the pointer over one.
+   */
+  private bracketDrag: { id: string; which: PathBracket['which']; base: Stroke; moved: boolean } | null = null;
+  private overBracket = false;
+  /** The paths marks give the Text tool, kept while a mark's points and anchors stay the same objects. */
+  private readonly typeablePaths = new WeakMap<Stroke, { points: Stroke['points']; vector: Stroke['vector']; path: TypeablePath | null }>();
 
-  // Text editor overlay state.
-  private editingId: string | null = null;
+  // The type editor (type-editor.ts): text edited where it stands. The page it
+  // began on, so a page turned under it ends it; the last press on the text
+  // and how many came quickly together there (a double-click takes a word, a
+  // triple-click a paragraph); and whether the pointer is over the text.
+  private readonly typeEditor: TypeEditor;
+  private typeEditPage: string | null = null;
+  private typeClicks = { at: -Infinity, x: 0, y: 0, count: 0 };
+  private typeHover = false;
+
+  // The Type panel (type-panel.ts) and the fonts it lists (font-list.ts).
+  // `typePanelAuto`: it came up by itself with the Text tool, and goes when
+  // another tool is chosen; `typePanelDismissed`: closed by hand while it
+  // would come up, so it stays down until it would not. `typePreview`: a
+  // drag on a field's name, as the texts were when it began.
+  private readonly fonts = new FontList();
+  private readonly typePanel: TypePanel;
+  private typePanelOpen = false;
+  private typePanelOpened = false;
+  private typePanelAuto = false;
+  private typePanelDismissed = false;
+  private typePreview: TypeTarget[] | null = null;
+
+  /**
+   * The faces text is drawn from as shapes - Expand Text to Shape, a Warp or
+   * 3D on text, the PDF's text - this computer's fonts read as they are
+   * asked for (type-faces.ts); and the problems already said of texts that
+   * cannot be drawn so, each said once.
+   */
+  private readonly typeFaces: TypeFaces;
+  private readonly shapeProblemsSaid = new Set<string>();
+
+  /** Type on a Path Options and Area Type Options: the Type menu's form. See type-options.ts. */
+  private readonly typeOptions: TypeOptions;
+
+  /** The texts the form is open on, while it is up. */
+  private typeOptionsSession: TypeOptionsSession | null = null;
+
+  /** The Text Configuration the form is open on, while its Options are up. */
+  private configOptionsSession: ConfigOptionsSession | null = null;
+
+  /** Whether the next form opens with Preview on: as the last one was left. */
+  private typeOptionsPreview = true;
 
   // CapsLock tracking.
   private capsLockOn = false;
@@ -868,6 +1331,14 @@ class App {
   // Why an action did nothing, once a session (notice.ts).
   private readonly notices = new SessionNotices((text) => this.toast(text));
 
+  // What an action could not do, line by line, in the bottom-right corner
+  // (report-toast.ts): clear of the status bar, and of the nib indicator
+  // while it shows, for as long as the setting says.
+  private readonly reports = new ReportToasts(el('report-toasts'), {
+    seconds: () => this.settings.reportToastSeconds,
+    obstacles: () => [document.querySelector('.statusbar'), document.getElementById('nib-indicator')],
+  });
+
   // Direct Select (A): stroke whose anchor points are shown, which anchors
   // are selected (Shift adds), whether the whole path is selected, and the
   // in-progress drag. Freehand strokes edit raw samples ('anchor' moves
@@ -1042,18 +1513,91 @@ class App {
   constructor() {
     this.canvas = el<HTMLCanvasElement>('canvas');
     this.surface = new Surface(this.canvas);
+    // Text drawn as shapes - its fonts' outlines - is laid out as the canvas sets it.
+    this.typeFaces = new TypeFaces(this.fonts, this.surface.typeMeasure, () => this.onTypeFacesRead());
+    setOutlineSource(this.typeFaces);
     this.surface.onImageLoad = () => this.scheduleRender();
+    // A font that finishes loading sets text anew: its lines may break elsewhere.
+    this.surface.typeMeasure.onChange(() => this.scheduleRender());
     this.store = new Store(createSketchBook('untitled'));
+    this.typeEditor = this.createTypeEditor();
     this.configDialog = new ConfigDialog(el('config-dialog'), { mac: IS_MAC });
     this.scriptDialog = new ScriptDialog(el('script-dialog'), {
       copy: (script) => this.copyScript(script),
       save: (script, name) => this.saveScript(script, name),
       open: (script) => this.openScriptAsPages(script),
     });
+    this.appearancePanel = new AppearancePanel(el('appearance-dialog'), {
+      edit: (command, change) => void this.changeEffects(command, change),
+      options: (index) => this.openEffectAt(index),
+      addMenu: (button) => this.toggleMenuUnder(button, this.windowMenu('effect-button')),
+      clear: () => this.clearAppearance(),
+      opacity: (percent) => this.setAppearanceOpacity(percent),
+      blend: (mode) => {
+        const id = blendModeOf(mode);
+        if (id) this.applyBlend(id);
+      },
+      menu: (x, y, items) => this.showContextMenu(x, y, items),
+    });
+    this.compositionStylesPanel = new CompositionStylesPanel(el('composition-styles-dialog'), {
+      apply: (file) => this.applyCompositionStyleFile(file),
+      command: (command, file) => this.compositionStylesCommand(command, file),
+    });
+    this.compositionRuleForm = new CompositionRuleForm(el('composition-rule-dialog'));
+    this.effectOptions = new EffectOptions(el('effect-options-dialog'), {
+      preview: (effect) => this.previewEffect(effect),
+      commit: (effect) => this.commitEffect(effect),
+      cancel: () => this.cancelEffect(),
+      previewChanged: (on) => {
+        this.effectPreview = on;
+      },
+    });
+    this.threeDPanel = new ThreeDPanel(el('three-d-dialog'), {
+      set: (key, value, done) => {
+        const ids = this.threeDTargetIds();
+        if (ids.length > 0) this.changeThreeD(ids, (effect) => withEffectField(effect, key, value) as EffectOf<'3d'>);
+        if (done) this.endThreeDChange(true);
+      },
+      revert: () => this.endThreeDChange(false),
+      add: (kind) => this.add3dFromMenu(kind),
+    });
+
+    this.typePanel = new TypePanel(el('type-dialog'), this.fonts, {
+      change: (change, phase) => this.applyTypePanelChange(change, phase),
+      commit: () => this.endTypePreview(true),
+      cancel: () => this.endTypePreview(false),
+      refreshFonts: () => void this.refreshFonts(),
+      shown: () => this.publishMenuState(),
+      applyConfig: (id, clearOverrides) => this.applyTextConfigFromPanel(id, clearOverrides),
+      configCommand: (command, id) => void this.textConfigCommand(command, id),
+    });
+    // One popup for the Type menu's forms and a Text Configuration's Options: the session open says whose answer it is.
+    this.typeOptions = new TypeOptions(el('type-options-dialog'), {
+      preview: (values, changed) => (this.configOptionsSession ? this.previewConfigOptions(values, changed) : this.previewTypeOptions(values, changed)),
+      commit: (values, changed) => (this.configOptionsSession ? this.commitConfigOptions(values, changed) : this.commitTypeOptions(values, changed)),
+      cancel: () => (this.configOptionsSession ? this.cancelConfigOptions() : this.cancelTypeOptions()),
+      previewChanged: (on) => {
+        this.typeOptionsPreview = on;
+      },
+    });
+    // The system's fonts, read once for the session; a font that finishes loading sets text anew.
+    this.fonts.onChange(() => {
+      this.renderTypePanel();
+      this.scheduleRender();
+    });
+    void this.fonts.load();
 
     this.store.subscribe(() => this.scheduleRender());
     this.store.subscribe(() => this.scheduleSyncUi());
+    // Text being edited is put down on its page before another is shown.
+    this.store.onPageLeave(() => this.typeEditor.end());
+    // An undo, a delete or a page turned under the text being edited.
+    this.store.subscribe(() => {
+      if (this.typeEditor.active && this.store.sketch.id !== this.typeEditPage) this.typeEditor.end();
+      else this.typeEditor.refresh();
+    });
     this.store.subscribe(() => this.checkLineStart());
+    this.store.subscribe(() => this.reportTextShapeProblems());
     this.store.subscribe(() => {
       this.stackerDirty = true;
     });
@@ -1128,6 +1672,7 @@ class App {
     }
     this.applyShortcutTitles();
     this.installCheckHooks();
+    await this.loadCompositionStyles();
 
     try {
       const mode = await window.napkin.getAnimationMode();
@@ -1149,6 +1694,8 @@ class App {
       if (result.ok && result.book) {
         this.surface.clearImages();
         this.store.setBook(result.book, result.filePath ?? launch.filePath);
+        if (result.newer) this.reportNewerBook();
+        void this.reportMissingFonts();
       } else {
         this.toast(result.error ?? 'Could not open sketch book.');
       }
@@ -1223,6 +1770,10 @@ class App {
     requestAnimationFrame((now) => {
       this.renderQueued = false;
       const fading = this.stepSymmetryFade(now);
+      // The hidden field the keys and the IME go to follows the caret, through pans and zooms.
+      if (this.typeEditor.active) this.typeEditor.place();
+      // A text a Warp or 3D draws through its outlines draws as text while it is typed.
+      setTypingText(this.typeEditor.editingId);
       this.surface.render(this.store.sketch, this.live, {
         selectedIds: this.store.selectedIds,
         // The mesh and its pins are the selection while a warp is open.
@@ -1269,8 +1820,11 @@ class App {
             : undefined,
         rotate: this.rotateOverlay() ?? undefined,
         transform: this.transformOverlay() ?? undefined,
+        gumball: this.gumballOverlay() ?? undefined,
         anchors: this.anchorOverlay() ?? undefined,
         warp: this.warpOverlay() ?? undefined,
+        typeEdit: this.typeEditor.overlay() ?? undefined,
+        typeShapes: this.typeShapesOverlay(),
       });
       if (fading) this.scheduleRender();
     });
@@ -1347,12 +1901,15 @@ class App {
 
     if (this.store.tool.tool !== 'point' || !this.anchorStrokeId) return null;
     const stroke = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
-    if (!stroke || isTextStroke(stroke) || isImageStroke(stroke)) return null;
+    if (!stroke || isImageStroke(stroke)) return null;
+    const shape = this.editAnchorsOf(stroke);
+    if (isTextStroke(stroke) && !shape) return null;
 
     // A stroke with Bézier structure shows its few anchors — the curvature
-    // lives in the selected anchor's handles — instead of every sample.
-    if (stroke.vector) {
-      const anchors = stroke.vector.anchors;
+    // lives in the selected anchor's handles — instead of every sample; so
+    // does a text's frame or path.
+    if (shape) {
+      const anchors = shape.anchors;
       let handleOrigin: number | undefined;
       const handles: Point[] = [];
       if (this.selectedAnchors.size === 1) {
@@ -1372,7 +1929,7 @@ class App {
         pathSelected: this.pathSelected,
         // The whole-path outline follows the sampled curve, not the chord
         // between the two anchors.
-        outline: stroke.points,
+        outline: stroke.vector ? stroke.points : sampleOutline(anchors, shape.closed),
       };
     }
 
@@ -1460,6 +2017,8 @@ class App {
       this.store.sketch.width = Math.round(rect.width);
       this.store.sketch.height = Math.round(rect.height);
     }
+    // Text being typed keeps its caret in view as the canvas narrows - a panel docking beside it.
+    if (this.typeEditor.active) this.keepCaretInView();
     this.scheduleRender();
   }
 
@@ -1492,6 +2051,10 @@ class App {
       if (this.releasing === 0 && this.press?.pointerId === e.pointerId) this.endPressEarly('capture');
     });
     c.addEventListener('pointermove', (e) => this.onPointerMove(e));
+    // A press on the text being edited keeps the keyboard with it.
+    c.addEventListener('mousedown', (e) => {
+      if (this.press?.kind === 'type-select') e.preventDefault();
+    });
     c.addEventListener('pointerup', (e) => {
       this.onPointerUp(e);
       this.endPress();
@@ -1514,13 +2077,22 @@ class App {
         this.splitHover = null;
         this.scheduleRender();
       }
+      // A gumball handle is lit only while the pointer is over it.
+      if (this.gumballHover && !this.gumballDrag) {
+        this.gumballHover = null;
+        this.scheduleRender();
+      }
     });
     c.addEventListener('pointerenter', () => {
       this.pointerOverCanvas = true;
     });
     c.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
-    // Vector Path: a double-click finishes the open path where it stands.
-    c.addEventListener('dblclick', () => {
+    // Vector Path: a double-click finishes the open path where it stands. On
+    // the gumball's ball, it opens 3D Options. On text, with Select or Direct
+    // Select, it edits the text.
+    c.addEventListener('dblclick', (e) => {
+      if (this.gumballDoubleClick(e)) return;
+      if (this.typeDoubleClick(e)) return;
       if (this.store.tool.tool === 'vector' && this.vectorAnchors.length >= 2) {
         this.commitVectorPath(false);
       }
@@ -1728,6 +2300,8 @@ class App {
     this.rubberBandBox = null;
     this.textDragStart = null;
     this.textDragLive = null;
+    if (this.bracketDrag?.moved) this.store.rollbackTransaction();
+    this.bracketDrag = null;
     this.anchorDragKind = null;
     this.handleDrag = null;
     this.anchorDragLast = null;
@@ -1739,6 +2313,7 @@ class App {
     this.panOrigin = null;
     this.warpDrag = null;
     this.transformDrag = null;
+    this.abandonGumball();
     this.rotateDrag = null;
     this.rotateCenterDrag = null;
     this.rotateRay = null;
@@ -1779,9 +2354,14 @@ class App {
     // Claimed ahead of every tool, since the gesture belongs to the dialog
     // and not to whichever tool happened to be active when it opened.
     // Transform first: its handles sit on top of whatever is under them, and
-    // a press on a handle is never a press on the drawing.
+    // a press on a handle is never a press on the drawing. The gumball stands
+    // in the box's place on a 3D mark, and its handles are taken the same way.
+    if (this.beginGumballDrag(e, pt)) return;
     if (this.transformActive && this.beginTransformDrag(e, pt)) return;
     if (this.rotateDialogOpen && this.beginRotateDrag(e, pt)) return;
+
+    // Text being edited, or text the Text tool presses on (type-editor.ts).
+    if (this.typeEditorPress(e, pt, tool)) return;
 
     // Mesh Warp: pins, and picking the art to bend.
     if (tool === 'warp') {
@@ -1976,7 +2556,7 @@ class App {
       const editable = this.editableStrokeIds();
       const candidates = this.store.sketch.strokes
         .filter((s) => editable.has(s.id) && (targets === null || targets.has(s.id)) && s.tool !== 'eraser')
-        .map((stroke) => ({ stroke, box: strokeBounds(stroke, (s) => this.surface.measureText(s)) }))
+        .map((stroke) => ({ stroke, box: strokeBounds(stroke, this.surface.typeMeasure) }))
         .filter((c): c is { stroke: Stroke; box: NonNullable<typeof c.box> } => c.box !== null);
       // REUSE: with the Smear in hand, Quick Width is the stump's size and
       // Quick Opacity its strength - the tool state those two quick features set.
@@ -2021,10 +2601,13 @@ class App {
       this.claimPointer(e, 'text');
       this.textDragStart = pt;
       this.textDragLive = null;
+      this.textPressHit = this.typeHitAt(pt);
+      this.textPressAlt = e.altKey;
       return;
     }
 
     if (tool === 'select') {
+      if (this.beginBracketDrag(e, pt)) return;
       this.beginSelect(e, pt);
       return;
     }
@@ -2079,8 +2662,37 @@ class App {
       return;
     }
 
+    // A path text's bracket: its start or end along the path, or the text flipped across it.
+    if (this.press?.kind === 'type-bracket' && this.press.pointerId === e.pointerId) {
+      this.dragTypeBracket(this.lastCanvasPoint);
+      return;
+    }
+    if (this.store.tool.tool === 'select' && !this.press) {
+      const over = this.bracketAt(this.lastCanvasPoint) !== null;
+      if (over !== this.overBracket) {
+        this.overBracket = over;
+        this.updateCursor();
+      }
+    }
+
+    // A drag from a press on the text being edited selects.
+    if (this.press?.kind === 'type-select' && this.press.pointerId === e.pointerId) {
+      this.typeEditor.dragTo(this.lastCanvasPoint);
+      return;
+    }
+    // Over the text being edited the pointer is the text cursor.
+    const overText = this.typeEditor.active && !this.press && this.springFrom === null && this.typeEditor.contains(this.lastCanvasPoint, this.screenPx(TYPE_EDIT_SLOP_PX));
+    if (overText !== this.typeHover) {
+      this.typeHover = overText;
+      this.updateCursor();
+    } else if (this.store.tool.tool === 'text' && !this.press) {
+      // The Text tool's pointer shows what a click here would make.
+      this.updateCursor();
+    }
+
     // Rotate: carry a rotation or a pivot drag along, and keep the pointer
     // telling the truth about which of the two a press would start.
+    if (this.onGumballPointerMove(e, this.lastCanvasPoint)) return;
     if (this.transformActive && this.onTransformPointerMove(e, this.lastCanvasPoint)) return;
     if (this.rotateDialogOpen && this.onRotatePointerMove(e, this.lastCanvasPoint)) return;
 
@@ -2351,7 +2963,9 @@ class App {
       const dx = pt.x - this.textDragStart.x;
       const dy = pt.y - this.textDragStart.y;
       const threshold = this.screenPx(TEXT_DRAG_THRESHOLD);
-      if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+      // A press on a selected path types on it, dragged or not: no box.
+      const onPath = this.textPressHit?.kind === 'path' && this.store.selectedIds.has(this.textPressHit.id);
+      if (!onPath && (Math.abs(dx) > threshold || Math.abs(dy) > threshold)) {
         this.textDragLive = { x1: this.textDragStart.x, y1: this.textDragStart.y, x2: pt.x, y2: pt.y };
         this.scheduleRender();
       }
@@ -2446,7 +3060,21 @@ class App {
       return;
     }
 
+    // A press on the text being edited: the caret or the selection is where it left it.
+    if (this.press?.kind === 'type-select') {
+      this.typeEditor.focus();
+      return;
+    }
+
+    // A bracket let go: the drag is one undo step.
+    if (this.press?.kind === 'type-bracket') {
+      if (this.bracketDrag?.moved) this.store.commitTransaction();
+      this.bracketDrag = null;
+      return;
+    }
+
     // Rotate: a released rotation is committed as one history step.
+    if (this.endGumballDrag(e)) return;
     if (this.transformActive && this.endTransformDrag(e)) return;
     if (this.rotateDialogOpen && this.endRotateDrag(e)) return;
 
@@ -2654,7 +3282,7 @@ class App {
       return;
     }
 
-    // Text-tool: open editor (sized to drag, or auto-size for a click).
+    // Text-tool: a new text (sized to the drag, or growing from a click).
     if (tool === 'text' && this.textDragStart !== null && this.activePointerId === e.pointerId) {
       if (this.canvas.hasPointerCapture(e.pointerId)) {
         this.canvas.releasePointerCapture(e.pointerId);
@@ -2666,22 +3294,20 @@ class App {
       this.activePointerId = null;
       this.scheduleRender();
 
-      if (live && Math.abs(live.x2 - live.x1) > this.screenPx(TEXT_DRAG_THRESHOLD)) {
-        // Drag-to-draw: open text editor constrained to the drawn rectangle.
-        const boxW = Math.abs(live.x2 - live.x1);
-        const anchorX = Math.min(live.x1, live.x2);
-        const anchorY = Math.min(live.y1, live.y2);
-        const rect = this.canvas.getBoundingClientRect();
-        this.openTextEditor(
-          { x: anchorX, y: anchorY, pressure: 0.5 },
-          anchorX + rect.left,
-          anchorY + rect.top,
-          undefined,
-          boxW,
-        );
+      // What the press makes (core/type/tool.ts): type on a selected path, a
+      // drag's rectangle, or a text that grows as it is typed.
+      const threshold = this.screenPx(TEXT_DRAG_THRESHOLD);
+      const dragged = live !== null && (Math.abs(live.x2 - live.x1) > threshold || Math.abs(live.y2 - live.y1) > threshold);
+      const hit = this.textPressHit;
+      this.textPressHit = null;
+      const action = typeToolAction({ gesture: dragged ? 'drag' : 'click', hit, selected: this.store.selectedIds, modifiers: { alt: this.textPressAlt } });
+      if (action.kind === 'path-type' || action.kind === 'sheet-type') {
+        this.startTypeOnPath(action.pathId, action.kind === 'path-type' ? 'path' : 'sheet', start);
+      } else if (action.kind === 'sheet-box' && live) {
+        const box = { x: Math.min(live.x1, live.x2), y: Math.min(live.y1, live.y2), pressure: 0.5 };
+        this.startNewText(box, Math.abs(live.x2 - live.x1), Math.abs(live.y2 - live.y1));
       } else {
-        // Plain click: auto-sizing text box.
-        this.openTextEditor(start, e.clientX, e.clientY);
+        this.startNewText(start, 0);
       }
       return;
     }
@@ -2711,7 +3337,7 @@ class App {
         const ids = marksInBox(
           this.store.sketch,
           { minX, minY, maxX, maxY },
-          { editable: this.editableStrokeIds(), measure: (t) => this.surface.measureText(t) },
+          { editable: this.editableStrokeIds(), measure: this.surface.typeMeasure },
         ).map((s) => s.id);
         this.store.setSelection(ids);
       }
@@ -3811,7 +4437,7 @@ class App {
       const reach = this.vectorGrab();
       const eraser = this.store.sketch.strokes.some((s) => {
         if (s.tool !== 'eraser') return false;
-        const box = strokeBounds(s, (t) => this.surface.measureText(t));
+        const box = strokeBounds(s, this.surface.typeMeasure);
         return !!box && pt.x >= box.minX - reach && pt.x <= box.maxX + reach && pt.y >= box.minY - reach && pt.y <= box.maxY + reach;
       });
       if ((under && !isSplittable(under)) || eraser) this.toast('Split cuts paths and lines.');
@@ -3837,6 +4463,426 @@ class App {
    * clip on top inside it, one undo step (core/clip.ts) - or a notice says why
    * not: one mark selected, or an open path on top.
    */
+  // ---- Napkin Blends (core/blend.ts) ------------------------------------------
+
+  /** The layers a blend acts on: the lit layer rows, or the active layer when none is lit. */
+  private blendTargets(): Layer[] {
+    const lit = this.store.selectedLayerIds;
+    const ids = lit.size > 0 ? lit : new Set([this.store.activeLayer.id]);
+    return this.store.sketch.layers.filter((layer) => ids.has(layer.id));
+  }
+
+  /** Sets the blend of the layers a blend acts on, as one step, and says so. */
+  private applyBlend(mode: BlendModeId): void {
+    const targets = this.blendTargets();
+    if (targets.length === 0) return;
+    if (!this.store.setLayersBlend(targets.map((layer) => layer.id), mode)) return;
+    this.toast(`${blendName(mode)}: ${targets.length === 1 ? targets[0].name : `${targets.length} layers`}`);
+  }
+
+  /**
+   * Steps the layers a blend acts on to the next mode in Illustrator's list,
+   * or the one before, from the first one's, round from the end to Normal: a
+   * photo editor's Shift+Plus and Shift+Minus.
+   */
+  private stepBlend(direction: 1 | -1): void {
+    const targets = this.blendTargets();
+    if (targets.length === 0) return;
+    const at = BLEND_MODE_IDS.indexOf(targets[0].blend ?? 'normal');
+    this.applyBlend(BLEND_MODE_IDS[(at + direction + BLEND_MODE_IDS.length) % BLEND_MODE_IDS.length]);
+  }
+
+  /** Turns Isolate Blending on for the groups a blend acts on, or off when they all have it. */
+  private toggleIsolateBlending(): void {
+    const groups = this.blendTargets().filter((layer) => layer.group);
+    if (groups.length === 0) return;
+    const on = !groups.every((group) => group.isolate === true);
+    if (this.store.setLayersIsolate(groups.map((group) => group.id), on)) {
+      this.toast(on ? 'Isolate Blending: the blends inside mix only with each other' : 'Isolate Blending off');
+    }
+  }
+
+  // ---- Appearance and effects (core/appearance.ts) ---------------------------
+
+  /**
+   * What the Appearance panel and the Effect menu act on: the lit group rows
+   * when a group row is lit - a group's effects work on its whole picture -
+   * else the selected marks. A mark's own layer is lit with it, and the
+   * effects the panel shows are the mark's.
+   */
+  private appearanceTargets(): AppearanceTargets {
+    const lit = this.store.selectedLayerIds;
+    const groups = this.store.sketch.layers.filter((layer) => layer.group === true && lit.has(layer.id));
+    if (groups.length > 0) return { kind: 'groups', layers: groups };
+    return { kind: 'marks', strokes: this.propertyStrokes().filter((stroke) => stroke.tool !== 'eraser') };
+  }
+
+  private targetIds(targets: AppearanceTargets): string[] {
+    return targets.kind === 'groups' ? targets.layers.map((layer) => layer.id) : targets.strokes.map((stroke) => stroke.id);
+  }
+
+  /** Each target's effect list. */
+  private appearanceLists(targets = this.appearanceTargets()): (readonly Effect[])[] {
+    return targets.kind === 'groups'
+      ? targets.layers.map((layer) => layer.effects ?? [])
+      : targets.strokes.map((stroke) => stroke.effects ?? []);
+  }
+
+  /** Gives every target the list `change` makes of its own, as one undo step recorded as `command`. False when nothing changed. */
+  private changeEffects(command: string, change: (effects: readonly Effect[]) => readonly Effect[]): boolean {
+    const targets = this.appearanceTargets();
+    const ids = this.targetIds(targets);
+    if (ids.length === 0) return false;
+    return this.recordAs(command, () =>
+      targets.kind === 'groups'
+        ? this.store.setLayerEffects(ids, (current) => change(current))
+        : this.store.setEffects(ids, (current) => change(current)),
+    );
+  }
+
+  /**
+   * Where a new effect is aimed: at the row selected in the Appearance panel,
+   * else at `fallback` - the whole selection for a new effect, its own target
+   * for the last one - held to what the targets have, since a group has no
+   * parts and an effect aimed at a part no target has would draw nothing.
+   */
+  private newEffectTarget(targets: AppearanceTargets, fallback: AppearanceTarget): AppearanceTarget {
+    if (targets.kind === 'groups') return 'object';
+    const wanted = this.appearanceOpen && this.appearancePanel.selection ? this.appearancePanel.addTarget : fallback;
+    if (wanted === 'object') return 'object';
+    return targets.strokes.some((stroke) => markParts(stroke)[wanted]) ? wanted : 'object';
+  }
+
+  /** Effect > (an effect): its options, on a new one for the selection, which OK adds. */
+  private addEffectFromMenu(type: EffectType): void {
+    this.openNewEffect(defaultEffect(type) as Effect, EFFECT_COMMANDS[type], 'object');
+  }
+
+  /** Effect > Warp > (a style): the Warp Options on a new Warp in that style, which OK adds. */
+  private addWarpFromMenu(style: WarpStyle): void {
+    const warp = defaultEffect('warp');
+    this.openNewEffect({ ...warp, style, part: warpPartFor(style, warp.part) }, `effect-warp-${style}`, 'object');
+  }
+
+  private openNewEffect(effect: Effect, command: string, fallback: AppearanceTarget): void {
+    const targets = this.appearanceTargets();
+    if (this.targetIds(targets).length === 0) {
+      this.toast('Select a mark or a group to add an effect to.');
+      return;
+    }
+    if (!this.takesEffect(targets, effect)) return;
+    this.openEffectOptions(targets, aimedAt(effect, this.newEffectTarget(targets, fallback)), null, command);
+  }
+
+  /** An effect row's fx, or a double-click on it: its options, on the effect as it is. A 3D's are 3D Options. */
+  private openEffectAt(index: number): void {
+    const targets = this.appearanceTargets();
+    const lists = this.appearanceLists(targets);
+    const effect = lists[0]?.[index];
+    if (!effect || !lists.every((list) => sameEffects(list, lists[0]))) return;
+    if (effect.type === '3d') {
+      this.toggleThreeDPanel(true);
+      return;
+    }
+    this.openEffectOptions(targets, effect, index, 'appearance-options');
+  }
+
+  /**
+   * Opens the options popup. Each target's list is kept as it is now, so
+   * every preview is made from it again rather than on top of the last one,
+   * and Cancel puts it back. A popup already up is cancelled first.
+   */
+  private openEffectOptions(targets: AppearanceTargets, effect: Effect, index: number | null, command: string): void {
+    // Two previews at once would each show what the other cannot see.
+    if (this.otherDialogOpen('effect-options-dialog')) {
+      this.toast('Finish the dialog that is open, then add the effect.');
+      return;
+    }
+    if (this.effectSession) this.effectOptions.cancel();
+    const ids = this.targetIds(targets);
+    const lists = this.appearanceLists(targets);
+    this.effectSession = { targets, originals: new Map(ids.map((id, k) => [id, lists[k]])), index, command, previewing: false };
+    this.hideContextMenu();
+    this.effectOptions.open({ effect, adding: index === null, preview: this.effectPreview, note: this.effectNote(targets, effect) });
+    this.parkOptionsPopup('effect-options-dialog');
+  }
+
+  /**
+   * A line the options popup says under the effect's name: how a Warp bends
+   * what it is on, and what it leaves alone. Null for any other effect.
+   */
+  private effectNote(targets: AppearanceTargets, effect: Effect): string | null {
+    if (effect.type !== 'warp') return null;
+    if (targets.kind === 'groups') return targets.layers.length === 1 ? 'The group bends as one, over the box of all it holds.' : 'Each group bends as one, over the box of all it holds.';
+    const shapes = targets.strokes.filter((stroke) => stroke.tool !== 'eraser' && !isImageStroke(stroke));
+    const lines: string[] = [];
+    if (shapes.length > 1) lines.push('Each mark bends in its own box. Group them to bend them as one.');
+    if (shapes.some(isTextStroke)) lines.push("Text bends through its font's outlines, and stays text.");
+    if (shapes.length < targets.strokes.length) lines.push('Pictures take no Warp, so they stay as they are.');
+    return lines.length > 0 ? lines.join(' ') : null;
+  }
+
+  /**
+   * Where an options popup goes - an effect's, or the Type menu's: the first
+   * time, the stage's top right, so it covers neither the dock nor, mostly,
+   * the drawing; every time, up as far as it takes for its OK to be on
+   * screen, since a bevel's form is far taller than a blur's.
+   */
+  private parkOptionsPopup(id: 'effect-options-dialog' | 'type-options-dialog'): void {
+    const panel = el(id).querySelector<HTMLElement>('.export-dialog-inner');
+    if (!panel) return;
+    const margin = 16;
+    if (!this.popups.isPlaced(id)) {
+      const stage = el('stage').getBoundingClientRect();
+      this.popups.park(id, stage.right - panel.offsetWidth - 24, stage.top + margin);
+    }
+    const box = panel.getBoundingClientRect();
+    if (box.bottom > window.innerHeight - margin) {
+      this.popups.park(id, box.left, Math.max(margin, window.innerHeight - box.height - margin));
+    }
+  }
+
+  /**
+   * Shows the effect as the popup has it, in a store transaction the popup's
+   * answer keeps or throws away; null takes the preview down.
+   */
+  private previewEffect(effect: Effect | null): void {
+    const session = this.effectSession;
+    if (!session) return;
+    if (effect === null) {
+      if (session.previewing) {
+        session.previewing = false;
+        this.store.rollbackTransaction();
+      }
+      return;
+    }
+    if (!session.previewing) {
+      // A preview another edit keeps is recorded as the effect's own step.
+      this.recordAs(session.command, () => this.store.beginTransaction(() => this.onEffectPreviewKept()));
+      session.previewing = true;
+    }
+    this.applyEffectSession(session, effect, false);
+  }
+
+  /** Puts the effect into each target's list as the popup found it: added at the end, or in place of the one it changes. */
+  private applyEffectSession(session: EffectSession, effect: Effect, history: boolean): boolean {
+    const make = (id: string, current: readonly Effect[]): Effect[] => {
+      const original = session.originals.get(id) ?? current;
+      return session.index === null ? addEffect(original, effect) : replaceEffect(original, session.index, effect);
+    };
+    const ids = [...session.originals.keys()];
+    return session.targets.kind === 'groups'
+      ? this.store.setLayerEffects(ids, (current, layer) => make(layer.id, current), history)
+      : this.store.setEffects(ids, (current, stroke) => make(stroke.id, current), history);
+  }
+
+  /** OK: the effect is kept, as one undo step, and is the last effect. */
+  private commitEffect(effect: Effect): void {
+    const session = this.effectSession;
+    this.effectSession = null;
+    if (!session) return;
+    if (session.previewing) {
+      this.applyEffectSession(session, effect, false);
+      this.store.commitTransaction();
+    } else {
+      this.recordAs(session.command, () => this.applyEffectSession(session, effect, true));
+    }
+    this.lastEffect = effect;
+    this.publishMenuState();
+  }
+
+  /** Cancel: every list goes back to what it was. */
+  private cancelEffect(): void {
+    const session = this.effectSession;
+    this.effectSession = null;
+    if (session?.previewing) this.store.rollbackTransaction();
+  }
+
+  /**
+   * Another edit kept the preview on the popup's behalf - an undo, a drag -
+   * so the effect is real now, as a step of its own, and the popup goes.
+   */
+  private onEffectPreviewKept(): void {
+    if (!this.effectSession) return;
+    this.effectSession = null;
+    const effect = this.effectOptions.effect;
+    this.effectOptions.dismiss();
+    if (effect) this.lastEffect = effect;
+    this.publishMenuState();
+  }
+
+  /**
+   * Effect > Apply Last Effect: the effect OK kept last, added to the
+   * selection again, as it was set. A 3D takes the place of a mark's own 3D,
+   * since only one builds a mark.
+   */
+  private applyLastEffect(): void {
+    const last = this.lastEffect;
+    if (!last) return;
+    if (last.type === '3d') {
+      if (this.buildThreeD('apply-last-effect', () => last)) this.toast(`Added ${effectName(last)}.`);
+      return;
+    }
+    const targets = this.appearanceTargets();
+    if (this.targetIds(targets).length === 0) {
+      this.toast('Select a mark or a group to add the effect to.');
+      return;
+    }
+    if (!this.takesEffect(targets, last)) return;
+    const effect = aimedAt(last, this.newEffectTarget(targets, targetOf(last)));
+    if (this.changeEffects('apply-last-effect', (effects) => addEffect(effects, effect))) {
+      this.toast(`Added ${effectName(effect)}.`);
+    }
+  }
+
+  /**
+   * Whether the targets can take an effect, or a notice why not: a Splatter
+   * draws on a mark's shape, and a group has none of its own; its marks can
+   * each take one. A Warp bends a group's marks as one.
+   */
+  private takesEffect(targets: AppearanceTargets, effect: Effect): boolean {
+    if (targets.kind !== 'groups' || !MARK_ONLY_EFFECT_TYPES.has(effect.type)) return true;
+    this.toast(`${EFFECT_LABELS[effect.type] ?? effect.type} draws on marks, and a group has no shape of its own: select the marks in it.`);
+    return false;
+  }
+
+  /** Effect > Last Effect: the last effect's options, open on a new one for the selection. A 3D is built at once, and 3D Options opens on it. */
+  private openLastEffect(): void {
+    const last = this.lastEffect;
+    if (!last) return;
+    if (last.type === '3d') {
+      this.buildThreeD('last-effect', () => last);
+      if (this.threeDTargets().length > 0) this.toggleThreeDPanel(true);
+      return;
+    }
+    this.openNewEffect(last, 'last-effect', targetOf(last));
+  }
+
+  /** Effect > Clear Appearance: every effect off every target, as one step. The fill and the stroke stay. */
+  private clearAppearance(): void {
+    if (this.changeEffects('clear-appearance', () => [])) this.toast('Cleared the appearance: no effects are left on the selection.');
+  }
+
+  /**
+   * Effect > Expand Appearance: each selected mark's geometry effects baked
+   * into its anchors and taken off its list, as one step. Its raster effects
+   * stay live, as they have no vector form.
+   */
+  private async expandSelectedAppearance(): Promise<void> {
+    const targets = this.appearanceTargets();
+    if (targets.kind === 'groups') {
+      this.expandGroupAppearance(targets.layers);
+      return;
+    }
+    // A text bakes as its glyphs' outlines: its faces are read first.
+    const texts = targets.strokes.filter((stroke) => isTextStroke(stroke) && hasGeometryEffects(stroke.effects));
+    if (texts.length > 0) await this.typeFaces.readAll(texts.flatMap((stroke) => this.fontsOf(stroke)));
+    const items = targets.strokes.flatMap((stroke) => {
+      const expanded = expandAppearance(stroke);
+      return expanded ? [{ id: stroke.id, ...expanded }] : [];
+    });
+    if (items.length === 0) {
+      this.toast('Nothing selected has an effect that changes its shape. The others have no vector form, so they stay live.');
+      return;
+    }
+    this.recordAs('expand-appearance', () => this.store.expandMarks(items));
+    const made = items.reduce((n, item) => n + item.marks.length, 0);
+    this.toast(
+      made > items.length
+        ? `Expanded the appearance of ${items.length} ${items.length === 1 ? 'mark' : 'marks'} into ${made} marks.`
+        : `Expanded the appearance of ${items.length} ${items.length === 1 ? 'mark' : 'marks'}.`,
+    );
+  }
+
+  /**
+   * Expand Appearance on lit group rows: their Warps - and the Warps of the
+   * layers inside them, which bend first - baked into the marks they bend,
+   * each mark's own geometry effects baked before them, as they draw; then
+   * taken off, as one undo step. The raster effects stay live.
+   */
+  private expandGroupAppearance(layers: readonly Layer[]): void {
+    const sketch = this.store.sketch;
+    const lit = new Set(layers.map((layer) => layer.id));
+    const within = (layer: Layer): boolean => {
+      const seen = new Set<string>();
+      for (let at: Layer | undefined = layer; at && !seen.has(at.id); at = at.parent ? sketch.layers.find((l) => l.id === at!.parent) : undefined) {
+        if (lit.has(at.id)) return true;
+        seen.add(at.id);
+      }
+      return false;
+    };
+    const warped = sketch.layers.filter((layer) => within(layer) && (layer.effects ?? []).some((effect) => effect.type === 'warp' && effect.on !== false));
+    const items = expandLayerWarps(sketch, new Set(warped.map((layer) => layer.id)));
+    if (warped.length === 0 || items.length === 0) {
+      this.toast('Nothing lit bends its marks. The other effects have no vector form, so they stay live.');
+      return;
+    }
+    this.recordAs('expand-appearance', () => {
+      this.store.expandMarks(items);
+      this.store.setLayerEffects(warped.map((layer) => layer.id), (effects) => effects.filter((effect) => effect.type !== 'warp' || effect.on === false), false);
+    });
+    this.toast(`Expanded the Warp of ${warped.length === 1 ? `"${warped[0].name}"` : `${warped.length} groups`} into ${items.length} ${items.length === 1 ? 'mark' : 'marks'}.`);
+  }
+
+  /** The Opacity rows: the opacity of the layers a blend acts on, as one step. */
+  private setAppearanceOpacity(percent: number): void {
+    const layers = this.blendTargets();
+    const opacity = Math.max(0, Math.min(1, percent / 100));
+    if (layers.length === 0 || layers.every((layer) => layer.opacity === opacity)) return;
+    this.recordAs('appearance-opacity', () => layers.forEach((layer, k) => this.store.setLayerProps(layer.id, { opacity }, k === 0)));
+  }
+
+  /** View > Toggle Appearance Panel (`Shift+F6`). The first time it opens, it opens docked. */
+  private toggleAppearance(force?: boolean): void {
+    const open = force ?? !this.appearanceOpen;
+    this.appearanceOpen = open;
+    el('appearance-dialog').classList.toggle('is-hidden', !open);
+    if (open && !this.appearanceOpened) {
+      this.appearanceOpened = true;
+      if (!this.popups.isDocked('appearance-dialog')) this.popups.toggleDock('appearance-dialog');
+    }
+    if (open) this.renderAppearance();
+    requestAnimationFrame(() => this.resizeSurface());
+    this.publishMenuState();
+  }
+
+  /** Shows the selection in the Appearance panel, when it is up. A new selection clears its selected row. */
+  private renderAppearance(): void {
+    if (!this.appearanceOpen) return;
+    const targets = this.appearanceTargets();
+    const key = `${targets.kind}:${this.targetIds(targets).join(',')}`;
+    const fresh = key !== this.appearanceKey;
+    this.appearanceKey = key;
+    this.appearancePanel.render(this.appearanceView(targets), fresh);
+  }
+
+  /** The Appearance panel's view of the targets: what they are, their paint, their effects, their layers' opacity and blend. */
+  private appearanceView(targets: AppearanceTargets): AppearanceView {
+    const layers = this.blendTargets();
+    const opacities = new Set(layers.map((layer) => Math.round(layer.opacity * 100)));
+    const blends = new Set(layers.map((layer) => layer.blend ?? 'normal'));
+    const opacity = opacities.size === 1 ? [...opacities][0] : null;
+    const blend = blends.size === 1 ? [...blends][0] : null;
+    const lists = this.appearanceLists(targets);
+    const effects = lists.length > 0 && lists.every((list) => sameEffects(list, lists[0])) ? lists[0] : null;
+    if (targets.kind === 'groups') {
+      const n = targets.layers.length;
+      return { title: n === 1 ? 'Group' : `${n} Groups`, effects, stroke: null, fill: null, group: true, opacity, blend };
+    }
+    if (targets.strokes.length === 0) {
+      return { title: null, effects: [], stroke: null, fill: null, group: false, opacity: null, blend: null };
+    }
+    return {
+      title: appearanceTitle(targets.strokes),
+      effects,
+      stroke: strokePaint(targets.strokes),
+      fill: fillPaint(targets.strokes),
+      group: false,
+      opacity,
+      blend,
+    };
+  }
+
   private makeClipMask(): void {
     const editable = this.editableStrokeIds();
     const problem = this.store.makeClipping([...this.store.selectedIds].filter((id) => editable.has(id)));
@@ -3910,7 +4956,7 @@ class App {
     }
     // The picture over the shapes, taken before the page changes.
     const box = shapes.reduce<{ minX: number; minY: number; maxX: number; maxY: number } | null>((acc, s) => {
-      const b = strokeBounds(s, (t) => this.surface.measureText(t));
+      const b = strokeBounds(s, this.surface.typeMeasure);
       if (!b) return acc;
       const reach = s.width / 2;
       const grown = { minX: b.minX - reach, minY: b.minY - reach, maxX: b.maxX + reach, maxY: b.maxY + reach };
@@ -5014,8 +6060,9 @@ class App {
 
     if (stroke && this.strokeEditable(stroke)) {
       // Strokes with Bézier structure edit through their few anchors — the
-      // curvature lives in the handles — instead of raw samples.
-      if (stroke.vector) {
+      // curvature lives in the handles — instead of raw samples. So does a
+      // text's frame or path: the text reflows, its characters unstretched.
+      if (this.editAnchorsOf(stroke)) {
         if (this.beginVectorPointSelect(e, pt, stroke)) return;
       } else if (this.beginRawPointSelect(e, pt, stroke, grab)) {
         return;
@@ -5026,8 +6073,9 @@ class App {
     // As with the Select tool, a filled shape's interior counts as the shape;
     // the reach is Direct Select's own sensitivity.
     // Direct Select reaches every anchor in a clip group, shown or not.
-    const hit = this.hitTest(pt, undefined, this.settings.directSelectSensitivityPx, true);
-    if (hit && !isTextStroke(hit) && !isImageStroke(hit)) {
+    // A text is reached by its frame or its path; a text with neither has no anchors.
+    const hit = this.hitTest(pt, undefined, this.settings.directSelectSensitivityPx, true) ?? this.typeShapeAt(pt);
+    if (hit && !isImageStroke(hit) && (!isTextStroke(hit) || this.editAnchorsOf(hit))) {
       this.anchorStrokeId = hit.id;
       this.selectedAnchors.clear();
       this.pathSelected = false;
@@ -5047,7 +6095,7 @@ class App {
    * path body. Returns false when nothing was hit.
    */
   private beginVectorPointSelect(e: PointerEvent, pt: Point, stroke: Stroke): boolean {
-    const anchors = stroke.vector!.anchors;
+    const anchors = this.editAnchorsOf(stroke)?.anchors ?? [];
     const grab = this.vectorGrab();
     const near = (q: { x: number; y: number } | null | undefined): boolean =>
       !!q && Math.hypot(q.x - pt.x, q.y - pt.y) <= grab;
@@ -5186,7 +6234,12 @@ class App {
    * over it.
    */
   private onPathBody(stroke: Stroke, pt: Point, grab: number): boolean {
-    if (this.pointOnPath(stroke, pt, grab)) return true;
+    if (isTextStroke(stroke)) {
+      const shape = this.editAnchorsOf(stroke);
+      if (shape && pathHitAt(shape, pt, grab)) return true;
+    } else if (this.pointOnPath(stroke, pt, grab)) {
+      return true;
+    }
     return this.hitTest(pt, undefined, this.settings.directSelectSensitivityPx)?.id === stroke.id;
   }
 
@@ -5205,11 +6258,63 @@ class App {
     });
   }
 
+  /**
+   * The anchors Direct Select edits on a mark, on the page: a path's own, or
+   * a text's frame or path - kept relative to the text's anchor, given here
+   * where they are. Null for a mark with none: freehand samples, plain text.
+   */
+  private editAnchorsOf(stroke: Stroke): { anchors: VectorAnchor[]; closed: boolean } | null {
+    if (stroke.vector) return { anchors: stroke.vector.anchors, closed: stroke.vector.closed === true };
+    if (!isTextStroke(stroke) || !stroke.points[0]) return null;
+    const spec = typeSpecOf(stroke);
+    const shape = spec.kind === 'area' ? spec.frame : spec.kind === 'path' ? spec.path : undefined;
+    if (!shape) return null;
+    const { x, y } = stroke.points[0];
+    const place = (q: { x: number; y: number }): { x: number; y: number } => ({ x: q.x + x, y: q.y + y });
+    return {
+      anchors: shape.anchors.map((a) => ({ p: place(a.p), ...(a.hIn ? { hIn: place(a.hIn) } : {}), ...(a.hOut ? { hOut: place(a.hOut) } : {}) })),
+      closed: spec.kind === 'area' || spec.path?.closed === true,
+    };
+  }
+
+  /** The topmost text whose frame or path passes near a point: Direct Select's reach for a text that has one. */
+  private typeShapeAt(pt: Point): Stroke | null {
+    const reach = this.settings.directSelectSensitivityPx / this.surface.getViewport().zoom;
+    const editable = this.editableStrokeIds();
+    const topFirst = paintOrder(this.store.sketch, this.layerPaints()).filter((s) => editable.has(s.id) && isTextStroke(s)).reverse();
+    for (const stroke of topFirst) {
+      const shape = this.editAnchorsOf(stroke);
+      if (shape && pathHitAt(shape, pt, reach)) return stroke;
+    }
+    return null;
+  }
+
+  /** Writes Direct Select's anchors back: a path's, resampled; a text's frame or path, relative to its anchor again, the text reflowing. */
+  private commitAnchorEdit(stroke: Stroke, anchors: VectorAnchor[]): void {
+    if (stroke.vector) {
+      this.commitVectorPointEdit(stroke, anchors);
+      return;
+    }
+    const origin = stroke.points[0];
+    if (!isTextStroke(stroke) || !origin) return;
+    const spec = typeSpecOf(stroke);
+    const back = (q: { x: number; y: number }): { x: number; y: number } => ({ x: q.x - origin.x, y: q.y - origin.y });
+    const relative = anchors.map((a) => ({ p: back(a.p), ...(a.hIn ? { hIn: back(a.hIn) } : {}), ...(a.hOut ? { hOut: back(a.hOut) } : {}) }));
+    const next =
+      spec.kind === 'area' && spec.frame
+        ? withTypeset(stroke, { ...spec, frame: { ...spec.frame, anchors: relative } })
+        : spec.kind === 'path' && spec.path
+          ? withTypeset(stroke, { ...spec, path: { ...spec.path, anchors: relative } })
+          : null;
+    if (next) this.store.setTypesets([{ id: stroke.id, next }], false);
+  }
+
   /** Moves the selected vector anchors (handles riding along) by a delta. */
   private dragVectorPointAnchors(dx: number, dy: number): void {
     const stroke = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
-    if (!stroke?.vector) return;
-    const anchors = cloneAnchors(stroke.vector.anchors);
+    const editing = stroke ? this.editAnchorsOf(stroke) : null;
+    if (!stroke || !editing) return;
+    const anchors = cloneAnchors(editing.anchors);
     const moving = withSeamTwins(
       anchors.map((a) => a.p),
       this.selectedAnchors,
@@ -5228,7 +6333,7 @@ class App {
         anchor.hOut.y += dy;
       }
     }
-    this.commitVectorPointEdit(stroke, anchors);
+    this.commitAnchorEdit(stroke, anchors);
   }
 
   /**
@@ -5238,9 +6343,10 @@ class App {
    */
   private dragVectorPointHandle(kind: 'vhIn' | 'vhOut', pt: Point): void {
     const stroke = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
-    if (!stroke?.vector || this.selectedAnchors.size !== 1) return;
+    const editing = stroke ? this.editAnchorsOf(stroke) : null;
+    if (!stroke || !editing || this.selectedAnchors.size !== 1) return;
     const origin = [...this.selectedAnchors][0];
-    const anchors = cloneAnchors(stroke.vector.anchors);
+    const anchors = cloneAnchors(editing.anchors);
     const anchor = anchors[origin];
     const handle = kind === 'vhIn' ? anchor?.hIn : anchor?.hOut;
     if (!anchor || !handle) return;
@@ -5257,7 +6363,7 @@ class App {
         opposite.y = anchor.p.y + (dy / len) * oppLen;
       }
     }
-    this.commitVectorPointEdit(stroke, anchors);
+    this.commitAnchorEdit(stroke, anchors);
   }
 
   /** Captures the pointer for a Direct Select drag, or a Vector Path edit mode drag. */
@@ -5621,7 +6727,7 @@ class App {
     // included, so filled elements act solid - or failing that the nearest
     // within the Select sensitivity. A click on genuinely empty canvas still
     // starts a rubber-band selection.
-    const hit = this.hitTest(pt);
+    const hit = this.pickAt(pt);
 
     // A press inside a selection of several elements moves it, even where it
     // lands on a gap between the marks. Demanding an exact hit made a group
@@ -5697,7 +6803,7 @@ class App {
     const clips = clipIndex(this.store.sketch);
     for (const stroke of this.store.sketch.strokes) {
       if (!this.store.selectedIds.has(stroke.id) || stroke.tool === 'eraser') continue;
-      const bounds = strokeBounds(stroke, (t) => this.surface.measureText(t));
+      const bounds = strokeBounds(stroke, this.surface.typeMeasure);
       const b = bounds && shownBounds(this.store.sketch, stroke, bounds, clips);
       if (!b) continue;
       minX = Math.min(minX, b.minX);
@@ -5806,9 +6912,29 @@ class App {
       tolerancePx,
       editable,
       paints: this.layerPaints(),
-      measure: (t) => this.surface.measureText(t),
+      measure: this.surface.typeMeasure,
       ignoreClips,
     });
+  }
+
+  /**
+   * The mark a Select click at a point picks: its ink, as {@link hitTest}
+   * finds it, or with Use Preview Bounds on, failing that, the topmost mark
+   * whose effects paint over the point - a mark is picked where it is seen.
+   */
+  private pickAt(pt: Point, tolerancePx?: number): Stroke | null {
+    const hit = this.hitTest(pt, undefined, tolerancePx);
+    if (hit || !this.settings.usePreviewBounds) return hit;
+    const editable = this.editableStrokeIds();
+    const topFirst = paintOrder(this.store.sketch, this.layerPaints()).reverse();
+    for (const stroke of topFirst) {
+      if (!editable.has(stroke.id) || stroke.tool === 'eraser') continue;
+      const reach = effectPaintReach(activeEffects(stroke.effects) ?? []);
+      if (reach <= 0) continue;
+      const b = strokeBounds(stroke, this.surface.typeMeasure);
+      if (b && pt.x >= b.minX - reach && pt.x <= b.maxX + reach && pt.y >= b.minY - reach && pt.y <= b.maxY + reach) return stroke;
+    }
+    return null;
   }
 
   /** Which layers paint on the canvas - none hidden, by itself or by a group above it - for the paint order. */
@@ -5843,121 +6969,1827 @@ class App {
       if (s.points.length >= 3 && pointInPolygon(pt, s.points)) return s;
     }
     for (const s of topFirst) {
-      const b = strokeBounds(s, (t) => this.surface.measureText(t));
+      const b = strokeBounds(s, this.surface.typeMeasure);
       if (b && pt.x >= b.minX && pt.x <= b.maxX && pt.y >= b.minY && pt.y <= b.maxY) return s;
     }
     return null;
   }
 
-  // ---- Text tool -----------------------------------------------------------
+  // ---- Text tool and the type editor (type-editor.ts) -------------------------
 
-  /**
-   * Opens a textarea overlay for text input.
-   * @param anchor Sketch-space position for the text anchor point.
-   * @param clientX Client X for overlay positioning (used for new text items).
-   * @param clientY Client Y for overlay positioning.
-   * @param existing Existing text stroke being edited (if any).
-   * @param boxWidth When > 0, creates a fixed-width text box drawn by dragging.
-   */
-  private openTextEditor(
-    anchor: Point,
-    clientX: number,
-    clientY: number,
-    existing?: Stroke,
-    boxWidth = 0,
-  ): void {
-    this.closeTextEditor();
-    const stage = el<HTMLElement>('stage');
-    const rect = this.canvas.getBoundingClientRect();
-    const stageRect = stage.getBoundingClientRect();
-    const editor = document.createElement('textarea');
-    editor.className = 'text-editor';
-    editor.value = existing?.text ?? '';
-
-    const size = existing?.fontSize ?? this.store.tool.fontSize;
-    const posX = existing ? existing.points[0].x + rect.left - stageRect.left : clientX - stageRect.left;
-    const posY = existing ? existing.points[0].y + rect.top - stageRect.top : clientY - stageRect.top;
-    editor.style.left = `${posX}px`;
-    editor.style.top = `${posY}px`;
-    editor.style.font = `${size}px ${DEFAULT_FONT_FAMILY}`;
-    editor.style.color = existing?.color ?? this.store.tool.color;
-    editor.style.lineHeight = '1.25';
-
-    if (boxWidth > 0) {
-      editor.style.width = `${boxWidth}px`;
-      editor.style.minWidth = `${boxWidth}px`;
-      editor.style.resize = 'vertical';
-    } else {
-      editor.style.width = 'auto';
-      editor.style.minWidth = '120px';
-      editor.style.resize = 'both';
-    }
-
-    stage.appendChild(editor);
-    editor.focus();
-    this.editingId = existing?.id ?? null;
-
-    // Auto-height as the user types (for both box and auto-sizing modes).
-    const autoHeight = (): void => {
-      editor.style.height = 'auto';
-      editor.style.height = `${editor.scrollHeight}px`;
-    };
-    editor.addEventListener('input', autoHeight);
-    // Trigger once to set initial height.
-    requestAnimationFrame(autoHeight);
-
-    const commit = (): void => {
-      const text = editor.value.trim();
-      editor.remove();
-      if (!text) {
-        if (this.editingId) {
-          this.store.setSelection([this.editingId]);
-          this.store.deleteSelected();
+  /** The type editor, and what it needs of the window. */
+  private createTypeEditor(): TypeEditor {
+    return new TypeEditor({
+      stroke: (id) => this.store.sketch.strokes.find((s) => s.id === id),
+      // A Markdown Flow text's caret goes through its Markdown: its display, placed in the source.
+      layout: (stroke) => layoutForEditing(stroke, this.surface.typeMeasure),
+      // A burst of typing is one step, named for the Text tool in Track History.
+      openStep: (settled) => this.recordAs('tool:text', () => this.store.beginTransaction(settled)),
+      closeStep: () => this.store.commitTransaction(),
+      dropStep: () => this.store.rollbackTransaction(),
+      add: (stroke, replaces) => {
+        if (!replaces || !this.store.replaceMark(replaces, stroke, false)) this.store.addStrokeLive(stroke);
+      },
+      write: (id, next) => this.store.setTypeset(id, next),
+      remove: (id, history) => this.recordAs('tool:text', () => this.store.removeMark(id, history)),
+      toClient: (p) => this.surface.toClientPoint(p),
+      zoom: () => this.surface.getViewport().zoom,
+      repaint: () => this.scheduleRender(),
+      readClipboard: async () => {
+        try {
+          return await window.napkin.readClipboardText();
+        } catch {
+          return '';
         }
-        this.editingId = null;
-        return;
-      }
-      const effectiveAnchor = existing ? existing.points[0] : anchor;
-      const item: Stroke = {
-        id: this.editingId ?? createId('tx'),
-        tool: 'text',
-        color: existing?.color ?? this.store.tool.color,
-        width: 1,
-        points: [effectiveAnchor],
-        text,
-        fontSize: size,
-        fontFamily: DEFAULT_FONT_FAMILY,
-        textBoxWidth: boxWidth > 0 ? boxWidth : undefined,
-        sharpened: true,
-      };
-      // A text box is committed when it loses the focus, after the press that opened it.
-      this.recordAs('tool:text', () => {
-        if (this.editingId) {
-          this.store.pushHistory();
-          this.store.replaceStroke(this.editingId, item);
-        } else {
-          this.store.addStroke(item);
-        }
-      });
-      this.editingId = null;
-    };
-
-    editor.addEventListener('blur', commit);
-    editor.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter' && !ev.shiftKey) {
-        ev.preventDefault();
-        editor.blur();
-      } else if (ev.key === 'Escape') {
-        ev.preventDefault();
-        editor.value = existing?.text ?? '';
-        editor.blur();
-      }
+      },
+      writeClipboard: (text) => void window.napkin.writeClipboardText(text).catch(() => undefined),
+      undo: () => this.undo(),
+      redo: () => this.redo(),
+      // The panel follows the caret and the selection as they move.
+      changed: () => {
+        this.autoShowTypePanel();
+        this.renderTypePanel();
+        this.publishMenuState();
+      },
+      ended: (kept) => {
+        this.typeEditPage = null;
+        this.typeHover = false;
+        // The text stays selected, as a vector editor leaves it.
+        if (kept && this.store.sketch.strokes.some((s) => s.id === kept)) this.store.setSelection([kept]);
+        this.updateCursor();
+        this.scheduleRender();
+      },
     });
   }
 
-  private closeTextEditor(): void {
-    const existing = document.querySelector<HTMLTextAreaElement>('.text-editor');
-    existing?.blur();
+  /** Starts editing a text mark, the caret at the index nearest `at` (or at the end). */
+  private beginTypeEditing(mark: Stroke, at: Point | null): void {
+    this.store.setSelection([mark.id]);
+    this.typeEditPage = this.store.sketch.id;
+    this.typeEditor.begin(mark, at);
+  }
+
+  /** A new, empty text at `anchor` in the tool's font, size and ink. */
+  private newTextMark(anchor: Point): Stroke {
+    const { color, fontSize } = this.store.tool;
+    return {
+      id: createId('tx'),
+      tool: 'text',
+      color,
+      width: 1,
+      points: [{ x: anchor.x, y: anchor.y, pressure: 0.5 }],
+      text: '',
+      fontSize,
+      fontFamily: this.nextTextFont(),
+      sharpened: true,
+    };
+  }
+
+  /** A new text as the setting starts it: in Markdown Flow when New text starts in Markdown Flow is on. */
+  private asNewText(mark: Stroke): Stroke {
+    if (!this.settings.markdownNewText) return mark;
+    return withMarkdownConfigs(withTypeset(mark, { ...typeSpecOf(mark), flow: 'markdown' }), this.store.textConfigs);
+  }
+
+  /**
+   * A new text at `anchor` - the top of its first line - in the tool's font,
+   * size and ink: Sheet Typing in a rectangle `boxWidth` by `boxHeight`, the
+   * drag's; or with no box, Sideless Typing that grows as it is typed. A
+   * drag too flat to hold a line gives a box as wide as the drag that grows
+   * down to fit, rather than one no line fits in. It goes on the page with
+   * its first character.
+   */
+  private startNewText(anchor: Point, boxWidth: number, boxHeight = 0): void {
+    let mark = this.newTextMark(anchor);
+    if (boxWidth > 0 && boxHeight >= (mark.fontSize ?? 0) * AUTO_LEADING) {
+      mark = withTypeset(mark, { kind: 'area', frame: { anchors: rectangleAnchors(boxWidth, boxHeight) } });
+    } else if (boxWidth > 0) {
+      mark.textBoxWidth = boxWidth;
+    }
+    this.store.clearSelection();
+    this.typeEditPage = this.store.sketch.id;
+    this.typeEditor.begin(this.asNewText(mark), null, true);
+  }
+
+  /**
+   * Type on a selected path: Sheet Typing inside it, its paint the frame's,
+   * or Path Typing along it from `at`. The path stays as it is until the
+   * first character, which takes its place - its layer, its place among the
+   * marks - in the same undo step.
+   */
+  private startTypeOnPath(pathId: string, mode: 'sheet' | 'path', at: Point): void {
+    const source = this.store.sketch.strokes.find((s) => s.id === pathId);
+    const path = source ? this.typeablePathOf(source) : null;
+    if (!source || !path) {
+      this.startNewText(at, 0);
+      return;
+    }
+    const paint = mode === 'sheet' ? { ...(source.fill ? { fill: source.fill } : {}), ...(source.noStroke ? {} : { stroke: source.color, width: source.width }) } : {};
+    const mark = typeOnPath(path, mode, mode === 'path' ? at : null, this.newTextMark(at), paint);
+    this.store.clearSelection();
+    this.typeEditPage = this.store.sketch.id;
+    this.typeEditor.begin(this.asNewText(mark), null, true, pathId);
+  }
+
+  /** The path a mark gives the Text tool, kept while its points and anchors stay the same. */
+  private typeablePathOf(stroke: Stroke): TypeablePath | null {
+    const kept = this.typeablePaths.get(stroke);
+    if (kept && kept.points === stroke.points && kept.vector === stroke.vector) return kept.path;
+    const path = typeablePath(stroke);
+    this.typeablePaths.set(stroke, { points: stroke.points, vector: stroke.vector, path });
+    return path;
+  }
+
+  /**
+   * What the Text tool finds at a point, for core/type/tool.ts: a selected
+   * path it can type on - on its outline or inside it - else any other mark,
+   * else nothing. A text mark is the editor's, found before this.
+   */
+  private typeHitAt(pt: Point): TypeToolHit | null {
+    const reach = this.screenPx(TYPE_PATH_REACH_PX);
+    const editable = this.editableStrokeIds();
+    const selected = paintOrder(this.store.sketch, this.layerPaints())
+      .filter((s) => this.store.selectedIds.has(s.id) && editable.has(s.id))
+      .reverse();
+    for (const stroke of selected) {
+      const path = this.typeablePathOf(stroke);
+      const where = path ? pathHitAt(path, pt, reach) : null;
+      if (path && where) return { kind: 'path', id: stroke.id, closed: path.closed, where };
+    }
+    const art = this.hitTest(pt);
+    return art ? { kind: 'art', id: art.id } : null;
+  }
+
+  /**
+   * What the canvas marks on selected texts, and on the text being typed:
+   * a frame's or a path's line, a path text's brackets while the Select
+   * tool has it alone, and the red plus where a text runs out of room.
+   */
+  private typeShapesOverlay(): TypeShapeOverlay[] | undefined {
+    const ids = new Set(this.store.selectedIds);
+    const editing = this.typeEditor.editingId;
+    if (editing) ids.add(editing);
+    if (ids.size === 0) return undefined;
+    const lone = this.store.tool.tool === 'select' && this.store.selectedIds.size === 1;
+    const out: TypeShapeOverlay[] = [];
+    for (const stroke of this.store.sketch.strokes) {
+      if (!ids.has(stroke.id) || !isTextStroke(stroke)) continue;
+      const shape = this.editAnchorsOf(stroke);
+      const overset = oversetPort(stroke, layoutType(stroke, this.surface.typeMeasure));
+      if (!shape && !overset) continue;
+      // The text being typed shows its own guide; it keeps its red plus here.
+      const own = stroke.id === editing;
+      out.push({
+        anchors: shape && !own ? shape.anchors : [],
+        closed: shape?.closed ?? false,
+        ...(lone && !own ? { brackets: pathBrackets(stroke) ?? undefined } : {}),
+        overset,
+      });
+    }
+    return out.length > 0 ? out : undefined;
+  }
+
+  /** The bracket of the lone selected path text within reach of a point, or null. */
+  private bracketAt(pt: Point): { id: string; which: PathBracket['which'] } | null {
+    if (this.store.tool.tool !== 'select' || this.store.selectedIds.size !== 1) return null;
+    const id = [...this.store.selectedIds][0];
+    const stroke = this.store.sketch.strokes.find((s) => s.id === id);
+    if (!stroke || !isTextStroke(stroke) || !this.editableStrokeIds().has(id)) return null;
+    const brackets = pathBrackets(stroke);
+    if (!brackets) return null;
+    const reach = this.screenPx(8);
+    // Each bracket stands out from the path toward the text: near its line, it is in hand.
+    let best: { which: PathBracket['which']; d: number } | null = null;
+    for (const bracket of brackets) {
+      const length = this.screenPx(bracket.which === 'center' ? 12 : 16);
+      const ax = bracket.at.x - bracket.side.x * this.screenPx(4);
+      const ay = bracket.at.y - bracket.side.y * this.screenPx(4);
+      const bx = bracket.at.x + bracket.side.x * length;
+      const by = bracket.at.y + bracket.side.y * length;
+      const dx = bx - ax;
+      const dy = by - ay;
+      const t = Math.max(0, Math.min(1, ((pt.x - ax) * dx + (pt.y - ay) * dy) / (dx * dx + dy * dy || 1)));
+      const d = Math.hypot(ax + dx * t - pt.x, ay + dy * t - pt.y);
+      if (d <= reach && (!best || d < best.d)) best = { which: bracket.which, d };
+    }
+    return best ? { id, which: best.which } : null;
+  }
+
+  /** A press on a path text's bracket, with the Select tool: the drag begins. True when it was one. */
+  private beginBracketDrag(e: PointerEvent, pt: Point): boolean {
+    const found = this.bracketAt(pt);
+    if (!found) return false;
+    const stroke = this.store.sketch.strokes.find((s) => s.id === found.id);
+    if (!stroke) return false;
+    e.preventDefault();
+    this.claimPointer(e, 'type-bracket');
+    this.bracketDrag = { id: found.id, which: found.which, base: { ...stroke }, moved: false };
+    this.updateCursor();
+    return true;
+  }
+
+  /** A bracket dragged to `pt`: from the text as the drag found it, shown as it goes, in one transaction. */
+  private dragTypeBracket(pt: Point): void {
+    const drag = this.bracketDrag;
+    if (!drag) return;
+    const patch = dragBracket(drag.base, drag.which, pt);
+    const spec = typeSpecOf(drag.base);
+    const next = patch && spec.path ? withTypeset(drag.base, { ...spec, path: { ...spec.path, ...patch } }) : drag.base;
+    if (!drag.moved) {
+      if (!patch) return;
+      drag.moved = true;
+      this.recordAs('tool:text', () => this.store.beginTransaction(() => {
+        if (this.bracketDrag === drag) drag.moved = false;
+      }));
+    }
+    this.store.setTypesets([{ id: drag.id, next }], false);
+  }
+
+  /** The Text tool's pointer where it is: what a click there would make, Alt as held. */
+  private textToolCursorAt(pt: Point | null, alt: boolean): keyof typeof TEXT_CURSORS {
+    if (!pt) return 'point';
+    if (this.textMarkAt(pt, this.screenPx(TYPE_EDIT_SLOP_PX))) return 'edit';
+    const reach = this.screenPx(TYPE_PATH_REACH_PX);
+    const editable = this.editableStrokeIds();
+    for (const stroke of this.store.sketch.strokes) {
+      if (!this.store.selectedIds.has(stroke.id) || !editable.has(stroke.id)) continue;
+      const path = this.typeablePathOf(stroke);
+      const where = path ? pathHitAt(path, pt, reach) : null;
+      if (path && where) return typeToolCursor(typeToolAction({ gesture: 'click', hit: { kind: 'path', id: stroke.id, closed: path.closed, where }, selected: this.store.selectedIds, modifiers: { alt } }));
+    }
+    return 'point';
+  }
+
+  /**
+   * Ctrl+V with the Text tool, a path selected, text on the clipboard and no
+   * text being typed: the text along the path, from its start, in the path's
+   * place - "paste on path". False when it is not that paste.
+   */
+  private async pasteOnPath(): Promise<boolean> {
+    if (this.store.tool.tool !== 'text' || this.typeEditor.active || this.store.selectedIds.size !== 1) return false;
+    const id = [...this.store.selectedIds][0];
+    const source = this.store.sketch.strokes.find((s) => s.id === id && this.editableStrokeIds().has(s.id));
+    const path = source ? this.typeablePathOf(source) : null;
+    if (!source || !path) return false;
+    let text = '';
+    try {
+      text = await window.napkin.readClipboardText();
+    } catch {
+      return false;
+    }
+    // A graphic copied as SVG is pasted as the graphic, not as words.
+    if (/<svg[\s>]/i.test(text) || text === this.clipboardSvgSent) return false;
+    const action = typeToolAction({
+      gesture: 'paste',
+      hit: null,
+      selected: this.store.selectedIds,
+      modifiers: {},
+      clipboard: { text, path: { id, closed: path.closed }, editing: this.typeEditor.active },
+    });
+    if (action.kind !== 'paste-on-path') return false;
+    // A path sets one line: line breaks become spaces.
+    const words = text.replace(/\r\n?|\n/g, ' ').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+    const mark = typeOnPath(path, 'path', null, { ...this.newTextMark(path.anchors[0].p as Point), text: words });
+    this.recordAs('tool:text', () => this.store.replaceMark(id, mark));
+    this.store.setSelection([mark.id]);
+    this.toast('Pasted the text along the path.');
+    return true;
+  }
+
+  /** The topmost text mark that can be edited at a point, within `slop` sketch units of it. */
+  private textMarkAt(pt: Point, slop: number): Stroke | null {
+    const editable = this.editableStrokeIds();
+    const topFirst = paintOrder(this.store.sketch, this.layerPaints())
+      .filter((s) => editable.has(s.id) && isTextStroke(s))
+      .reverse();
+    for (const s of topFirst) {
+      const b = strokeBounds(s, this.surface.typeMeasure);
+      if (b && pt.x >= b.minX - slop && pt.x <= b.maxX + slop && pt.y >= b.minY - slop && pt.y <= b.maxY + slop) return s;
+    }
+    return null;
+  }
+
+  /** How many presses have come quickly together at one place, one to three and round again: a word on two, a paragraph on three. */
+  private countTypeClicks(e: PointerEvent): number {
+    const now = performance.now();
+    const last = this.typeClicks;
+    const again = now - last.at <= MULTI_CLICK_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) <= MULTI_CLICK_SLOP_PX;
+    const count = again ? (last.count % 3) + 1 : 1;
+    this.typeClicks = { at: now, x: e.clientX, y: e.clientY, count };
+    return count;
+  }
+
+  /**
+   * A press while text is being edited, or one that starts editing. On the
+   * text, with the Text tool or a selection tool, it puts the caret there or
+   * takes a word or a paragraph, and a drag from it selects. Anywhere else,
+   * or through the Ctrl spring, it ends the editing and goes on as the press
+   * it is. The Text tool on another text edits that one. True when the press
+   * was the editor's.
+   */
+  private typeEditorPress(e: PointerEvent, pt: Point, tool: Tool): boolean {
+    const slop = this.screenPx(TYPE_EDIT_SLOP_PX);
+    if (this.typeEditor.active) {
+      const onText = (tool === 'text' || tool === 'select' || tool === 'point') && this.springFrom === null && this.typeEditor.contains(pt, slop);
+      if (onText) {
+        e.preventDefault();
+        this.claimPointer(e, 'type-select');
+        this.typeEditor.press(pt, this.countTypeClicks(e), e.shiftKey);
+        return true;
+      }
+      this.typeEditor.end();
+    }
+    if (tool !== 'text') return false;
+    const mark = this.textMarkAt(pt, slop);
+    if (!mark) return false;
+    e.preventDefault();
+    this.claimPointer(e, 'type-select');
+    this.countTypeClicks(e);
+    this.beginTypeEditing(mark, pt);
+    return true;
+  }
+
+  /** A double-click on text with Select or Direct Select edits it, the caret where the click was. True when it did. */
+  private typeDoubleClick(e: MouseEvent): boolean {
+    const tool = this.store.tool.tool;
+    if ((tool !== 'select' && tool !== 'point') || this.typeEditor.active || this.springFrom !== null) return false;
+    const pt = this.surface.toSketchPoint(e.clientX, e.clientY, 0.5);
+    const mark = this.textMarkAt(pt, this.screenPx(TYPE_EDIT_SLOP_PX));
+    if (!mark) return false;
+    this.typeClicks = { at: performance.now(), x: e.clientX, y: e.clientY, count: 1 };
+    this.beginTypeEditing(mark, pt);
+    return true;
+  }
+
+  // ---- The Type panel (type-panel.ts) ---------------------------------------
+
+  /** View > Toggle Character Panel and Toggle Paragraph Panel: the panel on that tab, or away when it is up on it. Opened by hand, it stays. */
+  private toggleTypePanel(tab: TypePanelTab): void {
+    if (this.typePanelOpen && this.typePanel.shownTab === tab) this.closeTypePanel();
+    else this.showTypePanel(tab);
+  }
+
+  /** Type > Character... and Paragraph...: the panel on that tab, up and staying up. */
+  private showTypePanel(tab: TypePanelTab): void {
+    this.typePanel.show(tab);
+    this.typePanelAuto = false;
+    this.setTypePanelOpen(true);
+  }
+
+  /** Type > Font, and Size > Other: the panel on Character, the family's field or the size's ready to type in. */
+  private focusTypeField(field: 'family' | 'size'): void {
+    this.showTypePanel('character');
+    this.typePanel.focusField(field);
+  }
+
+  /**
+   * Type > Size: a size in points for what the panel acts on - the selected
+   * characters, or what is typed next at the caret; the selected texts; or
+   * the next text.
+   */
+  private setTypeSize(points: number): void {
+    this.applyTypePanelChange({ kind: 'char', patch: { fontSize: toPx(points, 'pt') } }, 'once');
+  }
+
+  /** Type > Type on a Path > Flip: each text along a path the menu acts on runs the other way, on the path's other side, as one undo step. */
+  private flipPathText(): void {
+    const texts = this.typePanelTargets().targets.map((t) => t.stroke).filter((stroke) => typeOptionsKindOf(stroke) === 'path');
+    const entries = texts.map((stroke) => ({ id: stroke.id, next: withTypeOptions(stroke, 'path', { flip: typeOptionValues('path', stroke)?.flip !== true }, ['flip']) }));
+    if (entries.length > 0) this.store.setTypesets(entries, true);
+  }
+
+  // ---- Text as shapes (core/type/outline.ts, type-faces.ts) ----------------------------------
+
+  /** The fonts a text is drawn in: its glyphs' and its list markers', each once. */
+  private fontsOf(stroke: Stroke): TypeFont[] {
+    const layout = layoutType(stroke, this.surface.typeMeasure);
+    return [...layout.glyphs.map((glyph) => glyph.font), ...layout.markers.map((marker) => marker.font)];
+  }
+
+  /** A face read for text drawn as shapes: what was drawn without it is drawn again, and a text that still cannot be is said. */
+  private onTypeFacesRead(): void {
+    this.scheduleRender();
+    this.reportTextShapeProblems();
+  }
+
+  /**
+   * Says, once each, why a text a Warp, a Splatter or 3D is on draws as plain
+   * text: its font cannot be read, or has no glyph for one of its characters.
+   * A face still being read is not a problem yet.
+   */
+  private reportTextShapeProblems(): void {
+    const details: Array<{ text: string; action: { label: string; run: () => void } }> = [];
+    for (const stroke of this.store.sketch.strokes) {
+      if (!isTextStroke(stroke) || !hasGeometryEffects(stroke.effects)) continue;
+      const out = outlineText(stroke, layoutType(stroke, this.surface.typeMeasure), this.typeFaces);
+      if (!out.problem || out.waiting || this.shapeProblemsSaid.has(out.problem)) continue;
+      this.shapeProblemsSaid.add(out.problem);
+      details.push({ text: out.problem, action: { label: 'Find text', run: () => this.findTexts([{ page: this.store.sketch.id, id: stroke.id }]) } });
+    }
+    if (details.length === 0) return;
+    this.reports.show({
+      id: 'text-shapes',
+      title: details.length === 1 ? 'A text draws without its effect' : `${details.length} texts draw without their effects`,
+      details: details.map((detail) => ({ ...detail, text: `${detail.text}. A Warp, a Splatter and 3D draw text from its font's outlines.` })),
+    });
+  }
+
+  /** The texts the Type menu acts on: the one being typed, put down first, else the selected ones. */
+  private textsToExpand(): Stroke[] {
+    const editing = this.typeEditor.editingId;
+    if (editing) this.typeEditor.end();
+    return this.selectedTextMarks();
+  }
+
+  /**
+   * Transform > Expand Text to Shape, and Type's (`Ctrl+Shift+O`), a vector
+   * editor's Create Outlines: each text the Type menu acts on becomes a group
+   * of its shapes - a mark a glyph, as its font draws it, and its frame's
+   * paint, highlights, markers and lines - named after its first words, its
+   * effects, blend, opacity and layer kept on the group, as one undo step. A
+   * text whose font cannot be read stays text, and a report says which font
+   * and why.
+   */
+  private async expandTextToShape(): Promise<void> {
+    const texts = this.textsToExpand();
+    if (texts.length === 0) {
+      this.toast('Select a text to expand to shapes.');
+      return;
+    }
+    await this.typeFaces.readAll(texts.flatMap((stroke) => this.fontsOf(stroke)));
+    const items: Array<{ id: string; marks: Stroke[]; effects: Effect[]; opacity: number; grouped: true; name: string; labels: string[] }> = [];
+    const problems: Array<{ text: string; action: { label: string; run: () => void } }> = [];
+    for (const was of texts) {
+      // The page as it is now: an edit during the read is what is expanded.
+      const stroke = this.store.sketch.strokes.find((s) => s.id === was.id);
+      if (!stroke || !isTextStroke(stroke)) continue;
+      const out = outlineText(stroke, layoutType(stroke, this.surface.typeMeasure), this.typeFaces);
+      if (out.problem !== null) {
+        problems.push({ text: `"${firstWords(stroke.text ?? '')}": ${out.problem}`, action: { label: 'Find text', run: () => this.findTexts([{ page: this.store.sketch.id, id: stroke.id }]) } });
+        continue;
+      }
+      if (out.marks.length === 0) continue;
+      items.push({
+        id: stroke.id,
+        marks: out.marks.map((shape) => {
+          const { layer: _layer, ...mark } = shape.mark;
+          return { ...mark, id: createId('st') };
+        }),
+        effects: stroke.effects ?? [],
+        opacity: markOpacity(stroke),
+        grouped: true,
+        name: firstWords(stroke.text ?? ''),
+        labels: out.marks.map((shape) => shape.label),
+      });
+    }
+    if (items.length > 0) this.recordAs('expand-text', () => this.store.expandMarks(items));
+    if (problems.length > 0) {
+      this.reports.show({
+        id: 'expand-text',
+        title: problems.length === 1 ? 'A text stays text' : `${problems.length} texts stay text`,
+        details: problems,
+      });
+    }
+    if (items.length > 0) {
+      const glyphs = items.reduce((n, item) => n + item.marks.length, 0);
+      this.toast(items.length === 1 ? `Expanded the text into ${glyphs} ${glyphs === 1 ? 'shape' : 'shapes'}.` : `Expanded ${items.length} texts into ${glyphs} shapes.`);
+    }
+  }
+
+  // ---- The Type menu's options forms (type-options.ts) ----------------------------------
+
+  /**
+   * Type > Type on a Path > Type on a Path Options... and Type > Area Type
+   * Options...: the form on the selected texts of that kind, with the first
+   * one's values. The text being typed is put down first, and stays
+   * selected, so the form and the canvas agree on what it is open on. A form
+   * already up is cancelled first.
+   */
+  private openTypeOptions(kind: TypeOptionsKind): void {
+    if (this.otherDialogOpen('type-options-dialog')) {
+      this.toast('Finish the dialog that is open, then open the options.');
+      return;
+    }
+    if (this.typeOptionsSession || this.configOptionsSession) this.typeOptions.cancel();
+    this.typeEditor.end();
+    const texts = this.selectedTextMarks().filter((stroke) => typeOptionsKindOf(stroke) === kind);
+    const values = texts[0] ? typeOptionValues(kind, texts[0]) : null;
+    if (!values) {
+      this.toast(kind === 'path' ? 'Select a text along a path first.' : 'Select a text set in a shape first.');
+      return;
+    }
+    this.typeOptionsSession = { kind, originals: new Map(texts.map((stroke) => [stroke.id, stroke])), previewing: false };
+    this.hideContextMenu();
+    this.typeOptions.open({
+      kind,
+      values,
+      preview: this.typeOptionsPreview,
+      note: texts.length > 1 ? `${texts.length} texts. Each keeps what is not changed here.` : null,
+      disabled: (key, now) => typeOptionDisabled(kind, texts, key, now),
+    });
+    this.parkOptionsPopup('type-options-dialog');
+  }
+
+  /** Shows the form's values on its texts, in a store transaction its answer keeps or throws away; null takes the preview down. */
+  private previewTypeOptions(values: TypeOptionValues | null, changed: ReadonlySet<string>): void {
+    const session = this.typeOptionsSession;
+    if (!session) return;
+    if (values === null) {
+      if (session.previewing) {
+        session.previewing = false;
+        this.store.rollbackTransaction();
+      }
+      return;
+    }
+    if (!session.previewing) {
+      // A preview another edit keeps is recorded as the form's own step.
+      this.recordAs(`type-${session.kind}-options`, () => this.store.beginTransaction(() => this.onTypeOptionsKept()));
+      session.previewing = true;
+    }
+    this.store.setTypesets(this.typeOptionsEntries(session, values, changed), false);
+  }
+
+  /** Each text as the form found it, with the fields changed written to it. */
+  private typeOptionsEntries(session: TypeOptionsSession, values: TypeOptionValues, changed: ReadonlySet<string>): Array<{ id: string; next: Stroke }> {
+    return [...session.originals.values()].map((stroke) => ({ id: stroke.id, next: withTypeOptions(stroke, session.kind, values, changed) }));
+  }
+
+  /** OK: the fields changed are kept on every text, as one undo step. */
+  private commitTypeOptions(values: TypeOptionValues, changed: ReadonlySet<string>): void {
+    const session = this.typeOptionsSession;
+    this.typeOptionsSession = null;
+    if (!session) return;
+    const entries = this.typeOptionsEntries(session, values, changed);
+    if (session.previewing) {
+      this.store.setTypesets(entries, false);
+      this.store.commitTransaction();
+      return;
+    }
+    const changes = entries.filter((entry) => entry.next !== session.originals.get(entry.id));
+    if (changes.length > 0) this.recordAs(`type-${session.kind}-options`, () => this.store.setTypesets(changes, true));
+  }
+
+  /** Cancel: every text goes back to what it was. */
+  private cancelTypeOptions(): void {
+    const session = this.typeOptionsSession;
+    this.typeOptionsSession = null;
+    if (session?.previewing) this.store.rollbackTransaction();
+  }
+
+  /** Another edit kept the preview on the form's behalf - an undo, a drag - so the change is real now, a step of its own, and the form goes. */
+  private onTypeOptionsKept(): void {
+    if (!this.typeOptionsSession) return;
+    this.typeOptionsSession = null;
+    this.typeOptions.dismiss();
+  }
+
+  // ---- Text Configurations (core/type/configs.ts) --------------------------
+
+  /** The book's configuration of this id, or undefined - and for null, the Default Configuration, none. */
+  private textConfig(id: string | null): TextConfig | undefined {
+    return id === null ? undefined : this.store.textConfigs.find((config) => config.id === id);
+  }
+
+  /**
+   * A configuration clicked in the Type panel: what the panel acts on follows
+   * it - the selected characters, the selected texts, or at the caret what
+   * is typed next - keeping what it has of its own beyond what it followed,
+   * or with Alt nothing of it, as one undo step. Null is the Default
+   * Configuration: the text's own attributes.
+   */
+  private applyTextConfigFromPanel(id: string | null, clearOverrides: boolean): void {
+    const config = this.textConfig(id) ?? null;
+    if (id !== null && !config) return;
+    const { scope, targets } = this.typePanelTargets();
+    if (scope === 'next') return;
+    if (scope === 'caret') {
+      const t = targets[0];
+      const now = typingAttrsAt(t.stroke, t.start, t.typing);
+      const base = baseAttrs(t.stroke);
+      const was = now.config === undefined ? undefined : configsOf(t.stroke).get(now.config) ?? this.textConfig(now.config);
+      const typing = { ...resolveRunAttrs(base, config, clearOverrides ? {} : overridesOf(now, base, was)), kern: now.kern };
+      // What is typed next follows it, or at the Default Configuration none.
+      this.typeEditor.setTypingAttrs(config ? typing : { ...typing, config: undefined }, config ? [config] : []);
+    } else {
+      this.writeTextConfigChange(targets, (t) => applyTextConfig(t.stroke, { start: t.start, end: t.end }, config, clearOverrides));
+    }
+    this.renderTypePanel();
+    if (this.typeEditor.active) this.typeEditor.focus();
+  }
+
+  /** A change to each text the panel acts on, as one undo step named for Type > Text Configurations. */
+  private writeTextConfigChange(targets: readonly TypeTarget[], make: (target: TypeTarget) => Stroke): void {
+    this.endTypePreview(true);
+    const entries = targets.flatMap((t) => {
+      const next = make(t);
+      return next === t.stroke ? [] : [{ id: t.stroke.id, next }];
+    });
+    if (entries.length > 0) this.recordAs('type-configs', () => this.store.setTypesets(entries, true));
+  }
+
+  /**
+   * A command from the Text Configurations tab, on the configuration chosen
+   * in its list: a vector editor's Character Styles panel menu. A change to
+   * a configuration restyles every text that follows it, on every page, as
+   * one undo step.
+   */
+  private async textConfigCommand(command: ConfigCommand, id: string | null): Promise<void> {
+    const { scope, targets } = this.typePanelTargets();
+    const config = this.textConfig(id);
+    const list = this.store.textConfigs;
+    const text = scope !== 'next';
+    switch (command) {
+      case 'new': {
+        // From what the selected text has of its own, which the text then follows, in the same step.
+        const made = newTextConfig(list, text ? captureConfigAttrs(targets) : {}, createId('tc'));
+        this.endTypePreview(true);
+        this.recordAs('type-configs', () => {
+          this.store.editTextConfigs([...list, made], null);
+          if (scope === 'range' || scope === 'marks') {
+            const entries = targets.flatMap((t) => {
+              const next = applyTextConfig(t.stroke, { start: t.start, end: t.end }, made);
+              return next === t.stroke ? [] : [{ id: t.stroke.id, next }];
+            });
+            if (entries.length > 0) this.store.setTypesets(entries, false);
+          }
+        });
+        if (scope === 'caret') this.applyTextConfigFromPanel(made.id, false);
+        this.typePanel.chooseConfig(made.id);
+        this.toast(`Made ${made.name}${text ? ' from the selected text' : ''}: Text Configuration Options names it.`);
+        break;
+      }
+      case 'duplicate': {
+        const copy = config ? duplicateTextConfig(list, config.id, createId('tc')) : null;
+        if (!copy) return;
+        this.recordAs('type-configs', () => this.store.editTextConfigs(copy.list, null));
+        this.typePanel.chooseConfig(copy.config.id);
+        break;
+      }
+      case 'delete': {
+        if (!config) return;
+        const rest = list.filter((each) => each.id !== config.id);
+        if (!configInUse(this.store.book, config.id)) {
+          this.recordAs('type-configs', () => this.store.editTextConfigs(rest, null));
+          this.toast(`Deleted ${config.name}.`);
+          break;
+        }
+        const choice = await this.askDeleteTextConfig(config);
+        if (choice === 'cancel') return;
+        this.recordAs('type-configs', () =>
+          this.store.editTextConfigs(rest, (stroke) => (choice === 'break' ? detachTextConfig(stroke, config.id) : revertTextConfig(stroke, config.id))),
+        );
+        this.toast(choice === 'break' ? `Deleted ${config.name}: the text that followed it keeps its look.` : `Deleted ${config.name}: the text that followed it is back to its own.`);
+        break;
+      }
+      case 'redefine': {
+        if (!config || !text) return;
+        const redefined = { ...config, attrs: captureConfigAttrs(targets) };
+        this.endTypePreview(true);
+        this.recordAs('type-configs', () => this.store.editTextConfigs(replaceTextConfig(list, redefined), (stroke) => withConfigDefinitions(stroke, [redefined])));
+        this.toast(`Redefined ${config.name} from the selected text.`);
+        break;
+      }
+      case 'options':
+        if (config) this.openConfigOptions(config);
+        break;
+      case 'clear-overrides':
+        if (scope === 'caret') {
+          const reading = readConfigTargets(targets, list);
+          if (reading && reading.config !== 'mixed') this.applyTextConfigFromPanel(reading.config, true);
+        } else if (text) {
+          this.writeTextConfigChange(targets, (t) => clearTextOverrides(t.stroke, { start: t.start, end: t.end }));
+        }
+        break;
+      case 'break-link':
+        if (scope === 'caret') {
+          const t = targets[0];
+          this.typeEditor.setTypingAttrs({ ...typingAttrsAt(t.stroke, t.start, t.typing), config: undefined });
+        } else if (text) {
+          this.writeTextConfigChange(targets, (t) => breakTextConfigLink(t.stroke, { start: t.start, end: t.end }));
+        }
+        break;
+      case 'load':
+        await this.loadTextConfigs();
+        break;
+    }
+    this.renderTypePanel();
+  }
+
+  /**
+   * Asks what becomes of the text that follows a configuration being deleted:
+   * Break Link keeps its look, as attributes of its own; Revert to Default
+   * takes it back to its own attributes, its overrides kept.
+   */
+  private askDeleteTextConfig(config: TextConfig): Promise<'break' | 'revert' | 'cancel'> {
+    const dialog = el('text-config-delete-dialog');
+    el('text-config-delete-text').textContent = `Text in this book follows ${config.name}. Delete it, and keep that text's look as its own, or take the text back to the Default Configuration?`;
+    dialog.classList.remove('is-hidden');
+    return new Promise((resolve) => {
+      const buttons: Array<[string, 'break' | 'revert' | 'cancel']> = [
+        ['text-config-delete-break', 'break'],
+        ['text-config-delete-revert', 'revert'],
+        ['text-config-delete-cancel', 'cancel'],
+      ];
+      const handlers = buttons.map(([id, choice]) => [el(id), () => done(choice)] as const);
+      const onKey = (ev: KeyboardEvent): void => {
+        if (ev.key !== 'Escape') return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        done('cancel');
+      };
+      const done = (choice: 'break' | 'revert' | 'cancel'): void => {
+        dialog.classList.add('is-hidden');
+        for (const [button, handler] of handlers) button.removeEventListener('click', handler);
+        dialog.removeEventListener('keydown', onKey);
+        resolve(choice);
+      };
+      for (const [button, handler] of handlers) button.addEventListener('click', handler);
+      dialog.addEventListener('keydown', onKey);
+      el('text-config-delete-break').focus();
+    });
+  }
+
+  // ---- Markdown Flow (core/type/markdown-flow.ts) -------------------------------
+
+  /**
+   * Type > Markdown Flow: the texts the Type menu acts on made Markdown Flow -
+   * what they hold becomes their Markdown - or, when the one the check reads
+   * already is, made plain text again that keeps what it shows, its Markdown
+   * gone; that asks first, since only undo brings the Markdown back. One undo
+   * step either way.
+   */
+  private async toggleMarkdownFlow(): Promise<void> {
+    const { targets } = this.typePanelTargets();
+    if (targets.length === 0) return;
+    const on = targets[0].stroke.typeset?.flow !== 'markdown';
+    if (!on) {
+      const flowing = targets.filter((t) => t.stroke.typeset?.flow === 'markdown').length;
+      if (!(await this.askMarkdownOff(flowing))) return;
+      // The text changes under the caret: editing ends first, and the text stays selected.
+      if (this.typeEditor.active) this.typeEditor.end();
+    }
+    const ids = targets.map((t) => t.stroke.id);
+    const measure = this.surface.typeMeasure;
+    const entries = ids.flatMap((id) => {
+      const stroke = this.store.sketch.strokes.find((s) => s.id === id);
+      if (!stroke) return [];
+      const flowing = stroke.typeset?.flow === 'markdown';
+      if (on === flowing) return [];
+      if (on) return [{ id, next: withMarkdownConfigs(withTypeset(stroke, { ...typeSpecOf(stroke), flow: 'markdown' }), this.store.textConfigs) }];
+      // Off: what it shows, every block rendered, as a text of its own.
+      const shown = withoutMarkdownReveal(() => markdownShown(stroke, measure));
+      const { flow: _flow, ...plain } = stroke.typeset!;
+      const next = shown ? { ...shown.stroke, typeset: structuredClone(shown.stroke.typeset) } : withTypeset(stroke, plain);
+      return [{ id, next }];
+    });
+    if (entries.length > 0) this.recordAs('type-markdown', () => this.store.setTypesets(entries, true));
+    this.renderTypePanel();
+    this.publishMenuState();
+  }
+
+  /** Asks before Markdown Flow goes off: true to go ahead. */
+  private askMarkdownOff(count: number): Promise<boolean> {
+    const dialog = el('markdown-off-dialog');
+    el('markdown-off-text').textContent = `${count === 1 ? 'The text keeps' : `The ${count} texts keep`} what ${count === 1 ? 'it shows' : 'they show'}, as plain text, and ${count === 1 ? 'its' : 'their'} Markdown goes. Undo brings it back.`;
+    dialog.classList.remove('is-hidden');
+    return new Promise((resolve) => {
+      const confirm = el('markdown-off-confirm');
+      const cancel = el('markdown-off-cancel');
+      const onKey = (ev: KeyboardEvent): void => {
+        if (ev.key !== 'Escape') return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        done(false);
+      };
+      const yes = (): void => done(true);
+      const no = (): void => done(false);
+      const done = (choice: boolean): void => {
+        dialog.classList.add('is-hidden');
+        confirm.removeEventListener('click', yes);
+        cancel.removeEventListener('click', no);
+        dialog.removeEventListener('keydown', onKey);
+        resolve(choice);
+      };
+      confirm.addEventListener('click', yes);
+      cancel.addEventListener('click', no);
+      dialog.addEventListener('keydown', onKey);
+      confirm.focus();
+    });
+  }
+
+  // ---- Clean Language Accents (core/type/accents.ts) ----------------------------
+
+  /** The definitions of the languages loaded from their files, to install again without loading them twice. */
+  private readonly accentDefinitions = new Map<string, AccentLanguageDefinition>();
+  /** Each language file's load, once. */
+  private readonly accentLoads = new Map<string, Promise<boolean>>();
+  /** The language last applied, which Apply offers first. */
+  private lastAccent = 'auto';
+
+  /**
+   * Installs the languages Clean Language Accents color as the setting lists
+   * them - the common ones from the app's own, the rest from their files in
+   * `accents/` - and takes the others away.
+   */
+  private syncAccentLanguages(): void {
+    const wanted = new Set(this.settings.accentLanguages);
+    let changed = false;
+    for (const id of markdownReaders.accentLanguagesInstalled()) {
+      if (wanted.has(id)) continue;
+      markdownReaders.unregisterAccentLanguage(id);
+      changed = true;
+    }
+    const installed = new Set(markdownReaders.accentLanguagesInstalled());
+    for (const id of wanted) {
+      if (installed.has(id)) continue;
+      if (markdownReaders.registerAccentLanguage(id, this.accentDefinitions.get(id))) changed = true;
+      else void this.loadAccentLanguage(id);
+    }
+    if (changed) this.scheduleRender();
+  }
+
+  /**
+   * Loads a language's file, `accents/<id>.js`, once: a script of the app's
+   * own, which the page's content security policy lets run, that hands its
+   * definition to `napkinAccents.register`. False when it does not load.
+   */
+  private loadAccentLanguage(id: string): Promise<boolean> {
+    const known = this.accentLoads.get(id);
+    if (known) return known;
+    const hooks = globalThis as typeof globalThis & { napkinAccents?: { register(id: string, definition: AccentLanguageDefinition): void } };
+    hooks.napkinAccents ??= { register: (name, definition) => this.onAccentLanguageLoaded(name, definition) };
+    const load = new Promise<boolean>((resolve) => {
+      const script = document.createElement('script');
+      script.src = `accents/${encodeURIComponent(id)}.js`;
+      script.onload = () => resolve(true);
+      script.onerror = () => {
+        this.accentLoads.delete(id);
+        script.remove();
+        resolve(false);
+      };
+      document.head.appendChild(script);
+    });
+    this.accentLoads.set(id, load);
+    return load;
+  }
+
+  /** A language's file has run: its definition kept, and installed while the setting still lists it. */
+  private onAccentLanguageLoaded(id: string, definition: AccentLanguageDefinition): void {
+    this.accentDefinitions.set(id, definition);
+    if (this.settings.accentLanguages.includes(id) && markdownReaders.registerAccentLanguage(id, definition)) this.scheduleRender();
+  }
+
+  /** The accent of the paragraph a target starts in, or null. */
+  private accentAt(target: TypeTarget): string | null {
+    const text = target.stroke.text ?? '';
+    return target.stroke.typeset?.paras?.[paragraphAt(text, target.start)]?.accent ?? null;
+  }
+
+  /**
+   * Type > Clean Language Accents > Apply... (`Ctrl+Alt+L`): asks for a
+   * language - an installed one, or Auto - and accents the paragraphs of what
+   * the Type menu acts on: the paragraphs the selection touches in the text
+   * being typed, or every paragraph of the selected texts. Their code is
+   * colored as they are laid out, so the colors follow every edit. With Use a
+   * monospace font, they follow Markdown Code too. One undo step.
+   */
+  private async applyAccentFromMenu(): Promise<void> {
+    const { targets } = this.typePanelTargets();
+    if (targets.length === 0) return;
+    const choice = await this.askAccent(this.accentAt(targets[0]) ?? this.lastAccent);
+    if (!choice) return;
+    this.lastAccent = choice.language;
+    const code = choice.monospace ? markdownConfig('code', this.store.textConfigs) : null;
+    const entries = targets.flatMap((t) => {
+      const next = applyAccent(t.stroke, { start: t.start, end: t.end }, choice.language, code);
+      return next === t.stroke ? [] : [{ id: t.stroke.id, next }];
+    });
+    if (entries.length > 0) this.recordAs('type-accents-apply', () => this.store.setTypesets(entries, true));
+    this.renderTypePanel();
+    this.publishMenuState();
+    if (this.typeEditor.active) this.typeEditor.focus();
+  }
+
+  /** Clean Language Accents > Remove Accents: the paragraphs of what the Type menu acts on colored plain again. One undo step. */
+  private removeAccents(): void {
+    const { targets } = this.typePanelTargets();
+    const entries = targets.flatMap((t) => (hasAccent(t.stroke, t.start, t.end) ? [{ id: t.stroke.id, next: applyAccent(t.stroke, { start: t.start, end: t.end }, null) }] : []));
+    if (entries.length > 0) this.recordAs('type-accents-remove', () => this.store.setTypesets(entries, true));
+    this.renderTypePanel();
+    this.publishMenuState();
+    if (this.typeEditor.active) this.typeEditor.focus();
+  }
+
+  /** Asks for an accent: a language and whether to set it in a monospaced face. Null when cancelled. */
+  private askAccent(current: string): Promise<{ language: string; monospace: boolean } | null> {
+    const dialog = el('accent-apply-dialog');
+    const select = el<HTMLSelectElement>('accent-apply-language');
+    const languages = markdownReaders
+      .accentLanguagesInstalled()
+      .map((id) => ACCENT_LANGUAGES.find((language) => language.id === id))
+      .filter((language): language is AccentLanguage => language !== undefined)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    select.replaceChildren(
+      new Option('Auto - the language the code reads most like', 'auto'),
+      ...languages.map((language) => new Option(language.name, language.id)),
+    );
+    select.value = languages.some((language) => language.id === current) ? current : 'auto';
+    dialog.classList.remove('is-hidden');
+    return new Promise((resolve) => {
+      const ok = el('accent-apply-ok');
+      const cancel = el('accent-apply-cancel');
+      const onKey = (ev: KeyboardEvent): void => {
+        if (ev.key === 'Escape') {
+          ev.preventDefault();
+          ev.stopPropagation();
+          done(false);
+        } else if (ev.key === 'Enter' && ev.target !== cancel) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          done(true);
+        }
+      };
+      const yes = (): void => done(true);
+      const no = (): void => done(false);
+      const done = (kept: boolean): void => {
+        dialog.classList.add('is-hidden');
+        ok.removeEventListener('click', yes);
+        cancel.removeEventListener('click', no);
+        dialog.removeEventListener('keydown', onKey);
+        resolve(kept ? { language: select.value, monospace: el<HTMLInputElement>('accent-apply-mono').checked } : null);
+      };
+      ok.addEventListener('click', yes);
+      cancel.addEventListener('click', no);
+      dialog.addEventListener('keydown', onKey);
+      select.focus();
+    });
+  }
+
+  /**
+   * Clean Language Accents > Languages...: highlight.js's 193 languages in
+   * the configuration popup, the installed ones checked; Accept installs the
+   * checked ones - loading a file for each beyond the common set - and takes
+   * the rest away.
+   */
+  private openAccentLanguages(): void {
+    type Row = { id: string; name: string; aliases: string; common: boolean; installed: boolean };
+    const installed = new Set(this.settings.accentLanguages);
+    const rows: Row[] = ACCENT_LANGUAGES.map((language) => ({ id: language.id, name: language.name, aliases: language.aliases.join(', '), common: language.common, installed: installed.has(language.id) })).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+    const opened = this.configDialog.open<Row>({
+      title: 'Languages',
+      hint: 'The languages Clean Language Accents color code in. Check one to install it; uncheck one to show its code plain.',
+      search: { placeholder: 'Find a language', text: (row) => `${row.name} ${row.id} ${row.aliases}` },
+      filters: [
+        { label: 'Installed', test: (row) => row.installed },
+        { label: 'Common', test: (row) => row.common },
+      ],
+      columns: [
+        { kind: 'check', heading: 'Installed', field: 'installed', width: '6rem' },
+        { kind: 'text', heading: 'Language', field: 'name' },
+        { kind: 'text', heading: 'Id', field: 'id', width: '9rem' },
+        { kind: 'text', heading: 'Also', field: 'aliases', width: '30%' },
+      ],
+      rows,
+      rowLabel: (row) => row.name,
+      empty: 'No language has that in its name.',
+      accept: {
+        onAccept: async (next) => {
+          const checked = new Set(next.filter((row) => row.installed).map((row) => row.id));
+          await this.saveSettings({ accentLanguages: ACCENT_LANGUAGES.filter((language) => checked.has(language.id)).map((language) => language.id) });
+        },
+      },
+    });
+    if (!opened) this.toast('Another editor is open. Accept or cancel it first.');
+  }
+
+  // ---- Composition Styles (core/composition-style.ts) -------------------------------------------------------------
+
+  /**
+   * Reads the user's library: every style that reads, by name. A file that
+   * does not read is left out and said, once a reading.
+   */
+  private async loadCompositionStyles(): Promise<void> {
+    let files: CompositionStyleFile[] = [];
+    try {
+      files = await window.napkin.listCompositionStyles();
+    } catch {
+      // Outside Electron there is no library.
+    }
+    const styles: Array<{ file: string; style: CompositionStyle }> = [];
+    const unread: string[] = [];
+    for (const { file, text } of files) {
+      let raw: unknown;
+      try {
+        raw = JSON.parse(text.replace(/^﻿/, ''));
+      } catch {
+        unread.push(file);
+        continue;
+      }
+      const read = validateCompositionStyle(raw);
+      if (read.ok && read.style) styles.push({ file, style: read.style });
+      else unread.push(file);
+    }
+    styles.sort((a, b) => a.style.name.localeCompare(b.style.name) || a.file.localeCompare(b.file));
+    this.compositionStyles = styles;
+    if (unread.length > 0) {
+      this.toast(`${unread.length === 1 ? 'A composition style' : `${unread.length} composition styles`} in the library could not be read: ${unread.join(', ')}`);
+    }
+    this.renderCompositionStyles();
+  }
+
+  /** View > Toggle Composition Styles Panel (`Shift+F5`). The first time it opens, it opens docked. */
+  private toggleCompositionStyles(force?: boolean): void {
+    const open = force ?? !this.compositionStylesOpen;
+    this.compositionStylesOpen = open;
+    el('composition-styles-dialog').classList.toggle('is-hidden', !open);
+    if (open && !this.compositionStylesOpened) {
+      this.compositionStylesOpened = true;
+      if (!this.popups.isDocked('composition-styles-dialog')) this.popups.toggleDock('composition-styles-dialog');
+    }
+    if (open) this.renderCompositionStyles();
+    requestAnimationFrame(() => this.resizeSurface());
+    this.publishMenuState();
+  }
+
+  /** Shows the library in the panel, when it is up, and draws the thumbnails it does not have yet once the page is still. */
+  private renderCompositionStyles(): void {
+    if (!this.compositionStylesOpen) return;
+    this.paintCompositionStyles();
+    this.scheduleStyleThumbnails();
+  }
+
+  /** The panel's view: each style with the thumbnail it has, a stale one until the new one is drawn. */
+  private paintCompositionStyles(): void {
+    if (!this.compositionStylesOpen) return;
+    const items = this.compositionStyles.map(({ file, style }) => ({
+      id: file,
+      name: style.name,
+      summary: styleSummary(style),
+      thumbnail: this.styleThumbnails.get(file)?.url ?? null,
+    }));
+    this.compositionStylesPanel.render({ items, applied: this.appliedStyles.get(this.store.sketch.id) ?? null });
+  }
+
+  /** What a thumbnail is drawn from: the page in view, as it is now. */
+  private styleThumbnailKey(): string {
+    const sketch = this.store.sketch;
+    return `${sketch.id}:${sketch.updatedAt}:${sketch.strokes.length}:${sketch.layers.length}`;
+  }
+
+  /** Draws the missing and stale thumbnails a moment after the page stops changing. */
+  private scheduleStyleThumbnails(): void {
+    if (this.styleThumbnailTimer !== null) window.clearTimeout(this.styleThumbnailTimer);
+    this.styleThumbnailTimer = window.setTimeout(() => {
+      this.styleThumbnailTimer = null;
+      void this.drawStyleThumbnails();
+    }, STYLE_THUMBNAIL_WAIT_MS);
+  }
+
+  /**
+   * Each style's thumbnail: the page in view restyled by it, as an SVG picture,
+   * one style a frame so the window stays live. A change to the page stops the
+   * run; the next one draws again.
+   */
+  private async drawStyleThumbnails(): Promise<void> {
+    const page = this.styleThumbnailKey();
+    for (const { file, style } of this.compositionStyles) {
+      if (!this.compositionStylesOpen || this.styleThumbnailKey() !== page) return;
+      const key = `${page}|${JSON.stringify(style)}`;
+      if (this.styleThumbnails.get(file)?.key === key) continue;
+      try {
+        const styled = applyCompositionStyle(this.store.sketch, style, { configs: this.store.textConfigs }).sketch;
+        const svg = this.toSvg(styled, { ...(this.inkBounds(styled) ? { crop: this.inkBounds(styled)! } : {}) });
+        this.styleThumbnails.set(file, { key, url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` });
+      } catch {
+        // A thumbnail that cannot be drawn stays empty; applying the style says why.
+      }
+      this.paintCompositionStyles();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+  }
+
+  /**
+   * The box a page's ink covers - every mark on a visible layer, grown by half
+   * the widest outline and a margin - so a thumbnail shows the composition
+   * rather than the page it sits on. Null for a page with nothing drawn.
+   */
+  private inkBounds(sketch: Sketch): { minX: number; minY: number; maxX: number; maxY: number } | null {
+    const layers = effectiveLayers(sketch);
+    let box: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
+    let widest = 0;
+    for (const [layerId, strokes] of strokesByLayer(sketch)) {
+      if (!layers.get(layerId)?.visible) continue;
+      for (const stroke of strokes) {
+        if (stroke.tool === 'eraser') continue;
+        const bounds = strokeBounds(stroke, this.surface.typeMeasure);
+        if (!bounds) continue;
+        box = box
+          ? { minX: Math.min(box.minX, bounds.minX), minY: Math.min(box.minY, bounds.minY), maxX: Math.max(box.maxX, bounds.maxX), maxY: Math.max(box.maxY, bounds.maxY) }
+          : { ...bounds };
+        widest = Math.max(widest, stroke.width ?? 0);
+      }
+    }
+    if (!box) return null;
+    const pad = widest / 2 + 8;
+    return { minX: box.minX - pad, minY: box.minY - pad, maxX: box.maxX + pad, maxY: box.maxY + pad };
+  }
+
+  /** The library's style by its file. */
+  private compositionStyleOf(file: string): { file: string; style: CompositionStyle } | undefined {
+    return this.compositionStyles.find((each) => each.file === file);
+  }
+
+  /** What the panel's foot, a double-click or a key asks, on the style chosen. */
+  private compositionStylesCommand(command: CompositionStylesCommand, file: string | null): void {
+    if (command === 'new') void this.newCompositionStyle();
+    else if (command === 'import') void this.importCompositionStyle();
+    else if (file === null) this.toast('Choose a style in the list first.');
+    else if (command === 'duplicate') void this.duplicateCompositionStyle(file);
+    else if (command === 'delete') void this.deleteCompositionStyle(file);
+    else if (command === 'export') void this.exportCompositionStyle(file);
+    else this.editCompositionStyle(file);
+  }
+
+  /**
+   * A style clicked in the panel: the page in view restyled by its layers'
+   * names, one undo step, and what did not match said in the report.
+   */
+  private applyCompositionStyleFile(file: string): void {
+    const entry = this.compositionStyleOf(file);
+    if (!entry) return;
+    let result;
+    try {
+      result = applyCompositionStyle(this.store.sketch, entry.style, { configs: this.store.textConfigs });
+    } catch (err) {
+      this.toast((err as Error).message);
+      return;
+    }
+    if (result.report.changed > 0) this.recordAs('composition-style-apply', () => this.store.restyle(result));
+    this.appliedStyles.set(this.store.sketch.id, file);
+    this.reportCompositionStyle(file, result.report);
+    this.paintCompositionStyles();
+  }
+
+  /**
+   * What applying a style did not do, as the report toast: a row an item, and
+   * on a rule that matched no layer but nearly did, Rename layer. A clean
+   * apply is the ordinary toast.
+   */
+  private reportCompositionStyle(file: string, report: CompositionStyleReport): void {
+    if (report.items.length === 0) {
+      this.reports.close('composition-style');
+      this.toast(report.changed > 0 ? `Applied ${report.style}` : `Applied ${report.style}: this page already looks that way`);
+      return;
+    }
+    this.reports.show({
+      id: 'composition-style',
+      title: compositionReportTitle(report),
+      details: report.items.map((item) => {
+        const near = item.suggestions?.[0];
+        if (!near) return { text: item.message };
+        return {
+          text: item.message,
+          suggestion: `Did you mean '${near}'?`,
+          action: { label: 'Rename layer', run: () => this.renameLayerForStyle(file, near, item.name) },
+        };
+      }),
+    });
+  }
+
+  /**
+   * A report's Rename layer: the layers named as the near miss take the
+   * rule's name, and the style is applied again - one undo step for both.
+   * Gives the row's new words.
+   */
+  private renameLayerForStyle(file: string, from: string, to: string): string {
+    const entry = this.compositionStyleOf(file);
+    if (!entry) return 'The style is no longer in the library';
+    const renamed = renameLayers(this.store.sketch, from, to);
+    const styled = applyCompositionStyle(renamed.sketch, entry.style, { configs: this.store.textConfigs });
+    const patches = new Map<string, Partial<Omit<Layer, 'id'>>>();
+    for (const { id, patch } of [...renamed.layers, ...styled.layers]) patches.set(id, { ...patches.get(id), ...patch });
+    this.recordAs('composition-style-apply', () => this.store.restyle({ strokes: styled.strokes, layers: [...patches].map(([id, patch]) => ({ id, patch })) }));
+    this.appliedStyles.set(this.store.sketch.id, file);
+    this.paintCompositionStyles();
+    return `Renamed ${from} to ${to}`;
+  }
+
+  /**
+   * Writes a style to the library - over its file, or as a new one named for
+   * it - and reads the library again. The file, or null when it could not be
+   * written, which is said.
+   */
+  private async writeCompositionStyle(file: string | null, style: CompositionStyle): Promise<string | null> {
+    const target = file ?? compositionStyleFileName(style.name, this.compositionStyles.map((each) => each.file));
+    let saved;
+    try {
+      saved = await window.napkin.writeCompositionStyle(target, serializeCompositionStyle(style));
+    } catch (err) {
+      saved = { ok: false, error: (err as Error).message };
+    }
+    if (!saved.ok) {
+      this.toast(`The style could not be saved: ${saved.error ?? 'the library could not be written'}`);
+      return null;
+    }
+    await this.loadCompositionStyles();
+    return target;
+  }
+
+  /** New: this page's named layers recorded as a new style, chosen in the list. */
+  private async newCompositionStyle(): Promise<void> {
+    const names = this.compositionStyles.map((each) => each.style.name);
+    let n = 1;
+    while (names.some((name) => layerNameKey(name) === layerNameKey(`Composition Style ${n}`))) n++;
+    const style = captureCompositionStyle(this.store.sketch, `Composition Style ${n}`, { configs: this.store.textConfigs });
+    if (compositionStyleRuleCount(style) === 0) {
+      this.toast('This page has no named layers to record. Name a layer, then try New again.');
+      return;
+    }
+    const made = await this.writeCompositionStyle(null, style);
+    if (!made) return;
+    this.compositionStylesPanel.choose(made);
+    this.toast(`New style: ${style.name}. Edit names it and its rules.`);
+  }
+
+  private async duplicateCompositionStyle(file: string): Promise<void> {
+    const entry = this.compositionStyleOf(file);
+    if (!entry) return;
+    const name = uniqueStyleName(`${entry.style.name} copy`, this.compositionStyles.map((each) => each.style.name));
+    const made = await this.writeCompositionStyle(null, { ...(JSON.parse(JSON.stringify(entry.style)) as CompositionStyle), name });
+    if (!made) return;
+    this.compositionStylesPanel.choose(made);
+    this.toast(`Duplicated as ${name}`);
+  }
+
+  /** Delete: the style goes from the library, and the report offers it back for as long as it is up. */
+  private async deleteCompositionStyle(file: string): Promise<void> {
+    const entry = this.compositionStyleOf(file);
+    if (!entry) return;
+    let gone = false;
+    try {
+      gone = await window.napkin.deleteCompositionStyle(file);
+    } catch {
+      gone = false;
+    }
+    if (!gone) {
+      this.toast(`${entry.style.name} could not be deleted`);
+      return;
+    }
+    this.styleThumbnails.delete(file);
+    await this.loadCompositionStyles();
+    this.reports.show({
+      id: 'composition-style-deleted',
+      level: 'info',
+      title: `Deleted ${entry.style.name}`,
+      details: [
+        {
+          text: 'It is gone from the library.',
+          action: {
+            label: 'Put it back',
+            run: () => {
+              void this.writeCompositionStyle(file, entry.style);
+              return `${entry.style.name} is back in the library`;
+            },
+          },
+        },
+      ],
+    });
+  }
+
+  /** Import: a style file the user picks, added to the library. */
+  private async importCompositionStyle(): Promise<void> {
+    let picked;
+    try {
+      picked = await window.napkin.openCompositionStyle();
+    } catch (err) {
+      picked = { ok: false, error: (err as Error).message };
+    }
+    if (!picked.ok) {
+      if (!picked.cancelled) this.toast(`The file could not be read: ${picked.error ?? 'unknown error'}`);
+      return;
+    }
+    await this.importCompositionStyleText(picked.text ?? '', picked.filePath ?? 'the file');
+  }
+
+  /**
+   * A style read from a file, added to the library under a name none there
+   * has. One that is not a style is the report, a row for each problem. The
+   * file it is kept in, or null.
+   */
+  private async importCompositionStyleText(text: string, from: string): Promise<string | null> {
+    const label = from.split(/[\\/]/).pop() || from;
+    let raw: unknown;
+    try {
+      raw = JSON.parse(text.replace(/^﻿/, ''));
+    } catch (err) {
+      this.reports.show({ id: 'composition-style-import', title: `${label} is not a composition style`, details: [{ text: `It is not JSON: ${(err as Error).message}` }] });
+      return null;
+    }
+    const read = validateCompositionStyle(raw);
+    if (!read.ok || !read.style) {
+      this.reports.show({ id: 'composition-style-import', title: `${label} is not a composition style`, details: read.errors.map((error) => ({ text: error })) });
+      return null;
+    }
+    const name = uniqueStyleName(read.style.name, this.compositionStyles.map((each) => each.style.name));
+    const made = await this.writeCompositionStyle(null, { ...read.style, name });
+    if (!made) return null;
+    this.compositionStylesPanel.choose(made);
+    this.toast(name === read.style.name ? `Imported ${name}` : `Imported ${read.style.name} as ${name}`);
+    return made;
+  }
+
+  /** Export: the chosen style as a file the user picks, the same JSON the library and the API read. */
+  private async exportCompositionStyle(file: string): Promise<void> {
+    const entry = this.compositionStyleOf(file);
+    if (!entry) return;
+    const stem = compositionStyleFileName(entry.style.name).replace(/\.json$/, '');
+    let saved;
+    try {
+      saved = await window.napkin.saveText(serializeCompositionStyle(entry.style), stem, 'json');
+    } catch (err) {
+      saved = { ok: false, error: (err as Error).message };
+    }
+    if (saved.ok) this.toast(`Exported ${entry.style.name}`);
+    else if (!saved.cancelled) this.toast(`The style could not be exported: ${saved.error ?? 'unknown error'}`);
+  }
+
+  /**
+   * Edit: the style's name and its rules in the configuration popup, a rule a
+   * row - its kind, the layer it names, what it sets, a rule taken from the
+   * selection, and a button that takes it out - with Add Rule beside Save.
+   * Save writes the style to its file.
+   */
+  private editCompositionStyle(file: string): void {
+    const entry = this.compositionStyleOf(file);
+    if (!entry) return;
+    type Row = { kind: CompositionRuleKind; name: string; rule: Readonly<Record<string, unknown>> };
+    const rows: Row[] = COMPOSITION_RULE_KINDS.flatMap((kind) =>
+      Object.entries(entry.style[COMPOSITION_RULE_KEYS[kind]] ?? {}).map(([name, rule]) => ({ kind, name, rule: rule as Record<string, unknown> })),
+    );
+    const names = [...new Set([...this.store.sketch.layers].reverse().map((layer) => layer.name.trim()).filter((name) => !isDefaultLayerName(name)))];
+    const dialog = this.configDialog;
+    const opened = dialog.open<Row>({
+      title: 'Edit Composition Style',
+      hint: 'A rule a row: what it styles, the layer it names, and what it sets. A rule with no layer name is left out.',
+      field: { label: 'Name', value: entry.style.name, title: "The style's name in the panel" },
+      columns: [
+        {
+          kind: 'select',
+          heading: 'Kind',
+          field: 'kind',
+          width: '6.5rem',
+          options: COMPOSITION_RULE_KINDS.map((kind) => ({ value: kind, label: COMPOSITION_RULE_LABELS[kind] })),
+          optgroups: [],
+        },
+        { kind: 'text', heading: 'Layer name', field: 'name', width: '10rem', editable: () => true, suggestions: () => names },
+        {
+          kind: 'button',
+          heading: 'Styles',
+          field: 'rule',
+          format: (row) => compositionRuleSummary(row.kind, row.rule) || 'Sets nothing yet',
+          label: () => 'Edit...',
+          buttonTitle: (row) => `Set what the rule for ${row.name.trim() || 'no layer yet'} sets`,
+          onClick: (row, index) => this.editRuleFields(row, index),
+        },
+        {
+          kind: 'button',
+          heading: 'From Selection',
+          field: 'rule',
+          width: '8.5rem',
+          label: () => 'From Selection',
+          buttonTitle: () => "Fill the rule from the selected mark's layer, or the active layer",
+          onClick: (row, index) => this.ruleFromSelection(row, index),
+        },
+        {
+          kind: 'button',
+          heading: '',
+          field: 'kind',
+          width: '2.75rem',
+          label: () => String.fromCharCode(0xd7),
+          buttonTitle: (row) => `Remove the rule for ${row.name.trim() || 'no layer'}`,
+          onClick: (_row, index) => dialog.removeRow(index),
+        },
+      ],
+      rows,
+      rowLabel: (row) => `${COMPOSITION_RULE_LABELS[row.kind]} rule ${row.name.trim() || '(no layer)'}`,
+      empty: 'No rules yet: Add Rule makes one.',
+      extra: [{ label: 'Add Rule', title: 'A new rule, at the end of the list', onClick: () => dialog.addRow<Row>({ kind: 'layer', name: '', rule: {} }) }],
+      accept: {
+        label: 'Save',
+        onAccept: async (next, name) => {
+          const style: Record<string, unknown> = { napkinCompositionStyle: 1, name: name.trim() };
+          for (const row of next) {
+            if (row.name.trim() === '') continue;
+            // A rule whose kind was changed keeps only the fields its new kind has.
+            const fields = new Set(COMPOSITION_RULE_FIELDS[row.kind].map((field) => field.key));
+            const key = COMPOSITION_RULE_KEYS[row.kind];
+            const group = (style[key] ??= {}) as Record<string, unknown>;
+            group[row.name.trim()] = Object.fromEntries(Object.entries(row.rule).filter(([field]) => fields.has(field)));
+          }
+          const read = validateCompositionStyle(style);
+          if (!read.ok || !read.style) throw new Error(read.errors[0] ?? 'The style does not read.');
+          const others = this.compositionStyles.filter((each) => each.file !== file).map((each) => each.style.name);
+          if (others.some((other) => layerNameKey(other) === layerNameKey(read.style!.name))) throw new Error(`Another style is called ${read.style.name}.`);
+          if (!(await this.writeCompositionStyle(file, read.style))) throw new Error('The style could not be saved.');
+          this.toast(`Saved ${read.style.name}`);
+        },
+      },
+    });
+    if (!opened) this.toast('Another editor is open. Accept or cancel it first.');
+  }
+
+  /** A rule row's Styles button: its fields in their form, and what OK gives back put in the row. */
+  private async editRuleFields(row: { kind: CompositionRuleKind; name: string; rule: Readonly<Record<string, unknown>> }, index: number): Promise<void> {
+    const configs = [...new Set([DEFAULT_CONFIG_NAME, ...this.store.textConfigs.map((config) => config.name), ...Object.values(MARKDOWN_CONFIG_NAMES)])];
+    const set = await this.compositionRuleForm.open(row.kind, row.name, row.rule, { configs, languages: this.settings.accentLanguages });
+    if (set) this.configDialog.editRow(index, { rule: set });
+  }
+
+  /** A rule row's From Selection: the rule a capture would write for the selected mark's layer, or the active layer. */
+  private ruleFromSelection(row: { kind: CompositionRuleKind; name: string }, index: number): void {
+    const layer = this.blendTargets()[0];
+    if (!layer) {
+      this.configDialog.say('Select a mark or a layer first.', 'warn');
+      return;
+    }
+    const rule = captureLayerRule(this.store.sketch, layer.id, row.kind, { configs: this.store.textConfigs });
+    if (!rule) {
+      this.configDialog.say(`${layer.name} has no ${row.kind === 'text' ? 'text' : 'paths'} to take a ${row.kind} rule from.`, 'warn');
+      return;
+    }
+    this.configDialog.editRow(index, { rule, ...(row.name.trim() === '' ? { name: layer.name.trim() } : {}) });
+    this.configDialog.say(`Took the rule from ${layer.name}.`, 'ok');
+  }
+
+  /**
+   * Load Text Configurations...: another book's - chosen in a file picker,
+   * or the book at `path` - merged into this one's by name, one alike kept
+   * once and one that differs added under its name numbered.
+   */
+  private async loadTextConfigs(path?: string): Promise<void> {
+    const result = path ? await window.napkin.loadBook(path) : await window.napkin.openBook({ title: 'Load Text Configurations' });
+    if (!result.ok || !result.book) {
+      if (result.error) this.toast(`The book could not be read: ${result.error}`);
+      return;
+    }
+    const from = basename(result.filePath ?? '').replace(/\.skbk$/i, '') || 'That book';
+    const incoming = result.book.textConfigs ?? [];
+    if (incoming.length === 0) {
+      this.toast(`${from} has no Text Configurations.`);
+      return;
+    }
+    const merged = mergeTextConfigs(this.store.textConfigs, incoming, () => createId('tc'));
+    if (merged.added.length > 0) this.recordAs('type-configs', () => this.store.editTextConfigs(merged.list, null));
+    const added = merged.added.length === 1 ? '1 Text Configuration' : `${merged.added.length} Text Configurations`;
+    const renamed = merged.renamed.map((each) => `${each.from} is ${each.to} here`).join(', ');
+    const alike = merged.same > 0 ? `; ${merged.same} ${merged.same === 1 ? 'was' : 'were'} here already` : '';
+    this.toast(`Loaded ${added} from ${from}${renamed ? `, ${renamed}, the name taken` : ''}${alike}.`);
+    this.renderTypePanel();
+  }
+
+  /**
+   * Text Configuration Options...: a configuration's name and attributes in
+   * the options popup, previewed on every text that follows it as they are
+   * set, and kept as one undo step on OK.
+   */
+  private openConfigOptions(config: TextConfig): void {
+    if (this.otherDialogOpen('type-options-dialog')) {
+      this.toast('Finish the dialog that is open, then open the options.');
+      return;
+    }
+    if (this.typeOptionsSession || this.configOptionsSession) this.typeOptions.cancel();
+    this.configOptionsSession = { config, previewing: false };
+    this.hideContextMenu();
+    this.typeOptions.open({
+      kind: 'config',
+      values: configOptionValues(config),
+      preview: this.typeOptionsPreview,
+      note: 'A field left blank is one the configuration does not set: each text keeps its own there.',
+    });
+    this.parkOptionsPopup('type-options-dialog');
+  }
+
+  /** The book's list with the form's values written to the configuration, and the text that follows it in step. */
+  private configOptionsEdit(session: ConfigOptionsSession, values: TypeOptionValues, changed: ReadonlySet<string>): { list: TextConfig[]; config: TextConfig } {
+    const config = configWithOptions(session.config, values, changed);
+    const list = replaceTextConfig(this.store.textConfigs, config);
+    return { list, config: list.find((each) => each.id === config.id) ?? config };
+  }
+
+  /** Shows the form's values on every text that follows the configuration, in a transaction its answer keeps or throws away. */
+  private previewConfigOptions(values: TypeOptionValues | null, changed: ReadonlySet<string>): void {
+    const session = this.configOptionsSession;
+    if (!session) return;
+    if (values === null) {
+      if (session.previewing) {
+        session.previewing = false;
+        this.store.rollbackTransaction();
+      }
+      return;
+    }
+    if (!session.previewing) {
+      this.recordAs('type-configs', () => this.store.beginTransaction(() => this.onConfigOptionsKept(), true));
+      session.previewing = true;
+    }
+    const { list, config } = this.configOptionsEdit(session, values, changed);
+    this.store.editTextConfigs(list, (stroke) => withConfigDefinitions(stroke, [config]), false);
+    this.renderTypePanel();
+  }
+
+  /** OK: the configuration keeps the fields changed, and the text that follows it changes with it, as one undo step. */
+  private commitConfigOptions(values: TypeOptionValues, changed: ReadonlySet<string>): void {
+    const session = this.configOptionsSession;
+    this.configOptionsSession = null;
+    if (!session) return;
+    const { list, config } = this.configOptionsEdit(session, values, changed);
+    const restyle = (stroke: Stroke): Stroke => withConfigDefinitions(stroke, [config]);
+    if (session.previewing) {
+      this.store.editTextConfigs(list, restyle, false);
+      this.store.commitTransaction();
+    } else if (JSON.stringify(config) !== JSON.stringify(session.config)) {
+      this.recordAs('type-configs', () => this.store.editTextConfigs(list, restyle));
+    }
+    this.renderTypePanel();
+  }
+
+  /** Cancel: the configuration and its text go back to what they were. */
+  private cancelConfigOptions(): void {
+    const session = this.configOptionsSession;
+    this.configOptionsSession = null;
+    if (session?.previewing) this.store.rollbackTransaction();
+    this.renderTypePanel();
+  }
+
+  /** Another edit kept the preview on the form's behalf, so the change is real now, a step of its own, and the form goes. */
+  private onConfigOptionsKept(): void {
+    if (!this.configOptionsSession) return;
+    this.configOptionsSession = null;
+    this.typeOptions.dismiss();
+  }
+
+  /** The panel put away by hand: it stays down until it would no longer come up by itself. */
+  private closeTypePanel(): void {
+    this.typePanelAuto = false;
+    this.typePanelDismissed = true;
+    this.setTypePanelOpen(false);
+  }
+
+  /** The Type panel up or down; the first time it comes up, docked. */
+  private setTypePanelOpen(open: boolean): void {
+    if (open === this.typePanelOpen) {
+      if (open) this.renderTypePanel();
+      return;
+    }
+    if (!open) this.endTypePreview(true);
+    this.typePanelOpen = open;
+    el('type-dialog').classList.toggle('is-hidden', !open);
+    if (open && !this.typePanelOpened) {
+      this.typePanelOpened = true;
+      if (!this.popups.isDocked('type-dialog')) this.popups.toggleDock('type-dialog');
+    }
+    if (open) this.renderTypePanel();
+    requestAnimationFrame(() => this.resizeSurface());
+    this.publishMenuState();
+  }
+
+  /**
+   * After the canvas changes size - a panel docking beside it, the window
+   * resized - the caret of the text being typed is panned back inside it, a
+   * little way in from its edge, should it have gone out of view.
+   */
+  private keepCaretInView(): void {
+    const at = this.typeEditor.caretPoint();
+    if (!at) return;
+    const p = this.surface.toClientPoint(at);
+    const rect = this.canvas.getBoundingClientRect();
+    const margin = Math.min(48, rect.width / 4, rect.height / 4);
+    const dx = p.x > rect.right - margin ? rect.right - margin - p.x : p.x < rect.left + margin ? rect.left + margin - p.x : 0;
+    const dy = p.y > rect.bottom - margin ? rect.bottom - margin - p.y : p.y < rect.top + margin ? rect.top + margin - p.y : 0;
+    if (dx === 0 && dy === 0) return;
+    this.surface.panBy(dx, dy);
+    this.scheduleRender();
+  }
+
+  /**
+   * Show the Type panel with the text tool: the panel comes up by itself
+   * while the Text tool is in hand - not lent by Ctrl - and a text is
+   * selected or being typed, unless it was put away by hand since.
+   */
+  private autoShowTypePanel(): void {
+    const wanted =
+      this.settings.typePanelAutoShow &&
+      this.store.tool.tool === 'text' &&
+      this.springFrom === null &&
+      (this.typeEditor.active || this.selectedTextMarks().length > 0);
+    if (!wanted) {
+      this.typePanelDismissed = false;
+      return;
+    }
+    if (this.typePanelOpen || this.typePanelDismissed) return;
+    this.typePanelAuto = true;
+    this.setTypePanelOpen(true);
+  }
+
+  /** A tool chosen: a panel that came up with the Text tool goes with it; the Text tool may bring it up. */
+  private typePanelFollowsTool(tool: Tool): void {
+    if (this.typePanelAuto && tool !== 'text') {
+      this.typePanelAuto = false;
+      this.setTypePanelOpen(false);
+    }
+    this.autoShowTypePanel();
+  }
+
+  /** Shows what the panel acts on, when it is up. */
+  private renderTypePanel(): void {
+    if (this.typePanelOpen) this.typePanel.render(this.typePanelView());
+  }
+
+  /** The family a new text is set in: the last chosen in the panel, or the app's own. */
+  private nextTextFont(): string {
+    return this.settings.textFont || DEFAULT_FONT_FAMILY;
+  }
+
+  /** The panel's view: what it acts on, what that has, and where a blank field's arrows start. */
+  private typePanelView(): TypePanelView {
+    const { scope, targets, title } = this.typePanelTargets();
+    const next = { fontFamily: this.nextTextFont(), fontSize: this.store.tool.fontSize, color: this.store.tool.color };
+    const reading = readTargets(targets) ?? nextTextReading(next);
+    const t = targets[0];
+    const first = t
+      ? {
+          char: t.start < t.end ? charAttrsAt(t.stroke, t.start) : typingAttrsAt(t.stroke, t.start, t.typing),
+          para: paraAttrsOf(t.stroke, paragraphAt(t.stroke.text ?? '', t.start)),
+        }
+      : { char: { ...DEFAULT_CHAR, ...next }, para: { ...DEFAULT_PARA } };
+    const configs = this.store.textConfigs;
+    return { title, scope, reading, first, configs, config: readConfigTargets(targets, configs) };
+  }
+
+  /**
+   * What the panel acts on, a vector editor's rule: while a text is typed,
+   * its selected characters, or with none its caret's typing attributes; the
+   * texts selected with a selection tool, all of each; or the next text.
+   */
+  private typePanelTargets(): { scope: TypePanelScope; targets: TypeTarget[]; title: string } {
+    const editing = this.typeEditor.target();
+    if (editing) {
+      const caret = editing.start === editing.end;
+      return {
+        scope: caret ? 'caret' : 'range',
+        title: caret ? 'What is typed next' : 'Selected characters',
+        targets: [{ stroke: editing.stroke, start: editing.start, end: editing.end, typing: editing.typing }],
+      };
+    }
+    const marks = this.selectedTextMarks();
+    if (marks.length > 0) {
+      return {
+        scope: 'marks',
+        title: marks.length === 1 ? 'Text' : `${marks.length} Texts`,
+        targets: marks.map((stroke) => ({ stroke, start: 0, end: (stroke.text ?? '').length })),
+      };
+    }
+    return { scope: 'next', title: 'Next text', targets: [] };
+  }
+
+  /** The selected text marks that can be changed. */
+  private selectedTextMarks(): Stroke[] {
+    if (this.store.selectedIds.size === 0) return [];
+    const editable = this.editableStrokeIds();
+    return this.store.sketch.strokes.filter((s) => this.store.selectedIds.has(s.id) && editable.has(s.id) && isTextStroke(s));
+  }
+
+  /**
+   * A change from the panel. With no text, it sets the next text; at the
+   * caret, a character change is the typing attributes'; otherwise it is
+   * written to the text - one undo step, or a preview a drag keeps as one.
+   */
+  private applyTypePanelChange(change: TypeChange, phase: 'once' | 'preview'): void {
+    const { scope, targets } = this.typePanelTargets();
+    if (scope === 'next') {
+      this.setNextText(change);
+    } else if (scope === 'caret' && setsTyping(change)) {
+      const t = targets[0];
+      const patch = typingPatch(change, typingAttrsAt(t.stroke, t.start, t.typing));
+      if (patch) this.typeEditor.setTypingAttrs(patch);
+      // Auto or None takes the kerning by hand at the caret back to none: it is the pair's either side.
+      if (patch?.kern !== undefined) this.writeTypeChange(targets, { kind: 'kern', value: patch.kern }, 'once');
+    } else {
+      this.writeTypeChange(targets, change, phase);
+    }
+    if (change.kind === 'char' && change.patch.fontFamily) this.useFont(change.patch.fontFamily);
+    this.renderTypePanel();
+    // A button pressed while typing gives the keyboard back to the text.
+    if (this.typeEditor.active && document.activeElement instanceof HTMLButtonElement) this.typeEditor.focus();
+  }
+
+  /**
+   * Writes a change to the texts the panel acts on: `once`, one undo step;
+   * `preview`, a drag's, each tick from the texts as the drag found them,
+   * kept or taken back as one by {@link endTypePreview}; `fold`, into the step
+   * a color well's first tick opened.
+   */
+  private writeTypeChange(targets: readonly TypeTarget[], change: TypeChange, phase: 'once' | 'preview' | 'fold'): void {
+    // Track History names a change by the menu row that made it - Size: 12 pt - else by the Text tool.
+    const command = this.store.currentCommand ?? 'tool:text';
+    if (phase === 'preview') {
+      if (!this.typePreview) {
+        this.recordAs(command, () => this.store.beginTransaction(() => (this.typePreview = null)));
+        this.typePreview = targets.map((t) => ({ ...t, stroke: { ...t.stroke } }));
+      }
+      this.store.setTypesets(this.typePreview.map((t) => ({ id: t.stroke.id, next: applyTypeChange(t, change) })), false);
+      return;
+    }
+    this.endTypePreview(true);
+    const entries = targets.flatMap((t) => {
+      const next = applyTypeChange(t, change);
+      return next === t.stroke ? [] : [{ id: t.stroke.id, next }];
+    });
+    if (entries.length === 0) return;
+    if (phase === 'fold') this.store.setTypesets(entries, false);
+    else this.recordAs(command, () => this.store.setTypesets(entries, true));
+  }
+
+  /** Keeps a drag's preview as one undo step, or takes it back. */
+  private endTypePreview(keep: boolean): void {
+    if (!this.typePreview) return;
+    this.typePreview = null;
+    if (keep) this.store.commitTransaction();
+    else this.store.rollbackTransaction();
+    this.renderTypePanel();
+  }
+
+  /** With no text to act on, the panel sets the next text: its size and its ink; its family through {@link useFont}. */
+  private setNextText(change: TypeChange): void {
+    if (change.kind !== 'char') return;
+    const { fontSize, color } = change.patch;
+    if (fontSize !== undefined && fontSize > 0) {
+      this.store.setTool({ fontSize });
+      void this.saveSettings({ textSize: Math.round(fontSize) });
+    }
+    if (color) this.store.setTool({ color });
+  }
+
+  /** A font chosen in the panel: first among the recent ones, and the one the next text is set in. */
+  private useFont(family: string): void {
+    this.fonts.touch(family);
+    if (this.settings.textFont !== family) void this.saveSettings({ textFont: family });
+  }
+
+  /** The panel's refresh button: the system's fonts read again. */
+  private async refreshFonts(): Promise<void> {
+    await this.fonts.refresh();
+    this.typeFaces.forget();
+    this.renderTypePanel();
+    this.toast(this.fonts.available ? `Read ${this.fonts.families.length} font families.` : "This computer's fonts could not be read.");
+  }
+
+  /**
+   * Says, once a book opens, which fonts its text uses that this computer
+   * does not have - a vector editor's Missing Fonts, as a report: a row a
+   * font, each with Find text. The text is drawn in a default face until the
+   * font is installed, and keeps its family, so it is right again where the
+   * font is.
+   */
+  private async reportMissingFonts(): Promise<void> {
+    await this.fonts.load();
+    if (!this.fonts.available) return;
+    const missing = new Map<string, { name: string; marks: Array<{ page: string; id: string }> }>();
+    for (const sketch of this.store.book.sketches) {
+      for (const stroke of sketch.strokes) {
+        if (!isTextStroke(stroke)) continue;
+        const families = new Set([stroke.fontFamily ?? DEFAULT_FONT_FAMILY, ...(stroke.typeset?.runs ?? []).flatMap((run) => (run.attrs.fontFamily ? [run.attrs.fontFamily] : []))]);
+        for (const family of families) {
+          if (this.fonts.has(family)) continue;
+          const name = primaryFamily(family);
+          const entry = missing.get(name.toLowerCase()) ?? { name, marks: [] };
+          if (!entry.marks.some((m) => m.id === stroke.id)) entry.marks.push({ page: sketch.id, id: stroke.id });
+          missing.set(name.toLowerCase(), entry);
+        }
+      }
+    }
+    if (missing.size === 0) return;
+    const n = missing.size;
+    this.reports.show({
+      id: 'missing-fonts',
+      title: n === 1 ? '1 font is not installed' : `${n} fonts are not installed`,
+      details: [...missing.values()].map(({ name, marks }) => ({
+        text: `${name}: ${marks.length === 1 ? 'one text' : `${marks.length} texts`}, drawn in a default face until it is installed`,
+        action: { label: 'Find text', run: () => this.findTexts(marks) },
+      })),
+    });
+  }
+
+  /** Selects texts a report names: on the page in view if it has any, else on the first page that does. */
+  private findTexts(marks: ReadonlyArray<{ page: string; id: string }>): void {
+    const pages = this.store.book.sketches;
+    const here = pages[this.store.activeIndex]?.id;
+    const page = marks.some((m) => m.page === here) ? here : marks.map((m) => m.page).find((id) => pages.some((p) => p.id === id));
+    if (!page) return;
+    const index = pages.findIndex((p) => p.id === page);
+    if (index !== this.store.activeIndex) this.turnPage(index);
+    this.store.setSelection(marks.filter((m) => m.page === page).map((m) => m.id));
   }
 
   // ---- Cursor --------------------------------------------------------------
@@ -5974,6 +8806,19 @@ class App {
     }
     if (this.spaceDown && !this.press) {
       this.canvas.style.cursor = 'grab';
+      return;
+    }
+    // Over the text being edited, or selecting in it: the text cursor.
+    if (this.typeHover || this.press?.kind === 'type-select') {
+      this.canvas.style.cursor = TEXT_CURSORS.edit;
+      return;
+    }
+
+    // The gumball: a handle under the pointer, or in hand, says what it does -
+    // moves, scales along its axis, or turns.
+    const gumball = this.gumballDrag?.state.handle ?? this.gumballHover;
+    if (gumball) {
+      this.canvas.style.cursor = this.gumballCursor(gumball);
       return;
     }
 
@@ -6015,9 +8860,10 @@ class App {
     }
 
     // Selection arrows: black for Select, white for Direct Select — the
-    // selection / direct-selection convention of vector editors.
+    // selection / direct-selection convention of vector editors. Over a path
+    // text's bracket, or dragging one, a hand.
     if (tool === 'select') {
-      this.canvas.style.cursor = CURSOR_ARROW_BLACK;
+      this.canvas.style.cursor = this.press?.kind === 'type-bracket' ? 'grabbing' : this.overBracket ? 'grab' : CURSOR_ARROW_BLACK;
       return;
     }
     if (tool === 'point') {
@@ -6038,7 +8884,7 @@ class App {
       return;
     }
     if (tool === 'text') {
-      this.canvas.style.cursor = 'text';
+      this.canvas.style.cursor = TEXT_CURSORS[this.textToolCursorAt(this.pointerOverCanvas ? this.lastCanvasPoint : null, this.altDown)];
       return;
     }
     if (tool === 'eraser') {
@@ -6306,7 +9152,17 @@ class App {
     color: string,
     history = true,
   ): { filled: number; recolored: number } | null {
-    if (this.store.tool.tool !== 'select' || this.store.selectedMarkCount === 0) return null;
+    // Text being typed takes it over its selection, or as the color of what is typed next.
+    if (this.typeEditor.active) {
+      const { scope, targets } = this.typePanelTargets();
+      if (scope === 'caret') this.typeEditor.setTypingAttrs({ color });
+      else this.writeTypeChange(targets, { kind: 'char', patch: { color } }, history ? 'once' : 'fold');
+      this.renderTypePanel();
+      return { filled: 0, recolored: 1 };
+    }
+    // The Text tool's selected texts take it as the Select tool's selection does.
+    const tool = this.store.tool.tool;
+    if ((tool !== 'select' && tool !== 'text') || this.store.selectedMarkCount === 0) return null;
     return this.store.paintSelected(this.store.tool.colorTarget, color, history);
   }
 
@@ -6431,6 +9287,13 @@ class App {
       taperEnds: s.sharpenTaperEnds,
     });
     el<HTMLInputElement>('qs-warp-show-mesh').checked = s.warpShowMesh;
+    // Scale Strokes and Effects: whether a transform takes them with the mark.
+    this.store.scaleStrokesAndEffects = s.scaleStrokesAndEffects;
+    // Use Preview Bounds: whether a mark's box and its hit area take in what its effects paint.
+    this.surface.usePreviewBounds = s.usePreviewBounds;
+    // Clean Language Accents: the theme, guessing unlabelled code's language, and the languages installed.
+    setAccentOptions({ theme: s.accentTheme, detect: s.accentDetect });
+    this.syncAccentLanguages();
     this.rebuildSwatches();
     this.applyMenuPlacement();
     // The selection border is a painted thing, so a change made in the Verbose
@@ -6909,6 +9772,8 @@ class App {
     this.store.setTool({ tool: 'copic', width: this.nibModeWidth });
     this.updateNibIndicator();
     el('nib-indicator').classList.remove('is-hidden');
+    // The report toasts sit above the indicator while it shows.
+    this.reports.place();
   }
 
   /** Ends rotate mode (the hold key released, or the window lost). */
@@ -6917,6 +9782,7 @@ class App {
     this.nibRotateActive = false;
     this.setNibRotateDir(0);
     el('nib-indicator').classList.add('is-hidden');
+    this.reports.place();
     // Hand the canvas back to the tool and width that were active before the
     // mode began, unless the user explicitly changed either while the mode
     // was active (their deliberate choice wins over the automatic restore).
@@ -7089,6 +9955,8 @@ class App {
       this.store.setBook(result.book, result.filePath ?? null);
       this.surface.resetViewport();
       this.toast(`Opened ${this.store.displayName}.`);
+      if (result.newer) this.reportNewerBook();
+      void this.reportMissingFonts();
     } else {
       this.toast(result.error ?? 'Could not open sketch book.');
     }
@@ -7153,9 +10021,8 @@ class App {
       if (result.ok) this.toast(`Exported ${format.toUpperCase()}.`);
       else this.toast(result.error ?? 'Export failed.');
     } else {
-      const contents = this.store.book.sketches.map((sk) =>
-        Surface.renderSketchToDataURL(sk, mime),
-      );
+      // Every Markdown block rendered, as the other exports draw them, whatever text is being typed.
+      const contents = withoutMarkdownReveal(() => this.store.book.sketches.map((sk) => Surface.renderSketchToDataURL(sk, mime)));
       const result = await window.napkin.saveImages(format, contents, this.store.displayName);
       if (result.cancelled) return;
       if (result.ok) this.toast(`Exported ${result.filePaths?.length ?? 0} pages as ${format.toUpperCase()}.`);
@@ -7168,13 +10035,13 @@ class App {
     if (choice === null) return;
 
     if (choice === 'page') {
-      const svgContent = Surface.toSVG(this.store.sketch);
+      const svgContent = this.toSvg(this.store.sketch);
       const result = await window.napkin.saveSvg(svgContent, this.store.displayName);
       if (result.cancelled) return;
       if (result.ok) this.toast('Exported SVG.');
       else this.toast(result.error ?? 'Export failed.');
     } else {
-      const contents = this.store.book.sketches.map((sk) => Surface.toSVG(sk));
+      const contents = this.store.book.sketches.map((sk) => this.toSvg(sk));
       const result = await window.napkin.saveImages('svg', contents, this.store.displayName);
       if (result.cancelled) return;
       if (result.ok) this.toast(`Exported ${result.filePaths?.length ?? 0} pages as SVG.`);
@@ -7187,13 +10054,56 @@ class App {
     if (choice === null) return;
     const sketches = choice === 'page' ? [this.store.sketch] : this.store.book.sketches;
     const prepared = await Promise.all(sketches.map((sk) => this.flattenImagesForPdf(sk)));
-    const result = await window.napkin.savePdf(sketchesToPdf(prepared), this.store.displayName);
+    const leftOut: string[] = [];
+    const result = await window.napkin.savePdf(sketchesToPdf(prepared, await this.pdfOptions(prepared, leftOut)), this.store.displayName);
     if (result.cancelled) return;
     if (result.ok) {
       this.toast(choice === 'page' ? 'Exported PDF.' : `Exported ${prepared.length} pages as one PDF.`);
+      this.reportLeftOut('pdf-export', 'PDF', leftOut);
     } else {
       this.toast(result.error ?? 'Export failed.');
     }
+  }
+
+  /**
+   * How a PDF export writes its pages: what it leaves out said into
+   * `leftOut`; and, with Draw text as shapes in PDF on, its text drawn from
+   * its fonts' outlines - every face its text is set in read first, so none
+   * is caught unread.
+   */
+  private async pdfOptions(sketches: readonly Sketch[], leftOut: string[]): Promise<PdfOptions> {
+    const textAsShapes = this.settings.pdfTextAsShapes;
+    if (textAsShapes) {
+      const texts = sketches.flatMap((sketch) => sketch.strokes.filter((stroke) => isTextStroke(stroke) && stroke.points[0]));
+      await this.typeFaces.readAll(texts.flatMap((stroke) => this.fontsOf(stroke)));
+    }
+    return { onWarning: (message) => leftOut.push(message), textAsShapes };
+  }
+
+  /**
+   * Says a book just opened was saved by a newer napkin-sketch: what this
+   * build does not know of it may not show, and is not written back.
+   */
+  private reportNewerBook(): void {
+    this.reports.show({
+      id: 'newer-book',
+      title: 'This file was saved by a newer napkin-sketch; some parts may not show.',
+      details: [{ text: 'Saving it here writes only what this version knows of it.' }],
+    });
+  }
+
+  /**
+   * Says what an export left out, each thing on its line of a report toast
+   * (report-toast.ts) - an effect a PDF does not draw, say - after the toast
+   * that says it was exported. Nothing when it left nothing out.
+   */
+  private reportLeftOut(id: string, format: string, leftOut: readonly string[]): void {
+    if (leftOut.length === 0) return;
+    this.reports.show({
+      id,
+      title: `The ${format} leaves out ${leftOut.length === 1 ? 'one thing' : `${leftOut.length} things`} it cannot draw`,
+      details: leftOut.map((text) => ({ text })),
+    });
   }
 
   // ---- Clipboard -----------------------------------------------------------
@@ -7322,11 +10232,16 @@ class App {
   }
 
   /** Puts the copied graphic on the system clipboard, cropped to its own ink. */
+  /** A page as SVG, its text set with the canvas's measure so the file breaks lines where the app does. */
+  private toSvg(sketch: Sketch, options: SvgExportOptions = {}): string {
+    return Surface.toSVG(sketch, { typeMeasure: this.surface.typeMeasure, ...options });
+  }
+
   private async publishClipboardSvg(strokes: Stroke[]): Promise<void> {
     try {
       const crop = this.cropBoundsOfStrokes(strokes);
       if (!crop) return;
-      const svg = Surface.toSVG(
+      const svg = this.toSvg(
         { ...this.store.sketch, strokes },
         { crop, transparent: true },
       );
@@ -7375,6 +10290,7 @@ class App {
    * system clipboard is checked first, and its SVG is imported instead.
    */
   private async pasteClipboard(inPlace: boolean): Promise<void> {
+    if (!inPlace && (await this.pasteOnPath())) return;
     const outside = await this.readOutsideSvg();
     if (outside) {
       await this.pasteOutsideSvg(outside);
@@ -7603,7 +10519,7 @@ class App {
     if (format === 'svg') {
       // The viewBox does the cropping, so every coordinate stays exactly
       // what a full-page export would have written.
-      const svg = Surface.toSVG(
+      const svg = this.toSvg(
         { ...this.store.sketch, strokes },
         { crop, transparent: true },
       );
@@ -7616,9 +10532,11 @@ class App {
     const cropped = this.croppedSketch(strokes, crop);
     if (format === 'pdf') {
       const prepared = await this.flattenImagesForPdf(cropped);
-      const result = await window.napkin.savePdf(sketchesToPdf([prepared]), name);
+      const leftOut: string[] = [];
+      const result = await window.napkin.savePdf(sketchesToPdf([prepared], await this.pdfOptions([prepared], leftOut)), name);
       if (result.cancelled) return;
       this.toast(result.ok ? `Exported the selection as a ${size} PDF.` : result.error ?? 'Export failed.');
+      if (result.ok) this.reportLeftOut('pdf-export', 'PDF', leftOut);
       return;
     }
 
@@ -7927,6 +10845,37 @@ class App {
       this.layerOpacityDragging = false;
       this.renderLayers();
     });
+
+    // The blend select: Illustrator's list, a group of options a family, and
+    // a "Mixed" the select shows, never offers, when the layers differ.
+    const blend = el<HTMLSelectElement>('layer-blend');
+    const mixed = new Option('Mixed', '');
+    mixed.disabled = true;
+    mixed.hidden = true;
+    blend.append(mixed);
+    const families: Record<string, string> = { darken: 'Darken', lighten: 'Lighten', contrast: 'Contrast', comparative: 'Compare', component: 'Component' };
+    let group: HTMLOptGroupElement | null = null;
+    for (const mode of BLEND_MODES) {
+      const option = new Option(blendName(mode.id), mode.id);
+      if (mode.family === 'normal') {
+        blend.append(option);
+        continue;
+      }
+      if (group?.dataset.family !== mode.family) {
+        group = document.createElement('optgroup');
+        group.label = families[mode.family];
+        group.dataset.family = mode.family;
+        blend.append(group);
+      }
+      group.append(option);
+    }
+    blend.addEventListener('change', () => {
+      const mode = blendModeOf(blend.value);
+      if (mode) this.applyBlend(mode);
+      // The select gives the keys back to the drawing: an arrow pressed next
+      // would otherwise step the select rather than the tool keys it means.
+      blend.blur();
+    });
   }
 
   private toggleLayers(force?: boolean): void {
@@ -7959,7 +10908,7 @@ class App {
       // Right-clicking an unselected element picks it first, so "Copy" means
       // the thing just clicked rather than whatever was selected before.
       const pt = this.surface.toSketchPoint(e.clientX, e.clientY, 0.5);
-      const hit = this.hitTest(pt);
+      const hit = this.pickAt(pt);
       if (hit && !this.store.selectedIds.has(hit.id)) this.store.setSelection([hit.id]);
       // Paste aims at the point that was right-clicked, not at wherever the
       // pointer drifts to while the menu is open.
@@ -8059,6 +11008,7 @@ class App {
         btn.appendChild(chord);
       }
       btn.disabled = item.disabled === true;
+      if (item.title) btn.title = item.title;
       const children = item.items;
       if (children && children.length > 0) {
         btn.classList.add('has-submenu');
@@ -8578,6 +11528,18 @@ class App {
         row.classList.add(group ? 'is-clip-group' : 'is-clip-path');
         name.after(mark);
       }
+      // A blended layer's row carries a mark of two circles mixing, before
+      // its opacity, named in its tooltip.
+      if (isBlended(layer.blend)) {
+        const mark = document.createElement('span');
+        mark.className = 'layer-blend-badge';
+        mark.title = `${blendName(layer.blend)}${layer.isolate ? ', isolated' : ''} (Layers > Blend)`;
+        mark.setAttribute('role', 'img');
+        mark.setAttribute('aria-label', blendName(layer.blend));
+        mark.appendChild(blendBadgeIcon());
+        row.classList.add('is-blended');
+        badge.before(mark);
+      }
       // Double-click anywhere on the row - not just the name - starts the
       // rename, the pointer counterpart of `F2`. The caret and the two
       // toggles keep their own single-click jobs: a double-click on one of
@@ -8603,6 +11565,9 @@ class App {
 
     el<HTMLInputElement>('layer-opacity').value = String(Math.round(active.opacity * 100));
     el('layer-opacity-value').textContent = `${Math.round(active.opacity * 100)}%`;
+    // The blend of the layers a blend acts on; "Mixed" when they differ.
+    const blends = new Set(this.blendTargets().map((layer) => layer.blend ?? 'normal'));
+    el<HTMLSelectElement>('layer-blend').value = blends.size === 1 ? [...blends][0] : '';
     el<HTMLButtonElement>('delete-layer').disabled = layers.filter((l) => !l.group).length <= 1;
     // The move buttons act on the whole selection, groups included, and grey
     // out only where that selection has nowhere left to go.
@@ -8769,12 +11734,17 @@ class App {
         for (const [layerId, marks] of strokesByLayer(sketch)) {
           for (const m of marks) layerOfStroke.set(m.id, layerId);
         }
+        const blendOf = new Map(sketch.layers.map((layer) => [layer.id, layer.blend]));
         for (const s of sketch.strokes) {
           if (isTextStroke(s) || isImageStroke(s)) continue;
           const layerId = layerOfStroke.get(s.id);
           const effective = layerId ? effectiveOf.get(layerId) : undefined;
           if (!effective || !effective.visible) continue;
           tctx.globalAlpha = (s.opacity ?? defaultOpacityFor(s.tool)) * effective.opacity;
+          // A blended layer mixes into the thumbnail's paper as it does on the
+          // page; every mark has a layer of its own, so a mark's blend is its
+          // layer's. A group's blend is left to the page itself.
+          tctx.globalCompositeOperation = compositeOperation(layerId ? blendOf.get(layerId) : undefined);
           tctx.strokeStyle = s.tool === 'eraser' ? sketch.background : s.color;
           tctx.lineWidth = s.width;
           tctx.beginPath();
@@ -8858,13 +11828,14 @@ class App {
       'export-selection-pdf': () => void this.exportSelection('pdf'),
       undo: () => this.undo(),
       redo: () => this.redo(),
-      cut: () => this.cutSelection(),
-      copy: () => this.copySelectionWithToast(),
-      paste: () => this.pasteClipboard(false),
-      'paste-in-place': () => this.pasteClipboard(true),
+      // While text is being edited these act on the text: Paste in Place, on its key, is a plain paste.
+      cut: () => (this.typeEditor.active ? this.typeEditor.cut() : this.cutSelection()),
+      copy: () => (this.typeEditor.active ? void this.typeEditor.copy() : this.copySelectionWithToast()),
+      paste: () => (this.typeEditor.active ? this.typeEditor.paste(false) : this.pasteClipboard(false)),
+      'paste-in-place': () => (this.typeEditor.active ? this.typeEditor.paste(true) : this.pasteClipboard(true)),
       duplicate: () => this.duplicateSelection(),
-      'delete-selection': () => this.deleteSelectionOrLayers(),
-      'select-all': () => this.selectAll(),
+      'delete-selection': () => (this.typeEditor.active ? this.typeEditor.deleteSelection() : this.deleteSelectionOrLayers()),
+      'select-all': () => (this.typeEditor.active ? this.typeEditor.selectAll() : this.selectAll()),
       'deselect-all': () => this.store.clearSelection(),
       'toggle-rearrange': () => this.toggleRearrange(),
       'edit-shortcuts': () => this.openShortcutEditor(),
@@ -8873,6 +11844,10 @@ class App {
       'toggle-pages': () => this.togglePages(),
       'toggle-layers': () => this.toggleLayers(),
       'toggle-properties': () => this.toggleProperties(),
+      'toggle-appearance': () => this.toggleAppearance(),
+      'toggle-composition-styles': () => this.toggleCompositionStyles(),
+      'toggle-character': () => this.toggleTypePanel('character'),
+      'toggle-paragraph': () => this.toggleTypePanel('paragraph'),
       'toggle-settings': () => this.toggleSettings(),
       'fit-view': () => this.fitAllInView(),
       'prev-page': () => this.turnPage(this.store.activeIndex - 1),
@@ -8890,6 +11865,72 @@ class App {
       'sharpen-all': () => this.sharpenAll(),
       'tool-warp': () => this.selectTool('warp'),
       'tool-liquify': () => this.chooseLiquify(),
+      'apply-last-effect': () => this.applyLastEffect(),
+      'last-effect': () => this.openLastEffect(),
+      'effect-gaussian-blur': () => this.addEffectFromMenu('blur'),
+      'effect-brightness': () => this.addEffectFromMenu('brightness'),
+      'effect-contrast': () => this.addEffectFromMenu('contrast'),
+      'effect-saturate': () => this.addEffectFromMenu('saturate'),
+      'effect-grayscale': () => this.addEffectFromMenu('grayscale'),
+      'effect-sepia': () => this.addEffectFromMenu('sepia'),
+      'effect-invert': () => this.addEffectFromMenu('invert'),
+      'effect-hue-rotate': () => this.addEffectFromMenu('hue-rotate'),
+      'effect-opacity': () => this.addEffectFromMenu('opacity'),
+      'effect-feather': () => this.addEffectFromMenu('feather'),
+      'effect-drop-shadow': () => this.addEffectFromMenu('drop-shadow'),
+      'effect-inner-shadow': () => this.addEffectFromMenu('inner-shadow'),
+      'effect-outer-glow': () => this.addEffectFromMenu('outer-glow'),
+      'effect-inner-glow': () => this.addEffectFromMenu('inner-glow'),
+      'effect-bevel': () => this.addEffectFromMenu('bevel'),
+      'effect-emboss': () => this.addEffectFromMenu('emboss'),
+      'effect-splatter': () => this.addEffectFromMenu('splatter'),
+      'effect-warp-arc': () => this.addWarpFromMenu('arc'),
+      'effect-warp-arch': () => this.addWarpFromMenu('arch'),
+      'effect-warp-unroll': () => this.addWarpFromMenu('unroll'),
+      'effect-warp-shell': () => this.addWarpFromMenu('shell'),
+      'effect-warp-windy': () => this.addWarpFromMenu('windy'),
+      'effect-warp-breezy': () => this.addWarpFromMenu('breezy'),
+      'effect-warp-curvy': () => this.addWarpFromMenu('curvy'),
+      'effect-warp-chart': () => this.addWarpFromMenu('chart'),
+      'effect-warp-puffy': () => this.addWarpFromMenu('puffy'),
+      'effect-warp-expand': () => this.addWarpFromMenu('expand'),
+      'effect-warp-cram': () => this.addWarpFromMenu('cram'),
+      'effect-warp-twirl': () => this.addWarpFromMenu('twirl'),
+      'effect-3d-extrude': () => this.add3dFromMenu('extrude'),
+      'effect-3d-revolve': () => this.add3dFromMenu('revolve'),
+      'effect-3d-options': () => this.toggleThreeDPanel(true),
+      'expand-appearance': () => this.expandSelectedAppearance(),
+      'clear-appearance': () => this.clearAppearance(),
+      'type-font': () => this.focusTypeField('family'),
+      'type-size-6': () => this.setTypeSize(6),
+      'type-size-7': () => this.setTypeSize(7),
+      'type-size-8': () => this.setTypeSize(8),
+      'type-size-9': () => this.setTypeSize(9),
+      'type-size-10': () => this.setTypeSize(10),
+      'type-size-11': () => this.setTypeSize(11),
+      'type-size-12': () => this.setTypeSize(12),
+      'type-size-14': () => this.setTypeSize(14),
+      'type-size-18': () => this.setTypeSize(18),
+      'type-size-21': () => this.setTypeSize(21),
+      'type-size-24': () => this.setTypeSize(24),
+      'type-size-36': () => this.setTypeSize(36),
+      'type-size-48': () => this.setTypeSize(48),
+      'type-size-60': () => this.setTypeSize(60),
+      'type-size-72': () => this.setTypeSize(72),
+      'type-size-other': () => this.focusTypeField('size'),
+      'type-character': () => this.showTypePanel('character'),
+      'type-paragraph': () => this.showTypePanel('paragraph'),
+      'type-configs': () => this.showTypePanel('configs'),
+      'type-path-options': () => this.openTypeOptions('path'),
+      'type-path-flip': () => this.flipPathText(),
+      'type-horizontal': () => this.applyTypePanelChange({ kind: 'orientation', value: 'horizontal' }, 'once'),
+      'type-vertical': () => this.applyTypePanelChange({ kind: 'orientation', value: 'vertical' }, 'once'),
+      'type-area-options': () => this.openTypeOptions('area'),
+      'type-markdown': () => void this.toggleMarkdownFlow(),
+      'type-accents-apply': () => void this.applyAccentFromMenu(),
+      'type-accents-remove': () => this.removeAccents(),
+      'type-accents-languages': () => this.openAccentLanguages(),
+      'expand-text': () => this.expandTextToShape(),
       'tool-pen': () => this.selectTool('pen'),
       'tool-marker': () => this.selectTool('marker'),
       'tool-eraser': () => this.selectTool('eraser'),
@@ -8898,6 +11939,25 @@ class App {
       'tool-split': () => this.selectTool('split'),
       'clip-make': () => this.makeClipMask(),
       'clip-release': () => this.releaseClipMask(),
+      'blend-next': () => this.stepBlend(1),
+      'blend-previous': () => this.stepBlend(-1),
+      'blend-normal': () => this.applyBlend('normal'),
+      'blend-soak': () => this.applyBlend('soak'),
+      'blend-stack': () => this.applyBlend('stack'),
+      'blend-scorch': () => this.applyBlend('scorch'),
+      'blend-dry': () => this.applyBlend('dry'),
+      'blend-sheer': () => this.applyBlend('sheer'),
+      'blend-bleach': () => this.applyBlend('bleach'),
+      'blend-fold': () => this.applyBlend('fold'),
+      'blend-light': () => this.applyBlend('light'),
+      'blend-heavy': () => this.applyBlend('heavy'),
+      'blend-messy': () => this.applyBlend('messy'),
+      'blend-avoidance': () => this.applyBlend('avoidance'),
+      'blend-tidy': () => this.applyBlend('tidy'),
+      'blend-bright': () => this.applyBlend('bright'),
+      'blend-dye': () => this.applyBlend('dye'),
+      'blend-cover': () => this.applyBlend('cover'),
+      'blend-isolate': () => this.toggleIsolateBlending(),
       'apply-erasers': () => this.applyErasers(),
       'tool-text': () => this.selectTool('text'),
       'tool-copic': () => this.selectTool('copic'),
@@ -8932,6 +11992,11 @@ class App {
       'toggle-transform': () => this.toggleTransformTool(),
       'stroke-profile': () => this.openProfileDialog(),
       'clear-page': () => this.store.clear(),
+      'composition-style-apply': () => {
+        const chosen = this.compositionStylesPanel.choice;
+        if (chosen !== null) this.applyCompositionStyleFile(chosen);
+        else this.toggleCompositionStyles(true);
+      },
       'toggle-selection-borders': () => this.toggleSelectionBorders(),
       'quick-width': () => this.startQuickEntry('width'),
       'quick-opacity': () => this.startQuickEntry('opacity'),
@@ -8960,6 +12025,8 @@ class App {
       this.whenPressEnds(() => this.selectTool(tool));
       return;
     }
+    // Choosing a tool puts the text being edited down.
+    this.typeEditor.end();
     // Ctrl on a drawing tool gives whichever selection tool was chosen last.
     if (tool === 'select' || tool === 'point') this.lastSelectionTool = tool;
     // A tool chosen while Ctrl lends the selection tool stands when Ctrl
@@ -8967,6 +12034,7 @@ class App {
     this.springFrom = null;
     this.store.setTool({ tool });
     this.updateCursor();
+    this.typePanelFollowsTool(tool);
     if (tool === 'warp') this.beginWarpTool();
   }
 
@@ -8987,7 +12055,16 @@ class App {
    * menu greys when it opens, and what the menu bar greys and checks.
    */
   private menuState(): MenuState {
+    // The Blend submenu's checks: a mode is checked when every layer a blend
+    // acts on has it, so a mixed selection checks none.
+    const targets = this.blendTargets();
+    const blends = new Set(targets.map((layer) => layer.blend ?? 'normal'));
+    const only = blends.size === 1 ? [...blends][0] : null;
+    const groups = targets.filter((layer) => layer.group);
+    const blendChecks = Object.fromEntries(BLEND_MODE_IDS.map((id) => [BLEND_PREDICATES[id], only === id]));
     return {
+      ...blendChecks,
+      isolateBlending: groups.length > 0 && groups.every((group) => group.isolate === true),
       noSelection: this.exportSelectionStrokes().length === 0,
       noMarksSelected: this.store.selectedMarkCount === 0,
       noClipboard: clipboardMarkCount(this.clipboard) === 0,
@@ -9006,7 +12083,44 @@ class App {
       fillInFront: this.store.tool.colorTarget === 'fill',
       fewerThanTwoShapes: this.wipeableSelection().length < 2,
       noClipGroup: this.releaseTarget() === null,
+      noEffects: !this.appearanceLists().some((effects) => effects.length > 0),
+      noLastEffect: this.lastEffect === null,
+      noGeometryEffects: !this.appearanceLists().some((effects) => hasGeometryEffects(effects)),
+      noShapes: this.noShapes(),
+      ...this.typeMenuState(),
     };
+  }
+
+  /**
+   * The Type menu's answers, about what it acts on - the text being typed,
+   * else the selected texts, as the Type panel: whether one runs along a
+   * path or is set in a shape, which way they are all set, and the size they
+   * all have; with no text, the next text's size.
+   */
+  private typeMenuState(): MenuState {
+    const { targets } = this.typePanelTargets();
+    const kinds = new Set(targets.map((t) => typeSpecOf(t.stroke).kind));
+    const reading = readTargets(targets) ?? nextTextReading({ fontSize: this.store.tool.fontSize });
+    const size = reading.char.fontSize;
+    const state: MenuState = {
+      noOrientableText: targets.length === 0 || kinds.has('path'),
+      typeHorizontal: targets.length > 0 && reading.orientation === 'horizontal',
+      typeVertical: targets.length > 0 && reading.orientation === 'vertical',
+      noPathText: !kinds.has('path'),
+      noAreaText: !kinds.has('area'),
+      noText: targets.length === 0,
+      typeMarkdown: targets.length > 0 && targets[0].stroke.typeset?.flow === 'markdown',
+      noAccents: !targets.some((t) => hasAccent(t.stroke, t.start, t.end)),
+    };
+    for (const [points, question] of TYPE_MENU_SIZES) state[question] = size !== null && Math.abs(size / toPx(1, 'pt') - points) < 0.01;
+    return state;
+  }
+
+  /** Whether nothing the Appearance panel acts on has a shape for a Warp, a Splatter or 3D: only pictures, or nothing. Text has its glyphs'. */
+  private noShapes(): boolean {
+    const targets = this.appearanceTargets();
+    if (targets.kind === 'groups') return targets.layers.length === 0;
+    return !targets.strokes.some((stroke) => stroke.tool !== 'eraser' && !isImageStroke(stroke));
   }
 
   /** Tells the menu bar the answers, when they differ from the ones it has. */
@@ -10470,7 +13584,7 @@ class App {
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const stroke of strokes) {
-      const b = strokeBounds(stroke, (t) => this.surface.measureText(t));
+      const b = strokeBounds(stroke, this.surface.typeMeasure);
       if (!b) continue;
       minX = Math.min(minX, b.minX);
       minY = Math.min(minY, b.minY);
@@ -10561,11 +13675,11 @@ class App {
     const layers = sketch.layers.filter((l) => keep.has(l.id));
     const strokes = sketch.strokes.filter((s) => keep.has(layerOf(sketch, s).id));
     const crop = this.animationCropBounds(rootIds);
-    return Surface.toSVG(
+    return this.toSvg(
       { ...sketch, layers, strokes },
       { transparent: true, ...(crop ? { crop } : {}) },
     );
-    return Surface.toSVG({ ...sketch, layers, strokes });
+    return this.toSvg({ ...sketch, layers, strokes });
   }
 
   // ---- Properties panel ----------------------------------------------------
@@ -10580,6 +13694,28 @@ class App {
   private bindProperties(): void {
     el('properties-toggle').addEventListener('click', () => this.runCommand('toggle-properties'));
     el('properties-close').addEventListener('click', () => this.toggleProperties(false));
+
+    // The Appearance section's last rows, as a vector editor's Properties
+    // panel has them: the layers' opacity and blend, an fx button that drops
+    // the Effect menu's rows down, and how many effects there are, which
+    // opens the Appearance panel.
+    const opacity = el<HTMLInputElement>('prop-opacity');
+    opacity.addEventListener('change', () => {
+      if (opacity.value.trim() !== '' && Number.isFinite(Number(opacity.value))) this.setAppearanceOpacity(Number(opacity.value));
+    });
+    const blend = el<HTMLSelectElement>('prop-blend');
+    fillBlendSelect(blend);
+    blend.addEventListener('change', () => {
+      const mode = blendModeOf(blend.value);
+      if (mode) this.applyBlend(mode);
+      blend.blur();
+    });
+    el('prop-fx').addEventListener('click', () => this.toggleMenuUnder(el('prop-fx'), this.windowMenu('effect-button')));
+    el('prop-effects').addEventListener('click', () => this.toggleAppearance(true));
+    el('appearance-close').addEventListener('click', () => this.toggleAppearance(false));
+    el('composition-styles-close').addEventListener('click', () => this.toggleCompositionStyles(false));
+    el('three-d-close').addEventListener('click', () => this.toggleThreeDPanel(false));
+    el('type-close').addEventListener('click', () => this.closeTypePanel());
 
     // The unit pickers are built from the shared unit tables, so the options
     // offered and the conversions applied can never drift apart.
@@ -10846,6 +13982,19 @@ class App {
     // The Generated script dialog asks a question too - what to do with the
     // script - so it moves and resizes but does not dock.
     this.popups.register('script-dialog', { moveable: true, resize: true });
+    // The Appearance panel is a palette that stays up while the drawing goes
+    // on, so it docks; it opens docked the first time (see toggleAppearance).
+    this.popups.register('appearance-dialog', { moveable: true, resize: true, dockable: true });
+    this.popups.register('composition-styles-dialog', { moveable: true, resize: true, dockable: true });
+    this.popups.register('composition-rule-dialog', { moveable: true, resize: true });
+    // So is 3D Options, which opens docked the first time (see toggleThreeDPanel).
+    this.popups.register('three-d-dialog', { moveable: true, resize: true, dockable: true });
+    // The Type panel is a palette too, docked the first time it comes up (see setTypePanelOpen).
+    this.popups.register('type-dialog', { moveable: true, resize: true, dockable: true });
+    // An effect's options answer one question, as Move's do, and go.
+    this.popups.register('effect-options-dialog', { moveable: true, resize: true });
+    // So do the Type menu's options.
+    this.popups.register('type-options-dialog', { moveable: true, resize: true });
   }
 
   /**
@@ -10954,7 +14103,7 @@ class App {
           noStroke: stroke.noStroke === true,
           pencil: stroke.pencil ? { ...stroke.pencil } : null,
           smudges: (stroke.smudges ?? []).map((pass) => ({ width: pass.width, strength: pass.strength, anchors: pass.path.length })),
-          bounds: strokeBounds(stroke, (s) => this.surface.measureText(s)),
+          bounds: strokeBounds(stroke, this.surface.typeMeasure),
           // Where the path starts and ends: one point on a closed shape's seam.
           first: stroke.points.length > 0 ? { x: stroke.points[0].x, y: stroke.points[0].y } : null,
           last:
@@ -11069,15 +14218,201 @@ class App {
           visible: layer.visible,
           locked: layer.locked,
           clip: layer.clip ?? null,
+          blend: layer.blend ?? 'normal',
+          isolate: layer.isolate === true,
         })),
+      // A layer's blend and Isolate Blending, by its id (core/blend.ts); null for no such layer.
+      blendOf: (layerId: string) => {
+        const layer = this.store.sketch.layers.find((l) => l.id === layerId);
+        return layer ? { blend: layer.blend ?? 'normal', isolate: layer.isolate === true } : null;
+      },
+      // How many marks' effect pictures the canvas has worked out (Surface.effectPicture): a pan should add none.
+      effectRasters: () => this.surface.effectRasters,
+      // A mark's effects, and those of its layer and every group above it,
+      // nearest first: everything that paints over the mark, as the page holds it.
+      effectsOf: (markId: string) => {
+        const sketch = this.store.sketch;
+        const stroke = sketch.strokes.find((s) => s.id === markId);
+        if (!stroke) return null;
+        const byId = new Map(sketch.layers.map((layer) => [layer.id, layer]));
+        const layers: { id: string; name: string; group: boolean; effects: Effect[] }[] = [];
+        const seen = new Set<string>();
+        let layer: Layer | undefined = layerOf(sketch, stroke);
+        while (layer && !seen.has(layer.id)) {
+          seen.add(layer.id);
+          layers.push({ id: layer.id, name: layer.name, group: layer.group === true, effects: structuredClone(layer.effects ?? []) });
+          layer = layer.parent ? byId.get(layer.parent) : undefined;
+        }
+        return { mark: structuredClone(stroke.effects ?? []), layers };
+      },
+      // The Appearance panel as it stands: whether it is up, its first row,
+      // each row below it - a paint row, an effect by its place in the list, or
+      // a plain row - with what it says and whether it is selected or switched
+      // off, the Opacity row, and which buttons of its foot work.
+      appearanceState: () => {
+        const rows = [...document.querySelectorAll<HTMLElement>('#appearance-rows .appearance-row')].map((row) => ({
+          kind: row.classList.contains('is-effect') ? 'effect' : row.classList.contains('is-paint') ? 'paint' : 'plain',
+          text: row.textContent ?? '',
+          name: row.querySelector('.appearance-name')?.textContent ?? '',
+          index: row.dataset.index === undefined ? null : Number(row.dataset.index),
+          target: row.dataset.target ?? null,
+          selected: row.classList.contains('is-selected'),
+          off: row.classList.contains('is-off'),
+          nested: row.classList.contains('is-nested'),
+        }));
+        const button = (id: string) => !el<HTMLButtonElement>(id).disabled;
+        return {
+          open: this.appearanceOpen,
+          title: el('appearance-title').textContent,
+          rows,
+          opacity: el<HTMLInputElement>('appearance-opacity').value,
+          blend: el<HTMLSelectElement>('appearance-blend').value,
+          addTarget: this.appearancePanel.addTarget,
+          buttons: { add: button('appearance-add'), clear: button('appearance-clear'), duplicate: button('appearance-duplicate'), delete: button('appearance-delete') },
+        };
+      },
+      // The effect options popup: whether it is up, its title, its fields by
+      // key, the effect as it has it, and whether Preview is on.
+      effectOptionsState: () => ({
+        open: this.effectOptions.isOpen,
+        title: el('effect-options-title').textContent,
+        fields: [...document.querySelectorAll<HTMLElement>('#effect-options-fields .effect-field')].map((row) => row.dataset.key ?? ''),
+        effect: this.effectOptions.effect ? structuredClone(this.effectOptions.effect) : null,
+        preview: this.effectOptions.previewing,
+      }),
+      // Sets a field of the open options as a person would, by its key, in the units the effect stores it in.
+      setEffectOption: (key: string, value: unknown): boolean => this.effectOptions.setField(key, value),
+      // The effect Apply Last Effect adds.
+      lastEffect: () => (this.lastEffect ? structuredClone(this.lastEffect) : null),
+      // The gumball as it stands: whether it shows and on what, its middle on
+      // the page, a grip on each part that shows (page units), the handle lit
+      // or in hand, its mark's turn, move and scale, and whether a 3D change
+      // is live in a transaction.
+      gumballState: () => {
+        const target = this.gumballTarget();
+        const layout = target ? this.gumballLayoutOf(target.object) : null;
+        return {
+          shown: layout !== null,
+          id: target?.stroke.id ?? null,
+          center: layout ? { x: layout.center.x, y: layout.center.y } : null,
+          grips: layout ? gumballGrips(layout).map((grip) => ({ ...grip.handle, x: grip.at.x, y: grip.at.y })) : [],
+          lit: this.gumballDrag?.state.handle ?? this.gumballHover,
+          dragging: this.gumballDrag !== null,
+          fields: target ? { rotation: [...target.object.rotation], position: [...target.object.position], scale: [...target.object.scale] } : null,
+          live: this.threeDLive,
+        };
+      },
+      // 3D Options as it stands: whether it is up, its title and note, whether
+      // it offers to build, each field as it shows, and the cube's turn.
+      threeDPanelState: () => ({ open: this.threeDOpen, ...this.threeDPanel.state() }),
+      // A panel by name: the three side panels and Quick Settings as their
+      // toggles leave them, `dock` for the dock column, and any popup the
+      // PopupManager holds by its dialog id.
+      panelState: (name: string): { open: boolean; box: PopupState['box'] | null } | (PopupState & { kind: 'popup' }) | null => {
+        const boxOf = (node: HTMLElement): PopupState['box'] => {
+          const r = node.getBoundingClientRect();
+          return { left: r.left, top: r.top, width: r.width, height: r.height };
+        };
+        const side: Record<string, [boolean, string]> = {
+          pages: [this.pagesOpen, 'pages-panel'],
+          layers: [this.layersOpen, 'layers-panel'],
+          properties: [this.propertiesOpen, 'properties-panel'],
+        };
+        if (name in side) {
+          const [open, id] = side[name];
+          return { open, box: open ? boxOf(el(id)) : null };
+        }
+        if (name === 'settings') {
+          const panel = el('settings-panel');
+          const open = !panel.classList.contains('is-hidden');
+          return { open, box: open ? boxOf(panel) : null };
+        }
+        if (name === 'dock') {
+          const host = document.getElementById('popup-dock');
+          const open = host?.classList.contains('is-open') === true;
+          return { open, box: host && open ? boxOf(host) : null };
+        }
+        const popup = this.popups.describe(name);
+        return popup ? { kind: 'popup', ...popup } : null;
+      },
+      // Raises a report toast with a spec of the check's own, so the toast is
+      // proved before the features that report through it exist.
+      showReportToast: (spec: ReportSpec): void => this.reports.show(spec),
+      compositionStylesState: () => ({
+        open: this.compositionStylesOpen,
+        chosen: this.compositionStylesPanel.choice,
+        applied: this.appliedStyles.get(this.store.sketch.id) ?? null,
+        items: this.compositionStyles.map(({ file, style }) => ({
+          file,
+          name: style.name,
+          summary: styleSummary(style),
+          thumbnail: (this.styleThumbnails.get(file)?.key ?? '').startsWith(`${this.styleThumbnailKey()}|`),
+        })),
+        ruleForm: this.compositionRuleForm.isOpen,
+      }),
+      compositionStyles: () => this.compositionStyles.map(({ file, style }) => ({ file, style: JSON.parse(JSON.stringify(style)) as CompositionStyle })),
+      importCompositionStyleText: (text: string, from = 'style.json'): Promise<string | null> => this.importCompositionStyleText(text, from),
+      setRuleField: (key: string, value: string): boolean => this.compositionRuleForm.setField(key, value),
+      acceptRuleForm: (): void => this.compositionRuleForm.accept(),
+      // The report toasts on screen, top first: title, rows, holds and times.
+      reportToasts: () => this.reports.describe(),
       // The page in view as Export SVG writes it, for a check to import again.
-      pageSvg: () => Surface.toSVG(this.store.sketch),
+      pageSvg: () => this.toSvg(this.store.sketch),
+      // The page as a PDF export writes it - its text as shapes while the setting is on - with what it left out.
+      pagePdf: async (): Promise<{ pdf: string; leftOut: string[] }> => {
+        const leftOut: string[] = [];
+        const pdf = sketchesToPdf([this.store.sketch], await this.pdfOptions([this.store.sketch], leftOut));
+        return { pdf, leftOut };
+      },
+      // A text mark's typeset, and how the canvas sets it: its kind, its lines and
+      // characters, whether it is overset, and its box, with the measure's id.
+      typesetOf: (markId: string) => {
+        const stroke = this.store.sketch.strokes.find((s) => s.id === markId);
+        if (!stroke || !isTextStroke(stroke)) return null;
+        const layout = layoutType(stroke, this.surface.typeMeasure);
+        return {
+          text: stroke.text ?? '',
+          fontSize: stroke.fontSize ?? null,
+          fontFamily: stroke.fontFamily ?? null,
+          color: stroke.color,
+          anchor: stroke.points[0] ? { x: stroke.points[0].x, y: stroke.points[0].y } : null,
+          typeset: stroke.typeset ? structuredClone(stroke.typeset) : null,
+          textBoxWidth: stroke.textBoxWidth ?? null,
+          kind: layout.kind,
+          orientation: layout.orientation,
+          lines: layout.lines.map((l) => ({ start: l.start, end: l.end, x: l.x, y: l.y, width: l.width })),
+          glyphs: layout.glyphs.map((g) => ({ index: g.index, ch: g.ch, x: g.x, y: g.y, width: g.width * g.hs, rotation: g.rotation, size: g.font.size, color: g.color })),
+          overset: layout.overset,
+          bounds: layout.bounds,
+          measure: this.surface.typeMeasure.id,
+          // A Markdown Flow text: what it shows - the caret's blocks as source - and its shades, bars and rules.
+          shown: markdownShown(stroke, this.surface.typeMeasure)?.stroke.text ?? null,
+          shades: layout.highlights.filter((h) => h.kind === 'shade').map((h) => h.color),
+          markers: layout.markers.map((m) => m.text),
+        };
+      },
+      // The type editor: the text, the selection, the caret and the hidden field.
+      typeEditorState: () => this.typeEditor.state(),
+      // The Type panel: up or down, came up by itself or not, and every control as it shows.
+      typePanelState: () => ({ open: this.typePanelOpen, auto: this.typePanelAuto, dismissed: this.typePanelDismissed, ...this.typePanel.state() }),
+      // The fonts the Type panel lists: read from the system or the stand-ins, and the recent ones.
+      fontList: () => this.fonts.snapshot(),
+      // The Type menu's options form: up or not, which, its values, the fields changed and greyed, and Preview.
+      typeOptionsState: () => this.typeOptions.state(),
+      // Sets a field of the open form as a person would, by its key, in the units the text stores it in.
+      setTypeOption: (key: string, value: unknown): boolean => this.typeOptions.setField(key, value),
+      // The book's Text Configurations, as the Type panel's third tab lists them.
+      textConfigs: (): TextConfig[] => JSON.parse(JSON.stringify(this.store.textConfigs)) as TextConfig[],
+      // Load Text Configurations... from a book on disk, with no file picker.
+      loadTextConfigs: (path: string): Promise<void> => this.loadTextConfigs(path),
+      // What the canvas marks on selected texts, in sketch units: each frame or path, a path text's brackets, the red plus.
+      typeShapes: () => structuredClone(this.typeShapesOverlay() ?? []),
       // The dashed boxes the canvas draws around the selection, in sketch units.
       selectionBoxes: () => this.surface.selectionBoxes(this.store.sketch, this.store.selectedIds),
       // The mark a Select click at a client point would pick, at a reach in
       // screen pixels (the Select sensitivity when none is given).
       hitAt: (clientX: number, clientY: number, tolerancePx?: number): string | null =>
-        this.hitTest(this.surface.toSketchPoint(clientX, clientY, 0.5), undefined, tolerancePx)?.id ?? null,
+        this.pickAt(this.surface.toSketchPoint(clientX, clientY, 0.5), tolerancePx)?.id ?? null,
       // What Direct Select is editing: the stroke, its picked anchors, and whether the whole path is.
       directSelectState: () => ({
         stroke: this.anchorStrokeId,
@@ -11127,6 +14462,7 @@ class App {
       ['vectorEditDrag', this.vectorEditDrag],
       ['warpDrag', this.warpDrag],
       ['transformDrag', this.transformDrag],
+      ['gumballDrag', this.gumballDrag],
       ['rotateDrag', this.rotateDrag],
       ['pendingSelectHitId', this.pendingSelectHitId],
       ['shiftToggleId', this.shiftToggleId],
@@ -11207,7 +14543,8 @@ class App {
    */
   private otherDialogOpen(except = 'move-dialog'): boolean {
     for (const dlg of document.querySelectorAll<HTMLElement>('.export-dialog')) {
-      if (dlg.id !== except && !dlg.classList.contains('is-hidden')) return true;
+      // A panel that stays up while the drawing goes on - the Appearance panel - is no dialog in the way.
+      if (dlg.id !== except && dlg.dataset.panel !== 'persistent' && !dlg.classList.contains('is-hidden')) return true;
     }
     return false;
   }
@@ -11502,7 +14839,7 @@ class App {
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const s of strokes) {
-      const box = strokeBounds(s, (t) => this.surface.measureText(t));
+      const box = strokeBounds(s, this.surface.typeMeasure);
       if (!box) continue;
       minX = Math.min(minX, box.minX);
       minY = Math.min(minY, box.minY);
@@ -12109,7 +15446,7 @@ class App {
     const ids = this.propertyTargets();
     this.store.mirrorStrokes(ids, m, {
       history: false,
-      boxOf: (stroke) => strokeBounds(stroke, (t) => this.surface.measureText(t)),
+      boxOf: (stroke) => strokeBounds(stroke, this.surface.typeMeasure),
     });
     // The geometry moved above; an image's pixels are flipped here, from the
     // copies prepareMirroredImages made before the mirror began.
@@ -12477,6 +15814,289 @@ class App {
     const handles = TRANSFORM_HANDLES.map((h) => transformHandlePoint(box, h));
     const hover = this.transformHover ? TRANSFORM_HANDLES.indexOf(this.transformHover) : -1;
     return { box, handles, hover: hover >= 0 ? hover : undefined };
+  }
+
+  // ---- The gumball and 3D Options (gumball.ts, three-d-panel.ts) -------------
+
+  /**
+   * The 3D mark the gumball stands on, or null. It shows on one mark
+   * selected, on a layer that can be edited, that a switched-on 3D effect
+   * builds and no Warp bends after - with the Select tool in hand, the
+   * Transform Box and Rotate down, and Show the 3D gumball on. With the box
+   * up, the box is what shows: it edits the shape the 3D is built from.
+   */
+  private gumballTarget(): { stroke: Stroke; object: GumballObject } | null {
+    if (!this.settings.show3dGumball || this.animationMode) return null;
+    if (this.store.tool.tool !== 'select' || this.transformActive || this.rotateDialogOpen) return null;
+    const targets = this.appearanceTargets();
+    if (targets.kind !== 'marks' || targets.strokes.length !== 1) return null;
+    const stroke = targets.strokes[0];
+    const sketch = this.store.sketch;
+    const effective = effectiveLayers(sketch).get(layerOf(sketch, stroke).id);
+    if (!effective?.visible || effective.locked) return null;
+    const built = threeDBuildOf(stroke);
+    if (!built) return null;
+    const { effect, view } = built;
+    return { stroke, object: { rotation: [...effect.rotation], position: [...effect.position], scale: [...effect.scale], view } };
+  }
+
+  /** Where the gumball's parts stand at the zoom in view, for the mark it stands on. */
+  private gumballLayoutOf(object: GumballObject): GumballLayout {
+    return gumballLayout(object, this.surface.getViewport().zoom);
+  }
+
+  /** The gumball for the canvas overlay: its parts, and the one under the pointer or in hand. */
+  private gumballOverlay(): Overlay['gumball'] | null {
+    const target = this.gumballTarget();
+    if (!target) return null;
+    return { layout: this.gumballLayoutOf(target.object), lit: this.gumballDrag?.state.handle ?? this.gumballHover };
+  }
+
+  /** What the pointer shows over a gumball handle: a move, a scale along its axis, or a turn. */
+  private gumballCursor(handle: GumballHandle): string {
+    if (handle.kind === 'arc' || handle.kind === 'ring') return CURSOR_ROTATE;
+    if (handle.kind !== 'tip') return 'move';
+    const target = this.gumballTarget();
+    const axis = target ? gumballLayout(target.object, 1).axes[handle.axis] : { x: 1, y: 0 };
+    const angle = ((Math.atan2(axis.y, axis.x) * 180) / Math.PI + 180) % 180;
+    return angle < 22.5 || angle >= 157.5 ? 'ew-resize' : angle < 67.5 ? 'nwse-resize' : angle < 112.5 ? 'ns-resize' : 'nesw-resize';
+  }
+
+  /**
+   * Takes a press on a gumball handle, and reports whether it took it. A
+   * number half typed into 3D Options is kept first, as its own step. A press
+   * anywhere else is the Select tool's, so the selection can still change.
+   */
+  private beginGumballDrag(e: PointerEvent, pt: Point): boolean {
+    if (this.activePointerId !== null) return false;
+    const target = this.gumballTarget();
+    if (!target) return false;
+    const zoom = this.surface.getViewport().zoom;
+    const handle = gumballHit(gumballLayout(target.object, zoom), pt);
+    if (!handle) return false;
+    e.preventDefault();
+    const field = document.activeElement;
+    if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) field.blur();
+    this.endThreeDChange(true);
+    this.claimPointer(e, 'gumball');
+    this.gumballDrag = { pointerId: e.pointerId, id: target.stroke.id, state: startGumballDrag(target.object, handle, pt, zoom) };
+    this.gumballHover = handle;
+    this.updateCursor();
+    this.scheduleRender();
+    return true;
+  }
+
+  /**
+   * Carries a gumball drag along, and reports whether it took the move. With
+   * no drag in hand, it lights the handle under the pointer and leaves the
+   * move to the tool. The drag draws a revolve in draft - fewer steps round -
+   * until it lets go.
+   */
+  private onGumballPointerMove(e: PointerEvent, pt: Point): boolean {
+    const drag = this.gumballDrag;
+    if (!drag || drag.pointerId !== e.pointerId) {
+      if (this.activePointerId === null || this.gumballHover) {
+        const target = this.activePointerId === null ? this.gumballTarget() : null;
+        const over = target ? gumballHit(this.gumballLayoutOf(target.object), pt) : null;
+        if (!sameHandle(over, this.gumballHover)) {
+          this.gumballHover = over;
+          this.updateCursor();
+          this.scheduleRender();
+        }
+      }
+      return false;
+    }
+    const next = dragGumball(drag.state, pt, { shift: e.shiftKey, alt: e.altKey });
+    drag.state = next;
+    if (this.threeDLive || gumballMoved(next)) {
+      setThreeDDrafts([drag.id]);
+      const { rotation, position, scale } = next.fields;
+      this.changeThreeD([drag.id], (effect) => ({ ...effect, rotation, position, scale }));
+    }
+    this.scheduleRender();
+    return true;
+  }
+
+  /** Ends a gumball drag, and reports whether it took the release: what it did is one undo step, and the 3D is drawn in full again. */
+  private endGumballDrag(e: PointerEvent): boolean {
+    const drag = this.gumballDrag;
+    if (!drag || drag.pointerId !== e.pointerId) return false;
+    this.gumballDrag = null;
+    setThreeDDrafts([]);
+    this.endThreeDChange(true);
+    this.updateCursor();
+    this.scheduleRender();
+    return true;
+  }
+
+  /** A gumball drag dropped - Escape, or a second finger: the 3D goes back as the press found it. */
+  private abandonGumball(): void {
+    const drag = this.gumballDrag;
+    this.gumballDrag = null;
+    if (!drag) return;
+    setThreeDDrafts([]);
+    this.endThreeDChange(false);
+  }
+
+  /** A double-click on the gumball's ball opens 3D Options; reports whether it was one. */
+  private gumballDoubleClick(e: MouseEvent): boolean {
+    const target = this.gumballTarget();
+    if (!target) return false;
+    const pt = this.surface.toSketchPoint(e.clientX, e.clientY, 0.5);
+    if (gumballHit(this.gumballLayoutOf(target.object), pt)?.kind !== 'center') return false;
+    this.toggleThreeDPanel(true);
+    return true;
+  }
+
+  /** The selected marks with a 3D: what 3D Options sets. */
+  private threeDTargets(): Stroke[] {
+    const targets = this.appearanceTargets();
+    return targets.kind === 'marks' ? targets.strokes.filter((stroke) => threeDIndex(stroke.effects ?? []) >= 0) : [];
+  }
+
+  private threeDTargetIds(): string[] {
+    return this.threeDTargets().map((stroke) => stroke.id);
+  }
+
+  /**
+   * Changes the 3D of the marks `ids` - each one's first switched-on 3D, else
+   * its first - live. The first change opens a store transaction, recorded
+   * as 3D Options, which {@link endThreeDChange} keeps as one undo step or
+   * throws away. False when nothing changed.
+   */
+  private changeThreeD(ids: readonly string[], change: (effect: EffectOf<'3d'>) => EffectOf<'3d'>): boolean {
+    if (!this.threeDLive) {
+      this.recordAs('effect-3d-options', () => this.store.beginTransaction(() => this.onThreeDSettled()));
+      this.threeDLive = true;
+    }
+    return this.store.setEffects(
+      ids,
+      (current) => {
+        const index = threeDIndex(current);
+        const effect = index >= 0 ? readEffect(current[index]) : null;
+        if (effect?.type !== '3d') return current;
+        const next = change(effect);
+        return sameEffects([next], [effect]) ? current : replaceEffect(current, index, next);
+      },
+      false,
+    );
+  }
+
+  /** Ends a live 3D change: kept as one undo step - its 3D the last effect - or thrown away. */
+  private endThreeDChange(keep: boolean): void {
+    if (!this.threeDLive) return;
+    this.threeDLive = false;
+    if (keep) {
+      this.store.commitTransaction();
+      this.rememberThreeD();
+    } else {
+      this.store.rollbackTransaction();
+    }
+  }
+
+  /** Something else kept the live change - an undo, another edit: it is a step of its own, and the next change opens another. */
+  private onThreeDSettled(): void {
+    this.threeDLive = false;
+  }
+
+  /** The first selected mark's 3D, as Apply Last Effect adds it again. */
+  private rememberThreeD(): void {
+    const stroke = this.threeDTargets()[0];
+    const effect = stroke ? threeDOf(stroke) : null;
+    if (!effect) return;
+    const { on: _on, ...kept } = effect;
+    this.lastEffect = kept;
+    this.publishMenuState();
+  }
+
+  /**
+   * Gives every target a 3D, as one undo step recorded as `command`: `make`
+   * has the mark's 3D, or null for one with none, and says what it is to be -
+   * in place of the one it has, or added. Groups have no shape to build.
+   */
+  private buildThreeD(command: string, make: (current: EffectOf<'3d'> | null) => EffectOf<'3d'>): boolean {
+    const targets = this.appearanceTargets();
+    if (this.targetIds(targets).length === 0) {
+      this.toast('Select a mark to build in 3D.');
+      return false;
+    }
+    if (!this.takesEffect(targets, defaultEffect('3d'))) return false;
+    this.endThreeDChange(true);
+    const changed = this.changeEffects(command, (effects) => {
+      const index = threeDIndex(effects);
+      const current = index >= 0 ? readEffect(effects[index]) : null;
+      if (current?.type !== '3d') return addEffect(effects, make(null));
+      const next = make(current);
+      return sameEffects([next], [current]) ? [...effects] : replaceEffect(effects, index, next);
+    });
+    this.rememberThreeD();
+    return changed;
+  }
+
+  /**
+   * Effect > 3D > Extrude or Revolve, and 3D Options' own buttons: the
+   * selection built in 3D at once, as one undo step, and 3D Options up to set
+   * it. A mark built already turns to the kind asked for, keeping the rest of
+   * its 3D, and is switched on.
+   */
+  private add3dFromMenu(kind: 'extrude' | 'revolve'): void {
+    const built = this.buildThreeD(`effect-3d-${kind}`, (current) => {
+      if (!current) return { ...defaultEffect('3d'), kind };
+      const { on: _on, ...rest } = current;
+      return { ...rest, kind };
+    });
+    if (built || this.threeDTargets().length > 0) this.toggleThreeDPanel(true);
+  }
+
+  /** Effect > 3D > 3D Options: the panel up, or (false) down. The first time it opens, it opens docked. */
+  private toggleThreeDPanel(force?: boolean): void {
+    const open = force ?? !this.threeDOpen;
+    if (!open) this.endThreeDChange(true);
+    this.threeDOpen = open;
+    el('three-d-dialog').classList.toggle('is-hidden', !open);
+    if (open && !this.threeDOpened) {
+      this.threeDOpened = true;
+      if (!this.popups.isDocked('three-d-dialog')) this.popups.toggleDock('three-d-dialog');
+    }
+    if (open) this.renderThreeDPanel();
+    requestAnimationFrame(() => this.resizeSurface());
+    this.publishMenuState();
+  }
+
+  /** Shows the selection's 3D in 3D Options, when it is up; and puts out the gumball's light when the gumball has gone. */
+  private renderThreeDPanel(): void {
+    if (this.gumballHover && !this.gumballDrag && !this.gumballTarget()) {
+      this.gumballHover = null;
+      this.updateCursor();
+    }
+    if (this.threeDOpen) this.threeDPanel.render(this.threeDPanelView());
+  }
+
+  /** 3D Options' view of the selection: what it is, its first 3D, the fields the marks differ in, and a line about it. */
+  private threeDPanelView(): ThreeDPanelView {
+    const targets = this.appearanceTargets();
+    if (targets.kind === 'groups') {
+      const n = targets.layers.length;
+      return { title: n === 1 ? 'Group' : `${n} Groups`, effect: null, mixed: [], buildable: false, note: 'A group has no shape of its own to build: select the marks in it.' };
+    }
+    const strokes = targets.strokes;
+    if (strokes.length === 0) return { title: null, effect: null, mixed: [], buildable: false, note: null };
+    const effects = strokes.flatMap((stroke) => {
+      const effect = threeDOf(stroke);
+      return effect ? [effect] : [];
+    });
+    const first = effects[0] ?? null;
+    const mixed = first
+      ? EFFECT_FIELDS['3d'].map((field) => field.key).filter((key) => effects.some((effect) => JSON.stringify(effectFieldValue(effect, key)) !== JSON.stringify(effectFieldValue(first, key))))
+      : [];
+    const shapes = strokes.filter((stroke) => !isImageStroke(stroke));
+    const lines: string[] = [];
+    if (!first && shapes.length > 0) lines.push('Not built in 3D. Extrude sets it in depth; Revolve sweeps it round an upright axis.');
+    if (first?.on === false) lines.push('Its 3D is switched off: switch it on in the Appearance panel to see it.');
+    if (first && effects.length < shapes.length) lines.push('Only the marks built in 3D take these fields; Effect > 3D builds the others.');
+    else if (shapes.length > 1) lines.push('Each mark is built on its own, in its own place.');
+    if (shapes.length < strokes.length) lines.push('Pictures take no 3D, so they stay as they are.');
+    return { title: appearanceTitle(strokes), effect: first, mixed, buildable: shapes.length > 0, note: lines.length > 0 ? lines.join(' ') : null };
   }
 
   // ---- Rotate tool ---------------------------------------------------------
@@ -13148,9 +16768,12 @@ class App {
     for (const stroke of this.propertyStrokes()) {
       if (stroke.tool === 'eraser') continue;
       // As it shows: in a clip group, cut to the clip's bounds.
-      const bounds = strokeBounds(stroke, (t) => this.surface.measureText(t));
-      const b = bounds && shownBounds(this.store.sketch, stroke, bounds, clips);
-      if (!b) continue;
+      const bounds = strokeBounds(stroke, this.surface.typeMeasure);
+      const shown = bounds && shownBounds(this.store.sketch, stroke, bounds, clips);
+      if (!shown) continue;
+      // Use Preview Bounds: out as far as its effects paint, as its box is drawn.
+      const reach = this.settings.usePreviewBounds ? effectPaintReach(stroke.effects ?? []) : 0;
+      const b = { minX: shown.minX - reach, minY: shown.minY - reach, maxX: shown.maxX + reach, maxY: shown.maxY + reach };
       box = box
         ? {
             minX: Math.min(box.minX, b.minX),
@@ -13524,6 +17147,17 @@ class App {
     removeStroke.disabled = shapes.length === 0;
 
     this.renderGradientEditor();
+
+    // Opacity, blend and the effect count, as the Appearance panel has them.
+    const view = this.appearanceView(this.appearanceTargets());
+    const opacity = el<HTMLInputElement>('prop-opacity');
+    if (document.activeElement !== opacity) opacity.value = view.opacity === null ? '' : String(view.opacity);
+    opacity.placeholder = view.opacity === null ? 'Mixed' : '';
+    const blend = el<HTMLSelectElement>('prop-blend');
+    if (document.activeElement !== blend) blend.value = view.blend ?? '';
+    const count = view.effects?.length ?? null;
+    el('prop-effects').textContent =
+      count === null ? 'Mixed effects' : count === 0 ? 'No effects' : count === 1 ? '1 effect' : `${count} effects`;
   }
 
   /** Rebuilds the gradient ramp, its handles, and the stop fields. */
@@ -13608,10 +17242,31 @@ class App {
 
       if (isReloadKey(e) || isNewTabKey(e)) {
         e.preventDefault();
-        if (isTextEntry(document.activeElement)) return;
         const id = commandForEvent(this.menuRegistry, e);
+        // In a text field only a chord the menu claims runs - the Type panel's
+        // Ctrl+Shift+T and Ctrl+Alt+T - since the menu cannot have a key
+        // swallowed here; any other stays swallowed.
+        if (isTextEntry(document.activeElement)) {
+          if (id !== null && this.menuRegistry.tool(id)?.claim === 'menu') this.runKey(id);
+          return;
+        }
         if (id !== null) this.runKey(id);
         else if (isReloadKey(e)) this.toast(this.reloadRefusal());
+        return;
+      }
+
+      // The text being edited has its keys (type-editor.ts), and handles them
+      // itself; Ctrl still lends the selection tool over it, so a Ctrl-click
+      // elsewhere ends the editing, and any other key ends that lend.
+      if (this.typeEditor.hasFocus) {
+        if (!isModifierKey(e.key)) this.springEvent('other-key');
+        else if (e.key === 'Control' && !e.repeat && !this.press) this.springEvent('ctrl-down', this.springArms());
+        // A chord the menu claims from a text field - a panel toggle, Save - runs
+        // here when the text did not take it, and the menu does not run it twice.
+        if (!e.defaultPrevented) {
+          const id = commandForEvent(this.menuRegistry, e);
+          if (id !== null && this.menuRegistry.tool(id)?.claim === 'menu') this.runKey(id, e);
+        }
         return;
       }
 
@@ -13620,6 +17275,13 @@ class App {
       // a scale is being typed. Sliders, checkboxes, and color wells consume
       // no letters, so they keep the shortcuts working.
       if (isTextEntry(document.activeElement)) return;
+
+      // Text being edited without the keyboard - a panel took it: Escape still puts it down.
+      if (e.key === 'Escape' && this.typeEditor.active) {
+        e.preventDefault();
+        this.typeEditor.end();
+        return;
+      }
 
       // Held keys (held-keys.ts): any key but a modifier ends the Ctrl spring,
       // so a chord such as Ctrl+Z runs with the drawing tool still in hand,
@@ -13663,6 +17325,14 @@ class App {
         }
       }
 
+      // A gumball drag: Escape puts the 3D back as the press found it, and lets go.
+      if (e.key === 'Escape' && this.gumballDrag) {
+        e.preventDefault();
+        this.dropPressOf('gumball');
+        this.scheduleRender();
+        return;
+      }
+
       // Sharpen Selection dialog: Escape cancels the preview.
       if (e.key === 'Escape' && this.sharpenPreview) {
         e.preventDefault();
@@ -13681,6 +17351,22 @@ class App {
       if (e.key === 'Enter' && this.store.tool.tool === 'vector' && this.vectorAnchors.length >= 2) {
         e.preventDefault();
         this.commitVectorPath(false);
+        return;
+      }
+
+      // An effect's options: Escape cancels and Enter keeps, from wherever the
+      // focus is. The form handles both itself while it has the focus.
+      if (this.effectOptions.isOpen && (e.key === 'Escape' || e.key === 'Enter')) {
+        e.preventDefault();
+        if (e.key === 'Escape') this.effectOptions.cancel();
+        else this.effectOptions.ok();
+        return;
+      }
+      // The Type menu's options, the same.
+      if (this.typeOptions.isOpen && (e.key === 'Escape' || e.key === 'Enter')) {
+        e.preventDefault();
+        if (e.key === 'Escape') this.typeOptions.cancel();
+        else this.typeOptions.ok();
         return;
       }
 
@@ -14196,6 +17882,11 @@ class App {
     // would interrupt the pointer capture).
     if (this.layersOpen && !this.layerOpacityDragging) this.renderLayers();
     this.renderProperties();
+    this.renderAppearance();
+    this.renderCompositionStyles();
+    this.renderThreeDPanel();
+    this.autoShowTypePanel();
+    this.renderTypePanel();
     this.publishMenuState();
   }
 
@@ -14306,6 +17997,49 @@ function toHexColor(color: string): string | null {
   colorProbe.fillStyle = color;
   const value = colorProbe.fillStyle;
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : null;
+}
+
+/** What the Appearance panel's first row calls the selected marks. */
+function appearanceTitle(strokes: readonly Stroke[]): string {
+  const kinds = new Set(strokes.map((s) => (isTextStroke(s) ? 'text' : isImageStroke(s) ? 'image' : 'path')));
+  if (kinds.size > 1) return 'Mixed Objects';
+  const n = strokes.length;
+  const kind = [...kinds][0];
+  if (kind === 'text') return n === 1 ? 'Text' : `${n} Text Items`;
+  if (kind === 'image') return n === 1 ? 'Image' : `${n} Images`;
+  return n === 1 ? 'Path' : `${n} Paths`;
+}
+
+/** A color as the Appearance panel's rows write it: `#1F2328`, or as it was given when it has no hex form. */
+function colorText(color: string): string {
+  return toHexColor(color)?.toUpperCase() ?? color;
+}
+
+/** The Appearance panel's Stroke row: the outline of the selected paths, or null when none is a path. */
+function strokePaint(strokes: readonly Stroke[]): AppearancePaint | null {
+  const paths = strokes.filter((s) => !isTextStroke(s) && !isImageStroke(s));
+  if (paths.length === 0) return null;
+  const drawn = paths.filter((s) => s.noStroke !== true);
+  if (drawn.length === 0) return { color: null, detail: 'None' };
+  const colors = new Set(drawn.map((s) => s.color));
+  const widths = new Set(drawn.map((s) => Math.round(s.width * 10) / 10));
+  if (drawn.length < paths.length || colors.size > 1) return { color: null, mixed: true, detail: 'Mixed' };
+  const color = [...colors][0];
+  const width = widths.size === 1 ? `${[...widths][0]} px` : 'mixed widths';
+  return { color, detail: `${colorText(color)}, ${width}` };
+}
+
+/** The Appearance panel's Fill row: a text item's ink, a shape's fill or gradient, or null when only images are selected. */
+function fillPaint(strokes: readonly Stroke[]): AppearancePaint | null {
+  const filled = strokes.filter((s) => !isImageStroke(s));
+  if (filled.length === 0) return null;
+  const paint = (s: Stroke): string | null => (isTextStroke(s) ? s.color : s.gradient ? 'gradient' : (s.fill ?? null));
+  const paints = new Set(filled.map(paint));
+  if (paints.size > 1) return { color: null, mixed: true, detail: 'Mixed' };
+  const only = paint(filled[0]);
+  if (only === null) return { color: null, detail: 'None' };
+  if (only === 'gradient') return { color: filled[0].gradient ? cssGradient(filled[0].gradient) : null, detail: 'Gradient' };
+  return { color: only, detail: colorText(only) };
 }
 
 /**

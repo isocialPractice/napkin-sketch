@@ -31,9 +31,11 @@ import { sketchesToJsx } from '../illustrator.js';
 import { sketchesToPdf } from '../pdf.js';
 import { sketchToComposition } from '../sketch-composition.js';
 import { sketchToSvg } from '../sketch-svg.js';
-import { effectiveLayers, SKETCHBOOK_VERSION, strokesByLayer, type Sketch, type SketchBook, type Stroke } from '../types.js';
+import { effectiveLayers, isTextStroke, SKETCHBOOK_VERSION, strokesByLayer, type Sketch, type SketchBook } from '../types.js';
+import { layoutType } from '../type/layout.js';
+import { HEADLESS_MEASURE, type TypeMeasure } from '../type/measure.js';
+import { fileOutlineSource, outlineSource, outlineText, withOutlineSource, type FontFiles } from '../type/outline.js';
 import type { Box, CropHint } from './evaluate.js';
-import { measureTextBlock } from './text.js';
 
 /** The formats {@link renderSketch} and {@link renderBook} write. */
 export type RenderFormat = 'svg' | 'png' | 'pdf' | 'skbk' | 'jsx';
@@ -73,12 +75,39 @@ export interface RenderSketchOptions {
   decodeImage?: ImageDecoder;
   /** Told about everything a format left out or drew as a stand-in: an image a PDF cannot embed, a link that did not resolve. */
   onWarning?: (message: string) => void;
+  /**
+   * Font files by family, for text to be drawn from: a family's file, or
+   * several - its faces, a collection's among them. Text in a family given is
+   * laid out by the font's own advances and kerning; a PNG draws each glyph
+   * as its outline, a PDF draws it as a shape, an SVG pins each character
+   * where the font sets it, and a Warp, a Splatter or 3D on text bends or
+   * builds its outlines. Text in a family not given is drawn as before, in
+   * the built-in face, and said.
+   */
+  fonts?: FontFiles;
 }
 
-/** Measures a text item with the built-in face, the measure every renderer here uses. */
-function measureText(stroke: Stroke): { width: number; height: number } {
-  const block = measureTextBlock(stroke.text ?? '', stroke.fontSize ?? 24, stroke.textBoxWidth);
-  return { width: block.width, height: block.height };
+/**
+ * Runs a write with the fonts it was given current, if any: a source from
+ * their files, and their measure for the SVG. Each text it cannot draw from
+ * them is said once.
+ */
+function withFonts<T>(sketches: readonly Sketch[], options: RenderSketchOptions, write: (measure: TypeMeasure | undefined) => T): T {
+  if (!options.fonts || Object.keys(options.fonts).length === 0) return write(undefined);
+  const source = fileOutlineSource(options.fonts, HEADLESS_MEASURE);
+  return withOutlineSource(source, () => {
+    const said = new Set<string>();
+    for (const sketch of sketches) {
+      for (const stroke of sketch.strokes) {
+        if (!isTextStroke(stroke) || !stroke.points[0]) continue;
+        const outlined = outlineText(stroke, layoutType(stroke, source.measure), source);
+        if (outlined.problem === null || said.has(outlined.problem)) continue;
+        said.add(outlined.problem);
+        options.onWarning?.(`page "${sketch.name}": ${outlined.problem}, so a text is drawn in the built-in face.`);
+      }
+    }
+    return write(source.measure);
+  });
 }
 
 /** Rounds to two decimals, the precision every writer here uses for a box. */
@@ -88,8 +117,9 @@ function round2(value: number): number {
 
 /**
  * The box a page's ink covers: every mark on a visible layer, text measured
- * with the built-in face, grown by half the widest outline, since a line's
- * bounds follow its centre and its outer edge lies half its width beyond.
+ * with the built-in face - or the fonts a render was given - grown by half
+ * the widest outline, since a line's bounds follow its centre and its outer
+ * edge lies half its width beyond.
  * An eraser adds no ink, so it adds nothing to the box. Null for a page with
  * nothing drawn.
  */
@@ -105,7 +135,7 @@ export function inkBox(sketch: Sketch): Box | null {
     if (!layers.get(layerId)?.visible) continue;
     for (const stroke of strokes) {
       if (stroke.tool === 'eraser') continue;
-      const bounds = strokeBounds(stroke, measureText);
+      const bounds = strokeBounds(stroke, outlineSource()?.measure);
       if (!bounds) continue;
       minX = Math.min(minX, bounds.minX);
       minY = Math.min(minY, bounds.minY);
@@ -198,10 +228,12 @@ export function renderSketch(sketch: Sketch, options: RenderSketchOptions = {}):
     });
   }
   if (format === 'jsx') return sketchesToJsx([sketch], jsxOptions([sketch], options));
-  const box = renderBox(sketch, options);
-  if (format === 'svg') return sketchToSvg(sketch, { crop: svgCrop(box), transparent: options.transparent });
-  if (format === 'png') return pngOf(sketch, box, options);
-  return sketchesToPdf([sketch], { crops: [box], onWarning: options.onWarning });
+  return withFonts([sketch], options, (measure) => {
+    const box = renderBox(sketch, options);
+    if (format === 'svg') return sketchToSvg(sketch, { crop: svgCrop(box), transparent: options.transparent, ...(measure ? { typeMeasure: measure } : {}) });
+    if (format === 'png') return pngOf(sketch, box, options);
+    return sketchesToPdf([sketch], { crops: [box], onWarning: options.onWarning });
+  });
 }
 
 /**
@@ -218,9 +250,13 @@ export function renderBook(book: SketchBook, options: RenderSketchOptions = {}):
   const format = checkFormat(options.format ?? 'svg');
   if (format === 'skbk') return skbkOf(book);
   if (format === 'jsx') return sketchesToJsx(book.sketches, jsxOptions(book.sketches, options));
-  if (format === 'pdf') {
-    return sketchesToPdf(book.sketches, { crops: book.sketches.map((sketch) => renderBox(sketch, options)), onWarning: options.onWarning });
-  }
-  if (format === 'png') return book.sketches.map((sketch) => pngOf(sketch, renderBox(sketch, options), options));
-  return book.sketches.map((sketch) => sketchToSvg(sketch, { crop: svgCrop(renderBox(sketch, options)), transparent: options.transparent }));
+  return withFonts(book.sketches, options, (measure): string | string[] | Uint8Array[] => {
+    if (format === 'pdf') {
+      return sketchesToPdf(book.sketches, { crops: book.sketches.map((sketch) => renderBox(sketch, options)), onWarning: options.onWarning });
+    }
+    if (format === 'png') return book.sketches.map((sketch) => pngOf(sketch, renderBox(sketch, options), options));
+    return book.sketches.map((sketch) =>
+      sketchToSvg(sketch, { crop: svgCrop(renderBox(sketch, options)), transparent: options.transparent, ...(measure ? { typeMeasure: measure } : {}) }),
+    );
+  });
 }

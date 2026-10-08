@@ -85,6 +85,13 @@ takes the middle color of its ramp.
   into a composition; JPEG and PDF keep the page background, having no usable
   transparency of their own. With nothing selected but layer rows lit in the
   Layers panel, those layers and their descendants are what gets exported.
+- **A PDF draws text as shapes**: each letter its font's own outline, read
+  from the font file on this computer, so the page looks as it does on the
+  canvas wherever it is opened. A text whose font cannot be read is set in
+  Helvetica, and the report after the export says which font and why. With
+  **Draw text as shapes in PDF** off, in the Type section of Verbose
+  Settings, all text is set in Helvetica, which a PDF reader can select and
+  search.
 
 ## Exported SVGs are written small
 

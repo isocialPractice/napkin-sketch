@@ -358,6 +358,37 @@ async function main() {
     'liquifyMarks bends the marks under a brush'
   );
 
+  // 8. The composition fields beside the shapes and their paint: a blend
+  //    mode, an isolated group, effects and a gradient, written by the SVG
+  //    and drawn by the raster; and a Composition Style restyling the
+  //    composition by its elements' names, with a report of what missed.
+  console.log('\nblends, effects and composition styles in the built API');
+  const layered = api.createComposition({ width: 200, height: 120, background: '#ffffff' });
+  layered.rect({
+    name: 'Card', x: 10, y: 10, width: 180, height: 100, rx: 8,
+    fill: { type: 'linear', angle: 90, stops: [{ offset: 0, color: '#ffe08a' }, { offset: 1, color: '#ff8a65' }] },
+    effects: [{ type: 'drop-shadow', dx: 2, dy: 3, blur: 4, color: 'rgba(0, 0, 0, 0.4)' }],
+  });
+  layered.group({ name: 'Glow', isolate: true, blend: 'sheer' }, (glow) => {
+    glow.circle({ cx: 70, cy: 60, r: 30, fill: '#3399ff' });
+    glow.circle({ cx: 110, cy: 60, r: 30, fill: '#4cae50', blend: 'stack', effects: [{ type: 'outer-glow', blur: 6, color: '#ffcc00' }] });
+  });
+  const layeredSvg = layered.toSVG();
+  check(/<linearGradient /.test(layeredSvg), 'a gradient is written as an SVG gradient');
+  check(/mix-blend-mode:screen/.test(layeredSvg) && /data-blend="sheer"/.test(layeredSvg), "a blend is written by its CSS name, and by napkin's");
+  check(/isolation:isolate/.test(layeredSvg), 'an isolated group is written isolated');
+  check(/<filter /.test(layeredSvg), 'the effects are written as SVG filters');
+  const layeredPng = api.renderPng(layered.toDocument(), { scale: 1 });
+  check(layeredPng.warnings.length === 0, 'the raster draws the blends, the effects and the gradient, skipping nothing', layeredPng.warnings.join('; '));
+  const night = { napkinCompositionStyle: 1, name: 'Night', layers: { Card: { opacity: 0.8 }, Glw: { blend: 'normal' } } };
+  const restyled = api.applyCompositionStyle(layered, night);
+  check(restyled.composition.elements[0].opacity === 0.8, 'a Composition Style restyles an element by its name');
+  check(
+    restyled.report.items.length === 1 && restyled.report.items[0].suggestions?.[0] === 'Glow',
+    'and reports the rule that matched nothing, with the name it was likely meant for',
+    JSON.stringify(restyled.report.items)
+  );
+
   console.log('');
   console.log(`${checks - failures}/${checks} checks passed`);
   console.log(`graphics: ${show(GRAPHICS)}`);

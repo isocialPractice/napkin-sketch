@@ -1,13 +1,14 @@
 # About and license
 
 <!-- version:start -->
-This documents napkin-sketch **1.0.0-alpha.4.6.0**.
+This documents napkin-sketch **1.0.0-alpha.5.0.0**.
 <!-- version:end -->
 
 napkin-sketch is a desktop sketching app, a browser-safe drawing engine and a
 small drawing language, napkin script, all from one repository:
 [isocialPractice/napkin-sketch](https://github.com/isocialPractice/napkin-sketch).
-Its [changelog](../../CHANGELOG.md) records every release.
+Its [changelog](../../CHANGELOG.md) records every release. Help > About
+napkin-sketch opens this page in the app.
 
 ## How these pages are kept true
 
@@ -27,6 +28,13 @@ Its [changelog](../../CHANGELOG.md) records every release.
 - **Relative links only.** Nothing fetches and no link is absolute, so the
   pages work on the web, from a clone opened in a browser, and inside the
   app.
+
+## Third-party notices
+
+napkin-sketch bundles `marked`, `marked-highlight` and highlight.js, which
+read Markdown and color code, and the en-US hyphenation patterns, each under
+its own license. [Third-party notices](../../THIRD-PARTY-NOTICES.md) has
+each notice, as the npm package and the app carry it.
 
 ## Reporting a problem
 

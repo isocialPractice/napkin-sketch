@@ -49,7 +49,10 @@
  */
 
 import { simplify } from '../../sharpen/geometry.js';
-import type { Effect } from '../effects.js';
+import { EFFECT_DEFAULTS, type Effect } from '../effects.js';
+import { matchingPreset, SPLATTER_PRESETS } from '../splatter.js';
+import { warpPartsOf } from '../warp-styles.js';
+import { isBlended, type BlendModeId } from '../blend.js';
 import { linkName } from '../link.js';
 import { EXPORT_SIMPLIFY_EPSILON } from '../svg-path.js';
 import { activeProfile } from '../stroke-profile.js';
@@ -79,11 +82,19 @@ import {
   type LayerInstruction,
   type PageInstruction,
   type PaperName,
+  type ParagraphInstruction,
   type PathStep,
+  type RunArg,
   type ScriptTool,
   type StopArg,
+  type TextConfigInstruction,
+  type TextInstruction,
 } from './instructions.js';
 import { isImageDataUrl, layerTree, type LayerNode } from './media.js';
+import { anchorsToPathData } from '../path-data.js';
+import { frameRectangle, paragraphRanges, typeSpecOf, type CharAttrs, type ParaAttrs, type TextConfig, type TypeRun } from '../type/model.js';
+import { canonicalConfig } from '../type/configs.js';
+import { markdownConfigAsMade } from '../type/markdown-flow.js';
 import { inkBox } from './render.js';
 import { DEFAULT_INK, DEFAULT_TEXT_SIZE, DEFAULT_WIDTH } from './state.js';
 import { isColor } from './values.js';
@@ -162,6 +173,8 @@ interface Paint {
   pencilColor: string | null;
   family: string;
   size: number;
+  /** The paragraph attributes `paragraph` has set, but the alignment, which a `text` says itself. */
+  paragraph: Partial<ParaAttrs>;
 }
 
 /** The paint a script starts with, as `defaultPaint` gives it. */
@@ -181,6 +194,7 @@ function startingPaint(): Paint {
     pencilColor: null,
     family: DEFAULT_FONT_FAMILY,
     size: DEFAULT_TEXT_SIZE,
+    paragraph: {},
   };
 }
 
@@ -251,6 +265,9 @@ class Notes {
     if (n('clip') > 0) {
       out.push(`${marks(n('clip'), 'clipping mask is', 'clipping masks are')} written as a plain group: a \`clip\` block clips with the last closed shape it draws, and takes no opacity, hiding or lock.`);
     }
+    if (n('isolate') > 0) {
+      out.push(`${marks(n('isolate'), 'group with Isolate Blending is', 'groups with Isolate Blending are')} written without it: the language has no word for it, so the blends inside mix with what is under the group too.`);
+    }
     if (n('gap') > 0) {
       out.push(`${marks(n('gap'), 'filled shape is', 'filled shapes are')} closed with a straight line across a gap in its outline, since a script fills only a closed path.`);
     }
@@ -262,6 +279,12 @@ class Notes {
     }
     if (n('text') > 0) {
       out.push(`${marks(n('text'), 'empty text item is', 'empty text items are')} left out.`);
+    }
+    if (n('paragraphs') > 0) {
+      out.push(`${marks(n('paragraphs'), 'text whose paragraphs are set differently is', 'texts whose paragraphs are set differently are')} written with every paragraph set as its first: \`paragraph\` sets every paragraph of a text alike.`);
+    }
+    if (n('type') > 0) {
+      out.push(`${marks(n('type'), 'text is', 'texts are')} written without what the language has no word for yet: a frame's inset or paint, a path's end, alignment or spacing, a list's own bullet or numbering, or a Text Configuration's auto leading, normal position, or a line or strike it turns off.`);
     }
     if (n('number') > 0) {
       out.push(`${marks(n('number'), 'mark with a position that is not a number is', 'marks with a position that is not a number are')} left out.`);
@@ -318,6 +341,8 @@ class ScriptWriter {
   private marks = 0;
   private layers = 0;
   private pages = 0;
+  /** The Text Configurations written so far, by id: each is defined once, before the first text that follows it. */
+  private readonly configsWritten = new Set<string>();
   /** Each mark's place in its page's paint order. */
   private order = new Map<Stroke, number>();
   private readonly scale: number | null;
@@ -520,7 +545,7 @@ class ScriptWriter {
       return;
     }
     const props = layerProps(layer);
-    const plain = Object.keys(props).length === 0 && !layer.effects?.length;
+    const plain = Object.keys(props).length === 0 && !layer.effects?.length && !isBlended(layer.blend);
     const first = node.strokes[0];
     if (first && isImageStroke(first) && first.link) {
       // A linked file makes a layer of its own, so the first one on this
@@ -528,7 +553,7 @@ class ScriptWriter {
       written.add(first);
       this.traced(first, () => this.mark(first, name));
       if (!plain) {
-        this.effects(layer.effects);
+        this.leadIn(layer);
         this.add({ verb: 'layer', name, ...props });
         scope.current = index;
       }
@@ -540,14 +565,15 @@ class ScriptWriter {
       scope.current = index;
       return;
     }
-    this.effects(layer.effects);
+    this.leadIn(layer);
     this.add({ verb: 'layer', name, ...props });
     scope.current = index;
   }
 
   private group(node: LayerNode, name: string): void {
     this.closePush();
-    this.effects(node.layer.effects);
+    this.leadIn(node.layer);
+    if (node.layer.isolate) this.notes.count('isolate');
     const body: DocumentInstruction[] = [];
     const props = layerProps(node.layer);
     const clips = node.layer.clip !== undefined;
@@ -731,9 +757,143 @@ class ScriptWriter {
     const size = stroke.fontSize !== undefined && stroke.fontSize > 0 ? stroke.fontSize : DEFAULT_TEXT_SIZE;
     this.setFont(stroke.fontFamily ?? DEFAULT_FONT_FAMILY, size);
     this.effects(stroke.effects);
-    const box = stroke.textBoxWidth !== undefined && stroke.textBoxWidth > 0 ? stroke.textBoxWidth : undefined;
-    this.add({ verb: 'text', text, x: this.x(at.x), y: this.y(at.y), ...(box !== undefined ? { box } : {}) });
+    const spec = typeSpecOf(stroke);
+    // Its paragraphs: `paragraph` sets every one alike, so a text whose paragraphs differ takes its first one's.
+    const paras = paragraphRanges(text).map((_, p) => spec.paras?.[p] ?? {});
+    if (paras.some((para) => JSON.stringify(para) !== JSON.stringify(paras[0]))) this.notes.count('paragraphs');
+    // An accent is the text's own, written just before it; the paint state goes on without it.
+    const { align, accent, ...rest } = paras[0];
+    this.setParagraph(rest);
+    // `paragraph list` takes a kind and a level: a bullet or a numbering chosen in the Type panel has no word.
+    const unsaid = paras.some((para) => para.list?.marker !== undefined);
+    const fields: Partial<TextInstruction> = {};
+    let x = at.x;
+    let lost = unsaid;
+    const d = (anchors: readonly VectorAnchor[], closed: boolean): string => anchorsToPathData(anchors, closed, (n) => String(this.round(n)));
+    if (spec.kind === 'area' && spec.frame) {
+      const rect = frameRectangle(spec.frame.anchors);
+      if (rect && spec.frame.autoHeight && rect.minX === 0 && rect.minY === 0) {
+        // A box from its left, or from its middle or its right end as it aligns.
+        fields.box = this.round(rect.maxX);
+        x = align === 'center' ? at.x + rect.maxX / 2 : align === 'right' ? at.x + rect.maxX : at.x;
+      } else {
+        fields.inside = d(spec.frame.anchors, true);
+      }
+      lost = spec.frame.inset !== undefined || spec.frame.fill !== undefined || spec.frame.stroke !== undefined;
+    } else if (spec.kind === 'path' && spec.path) {
+      fields.along = d(spec.path.anchors, spec.path.closed === true);
+      if (spec.path.start > 0) fields.start = this.round(spec.path.start);
+      if (spec.path.flip) fields.flip = true;
+      if (spec.path.effect !== 'rainbow') fields.effect = spec.path.effect;
+      lost = spec.path.align !== 'baseline' || spec.path.end < Number.MAX_SAFE_INTEGER || spec.path.spacing !== undefined;
+    }
+    if (spec.orientation === 'vertical') fields.vertical = true;
+    if (align !== undefined && align !== 'left') fields.align = align;
+    if (spec.runs && spec.runs.length > 0) {
+      const configs = spec.configs ?? [];
+      // The configurations its runs follow, each defined the first time a text follows it.
+      for (const run of spec.runs) {
+        const config = configs.find((each) => each.id === run.attrs.config);
+        if (config && this.textConfig(config)) lost = true;
+      }
+      fields.runs = spec.runs.map((run) => this.runArg(run, configs));
+    }
+    if (spec.flow === 'markdown') {
+      fields.markdown = true;
+      // The Markdown configurations it is shown in, where they are not as first made.
+      for (const config of spec.configs ?? []) {
+        const made = markdownConfigAsMade(config);
+        if (made && JSON.stringify(canonicalConfig(config).attrs) !== JSON.stringify(made.attrs) && this.textConfig(config)) lost = true;
+      }
+    }
+    if (lost) this.notes.count('type');
+    const accented = accent ?? paras.find((para) => para.accent !== undefined)?.accent;
+    if (accented !== undefined) this.add({ verb: 'accent', language: accented });
+    this.add({ verb: 'text', text, x: this.x(x), y: this.y(at.y), ...fields });
     this.marks++;
+  }
+
+  /**
+   * A `textconfig` line for a Text Configuration, the first time a text
+   * follows it. True when it holds what the language has no word for: auto
+   * leading, the normal position, or a line or a strike it turns off.
+   */
+  private textConfig(config: TextConfig): boolean {
+    if (this.configsWritten.has(config.id)) return false;
+    this.configsWritten.add(config.id);
+    const a = config.attrs;
+    const line: TextConfigInstruction = { verb: 'textconfig', name: config.name };
+    if (a.fontStyle !== undefined) line.face = a.fontStyle;
+    if (a.tracking !== undefined) line.tracking = a.tracking;
+    if (a.kerning !== undefined) line.kerning = a.kerning;
+    if (typeof a.leading === 'number') line.leading = this.round(a.leading);
+    if (a.wordSpacing !== undefined) line.spacing = a.wordSpacing;
+    if (a.caps !== undefined) line.caps = a.caps;
+    if (a.hScale !== undefined) line.hscale = a.hScale;
+    if (a.vScale !== undefined) line.vscale = a.vScale;
+    if (a.baselineShift !== undefined) line.shift = this.round(a.baselineShift);
+    if (a.rotation !== undefined) line.rotate = a.rotation;
+    if (a.highlight !== undefined) line.highlight = this.color(a.highlight);
+    if (a.position === 'superscript' || a.position === 'subscript') line.position = a.position;
+    if (a.underline) line.underline = true;
+    if (a.strike) line.strike = true;
+    if (a.fontSize !== undefined) line.size = this.round(a.fontSize);
+    if (a.fontFamily !== undefined) line.family = a.fontFamily;
+    if (a.color !== undefined) line.color = this.color(a.color);
+    this.add(line);
+    return a.leading === 'auto' || a.position === 'normal' || a.underline === false || a.strike === false;
+  }
+
+  /** A run of a text as `runs (...)` writes it: its stretch, the configuration it follows, then each attribute it has, in the language's words. */
+  private runArg(run: TypeRun, configs: readonly TextConfig[] = []): RunArg {
+    const a: Partial<CharAttrs> = run.attrs;
+    const out: RunArg = { start: run.start, end: run.end };
+    const config = a.config !== undefined ? configs.find((each) => each.id === a.config) : undefined;
+    if (config) out.config = config.name;
+    if (a.fontStyle !== undefined) out.face = a.fontStyle;
+    if (a.tracking !== undefined) out.tracking = a.tracking;
+    if (a.kern !== undefined) out.kern = a.kern;
+    if (a.kerning !== undefined) out.kerning = a.kerning;
+    if (typeof a.leading === 'number') out.leading = this.round(a.leading);
+    if (a.wordSpacing !== undefined) out.spacing = a.wordSpacing;
+    if (a.caps !== undefined) out.caps = a.caps;
+    if (a.hScale !== undefined) out.hscale = a.hScale;
+    if (a.vScale !== undefined) out.vscale = a.vScale;
+    if (a.baselineShift !== undefined) out.shift = this.round(a.baselineShift);
+    if (a.rotation !== undefined) out.rotate = a.rotation;
+    if (a.highlight !== undefined) out.highlight = this.color(a.highlight);
+    if (a.position !== undefined && a.position !== 'normal') out.position = a.position;
+    if (a.underline) out.underline = true;
+    if (a.strike) out.strike = true;
+    if (a.fontSize !== undefined) out.size = this.round(a.fontSize);
+    if (a.fontFamily !== undefined) out.family = a.fontFamily;
+    if (a.color !== undefined) out.color = this.color(a.color);
+    return out;
+  }
+
+  /** `paragraph` lines that set what a text's paragraphs have, from what the last one left: a reset first when something goes. */
+  private setParagraph(attrs: Partial<ParaAttrs>): void {
+    const had = this.paint.paragraph;
+    if (JSON.stringify(had) === JSON.stringify(attrs)) return;
+    const goes = Object.keys(had).some((key) => !(key in attrs));
+    if (goes) this.add({ verb: 'paragraph', reset: true });
+    const line: ParagraphInstruction = { verb: 'paragraph' };
+    const changed = (key: keyof ParaAttrs): boolean => goes || JSON.stringify(had[key]) !== JSON.stringify(attrs[key]);
+    if (attrs.leftIndent !== undefined && changed('leftIndent')) line.indent = this.round(attrs.leftIndent);
+    if (attrs.rightIndent !== undefined && changed('rightIndent')) {
+      line.indent = this.round(attrs.leftIndent ?? 0);
+      line.indentRight = this.round(attrs.rightIndent);
+    }
+    if (attrs.firstIndent !== undefined && changed('firstIndent')) line.first = this.round(attrs.firstIndent);
+    if (attrs.spaceBefore !== undefined && changed('spaceBefore')) line.before = this.round(attrs.spaceBefore);
+    if (attrs.spaceAfter !== undefined && changed('spaceAfter')) line.after = this.round(attrs.spaceAfter);
+    if (attrs.hyphenate !== undefined && changed('hyphenate')) line.hyphenate = attrs.hyphenate;
+    if (attrs.list !== undefined && changed('list')) {
+      line.list = attrs.list.kind;
+      if (attrs.list.level !== 1) line.level = attrs.list.level;
+    }
+    if (Object.keys(line).length > 1) this.add(line);
+    this.paint.paragraph = { ...attrs };
   }
 
   private image(stroke: Stroke): void {
@@ -902,6 +1062,12 @@ class ScriptWriter {
   private effects(effects: readonly Effect[] | undefined): void {
     for (const effect of effects ?? []) this.add(effectInstruction(effect, (color) => this.color(color)));
   }
+
+  /** The lines a layer's or a group's own line takes first: its effects, then its blend, which both wait for it. */
+  private leadIn(layer: { effects?: readonly Effect[]; blend?: BlendModeId }): void {
+    this.effects(layer.effects);
+    if (isBlended(layer.blend)) this.add({ verb: 'blend', mode: layer.blend });
+  }
 }
 
 // ---- Small pieces -----------------------------------------------------------------
@@ -946,15 +1112,175 @@ function pageInstruction(width: number, height: number): PageInstruction {
   return { verb: 'page', width, height };
 }
 
-/** An effect as the `effect` line that makes it, with no transform in force. */
+/**
+ * An effect as the `effect` line that makes it, with no transform in force:
+ * what it is aimed at and whether it is hidden, then its own fields, each only
+ * where it is not what the line would take without it.
+ */
 function effectInstruction(effect: Effect, color: (value: string) => string): EffectInstruction {
+  return {
+    ...ownEffectInstruction(effect, color),
+    ...(effect.target === 'fill' || effect.target === 'stroke' ? { target: effect.target } : {}),
+    ...(effect.on === false ? { hidden: true } : {}),
+  };
+}
+
+function ownEffectInstruction(effect: Effect, color: (value: string) => string): EffectInstruction {
+  const unless = <T>(value: T, fallback: T): T | undefined => (value === fallback ? undefined : value);
   switch (effect.type) {
     case 'blur':
       return { verb: 'effect', type: 'blur', radius: effect.radius };
     case 'hue-rotate':
       return { verb: 'effect', type: 'hue-rotate', angle: effect.angle };
     case 'drop-shadow':
-      return { verb: 'effect', type: 'drop-shadow', dx: effect.dx, dy: effect.dy, blur: effect.blur, color: color(effect.color) };
+      return {
+        verb: 'effect',
+        type: 'drop-shadow',
+        dx: effect.dx,
+        dy: effect.dy,
+        blur: effect.blur,
+        color: color(effect.color),
+        ...(effect.spread ? { spread: effect.spread } : {}),
+        ...(effect.blend && effect.blend !== 'normal' ? { blend: effect.blend } : {}),
+        ...(effect.opacity !== undefined && effect.opacity < 1 ? { opacity: effect.opacity } : {}),
+      };
+    case 'feather':
+      return { verb: 'effect', type: 'feather', radius: effect.radius };
+    case 'inner-shadow': {
+      const d = EFFECT_DEFAULTS['inner-shadow'];
+      return {
+        verb: 'effect',
+        type: 'inner-shadow',
+        dx: effect.dx,
+        dy: effect.dy,
+        blur: effect.blur,
+        color: color(effect.color),
+        choke: unless(effect.choke, 0),
+        blend: unless(effect.blend, d.blend),
+        opacity: unless(effect.opacity, d.opacity),
+      };
+    }
+    case 'outer-glow': {
+      const d = EFFECT_DEFAULTS['outer-glow'];
+      return {
+        verb: 'effect',
+        type: 'outer-glow',
+        blur: effect.blur,
+        color: color(effect.color),
+        spread: unless(effect.spread, 0),
+        blend: unless(effect.blend, d.blend),
+        opacity: unless(effect.opacity, d.opacity),
+      };
+    }
+    case 'inner-glow': {
+      const d = EFFECT_DEFAULTS['inner-glow'];
+      return {
+        verb: 'effect',
+        type: 'inner-glow',
+        blur: effect.blur,
+        color: color(effect.color),
+        choke: unless(effect.choke, 0),
+        source: unless(effect.source, d.source),
+        blend: unless(effect.blend, d.blend),
+        opacity: unless(effect.opacity, d.opacity),
+      };
+    }
+    case 'bevel':
+    case 'emboss': {
+      const d = EFFECT_DEFAULTS[effect.type];
+      return {
+        verb: 'effect',
+        type: effect.type,
+        style: unless(effect.style, d.style),
+        size: effect.size,
+        depth: unless(effect.depth, d.depth),
+        angle: unless(effect.angle, d.angle),
+        altitude: unless(effect.altitude, d.altitude),
+        soften: unless(effect.soften, 0),
+        direction: unless(effect.direction, d.direction),
+        lightColor: effect.highlight.color === d.highlight.color && effect.highlight.opacity === d.highlight.opacity ? undefined : color(effect.highlight.color),
+        lightOpacity: unless(effect.highlight.opacity, d.highlight.opacity),
+        lightBlend: unless(effect.highlight.blend, d.highlight.blend),
+        shadeColor: effect.shadow.color === d.shadow.color && effect.shadow.opacity === d.shadow.opacity ? undefined : color(effect.shadow.color),
+        shadeOpacity: unless(effect.shadow.opacity, d.shadow.opacity),
+        shadeBlend: unless(effect.shadow.blend, d.shadow.blend),
+      };
+    }
+    case 'splatter': {
+      // A preset the values match is named, and only what differs from where
+      // it starts is written: a Default Splatter with its seed is `effect splatter`.
+      const preset = matchingPreset(effect);
+      const base = SPLATTER_PRESETS[preset ?? 'default'];
+      const overlap = effect.overlap !== base.overlap || effect.overlapVariation !== base.overlapVariation;
+      const curviness = effect.curviness !== base.curviness || effect.curvinessVariation !== base.curvinessVariation;
+      const spacing = effect.spacing !== base.spacing || effect.spacingVariation !== base.spacingVariation;
+      return {
+        verb: 'effect',
+        type: 'splatter',
+        preset: preset && preset !== 'default' ? preset : undefined,
+        angle: unless(effect.angle, base.angle),
+        overlap: overlap ? effect.overlap : undefined,
+        overlapVariation: overlap ? unless(effect.overlapVariation, base.overlapVariation) : undefined,
+        width: unless(effect.width, base.width),
+        curviness: curviness ? effect.curviness : undefined,
+        curvinessVariation: curviness ? unless(effect.curvinessVariation, base.curvinessVariation) : undefined,
+        spacing: spacing ? effect.spacing : undefined,
+        spacingVariation: spacing ? unless(effect.spacingVariation, base.spacingVariation) : undefined,
+        seed: unless(effect.seed, EFFECT_DEFAULTS.splatter.seed),
+      };
+    }
+    case 'warp': {
+      // The style always; the rest where it is not the Warp Options' own -
+      // a part only where it is not the style's first.
+      const d = EFFECT_DEFAULTS.warp;
+      const distorted = effect.distortH !== 0 || effect.distortV !== 0;
+      return {
+        verb: 'effect',
+        type: 'warp',
+        style: effect.style,
+        bend: unless(effect.bend, d.bend),
+        orientation: effect.orientation === 'vertical' ? 'vertical' : undefined,
+        distortH: distorted ? effect.distortH : undefined,
+        distortV: distorted ? unless(effect.distortV, 0) : undefined,
+        part: unless(effect.part, warpPartsOf(effect.style)[0]),
+      };
+    }
+    case '3d': {
+      // The kind is the verb's word; the rest only where it is not the
+      // Classic 3D options' own, each of a turn, a place, a scale or a light whole.
+      const d = EFFECT_DEFAULTS['3d'];
+      const revolve = effect.kind === 'revolve';
+      const same = (a: readonly number[], b: readonly number[]): boolean => a.every((v, i) => v === b[i]);
+      const turned = !same(effect.rotation, d.rotation);
+      const moved = !same(effect.position, [0, 0, 0]);
+      const scaled = !same(effect.scale, [1, 1, 1]);
+      const lit = !same([effect.light.azimuth, effect.light.elevation, effect.light.intensity, effect.light.ambient], [d.light.azimuth, d.light.elevation, d.light.intensity, d.light.ambient]);
+      return {
+        verb: 'effect',
+        type: effect.kind,
+        depth: revolve ? undefined : unless(effect.depth, d.depth),
+        angle: revolve ? unless(effect.angle, d.angle) : undefined,
+        offset: revolve ? unless(effect.offset, d.offset) : undefined,
+        axis: revolve && effect.axis === 'right' ? 'right' : undefined,
+        segments: revolve ? unless(effect.segments, d.segments) : undefined,
+        rotateX: turned ? effect.rotation[0] : undefined,
+        rotateY: turned ? effect.rotation[1] : undefined,
+        rotateZ: turned ? effect.rotation[2] : undefined,
+        perspective: unless(effect.perspective, d.perspective),
+        shading: unless(effect.shading, d.shading),
+        hollow: effect.caps ? undefined : true,
+        lightAzimuth: lit ? effect.light.azimuth : undefined,
+        lightElevation: lit ? effect.light.elevation : undefined,
+        lightIntensity: lit ? effect.light.intensity : undefined,
+        lightAmbient: lit ? effect.light.ambient : undefined,
+        positionX: moved ? effect.position[0] : undefined,
+        positionY: moved ? effect.position[1] : undefined,
+        positionZ: moved ? effect.position[2] : undefined,
+        scaleX: scaled ? effect.scale[0] : undefined,
+        scaleY: scaled ? effect.scale[1] : undefined,
+        scaleZ: scaled ? effect.scale[2] : undefined,
+      };
+    }
     default:
       return { verb: 'effect', type: effect.type, amount: effect.amount };
   }

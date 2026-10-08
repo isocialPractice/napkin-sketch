@@ -2,15 +2,16 @@
 
 [API hub](../../../API.md) · [Reference](README.md) · [Quickstart](QUICKSTART.md) · **Cheatsheet**
 
-Reminders for the package as a dependency: the two entries, the calls, their options, the result and what throws.
+Reminders for the package as a dependency: the entries, the calls, their options, the result and what throws.
 
-## The two entries
+## The entries
 
 | Import | Runs in | For |
 | --- | --- | --- |
 | `import { ... } from 'napkin-sketch'` | A browser, Node, any bundler | The editor, the model, compositions, and the language |
 | `import { ... } from 'napkin-sketch/node'` | Node 18 and later | Reading and writing files |
 | `const { ... } = await import('napkin-sketch/node')` | CommonJS | The same, where `require` cannot load an ES module |
+| `import 'napkin-sketch/markdown'` | A browser, Node, any bundler | Markdown Flow text drawn as its Markdown renders and code colored: marked's lexer and highlight.js, given to `napkin-sketch` |
 
 ## `napkin-sketch`: the language
 
@@ -36,6 +37,7 @@ Reminders for the package as a dependency: the two entries, the calls, their opt
 | `readScript('card.napkin')` | Text, or the JSON value of a `.json` file |
 | `loadAssets({ logo: 'art/logo.png' }, from)` | `{ logo: 'data:image/png;base64,...' }` |
 | `loadDocuments({ badge: 'badge.skbk' }, from)` | The books, for `use` |
+| `loadFonts({ 'Acme Sans': 'fonts/acme-sans.ttf' }, from)` | `{ 'Acme Sans': [bytes] }`, for `fonts`; a list takes a family's faces |
 | `resolveLinkFromDir('brand')` | A link resolver jailed to one folder |
 | `imageDataUrl`, `writeComposition`, `mediaTypeOf` | The composition file helpers |
 
@@ -47,6 +49,7 @@ Reminders for the package as a dependency: the two entries, the calls, their opt
 | `formats` | `['svg']` | Any of `svg`, `png`, `pdf`, `skbk`, `jsx` |
 | `name` | the first page's | The files' name |
 | `assets`, `documents` | none | Data URLs and books, or paths read with the loaders |
+| `fonts` | none | Font files by family, bytes or paths: text is laid out by them, and a PNG and a PDF draw its glyphs as shapes |
 | `base` | the script's folder for `drawFile` | The folder links are read inside, and a `.jsx` places them from |
 | `strict` | `false` | Write nothing unless nothing at all was reported |
 | `crop`, `registration`, `transparent`, `scale` | the script's own | As the render calls take them |
@@ -74,7 +77,7 @@ Reminders for the package as a dependency: the two entries, the calls, their opt
 | Throws | When |
 | --- | --- |
 | `readScript`, `drawFile` | The file cannot be read; a `.json` file is not a JSON array |
-| `loadAssets`, `loadDocuments`, and the draws given them | A file cannot be read, or a document is not a book |
+| `loadAssets`, `loadDocuments`, `loadFonts`, and the draws given them | A file cannot be read, or a document is not a book |
 | `drawFile`, `drawToFiles`, `writeBook` | `out` cannot be made or written to |
 | The render calls | An unknown format |
 
@@ -85,5 +88,5 @@ Reminders for the package as a dependency: the two entries, the calls, their opt
 | Wrong | Right | Why |
 | --- | --- | --- |
 | `import { drawFile } from 'napkin-sketch'` | `from 'napkin-sketch/node'` | The first entry reads no files. |
-| `require('napkin-sketch/node')` | `await import('napkin-sketch/node')` | Both entries are ES modules, which `require` loads only on a Node that can. |
+| `require('napkin-sketch/node')` | `await import('napkin-sketch/node')` | Every entry is an ES module, which `require` loads only on a Node that can. |
 | `try { await drawFile(...) } catch` for script errors | Check `ok` and `diagnostics` | Script errors are values, not exceptions. |

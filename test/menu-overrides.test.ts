@@ -154,7 +154,7 @@ test('a toolbar tool put in a menu joins the block of its type', () => {
   const registry = loadRegistry(toolTypes({ 'tool-rect': 'Draw:Add:vector', 'clear-page': 'Composition:Subtract:element' }));
   assert.deepEqual(registry.problems, []);
   assert.deepEqual(labels(topMenu(registry, 'transform')).slice(0, 3), ['Vector Path', 'Rectangle', '---']);
-  assert.deepEqual(labels(contextItems(registry, 'canvas')).slice(5), ['---', 'Delete', 'Clear', '---', 'Select All', 'Deselect All', '---', 'Wipe Stacks']);
+  assert.deepEqual(labels(contextItems(registry, 'canvas')).slice(5), ['---', 'Delete', 'Clear', '---', 'Select All', 'Deselect All', '---', 'Wipe Stacks', '---', 'Apply Last Effect', 'Last Effect…', 'Expand Appearance', 'Clear Appearance']);
   assert.deepEqual(labels(topMenu(registry, 'edit')).slice(9, 13), ['Delete', 'Select All', 'Clear', '---']);
 });
 

@@ -37,6 +37,7 @@ import {
   type WrittenScript,
 } from '../src/core/script/index.js';
 import { sketchToSvg } from '../src/core/sketch-svg.js';
+import { typeSpecOf, withTypeset, type CharAttrs, type ParaAttrs } from '../src/core/type/model.js';
 import { createSketch, isClosedStroke, type Layer, type Sketch, type SketchBook, type Stroke } from '../src/core/types.js';
 import { fixtureSketch } from './helpers/fixture-sketch.js';
 import { repoRoot } from './helpers/repo-root.js';
@@ -486,6 +487,43 @@ test('what the language cannot say is written as near as it goes, and said', () 
     'every layer kept, the linked file on one of its own',
   );
   assert.equal(back.strokes.length, sketch.strokes.length - 3, 'all but the three left out');
+});
+
+test("a path's spacing, which the language has no word for yet, is said", () => {
+  const sketch = createSketch('spacing');
+  const layer = sketch.layers[0].id;
+  const plain: Stroke = { id: 'along', tool: 'text', color: '#1f2328', width: 1, layer, text: 'Round', fontSize: 20, fontFamily: 'Georgia', points: [{ x: 10, y: 10, pressure: 0.5 }] };
+  const path = { anchors: [{ p: { x: 0, y: 0 } }, { p: { x: 100, y: 0 } }], start: 0, end: Number.MAX_SAFE_INTEGER, align: 'baseline' as const, effect: 'rainbow' as const };
+  sketch.strokes = [withTypeset(plain, { kind: 'path', path: { ...path, spacing: 8 } })];
+  assert.equal(typeSpecOf(sketch.strokes[0]).path?.spacing, 8);
+  assert.deepEqual(sketchToInstructions(sketch).notes, [
+    "1 text is written without what the language has no word for yet: a frame's inset or paint, a path's end, alignment or spacing, a list's own bullet or numbering, or a Text Configuration's auto leading, normal position, or a line or strike it turns off.",
+  ]);
+  sketch.strokes = [withTypeset(plain, { kind: 'path', path })];
+  assert.deepEqual(sketchToInstructions(sketch).notes, [], 'with none, nothing to say');
+});
+
+test('every character and paragraph attribute the language has a word for is written, and read back as it was', () => {
+  const sketch = createSketch('type-attributes');
+  const layer = sketch.layers[0].id;
+  const plain: Stroke = { id: 'attrs', tool: 'text', color: '#1f2328', width: 1, layer, text: 'Acme Corp sells widgets\nand gadgets', fontSize: 16, fontFamily: 'Georgia', points: [{ x: 20, y: 20, pressure: 0.5 }] };
+  // A run with every character attribute `runs` can say, and one with the other position.
+  const every: Partial<CharAttrs> = {
+    fontStyle: 'Bold', tracking: 40, kern: 25, kerning: 'none', leading: 22, wordSpacing: 120, caps: 'small', hScale: 90, vScale: 110,
+    baselineShift: 2, rotation: 5, highlight: '#fff3b0', position: 'superscript', underline: true, strike: true, fontSize: 18, fontFamily: 'Arial', color: '#c0392b',
+  };
+  // Every paragraph alike, as `paragraph` sets them, with every attribute it can say.
+  const para: Partial<ParaAttrs> = { align: 'center', leftIndent: 10, rightIndent: 4, firstIndent: 12, spaceBefore: 4, spaceAfter: 6, hyphenate: true, list: { kind: 'number', level: 2 } };
+  sketch.strokes = [withTypeset(plain, { kind: 'point', runs: [{ start: 0, end: 4, attrs: every }, { start: 5, end: 9, attrs: { position: 'subscript' } }], paras: [para, para] })];
+  const written = sketchToInstructions(sketch, { decimals: null });
+  assert.deepEqual(written.notes, [], 'nothing it could not say');
+  const back = typeSpecOf(drawBack(written, 'type-attributes').sketches[0].strokes[0]);
+  const source = typeSpecOf(sketch.strokes[0]);
+  assert.deepEqual(back.runs, source.runs, 'every run as it was');
+  assert.deepEqual(back.paras, source.paras, 'every paragraph as it was');
+  // A bullet chosen in the Type panel has no word: the list is written by its kind and level, and that is said.
+  sketch.strokes = [withTypeset(plain, { kind: 'point', paras: [{ list: { kind: 'bullet', level: 1, marker: '-' } }] })];
+  assert.match(sketchToInstructions(sketch).notes.join(' '), /a list's own bullet or numbering/);
 });
 
 test('the notes go at the top of the text as comments, which the parser skips', () => {

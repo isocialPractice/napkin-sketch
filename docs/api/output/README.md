@@ -135,10 +135,16 @@ The app's export writer, `sketchToSvg`, which the app's own SVG export calls:
   outline its profile makes, and a Copic mark its nib's footprint, each with
   the stroke riding along as data so napkin's importer rebuilds it.
 - **An eraser is a `<mask>`** on its layer's group, so it cuts that layer only.
-- **Text is live `<text>`.** A text box is broken into lines where the
-  built-in face breaks it, since SVG text does not wrap, and the text as typed
-  and the box's width ride along as `data-text` and `data-box`, so napkin's
-  importer reads back the box rather than the lines.
+- **Text is live `<text>`**, set as the type layout sets it: each line on
+  its baseline, each stretch in one style a `<tspan>`, a character turned on
+  its own with `rotate`, and Path Typing in the rainbow effect a
+  `<textPath>`. With no measure of its own the writer breaks lines where the
+  built-in face breaks them, since SVG text does not wrap, and places each
+  stretch from its start; the app passes its canvas's measure, which pins
+  each character. The text as typed, its anchor and its typeset ride along
+  as `data-text`, `data-anchor` and `data-typeset`, and a box's width as
+  `data-box`, so napkin's importer reads the text back whole rather than its
+  lines.
 - **A link is its reference**: `<image href="assets/logo.svg" data-link="true">`.
 - **Cut to the box** by its view box: the marks keep their page coordinates
   and the window moves.
@@ -172,7 +178,10 @@ and the same bytes for the same page every time.
 ### PDF
 
 The app's PDF writer, `sketchesToPdf`: a PDF page a sketch, marks in vector
-with round caps and joins, and text in Helvetica.
+with round caps and joins, and text in Helvetica, set as the type layout sets
+it with the built-in face: each stretch in one style placed on its line, in
+the bold and oblique faces where a run is, its underlines, strikethroughs and
+highlights drawn as shapes.
 
 - **Every color the PNG reads**: hex of three to eight digits, `rgb()`,
   `hsl()`, a named color and `transparent`. A color's own alpha is its
@@ -214,7 +223,9 @@ short:
   mark is the outline it fills, text is a text frame, an image is embedded,
   and a link is placed by link, found from the script's own folder.
 - **Stand-ins.** An effect is left off, and an eraser is drawn in the paper's
-  color, as the PDF draws one; the writer reports both through `onWarning`.
+  color, as the PDF draws one; the writer reports both through `onWarning`. A
+  Splatter, a Warp and 3D are no stand-ins: they are drawn as the lines, the
+  bent shapes and the faces they are.
   What the script cannot find or place when it runs, it draws as a
   placeholder and names at the end.
 - **Cut to the box** by its artboard.
@@ -230,14 +241,15 @@ every format that can draw them:
 
 | Format | Effects |
 | --- | --- |
-| SVG | A `<filter>` on the mark's outermost element or the layer's group, in sRGB and in user space, and the list itself as `data-effects`, which napkin's importer reads back |
-| PNG | Run over the mark's or the layer's own picture before it is laid down, as the SVG draws them |
-| PDF | Not drawn: what carries them prints plain, and `onWarning` says so |
-| `.skbk` | Kept, and drawn by the app |
-| `.jsx` | Not written: what carries them is drawn plain in Illustrator, and `onWarning` says so |
+| SVG | A `<filter>` on the mark's outermost element or the layer's group, in sRGB and in user space, and the list itself as `data-effects`, which napkin's importer reads back. A shadow that blends, laid under its mark or layer on its own, is a `<use>` of it before it; a mark whose fill and stroke take effects of their own is a group of the two, each with its filter. A Splatter's hatch is the lines it draws, a Warp's mark the shape it bends, and a 3D mark a group of its faces, each carrying the mark it stands for; a layer's or a group's Warp is on its group, its marks written bent |
+| PNG | Run over the mark's or the layer's own picture before it is laid down, as the SVG draws them, with the same graph of filter primitives |
+| PDF | Not drawn: what carries them prints without them, and `onWarning` names each one. A Splatter, a Warp and 3D are drawn, as the lines, the bent shapes and the faces they are |
+| `.skbk` | Kept - aims and switched-off effects too - and drawn by the app |
+| `.jsx` | Not written: what carries them is drawn without them in Illustrator, and `onWarning` names each one. A Splatter is drawn as open paths, a Warp as the bent paths, and 3D as a group of its faces |
 
 On a layer with an eraser, the SVG and the PNG apply the effect before the
-eraser cuts, the order SVG gives a filter and a mask.
+eraser cuts, the order SVG gives a filter and a mask. The app's PDF export
+lists what it left out in a report in the corner of the window.
 
 ### The box: crop and registration
 
@@ -275,8 +287,8 @@ message once a page, starting with the page's name:
 | Format | Says so when |
 | --- | --- |
 | PNG | an image needs `decodeImage`; a link drew as its placeholder, and why; a color is not one it can paint; a shadow color is not one |
-| PDF | an image is not a JPEG; a gradient printed flat; a color is not a color; an effect printed plain |
-| `.jsx` | an effect left off; an eraser drawn in the paper's color, or left out on a page with no paper; a color is not a color |
+| PDF | an image is not a JPEG; a gradient printed flat; a color is not a color; an effect printed plain (a Splatter, a Warp and 3D it draws) |
+| `.jsx` | an effect left off (a Splatter, a Warp and 3D it draws); an eraser drawn in the paper's color, or left out on a page with no paper; a color is not a color |
 | SVG | nothing: the SVG writes every mark |
 
 A warning never stops a render. The rest of the page is drawn, which is what
@@ -370,10 +382,14 @@ if (warnings.length > 0) console.warn(warnings.join('\n'));
   whichever image library it already has.
 - **The PDF embeds JPEG images only, prints gradients flat, leaves effects
   out, and erases by painting the paper back.** Each is reported when it
-  happens.
+  happens. A Splatter, a Warp and 3D it draws, as the lines, the bent shapes
+  and the faces they are.
 - **The Illustrator script leaves effects out and erases by painting the
-  paper back**, as the PDF does, and has been run against a stand-in for
-  Illustrator's scripting objects rather than in Illustrator itself; see
+  paper back**, as the PDF does, a Splatter, a Warp and 3D aside, which both
+  draw.
+  It has
+  been run against a stand-in for Illustrator's scripting objects rather than
+  in Illustrator itself; see
   [Working with other programs](../interop/README.md#limits).
 - **The PNG is the SVG's picture, not the canvas's**, where the two already
   differ: a Default outline the app draws at 0.7 of its width is drawn at its
@@ -405,7 +421,7 @@ if (warnings.length > 0) console.warn(warnings.join('\n'));
 
 - [Drawing with napkin script](../drawing/README.md): what each instruction
   draws, and `evaluate`.
-- [Using napkin-sketch from code](../node/README.md): the two entries, and
+- [Using napkin-sketch from code](../node/README.md): the package's entries, and
   the calls that write every format to files.
 - [The napkin-sketch command line](../cli/README.md): `draw`, `check`, `render`
   and `verbs`, from a shell or any language.

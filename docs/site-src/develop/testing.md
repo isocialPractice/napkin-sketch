@@ -43,10 +43,144 @@ box, and the committed shape library matching its assets.
 drift within reach, smooth joins kept smooth, bows growing with the square
 root of a segment's length, overshoot along the tangents, the fill drawn apart
 from its line, and one script and seed giving the same drawing every run.
-`test/script-text.test.ts` covers text and media: text items aligned on the
-built-in face's measure, lettering drawn as marks, images sized from their
-own headers, and documents copied in with `use`. The assets and documents
-those examples name come from `test/helpers/script-fixtures.ts`.
+`test/script-text.test.ts` covers text and media: text items aligned by
+their paragraphs, `character` and `paragraph`, runs, text inside a shape,
+along a path and in columns, lettering drawn as marks, images sized from
+their own headers, and documents copied in with `use`. The assets and
+documents those examples name come from `test/helpers/script-fixtures.ts`.
+The type model and its layout have suites of their own.
+`test/type-model.test.ts` holds runs splitting and joining, paragraph edits,
+text edits shifting both, the base kept with the first character, a box from
+before read as Sheet Typing, the clamps, and a typeset scaled, mirrored and
+recolored. `test/type-layout.test.ts` lays text out with a measure whose
+every character is half an em, so each place can be worked out by hand:
+point lines, a circle's bands, overset, a box that grows, a path's effects,
+vertical columns, justification, lists, superscripts, small caps, kerning and
+hyphenation. `test/arc-length.test.ts` and `test/hyphenate.test.ts` hold a
+quarter-circle cubic's length and TeX's breaks of ten words, and
+`test/gui/check-type.mjs` finds it all painted in the app, read back from
+napkin's own SVG and from another editor's. The type editor's model has
+`test/type-editor-model.test.ts`, with the same measure: where the caret
+stands over runs, lines, a path and vertical text, the index a point is
+nearest, every movement key, a double-click's word and a triple-click's
+paragraph, pasted runs, attribute steps and which edits are one burst of
+typing; `test/store-typing.test.ts` the store's side of it: a burst written
+in place as one undo step, a new text put on the page inside it and rolled
+back without a trace, an emptied text removed, Undo offered mid-burst, and a
+page change heard before it happens. `test/gui/check-type-editor.mjs` types
+in the app: three lines and `Esc`, a double-click back in at the character
+clicked, all, a paragraph and a drag selected and highlighted, a word
+restyled, copied and pasted with its style and plain, two bursts undone one
+at a time, a zoom with the caret, the `Ctrl` spring, and an input method's
+composition sent through the DevTools protocol. The Type panel's model has
+`test/type-panel-model.test.ts`: what it reads from a stretch, a caret and
+whole marks, blank where they differ; values typed with their units; the
+changes its controls make; the percent leading; and a numbered list counting
+the way its style says. `test/font-list.test.ts` gathers faces into families
+and keeps the recent ones, and `test/gui/check-type-panel.mjs` drives the
+panel in the app: a missing font reported as a book opens, the panel coming
+up with the Text tool and going with it, its keys, a font and a size for one
+word, tracking for a whole text, a drag on a field's name kept as one undo
+step, a paragraph centred, a numbered list, an indent, and a narrow box
+hyphenated. `test/type-tool.test.ts` holds the Text tool's decision table,
+one case for each gesture, with the path a mark gives the tool, a frame and a
+path made from it, the brackets and their drags, and the red plus; and
+`test/type-options.test.ts` the Type menu's two options forms as data: what
+a text reads as, a field written alone and held to its range, and the fields
+greyed. `test/gui/check-typing-modes.mjs` makes each typing mode in the app:
+Sideless Typing on the canvas and beside art that is not selected, Sheet
+Typing in a selected circle whose lines keep inside it, an anchor of its
+frame dragged with Direct Select, Path Typing along a selected curve, its
+brackets dragged, a paste along a path, `Alt` + click along a rectangle's
+outline, and the Type menu's rows and both of its options forms.
+The glyph outlines are held on two fonts in `test/fonts/`, subsets of two
+fonts under the SIL Open Font License, renamed as it asks, which
+`test/fonts/make-fixtures.py` makes again from their originals with
+fontTools. `test/sfnt.test.ts` holds the font reader to what fontTools reads
+from them: their names, their em and how far their lines reach, the
+character map, advances, a straight glyph's corners, a CFF glyph's own
+cubics, a quadratic raised to the cubic that draws it exactly, a composite
+glyph's components each placed, kern pairs, a collection's faces, and what
+it does not read said as a problem, never thrown.
+`test/outline-text.test.ts` holds the outline engine: the faces' own
+measure, each glyph where the layout set it, a counter wound to leave a
+hole, a path text along its path's tangent, the frame's paint, a highlight
+and an underline as shapes in the order the canvas paints them, a run of one
+color one mark, what cannot be drawn said with its font, and a family list
+read in order. `test/text-geometry.test.ts` holds a Warp, a Splatter and 3D
+on text: none without an outline source, a group's Warp bending a text by
+its layout, Expand Appearance baking a new mark a glyph, the text being typed
+drawn as text, and the raster effects taking a text's shapes as one picture.
+`test/script-fonts.test.ts` renders with `fonts`: the SVG set by the font's
+advances and kerning, the PNG drawing each glyph's outline, the PDF with no
+text operator left, a warped text riding along to be read back, a family not
+given said once, and `loadFonts` reading paths and bytes.
+`test/gui/check-outlines.mjs` does it in the app: Expand Text to Shape from
+the menu and with `Ctrl+Shift+O` while the text is typed, the shapes over
+the text's own pixels, one undo back, a font not installed reported, an Arc
+on a text that stays text, and a PDF drawing text as shapes.
+`test/text-configs.test.ts` holds Text Configurations: a run's attributes
+the base, then its configuration's, then its own; a plain apply keeping the
+overrides and showing the panel's `+`, and Alt clearing them, kerning by
+hand kept; the base keeping what is under a configuration; a redefinition
+restyling every run that follows it, under its overrides; a delete breaking
+the link or reverting the runs; another book's merged in by name, a clash
+numbered; text from elsewhere following the book's configuration of its
+name; a book read in step with its list, keeping the configurations nothing
+follows unless asked; copy and paste, scaling and a whole recolor; the store
+undoing a change on two pages as one step; and a script's `textconfig` and
+`config` drawn, written back and drawn again the same.
+`test/illustrator.test.ts` holds the Character Styles the Illustrator script
+makes, and `test/gui/check-text-configs.mjs` does it in the app: a bold red
+word made a configuration, named Callout in its Options, applied to another
+word, redefined from the first so both grow, an override cleared with Alt,
+Callout deleted with Break Link, and another book's loaded, each one undo
+step.
+`test/markdown-flow.test.ts` holds Markdown Flow: each block the plan's
+table names - headings, emphasis, code, lists and task lists, quotes, rules,
+links, pictures, tables and raw HTML - and blocks nested; the source map
+never going back and finding every block both ways; the block the caret is
+in shown as its source, the Markdown muted, and every place in it a caret
+slot; a caret move inside a block keeping the display; a 10,000-character
+document laid out inside a budget; the Markdown configurations made once and
+restyling what they style; Enter; a text made plain keeping what it showed;
+the layout's bars, rule and one code shade; output rendering every block
+whatever the caret; no lexer showing the Markdown as typed; and a script's
+`markdown` flag drawn and written back. `test/headless.test.ts` loads
+`napkin-sketch/markdown` with the DOM poisoned and renders a Markdown text to
+every format, and `test/gui/check-markdown-flow.mjs` does it in the app:
+`# Title` and Enter make a heading, `- one`, Enter and `two` a list, the
+arrow keys back into the heading show its `#`, a burst is one undo step, and
+Markdown Flow turned off keeps the rendered text, undo bringing it back.
+`test/accents.test.ts` holds Clean Language Accents: highlight.js's HTML read
+into colored runs, nested spans and entities, a `<script>` coming out as
+text; every scope's color at least 4.5:1 on each theme's shade, computed;
+Python and TypeScript read into their keywords; detection off until asked
+for; the catalog of 193 against the installed highlight.js; an accent live
+through an edit, nothing stored; an accent on and off a stretch's
+paragraphs; Markdown's fenced code colored, a language not installed named,
+installed and taken away; the theme a page's paper picks, in an SVG; and a
+script's `accent`, drawn, written back and drawn again.
+`test/gui/check-accents.mjs` does it in the app: a fenced `ts` block typed in
+Markdown Flow colored and a `fortran` one plain with its hint, Python applied
+to a text as one undo step and followed through an edit, fortran installed
+from Languages... and its block colored, and the accents removed.
+`test/composition-style.test.ts` holds Composition Styles: every reason a
+style is not one, a sentence each with the nearest word; matching trimmed
+and in any case; a layer rule reaching what is under it, text and stroke
+rules each taking their own marks, the nearer rule winning; a blend on the
+layer a mark sits on; configurations by name, the book's, a Markdown one and
+one the book has not; Markdown Flow, an accent and effects; the report and
+its suggestions, `Titel` giving `Title` and `Bg` nothing; a capture
+leaving out the names the app gave, which applied again changes nothing, and
+Night then Day giving a page back; a composition restyled by its elements'
+names; the library's file names; and the store's restyle as one undo step.
+`test/gui/check-composition-styles.mjs` does it in the app: a composition
+imported with layers named Background, Title and Outline; `Shift+F5`; New
+and Edit making Day, Duplicate and the rule form making Night; Night applied
+and the page changed, undone and redone, and Day giving it back; a misspelt
+rule's report with its suggestion, Rename layer making it match as one undo
+step; and the report gone after its 15 seconds.
 `test/link.test.ts` covers linked files: the model keeps a link, the SVG
 writers keep the reference, the rasterizer draws the file only through the
 host's resolver and draws the placeholder otherwise, and a host reads only
@@ -234,8 +368,8 @@ a group selected, and with nothing selected, reads both lines cut on the
 canvas with the press still down, and opens a file with an eraser mark of
 the old kind - no box when selected - and applies it, pixel for pixel.
 `npm run gui-check -- shape-eraser` opens the Shape Eraser's panel and
-chooses from it by key, drags a rectangle over three selected lines of four
-- the three cut, already with the press held, and the fourth not, one undo
+chooses from it by key, drags a rectangle over three selected lines of four -
+the three cut, already with the press held, and the fourth not, one undo
 for all three - cuts two lines with a closed rectangle and a closed Vector
 Path on top with Top Path, and shows each notice, ticked away to a toast.
 For it the hook adds `shapeEraserState()`: the shape in use, whether the
@@ -445,6 +579,14 @@ npm test -- --update-golden   # rewrite test/scripts/*.svg from what the scripts
 least once, on two pages, and `test/script-golden.test.ts` holds it to the
 verb table, so a new verb fails the suite until it joins the script and its
 goldens.
+
+`test/scripts/type-and-appearance.napkin` draws a poster with the type and
+the effects - a headline, a justified column, type along a path, a Warp, an
+extrude, a blend and a glow - and is the golden drawn to PNG as well, since
+the raster draws those effects a pixel at a time: `type-and-appearance.png`
+is compared a pixel at a time, a channel allowed to move by 2 of 255 and one
+pixel in a thousand further. Every golden SVG is also held to saying no
+attribute twice, which a strict XML reader refuses.
 
 The script writer runs the other way and is held to the same bytes.
 `test/script-writer.test.ts` writes every SVG fixture and every page of every

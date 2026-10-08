@@ -26,6 +26,8 @@ Reminders for the four commands: their flags, exit codes, the JSON report and th
 | `--base <dir>` | yes | yes | yes |  | The folder linked files are read inside. |
 | `--asset <name>=<file>` | yes | yes |  |  | An image the script places by name; repeatable. |
 | `--use <name>=<book.skbk>` | yes | yes |  |  | A book the script copies in with use; repeatable. |
+| `--font <family>=<file>` | yes |  | yes |  | A font file text in that family is drawn from: its outlines in a PNG and a PDF, its advances in every format; repeatable, a family's faces each once. |
+| `--composition-style <style.json>` | yes |  |  |  | Restyle every page by its layers' names with a composition style once it is drawn; a rule that matched nothing is a warning. |
 | `--seed <n>` | yes | yes |  |  | The seed for the hand-drawn pass. |
 | `--scale <n>` | yes |  | yes |  | PNG pixels a page pixel. |
 | `--crop auto\|none\|<x,y,w,h>` | yes |  | yes |  | What every file is cut to. |

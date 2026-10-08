@@ -10,6 +10,6 @@
 <path d="M339.67 89.65c.35 25.94-17.94 50.9-45.99 49.86-28.06-1.04-56.5-23.14-56.48-48.07.03-24.92 25.73-53.7 50.34-53.44 24.62.26 50.46 28.76 50.81 54.71" stroke="#1f2328" stroke-width="1.2" opacity="0.55" data-tool="pen" data-i="5"/>
 <path d="M41.56 224.35c21.83-25.82 55.52-47.12 82-42.82 29.6 4.8 44.34 59.66 75.67 58.87 31.34-.79 51.72-54.99 82.46-58.62 27.5-3.24 59.39 10.89 82.09 39.8" stroke="#c0392b" data-tool="pen" data-i="6"/>
 <path d="M40.42 224.24c22.32-32.02 51.44-44.57 78.82-41.38 30.62 3.57 46.07 61.01 81.17 59.54 35.09-1.47 44.13-53.72 79.29-59 31.46-4.73 53.2 4.29 81.76 37.1" stroke="#c0392b" stroke-width="1.2" opacity="0.55" data-tool="pen" data-i="7"/>
-<text x="152" y="260" font-size="18" font-family="&quot;Segoe UI&quot;, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif" fill="#c0392b" dominant-baseline="hanging" data-tool="text" data-i="8"><tspan x="152" dy="0">Acme Corp</tspan></text>
+<text x="152" y="273.2" font-size="18" font-family="&quot;Segoe UI&quot;, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif" fill="#c0392b" xml:space="preserve" data-tool="text" data-i="8" data-anchor="200 260" data-text="Acme Corp" data-typeset="{&quot;kind&quot;:&quot;point&quot;,&quot;paras&quot;:[{&quot;align&quot;:&quot;center&quot;}]}"><tspan x="152" y="273.2">Acme Corp</tspan></text>
 </g>
 </svg>

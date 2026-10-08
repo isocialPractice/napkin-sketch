@@ -27,6 +27,9 @@ export const DOCS_SITE_URL: string | null = null;
 /** The page Help > Verbose opens: the manual's reading order. */
 export const DOCS_INDEX_PAGE = 'guide/index';
 
+/** The page Help > About napkin-sketch opens: the version, the license and the third-party notices. */
+export const DOCS_ABOUT_PAGE = 'about';
+
 /** A documentation page's file, relative to the site's root: `quickstart/draw` is `quickstart/draw.html`. */
 export function docsPageFile(page: string): string {
   return `${page}.html`;

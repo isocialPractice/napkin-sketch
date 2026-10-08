@@ -85,8 +85,18 @@ export const IPC = {
   openedLinks: 'napkin:opened-links',
   /** Renderer → main: save text to a file the user picks, such as a generated script. */
   saveText: 'napkin:save-text',
+  /** Renderer → main: every Composition Style in the user's library, as its file holds it. */
+  listCompositionStyles: 'napkin:list-composition-styles',
+  /** Renderer → main: write one Composition Style to the user's library. */
+  writeCompositionStyle: 'napkin:write-composition-style',
+  /** Renderer → main: take one Composition Style out of the user's library. */
+  deleteCompositionStyle: 'napkin:delete-composition-style',
+  /** Renderer → main: read a Composition Style file the user picks, for Import. */
+  openCompositionStyle: 'napkin:open-composition-style',
   /** Renderer → main: put plain text on the system clipboard. */
   writeClipboardText: 'napkin:write-clipboard-text',
+  /** Renderer → main: read the plain text on the system clipboard. */
+  readClipboardText: 'napkin:read-clipboard-text',
   /** Renderer → main: fetch the current application settings. */
   getSettings: 'napkin:get-settings',
   /** Renderer → main: merge a settings patch, persist, and broadcast it. */
@@ -194,6 +204,8 @@ export interface OpenResult {
   filePath?: string;
   /** The loaded book data, if successful. */
   book?: SketchBook;
+  /** True when a newer napkin-sketch saved the book: parts of it this build does not know may not show. */
+  newer?: boolean;
   /** Error message if `ok` is false. */
   error?: string;
   /** True if the user cancelled a dialog. */
@@ -258,11 +270,30 @@ export interface SaveResult {
   cancelled?: boolean;
 }
 
+/** One file of the user's Composition Styles library: its name in the folder, and what it holds. */
+export interface CompositionStyleFile {
+  file: string;
+  text: string;
+}
+
+/** A text file the user picked: its path and what it holds, or why there is none. */
+export interface OpenTextResult {
+  ok: boolean;
+  filePath?: string;
+  text?: string;
+  error?: string;
+  cancelled?: boolean;
+}
+
+/** What a library file may be called: a plain name ending `.json`, so it can never leave the folder. */
+export const COMPOSITION_STYLE_FILE = /^[A-Za-z0-9][A-Za-z0-9 ._()-]{0,95}\.json$/;
+
 /** The API surface exposed to the renderer as `window.napkin`. */
 export interface NapkinBridge {
   getLaunch(): Promise<LaunchOptions>;
   loadBook(filePath: string): Promise<OpenResult>;
-  openBook(): Promise<OpenResult>;
+  /** Opens a file picker - titled `title`, `Open sketch book` unless given - and reads the book chosen, without opening it. */
+  openBook(options?: { title?: string }): Promise<OpenResult>;
   saveBook(filePath: string | null, book: SketchBook): Promise<SaveResult>;
   saveBookAs(book: SketchBook): Promise<SaveResult>;
   /** Saves a base64 data-URL image to disk (PNG/JPEG). */
@@ -274,8 +305,22 @@ export interface NapkinBridge {
    * a generated napkin script, with `napkin`.
    */
   saveText(text: string, suggestedName: string, extension: string): Promise<SaveResult>;
+  /**
+   * The user's Composition Styles: every `.json` file in the app's
+   * `composition-styles` folder, by its file name, with its text. Empty when
+   * the folder is not there yet.
+   */
+  listCompositionStyles(): Promise<CompositionStyleFile[]>;
+  /** Writes one style to the library under `file` (see {@link COMPOSITION_STYLE_FILE}), making the folder when it is missing. */
+  writeCompositionStyle(file: string, text: string): Promise<SaveResult>;
+  /** Takes one style out of the library: true when the file is gone. */
+  deleteCompositionStyle(file: string): Promise<boolean>;
+  /** Asks for a Composition Style file to import, and reads it. */
+  openCompositionStyle(): Promise<OpenTextResult>;
   /** Puts plain text on the system clipboard. */
   writeClipboardText(text: string): Promise<void>;
+  /** Reads the plain text on the system clipboard: a paste into text chosen from a menu. */
+  readClipboardText(): Promise<string>;
   /** Saves a latin1-safe PDF byte string to a .pdf file. */
   savePdf(pdfContent: string, suggestedName: string): Promise<SaveResult>;
   /** Opens a file picker and reads an importable SVG/PDF/PNG/JPEG file. */
@@ -404,7 +449,7 @@ export interface NapkinBridge {
   onHistoryStatsChanged(handler: (stats: HistoryStats) => void): () => void;
   /** Subscribes to requests to show a section of the settings window; returns an unsubscribe function. */
   onShowSettingsSection(handler: (section: string) => void): () => void;
-  /** The app's version, as its package.json gives it: `1.0.0-alpha.4.6.0`. */
+  /** The app's version, as its package.json gives it: `1.0.0-alpha.5.0.0`. */
   getAppVersion(): Promise<string>;
 }
 

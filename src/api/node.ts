@@ -16,7 +16,13 @@
  *
  * The composition API's file helpers are here as well, so a Node script has
  * one import to remember; `napkin-sketch/graphic-design/files` keeps working.
+ *
+ * A drawing it draws shows its Markdown Flow text as the Markdown renders,
+ * and its code accented: it reads Markdown with marked's lexer and code with
+ * highlight.js, as the command line does.
  */
+
+import '../markdown/core.js';
 
 export * from '../core/graphic-design/files.js';
 
@@ -25,10 +31,13 @@ export {
   drawToFiles,
   loadAssets,
   loadDocuments,
+  loadFonts,
+  readCompositionStyle,
   readScript,
   writeBook,
   type DrawResult,
   type DrawToFilesOptions,
+  type FontSources,
   type WriteBookOptions,
   type WrittenFile,
 } from '../core/script-files.js';

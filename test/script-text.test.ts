@@ -11,6 +11,7 @@ import { evaluate, formatDiagnostic, type ScriptResult } from '../src/core/scrip
 import { imageSize } from '../src/core/script/media.js';
 import { TEXT_LINE_HEIGHT, measureTextBlock } from '../src/core/script/text.js';
 import { measureText } from '../src/core/graphic-design/font.js';
+import { layoutType } from '../src/core/type/layout.js';
 import { Surface } from '../src/renderer/surface.js';
 import type { Sketch, Stroke } from '../src/core/types.js';
 import { BADGE, LOGO, SCRIPT_FIXTURES, pngDataUrl } from './helpers/script-fixtures.js';
@@ -52,14 +53,17 @@ test('a text item carries the text, its size and font, and sits with its top-lef
   assert.deepEqual([sized.fontSize, after.fontSize], [12, 30]);
 });
 
-test("a text item is aligned on the built-in face's measure, or on its box", () => {
+test('a text item is aligned on its anchor as its paragraphs say, or its box is', () => {
   const width = measureText('Acme Corp', { fontSize: 28 });
   const [left, centre, right] = marks(
     clean('text "Acme Corp" at 200 70 size 28\ntext "Acme Corp" at 200 70 size 28 align center\ntext "Acme Corp" at 200 70 size 28 align right'),
   );
-  near(at(left).x, 200);
-  near(at(centre).x, 200 - width / 2);
-  near(at(right).x, 200 - width);
+  // The anchor stays where it is put; its paragraphs say how a line sits on it, and the layout sets each so.
+  for (const item of [left, centre, right]) near(at(item).x, 200);
+  assert.deepEqual([left.typeset, centre.typeset?.paras, right.typeset?.paras], [undefined, [{ align: 'center' }], [{ align: 'right' }]]);
+  near(layoutType(left).glyphs[0].x, 200);
+  near(layoutType(centre).glyphs[0].x, 200 - width / 2);
+  near(layoutType(right).glyphs[0].x, 200 - width);
   // With a box, the box is what is aligned, and it is the item's wrap width.
   const [boxed] = marks(clean('text "A longer caption that wraps" at 300 10 size 20 box 160 align center'));
   assert.deepEqual([boxed.textBoxWidth, at(boxed).x], [160, 220]);
@@ -84,6 +88,81 @@ test('a text item moves and scales with the drawing and stays upright when it tu
 test('a text with nothing in it is refused', () => {
   assert.deepEqual(codes(run('text "   " at 0 0')), ['invalid-value']);
   assert.deepEqual(codes(run('text "Hi" at 0 0 size 0')), ['invalid-value']);
+});
+
+// ---- Type: character, paragraph and the kinds -----------------------------------------
+
+test('character and paragraph set what text after them has, until a reset', () => {
+  const [styled, again, plain] = marks(
+    clean(
+      [
+        'character face "Bold" tracking 50 caps small underline',
+        'paragraph align justify indent 12 6 first -18 before 4 hyphenate list number level 2',
+        'text "One\\nTwo" at 20 20 box 200',
+        'text "Again" at 20 120',
+        'character reset',
+        'paragraph reset',
+        'text "Plain" at 20 200',
+      ].join('\n'),
+    ),
+  );
+  assert.deepEqual(styled.typeset?.runs, [{ start: 0, end: 7, attrs: { fontStyle: 'Bold', tracking: 50, caps: 'small', underline: true } }]);
+  const para = { align: 'justify', leftIndent: 12, rightIndent: 6, firstIndent: -18, spaceBefore: 4, hyphenate: true, list: { kind: 'number', level: 2 } };
+  assert.deepEqual(styled.typeset?.paras, [para, para], 'every paragraph alike');
+  assert.equal(styled.textBoxWidth, 200, 'the box is a frame that grows, its width kept for a build from before');
+  assert.deepEqual(again.typeset?.runs?.[0].attrs, { fontStyle: 'Bold', tracking: 50, caps: 'small', underline: true }, 'and the next text too');
+  assert.equal(plain.typeset, undefined, 'a reset puts them all back');
+  // super and sub are one choice, and a level needs a list.
+  assert.deepEqual(codes(run('character super sub')), ['unexpected-token']);
+  assert.deepEqual(codes(run('paragraph level 2')), ['invalid-value']);
+});
+
+test('runs give stretches of a text styles of their own, the base following the first character', () => {
+  const [item] = marks(clean('color #1f2328\ntext "Hello world" at 10 10 size 20 runs (0 1 size 30 color #c0392b, 6 11 face "Bold Italic" underline highlight #fff3bf)'));
+  assert.deepEqual([item.fontSize, item.color], [30, '#c0392b'], 'the base is the first character');
+  assert.deepEqual(item.typeset?.runs, [
+    { start: 1, end: 6, attrs: { fontSize: 20, color: '#1f2328' } },
+    { start: 6, end: 11, attrs: { fontSize: 20, fontStyle: 'Bold Italic', underline: true, color: '#1f2328', highlight: '#fff3bf' } },
+  ]);
+  // A run is two whole numbers and what character takes, and stays inside the text.
+  assert.deepEqual(codes(run('text "Hi" at 0 0 runs (0 5 underline)')), ['invalid-value']);
+  assert.deepEqual(codes(run('text "Hi" at 0 0 runs (0 1 wobble)')), ['unexpected-token']);
+  assert.deepEqual(codes(run('text "Hi" at 0 0 runs (a b underline)')), ['invalid-value']);
+});
+
+test('text inside a shape is Sheet Typing, along a path Path Typing, and vertical sets columns; each from at', () => {
+  const [inside, along, vertical] = marks(
+    clean(
+      [
+        'text "Words in a diamond" at 100 100 size 10 inside "M50 0 L100 50 L50 100 L0 50 Z"',
+        'text "Around" at 20 300 size 12 along "M0 0 C40 -40 120 -40 160 0" start 10 flip effect skew',
+        'text "Up" at 300 20 vertical',
+      ].join('\n'),
+    ),
+  );
+  assert.equal(inside.typeset?.kind, 'area');
+  assert.deepEqual(inside.typeset?.frame?.anchors.map((a) => [a.p.x, a.p.y]), [[50, 0], [100, 50], [50, 100], [0, 50]]);
+  assert.deepEqual(at(inside), { x: 100, y: 100 });
+  const path = along.typeset?.path;
+  assert.deepEqual([along.typeset?.kind, path?.start, path?.flip, path?.effect, path?.anchors.length], ['path', 10, true, 'skew', 2]);
+  assert.equal(vertical.typeset?.orientation, 'vertical');
+  // One kind at a time, and a path's clauses only along one.
+  assert.deepEqual(codes(run('text "Hi" at 0 0 box 100 inside "M0 0 L10 0 L10 10 Z"')), ['invalid-value']);
+  assert.deepEqual(codes(run('text "Hi" at 0 0 start 10')), ['invalid-value']);
+  assert.deepEqual(codes(run('text "Hi" at 0 0 inside "not a path"')), ['invalid-value']);
+  assert.deepEqual(codes(run('text "Hi" at 0 0 vertical as marks')), ['invalid-value']);
+});
+
+test('a path or a shape turns with the drawing, and its text with it; a box stays upright', () => {
+  const [along] = marks(clean('rotate 90 at 0 0\ntext "Turn" at 100 0 along "M0 0 L100 0"'));
+  // A quarter turn clockwise takes (100, 0) to (0, 100), and the path's run along x to a run along y.
+  near(at(along).x, 0, 1e-9, 'x');
+  near(at(along).y, 100, 1e-9, 'y');
+  const end = along.typeset!.path!.anchors[1].p;
+  near(end.x, 0, 1e-9, 'end x');
+  near(end.y, 100, 1e-9, 'end y');
+  const [boxed] = marks(clean('scale 2\ntext "Box" at 10 10 size 12 box 40'));
+  assert.deepEqual([boxed.textBoxWidth, boxed.fontSize, boxed.typeset], [80, 24, undefined]);
 });
 
 // ---- Text as marks ----------------------------------------------------------------

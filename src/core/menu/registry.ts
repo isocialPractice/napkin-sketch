@@ -901,7 +901,13 @@ export interface NativeMenu {
   readonly submenu: readonly NativeItem[];
 }
 
-function nativeItem(row: MenuRow): NativeItem {
+/**
+ * One row as an Electron item. `registered` holds the rows whose chord a
+ * menu has taken already: a tool two menus hold - Expand Text to Shape, in
+ * Transform and in Type - shows its chord in both, and only the first takes
+ * the key.
+ */
+function nativeItem(row: MenuRow, registered: Set<string>): NativeItem {
   if (row.kind === 'separator') return { type: 'separator' };
   if (row.role !== null) return { role: row.role };
   const item: {
@@ -915,12 +921,13 @@ function nativeItem(row: MenuRow): NativeItem {
     submenu?: NativeItem[];
   } = { id: row.id, label: row.label };
   if (row.submenu !== null) {
-    item.submenu = row.submenu.map(nativeItem);
+    item.submenu = row.submenu.map((child) => nativeItem(child, registered));
   } else if (row.chord !== null) {
     const accelerator = toAccelerator(row.chord);
     if (accelerator !== null) {
       item.accelerator = accelerator;
-      if (row.claim === 'page') item.registerAccelerator = false;
+      if (row.claim === 'page' || registered.has(row.id)) item.registerAccelerator = false;
+      registered.add(row.id);
     }
   }
   if (row.checked !== null) {
@@ -935,10 +942,12 @@ function nativeItem(row: MenuRow): NativeItem {
  * The menu bar as an Electron template, less the click handlers: the main
  * process adds one to every row by its `id`. A role row is `{ role }` alone,
  * for Electron to label and run; a chord the page takes is shown with
- * `registerAccelerator: false`, so a text field keeps the key.
+ * `registerAccelerator: false`, so a text field keeps the key, and so is a
+ * chord a menu before took already.
  */
 export function nativeMenus(registry: MenuRegistry, state: MenuState = {}): NativeMenu[] {
-  return menuTree(registry, state).map((menu) => ({ label: menu.label, submenu: menu.items.map(nativeItem) }));
+  const registered = new Set<string>();
+  return menuTree(registry, state).map((menu) => ({ label: menu.label, submenu: menu.items.map((row) => nativeItem(row, registered)) }));
 }
 
 // ---- Checking the shipped files ------------------------------------------------

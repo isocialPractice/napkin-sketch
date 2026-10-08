@@ -34,7 +34,7 @@ test('a lost window, a hidden page, a lost capture or a stale press finishes the
 
 test('the kinds are listed once each', () => {
   assert.equal(new Set(PRESS_KINDS).size, PRESS_KINDS.length);
-  assert.equal(PRESS_KINDS.length, 18);
+  assert.equal(PRESS_KINDS.length, 21);
 });
 
 test('the same pointer going down again means its press lost its release', () => {

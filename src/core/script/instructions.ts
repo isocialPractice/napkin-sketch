@@ -73,6 +73,50 @@ export interface StopArg {
   offset: NumberArg;
 }
 
+/** The character attributes `character` sets for text after it, and a run of a text sets for its own characters. */
+export interface CharacterFields {
+  /** The face's name, as the font list names it: `Bold`, `Italic`. */
+  face?: string;
+  /** Space after every character, in thousandths of an em. */
+  tracking?: NumberArg;
+  /** Kerning by hand after each character, in thousandths of an em. */
+  kern?: NumberArg;
+  /** The font's own pair kerning. */
+  kerning?: 'auto' | 'none';
+  /** The distance from a line's baseline to the one before it. */
+  leading?: LengthArg;
+  /** A word space's width, as a percent of the font's own. */
+  spacing?: NumberArg;
+  caps?: 'normal' | 'all' | 'small';
+  /** Horizontal and vertical scale, percent. */
+  hscale?: NumberArg;
+  vscale?: NumberArg;
+  /** How far a character sits above its baseline, up positive. */
+  shift?: LengthArg;
+  /** Degrees each character is turned about its own middle, clockwise. */
+  rotate?: NumberArg;
+  /** A background behind the characters. */
+  highlight?: string;
+  position?: 'superscript' | 'subscript';
+  underline?: boolean;
+  strike?: boolean;
+}
+
+/**
+ * A run of a text's characters, from `start` to `end` (not included,
+ * counting from 0), and the attributes it has: `character`'s, and its own
+ * size, family and color.
+ */
+export interface RunArg extends CharacterFields {
+  start: number;
+  end: number;
+  /** The Text Configuration the run follows, by name: its own attributes override it. */
+  config?: string;
+  size?: LengthArg;
+  family?: string;
+  color?: string;
+}
+
 /**
  * The marks a script can draw with. `eraser` takes away what is under it on
  * its own layer, as the app's eraser does, and takes no fill, outline style,
@@ -308,6 +352,54 @@ export interface FontInstruction extends InstructionBase {
   verb: 'font';
   family?: string;
   size?: LengthArg;
+}
+
+/** `character face "Bold" tracking 50 underline`, `character reset`: the character attributes of text after it. */
+export interface CharacterInstruction extends InstructionBase, CharacterFields {
+  verb: 'character';
+  /** Puts every character attribute back. */
+  reset?: boolean;
+}
+
+/**
+ * `textconfig "Callout" face "Bold" color #cc0000`: a Text Configuration - a
+ * named set of character attributes the book keeps - which text follows with
+ * `config`. Kerning by hand is a pair's, and not one of them.
+ */
+export interface TextConfigInstruction extends InstructionBase, Omit<CharacterFields, 'kern'> {
+  verb: 'textconfig';
+  name: string;
+  size?: LengthArg;
+  family?: string;
+  color?: string;
+}
+
+/**
+ * `accent python`: a Clean Language Accent for the next `text` - a language
+ * by its id or a name highlight.js knows it by, `auto`, or `none` - whose
+ * paragraphs are then colored as the language reads them.
+ */
+export interface AccentInstruction extends InstructionBase {
+  verb: 'accent';
+  language: string;
+}
+
+/** `paragraph align justify first 18 hyphenate`, `paragraph reset`: the paragraph attributes of text after it. */
+export interface ParagraphInstruction extends InstructionBase {
+  verb: 'paragraph';
+  align?: 'left' | 'center' | 'right' | 'justify';
+  /** The left indent, and the right one. */
+  indent?: LengthArg;
+  indentRight?: LengthArg;
+  /** The first line's indent, on top of the left one; below 0 it hangs. */
+  first?: LengthArg;
+  before?: LengthArg;
+  after?: LengthArg;
+  hyphenate?: boolean;
+  list?: 'bullet' | 'number' | 'none';
+  level?: number;
+  /** Puts every paragraph attribute back. */
+  reset?: boolean;
 }
 
 // Shapes
@@ -588,7 +680,24 @@ export interface TextInstruction extends InstructionBase {
   size?: LengthArg;
   /** A fixed wrap width. Without one the box is measured from the text. */
   box?: LengthArg;
-  align?: 'left' | 'center' | 'right';
+  /** Sheet Typing inside a shape: SVG path data, from `at`. */
+  inside?: string;
+  /** Path Typing along a path: SVG path data, from `at`. */
+  along?: string;
+  /** How far along the path the text starts. */
+  start?: LengthArg;
+  /** The text runs the other way along its path, on the other side. */
+  flip?: boolean;
+  effect?: 'rainbow' | 'skew' | 'ribbon' | 'stair' | 'gravity';
+  align?: 'left' | 'center' | 'right' | 'justify';
+  /** Upright characters down columns that run right to left. */
+  vertical?: boolean;
+  /** The Text Configuration the whole text follows, by name: what `character` set, and its runs, override it. */
+  config?: string;
+  /** Runs of the text's characters in styles of their own. */
+  runs?: RunArg[];
+  /** The text is Markdown, shown as it renders: Markdown Flow. */
+  markdown?: boolean;
   /** Draws the letters as pen strokes instead of a text item. */
   asMarks?: boolean;
 }
@@ -629,25 +738,174 @@ export interface UseInstruction extends InstructionBase {
 // Effects
 
 /**
- * `effect blur 4`, `effect drop-shadow 4 4 8 #00000066`, `effect none`: an
- * effect for the next layer, group or mark, by its CSS filter function's name.
+ * `effect blur 4`, `effect drop-shadow 4 4 8 #00000066`, `effect bevel size 6`,
+ * `effect none`: an effect for the next layer, group or mark, by its CSS
+ * filter function's name or its appearance effect's (core/effects.ts).
  */
+/** A Warp's style as a script may name it: this app's name, or a vector editor's (core/warp-styles.ts). */
+export type WarpStyleWord =
+  | 'arc'
+  | 'arch'
+  | 'unroll'
+  | 'shell'
+  | 'windy'
+  | 'breezy'
+  | 'curvy'
+  | 'chart'
+  | 'puffy'
+  | 'expand'
+  | 'cram'
+  | 'twirl'
+  | 'arc-lower'
+  | 'arc-upper'
+  | 'bulge'
+  | 'shell-lower'
+  | 'shell-upper'
+  | 'flag'
+  | 'wave'
+  | 'fish'
+  | 'rise'
+  | 'fisheye'
+  | 'inflate'
+  | 'squeeze'
+  | 'twist';
+
 export interface EffectInstruction extends InstructionBase {
   verb: 'effect';
-  type: 'blur' | 'brightness' | 'contrast' | 'saturate' | 'grayscale' | 'sepia' | 'invert' | 'hue-rotate' | 'opacity' | 'drop-shadow' | 'none';
+  type:
+    | 'blur'
+    | 'brightness'
+    | 'contrast'
+    | 'saturate'
+    | 'grayscale'
+    | 'sepia'
+    | 'invert'
+    | 'hue-rotate'
+    | 'opacity'
+    | 'drop-shadow'
+    | 'feather'
+    | 'bevel'
+    | 'emboss'
+    | 'inner-shadow'
+    | 'outer-glow'
+    | 'inner-glow'
+    | 'splatter'
+    | 'warp'
+    | 'extrude'
+    | 'revolve'
+    | 'none';
   /** `blur`: the standard deviation, as CSS's `blur()` length is. */
   radius?: LengthArg;
   /** A factor for `brightness`, `contrast` and `saturate`; a share from 0 to 1 for `grayscale`, `sepia`, `invert` and `opacity`. */
   amount?: NumberArg;
-  /** `hue-rotate`: degrees. */
+  /** `hue-rotate`: degrees; `splatter`: the hatch's direction, degrees counterclockwise from the right. */
   angle?: NumberArg;
   /** `drop-shadow`: the offset across and down. */
   dx?: LengthArg;
   dy?: LengthArg;
   /** `drop-shadow`: the blur radius, twice the standard deviation, as CSS has it. */
   blur?: LengthArg;
-  /** `drop-shadow`: the shadow's color. */
+  /** `drop-shadow`, `inner-shadow` and the glows: the shadow's or the glow's color. */
   color?: string;
+  /** `drop-shadow` and `outer-glow`: how much of the blur becomes a firm edge first, 0 to 100. */
+  spread?: NumberArg;
+  /** `inner-shadow` and `inner-glow`: the same, inside the shape. */
+  choke?: NumberArg;
+  /** A shadow's or a glow's blend, by any name of a mode (core/blend.ts). */
+  blend?: string;
+  /** A shadow's or a glow's opacity, 0 to 1. */
+  opacity?: NumberArg;
+  /**
+   * `bevel`: `inner` or `outer`; `emboss`: `emboss` or `pillow`; `warp`: its
+   * style, by this app's name or a vector editor's (core/warp-styles.ts).
+   */
+  style?: 'inner' | 'outer' | 'emboss' | 'pillow' | WarpStyleWord;
+  /** `bevel` and `emboss`: how far the slope reaches. */
+  size?: LengthArg;
+  /** `bevel` and `emboss`: how steep the slope looks, in percent; `extrude`: how deep the shape is set. */
+  depth?: LengthArg;
+  /** `bevel` and `emboss`: how high the light stands, in degrees. (Its `angle` is where it comes from.) */
+  altitude?: NumberArg;
+  /** `bevel` and `emboss`: a blur over the light and the shade. */
+  soften?: LengthArg;
+  /** `bevel` and `emboss`: raised (`up`) or pressed in (`down`). */
+  direction?: 'up' | 'down';
+  /** `bevel` and `emboss`: the light's color, opacity and blend. */
+  lightColor?: string;
+  lightOpacity?: NumberArg;
+  lightBlend?: string;
+  /** `bevel` and `emboss`: the shade's color, opacity and blend. */
+  shadeColor?: string;
+  shadeOpacity?: NumberArg;
+  shadeBlend?: string;
+  /** `inner-glow`: from the shape's `edge` or its `center`. */
+  source?: 'edge' | 'center';
+  /** `splatter`: a preset to start from, by its name (core/splatter.ts). */
+  preset?: string;
+  /** `splatter`: how far each fold reaches past the edge (negative: short of it), and how much that varies. */
+  overlap?: LengthArg;
+  overlapVariation?: LengthArg;
+  /** `splatter`: the hatch line's width. */
+  width?: LengthArg;
+  /** `splatter`: how round each turn is, in percent, and how much that varies. */
+  curviness?: NumberArg;
+  curvinessVariation?: NumberArg;
+  /** `splatter`: the distance between passes, and how much that varies. */
+  spacing?: LengthArg;
+  spacingVariation?: LengthArg;
+  /** `splatter`: seeds every variation, so the hatch draws the same every time. */
+  seed?: NumberArg;
+  /** `warp`: how far it bends, in percent, -100 to 100. */
+  bend?: NumberArg;
+  /** `warp`: along the box's width (`horizontal`) or its height (`vertical`). */
+  orientation?: 'horizontal' | 'vertical';
+  /** `warp`: the taper across the box and up it, in percent, -100 to 100. */
+  distortH?: NumberArg;
+  distortV?: NumberArg;
+  /** `warp`: the part of the box Arc and Shell bend. */
+  part?: 'whole' | 'lower' | 'upper';
+  /** `extrude` and `revolve`: left open - no caps. */
+  hollow?: boolean;
+  /** `revolve`: how far the axis stands off the shape's edge, and which edge. (Its `angle` is how far round.) */
+  offset?: LengthArg;
+  axis?: 'left' | 'right';
+  /** `revolve`: how many steps round; 0 works them out. */
+  segments?: NumberArg;
+  /** `extrude` and `revolve`: the turn about X, then Y, then Z, in degrees. */
+  rotateX?: NumberArg;
+  rotateY?: NumberArg;
+  rotateZ?: NumberArg;
+  /** `extrude` and `revolve`: how far it is moved, across, down and toward the viewer. */
+  positionX?: LengthArg;
+  positionY?: LengthArg;
+  positionZ?: LengthArg;
+  /** `extrude` and `revolve`: its scale along X, Y and Z, 1 as it is. */
+  scaleX?: NumberArg;
+  scaleY?: NumberArg;
+  scaleZ?: NumberArg;
+  /** `extrude` and `revolve`: the perspective, 0 to 160 degrees. */
+  perspective?: NumberArg;
+  /** `extrude` and `revolve`: how the faces are painted. */
+  shading?: 'plastic' | 'diffuse' | 'none' | 'wireframe';
+  /** `extrude` and `revolve`: where the light comes from - degrees round from the right, and up off the page - and how strong it and the light all round are, 0 to 1. */
+  lightAzimuth?: NumberArg;
+  lightElevation?: NumberArg;
+  lightIntensity?: NumberArg;
+  lightAmbient?: NumberArg;
+  /** On a mark, the part it works on alone: its `fill` or its `stroke`. */
+  target?: 'fill' | 'stroke';
+  /** Kept without being drawn, as the Appearance panel's closed eye keeps it. */
+  hidden?: boolean;
+}
+
+/**
+ * `blend stack`, `blend multiply`: how the next layer or group mixes with what
+ * is drawn under it, by a Napkin Blend's name or Illustrator's (core/blend.ts).
+ */
+export interface BlendInstruction extends InstructionBase {
+  verb: 'blend';
+  /** A name of a mode, as the verb table lists them. */
+  mode: string;
 }
 
 // Output
@@ -749,6 +1007,10 @@ export type Instruction =
   | PencilInstruction
   | RoughInstruction
   | FontInstruction
+  | CharacterInstruction
+  | ParagraphInstruction
+  | TextConfigInstruction
+  | AccentInstruction
   | RectInstruction
   | CircleInstruction
   | EllipseInstruction
@@ -788,6 +1050,7 @@ export type Instruction =
   | LinkInstruction
   | UseInstruction
   | EffectInstruction
+  | BlendInstruction
   | CropInstruction
   | RegistrationInstruction;
 
@@ -845,6 +1108,57 @@ export const INSTRUCTION_FIELDS: {
   pencil: { pencil: 'required', color: 'optional' },
   rough: { amount: 'required', passes: 'optional', overshoot: 'optional' },
   font: { family: 'optional', size: 'optional' },
+  character: {
+    face: 'optional',
+    tracking: 'optional',
+    kern: 'optional',
+    kerning: 'optional',
+    leading: 'optional',
+    spacing: 'optional',
+    caps: 'optional',
+    hscale: 'optional',
+    vscale: 'optional',
+    shift: 'optional',
+    rotate: 'optional',
+    highlight: 'optional',
+    position: 'optional',
+    underline: 'optional',
+    strike: 'optional',
+    reset: 'optional',
+  },
+  paragraph: {
+    align: 'optional',
+    indent: 'optional',
+    indentRight: 'optional',
+    first: 'optional',
+    before: 'optional',
+    after: 'optional',
+    hyphenate: 'optional',
+    list: 'optional',
+    level: 'optional',
+    reset: 'optional',
+  },
+  textconfig: {
+    name: 'required',
+    face: 'optional',
+    tracking: 'optional',
+    kerning: 'optional',
+    leading: 'optional',
+    spacing: 'optional',
+    caps: 'optional',
+    hscale: 'optional',
+    vscale: 'optional',
+    shift: 'optional',
+    rotate: 'optional',
+    highlight: 'optional',
+    position: 'optional',
+    underline: 'optional',
+    strike: 'optional',
+    size: 'optional',
+    family: 'optional',
+    color: 'optional',
+  },
+  accent: { language: 'required' },
   rect: { x: 'required', y: 'required', width: 'required', height: 'required', radius: 'optional' },
   circle: { cx: 'required', cy: 'required', r: 'required' },
   ellipse: { cx: 'required', cy: 'required', rx: 'required', ry: 'required' },
@@ -887,7 +1201,16 @@ export const INSTRUCTION_FIELDS: {
     y: 'required',
     size: 'optional',
     box: 'optional',
+    inside: 'optional',
+    along: 'optional',
+    start: 'optional',
+    flip: 'optional',
+    effect: 'optional',
     align: 'optional',
+    vertical: 'optional',
+    config: 'optional',
+    runs: 'optional',
+    markdown: 'optional',
     asMarks: 'optional',
   },
   image: { src: 'required', x: 'required', y: 'required', width: 'optional', height: 'optional' },
@@ -902,7 +1225,60 @@ export const INSTRUCTION_FIELDS: {
     dy: 'optional',
     blur: 'optional',
     color: 'optional',
+    spread: 'optional',
+    choke: 'optional',
+    blend: 'optional',
+    opacity: 'optional',
+    style: 'optional',
+    size: 'optional',
+    depth: 'optional',
+    altitude: 'optional',
+    soften: 'optional',
+    direction: 'optional',
+    lightColor: 'optional',
+    lightOpacity: 'optional',
+    lightBlend: 'optional',
+    shadeColor: 'optional',
+    shadeOpacity: 'optional',
+    shadeBlend: 'optional',
+    source: 'optional',
+    preset: 'optional',
+    overlap: 'optional',
+    overlapVariation: 'optional',
+    width: 'optional',
+    curviness: 'optional',
+    curvinessVariation: 'optional',
+    spacing: 'optional',
+    spacingVariation: 'optional',
+    seed: 'optional',
+    bend: 'optional',
+    orientation: 'optional',
+    distortH: 'optional',
+    distortV: 'optional',
+    part: 'optional',
+    hollow: 'optional',
+    offset: 'optional',
+    axis: 'optional',
+    segments: 'optional',
+    rotateX: 'optional',
+    rotateY: 'optional',
+    rotateZ: 'optional',
+    positionX: 'optional',
+    positionY: 'optional',
+    positionZ: 'optional',
+    scaleX: 'optional',
+    scaleY: 'optional',
+    scaleZ: 'optional',
+    perspective: 'optional',
+    shading: 'optional',
+    lightAzimuth: 'optional',
+    lightElevation: 'optional',
+    lightIntensity: 'optional',
+    lightAmbient: 'optional',
+    target: 'optional',
+    hidden: 'optional',
   },
+  blend: { mode: 'required' },
   crop: { mode: 'required', pad: 'optional', x: 'optional', y: 'optional', width: 'optional', height: 'optional' },
   registration: { x: 'required', y: 'required', width: 'required', height: 'required' },
 };
@@ -950,6 +1326,7 @@ export type DiagnosticCode =
   | 'unknown-shape'
   | 'unknown-asset'
   | 'unknown-document'
+  | 'unknown-config'
   | 'image-size-unknown'
   | 'glyph-missing'
   | 'unknown-field'
@@ -961,6 +1338,8 @@ export type DiagnosticCode =
   | 'duplicate-definition'
   | 'link-unresolved'
   | 'unused-effect'
+  | 'unused-blend'
+  | 'unused-accent'
   | 'wipe-skipped'
   | 'wipe-empty'
   | 'wipe-failed'
@@ -1000,6 +1379,7 @@ export const DIAGNOSTIC_LEVELS: { readonly [C in DiagnosticCode]: DiagnosticLeve
   'unknown-shape': 'error',
   'unknown-asset': 'error',
   'unknown-document': 'error',
+  'unknown-config': 'error',
   'image-size-unknown': 'warning',
   'glyph-missing': 'warning',
   'unknown-field': 'warning',
@@ -1011,6 +1391,8 @@ export const DIAGNOSTIC_LEVELS: { readonly [C in DiagnosticCode]: DiagnosticLeve
   'duplicate-definition': 'warning',
   'link-unresolved': 'warning',
   'unused-effect': 'warning',
+  'unused-blend': 'warning',
+  'unused-accent': 'warning',
   'wipe-skipped': 'warning',
   'wipe-empty': 'warning',
   'wipe-failed': 'warning',
@@ -1122,8 +1504,10 @@ export type SlotType =
   | 'choice'
   | 'switch'
   | 'pencil'
+  | 'language'
   | 'points'
-  | 'stops';
+  | 'stops'
+  | 'runs';
 
 /**
  * What a percentage in a slot is a share of: the page's width (`x`), its
@@ -1144,6 +1528,8 @@ export interface SlotPart {
   optional?: boolean;
   /** True when an expression is not accepted, only a literal. */
   literal?: boolean;
+  /** True when a number may carry a percent sign, which it stands for anyway: a Warp's bend. */
+  percent?: boolean;
 }
 
 /** A fixed word in a fixed position: `none` in `fill none`. */

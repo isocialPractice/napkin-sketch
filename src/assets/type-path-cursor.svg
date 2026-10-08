@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Text tool's cursor over a selected path, for Path Typing: the I-beam
+     standing on a wavy line, its hotspot where the two meet (12, 18). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <g fill="none" stroke-linecap="round">
+    <path d="M2 19C5 15 7 15 9 18S13 21 15 18S20 15 22 18" stroke="#ffffff" stroke-width="3.2" />
+    <path d="M2 19C5 15 7 15 9 18S13 21 15 18S20 15 22 18" stroke="#1f2328" stroke-width="1.3" />
+    <path d="M10 3.5H14M12 3.5V16" stroke="#ffffff" stroke-width="3.2" />
+    <path d="M10 3.5H14M12 3.5V16" stroke="#1f2328" stroke-width="1.4" />
+  </g>
+</svg>

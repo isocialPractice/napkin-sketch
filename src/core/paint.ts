@@ -10,6 +10,7 @@
  */
 
 import { isClosedStroke, isImageStroke, isTextStroke, type Stroke } from './types.js';
+import { textColorPatch } from './type/model.js';
 
 /** Which of a mark's two paints a picked color goes to: the one in front. */
 export type ColorTarget = 'stroke' | 'fill';
@@ -32,7 +33,8 @@ function paintless(stroke: Stroke): boolean {
  * - The fill in front fills a closed shape - in place of a gradient, which
  *   a flat color replaces - and leaves an open line alone: its fill would
  *   paint the straight edge that closes it, which a sketch never meant.
- * - Text has one color, and takes it with either in front.
+ * - Text takes the color whole with either in front, its runs' own colors
+ *   too (core/type/model.ts's `textColorPatch`).
  *
  * REUSE: a closed shape is the one Fill Shape filled before this rule took
  * its place - `isClosedStroke`, whose ends lie close - so a shape Fill
@@ -40,7 +42,7 @@ function paintless(stroke: Stroke): boolean {
  */
 export function paintPatch(stroke: Stroke, target: ColorTarget, color: string): Partial<Stroke> | null {
   if (paintless(stroke)) return null;
-  if (isTextStroke(stroke)) return { color };
+  if (isTextStroke(stroke)) return textColorPatch(stroke, color);
   if (target === 'stroke') return { color, noStroke: undefined };
   if (!isClosedStroke(stroke)) return null;
   return { fill: color, gradient: undefined };

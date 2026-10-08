@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The drawing engines - napkin-sketch</title>
-<meta name="description" content="The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify.">
+<meta name="description" content="The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify; blends, effects, Splatter, Warp and 3D; type, its layout, hyphenation and fonts; Text Configurations and Composition Styles.">
 <meta name="generator" content="napkin-sketch npm run site">
 <link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.4.6.0</span>
+<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -27,15 +27,15 @@
 <p class="nav-section">Quickstarts</p>
 <ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
 <p class="nav-section">Using the app</p>
-<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/effects.html">Effects</a></li><li><a href="../../guide/type.html">Type</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/composition-styles.html">Composition Styles</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
 <p class="nav-section">Drawing from a script</p>
-<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>The drawing engines</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Markdown Flow and Clean Language Accents</summary><ul><li><a href="../markdown/index.html">Reference</a></li><li><a href="../markdown/quickstart.html">Quickstart</a></li><li><a href="../markdown/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>The drawing engines</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
 <p class="nav-section">Building on it</p>
 <ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
 <p class="nav-section">Developing</p>
 <ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
 <p class="nav-section">Project</p>
-<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li><li><a href="../../third-party-notices.html">Third-party notices</a></li></ul>
 </nav>
 <main class="page" id="content">
 <article class="content">
@@ -45,9 +45,12 @@
 <p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
 <p>The app's tools stand on engines that run as plain functions: regions
 combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split,
-clipping masks, the Pencil's grades and grain, the Smear and Liquify. This page
-is the reference for each as a program calls it from <code>napkin-sketch</code>, with a
-worked example for each that runs as it is.</p>
+clipping masks, the Pencil's grades and grain, the Smear and Liquify; the
+blend modes, the effects and the appearance stack, Splatter, Warp and 3D;
+measuring along a path; setting type, hyphenating it and drawing it from font
+files; Text Configurations and Composition Styles. This page is the reference
+for each as a program calls it from <code>napkin-sketch</code>, with a worked example
+for each that runs as it is.</p>
 <p><strong>Contents</strong></p>
 <ul>
 <li><a href="#what-this-is">What this is</a></li>
@@ -65,6 +68,17 @@ worked example for each that runs as it is.</p>
 <li><a href="#smearing-smudgebuffer">Smearing: smudgeBuffer</a></li>
 <li><a href="#liquify-liquifyfield-liquifymarks">Liquify: liquifyField, liquifyMarks</a></li>
 <li><a href="#applying-an-edit">Applying an edit</a></li>
+<li><a href="#blending-blend_modes-blendpixel">Blending: BLEND_MODES, blendPixel</a></li>
+<li><a href="#the-appearance-stack-addeffect-appearancesections">The appearance stack: addEffect, appearanceSections</a></li>
+<li><a href="#effects-as-pixels-runeffects">Effects as pixels: runEffects</a></li>
+<li><a href="#splatter-splatterpaths">Splatter: splatterPaths</a></li>
+<li><a href="#warp-warpstylemap">Warp: warpStyleMap</a></li>
+<li><a href="#3d-extrudemesh-revolvemesh-render3d">3D: extrudeMesh, revolveMesh, render3d</a></li>
+<li><a href="#measuring-along-a-path-lengthtable-pointatlength">Measuring along a path: lengthTable, pointAtLength</a></li>
+<li><a href="#setting-type-layouttype-hyphenate">Setting type: layoutType, hyphenate</a></li>
+<li><a href="#fonts-as-shapes-opensfnt-glyphoutline-outlinetext">Fonts as shapes: openSfnt, glyphOutline, outlineText</a></li>
+<li><a href="#text-configurations-applytextconfig-resolverunattrs">Text Configurations: applyTextConfig, resolveRunAttrs</a></li>
+<li><a href="#composition-styles-on-a-page-applycompositionstyle">Composition styles on a page: applyCompositionStyle</a></li>
 </ul></li>
 <li><a href="#worked-examples">Worked examples</a></li>
 <li><a href="#limits">Limits</a></li>
@@ -77,10 +91,11 @@ brush bends are not drawing-window code: each is a function in the core, which
 the window calls on a press and a napkin script calls for its verbs. The same
 functions are exported from <code>napkin-sketch</code>, so a program can do to a sketch
 what the tools do, with no window, no DOM and no disk.</p>
-<p>None of them changes what it is given. An engine that edits marks gives back
-the edit - which marks changed, which went, which were added - and the caller
-applies it; one that draws gives back pixels or points. The sketches they read
-are the app's own: a page from <code>evaluate</code>, from a <code>.skbk</code>, or from the
+<p>None of them changes what it is given but the pixel passes, which work on
+the picture they are handed. An engine that edits marks gives back the edit -
+which marks changed, which went, which were added - and the caller applies
+it; one that draws gives back pixels, points or shapes. The sketches they
+read are the app's own: a page from <code>evaluate</code>, from a <code>.skbk</code>, or from the
 importer.</p>
 <h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
 <pre><code class="language-text"> marks --&gt; regions (closed contours) --&gt; booleanOp --&gt; contours
@@ -88,7 +103,15 @@ importer.</p>
  a mark + a point --&gt; nearestOnMark --&gt; splitMark --&gt; two marks, or one opened
  a page --&gt; clipIndex --&gt; what each layer is clipped by
  a pencil mark --&gt; rasterizePencil, smudgeBuffer --&gt; its picture's pixels
- marks + dabs --&gt; liquifyMarks --&gt; the marks bent</code></pre>
+ marks + dabs --&gt; liquifyMarks --&gt; the marks bent
+ two pixels + a mode --&gt; blendPixel --&gt; one pixel
+ a picture + effects --&gt; runEffects --&gt; the picture drawn, and what lies under it
+ a region + options --&gt; splatterPaths --&gt; hatch paths
+ a box + a style --&gt; warpStyleMap --&gt; a map of points
+ an outline --&gt; extrudeMesh, revolveMesh --&gt; a mesh;  a mark + 3D --&gt; render3d --&gt; faces
+ a path --&gt; lengthTable --&gt; points, directions and bends by distance
+ a text --&gt; layoutType --&gt; lines and glyphs --&gt; outlineText + font files --&gt; shapes
+ a page + a composition style --&gt; applyCompositionStyle --&gt; the page restyled, and a report</code></pre>
 <p>Coordinates are page pixels, <code>y</code> running down, as everywhere in the app.</p>
 <h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
 <h3 id="regions">Regions<a class="anchor" href="#regions" aria-label="Link to this section">#</a></h3>
@@ -327,6 +350,186 @@ console.log(page.strokes.length, after.strokes.length);
 // → 2 3</code></pre>
 <p>The app puts each added mark on a new layer of its own above <code>above</code>; here
 they join that layer.</p>
+<h3 id="blending-blend_modes-blendpixel">Blending: BLEND_MODES, blendPixel<a class="anchor" href="#blending-blend_modes-blendpixel" aria-label="Link to this section">#</a></h3>
+<p>The sixteen blend modes of a vector editor's Transparency panel, under
+napkin's names - Stack for Multiply, Sheer for Screen - as the canvas, the PNG
+and every file draw them. <code>blendModeOf</code> reads any of a mode's names, napkin's,
+a vector editor's or CSS's; <code>blendPixel</code> mixes two straight RGBA pixels,
+channels 0 to 1, the source over the backdrop, as <code>blendColor</code> mixes two
+colors and <code>blendChannel</code> one channel of a separable mode.</p>
+<pre><code class="language-js">import { BLEND_MODES, blendModeOf, blendPixel } from 'napkin-sketch';
+
+console.log(BLEND_MODES.length, blendModeOf('multiply'), blendModeOf('Color Dodge'));
+// → 16 stack bleach
+console.log(blendPixel('stack', [1, 0.8, 0.4, 1], [0.5, 0.5, 0.5, 1]));
+// → [0.5,0.4,0.2,1]</code></pre>
+<h3 id="the-appearance-stack-addeffect-appearancesections">The appearance stack: addEffect, appearanceSections<a class="anchor" href="#the-appearance-stack-addeffect-appearancesections" aria-label="Link to this section">#</a></h3>
+<p>A mark's effects are one list, in the order they apply; the Appearance panel
+shows it in three sections - those aimed at the stroke, at the fill, and at
+the whole - and edits it with pure calls that give a new list and never
+change the one given: <code>addEffect</code>, <code>replaceEffect</code>, <code>removeEffect</code>,
+<code>duplicateEffect</code>, <code>toggleEffect</code>, <code>retargetEffect</code> and <code>moveEffect</code>.
+<code>defaultEffect(type)</code> is an effect with a vector editor's defaults, and
+<code>effectsAfterTransform</code> is a list scaled, turned or mirrored with its mark.</p>
+<pre><code class="language-js">import { addEffect, appearanceSections, defaultEffect, toggleEffect } from 'napkin-sketch';
+
+let effects = addEffect([], defaultEffect('outer-glow'));
+effects = addEffect(effects, defaultEffect('bevel'), 'fill');
+effects = toggleEffect(effects, 0);
+const sections = appearanceSections(effects);
+console.log(sections.fill.length, sections.object.length, effects[0].on);
+// → 1 1 false</code></pre>
+<h3 id="effects-as-pixels-runeffects">Effects as pixels: runEffects<a class="anchor" href="#effects-as-pixels-runeffects" aria-label="Link to this section">#</a></h3>
+<p>An effect list drawn over a picture as the PNG draws it. <code>fromRgba8</code> reads
+8-bit pixels into the engine's image; <code>runEffects</code> works on that image in
+place - the matrix is the one the picture is drawn under, which sizes a blur
+and turns a shadow's offset - and gives back what is laid under it apart, an
+Outer Shadow or Glow that blends; <code>toRgba8</code> writes the image back.
+<code>blankImage</code> and <code>layOnto</code> make a picture and lay one on another in a blend
+mode.</p>
+<pre><code class="language-js">import { fromRgba8, runEffects, toRgba8 } from 'napkin-sketch';
+
+// A 9 by 9 picture: its middle pixel white, the rest clear.
+const data = new Uint8ClampedArray(9 * 9 * 4);
+data.set([255, 255, 255, 255], (4 * 9 + 4) * 4);
+const img = fromRgba8(data, 9, 9);
+const under = runEffects(img, [{ type: 'blur', radius: 1 }], [1, 0, 0, 1, 0, 0], () =&gt; {});
+const out = toRgba8(img);
+console.log(under.length, out[(4 * 9 + 4) * 4 + 3] &lt; 255, out[(4 * 9 + 5) * 4 + 3] &gt; 0);
+// → 0 true true</code></pre>
+<h3 id="splatter-splatterpaths">Splatter: splatterPaths<a class="anchor" href="#splatter-splatterpaths" aria-label="Link to this section">#</a></h3>
+<p>A region's fill redrawn as a loose hatch, as a pen scribbles a shape in: the
+region is closed contours, and the options a vector editor's Scribble Options,
+which <code>SPLATTER_PRESETS</code> gives by name, and a seed that draws the same hatch
+every time. Each path is cubic anchors.</p>
+<pre><code class="language-js">import { SPLATTER_PRESETS, splatterPaths } from 'napkin-sketch';
+
+const square = [[{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 60, y: 60 }, { x: 0, y: 60 }]];
+const paths = splatterPaths(square, { ...SPLATTER_PRESETS.sharp, seed: 1 });
+console.log(paths.length, paths[0].length);
+// → 1 16</code></pre>
+<h3 id="warp-warpstylemap">Warp: warpStyleMap<a class="anchor" href="#warp-warpstylemap" aria-label="Link to this section">#</a></h3>
+<p>One of the twelve Warp styles laid over a box: where a point goes, how far
+the map turns there and its derivative, which the Warp effect bends a mark's
+anchors and handles by. <code>WARP_STYLES</code> names them; the options are a vector
+editor's Warp Options.</p>
+<pre><code class="language-js">import { WARP_STYLES, warpStyleMap } from 'napkin-sketch';
+
+const box = { minX: 0, minY: 0, maxX: 200, maxY: 100 };
+const arc = warpStyleMap('arc', box, { orientation: 'horizontal', bend: 50, distortH: 0, distortV: 0, part: 'whole' });
+const at = (p) =&gt; {
+  const q = arc.point(p);
+  return [Math.round(q.x), Math.round(q.y)];
+};
+console.log(WARP_STYLES.length, at({ x: 0, y: 0 }), at({ x: 100, y: 0 }), at({ x: 200, y: 0 }));
+// → 12 [-25,52] [100,0] [225,52]</code></pre>
+<p>The arc keeps the box's middle where it was and swings its corners out and
+down, as the top of an arch does.</p>
+<h3 id="3d-extrudemesh-revolvemesh-render3d">3D: extrudeMesh, revolveMesh, render3d<a class="anchor" href="#3d-extrudemesh-revolvemesh-render3d" aria-label="Link to this section">#</a></h3>
+<p>An outline built in depth, pushed back into a solid or turned round an axis,
+and a mark's 3D effect drawn as shaded faces, far ones first: each a flat fill
+a renderer draws as it draws any shape. <code>triangulate</code> cuts a polygon with
+holes into triangles; <code>threeDView</code> and <code>projectPoint</code> put a point of the solid
+on the page.</p>
+<pre><code class="language-js">import { defaultEffect, extrudeMesh, render3d, revolveMesh } from 'napkin-sketch';
+
+const square = { rings: [[{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 40 }, { x: 0, y: 40 }]], closed: true };
+const block = extrudeMesh(square, 20, true);
+console.log(block.faces.length, block.faces.filter((face) =&gt; face.kind === 'cap').length, block.closed);
+// → 6 2 true
+const ring = revolveMesh(square, { angle: 360, offset: 10, axis: 'left', segments: 12 }, 0.5);
+console.log(ring.faces.length);
+// → 48
+const mark = { id: 'm', tool: 'pen', color: '#27486d', width: 2, fill: '#ffcc00', points: [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 40 }, { x: 0, y: 40 }, { x: 0, y: 0 }] };
+const faces = render3d(mark, defaultEffect('3d'));
+console.log(faces.length &gt; 0, faces.every((face) =&gt; face.points.length &gt; 0));
+// → true true</code></pre>
+<p>The block is six faces, two of them its caps; turned round an axis 10 off
+its left edge, the square is a ring of 48 faces, its four edges at twelve
+steps.</p>
+<h3 id="measuring-along-a-path-lengthtable-pointatlength">Measuring along a path: lengthTable, pointAtLength<a class="anchor" href="#measuring-along-a-path-lengthtable-pointatlength" aria-label="Link to this section">#</a></h3>
+<p>A path walked by distance rather than by its curves' own parameter: a table
+of a path's lengths, then the point, the direction, the normal and the bend
+so far along, and the nearest length to a point. Text on a path, Splatter and
+Warp measure by it.</p>
+<pre><code class="language-js">import { lengthTable, pointAtLength, tangentAtLength } from 'napkin-sketch';
+
+const line = lengthTable([{ p: { x: 0, y: 0 } }, { p: { x: 100, y: 0 } }]);
+console.log(line.total, pointAtLength(line, 25), tangentAtLength(line, 25));
+// → 100 {&quot;x&quot;:25,&quot;y&quot;:0} {&quot;x&quot;:1,&quot;y&quot;:0}
+const arch = lengthTable([
+  { p: { x: 0, y: 0 }, hOut: { x: 0, y: -55 } },
+  { p: { x: 100, y: 0 }, hIn: { x: 100, y: -55 } },
+]);
+const middle = pointAtLength(arch, arch.total / 2);
+console.log(Math.round(arch.total), Math.round(middle.x), Math.round(middle.y));
+// → 145 50 -41</code></pre>
+<p>Halfway along the arch by distance is its top, 41 above the line it stands
+on.</p>
+<h3 id="setting-type-layouttype-hyphenate">Setting type: layoutType, hyphenate<a class="anchor" href="#setting-type-layouttype-hyphenate" aria-label="Link to this section">#</a></h3>
+<p>A text mark set as the app sets it - point, area or path type, horizontal or
+vertical - into lines and glyphs, each glyph placed by its own matrix, with
+whatever did not fit said in <code>overset</code>. With no measure it is set in the
+built-in face; the app passes the canvas's. <code>hyphenate</code> breaks a word where
+the en-US patterns allow, as a paragraph with hyphenation on does.</p>
+<pre><code class="language-js">import { hyphenate, layoutType } from 'napkin-sketch';
+
+const text = { id: 't', tool: 'text', color: '#1f2328', width: 1, points: [{ x: 20, y: 40 }], text: 'Acme Corp\nannual report', fontSize: 24 };
+const layout = layoutType(text);
+console.log(layout.lines.length, layout.glyphs.length, layout.overset);
+// → 2 22 false
+console.log(hyphenate('composition').join('-'));
+// → com-po-si-tion</code></pre>
+<h3 id="fonts-as-shapes-opensfnt-glyphoutline-outlinetext">Fonts as shapes: openSfnt, glyphOutline, outlineText<a class="anchor" href="#fonts-as-shapes-opensfnt-glyphoutline-outlinetext" aria-label="Link to this section">#</a></h3>
+<p>A font file read with no dependency - TrueType and CFF outlines, the
+character map, advances and kerning - and a text drawn as its glyphs'
+outlines, a mark a glyph, as Expand Text to Shape and a PNG with fonts given
+draw it. <code>fileOutlineSource</code> turns font files by family into the measure a
+text is set by and the faces it is drawn from.</p>
+<pre><code class="language-js">import { HEADLESS_MEASURE, fileOutlineSource, glyphOutline, isSfntProblem, layoutType, openSfnt, outlineText } from 'napkin-sketch';
+import { readFile } from 'node:fs/promises';
+
+const bytes = new Uint8Array(await readFile('fonts/acme-sans.ttf'));
+const face = openSfnt(bytes);
+if (isSfntProblem(face)) throw new Error(face.problem);
+const a = glyphOutline(face, face.glyphId('A'.codePointAt(0)));
+console.log(face.format, a.contours.length &gt; 0);
+// → truetype true
+const source = fileOutlineSource({ 'Acme Sans': bytes }, HEADLESS_MEASURE);
+const text = { id: 't', tool: 'text', color: '#1f2328', width: 1, points: [{ x: 20, y: 60 }], text: 'AVTo', fontSize: 48, fontFamily: 'Acme Sans' };
+const shapes = outlineText(text, layoutType(text, source.measure), source);
+console.log(shapes.marks.map((made) =&gt; made.label).join(' '));
+// → A V T o</code></pre>
+<h3 id="text-configurations-applytextconfig-resolverunattrs">Text Configurations: applyTextConfig, resolveRunAttrs<a class="anchor" href="#text-configurations-applytextconfig-resolverunattrs" aria-label="Link to this section">#</a></h3>
+<p>A book's named character attributes: a run follows one by its id, and what
+it sets beyond it is its own, an override. <code>newTextConfig</code> makes one,
+<code>applyTextConfig</code> puts a stretch of a text on it - the text carrying a copy
+of its definition - and <code>resolveRunAttrs</code> is what a run draws as: its base,
+then the configuration, then its overrides.</p>
+<pre><code class="language-js">import { applyTextConfig, baseAttrs, newTextConfig, resolveRunAttrs, styleSegments } from 'napkin-sketch';
+
+const heading = newTextConfig([], { fontSize: 40, fontStyle: 'Bold' }, 'tc_heading', 'Heading');
+const text = { id: 't', tool: 'text', color: '#1f2328', width: 1, points: [{ x: 20, y: 60 }], text: 'Acme Corp', fontSize: 24 };
+const styled = applyTextConfig(text, { start: 0, end: 4 }, heading);
+console.log(styleSegments(styled).map((segment) =&gt; `${segment.end}:${segment.attrs.fontSize}`).join(' '));
+// → 4:40 9:24
+console.log(resolveRunAttrs(baseAttrs(text), heading, { color: '#c0392b' }).fontStyle);
+// → Bold</code></pre>
+<h3 id="composition-styles-on-a-page-applycompositionstyle">Composition styles on a page: applyCompositionStyle<a class="anchor" href="#composition-styles-on-a-page-applycompositionstyle" aria-label="Link to this section">#</a></h3>
+<p>A page restyled by its layers' names, as the Composition Styles panel does
+it, with the report of what did not match. <code>captureCompositionStyle</code> records
+a page's named layers as a style; the
+<a href="../compose/index.html#composition-styles">compose reference</a> has the format.</p>
+<pre><code class="language-js">import { applyCompositionStyle, captureCompositionStyle, compositionReportTitle, evaluate } from 'napkin-sketch';
+
+const page = evaluate('napkin 1\nlayer &quot;Background&quot;\nfill #f4f1ea\nrect 0 0 200 100\nlayer &quot;Title&quot;\ntext &quot;Acme Corp&quot; at 20 50\n').book.sketches[0];
+const day = captureCompositionStyle(page, 'Day');
+console.log(Object.keys(day.layers), Object.keys(day.text));
+// → [&quot;Title&quot;,&quot;Background&quot;] [&quot;Title&quot;]
+const night = { napkinCompositionStyle: 1, name: 'Night', strokes: { Background: { fill: '#000133' } }, text: { Titel: { color: '#ffffff' } } };
+const { report } = applyCompositionStyle(page, night);
+console.log(compositionReportTitle(report), report.items[0].suggestions);
+// → Night: 1 rule did not match [&quot;Title&quot;]</code></pre>
 <h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
 <p>A gap through every line on a page: the Eraser's cut made with a program, and
 the page written out as SVG.</p>
@@ -372,8 +575,12 @@ folds the plane; a long push or a wide turn is taken in steps.</li>
 </ul>
 <h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
 <ul>
-<li><strong>Every call is pure and DOM-free</strong>, and none changes its arguments but
-<code>smudgeBuffer</code>, which works on the picture it is given in place.</li>
+<li><strong>Every call is DOM-free, and nearly every one is pure.</strong> <code>smudgeBuffer</code>,
+<code>runEffects</code>, <code>blurPixels</code> and <code>layOnto</code> work on the picture they are
+given in place. <code>registerGeometryEffect</code>, <code>bindGeometry</code>,
+<code>setOutlineSource</code> and <code>setAccentPage</code> set state every later call reads,
+and <code>layoutType</code> and <code>render3d</code> keep what they worked out for a mark that
+has not changed.</li>
 <li><strong>Get marks from <code>evaluate</code></strong>, or from a <code>.skbk</code>, and pass ids, not marks,
 to the calls that take a page: they look the marks up and take them in paint
 order.</li>
@@ -398,7 +605,7 @@ engines - <a href="../drawing/index.html#erasing">erasing</a>,
 <a href="../drawing/index.html#pencils">pencils</a>,
 <a href="../drawing/index.html#smearing">smearing</a> and
 <a href="../drawing/index.html#liquify">Liquify</a>.</li>
-<li><a href="../node/index.html">Using napkin-sketch from code</a>: the two entries, and the
+<li><a href="../node/index.html">Using napkin-sketch from code</a>: the package's entries, and the
 result <code>evaluate</code> gives.</li>
 <li><a href="../output/index.html">Writing a drawing out</a>: what a page with its edits
 made is written as.</li>
@@ -408,10 +615,20 @@ made is written as.</li>
 <a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/split.ts"><code>split.ts</code></a>,
 <a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/clip.ts"><code>clip.ts</code></a>,
 <a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/pencil.ts"><code>pencil.ts</code></a>,
-<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/smudge.ts"><code>smudge.ts</code></a> and
-<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/liquify.ts"><code>liquify.ts</code></a>: the engines.</li>
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/smudge.ts"><code>smudge.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/liquify.ts"><code>liquify.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/blend.ts"><code>blend.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/appearance.ts"><code>appearance.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/appearance-fx.ts"><code>appearance-fx.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/splatter.ts"><code>splatter.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/warp-styles.ts"><code>warp-styles.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/tree/main/src/core/three-d"><code>three-d/</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/arc-length.ts"><code>arc-length.ts</code></a>,
+<a href="https://github.com/isocialPractice/napkin-sketch/tree/main/src/core/type"><code>type/</code></a> and
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/composition-style.ts"><code>composition-style.ts</code></a>: the
+engines.</li>
 </ul>
-<nav class="page-nav" aria-label="Previous and next pages"><a href="../node/cheatsheet.html" rel="prev"><span>Previous</span>Using napkin-sketch from code: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>The drawing engines: quickstart</a></nav>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../markdown/cheatsheet.html" rel="prev"><span>Previous</span>Markdown Flow and Clean Language Accents: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>The drawing engines: quickstart</a></nav>
 </article>
 </main>
 <footer class="site-footer">

@@ -4,6 +4,986 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-alpha.5.0.0] - 2026-10-05
+
+Effects, type and styles, as a vector editor has them, make this a major
+release. Sixteen blend modes go on layers and groups under napkin names -
+Stack Blend for Multiply - and the Appearance panel and the Effect menu put
+Feather, Bevel, Emboss, the inner and outer shadows and glows, Splatter,
+Warp, and 3D Extrude and Revolve, turned with a gumball, on a mark's fill,
+its stroke or the whole of it. Text is set as a vector editor sets it,
+typed on the canvas, in a box, in a shape or along a path - Sideless, Sheet
+and Path Typing - with a Type panel of character and paragraph attributes,
+Text Configurations and Expand Text to Shape; Markdown Flow shows Markdown
+as it renders, and Clean Language Accents color code as its language reads
+it. Composition Styles restyle a page by its layers' names in one click, a
+report toast says what an action could not do, and a book whose fonts are
+not installed opens with a report of them. `Enter` makes a new line in
+text and `Esc` puts it down, a text can be edited again, effects follow a
+scale, a turn or a mirror, and a PDF draws text as shapes. Each piece runs
+on an engine the API exports and napkin script has words for, written up in
+[The drawing engines](docs/api/engines/README.md). The `.skbk` format is
+version 4; files of versions 1 to 3 open unchanged.
+
+### Added
+
+- **Report toasts.** A notice in the bottom-right corner for what an action
+  could not do, line by line:
+  - a one-line title with a warning or an information mark;
+  - **Details**, which opens to the rows, each of which can carry a
+    suggestion and a button that puts it right;
+  - a close button.
+
+  It fades after 15 seconds, but not while the pointer or the keyboard focus
+  is on it, or while its details are open. It gets its full time again once
+  they leave, and Escape closes the one with the focus. Up to three stack
+  upward, newest at the bottom; a fourth takes the place of the oldest that
+  nobody is holding. A report with the name of one on screen replaces it
+  where it stands. The stack sits clear of the status bar, and of the nib
+  indicator while it shows.
+
+  **Reports fade after**, in Verbose Settings > Extras, sets the time: 5 to
+  60 seconds, or 0 to keep reports until they are closed. The features that
+  report through it come later in this release. `window.napkinCheck` gains
+  `showReportToast(spec)` and `reportToasts()` for the check, and
+  `npm run gui-check -- report-toast` runs it.
+
+- **Napkin Blends.** A vector editor's sixteen blend modes, from its
+  Transparency panel, under napkin names; Normal keeps its own:
+
+  | Napkin Blend | Vector editor |
+  | --- | --- |
+  | Soak Blend | Darken |
+  | Stack Blend | Multiply |
+  | Scorch Blend | Color Burn |
+  | Dry Blend | Lighten |
+  | Sheer Blend | Screen |
+  | Bleach Blend | Color Dodge |
+  | Fold Blend | Overlay |
+  | Light Blend | Soft Light |
+  | Heavy Blend | Hard Light |
+  | Messy Blend | Difference |
+  | Avoidance Blend | Exclusion |
+  | Tidy Blend | Hue |
+  | Bright Blend | Saturation |
+  | Dye Blend | Color |
+  | Cover Blend | Luminosity |
+
+  - **Where.** The **Blend** select under Opacity in the Layers panel, and
+    **Layers > Blend** (in the panel's right-click menu too), set the mode of
+    the selected layers, one undo step for them all. `Shift+Plus` and
+    `Shift+-` step through the list. A toast names the mode, Layers > Blend
+    checks it, and a blended layer's row carries a mark of two circles.
+  - **What it mixes with.** What is under the layer, the paper included: a
+    Stack Blend darkens into the paper, grain and all, while a layer at Normal
+    covers it as before. A group with a blend paints what it holds as one
+    picture and blends that. **Isolate Blending**, on a group, keeps the blends
+    inside it from reaching past it. A group with an opacity below 100% that
+    holds a blended layer is isolated as well, as SVG and PDF composite it.
+  - **The exports.** The SVG writes `mix-blend-mode` with the napkin name in
+    `data-blend`, and an isolated group's `isolation`. The PDF prints a
+    blended layer, or a blended or isolated group, as a transparency group
+    mixed by `/BM`. The Illustrator script sets `blendingMode`, and
+    `isIsolated` where Illustrator knows it. `renderSketch`'s PNG, drawn
+    with no canvas, mixes by the same formulas as the canvas, the W3C's.
+  - **Imports.** The SVG importer reads napkin's `data-blend`, and another
+    editor's `mix-blend-mode` and `isolation`, inline or from a `<style>`
+    rule.
+  - **Scripts.** Napkin script's `blend <mode>` gives the next layer or group
+    a blend, by its napkin name or the vector editor's, and `unused-blend`
+    reports one nothing took. Generate Script writes a page's blends back,
+    and notes the Isolate Blending it cannot say.
+  - **The API.** `BLEND_MODES`, `blendModeOf`, `blendColor`, `blendPixel`
+    and the rest join it. The graphic-design API's elements take a `blend`,
+    and its groups `isolate`.
+
+  `npm run gui-check -- blend` runs it.
+
+- **The appearance effects.** Feather, Bevel, Emboss, Inner Shadow, Outer Glow
+  and Inner Glow join the effects a mark, a layer or a group can carry, each
+  starting as a vector editor starts it, and the drop shadow - Outer Shadow -
+  gains a spread, an opacity and a blend:
+
+  | Effect | What it does |
+  | --- | --- |
+  | Feather | Fades the picture from clear at its edge to solid its radius inside |
+  | Bevel | A slope inside the shape, or outside it, lit from an angle and an altitude: its light screens and its shade multiplies |
+  | Emboss | The slope straddling the edge, or, as Pillow Emboss, dipping into a groove round it |
+  | Inner Shadow | A shadow cast inside the shape from its edge, as if the shape were a hole |
+  | Outer Glow | A glow around the shape |
+  | Inner Glow | A glow inside the shape, from its edge or from its center |
+
+  - **On the fill or the stroke.** Any effect can be aimed at a mark's fill or
+    its stroke alone, as a vector editor's Appearance panel aims it: a filled
+    shape's fill can glow inside its outline and leave the outline clean. Each
+    part draws through its own effects, the stroke over the fill, before the
+    whole mark's. An effect can also be kept without being drawn, for the
+    Appearance panel's eye to come.
+  - **A shadow that blends mixes with what is under its mark.** An Outer
+    Shadow or Outer Glow at the end of a mark's list, blending by anything but
+    Normal, is laid under the mark on its own and mixes with what is drawn
+    under it, the paper included: a blue shadow that multiplies darkens the
+    paper and the layers it falls on. A translucent mark, and a layer that is
+    translucent, blended or erased, keeps it in its picture.
+  - **One graph for every output.** Each appearance effect is a small graph of
+    SVG filter primitives - blurs, component transfers, offsets, floods,
+    composites, blends and diffuse lighting. The SVG writes the graph, and a
+    new pixel engine runs it for the canvas and the PNG, so the three agree:
+    against the SVG as `rsvg-convert` draws it, each appearance effect's PNG
+    differs by under half a level in 255 on average. None uses `feMorphology`,
+    whose radius librsvg holds to ten pixels: a spread or a choke is a levels
+    step on the blurred matte, as Photoshop's is. In the SVG, a shadow that
+    blends is a `<use>` of its mark laid under it, and a mark whose parts take
+    effects of their own is a group of the two, which the importer reads back
+    as one mark.
+  - **The canvas** draws a mark through its appearance effects from a picture
+    of its own, worked out once and kept while the mark, its effects and the
+    zoom stay the same, so a pan works none out again; a zoom under way draws
+    the last one stretched until it holds still.
+  - **The PDF and the Illustrator script** still leave effects out, and now
+    name each one. The app's PDF export lists what it left out - an effect, a
+    color that is not one - in a report in the corner of the window, where it
+    reached no one before.
+  - **Scripts.** `effect` gains `feather`, `bevel`, `emboss`, `inner-shadow`,
+    `outer-glow` and `inner-glow`, and `drop-shadow` gains `spread`, `blend`
+    and `opacity`; any `effect` line takes `on fill` or `on stroke`, and
+    `hidden`. Generate Script writes them all back, each field only where it
+    is not the default. A hand-drawn filled shape takes an effect aimed at its
+    fill on the fill, and one aimed at its stroke on each pass of its line.
+  - **The API.** `EFFECT_DEFAULTS`, `EFFECT_LABELS`, `defaultEffect`,
+    `activeEffects`, `effectPlan`, `effectLayout`, `runEffects` and their kin
+    join it, and the graphic-design API's elements take an appearance effect
+    with only the fields it changes.
+
+  `npm run gui-check -- effects` runs it.
+
+- **The Appearance panel and the Effect menu.** Effects are added and
+  changed in the app now, as a vector editor's Appearance panel and Effect
+  menu add and change them:
+  - **The Effect menu**, between Transform and Sketch: Apply Last Effect
+    (`Ctrl+Shift+E`) and Last Effect (`Ctrl+Alt+Shift+E`); Blur > Gaussian
+    Blur; Adjust Colors > Brightness, Contrast, Saturate, Grayscale, Sepia,
+    Invert, Hue Rotate and Opacity; Stylize > Feather, Outer Shadow, Inner
+    Shadow, Outer Glow, Inner Glow, Bevel and Emboss; Expand Appearance; and
+    Clear Appearance, which takes every effect off the selection and leaves
+    its fill and stroke.
+    Apply Last Effect, Last Effect, Expand Appearance and Clear Appearance
+    are at the end of the canvas's right-click menu too.
+  - **The Appearance panel** (`Shift+F6`, View > Toggle Appearance Panel)
+    opens docked beside the canvas and lists the selection's Stroke and the
+    effects on it, its Fill and the effects on it, the effects on the whole
+    of it, and the Opacity and blend of its layers. An effect's row has an
+    eye, its name with where a vector or photo editor has it, and an fx
+    button for its options. Rows drag to reorder, and into another section to
+    move there; `Alt+Up` and `Alt+Down` move one from the keyboard; a
+    right-click offers Duplicate, Delete and Move to Fill, Stroke or Object.
+    A selected Fill or Stroke row aims the next effect at that part, and a
+    lit group row in the Layers panel puts the group's own effects in the
+    panel instead.
+  - **One options popup for every effect**, made from the effect's fields:
+    lengths, percents, an angle with a dial, colors, blend modes and choices.
+    Preview is on to begin with and paints as each field changes; OK keeps
+    the effect as one undo step, and Cancel leaves no trace, not even an undo
+    step.
+  - **The Properties panel** gains the Opacity and blend of the selection's
+    layers, an fx button that drops the Effect menu's rows down, and the
+    number of effects, which opens the Appearance panel.
+  - **Expand Appearance** bakes the effects that change what a mark draws
+    into marks of their own and leaves the others live: Splatter, Warp and
+    3D, below. The row is greyed while nothing selected has one.
+  - **Use Preview Bounds**, a new setting in Verbose Settings > Sketch
+    Support, off by default as in a vector editor: a selected mark's box, the
+    area a click picks it by, and the Properties panel's position and size
+    take in what its effects paint past its ink.
+
+  The guide gains **Effects and the Appearance panel**, which Help > Tool
+  Types > Effect opens. `window.napkinCheck` gains `appearanceState()`,
+  `effectOptionsState()`, `setEffectOption(key, value)` and
+  `lastEffect()`, and `npm run gui-check -- appearance` runs it.
+
+- **Splatter.** A vector editor's Scribble, as Effect > Stylize > Splatter:
+  a mark's fill drawn as one loose, continuous hatch, back and forth across
+  the shape at an angle, as a pen scribbles a shape in. Its options are the
+  Scribble Options' - Angle, Path Overlap, Stroke Width, Curviness and
+  Spacing, the overlap, the curviness and the spacing each with a variation -
+  and a Seed, so a hatch draws the same every time; and eleven presets,
+  Default, Childlike, Dense, Loose, Moire, Sharp, Sketch, Snarl, Swash, Tight
+  and Zig-zag, which the options popup's Settings sets every field from.
+  Default is the vector editor's own; the others are this app's reading of
+  each one's look, since their published values were not to be had.
+  - **What it hatches.** The fill, on the whole mark or aimed at the fill;
+    aimed at the stroke, the stroke's own ink, a thick outline turned to
+    scribble. The hatch is the color of what it stands for, and a gradient
+    fill's hatch takes the gradient across it. A hole stays empty: the hatch
+    splits round it into runs, and no pass crosses it. A group has no shape of
+    its own to hatch, so it takes none; its marks can. Nor does an element of
+    the graphic-design API, which leaves it out and says so.
+  - **The first geometry effect.** It changes what a mark draws rather than
+    its picture, so it works before any other effect, and a mark is found
+    where its hatch is: its bounds take in a hatch carried past the edge, and
+    a click between the passes misses it. Expand Appearance bakes it into a
+    group of the mark's outline and its hatch, a mark for each run of it, as
+    one undo step.
+  - **Every output** draws the hatch as lines: the canvas, PNG, JPEG, SVG,
+    PDF and the Illustrator script. The SVG keeps the effect as well, with
+    the mark it stands for - a Copic's nib and a Pencil's lead and smudges
+    among it - and napkin-sketch reads it back as that mark with a live
+    Splatter.
+  - **Scripts.** `effect splatter [preset <name>] [angle <degrees>] [overlap
+    <n> [<variation>]] [width <n>] [curviness <percent> [<variation>]]
+    [spacing <n> [<variation>]] [seed <n>]`, with `on fill`, `on stroke` and
+    `hidden` as every effect has them. Generate Script names a preset the
+    values match, and writes only what differs from it. A mark the
+    hand-drawn pass draws as several strokes takes it on its fill, or on each
+    pass of its line, and a library shape of several parts on each part,
+    since the layer their other effects go on has no shape to hatch.
+  - **The engine** is `src/core/splatter.ts`: `splatterPaths(region,
+    options)` turns closed contours into one open path of Bezier anchors a
+    run, an anchor a fold and no more.
+
+  `npm run gui-check -- splatter` runs it.
+
+- **Warp.** A vector editor's Effect > Warp, as Effect > Warp: what takes it
+  bent by a style laid over its box, and live - the mark keeps its own
+  anchors, and the bend is drawn anew as they change. Twelve styles, Arc,
+  Arch, Unroll, Shell, Windy, Breezy, Curvy, Chart, Puffy, Expand, Cram and
+  Twirl - the vector editor's Arc, Arch, Bulge, Shell, Flag, Wave, Fish,
+  Rise, Fisheye, Inflate, Squeeze and Twist - with its Warp Options:
+  horizontal or vertical, a bend, and a horizontal and a vertical
+  distortion, each -100% to 100%, and for Arc and Shell the Part they bend,
+  which gives the vector editor's Arc Lower, Arc Upper, Shell Lower and Shell
+  Upper. The options show the style bending a grid as the fields are set.
+  Effect > Warp > Twirl is not Liquify's Twirl brush, and the menus say so.
+  - **What it bends.** A mark, over its own box; several selected marks, each
+    over its own, as the options say; a group or a layer lit in the Layers
+    panel, every mark it holds over the box of all of them, as one. Aimed at
+    the fill or the stroke, that part bends alone. A text bends through its
+    glyphs' outlines (Type: glyph outlines, below). Pictures take none: with
+    only those selected, the Warp rows are greyed, and the in-app menus say
+    why. Splatter's row is greyed for them too.
+  - **Few anchors.** A straight edge bends into a curve with an anchor at
+    each end and as few between as the bend needs, its handles in line where
+    they meet: the art is carried along the style's tangents. `PointMap`
+    gains an optional `jacobian`, which the warp carrier uses when a map
+    gives one; Mesh Warp and Liquify carry as they did.
+  - **With the other effects.** It bends before any raster effect works on
+    the picture; with a Splatter, the two work in their list's order, a hatch
+    bent or a bent shape hatched. A mark is found where it is bent, and its
+    box is where the bend puts it.
+  - **Expand Appearance** bakes a mark's Warp into its own anchors, as one
+    mark, and a lit group's into the marks it holds, each mark's own geometry
+    effects first, as one undo step.
+  - **Every output** draws the bent shape: the canvas, PNG, JPEG, SVG, PDF and
+    the Illustrator script. The SVG keeps the mark as it was and the Warp
+    itself, on the mark or on its group, and napkin-sketch reads it back live.
+    The graphic-design API's elements take none, which it says.
+  - **Scripts.** `effect warp <style> [bend <percent>] [horizontal|vertical]
+    [distort <percent> [<percent>]] [part whole|lower|upper]`, the style by
+    either name, and a percent there may carry a `%`. On a layer or a group
+    it bends all it holds; on a hand-drawn mark or a library shape of several
+    parts it goes on their layer of their own, so they bend as one. Generate
+    Script writes it back.
+  - **The engine** is `src/core/warp-styles.ts`: `warpStyleMap(style, box,
+    options)`, each style a closed-form map over a box, with its derivative.
+
+  `npm run gui-check -- warp-effect` runs it.
+
+- **3D.** A vector editor's Classic 3D, as Effect > 3D > Extrude and
+  Revolve: a mark built in depth and drawn as flat, shaded faces - vector
+  shapes in every format. Extrude sets the shape deep, a front and a back cap
+  and a side an edge; Revolve sweeps it round an upright axis at its left or
+  right edge, an offset off it, through an angle in as many steps as it needs
+  to look round. Both turn about X, then Y, then Z - Off-Axis Front, -18, -26
+  and 8, to begin with - with a perspective up to 160 degrees, a move and a
+  scale along each axis, and Plastic, Diffuse, No Shading or Wireframe under a
+  light set by its direction, its height, its intensity and the ambient light.
+  Cap off leaves an extrusion hollow, or a part revolve open.
+  - **What it builds from.** A filled mark's fill, holes and all - an `A`'s
+    counter stays open - in its fill's color, the front cap outlined in its
+    stroke; a mark with no fill, its path in its stroke's color: a closed one
+    a tube, an open one a ribbon, or revolved, the surface a potter turns.
+  - **Drawn far first, exactly.** The faces are put in order from back to
+    front by a BSP tree over their convex pieces, built once for a shape and
+    walked from the eye, so they overlap as they should from any side; a cap is
+    always one shape, and each face is hemmed in its own color so no seam of
+    paper shows between two. A solid shows no face turned away.
+  - **With the other effects.** It builds the mark as the effects before it
+    left it - a Warp above it bends the shape first - and a Warp after it bends
+    the faces. A raster effect works on the whole picture of faces, and the
+    mark's opacity falls on it once. A mark is found where its faces are, its
+    box taking in its depth. A group has no shape of its own and takes none,
+    and pictures take none; a text is built from its glyphs' outlines
+    (Type: glyph outlines, below).
+  - **Expand Appearance** turns it into a group of its faces, each a filled
+    shape, as one undo step.
+  - **Every output** draws the faces: the canvas, PNG, JPEG, SVG, PDF and the
+    Illustrator script. The SVG keeps the mark as it was and the effect
+    itself, and napkin-sketch reads it back live.
+  - **Scripts.** `effect extrude [<depth>]` and `effect revolve [angle
+    <degrees>] [offset <n>] [axis left|right] [segments <n>]`, each with
+    `[rotate <x> <y> <z>] [perspective <degrees>] [shading <kind>] [hollow]
+    [light <azimuth> <elevation> [<intensity> [<ambient>]]] [position <x> <y>
+    <z>] [scale <x> <y> <z>]`. Generate Script writes them back.
+  - **The engine** is `src/core/three-d/`: `mesh.ts` builds the meshes -
+    ear clipping with the holes bridged in, extrusions and revolves - and
+    `render.ts` draws them; `render3d(stroke, effect)` gives a mark's faces.
+  - **Its options** are 3D Options, below, which sets them live.
+
+  Illustrator's bevels and mapped artwork are not drawn. `npm run gui-check
+  -- 3d-effect` runs it.
+
+- **The 3D gumball and 3D Options.** A mark built in 3D, selected alone,
+  shows the gumball, drawn as Blender and Rhino draw theirs - X red, Y green,
+  Z blue - at the solid's middle along its own axes, in place of a Transform
+  Box: an arrow moves it along an axis, a square between two moves it in
+  their plane (with `Alt`, scales it there), an arc turns it about an axis
+  (with `Shift`, 15 degrees a step), a box past each arrow scales it along
+  that axis, the ball moves it across the view (with `Shift`, scales it
+  whole) and the ring round it all turns it freely, as a trackball does.
+  - **Each drag is one undo step**, recorded as 3D Options, and `Escape`
+    during it puts the 3D back. A part under the pointer is lit amber and the
+    pointer says what it does. The gumball is the same size at any zoom, and
+    an axis pointing at the eye hides its arrow. A revolve is drawn in fewer
+    steps round while a drag turns it, and in full when it lets go.
+  - **The 2D tools still work.** The Transform Box (`Ctrl+T`) takes the
+    gumball's place while it is up and edits the shape the 3D is built from;
+    Move and the arrow keys move the whole mark.
+  - **3D Options** (Effect > 3D > 3D Options, a 3D's row in the Appearance
+    panel, or a double-click on the ball) sets the selection's 3D live, in a
+    panel that stays up and docks: a cube turned and lit as the 3D is, which a
+    drag or the arrow keys turn, and every field, Position and Surface each a
+    section that folds. A choice is one undo step; a number typed is one when
+    the field is left, and a dial or the cube one when the drag lets go;
+    `Escape` takes back a change not yet kept.
+    Several marks are set together, a field they differ in reading Mixed; with
+    nothing built, it offers Extrude and Revolve.
+  - **Effect > 3D > Extrude and Revolve build at once**, as one undo step,
+    with 3D Options up on the selection; on a mark built already they change
+    the kind. Apply Last Effect and Last Effect put a 3D in the place of a
+    mark's own, as only one builds a mark, and the last change made in 3D
+    Options or with the gumball is the last effect.
+  - **Show the 3D gumball**, in Verbose Settings > Sketch Support, on to
+    begin with: off, 3D Options is the only control.
+  - **Underneath.** `src/renderer/gumball.ts` places the handles, finds the
+    one a press takes and works each drag from the press, through the view
+    `src/core/three-d/render.ts` now exports (`viewOf`, `viewPoint`,
+    `projectPoint` and `threeDView`); `src/renderer/three-d-panel.ts` is
+    the panel. The check hooks gain `gumballState()` and
+    `threeDPanelState()`.
+
+  `npm run gui-check -- gumball` runs it.
+
+- **Type: the model and the layout engine.** A text mark keeps its text,
+  size, family and color as its base, and gains an optional `typeset`: runs
+  of its characters in styles of their own, attributes for each paragraph,
+  and its kind - Sideless Typing from its anchor, Sheet Typing in a frame, or
+  Path Typing along a path - and its orientation. Old boxed text reads as
+  Sheet Typing in a rectangle that grows to fit, as its box did.
+  - **One layout for every output.** `src/core/type/layout.ts` sets a text
+    mark: its lines, each character's place, size and turn, its underlines,
+    strikethroughs and highlights, and whether any of it did not fit. The
+    canvas sets it with the fonts the system has, so lines break where they
+    are drawn; the command line, the API and the PNG with the built-in face.
+  - **Per character:** a face, tracking and kerning by hand, the font's own
+    kerning, leading, word spacing, all caps and small caps, horizontal and
+    vertical scale, a baseline shift, a superscript or a subscript, a turn
+    of its own, an underline, a strikethrough and a highlight.
+  - **Per paragraph:** left, centre, right or justified, indents, the space
+    before and after it, Liang hyphenation over the en-US patterns at
+    Illustrator's limits, and bulleted and numbered lists.
+  - **Sheet Typing** fills any closed shape a band at a time, and says when
+    text is left over. **Path Typing** sets a line along any path, its
+    characters turned by the rainbow, skew, ribbon, stair or gravity effect,
+    and flipped to the other side when asked. **Vertical** text runs in
+    upright columns, right to left.
+  - **Out and back.** The SVG writes runs as tspans, a rainbow path as a
+    `textPath`, and the whole typeset as `data-typeset`, which the importer
+    reads first; another editor's styled tspans come in as runs, a
+    `textPath` as Path Typing, and a vertical writing mode as vertical
+    text. The PDF draws each glyph as its outline (Type: glyph outlines,
+    below), or sets each stretch in Helvetica, bold and oblique where a run
+    is; the Illustrator script makes point, area and path type and sets
+    each run's characters and each paragraph; the PNG draws the layout.
+  - **In a script**, `character` and `paragraph` set the character and
+    paragraph attributes of text after them until a `reset`, and `text`
+    gains `inside "<path data>"`, `along "<path data>"` with `start`,
+    `flip` and `effect`, `vertical`, `align justify` and
+    `runs (...)`. A page's text is written back the same way.
+  - **Underneath.** `src/core/arc-length.ts` measures paths by length for
+    Path Typing, and Split, Liquify and Mesh Warp take its Bezier evaluator;
+    `src/core/type/hyphenate.ts` holds the patterns. The check hooks gain
+    `typesetOf(markId)`.
+
+  `npm run gui-check -- type` runs it.
+
+- **Type: the editor.** Text is typed and edited where it stands on the
+  canvas, as in a vector editor, for every kind of type: runs, Sheet Typing
+  in a frame, Path Typing, vertical text.
+  - **The canvas draws it all**: the text from its layout, and over it the
+    caret, the selection's highlight, an input method's composition,
+    underlined, and a box's frame or a path as a faint guide. A hidden
+    text field takes the keys, the input method and the clipboard, and is
+    what a screen reader reads, named "Text:" and the first words.
+  - **Editing** begins with a click of the Text tool, on empty paper for a
+    new text or on a text to edit it, or with a double-click on a text with
+    the Select or Direct Select tool; the caret goes where the click was.
+  - **The caret** stands on the line, as tall as what typing there would
+    set, across a path or a column, and keeps its place through a pan, a
+    zoom or a resized window. It blinks at Windows' rate.
+  - **Selecting**: Shift with a click or an arrow key, a drag, a
+    double-click for a word, a triple-click for a paragraph, `Ctrl+A` for
+    all. The arrows move by character and line in the order the text is
+    read, `Ctrl` by word and paragraph; `Home` and `End` go to the
+    line's ends and, with `Ctrl`, the text's.
+  - **`Enter` makes a new line.** `Esc` or `Ctrl+Enter` puts the text
+    down, as do another tool, a click off the text with a selection tool,
+    and a `Ctrl`-click elsewhere through the held `Ctrl`'s selection tool.
+  - **A burst of typing is one undo step**: it ends after a second with no
+    key, at a caret jump, at an editor key or when the text is put down. A
+    new text is on the page from its first character, in that step, and
+    one put down empty leaves nothing.
+  - **The clipboard**: a copy carries the text and its styles
+    (`text/x-napkin-type`) beside plain text; a paste of it keeps the
+    styles, anything else takes the style at the caret, and
+    `Ctrl+Shift+V` pastes plain. Edit > Cut, Copy, Paste, Delete and
+    Select All act on the text while it is edited.
+  - **The editor keys**, as a vector editor's: size by 2 pt (10 with
+    `Alt`), leading, kerning or tracking by 20 (100 with `Ctrl`),
+    baseline shift, alignment, All Caps, horizontal scale back to 100% and
+    spacing back to none. With only the caret they set what the next typed
+    text takes, and the caret shows its size.
+  - **Underneath.** `src/core/type/caret.ts` is the caret model with no
+    DOM; `src/renderer/type-editor.ts` the editor. The store gains
+    `setTypeset`, `addStrokeLive`, `removeMark` and `onPageLeave`; the
+    layout's glyphs say where a caret before them stands; the bridge gains
+    `readClipboardText`; the check hooks gain `typeEditorState()`. The new
+    guide page [Type](docs/site-src/guide/type.md) and the Cheatsheet's
+    Text editing table list the keys.
+
+  `npm run gui-check -- type-editor` runs it.
+
+- **Type: the Type panel.** A vector editor's Character and Paragraph panels
+  in one, a tab each: View > Toggle Character Panel (`Ctrl+Shift+T`) and
+  Toggle Paragraph Panel (`Ctrl+Alt+T`), which work while a text is typed.
+  - **Character:** the font family, searched as it is typed, each name in
+    its own face and the fonts chosen lately first, with a button that reads
+    the fonts again; the face; size; leading - Auto, a length, or a share of
+    the size such as `140%`; kerning - Auto, None, or by hand at the caret;
+    tracking and word spacing; vertical and horizontal scale; baseline shift
+    and rotation; All Caps, Small Caps, Superscript, Subscript, Underline and
+    Strikethrough; horizontal or vertical; and the color.
+  - **Paragraph:** the alignment; bulleted and numbered lists, each with its
+    style - a bullet, or `1.`, `a.` or `i.` - and its level; the left,
+    right and first-line indents; the space before and after; hyphenation.
+  - **What it changes,** a vector editor's rule: the selected characters of
+    a text being typed, or with only the caret what is typed next; the texts
+    selected with a selection tool, all of each; and with none, the next
+    text's font, size and color. A field they differ in is blank.
+  - **Fields** take a value with its unit - `12pt`, `3mm`, `16px` - or a
+    bare one in points; Up and Down step them, Shift by ten, and a drag on a
+    field's name changes the value as it goes and is one undo step when let
+    go. Every change is one undo step.
+  - **It comes up by itself** while the Text tool is in hand and a text is
+    selected or being typed, and goes when another tool is chosen; the new
+    Verbose Settings section Type has **Show the Type panel with the text
+    tool** (on) to turn that off, and **Font for new text**, the last font
+    chosen in the panel.
+  - **Fonts** are this computer's, read once a session with the Local Font
+    Access API. A book whose text uses a font that is not installed opens
+    with a report - "1 font is not installed" - a row a font, each with Find
+    text, which selects the texts that use it; they are drawn in a default
+    face and keep their font.
+  - **The swatches and the color well** color the text being typed, and the
+    texts the Text tool has selected, as they color the Select tool's.
+  - **Underneath.** `src/core/type/panel.ts` is the panel's model, with no
+    DOM; `src/renderer/type-panel.ts` the panel and
+    `src/renderer/font-list.ts` the fonts. The store gains `setTypesets`;
+    the type editor `target()`, `setTypingAttrs` and a `changed` call; the
+    settings `typePanelAutoShow` and `textFont`; the check hooks
+    `typePanelState()` and `fontList()`.
+
+  `npm run gui-check -- type-panel` runs it.
+
+- **Type: the typing modes.** The Text tool reads what it clicks and what is
+  selected, as a vector editor's Type, Area Type and Type on a Path tools
+  would between them. Only a selected path turns into type: a path the tool
+  merely clicks on stays a path, and the text is typed beside it.
+  - **Sideless Typing:** a click on the canvas, or on art that is not
+    selected, types a text that grows as it is typed.
+  - **Sheet Typing:** a click inside, or on, a selected closed shape sets the
+    text in it, each line as wide as the shape is where the line falls; a
+    drag on the canvas sets it in a new rectangle the size of the drag.
+  - **Path Typing:** a click on a selected open path sets the text along it,
+    from the click. `Alt` swaps the two: along a selected closed shape's
+    outline, or in the region a selected open path closes.
+  - **Paste on path:** `Ctrl+V` with the Text tool, a path selected, text on
+    the clipboard and no text being typed sets the clipboard's text along
+    the path, from its start.
+  - **The pointer** shows what a click makes: an I-beam, an I-beam in a
+    dotted box over a selected closed shape, or an I-beam on a wavy line
+    over a selected path.
+  - **The shape or the path goes into the text** with its first character,
+    in the same undo step. A shape's fill and stroke are the frame's own,
+    drawn under the text; a path's are dropped, as a vector editor drops
+    them.
+  - **Direct Select reaches a text's frame or path,** its anchors and
+    handles, as it reaches any path's: the text reflows, and its characters
+    keep their size.
+  - **Brackets.** A text along a path, selected alone with the Select tool,
+    shows its start, center and end brackets. The start and the end dragged
+    along the path set where the text runs, and the center dragged across
+    the path flips the text; each drag is one undo step.
+  - **Text that runs out of room** shows a red plus in a small box, at a
+    frame's lower right corner or at a path text's end bracket.
+  - **Spacing:** a path text's characters drawn together round a sharp turn,
+    by the path's curvature there, as a vector editor's Type on a Path
+    Spacing does.
+  - **Underneath.** `src/core/type/tool.ts` is the Text tool's decision
+    table and the brackets, with no DOM; the type model gains a path's
+    `spacing` and `scaleTypeShape`; the store `replaceMark`; three
+    cursors are new in `src/assets/`; and the check hook `typeShapes()`
+    reads the frames, paths, brackets and red plus the canvas marks.
+
+  `npm run gui-check -- typing-modes` runs it.
+
+- **The Type menu.** A top-level menu after Effect, as a vector editor has:
+  - **Font**, the Type panel on Character with its font field ready to type
+    a name in;
+  - **Size**, a vector editor's sizes from 6 to 72 pt, the text's own
+    checked, and **Other**, the panel's size field;
+  - **Character...** and **Paragraph...**, the Type panel on that tab;
+  - **Type on a Path > Type on a Path Options...** - the effect, Align to
+    Path, Spacing and Flip - and **Flip**;
+  - **Type Orientation > Horizontal** and **Vertical**, the text's own
+    checked;
+  - **Area Type Options...** - Inset Spacing, Auto Size, and the frame's own
+    fill, stroke and stroke weight.
+
+  The rows act on what the Type panel acts on, and grey when there is
+  nothing for them. Both options forms preview as they are set, keep their
+  change as one undo step on OK, and on several texts change only the
+  fields changed. Track History names a change for the row that made it.
+  `src/core/type/options.ts` holds the forms' fields, with no DOM, and
+  `src/renderer/type-options.ts` is the form; the check hooks
+  `typeOptionsState()` and `setTypeOption(key, value)` read and set it.
+
+- **Type: glyph outlines and Expand Text to Shape.** Where a text has to be
+  shapes, it is drawn as its font's own outlines, read from the font's file
+  on this computer.
+  - **The font reader** is `src/core/type/sfnt.ts`, with no DOM: TrueType
+    and OpenType files and font collections; TrueType's quadratic outlines,
+    composite glyphs among them, raised exactly to cubics, and CFF's cubic
+    ones, CID-keyed fonts among them; the character maps of Unicode and of
+    symbol fonts; the `kern` table's pairs; and a variable font's default
+    instance. Its outlines match fontTools' point for point on ninety-odd
+    installed faces.
+  - **The outline engine** is `src/core/type/outline.ts`: `outlineText(text,
+    layout, faces)` gives the shapes a text is drawn as - a shape a glyph,
+    its counters holes, in its run's color, where the type layout set it,
+    and the frame's own paint, the highlights, the list markers, the
+    underlines and the strikethroughs - or why it cannot: a font not read
+    yet, one with no glyph for a character, or a file it does not read. The
+    app reads installed fonts through the browser's local font access, a
+    headless render the font files it is given.
+  - **Expand Text to Shape** (Type > Expand Text to Shape, Transform >
+    Expand Text to Shape, `Ctrl+Shift+O`), a vector editor's Create
+    Outlines: each selected text, or the one being typed, becomes a group
+    named after its first words, a shape a glyph on a layer named after its
+    letter, with the text's effects, blend, opacity and place in the layers,
+    as one undo step. A text whose font cannot be read stays text, and a
+    report says which font and why, with Find text to select it.
+  - **Warp, Splatter and 3D on text.** They work on a text through its
+    glyphs, and the text stays text, typed and set as before: a Warp bends
+    them all over one box, a Splatter hatches each in its own color, and 3D
+    builds every glyph as one solid in the text's first color. The text
+    being typed is drawn plain, so its caret stands where its characters
+    do, and a group's Warp bends a text it holds with the rest. Where the
+    font cannot be read, the text is drawn without the effect, and a report
+    says why. Expand Appearance bakes it into shapes; the SVG keeps the text
+    and its effects, and napkin-sketch reads them back live.
+  - **Scripts and the API.** `napkin-sketch draw` and `render` take `--font
+    <family>=<file>`, repeated for more families and faces; `drawFile`,
+    `drawToFiles`, `renderSketch`, `renderBook` and `writeBook` take
+    `fonts`, and `loadFonts(fonts, from)` reads them from paths. Text in
+    those families is laid out by the fonts' own advances and kerning, and
+    a PNG and a PDF draw its glyphs as shapes; text in a family not given is
+    drawn in the built-in face, and the report says so.
+  - **The check hook** `pagePdf()` gives the page as the PDF export writes
+    it, with what it left out.
+
+  No shaping is done - no ligatures, and no scripts whose letters join - and
+  a bold or an italic the family lacks is drawn in its nearest face rather
+  than made up. The test fonts in `test/fonts/` are subsets of two fonts
+  under the SIL Open Font License, renamed as it asks. `npm run gui-check --
+  outlines` runs it.
+
+- **Type: Text Configurations.** A vector editor's Character Styles: named
+  sets of character attributes kept in the book, which runs of text follow.
+  A run's attributes are the text's base, then its configuration's, then
+  its own - its overrides - so a configuration changed changes every text
+  that follows it, on every page.
+  - **The Type panel's third tab**, Configurations, and Type > Text
+    Configurations...: the Default Configuration, a text's own attributes,
+    and the book's configurations, each name drawn in its own style, with a
+    `+` after the one the text follows when it has overrides. A click
+    applies one to the selected characters, the caret's next typing or the
+    selected texts, keeping the overrides; Alt and a click clears them.
+  - **Its menu**, and its New and Delete buttons: New Text Configuration,
+    from what the selected text has beyond its base, which the text then
+    follows; Duplicate; Delete, which asks of text that follows it whether
+    to Break Link, keeping its look, or Revert to Default; Redefine, from
+    the selected text; Text Configuration Options..., its name and each
+    attribute it sets, blank where it sets none, with Preview; Clear
+    Overrides; Break Link to Configuration; and Load Text Configurations...,
+    another book's, merged by name, one that clashes numbered `Callout 2`.
+  - **One undo step each.** A change to a configuration reaches the text on
+    every page, and its undo step holds every page it reached.
+  - **Where they live.** `SketchBook.textConfigs`, and in each text a copy
+    of those it follows (`TypeSpec.configs`), so a text looks the same
+    pasted into another book, exported or rendered alone. A text pasted or
+    imported follows the book's configuration of its name, or brings its
+    own into the list.
+  - **Out and back.** The SVG keeps the link and the definition in
+    `data-typeset`, and napkin-sketch reads them back. The Illustrator
+    script makes each one a Character Style of its document and applies it,
+    then each run's own attributes. A script defines one with `textconfig
+    "<name>"` and `character`'s clauses, with a size, a family and a
+    color, and a text or a run follows it with `config "<name>"`; a name
+    none defined is `unknown-config`, and Generate Script writes each one
+    before the first text that follows it.
+  - **Underneath** is `src/core/type/configs.ts`, with no DOM:
+    `resolveRunAttrs`, `overridesOf`, `applyTextConfig`,
+    `captureConfigAttrs`, `mergeTextConfigs`, `adoptTextConfigs` and
+    `syncBookConfigs`, among the rest. The check hooks `textConfigs()` and
+    `loadTextConfigs(path)` read and load them.
+
+  `npm run gui-check -- text-configs` runs it.
+
+- **Type: Markdown Flow.** A text typed as Markdown and shown as it renders,
+  with no HTML made or read: headings, strong, emphasized and struck text,
+  code and code blocks, lists nested and numbered, task lists, quotes,
+  rules, links, a picture's words and tables. The Markdown is the text, kept
+  and saved as typed; what it shows is made from it.
+  - **Type > Markdown Flow** (`Ctrl+Alt+M`) makes the selected text, or the
+    one being typed, Markdown Flow, its characters its Markdown, and is
+    checked while it is. Off, it asks, and the text keeps what it shows as
+    plain text. **New text starts in Markdown Flow**, in the Type section of
+    Verbose Settings (off to begin with), starts every new text so.
+  - **Typing.** The block the caret or the selection is in shows its
+    Markdown, its own characters muted, and every other block renders; the
+    caret keeps its place through both. Enter carries a list or a quote on,
+    ends an empty item, and is a newline alone in a fenced code block. A
+    single Enter is a line break. Esc renders everything.
+  - **Restyled through Text Configurations.** Headings, code, quotes and
+    links follow Markdown Heading 1 to 6, Markdown Code, Markdown Code Block,
+    Markdown Quote and Markdown Link, which the book takes in with its first
+    Markdown Flow text. A heading's size is its level's share of the text's.
+  - **Out and back.** Every export draws every block rendered, wherever the
+    caret is: the SVG with the Markdown in `data-text` and `data-typeset`
+    to read back, the PDF and the PNG as drawn, and the Illustrator script as
+    the rendered text and its styles. A script makes one with `text
+    "<markdown>" at <x> <y> markdown`; Generate Script writes the flag, and a
+    Markdown configuration restyled as a `textconfig`.
+  - **The API.** `markdownToType(source, theme, options)` gives the display
+    text, its runs and paragraph attributes and the source map, read with the
+    lexer it is given, so the core imports no Markdown reader. The new entry
+    `napkin-sketch/markdown` registers marked's lexer with `napkin-sketch`
+    and reads with it; the command line and `napkin-sketch/node` read with it
+    already. `MARKDOWN_THEME`, `setMarkdownLexer`, `markdownEnter` and
+    `withMarkdownConfigs` are exported beside it.
+  - **Underneath** is `src/core/type/markdown-flow.ts`, with no DOM. The
+    layout lays out the display, drawing a quote's bars and a rule from two
+    new paragraph attributes, `bar` and `rule`, and `layoutForEditing`
+    gives the editor each glyph placed in the Markdown. The check hook
+    `typesetOf(markId)` adds what a text shows, its shades and its markers.
+
+  `npm run gui-check -- markdown-flow` runs it.
+
+- **Type: Clean Language Accents.** Code colored as its language reads it -
+  keywords, strings, numbers, comments, names and types - by highlight.js,
+  whose HTML is read into colors and never drawn as HTML.
+  - **In Markdown Flow**, a fenced block that names its language is colored
+    as it is typed. One that names none is plain unless **Detect the
+    language of unlabelled code** (Verbose Settings, Type; off to begin with)
+    is on; one whose language is not installed is plain, and while the text
+    is edited a line under it says so.
+  - **In any text**, Type > Clean Language Accents > Apply... (`Ctrl+Alt+L`)
+    accents the paragraphs of the selected text as an installed language or
+    Auto, Use a monospace font setting them in Markdown Code too; Remove
+    Accents takes the accent off. One undo step each. The colors are worked
+    out as the text is laid out, never stored, so they follow every edit.
+  - **Languages.** The 36 of highlight.js's common set come installed.
+    Languages... lists all 193 in the configuration popup, the installed
+    ones checked, and installs the checked ones: each beyond the common set
+    is a script of the app's own in `accents/`, loaded when it is installed.
+    The setting `accentLanguages` keeps the list.
+  - **Themes.** Napkin Light and Napkin Dark, every color at least 4.5:1
+    against its own code shade, follow each page's paper unless **Code
+    colors** (Verbose Settings, Type) picks one; a Markdown code block sits
+    on its theme's shade.
+  - **Out and back.** Exports draw the colors, and the SVG keeps each
+    paragraph's accent, so a text read back stays live. A script colors the
+    next text with `accent <language>` - an id, a name it goes by, a name in
+    quotes, `auto` or `none` - and `unused-accent` says when nothing takes
+    one; Generate Script writes it back.
+  - **The API.** `accentRuns`, `hljsHtmlToRuns`, `ACCENT_LANGUAGES`,
+    `ACCENT_THEMES`, `setAccentHighlighter` and their kin are exported, and
+    `napkin-sketch/markdown` gives the API highlight.js with the common set
+    and `registerAccentLanguage` for the rest.
+  - **Underneath** is `src/core/type/accents.ts`, with no DOM and no
+    highlight.js: the catalog (`npm run accent-languages` writes it from the
+    installed highlight.js), the themes, the HTML reader, the highlighter
+    registry and `accentShown`, which the layout colors a text through. The
+    check hook `typeEditorState()` adds the lines said under the text.
+
+  `npm run gui-check -- accents` runs it.
+
+- **Composition Styles.** Rules keyed by layer name that restyle a page in
+  one click: a style says, for each layer it names, what to set there.
+  - **Three kinds of rule.** A layer rule sets the layer's opacity, blend,
+    Isolate Blending, visibility and effects, and a fill and a stroke color
+    for the marks under it. A text rule sets the text under its layer: any
+    character or paragraph attribute, a Text Configuration by name, Markdown
+    Flow and a Clean Language Accent. A stroke rule sets its paths. A name
+    matches trimmed and in any case, a rule reaches every layer under its
+    own, the nearer rule wins, and what a rule leaves out stays as it was.
+  - **The Composition Styles panel** (`Shift+F5`, View > Toggle Composition
+    Styles Panel) lists your styles, each with a thumbnail of the page as it
+    would make it, and a click applies one as one undo step. New records the
+    page's named layers as a style, which applied again changes nothing;
+    Duplicate, Delete, Import, Export and Edit sit beside it. Edit opens the
+    rules in the configuration popup, a row a rule, each rule's fields in a
+    form of their own.
+  - **The report.** A rule that matched no layer is said at the bottom right
+    with the nearest layer name, two letters swapped counting as one slip,
+    and Rename layer gives that layer the rule's name and applies the style
+    again, one undo step for both. Text rules on layers with no text, stroke
+    rules on layers with no paths, configurations the book does not have and
+    values held to their range are said too.
+  - **The file.** A style is JSON, kept one file a style in the app's own
+    folder, so every book can use it. A JSON Schema of it is in
+    `docs/api/schema/`.
+  - **Everywhere else.** `napkin-sketch draw --composition-style
+    <style.json>` restyles every page a script draws, a rule that matched
+    nothing being a warning. The API exports `applyCompositionStyle`, which
+    restyles a page, or a graphic-design composition by its elements' names;
+    `captureCompositionStyle`; `validateCompositionStyle`, every reason a
+    style is not one a sentence; `nameSuggestions` and their kin. The
+    embedded editor gains `applyCompositionStyle(style)`.
+  - **Underneath** is `src/core/composition-style.ts`, with no DOM. The
+    configuration popup gains a field over its table, buttons in a row, names
+    a text cell suggests, and rows added and taken out as it is used.
+
+  `npm run gui-check -- composition-styles` runs it.
+
+- **Read-outs for the GUI checks of effects and panels.** The
+  `window.napkinCheck` hook, which the page puts up only when the app is
+  started for a check, gains two: `effectsOf(markId)` (a mark's effects, and
+  those of its layer and of every group above it, nearest first) and
+  `panelState(name)` (whether the pages, layers and properties panels, Quick
+  Settings or the dock column are open and where they are drawn; and for a
+  popup, whether it is open, docked or placed, its place in the dock and its
+  box). The popup manager gains `describe(dialogId)`, which the second reads.
+  Nothing changes for anyone using the app; the checks of the panels that
+  come next read them.
+
+- **The API reference, and the AI helpers, cover the release.** The engines
+  page gains a section, each with an example that runs, for blending, the
+  appearance stack, effects as pixels, Splatter, Warp, 3D, measuring along a
+  path, setting type, fonts as shapes, Text Configurations and composition
+  styles on a page. The drawing page gains the blend modes, the `character`
+  and `paragraph` clauses and a list; the compose page gains blend modes,
+  Isolate Blending and effects in its shared table; and a tenth category,
+  Markdown Flow and Clean Language Accents, covers `napkin-sketch/markdown`.
+  The barrel exports the engines by name: the appearance stack and its pixel
+  passes, Splatter, Warp and 3D, the 3D gumball's sums, arc length, the type
+  engine with its font reader, and Text Configurations; and
+  `napkin-sketch/node` gains `readCompositionStyle`. The napkin-script and
+  graphic-design-api skills say what the language and the composition API
+  now do, and no longer say there are no gradients, filters or shadows.
+  `npm run pack-check` calls the new engines from the installed tarball,
+  with `napkin-sketch/markdown`, draws with `--composition-style`, and fails
+  should the package ever name a dependency.
+
+- **Two golden scripts take in the release.** `every-verb.napkin` gains
+  every effect, the blends by napkin name and before a group or a clip, and
+  every way of setting text: a box, a path's flip and effects, a whole text
+  on a Text Configuration, Markdown, letters as marks, every character and
+  paragraph clause, both kinds of list and the three ways to name an accent.
+  A new `type-and-appearance.napkin` draws a poster - a headline, a column
+  of justified, hyphenated body, type along a path, a warped banner, an
+  extruded block, a blended band and a glowing badge - to a golden SVG and a
+  golden PNG, compared a pixel at a time within a step. The script writer
+  writes both back to the same drawing.
+
+- **Help > About napkin-sketch.** A row of its own at the foot of Help opens
+  the About page in the documentation window: the version, the license, and
+  a link to the third-party notices.
+
+- **Third-party notices.** `THIRD-PARTY-NOTICES.md` holds the license of each
+  package and data file napkin-sketch bundles - `marked`, `marked-highlight`,
+  highlight.js and the en-US hyphenation patterns - and points at the test
+  fonts' license, which only the repository carries. The npm package and the
+  desktop app ship it, the documentation site has it as a page, and the
+  README and the About page link it.
+
+### Changed
+
+- **A PDF draws text as shapes.** Each glyph is its font's outline, so the
+  page looks as it does on the canvas wherever it is opened. A text whose
+  font cannot be read is set in Helvetica, as all text was, and the report
+  after the export says which font and why. **Draw text as shapes in PDF**,
+  in the Type section of Verbose Settings (on to begin with), turns it off,
+  for text a reader can select and search; `textAsShapes: false` does in
+  `sketchesToPdf`.
+
+- **A PDF fills a closed vector shape along its curves.** A filled shape
+  drawn with Bezier anchors was filled along a polyline through samples of
+  them, and is now filled along the curves themselves, as its outline is
+  drawn.
+
+- **A tool may stand in two menus.** Expand Text to Shape is a row of both
+  Transform and Type, since both take its type; the row greys and runs alike
+  in each, and its shortcut is claimed once.
+
+- **Text is set by the type layout.** What was drawn as one string a line
+  is now set character by character, and a few things land differently:
+  - a word longer than its box breaks where the box ends, as a vector
+    editor's area type breaks it, rather than running past it;
+  - a text mark's box, and what picks it, are the layout's: its lines'
+    boxes, a line and a quarter of its size each as before, and for Path
+    Typing its characters and its path;
+  - the SVG sets each line on its baseline and carries the text as typed and
+    its anchor as `data-text` and `data-anchor`, where it hung each line
+    from its top; the PDF places each stretch with a text matrix; and the
+    Illustrator script places point text on its first baseline;
+  - `strokeBounds(stroke, measure)` takes a type measure in place of a
+    function that measured a text item's box; with none, the built-in
+    face's.
+
+- **Scripts align text by its paragraphs.** `text ... align center` keeps
+  its anchor where it is put and centres its lines on it, as point type
+  does, where it moved the anchor to the line's left end. What is drawn is
+  the same, and the app keeps it centred as it is edited.
+
+- **Sketch books are version 4.** A text mark may carry a `typeset`, and a
+  book its `textConfigs`; files of versions 1 to 3 open unchanged, and a
+  file a newer napkin-sketch saved opens with a report that some of it may
+  not show.
+
+- **Two flags that set one field cannot both be given** in a script, such
+  as `super` and `sub`: the parser says so.
+
+- **`activeEffects` gives the raster effects alone.** It leaves out the
+  geometry effects, which change what a mark draws rather than its picture,
+  as every raster path wants; `activeGeometryEffects` gives them.
+
+- **Effects follow their mark through a transform.** While **Scale Strokes
+  and Effects**, a new setting in Verbose Settings > Sketch Support, is on, as
+  it is to begin with, a scale scales a mark's stroke width and its effects'
+  lengths by the mean of its two scales, and a turn or a mirror turns or
+  mirrors a shadow's offset and a bevel's or an emboss's light, so the light
+  still falls on the same side of the mark. Off, a transform leaves the width
+  and the effects as they were. Before, a scale scaled the width and none of
+  the effects, and a turn or a mirror left a shadow falling where it fell.
+
+- **A run of paragraphs in one shade is one shade.** Paragraphs one after
+  another with the same background and no space between them share one, as
+  wide as their widest line or the frame's inside, where each had its own.
+
+- **Type > Markdown Flow and Clean Language Accents > Apply... claim their
+  chords in the menu bar,** as Expand Text to Shape does, so `Ctrl+Alt+M` and
+  `Ctrl+Alt+L` reach the text being typed.
+
+- **The Type panel has three tabs**, Character, Paragraph and
+  Configurations, and its tab keys go round all three.
+
+- **The menu bar has eleven menus**, Effect and Type among them, and Help >
+  Tool Types lists Effect and Type after Automate. The Edit Keyboard
+  Shortcuts and Edit Tool Types popups offer the Effect and Type types
+  beside the others.
+
+- **Three packages for Markdown and code coloring, bundled at build time.**
+  `marked` 18.0.14, `marked-highlight` 2.2.4 and `highlight.js` 11.12.0 join
+  the devDependencies, pinned to exact versions because esbuild inlines what
+  the code imports into `dist/` rather than npm installing it beside the app.
+  The published package still has no dependencies to fetch. Markdown Flow
+  reads with `marked`'s lexer, and Clean Language Accents with
+  `marked-highlight` and highlight.js.
+
+- **The text box is gone.** The textarea laid over the canvas for typing
+  is replaced by the editor: `Enter` makes a new line rather than putting
+  the text down, `Esc` keeps what was typed rather than throwing it away -
+  Undo does that now - and a text is no longer trimmed of the spaces it
+  was typed with.
+
+- **Undo is offered while an edit is held open.** A burst of typing, or a
+  preview, that has changed the page counts as a step to undo before it is
+  kept, so Edit > Undo and the toolbar's button no longer grey out in a new
+  document's first second of typing.
+
+- **A numbered list counts the way its style says.** A list's marker of
+  `1.`, `a.` or `i.` sets how a numbered list counts; with none, its level
+  does, as before.
+
+- **Typed text no longer takes its neighbour's kerning by hand.** Kerning by
+  hand is between two characters, so a character typed beside a kerned one
+  starts with none.
+
+- **`Ctrl+Shift+T` and `Ctrl+Alt+T` toggle the Type panel,** from a text
+  field too, where before the window swallowed them as a browser's new-tab
+  key. A chord the menu bar claims - a panel toggle, Save - runs from the
+  text being typed when the text does not take it.
+
+- **A drag with the Text tool draws a frame that keeps its size,** as a
+  vector editor's area type does: text that does not fit shows the red
+  plus. A drag too flat to hold one line still gives a box as wide as the
+  drag that grows down to fit.
+
+- **The Transform Box scales a text's frame or path, not its text.** A text
+  in a box, in a shape or along a path keeps its size when scaled, and
+  reflows; a text that grows as it is typed scales its characters, as
+  before.
+
+### Fixed
+
+- **An imported group's own marks took its effects twice.** The marks a file
+  keeps on a group itself go on a layer of their own inside it, and that
+  layer was given the group's effects as well as the group: a group's drop
+  shadow fell a second time under them. The layer now takes none, as it
+  takes none of the group's opacity.
+
+- **The Properties panel showed the gradient editor for every selection.** Its
+  ramp, stops and angle stood under Fill for a flat fill too, with nothing
+  to edit, because the stylesheet had no rule to hide it. It shows only for
+  a gradient fill now, as the code meant it to.
+
+- **The canvas is measured again when the dock column's width lands.** The
+  dock opens and closes over 160 ms, as the side panels do, and the canvas
+  was measured only as it began, so it could be left sized for the stage as
+  it had been. It is measured again when the width settles, as it already
+  was for the side panels.
+
+- **A text could not be edited again.** A click with the Text tool, or a
+  double-click with the Select or Direct Select tool, opens it with the
+  caret at the character clicked.
+
+- **The text box ignored the size and the canvas.** Its caret kept one size
+  whatever the text's, and it stayed where it was when the window was
+  resized or the canvas panned or zoomed. The editor's caret does both.
+
+- **A character set apart said its font twice.** A scaled or slanted
+  character - Path Typing's skew, or a run's own horizontal or vertical
+  scale - is a `<text>` of its own in an SVG, and it carried the text's
+  size, family and color and then its own over them: the same attribute
+  twice, which a strict XML reader refuses. It says each once, its own, and
+  every golden SVG is held to saying no attribute twice.
+
+- **A list's own bullet or numbering was left out of a written script
+  without a word.** One chosen in the Type panel has no word in the language
+  yet; the script writer writes the list by its kind and level, as before,
+  and its notes now say what it left out.
+
 ## [1.0.0-alpha.4.6.0] - 2026-10-01
 
 Pressing that always lets go, and the tools a vector editor reaches for next,

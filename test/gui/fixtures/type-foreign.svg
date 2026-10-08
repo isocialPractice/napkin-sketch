@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320" viewBox="0 0 480 320">
+  <defs>
+    <path id="arc" d="M40 260 C100 200 220 200 280 260"/>
+  </defs>
+  <g id="Lettering">
+    <text id="styled" x="20" y="40" font-family="Arial" font-size="20" fill="#1f2328">
+      <tspan x="20" y="40">Plain <tspan font-weight="bold" fill="#c0392b">bold red</tspan></tspan>
+      <tspan x="20" y="70" text-decoration="underline">second line</tspan>
+    </text>
+    <text font-family="Arial" font-size="16" fill="#1f2328"><textPath href="#arc" startOffset="10">Along the arc</textPath></text>
+    <text x="440" y="30" font-family="Arial" font-size="18" fill="#1f2328" writing-mode="vertical-rl">Up</text>
+  </g>
+</svg>

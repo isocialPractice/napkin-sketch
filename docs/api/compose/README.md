@@ -4,8 +4,8 @@
 
 Build a graphic design composition out of simple elements - rectangles,
 circles, ellipses, triangles, polygons, lines, paths, text, placed media and
-clipping masks, painted in flat colors or gradients - and render it to **SVG**
-or **PNG**.
+clipping masks, painted in flat colors or gradients, with effects and blend
+modes - and render it to **SVG** or **PNG**.
 
 **Contents**
 
@@ -18,7 +18,9 @@ or **PNG**.
   - [Clipping masks](#clipping-masks)
   - [Gradients](#gradients)
   - [Effects](#effects)
+  - [Blend modes and isolation](#blend-modes-and-isolation)
   - [Transforms](#transforms)
+  - [Composition Styles](#composition-styles)
   - [Rendering](#rendering)
   - [Node file helpers](#node-file-helpers)
   - [Brand resources](#brand-resources)
@@ -160,6 +162,8 @@ Every element understands these. All are optional.
 | `translate` | `{ x, y }`, applied after rotation and scale |
 | `origin` | Pivot for rotation and scale (default: the element's own centre) |
 | `clip` | A mask id, or an inline shape |
+| `effects` | [Effects](#effects) over the element's finished picture, in order |
+| `blend` | How the element mixes with what is under it: one of the [blend modes](#blend-modes-and-isolation) |
 | `visible` | `false` keeps the element in the model and out of every render |
 
 Colors accept hex in three, four, six and eight digits, `rgb()`, `rgba()`,
@@ -395,6 +399,10 @@ only has to paint, and its fill and its stroke both clear. Text and images do
 not erase. The SVG writes the shapes as a `<mask>` on the group, and the PNG
 clears them from the group's own layer before laying it down.
 
+`isolate: true` makes a group one picture before it is laid down, so the
+blends of what it holds mix only with each other; see
+[Blend modes and isolation](#blend-modes-and-isolation).
+
 ### Clipping masks
 
 A mask can be defined once and shared, which is usually why it exists:
@@ -453,9 +461,11 @@ parse is left out. Text takes a gradient's first stop's color.
 
 ### Effects
 
-`effects` lays the CSS filter functions over an element's finished picture, in
-the order listed: a blur, a shadow, or a shift in its color. On a group they
-work on the group as one picture, so two children cast one shadow.
+`effects` lays effects over an element's finished picture, in the order listed:
+the CSS filter functions - a blur, a shadow, a shift in its color - and the
+appearance effects a vector editor reaches for - Feather, Bevel, Emboss, Inner
+Shadow, Outer Glow and Inner Glow. On a group they work on the group as one
+picture, so two children cast one shadow.
 
 ```ts
 design.rect({
@@ -464,6 +474,13 @@ design.rect({
 });
 design.group({ effects: [{ type: 'sepia', amount: 0.8 }, { type: 'blur', radius: 1 }] }, (photo) => {
   photo.image({ src: portrait, x: 260, y: 40, width: 120, height: 120, fit: 'cover' });
+});
+design.rect({
+  x: 40, y: 200, width: 200, height: 120, rx: 12, fill: '#4a7fb5', stroke: '#1f2328', strokeWidth: 4,
+  effects: [
+    { type: 'bevel', size: 8, target: 'fill' },
+    { type: 'outer-glow', color: '#ffcc00', blend: 'normal' },
+  ],
 });
 ```
 
@@ -474,21 +491,90 @@ design.group({ effects: [{ type: 'sepia', amount: 0.8 }, { type: 'blur', radius:
 | `grayscale`, `sepia`, `invert` | `amount`, 0 to 1 | How far toward gray, sepia or the inverse; 1 is all the way |
 | `hue-rotate` | `angle`, in degrees | Turns every hue around the color wheel |
 | `opacity` | `amount`, 0 to 1 | Fades the picture at its place in the list |
-| `drop-shadow` | `dx`, `dy`, `blur`, `color` | A shadow of the shape, moved, blurred by CSS's blur radius - twice the deviation - in `color` |
+| `drop-shadow` | `dx`, `dy`, `blur`, `color`; `spread` (0 to 100), `opacity`, `blend` | Outer Shadow: a shadow of the shape, moved, blurred by CSS's blur radius - twice the deviation - in `color`, its edge firmed by `spread` |
+| `feather` | `radius` | Fades the picture from clear at its edge to solid `radius` inside |
+| `bevel` | `style` (`inner`, `outer`), `size`, `depth` (%), `direction` (`up`, `down`), `soften`, `angle`, `altitude`, `highlight`, `shadow` | A slope `size` wide, lit from `angle` (degrees counterclockwise from the right) at `altitude`; `highlight` and `shadow` are each a `{ color, blend, opacity }` |
+| `emboss` | the bevel's, with `style` `emboss` or `pillow` | The slope straddles the edge, or dips into a groove round it |
+| `inner-shadow` | `dx`, `dy`, `blur`, `choke` (0 to 100), `color`, `blend`, `opacity` | A shadow cast inside the shape from its edge |
+| `outer-glow` | `blur`, `spread`, `color`, `blend`, `opacity` | A glow around the shape |
+| `inner-glow` | `blur`, `choke`, `source` (`edge`, `center`), `color`, `blend`, `opacity` | A glow inside the shape |
+
+A `splatter`, a `warp` and a `3d` effect draw on a sketch's marks (see
+[Drawing with napkin script](../drawing/README.md#effects)) and have no
+element form: on an element they are left out, and `onWarning` says so.
+
+Any effect may also carry `target: 'fill'` or `'stroke'`, to work on that part
+of a shape or a text alone - the element is drawn as its fill and its stroke,
+each through its own effects, the stroke over the fill, and the effects on the
+whole then work on the two - and `on: false`, to be kept without being drawn.
+An appearance effect's missing fields are a vector editor's defaults, which
+`EFFECT_DEFAULTS` and `defaultEffect(type)` give: shadows and shades multiply
+(`stack`), glows and lights screen (`sheer`), each at 75%. A blend takes any
+name of a mode (see [Blend modes and isolation](#blend-modes-and-isolation)).
+An Outer Shadow or Outer Glow that blends, at the end of the list, is laid
+under its element on its own and mixes with what is under it - only for an
+element laid down as it is drawn: solid, with no blend, clip or transform of
+its own and nothing to erase.
 
 Lengths are in composition units, and scale and turn with the element's
-transform, as its outline does. The SVG writes a `<filter>` in user space,
-its region the element's own box grown by as far as the effects reach, with
-`color-interpolation-filters="sRGB"` so a viewer works the colors as the PNG
-does; elements with the same effects over the same box share one. The PNG
-draws the element on a layer of its own, runs the effects over it, and lays
-it down: against the SVG as `rsvg-convert` draws it, a blur, a shadow and the
-color effects differ by under one level in 255 on average, and the test holds
-them to one and a half. The canvas painter sets `ctx.filter`.
+transform, as its outline does; a bevel's light turns with it too. The SVG
+writes a `<filter>` in user space, its region the element's own box grown by
+as far as the effects reach, with `color-interpolation-filters="sRGB"` so a
+viewer works the colors as the PNG does; elements with the same effects over
+the same box share one. Each appearance effect is a graph of primitives every
+viewer has - blurs, component transfers, offsets, floods, composites, blends
+and diffuse lighting - and a shadow laid under its element is a `<use>` of it
+through a filter that draws the shadow alone. The PNG draws the element on a
+layer of its own and runs the same graph over it (`runEffects`): against the
+SVG as `rsvg-convert` draws it, the CSS effects differ by under one level in
+255 on average, held to one and a half, and each appearance effect by under
+half a level, held to that. The canvas painter sets `ctx.filter` for a list of
+CSS filter functions, and runs the PNG's passes for anything else.
 
 The order is SVG's: the effects first, then a group's erase shapes, then the
-clip, then the opacity. An effect the renderer does not know, and a shadow
-color that is not a color, are left out and reported in `warnings`.
+clip, then the opacity. An effect the renderer does not know, and a color that
+is not a color, are left out and reported in `warnings`.
+
+### Blend modes and isolation
+
+`blend` mixes an element, or a group as one picture, with what is under it,
+in one of the sixteen modes of a vector editor's Transparency panel. The
+type takes a mode's napkin name - `stack`; the renderers read a document's
+mode by any of its names, Illustrator's, CSS's or PDF's - `multiply` - in
+any case, so a document written by another program may use them.
+
+```ts
+design.rect({ x: 20, y: 20, width: 160, height: 100, fill: '#ffcc00' });
+design.circle({ cx: 150, cy: 70, r: 50, fill: '#3399ff', blend: 'stack' });
+design.group({ isolate: true, blend: 'sheer' }, (glow) => {
+  glow.circle({ cx: 60, cy: 120, r: 30, fill: '#ff6b6b' });
+  glow.circle({ cx: 90, cy: 120, r: 30, fill: '#4cae50', blend: 'stack' });
+});
+```
+
+| napkin | Illustrator | | napkin | Illustrator |
+| --- | --- | --- | --- | --- |
+| `normal` | Normal | | `fold` | Overlay |
+| `soak` | Darken | | `light` | Soft Light |
+| `stack` | Multiply | | `heavy` | Hard Light |
+| `scorch` | Color Burn | | `messy` | Difference |
+| `dry` | Lighten | | `avoidance` | Exclusion |
+| `sheer` | Screen | | `tidy` | Hue |
+| `bleach` | Color Dodge | | `bright` | Saturation |
+| | | | `dye`, `cover` | Color, Luminosity |
+
+- **The SVG** writes `mix-blend-mode` with the CSS name, and `data-blend`
+  with napkin's, so a design tool and napkin both read it back; an isolated
+  group gets `isolation: isolate`.
+- **The PNG** mixes each pixel as the W3C compositing spec does, the
+  non-separable modes - Hue, Saturation, Color and Luminosity - included, so
+  the two formats agree.
+- **`isolate`** belongs to a group: its children's blends then mix only with
+  each other, and the group, one picture, blends with what is under it by
+  its own `blend`.
+- `BLEND_MODES`, `blendModeOf` and `blendPixel` are the table and the
+  arithmetic, for a program of its own
+  ([the engines](../engines/README.md#blending-blend_modes-blendpixel)).
 
 ### Transforms
 
@@ -503,6 +589,71 @@ design.group({ rotate: 90, origin: { x: 180, y: 180 } }, (g) => { /* ... */ });
 
 Group transforms compose with their children's, and stroke widths scale with
 the transform they are drawn under.
+
+### Composition Styles
+
+A composition style restyles a composition by its elements' and groups'
+`name`s: rules keyed by name, in three kinds, held as JSON so the app, the
+command line and code share one file. `applyCompositionStyle` gives a new
+composition of the same kind, the one given untouched, and a report of what
+did not go as asked.
+
+```json
+{
+  "napkinCompositionStyle": 1,
+  "name": "Midnight",
+  "layers": {
+    "Background": { "fill": "#000133" },
+    "Badge": { "opacity": 0.9, "blend": "screen", "effects": [{ "type": "outer-glow", "blur": 6, "color": "#4cae50" }] }
+  },
+  "text": { "Title": { "color": "#ffffff", "fontStyle": "Bold", "tracking": 50 } },
+  "strokes": { "Outline": { "color": "#4cae50", "width": 2, "strokeStyle": "dashed" } }
+}
+```
+
+```ts
+import { applyCompositionStyle, compositionReportLines, createComposition, validateCompositionStyle } from 'napkin-sketch';
+
+const design = createComposition({ width: 360, height: 200, background: '#ffffff' });
+design.rect({ name: 'Background', x: 0, y: 0, width: 360, height: 200, fill: '#f4f1ea' });
+design.text({ name: 'Title', x: 24, y: 64, text: 'Acme Corp', fontSize: 32, fill: '#1f2328' });
+design.rect({ name: 'Outline', x: 24, y: 96, width: 312, height: 72, fill: null, stroke: '#1f2328', strokeWidth: 2 });
+
+const read = validateCompositionStyle(midnight); // midnight: the JSON above, parsed
+if (!read.ok) throw new Error(read.errors.join('\n'));
+const { composition, report } = applyCompositionStyle(design, read.style);
+compositionReportLines(report); // [] when every rule matched
+const svg = composition.toSVG();
+```
+
+| Kind | Reaches | Sets |
+| --- | --- | --- |
+| `layers` | The named element or group; for `fill` and `stroke`, every element under it too | `opacity`, `blend`, `isolate` (a group's), `visible` and `effects` on itself; `fill` and `stroke` on what is under it, unless a `text` or `strokes` rule names the same element |
+| `text` | The text elements at or under the name | `fontFamily`, `fontSize`, `fontStyle` (its weight and slant), `leading` (as `lineHeight`), `tracking` (as `letterSpacing`), `underline`, `strike`, `caps` (`all` as `uppercase`), `align`, `firstIndent`, `spaceBefore` and `spaceAfter` (as `paragraphSpacing`), `color`, `effects` and `blend` |
+| `strokes` | The shapes at or under the name | `color` (the stroke), `width`, `strokeStyle` (as dashes), `noStroke`, `fill`, `gradient`, `opacity`, `effects` and `blend` |
+
+- **A name matches** trimmed and in any case. Where two rules reach one
+  element, the nearer one wins, and what a rule leaves out stays as it was.
+  Colors, sizes and lengths are in the composition's units.
+- **The report** (`CompositionStyleReport`) lists the rules that matched
+  nothing, each with the nearest names (`nameSuggestions`, which counts two
+  letters swapped as one slip); text rules where there is no text and stroke
+  rules where there are no shapes; and values held to their range.
+  `compositionReportTitle` and `compositionReportLines` say it in words.
+- **A page restyles the same way.** Given a sketch page and the book's Text
+  Configurations, `applyCompositionStyle(page, style, { configs })` matches
+  its layers' names, reaches the whole of a page's text - every character and
+  paragraph attribute, a Text Configuration by name, Markdown Flow and Clean
+  Language Accents - and gives the page anew with the marks and layers it
+  changed. `captureCompositionStyle(page, name)` records a page's named
+  layers as a style that, applied again, changes nothing. A composition's SVG
+  writes each name as `data-name`, so one a script drew restyles the same
+  way once the app imports it.
+- **The format** is [a JSON Schema](../schema/composition-style.schema.json),
+  built from the field table the reader uses (`COMPOSITION_RULE_FIELDS`).
+  `validateCompositionStyle` is the full check: `{ ok, style, errors, notes }`,
+  each error a sentence, with the nearest word for a misspelt field, blend,
+  effect or language.
 
 ### Rendering
 
@@ -696,6 +847,7 @@ and a raster file are for:
 | Gradients | A `<linearGradient>` or `<radialGradient>` in user space | Each pixel's color worked out along it |
 | Erase shapes | A `<mask>` on the group | Cleared from the group's own layer |
 | Effects | A `<filter>` in sRGB, in user space | Each effect run over the element's own picture |
+| Blends | `mix-blend-mode`, and `isolation` on a group | Each pixel mixed as the W3C spec mixes it |
 | Size | `viewBox` in composition units, width and height in the page's unit | `width x height` pixels at `scale` |
 | Determinism | Identical bytes for identical documents | Identical bytes for identical documents |
 
@@ -847,10 +999,19 @@ const { data: png } = renderPng(doc);
   and sheared transforms are reported in `notes` rather than approximated. A
   logo of solid shapes comes through exactly; a logo built on a mesh gradient
   should ship as a PNG.
-- **Filters and patterns.** Not modelled. Flat and gradient paint, opacity,
-  clipping masks and erase shapes are the palette. A gradient runs along an
-  angle or out from the middle of its shape's box; one placed by end points of
-  its own, or repeated past its ends, is not modelled either.
+- **Patterns.** Not modelled. Flat and gradient paint, effects, blends,
+  opacity, clipping masks and erase shapes are the palette. A gradient runs
+  along an angle or out from the middle of its shape's box; one placed by end
+  points of its own, or repeated past its ends, is not modelled either.
+- **A page's finer typography is lowered.** An element's text has the
+  attributes above. A sketch's text written to a composition
+  (`sketchToComposition`) keeps its frame's paint, highlights, baseline
+  shifts, turned and scaled letters, list markers, underlines and
+  strikethroughs, by drawing each stretch in one style as a text element on
+  its baseline, each turned or scaled letter alone, and the highlights and
+  lines as filled paths. The slant Path Typing's `skew` gives a letter is
+  left out, as a composition's transforms have none. Given its fonts' files,
+  a headless render draws the text as its outlines instead.
 - **Interlaced PNG placements.** Not decoded; re-save the asset without
   interlacing.
 
@@ -876,7 +1037,7 @@ const { data: png } = renderPng(doc);
 
 - [Writing a drawing out](../output/README.md): a sketch lowered into this
   model, and every format a sketch is written as.
-- [Using napkin-sketch from code](../node/README.md): the two entries, and
+- [Using napkin-sketch from code](../node/README.md): the package's entries, and
   the Node file helpers.
 - [The AI helpers](../ai/README.md): the `graphic-designer` helper, which
   drives this API from a design language.

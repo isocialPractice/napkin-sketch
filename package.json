@@ -1,6 +1,6 @@
 {
   "name": "napkin-sketch",
-  "version": "1.0.0-alpha.4.6.0",
+  "version": "1.0.0-alpha.5.0.0",
   "description": "Quick and easy computer sketching with a drawing GUI that simulates pen and paper/napkin sketching, featuring an auto-sharpen algorithm that turns stiff computer strokes into more hand-drawn forms.",
   "author": "John Haugabook",
   "keywords": [
@@ -40,6 +40,11 @@
       "import": "./dist/graphic-design/files.js",
       "default": "./dist/graphic-design/files.js"
     },
+    "./markdown": {
+      "types": "./dist/markdown/index.d.ts",
+      "import": "./dist/markdown/index.js",
+      "default": "./dist/markdown/index.js"
+    },
     "./styles.css": "./dist/renderer/styles.css"
   },
   "files": [
@@ -59,7 +64,8 @@
     "QUICKSTART.md",
     "CHEATSHEET.md",
     "CHANGELOG.md",
-    "TODO.md"
+    "TODO.md",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "scripts": {
     "clean": "node scripts/clean.mjs",
@@ -77,6 +83,7 @@
     "shape-library": "node scripts/shape-library.mjs",
     "api-docs": "node scripts/api-docs.mjs",
     "menu-docs": "node scripts/menu-docs.mjs",
+    "accent-languages": "node scripts/accent-languages.mjs",
     "site": "node scripts/site.mjs",
     "pack-check": "node scripts/pack-check.mjs",
     "illustrated-frames": "node scripts/illustrated-frames.mjs",
@@ -96,6 +103,9 @@
     "electron": "^31.0.0",
     "electron-builder": "^24.13.3",
     "esbuild": "^0.23.0",
+    "highlight.js": "11.12.0",
+    "marked": "18.0.14",
+    "marked-highlight": "2.2.4",
     "typescript": "^5.5.0"
   },
   "build": {
@@ -121,6 +131,10 @@
           "**/*",
           "!site-src/**"
         ]
+      },
+      {
+        "from": "THIRD-PARTY-NOTICES.md",
+        "to": "THIRD-PARTY-NOTICES.md"
       }
     ],
     "win": {

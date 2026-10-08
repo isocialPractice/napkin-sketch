@@ -37,6 +37,7 @@ script is written - its syntax, values, expressions and diagnostics - is in
   - [Copying a document in](#copying-a-document-in)
   - [Linked graphics](#linked-graphics)
   - [Effects](#effects)
+  - [Blend modes](#blend-modes)
 - [Worked examples](#worked-examples)
 - [Limits](#limits)
 - [For agents](#for-agents)
@@ -225,6 +226,10 @@ Each paint instruction sets one field of every mark after it:
 | `pencil` | `tool`, `pencil`, `color` | The Pencil at a grade; see [Pencils](#pencils). |
 | `rough` | - | Draws the marks after it by hand; see [The hand-drawn pass](#the-hand-drawn-pass). |
 | `font` | `fontFamily`, `fontSize` | The family and size of [text](#text) after it. |
+| `character` | `typeset.runs` | The character attributes of [text](#text) after it: its face, tracking, kerning, leading, word spacing, capitals, scales, baseline shift, turn and highlight, a superscript or a subscript, an underline and a strikethrough. `character reset` takes them off. |
+| `paragraph` | `typeset.paras` | The paragraph attributes of [text](#text) after it: its alignment, indents, the space before and after it, hyphenation, and a bulleted or numbered list. `paragraph reset` takes them off. |
+| `textconfig` | the book's `textConfigs` | A Text Configuration: `character`'s clauses, with a size, a family and a color, under a name; see [Text](#text). |
+| `accent` | `typeset.paras` | The next text's code colored as a language reads it; see [Text](#text). |
 
 Every mark is flagged `sharpened`, so the app's auto-sharpen leaves a generated
 shape as it is.
@@ -747,27 +752,153 @@ at all.
 ### Text
 
 `text "<words>" at <x> <y>` places a text item: live text the app sets in the
-current font and edits as it edits any text. `at` is the top of the first
-line: its left end, or with `align center` or `align right` its middle or its
-right end. `size` sets this text's size, and `font "<family>" <size>` sets both
-for all the text after it. `\n` in the string starts a new line, and
-`box <width>` wraps the text between words at that width, `align` then placing
-the box.
+current font and edits as it edits any text, set by the type layout every
+output shares. `at` is the top of the first line: its left end, or with
+`align center` or `align right` its middle or its right end, and `align
+justify` spreads a line across its box. `size` sets this text's size, and
+`font "<family>" <size>` sets both for all the text after it. `\n` in the
+string starts a new paragraph.
+
+- **Sideless Typing**, the default, breaks lines only at `\n`.
+- **Sheet Typing** fills a frame: `box <width>` a rectangle that grows down to
+  fit, `align` then placing the box, and `inside "<path data>"` any shape,
+  drawn from `at`. Lines break between words, and a frame that cannot hold
+  all of the text leaves the rest out.
+- **Path Typing** sets the text `along "<path data>"`, drawn from `at`: from
+  `start` along its length, each character turned with the path - the
+  `rainbow` effect, the default - or, by its `effect`, `skew`, `ribbon`,
+  `stair` or `gravity`, as a vector editor's Type on a Path effects turn
+  them. `flip` runs it the other way,
+  on the other side.
+- **`vertical`** sets the text in upright columns that run right to left,
+  `at` their top right.
 
 ```napkin
 font "Georgia" 28
 text "Acme Corp" at 320 40 align center
 text "A caption that wraps inside a box of its own" at 40 100 size 16 box 180
+text "Around the bend" at 40 300 size 18 along "M0 0 C60 -60 180 -60 240 0"
 ```
 
-- **Measured with the built-in face.** With no DOM there is no font engine to
-  ask how wide a font sets a word, so `align` places the text on the measure
-  of the single-stroke face the composition renderers draw with. A real face
-  sets a little wider or narrower, so centred text is centred on that measure
-  rather than to the pixel.
+`character` and `paragraph` set what every text after them has, as `font`
+does, until `character reset` and `paragraph reset`. `runs (...)` gives
+stretches of one text styles of their own, each from where it starts to where
+it ends, counting the text's characters from 0:
+
+```napkin
+character tracking 50
+paragraph align justify hyphenate
+text "A paragraph set justified, its long words hyphenated where they must be" at 40 160 size 14 box 200
+character reset
+paragraph reset
+text "Acme Corp" at 40 40 runs (0 4 face "Bold", 5 9 color #c0392b underline)
+```
+
+| `character` clause | Sets |
+| --- | --- |
+| `face "<face>"` | The face in the family: `"Bold"`, `"Italic"` |
+| `tracking <n>`, `kern <n>` | The space between all the letters, or between one pair, in thousandths of an em |
+| `kerning auto\|none` | The font's own kerning, or none |
+| `leading <length>` | The line spacing; with none, it follows the size |
+| `spacing <n>%` | The space between words, 100% the font's own |
+| `caps normal\|all\|small` | Capitals as typed, all capitals, or small capitals |
+| `hscale <n>%`, `vscale <n>%` | The letters' width and height |
+| `shift <length>`, `rotate <degrees>` | The baseline moved up, and each letter turned |
+| `highlight <color>` | A color behind the letters |
+| `super`, `sub`, `underline`, `strike` | A superscript or a subscript; a line under or through |
+
+| `paragraph` clause | Sets |
+| --- | --- |
+| `align left\|center\|right\|justify` | The alignment, the last line of a justified paragraph set left |
+| `indent <left> [<right>]`, `first <length>` | The indents, and the first line's |
+| `before <length>`, `after <length>` | The space before and after each paragraph |
+| `hyphenate`, `nohyphenate` | Whether long words break with a hyphen |
+| `list bullet\|number\|none`, `level <n>` | A bulleted or numbered list, and how deep, 1 to 9 |
+
+```napkin
+paragraph list bullet
+text "Widgets\nGadgets\nGizmos" at 40 220 size 14
+paragraph list number level 2
+text "Order\nShip" at 240 220 size 14
+paragraph reset
+```
+
+`textconfig "<name>"` defines a Text Configuration, a vector editor's
+Character Style: `character`'s clauses with a `size`, a `family` and a
+`color`, under a name the book keeps. A text follows one with `config
+"<name>"`, and a run with `config "<name>"` first among its clauses; what
+the text or the run has of its own overrides it. Defined again, it changes
+for every text that follows it, before or after, as the app's Type panel
+restyles every text that follows one changed there:
+
+```napkin
+textconfig "Callout" face "Bold" color #c0392b
+text "Acme Corp" at 40 220 config "Callout"
+text "Sale today" at 40 260 runs (5 10 config "Callout" underline)
+```
+
+`markdown` makes a text Markdown Flow: its text is Markdown, and it is drawn
+as the Markdown renders - headings, emphasis, code, lists, task lists,
+quotes, rules, links and tables - the Markdown itself kept in the text, so
+the app edits it as Markdown. A `textconfig` named for one of the Markdown
+configurations restyles what it styles:
+
+```napkin
+textconfig "Markdown Heading 1" color #27486d
+text "# Acme Corp\n\nSales are **up**:\n\n- Widgets\n- Gadgets" at 40 300 size 14 markdown
+```
+
+The browser-safe entry reads Markdown with the lexer it is given, so the core
+holds no Markdown reader of its own. Import `napkin-sketch/markdown` once to
+give it marked's; the command line and `napkin-sketch/node` read with it
+already:
+
+```js
+import { drawSvg } from 'napkin-sketch';
+import { markdownToType } from 'napkin-sketch/markdown';
+
+const { svg } = drawSvg('napkin 1\ntext "# Notes\\n\\n- one" at 40 60 markdown\n');
+markdownToType('**Acme** Corp').text; // 'Acme Corp'
+```
+
+`accent` colors the next text as a language reads it - keywords, strings,
+numbers, comments, names - in Napkin Light on a light page and Napkin Dark on
+a dark one, each color at least 4.5:1 against its code shade. The colors
+are worked out as the text is drawn, so the app keeps coloring the text as it
+is edited:
+
+```napkin
+font "Consolas" 14
+accent python
+text "def total(prices):\n    return sum(prices)  # in cents" at 40 380
+```
+
+The highlighter comes the way the lexer does: `napkin-sketch/markdown` gives
+the API highlight.js with its 36 common languages, and
+`registerAccentLanguage` installs any other of its 193:
+
+```js
+import { accentRuns } from 'napkin-sketch';
+import { registerAccentLanguage } from 'napkin-sketch/markdown';
+import fortran from 'highlight.js/lib/languages/fortran';
+
+registerAccentLanguage('fortran', fortran);
+accentRuns('x = 1', 'fortran').language; // 'fortran'
+```
+
+- **Measured with the built-in face, unless a font is given.** With no DOM
+  there is no font engine to ask how wide a font sets a word, so the layout
+  measures with the single-stroke face the composition renderers draw with. A
+  real face sets a little wider or narrower, so centred text is centred on
+  that measure rather than to the pixel, and a box may break its lines
+  elsewhere in the app. Font files the host gives (`--font`, a render's
+  `fonts`) are measured by their own advances and kerning, and drawn as their
+  outlines in a PNG and a PDF.
 - **Upright, as the app keeps text.** A text item moves and scales with the
   drawing, but a turn or a mirror carries it to where the turned text would be
-  and leaves it readable, the rule the app's Rotate and Mirror follow.
+  and leaves it readable, the rule the app's Rotate and Mirror follow. A path
+  or a shape it is set along or inside turns with the drawing, and the text
+  follows it.
 - **The paint it takes** is the color and the opacity. The hand-drawn pass
   does not reach a text item.
 
@@ -865,19 +996,27 @@ link "assets/logo.svg" at 40 40 size 160 80 name "Logo"
 ### Effects
 
 `effect <name> <arguments>` gives the next layer, group or mark the script makes
-an effect, as its CSS filter function works: a blur, a shadow, or a shift in its
-color. Several `effect` lines stack in the order they are written, and the next
+an effect: a CSS filter function - a blur, a shadow, a shift in its color - or
+one of the appearance effects a vector editor reaches for: Feather, Bevel,
+Emboss, Inner Shadow, Outer Glow and Inner Glow - or Splatter, which draws a
+mark's fill as a loose hatch, Warp, which bends what takes it by a style, or
+3D - `extrude` and `revolve` - which builds a mark in depth.
+Several `effect` lines stack in the order they are written, and the next
 thing made takes them all; `effect none` lets go of any still waiting.
 
 ```napkin
 effect drop-shadow 4 4 8 #00000066
 rect 40 40 200 120 r 12
+fill #4a7fb5
+effect bevel size 6 on fill
+effect outer-glow 10 #ffcc00 blend normal on stroke
+rect 280 40 160 100 r 12
 effect sepia
 effect blur 1
-image "logo" at 280 60 size 120
+image "logo" at 40 200 size 120
 effect grayscale
 layer "Archive"
-circle 400 200 40
+circle 400 260 40
 ```
 
 | Effect | Written | Does |
@@ -891,8 +1030,66 @@ circle 400 200 40
 | `invert` | `effect invert [<0-1>]` | Toward the inverse by the amount, all the way with none given. |
 | `hue-rotate` | `effect hue-rotate <degrees>` | Turns every hue around the color wheel. |
 | `opacity` | `effect opacity <0-1>` | Fades what carries it, at its place in the list. |
-| `drop-shadow` | `effect drop-shadow <dx> <dy> <blur> <color>` | A shadow of its shape, moved across and down, blurred by CSS's blur radius, in the color. |
+| `drop-shadow` | `effect drop-shadow <dx> <dy> <blur> <color> [spread <0-100>] [blend <mode>] [opacity <0-1>]` | Outer Shadow: a shadow of its shape, moved across and down, blurred by CSS's blur radius, in the color. `spread` firms its edge first, as Photoshop's Spread does; `blend` mixes it with what is under the mark; `opacity` fades it. |
+| `feather` | `effect feather <radius>` | Fades it from clear at its edge to solid `radius` inside. |
+| `bevel` | `effect bevel [inner\|outer] [size <n>] [depth <percent>] [angle <degrees>] [altitude <degrees>] [soften <n>] [up\|down] [light <color> [<0-1>]] [shade <color> [<0-1>]] [light-blend <mode>] [shade-blend <mode>]` | A slope `size` wide inside the shape, or outside it, lit from `angle` - counterclockwise from the right, so 120 is the upper left - at `altitude` above the page. Its light screens and its shade multiplies; `down` presses the shape in, and `depth` steepens the slope. |
+| `emboss` | `effect emboss [emboss\|pillow]`, then the bevel's options | The slope straddles the edge, or, as a pillow, dips into a groove round it. |
+| `inner-shadow` | `effect inner-shadow <dx> <dy> <blur> <color> [choke <0-100>] [blend <mode>] [opacity <0-1>]` | A shadow cast inside the shape from its edge, as if the shape were a hole. `choke` firms its edge. |
+| `outer-glow` | `effect outer-glow [<blur>] [<color>] [spread <0-100>] [blend <mode>] [opacity <0-1>]` | A glow around the shape. |
+| `inner-glow` | `effect inner-glow [<blur>] [<color>] [choke <0-100>] [edge\|center] [blend <mode>] [opacity <0-1>]` | A glow inside the shape, from its edge or from its center. |
+| `splatter` | `effect splatter [preset <name>] [angle <degrees>] [overlap <n> [<variation>]] [width <n>] [curviness <percent> [<variation>]] [spacing <n> [<variation>]] [seed <n>]` | A vector editor's Scribble: the mark's fill drawn as one loose hatch, back and forth at `angle`, `spacing` apart, in lines `width` wide, each turn carried `overlap` past the edge and rounded by `curviness`. A `preset` - default, childlike, dense, loose, moire, sharp, sketch, snarl, swash, tight or zig-zag - sets them all, and the options after it change them; the second number after `overlap`, `curviness` or `spacing` is how much it varies, from `seed`. |
+| `warp` | `effect warp <style> [bend <percent>] [horizontal\|vertical] [distort <percent> [<percent>]] [part whole\|lower\|upper]` | A vector editor's Warp: what takes it bent by a style laid over its box - `arc`, `arch`, `unroll`, `shell`, `windy`, `breezy`, `curvy`, `chart`, `puffy`, `expand`, `cram` or `twirl`, or the vector editor's name for one (`bulge`, `flag`, `wave`, `fish`, `rise`, `fisheye`, `inflate`, `squeeze`, `twist`, `arc-lower`, `arc-upper`, `shell-lower`, `shell-upper`). `bend` (-100 to 100, 50 when left out) and the two `distort` percents may carry a `%`; `vertical` bends along the height; `part` is Arc's or Shell's edge. |
+| `extrude` | `effect extrude [<depth>] [rotate <x> <y> <z>] [perspective <degrees>] [shading plastic\|diffuse\|none\|wireframe] [hollow] [light <azimuth> <elevation> [<intensity> [<ambient>]]] [position <x> <y> <z>] [scale <x> <y> <z>]` | A vector editor's Classic 3D Extrude & Bevel: the mark set `depth` deep (50 when left out) and drawn as shaded faces, turned about X, then Y, then Z (-18, -26 and 8 when left out, Off-Axis Front), with `perspective` up to 160 degrees. `hollow` leaves the caps off. `light` is where the light comes from, degrees round from the right and up off the page, and how strong it and the light all round are, 0 to 1. |
+| `revolve` | `effect revolve [angle <degrees>] [offset <n>] [axis left\|right] [segments <n>]`, then the extrude's options | The mark swept round an upright axis at its left or right edge, `offset` off it, `angle` degrees round (360 when left out) in `segments` steps, 0 working them out. |
 
+- **What a line leaves out is a vector editor's default.** A shadow and a
+  bevel's shade multiply (`stack`), a glow and a bevel's light screen (`sheer`),
+  each at 75%; an Inner Shadow falls 5 from the upper left, a glow is 7 wide in
+  `#ffffbe`, and a bevel is 5 wide, lit from 120 degrees at 30. A `blend` takes
+  any name of a mode, napkin's or a vector editor's; see
+  [Blend modes](#blend-modes). A `drop-shadow` with none of its three options
+  is the CSS shadow it always was: Normal, solid and unspread.
+- **On the fill or the stroke.** `on fill` or `on stroke` at the end of any
+  `effect` line aims it at that part of the next mark alone, as a vector
+  editor's Appearance panel does: a closed shape's fill can glow inside its
+  outline and leave the outline clean. Each part draws through its own effects,
+  the stroke over the fill, and the effects on the whole mark then work on the
+  two together. A text item's fill is its letters, and an image has neither
+  part; an effect aimed at a part a mark does not have draws nothing. A layer
+  and a group have no parts, so an effect on one works on its whole picture.
+- **`hidden`** at the end of an `effect` line keeps the effect without drawing
+  it, as the Appearance panel's closed eye does; it is written back so.
+- **A Splatter changes what a mark draws**, not its picture, so it works
+  before every other effect on the mark, whatever its place. On the whole
+  mark, or `on fill`, it hatches the fill, and the outline draws as it was;
+  `on stroke`, it hatches the line's own ink; a mark with no fill hatches its
+  line. A hole stays empty. It draws on marks only: on a layer, a group, a
+  text item or an image it is kept and draws nothing. So a mark the hand-drawn
+  pass draws as several strokes takes it on its fill, or on each pass of its
+  line when it has no fill, and a library shape of several parts on each part,
+  while their other effects go on their layer of their own as below.
+- **A Warp bends what takes it**, before every other effect on it, over the
+  box it covers on the page: a mark over its own box, a layer or a group over
+  the box of every mark it holds, so they bend as one - a hand-drawn mark and
+  a library shape of several parts too, on the layer of their own. Text and
+  images are not bent yet. With a Splatter on the same mark, the two work in
+  the list's order. A Warp has no lengths, so the units and the transform in
+  force leave it as written.
+- **3D builds a mark** - from its fill, holes and all, or with none from its
+  path - and draws it as shaded faces, far first, before any raster effect,
+  which then works on the whole picture of faces. It draws on marks only, as
+  a Splatter does; a hand-drawn mark's fill or a library shape's parts each
+  take it. Its depth, offset and position are lengths, read in the units and
+  the scale in force; its turns and its light are as written.
+- **A shadow that blends mixes with what is under its mark.** An Outer Shadow
+  or an Outer Glow at the end of the list, blending by anything but Normal, is
+  laid under its mark, layer or group on its own and mixes with what is drawn
+  under it, the page's background included: a blue shadow that multiplies
+  darkens the paper and the layers it falls on, as a vector editor's does. An
+  effect after it in the list works on the shadow, so it stays in the picture;
+  and a carrier that is laid down any other way - translucent, blended itself,
+  or holding an eraser - keeps it in its picture, where there is nothing under
+  it to mix with. A part's own shadow mixes with the other part, and no further.
 - **What takes it.** The next `layer` line takes it for that layer, the next
   `group` for the group, and the next mark for the mark: a shape, a path, a
   curve through points, a text item, an image or a link. `use` takes it for the
@@ -904,10 +1101,13 @@ circle 400 200 40
   several parts go on a layer of their own, named after the verb or the shape,
   and that layer takes the effect, so a shadow falls from the whole mark rather
   than from each stroke onto the others. The layer sits above the one the mark
-  was drawn in, as a link's does.
-- **Measured where it is written.** A blur's radius and a shadow's offset and
-  blur are lengths in the units in force on the `effect` line, and scale with
-  the transform there, as a mark's width does; a shadow's offset turns with it.
+  was drawn in, as a link's does. An effect aimed at the fill goes on the
+  hand-drawn fill instead, and one aimed at the stroke on each pass of its line.
+- **Measured where it is written.** A blur's radius, a shadow's and a glow's
+  offset and blur, and a bevel's size and softening are lengths in the units in
+  force on the `effect` line, and scale with the transform there, as a mark's
+  width does; a shadow's offset and a bevel's light turn with it. A spread, a
+  choke and a depth are shares, and do not scale.
 - **Drawn over the finished picture**, in order: a layer's or a group's as one
   picture, then its opacity. On a layer that also holds an eraser, the exports
   apply the effect first and cut the eraser after, as SVG masks after it
@@ -915,8 +1115,67 @@ circle 400 200 40
 - **Kept to its block.** An effect still waiting when its group, its definition,
   its page or the script ends did nothing, and says so with `unused-effect`.
 - **In every output but the PDF**: an SVG `<filter>`, the PNG's own passes, and
-  the app's canvas. A PDF prints what carries it plain, and says so. See
+  the app's canvas, which run the same graph of filter primitives. A PDF and an
+  Illustrator script leave each effect out and name it - but a Splatter, a
+  Warp and 3D, which every output draws as the lines, the bent shapes and
+  the faces they are.
+  See
   [Writing a drawing out](../output/README.md#effects).
+
+### Blend modes
+
+`blend <mode>` gives the next layer or group the script makes a blend mode:
+how what it paints mixes with what is drawn under it, the page's background
+included. A mode goes by its Napkin Blend name or by the name a vector editor
+and CSS give it - `stack` or `multiply` - and the writer writes the napkin
+name.
+
+```napkin
+background #f4e9d8
+layer "Card"
+rect 40 40 200 120
+blend stack
+layer "Shadow"
+circle 200 140 60
+blend sheer
+group "Glow" {
+  circle 120 80 30
+}
+```
+
+| Napkin name | Or | Mixes |
+| --- | --- | --- |
+| `normal` | | Not at all: covers what is under it |
+| `soak` | `darken` | The darker of the two colors |
+| `stack` | `multiply` | Multiplied: always darker, as ink stacks on paper |
+| `scorch` | `color-burn` | Darker, with more contrast |
+| `dry` | `lighten` | The lighter of the two colors |
+| `sheer` | `screen` | Screened: always lighter |
+| `bleach` | `color-dodge` | Lighter, with less contrast |
+| `fold` | `overlay` | Multiplying the darks and screening the lights under it |
+| `light` | `soft-light` | As a soft light |
+| `heavy` | `hard-light` | As a hard light |
+| `messy` | `difference` | The difference between the two |
+| `avoidance` | `exclusion` | The difference, with less contrast |
+| `tidy` | `hue` | Its hue, with the lightness and saturation under it |
+| `bright` | `saturation` | Its saturation, with the hue and lightness under it |
+| `dye` | `color` | Its hue and saturation, with the lightness under it |
+| `cover` | `luminosity` | Its lightness, with the hue and saturation under it |
+
+- **What takes it.** The next `layer` line takes it for that layer, and the
+  next `group` or `clip` for the group; `place` draws its definition as a group
+  of its own that takes it. A mark alone does not: a blend is a layer's, so it
+  goes before the layer the mark is drawn on.
+- **One at a time.** A second `blend` before anything took the first replaces
+  it, and the first says so with `unused-blend`, as one still waiting when its
+  block, its page or the script ends does.
+- **`blend normal`** sets a layer back to Normal: a layer of a placed document
+  that came with a blend, say.
+- **Isolate Blending has no word.** A group written from a page that has it is
+  written without it, and the writer's notes say so.
+- **In every output**: SVG's `mix-blend-mode`, the PNG's own mixing, the PDF's
+  `/BM` on a transparency group, the Illustrator script's `blendingMode`, and
+  the app's canvas, where it mixes with the paper too.
 
 ## Worked examples
 
@@ -970,13 +1229,14 @@ repeat 16 as i {
 - **A link shows as its placeholder in the app.** Drawing the linked file on
   the canvas, and a command that turns a link into an import, are still to
   come.
-- **Text is measured with the built-in face**, so text set in another font can
-  end a little short of, or past, where `align` puts its end, and a text box
-  written to SVG or PDF is broken into lines on that measure.
+- **Text is measured with the built-in face** unless the host gives its font
+  files, so text set in another font can end a little short of, or past, where
+  `align` puts its end, and a text box written to SVG or PDF is broken into
+  lines on that measure.
 - **Text as marks draws printable ASCII only**; other characters are gaps.
-- **Effects are drawn in the app, not edited there.** It has no control yet to
-  add or change one, and Transform and Mirror move a mark without resizing its
-  effects or turning a shadow's offset.
+- **An effect's options are the app's own.** The Appearance panel edits an
+  effect a script wrote, and Transform and Mirror scale and turn it with its
+  mark; a script writes it back with the options it has.
 - **A rough filled shape is two marks.** The app selects and edits its fill
   and its line apart, as it would two marks drawn by hand. Leave `rough` off
   for a shape that has to stay one mark.
@@ -1028,7 +1288,7 @@ repeat 16 as i {
   expressions, the object form and every diagnostic code.
 - [Writing a drawing out](../output/README.md): SVG, PNG, PDF, `.skbk` and an
   Illustrator script, and the box they are cut to.
-- [Using napkin-sketch from code](../node/README.md): the two entries, ES
+- [Using napkin-sketch from code](../node/README.md): the package's entries, ES
   modules and CommonJS, types, and writing files from Node.
 - [The napkin-sketch command line](../cli/README.md): drawing a script from a
   shell, or from any language that can start a process.

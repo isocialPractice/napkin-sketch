@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Using napkin-sketch from code - napkin-sketch</title>
-<meta name="description" content="The two entries, ES modules and CommonJS, types, the result object, and what throws.">
+<meta name="description" content="The package's entries, ES modules and CommonJS, types, the result object, and what throws.">
 <meta name="generator" content="napkin-sketch npm run site">
 <link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.4.6.0</span>
+<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -27,15 +27,15 @@
 <p class="nav-section">Quickstarts</p>
 <ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
 <p class="nav-section">Using the app</p>
-<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/effects.html">Effects</a></li><li><a href="../../guide/type.html">Type</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/composition-styles.html">Composition Styles</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
 <p class="nav-section">Drawing from a script</p>
-<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Using napkin-sketch from code</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The drawing engines</summary><ul><li><a href="../engines/index.html">Reference</a></li><li><a href="../engines/quickstart.html">Quickstart</a></li><li><a href="../engines/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Using napkin-sketch from code</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Markdown Flow and Clean Language Accents</summary><ul><li><a href="../markdown/index.html">Reference</a></li><li><a href="../markdown/quickstart.html">Quickstart</a></li><li><a href="../markdown/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The drawing engines</summary><ul><li><a href="../engines/index.html">Reference</a></li><li><a href="../engines/quickstart.html">Quickstart</a></li><li><a href="../engines/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
 <p class="nav-section">Building on it</p>
 <ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
 <p class="nav-section">Developing</p>
 <ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
 <p class="nav-section">Project</p>
-<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li></ul>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li><li><a href="../../third-party-notices.html">Third-party notices</a></li></ul>
 </nav>
 <main class="page" id="content">
 <article class="content">
@@ -43,19 +43,20 @@
 <h1 id="using-napkin-sketch-from-code">Using napkin-sketch from code<a class="anchor" href="#using-napkin-sketch-from-code" aria-label="Link to this section">#</a></h1>
 <details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
 <p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
-<p>The package has two entries. <code>napkin-sketch</code> holds everything that runs
-anywhere - the editor, the data model, the composition API and the napkin
-script language - and reads no file. <code>napkin-sketch/node</code> holds what reads
-and writes files, for Node. This page is the reference for both as a program
-uses them: importing them, drawing a script, writing files, the result object,
-and what is an error value and what throws.</p>
+<p>The package has three entries. <code>napkin-sketch</code> holds everything that runs
+anywhere - the editor, the data model, the engines, the composition API and
+the napkin script language - and reads no file. <code>napkin-sketch/node</code> holds
+what reads and writes files, for Node. <code>napkin-sketch/markdown</code> gives the
+first its Markdown and code readers. This page is the reference for them as a
+program uses them: importing them, drawing a script, writing files, the
+result object, and what is an error value and what throws.</p>
 <p><strong>Contents</strong></p>
 <ul>
 <li><a href="#what-this-is">What this is</a></li>
 <li><a href="#the-mental-model">The mental model</a></li>
 <li><a href="#reference">Reference</a>
 <ul>
-<li><a href="#the-two-entries">The two entries</a></li>
+<li><a href="#the-entries">The entries</a></li>
 <li><a href="#getting-the-package">Getting the package</a></li>
 <li><a href="#es-modules-commonjs-and-typescript">ES modules, CommonJS and TypeScript</a></li>
 <li><a href="#drawing-a-script">Drawing a script</a></li>
@@ -91,16 +92,25 @@ the result it gives back is the object a command line prints.</p>
  renderSketch, renderBook --&gt; strings, bytes    writeBook             (files out)
  drawSvg: a script straight to SVG              drawFile, drawToFiles (all of it, one call)</code></pre>
 <h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
-<h3 id="the-two-entries">The two entries<a class="anchor" href="#the-two-entries" aria-label="Link to this section">#</a></h3>
+<h3 id="the-entries">The entries<a class="anchor" href="#the-entries" aria-label="Link to this section">#</a></h3>
 <div class="table-wrap"><table>
 <thead><tr><th>Import</th><th>Runs in</th><th>Holds</th></tr></thead>
 <tbody>
 <tr><td><code>napkin-sketch</code></td><td>a browser, Node, any bundler</td><td>The editor, the data model, the sharpen engine, the composition API, and the language: reading, checking and writing scripts, <code>evaluate</code>, <code>drawSvg</code>, the render calls, and the verb and diagnostic tables.</td></tr>
-<tr><td><code>napkin-sketch/node</code></td><td>Node 18 and later</td><td>Files: <code>drawFile</code>, <code>drawToFiles</code>, <code>writeBook</code>, <code>readScript</code>, <code>loadAssets</code> and <code>loadDocuments</code>, and the composition API's file helpers, <code>imageDataUrl</code>, <code>writeComposition</code>, <code>resolveLinkFromDir</code> and <code>mediaTypeOf</code>.</td></tr>
+<tr><td><code>napkin-sketch/node</code></td><td>Node 18 and later</td><td>Files: <code>drawFile</code>, <code>drawToFiles</code>, <code>writeBook</code>, <code>readScript</code>, <code>loadAssets</code> and <code>loadDocuments</code>, and the composition API's file helpers, <code>imageDataUrl</code>, <code>writeComposition</code>, <code>resolveLinkFromDir</code> and <code>mediaTypeOf</code>. It reads Markdown Flow text with marked's lexer.</td></tr>
+<tr><td><code>napkin-sketch/markdown</code></td><td>a browser, Node, any bundler</td><td>Markdown Flow's and Clean Language Accents' readers: importing it gives <code>napkin-sketch</code> marked's lexer and highlight.js, so a Markdown Flow text draws as its Markdown renders and code is colored. Its <code>markdownToType</code> reads with the lexer, and <code>registerAccentLanguage</code> installs a language beyond the 36 common ones.</td></tr>
 </tbody></table></div>
 <p><code>napkin-sketch/graphic-design/files</code>, the composition helpers' own entry,
 keeps working; <code>napkin-sketch/node</code> gives the same functions, so a Node
 program has one import for files.</p>
+<p><code>napkin-sketch</code> holds no Markdown reader of its own: a Markdown Flow text -
+<code>text &quot;# Notes&quot; at 40 60 markdown</code> - shows its Markdown as typed until one is
+given. <code>napkin-sketch/markdown</code> imports <code>napkin-sketch</code> rather than holding a
+copy of it, so the reader it registers is the one the API reads with:</p>
+<pre><code class="language-ts">import { drawSvg } from 'napkin-sketch';
+import 'napkin-sketch/markdown';
+
+const { svg } = drawSvg('napkin 1\ntext &quot;# Notes\\n\\n- one&quot; at 40 60 markdown\n');</code></pre>
 <h3 id="getting-the-package">Getting the package<a class="anchor" href="#getting-the-package" aria-label="Link to this section">#</a></h3>
 <p>The package is built from a checkout until it is published to npm:</p>
 <pre><code class="language-bash">npm install
@@ -109,7 +119,7 @@ npm run build:types  # the .d.ts files the exports map points at</code></pre>
 <p>A project then depends on the folder - <code>npm install ../napkin-sketch</code> - or
 links it with <code>npm link</code>, and imports it by name.</p>
 <h3 id="es-modules-commonjs-and-typescript">ES modules, CommonJS and TypeScript<a class="anchor" href="#es-modules-commonjs-and-typescript" aria-label="Link to this section">#</a></h3>
-<p>Both entries are ES modules:</p>
+<p>Every entry is an ES module:</p>
 <pre><code class="language-ts">import { evaluate, renderSketch } from 'napkin-sketch';
 import { drawFile } from 'napkin-sketch/node';</code></pre>
 <p>CommonJS code loads them with <code>import()</code>, which works on every Node the

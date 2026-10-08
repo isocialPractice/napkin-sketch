@@ -25,6 +25,8 @@
  */
 
 import { sampleVectorPathPoints, splitCubicBezier } from '../sharpen/geometry.js';
+// REUSE: core/arc-length.ts's Bezier evaluator, which path type measures its paths with.
+import { cubicAt } from './arc-length.js';
 import { fittedPressureAt } from './fit-curve.js';
 import {
   DEFAULT_NIB_ANGLE,
@@ -1358,12 +1360,20 @@ export class ArapSolver {
  * A map of the plane that art is carried through ({@link mapStrokeGeometry}):
  * where a point goes, and how far the map turns there, in degrees clockwise
  * on screen. A {@link MeshMap} is one; so is each of Liquify's brushes
- * (core/liquify.ts). Where a map leaves a point where it was, it should give
- * that point back exactly, so the art it does not move is not touched.
+ * (core/liquify.ts), and each warp style (core/warp-styles.ts). Where a map
+ * leaves a point where it was, it should give that point back exactly, so the
+ * art it does not move is not touched.
+ *
+ * A smooth map may give its derivative too, `[dx'/dx, dx'/dy, dy'/dx,
+ * dy'/dy]`: a curve is then carried along its tangents - its handles turned
+ * and stretched as the map turns and stretches the ground under its ends -
+ * which draws the image of a curve in far fewer pieces than carrying its
+ * control points does.
  */
 export interface PointMap {
   point(p: Vec): Vec;
   rotation(p: Vec): number;
+  jacobian?(p: Vec): readonly [number, number, number, number];
 }
 
 /**
@@ -1542,17 +1552,23 @@ function carrySubpath(sub: VectorAnchor[], closed: boolean, map: PointMap, toler
       current = next;
     });
   }
-  // An open path's outer handles belong to no segment; they are carried as points.
+  // An open path's outer handles belong to no segment; they are carried as
+  // points, or along the map's tangent where it gives one.
   if (!closed) {
-    if (sub[0].hIn) result[0].hIn = map.point(sub[0].hIn);
+    if (sub[0].hIn) result[0].hIn = carryHandle(map, sub[0].p, result[0].p, sub[0].hIn);
     const last = sub[sub.length - 1];
-    if (last.hOut) result[result.length - 1].hOut = map.point(last.hOut);
+    if (last.hOut) result[result.length - 1].hOut = carryHandle(map, last.p, result[result.length - 1].p, last.hOut);
   }
   if (sub.length === 1) {
-    if (sub[0].hIn) head.hIn = map.point(sub[0].hIn);
-    if (sub[0].hOut) head.hOut = map.point(sub[0].hOut);
+    if (sub[0].hIn) head.hIn = carryHandle(map, sub[0].p, head.p, sub[0].hIn);
+    if (sub[0].hOut) head.hOut = carryHandle(map, sub[0].p, head.p, sub[0].hOut);
   }
   return result;
+}
+
+/** A handle that belongs to no segment, carried with its anchor: from `from`, now at `to`. */
+function carryHandle(map: PointMap, from: Vec, to: Vec, handle: Vec): Vec {
+  return map.jacobian ? along(to, map.jacobian(from), handle.x - from.x, handle.y - from.y) : map.point(handle);
 }
 
 /**
@@ -1586,8 +1602,9 @@ function carrySegment(
   }
   const k1 = c1 ?? p0;
   const k2 = c2 ?? p3;
-  const d1 = map.point(k1);
-  const d2 = map.point(k2);
+  // A smooth map carries a handle along the tangent at its end; any other, as a point.
+  const d1 = map.jacobian ? along(q0, map.jacobian(p0), k1.x - p0.x, k1.y - p0.y) : map.point(k1);
+  const d2 = map.jacobian ? along(q3, map.jacobian(p3), k2.x - p3.x, k2.y - p3.y) : map.point(k2);
   if (
     depth >= MAX_SPLITS ||
     faithful(map, (t) => cubicAt(p0, k1, k2, p3, t), (t) => cubicAt(q0, d1, d2, q3, t), tolerance)
@@ -1617,14 +1634,8 @@ function lerp(a: Vec, b: Vec, t: number): Vec {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
-function cubicAt(p0: Vec, c1: Vec, c2: Vec, p3: Vec, t: number): Vec {
-  const u = 1 - t;
-  const w0 = u * u * u;
-  const w1 = 3 * u * u * t;
-  const w2 = 3 * u * t * t;
-  const w3 = t * t * t;
-  return {
-    x: w0 * p0.x + w1 * c1.x + w2 * c2.x + w3 * p3.x,
-    y: w0 * p0.y + w1 * c1.y + w2 * c2.y + w3 * p3.y,
-  };
+/** A carried anchor's handle: the handle's offset, turned and stretched by the map's derivative at the anchor. */
+function along(at: Vec, j: readonly [number, number, number, number], dx: number, dy: number): Vec {
+  return { x: at.x + j[0] * dx + j[1] * dy, y: at.y + j[2] * dx + j[3] * dy };
 }
+

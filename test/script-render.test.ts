@@ -122,10 +122,12 @@ test('crop auto is the ink: the marks on visible layers, grown by half the wides
   assert.deepEqual([png.width, png.height], [126, 166]);
   assert.deepEqual(mediaBoxes(renderSketch(sketch, { format: 'pdf', crop: padded })), ['37 87 163 253'], 'flipped to PDF\'s upward y on a 300-high page');
 
-  // A text item is measured with the built-in face.
+  // A text item is set with the built-in face.
   const caption = page('caption', { id: 't', tool: 'text', color: '#1f2328', width: 1, text: 'Acme Corp', fontSize: 20, points: [{ x: 10, y: 10 }] });
   const block = measureTextBlock('Acme Corp', 20);
-  assert.deepEqual(inkBox(caption), { x: 9.5, y: 9.5, width: block.width + 1, height: block.height + 1 });
+  const captionBox = inkBox(caption)!;
+  assert.deepEqual([captionBox.x, captionBox.y, captionBox.height], [9.5, 9.5, block.height + 1]);
+  assert.ok(Math.abs(captionBox.width - (block.width + 1)) < 1e-9, `${captionBox.width} across`);
 
   assert.equal(renderBox(sketch, { crop: 'none' }), null, 'none is the whole page');
   assert.equal(renderBox(sketch), null, 'and so is no crop at all');
@@ -206,7 +208,7 @@ test('the PDF paints every color the PNG does, and a transparent page prints no 
   assert.match(pdf, /0\.2745 0\.5098 0\.7059 RG/, 'steelblue, not black');
   assert.match(pdf, /\/CA 0\.502 \/ca 0\.502/, "an eight-digit hex color's alpha is its opacity");
   assert.match(pdf, /\/GS\d+ gs\n0\.0667 0\.1333 0\.2 rg/);
-  assert.match(pdf, /1 0 0 rg\nBT/, 'hsl() text in red');
+  assert.match(pdf, /BT\n1 0 0 rg /, 'hsl() text in red');
   assert.equal(pdf.match(/ RG\n/g)?.length, 1, 'the mark in a color that is not one paints nothing');
   assert.deepEqual(warnings, ['page "colors": "not-a-color" is not a color, so what it colors was left out']);
 });
@@ -238,8 +240,10 @@ test('a text box wraps where the built-in face breaks it, in the SVG and in the 
   );
   const svg = renderSketch(sketch);
   const boxed = /<text[^>]*data-i="0"[^>]*>([\s\S]*?)<\/text>/.exec(svg)?.[1] ?? '';
-  assert.deepEqual([...boxed.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map((m) => m[1]), lines);
-  assert.match(svg, /data-box="120" data-text="Acme Corp makes the finest anvils"/, 'the text as typed rides along, for the importer to restore the box');
+  // A line keeps the space it breaks at, so a viewer's selection reads the words apart.
+  assert.deepEqual([...boxed.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map((m) => m[1].trimEnd()), lines);
+  assert.match(svg, /data-text="Acme Corp makes the finest anvils"/, 'the text as typed rides along, for the importer to restore the box');
+  assert.match(svg, /data-box="120"/, 'and its box, for a build that knows no typeset');
   assert.match(svg, /data-text="Acme Corp&#10;anvils"/, 'a newline kept as a character reference, which a reader does not fold into a space');
   const pdf = renderSketch(sketch, { format: 'pdf' });
   assert.equal(pdf.match(/\) Tj/g)?.length, lines.length + 2, 'the PDF breaks it at the same words');

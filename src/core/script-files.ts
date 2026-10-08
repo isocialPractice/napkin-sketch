@@ -16,6 +16,7 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 import { imageDataUrl, resolveLinkFromDir } from './graphic-design/files.js';
 import { readSketchBook } from './sketchbook.js';
+import { applyCompositionStyleToBook, compositionReportLines, validateCompositionStyle, type CompositionStyle } from './composition-style.js';
 import { evaluate, type EvaluateOptions, type ScriptSource, type ScriptStats } from './script/evaluate.js';
 import type { Diagnostic } from './script/instructions.js';
 import type { ScriptDocument } from './script/media.js';
@@ -72,6 +73,42 @@ export async function loadAssets(
     } catch (err) {
       throw new Error(`napkin-sketch: asset "${name}" could not be read from ${path}: ${(err as Error).message}`);
     }
+  }
+  return loaded;
+}
+
+/**
+ * Font files by family, as {@link drawToFiles} and {@link drawFile} take them:
+ * a file's bytes, or its path, read with {@link loadFonts}; a family may take
+ * several - its faces, a collection's among them.
+ */
+export type FontSources = Readonly<Record<string, Uint8Array | string | readonly (Uint8Array | string)[]>>;
+
+/**
+ * Font files for `options.fonts`, read by family: `{ 'Acme Sans':
+ * 'fonts/acme-sans.ttf' }` gives that file's bytes, and a list each of its
+ * faces'. Bytes are kept as they are; a path is read relative to `from`, the
+ * working folder unless given. Throws when a file cannot be read; what is in
+ * it is the renderer's to read, and a font it cannot is said as a warning.
+ */
+export async function loadFonts(fonts: FontSources, from: string = process.cwd()): Promise<Record<string, Uint8Array[]>> {
+  const loaded: Record<string, Uint8Array[]> = {};
+  for (const [family, value] of Object.entries(fonts)) {
+    const files = (Array.isArray(value) ? value : [value]) as ReadonlyArray<Uint8Array | string>;
+    const faces: Uint8Array[] = [];
+    for (const file of files) {
+      if (file instanceof Uint8Array) {
+        faces.push(file);
+        continue;
+      }
+      const path = resolve(from, file);
+      try {
+        faces.push(new Uint8Array(await readFile(path)));
+      } catch (err) {
+        throw new Error(`napkin-sketch: font "${family}" could not be read from ${path}: ${(err as Error).message}`);
+      }
+    }
+    loaded[family] = faces;
   }
   return loaded;
 }
@@ -253,8 +290,40 @@ export async function writeBook(book: SketchBook, options: WriteBookOptions = {}
   return writeFiles(rendered, options.out);
 }
 
+/**
+ * Reads a composition style file (core/composition-style.ts): the style, its
+ * names trimmed and its values read as the app reads them. Throws, naming the
+ * file and every reason, when it cannot be read, is not JSON, or is not a
+ * style; a value past its range is held to it without a word, as applying the
+ * style says.
+ */
+export async function readCompositionStyle(path: string): Promise<CompositionStyle> {
+  let text: string;
+  try {
+    text = await readFile(path, 'utf8');
+  } catch (err) {
+    throw new Error(`napkin-sketch: ${path} could not be read: ${(err as Error).message}`);
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text.replace(/^\uFEFF/, ''));
+  } catch (err) {
+    throw new Error(`napkin-sketch: ${path} is not JSON: ${(err as Error).message}`);
+  }
+  const read = validateCompositionStyle(raw);
+  if (!read.ok || !read.style) throw new Error(`napkin-sketch: ${path} is not a composition style: ${read.errors.join(' ')}`);
+  return read.style;
+}
+
 /** How {@link drawToFiles} and {@link drawFile} run a script and write what it drew. */
-export interface DrawToFilesOptions extends Omit<EvaluateOptions, 'assets' | 'documents'>, WriteBookOptions {
+export interface DrawToFilesOptions extends Omit<EvaluateOptions, 'assets' | 'documents'>, Omit<WriteBookOptions, 'fonts'> {
+  /**
+   * Font files text is drawn from, by family: bytes, or paths read with
+   * {@link loadFonts}. A PNG draws each glyph as its font's outline and a PDF
+   * as a shape; every format lays text out by the font's own advances and
+   * kerning. A family not given is drawn in the built-in face, and said.
+   */
+  fonts?: FontSources;
   /**
    * The name the files are written under, and the book's. Without one, the
    * files take the first page's name, which a script's `name` sets.
@@ -283,6 +352,13 @@ export interface DrawToFilesOptions extends Omit<EvaluateOptions, 'assets' | 'do
    * warning, or a format leaving something out - and give `ok` false.
    */
   strict?: boolean;
+  /**
+   * A composition style every page is restyled by once it is drawn, by its
+   * layers' names (core/composition-style.ts). What it could not match, and
+   * any other note it makes, is a warning, in `warnings` and `onWarning`.
+   * Throws when it is not a style.
+   */
+  compositionStyle?: CompositionStyle | unknown;
 }
 
 /** What {@link drawToFiles} and {@link drawFile} give back: what the CLI prints with `--json`, less the version. */
@@ -314,7 +390,9 @@ async function draw(source: ScriptSource, options: DrawToFilesOptions): Promise<
     scale,
     decodeImage,
     onWarning,
+    fonts,
     resolveLink: given,
+    compositionStyle,
     ...run
   } = options;
   const resolveLink = given ?? resolveLinkFromDir(base ?? process.cwd());
@@ -326,6 +404,16 @@ async function draw(source: ScriptSource, options: DrawToFilesOptions): Promise<
     ...(documents ? { documents: await loadDocuments(documents) } : {}),
   });
   const warnings: string[] = [];
+  const warn = (message: string): void => {
+    warnings.push(message);
+    onWarning?.(message);
+  };
+  let book = result.book;
+  if (compositionStyle !== undefined) {
+    const styled = applyCompositionStyleToBook(book, compositionStyle);
+    book = styled.book;
+    for (const line of compositionReportLines(styled.report)) warn(`${styled.report.style}: ${line}`);
+  }
   const done = (ok: boolean, files: WrittenFile[]): DrawResult => ({
     ok,
     files,
@@ -334,7 +422,7 @@ async function draw(source: ScriptSource, options: DrawToFilesOptions): Promise<
     warnings,
   });
   if (strict && result.diagnostics.length > 0) return done(false, []);
-  const rendered = renderFiles(result.book, {
+  const rendered = renderFiles(book, {
     out,
     base,
     name,
@@ -345,10 +433,8 @@ async function draw(source: ScriptSource, options: DrawToFilesOptions): Promise<
     scale,
     resolveLink,
     decodeImage,
-    onWarning: (message) => {
-      warnings.push(message);
-      onWarning?.(message);
-    },
+    ...(fonts ? { fonts: await loadFonts(fonts) } : {}),
+    onWarning: warn,
   });
   if (strict && warnings.length > 0) return done(false, []);
   return done(result.ok, await writeFiles(rendered, out));

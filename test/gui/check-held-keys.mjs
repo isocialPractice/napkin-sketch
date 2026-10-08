@@ -268,9 +268,7 @@ await sequence('Ctrl held through a Text drag', async (io) => {
   await io.release(b);
   await io.up('Control');
   await letGo(io, name);
-  // The release opened a text box; an empty one closes with the focus.
-  await io.eval('document.activeElement?.blur(); return true;');
-  await sleep(150);
+  // The release began a new text; choosing the Pen puts it down, never typed in, with no mark.
   await stillDraws(io, name);
 });
 

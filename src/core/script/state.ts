@@ -13,6 +13,7 @@ import { IDENTITY, apply, type Matrix } from '../graphic-design/geometry.js';
 import type { LengthUnit } from '../units.js';
 import type { ScriptTool } from './instructions.js';
 import { DEFAULT_PENCIL, type PencilChoice } from '../pencil.js';
+import type { CharAttrs, ParaAttrs } from '../type/model.js';
 
 /** napkin's default ink: what a script draws in until it names a color. */
 export const DEFAULT_INK = '#1f2328';
@@ -54,6 +55,10 @@ export interface PaintState {
   pencilColor: string | null;
   rough: RoughState;
   font: { family: string; size: number };
+  /** The character attributes `character` set for text, beyond its font and color. */
+  character: Partial<CharAttrs>;
+  /** The paragraph attributes `paragraph` set for text. */
+  paragraph: Partial<ParaAttrs>;
 }
 
 /** The paint a script starts with. */
@@ -72,6 +77,8 @@ export function defaultPaint(): PaintState {
     pencilColor: null,
     rough: { amount: 0, passes: 1 },
     font: { family: DEFAULT_FONT_FAMILY, size: DEFAULT_TEXT_SIZE },
+    character: {},
+    paragraph: {},
   };
 }
 
@@ -99,6 +106,8 @@ export function copyFrame(frame: Frame): Frame {
       pencil: { ...paint.pencil },
       rough: { ...paint.rough },
       font: { ...paint.font },
+      character: { ...paint.character },
+      paragraph: { ...paint.paragraph, ...(paint.paragraph.list ? { list: { ...paint.paragraph.list } } : {}) },
     },
   };
 }

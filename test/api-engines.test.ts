@@ -2,7 +2,8 @@
  * The drawing engines' pages (docs/api/engines/): every `js` block on them
  * runs against the barrel, as a reader would run it, and prints what the
  * `// →` line under each `console.log` says it prints - so a worked example
- * cannot drift from the engine it shows.
+ * cannot drift from the engine it shows. A font file an example reads is one
+ * of the test's own (test/fonts/), whatever it is called.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +16,7 @@ import { repoRoot } from './helpers/repo-root.js';
 const ROOT = repoRoot();
 const PAGES = ['docs/api/engines/README.md', 'docs/api/engines/QUICKSTART.md'];
 
-/** A block with its imports turned into reads of what the test hands it: the barrel, and a file system that writes nothing. */
+/** A block with its imports turned into reads of what the test hands it: the barrel, and a file system that writes nothing and reads only fonts. */
 function runnable(code: string): string {
   return code.replace(/^import\s*\{([^}]*)\}\s*from\s*'([^']+)';$/gm, (_whole, names: string, from: string) => {
     const module = from === 'napkin-sketch' ? 'api' : from === 'node:fs/promises' ? 'fs' : null;
@@ -52,6 +53,12 @@ for (const page of PAGES) {
       const fs = {
         writeFile: async (path: string): Promise<void> => {
           written.push(path);
+        },
+        // A font an example reads is the test's own: TrueType for a .ttf, CFF for an .otf.
+        readFile: async (path: string): Promise<Buffer> => {
+          if (/\.ttf$/i.test(path)) return readFileSync(join(ROOT, 'test', 'fonts', 'napkin-test-sans.ttf'));
+          if (/\.otf$/i.test(path)) return readFileSync(join(ROOT, 'test', 'fonts', 'napkin-test-cff.otf'));
+          throw new Error(`an example reads ${path}, and the test hands it fonts only`);
         },
       };
       await new AsyncFunction('api', 'fs', 'console', runnable(code))(api, fs, { log });

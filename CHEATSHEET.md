@@ -25,7 +25,7 @@ Edit Keyboard Shortcuts** changes them for you alone.
 | Split | `J` | Click a path to cut it where you click, as scissors do; a closed one opens there |
 | Select | `S` | Black arrow; active at launch |
 | Direct Select | `A` | White arrow; drags anchor points |
-| Text | `T` | Click = auto-sizing box, drag = fixed width with wrap |
+| Text | `T` | Click = new text or edit a text, in or along a selected path; drag = text box |
 | Rectangle | `R` | Hold `Shift` for a square |
 | Ellipse | `L` | Hold `Shift` for a circle |
 | Curve | `V` | Click and hold the button for the free-ends variant |
@@ -54,6 +54,28 @@ Edit Keyboard Shortcuts** changes them for you alone.
 | Sharpen all                   | `H`                                             |
 | Sharpen Selection             | Transform > Sharpen, or the toolbar button      |
 
+## Text editing
+
+The type editor's own keys, while a text is edited ([Type](docs/site-src/guide/type.md)).
+
+| Action                                | Shortcut                                          |
+| :------------------------------------ | :------------------------------------------------ |
+| New text / edit a text                | `T` and click; or double-click a text with Select |
+| New line                              | `Enter`                                           |
+| Put the text down                     | `Esc` or `Ctrl + Enter`                           |
+| Select a word / a paragraph / all     | Double-click / triple-click / `Ctrl + A`          |
+| Move by word / paragraph              | `Ctrl` + `Left` `Right` / `Up` `Down`             |
+| Line start or end / text start or end | `Home` `End` / `Ctrl + Home` `Ctrl + End`         |
+| Size up / down 2 pt (10 pt)           | `Ctrl + Shift + .` / `,` (add `Alt`)              |
+| Leading down / up 2 pt                | `Alt + Up` / `Alt + Down`                         |
+| Kerning or tracking +20 / -20 (x5)    | `Alt + Right` / `Alt + Left` (add `Ctrl`)         |
+| Baseline shift up / down 2 pt         | `Alt + Shift + Up` / `Alt + Shift + Down`         |
+| Align left / center / right / justify | `Ctrl + Shift + L` / `C` / `R` / `J`              |
+| All Caps                              | `Ctrl + Shift + K`                                |
+| Horizontal scale back to 100%         | `Ctrl + Shift + X`                                |
+| Tracking and kerning back to 0        | `Ctrl + Alt + Q`                                  |
+| Paste plain text                      | `Ctrl + Shift + V`                                |
+
 ## Quick features
 
 | Action                   | Shortcut                                 |
@@ -78,6 +100,9 @@ Edit Keyboard Shortcuts** changes them for you alone.
 | Previous / next page         | `PageUp` / `PageDown`                       |
 | Toggle Layers panel          | `Ctrl + L`                                  |
 | Toggle Properties panel      | `Ctrl + P`                                  |
+| Toggle Appearance panel      | `Shift + F6`                                |
+| Type panel: Character        | `Ctrl + Shift + T`                          |
+| Type panel: Paragraph        | `Ctrl + Alt + T`                            |
 | Quick Settings               | `Ctrl + ,`                                  |
 | Verbose Settings             | `Ctrl + Alt + ,`                            |
 | Animation Mode               | `Ctrl + Shift + N` (optional add-on)        |
@@ -100,6 +125,8 @@ Edit Keyboard Shortcuts** changes them for you alone.
 | Rotate                         | `Ctrl + R`, Transform > Rotate, or the Rotate button |
 | Snap a rotation to 15 degrees  | `Shift` while dragging, or the Snap toggle |
 | Join strokes                   | `Ctrl + J`                                 |
+| Apply Last Effect again        | `Ctrl + Shift + E`                         |
+| Last Effect, its options open  | `Ctrl + Alt + Shift + E`                   |
 | Combine shapes, as Pathfinder  | Transform > Wipe Stacks, or right-click the canvas |
 | Merge pieces, as Shape Builder | Shape Stacker (`Shift + M`): drag across them; `Alt` takes them away |
 | Cut a path, as Scissors       | Split (`J`): click it where it should come apart |
@@ -163,6 +190,7 @@ table](docs/site-src/guide/menus-and-shortcuts.md#the-menus).
 | Read this documentation        | Help > Verbose                  |
 | A menu's quickstart            | Help > Tool Types               |
 | The project's page             | Help > Source Code              |
+| Version, license, notices      | Help > About napkin-sketch      |
 | Back / forward in the docs     | `Alt + Left` / `Alt + Right`    |
 
 ## Automate
@@ -288,6 +316,7 @@ editor.sharpenAll();
 editor.toDataURL('image/png');
 editor.toSVG();
 editor.toPDF();
+editor.applyCompositionStyle(style); // restyles by layer name; gives the report
 ```
 
 Pure-engine entry points, no editor required: `sharpenStrokes`,

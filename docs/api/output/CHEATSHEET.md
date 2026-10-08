@@ -52,6 +52,9 @@ Reminders for writing a drawing out: the two calls, their options, the box, and 
 | Links | The reference | The file with `resolveLink`, else the placeholder | The placeholder | The reference | Placed by link |
 | Erasers | A mask on the layer | Clear their own layer | Paint the paper back | Yes | Paint the paper back, warned |
 | Effects | A `<filter>`, and `data-effects` | Drawn | Left out, warned | Yes | Left out, warned |
+| A Splatter | Its lines, and `data-effects` | Drawn | Its lines | Yes | Its lines |
+| A Warp | The bent shape, and `data-effects` | Drawn | The bent shape | Yes | The bent shape |
+| 3D | A group of its faces, and `data-effects` | Drawn | Its faces | Yes | A group of its faces |
 | Transparency | `transparent: true` | `transparent: true` | A transparent page prints no paper | - | `transparent: true` |
 
 ## The box

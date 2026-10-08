@@ -45,16 +45,23 @@
 
 import { simplify } from '../sharpen/geometry.js';
 import { strokeBounds } from './bounds.js';
-import { readEffects } from './effects.js';
+import { activeEffects, EFFECT_LABELS } from './effects.js';
+import { markOpacity } from './appearance.js';
+import { bindGeometry, geometryOf } from './geometry-effects.js';
+import { blendModeInfo, isBlended } from './blend.js';
 import { parseColor } from './graphic-design/color.js';
-import { wrapText } from './graphic-design/font.js';
+import { lengthTable, segmentTAtLength } from './arc-length.js';
+import { layoutType } from './type/layout.js';
+import { setAccentPage, withAccentPage } from './type/accents.js';
+import { typeShown, withoutMarkdownReveal } from './type/markdown-flow.js';
+import { AUTO_LEADING, baseAttrs, frameRectangle, typeSpecOf, type CharAttrs, type ParaAttrs, type TextConfig } from './type/model.js';
+import { configsOf, overridesOf } from './type/configs.js';
 import { linkName, safeLinkPath } from './link.js';
 import { copicNibPolygons } from './nib.js';
 import { meanPressure, pencilMeanCoverage, pencilPaint } from './pencil.js';
 import { activeProfile, profileInputOf, profileOutline } from './stroke-profile.js';
 import { EXPORT_SIMPLIFY_EPSILON } from './svg-path.js';
 import {
-  DEFAULT_FONT_FAMILY,
   dashPatternFor,
   defaultOpacityFor,
   isImageStroke,
@@ -108,6 +115,7 @@ interface Context {
   paint(color: string | undefined): Rgba | null;
   fonts: FontTable;
   images: ImageTable;
+  configs: ConfigTable;
   linkFolder: string | undefined;
 }
 
@@ -318,6 +326,50 @@ class FontTable {
     }
     return n;
   }
+}
+
+/**
+ * The Text Configurations a script's text follows, each written once as the
+ * Character Style it makes in every document that needs it: its name and its
+ * attributes. A face is found within a family, so a configuration that names
+ * a face and no family leaves the face to each run that follows it.
+ */
+class ConfigTable {
+  private readonly index = new Map<string, number>();
+  readonly entries: string[] = [];
+
+  of(config: TextConfig, ctx: Context): number {
+    let n = this.index.get(config.id);
+    if (n === undefined) {
+      n = this.entries.length;
+      this.index.set(config.id, n);
+      const attrs: Partial<CharAttrs> = { ...config.attrs };
+      if (attrs.fontFamily === undefined) delete attrs.fontStyle;
+      this.entries.push(`{name: ${str(config.name)}, style: ${style(charFields(attrs, attrs.fontFamily ?? '', ctx))}}`);
+    }
+    return n;
+  }
+}
+
+/**
+ * What a run that follows a configuration sets of its own, once its
+ * Character Style is applied clear of the text's attributes: its overrides,
+ * and what the text sets on the whole frame - size, leading, color, font -
+ * where the style does not. A face the style cannot carry, with no family of
+ * its own, is the run's.
+ */
+function configRunAttrs(attrs: Partial<CharAttrs>, config: TextConfig, base: CharAttrs): Partial<CharAttrs> {
+  const resolved: CharAttrs = { ...base, ...config.attrs, ...attrs };
+  const own: Partial<CharAttrs> = { ...overridesOf(resolved, base, config) };
+  if (attrs.kern !== undefined) own.kern = attrs.kern;
+  const sets = config.attrs;
+  if (sets.fontSize === undefined && own.fontSize === undefined) own.fontSize = base.fontSize;
+  if (sets.color === undefined && own.color === undefined) own.color = base.color;
+  if (sets.fontFamily === undefined && own.fontFamily === undefined) own.fontFamily = base.fontFamily;
+  if (sets.fontFamily === undefined && sets.fontStyle !== undefined && own.fontStyle === undefined) own.fontStyle = sets.fontStyle;
+  // The frame's leading, unless the style or the run sizes the type, when Illustrator's auto leading fits it better.
+  if (sets.leading === undefined && own.leading === undefined && sets.fontSize === undefined && attrs.fontSize === undefined) own.leading = base.fontSize * AUTO_LEADING;
+  return own;
 }
 
 function fontEntry(css: string): string {
@@ -537,32 +589,124 @@ function eraserLines(stroke: Stroke, ctx: Context): string[] {
 }
 
 /**
- * A text item: its lines a paragraph each, from its top-left, a line and a
- * quarter apart. A box of fixed width is area text, made tall enough for the
- * lines napkin breaks it into and half as many again, since Illustrator sets
- * it in a real face that may break it later.
+ * A run's character attributes as the script sets them: Illustrator's
+ * names, its rotation counterclockwise. A face is written with its family -
+ * the run's own, or the text's - since a face is found within a family.
  */
-function textLines(stroke: Stroke, ctx: Context): string[] {
+function charFields(attrs: Partial<CharAttrs>, family: string, ctx: Context): Field[] {
+  const fields: Field[] = [];
+  const flag = (on: boolean | undefined): string | undefined => (on === undefined ? undefined : on ? '1' : '0');
+  if (attrs.fontSize !== undefined) fields.push(['size', num(attrs.fontSize)]);
+  if (attrs.leading !== undefined) fields.push(attrs.leading === 'auto' ? ['autoLeading', '1'] : ['leading', num(attrs.leading)]);
+  if (attrs.fontFamily !== undefined || attrs.fontStyle !== undefined) fields.push(['font', String(ctx.fonts.of(attrs.fontFamily ?? family))]);
+  if (attrs.fontStyle !== undefined) fields.push(['face', str(attrs.fontStyle)]);
+  const paint = attrs.color !== undefined ? shown(ctx.paint(attrs.color)) : null;
+  if (paint) fields.push(['color', rgbText(paint)]);
+  if (attrs.tracking !== undefined) fields.push(['tracking', num(attrs.tracking)]);
+  if (attrs.kern !== undefined) fields.push(['kern', num(attrs.kern)]);
+  if (attrs.kerning !== undefined) fields.push(['autoKern', flag(attrs.kerning === 'auto')]);
+  if (attrs.caps !== undefined) fields.push(['caps', str(attrs.caps)]);
+  if (attrs.position !== undefined) fields.push(['position', str(attrs.position)]);
+  if (attrs.hScale !== undefined) fields.push(['hscale', num(attrs.hScale)]);
+  if (attrs.vScale !== undefined) fields.push(['vscale', num(attrs.vScale)]);
+  if (attrs.baselineShift !== undefined) fields.push(['shift', num(attrs.baselineShift)]);
+  if (attrs.rotation !== undefined) fields.push(['rotate', num(-attrs.rotation + 0)]);
+  fields.push(['underline', flag(attrs.underline)], ['strike', flag(attrs.strike)]);
+  return fields.filter(([, value]) => value !== undefined);
+}
+
+/** A paragraph's attributes as the script sets them. */
+function paraFields(attrs: Partial<ParaAttrs>): Field[] {
+  return [
+    ['justify', attrs.align === undefined ? undefined : str(attrs.align)],
+    ['left', attrs.leftIndent === undefined ? undefined : num(attrs.leftIndent)],
+    ['right', attrs.rightIndent === undefined ? undefined : num(attrs.rightIndent)],
+    ['first', attrs.firstIndent === undefined ? undefined : num(attrs.firstIndent)],
+    ['before', attrs.spaceBefore === undefined ? undefined : num(attrs.spaceBefore)],
+    ['after', attrs.spaceAfter === undefined ? undefined : num(attrs.spaceAfter)],
+    ['hyphenate', attrs.hyphenate === undefined ? undefined : attrs.hyphenate ? '1' : '0'],
+  ].filter((field): field is Field => field[1] !== undefined);
+}
+
+/** A subpath's anchors as the script writes them; area and path type take the first subpath alone. */
+function runText(anchors: readonly VectorAnchor[]): string {
+  const end = anchors.findIndex((a, k) => k > 0 && a.move);
+  return `[${(end > 0 ? anchors.slice(0, end) : anchors).map(anchorText).join(', ')}]`;
+}
+
+/**
+ * A text item as Illustrator's type, set as napkin's type layout sets it:
+ * point type at its first baseline, where it aligns; area type in its frame -
+ * a rectangle made tall enough for the lines napkin breaks it into and half
+ * as many again when it grows, since Illustrator sets it in a real face that
+ * may break it later, or any shape - and type on a path, from where it starts
+ * to where it stops. Its base style is the whole text's, each run its own
+ * characters' and each paragraph its own. What the script cannot set - a
+ * list's markers, a highlight or a shade, a Path Typing effect but Rainbow, a
+ * flipped path - is said.
+ */
+function textLines(source: Stroke, ctx: Context): string[] {
+  // A Markdown Flow text is written as it is shown: its display, a plain text.
+  const stroke = typeShown(source);
   const anchor = stroke.points[0];
   if (!anchor || !stroke.text) return [];
   const ink = shown(ctx.paint(stroke.color));
   if (!ink) return [];
-  const size = stroke.fontSize ?? 24;
-  const leading = size * 1.25;
+  const spec = typeSpecOf(stroke);
+  const layout = layoutType(stroke);
+  const base = baseAttrs(stroke);
   const text = stroke.text.replace(/\r\n?/g, '\n');
   const fields: Field[] = [
-    ['size', num(size)],
-    ['leading', num(leading)],
+    ['size', num(base.fontSize)],
+    ['leading', num(base.fontSize * AUTO_LEADING)],
     ['color', rgbText(ink)],
-    ['font', String(ctx.fonts.of(stroke.fontFamily ?? DEFAULT_FONT_FAMILY))],
+    ['font', String(ctx.fonts.of(base.fontFamily))],
   ];
-  const box = stroke.textBoxWidth && stroke.textBoxWidth > 0 ? stroke.textBoxWidth : 0;
-  if (box > 0) {
-    const lines = text.split('\n').flatMap((paragraph) => wrapText(paragraph, box, { fontSize: size })).length;
-    fields.push(['box', num(box)], ['height', num((lines * 1.5 + 1) * leading)]);
+  // Point type stands on its first baseline, at its anchor; vertical, at the top of its first column's middle.
+  let x = anchor.x;
+  let y = layout.lines[0]?.y ?? anchor.y;
+  if (spec.orientation === 'vertical') {
+    fields.push(['vertical', '1']);
+    x = layout.lines[0]?.x ?? anchor.x;
+    y = anchor.y;
   }
+  if (spec.kind === 'area' && spec.frame && layout.frame) {
+    const frame = layout.frame;
+    if (frameRectangle(spec.frame.anchors)) {
+      x = frame.box.minX;
+      y = frame.box.minY;
+      const height = spec.frame.autoHeight ? (layout.lines.length * 1.5 + 1) * base.fontSize * AUTO_LEADING : frame.box.maxY - frame.box.minY;
+      fields.push(['box', num(frame.box.maxX - frame.box.minX)], ['height', num(height)]);
+    } else {
+      fields.push(['frame', runText(frame.anchors)]);
+    }
+    const fill = frame.fill ? shown(ctx.paint(frame.fill)) : null;
+    const line = frame.stroke ? shown(ctx.paint(frame.stroke)) : null;
+    if (fill) fields.push(['frameFill', rgbText(fill)]);
+    if (line) fields.push(['frameStroke', rgbText(line)], ['frameWidth', num(frame.width ?? 1)]);
+  } else if (spec.kind === 'path' && spec.path && layout.path) {
+    const table = lengthTable(layout.path.anchors, layout.path.closed);
+    const at = (length: number): string => num(segmentTAtLength(table, Math.min(table.total, length)));
+    fields.push(['path', runText(layout.path.anchors)], ['closed', layout.path.closed ? '1' : undefined], ['start', at(spec.path.start)], ['end', at(spec.path.end)]);
+    if (spec.path.effect !== 'rainbow') ctx.warn(`${ctx.page}: Path Typing's ${spec.path.effect} effect is not written to an Illustrator script, so its text runs along its path as Rainbow does`);
+    if (spec.path.flip) ctx.warn(`${ctx.page}: Path Typing flipped to the other side of its path is not written to an Illustrator script, so its text runs along the path as it was drawn`);
+  }
+  // A run that follows a Text Configuration is set in its Character Style, then its own attributes.
+  const table = configsOf(stroke);
+  const runs = (spec.runs ?? [])
+    .map((run) => {
+      const config = run.attrs.config !== undefined ? table.get(run.attrs.config) : undefined;
+      if (!config) return [run, charFields(run.attrs, base.fontFamily, ctx), null] as const;
+      return [run, charFields(configRunAttrs(run.attrs, config, base), base.fontFamily, ctx), ctx.configs.of(config, ctx)] as const;
+    })
+    .filter(([, f, n]) => f.length > 0 || n !== null);
+  if (runs.length > 0) fields.push(['runs', `[${runs.map(([run, f, n]) => `[${run.start}, ${run.end}, ${style(f)}${n === null ? '' : `, ${n}`}]`).join(', ')}]`]);
+  const paras = (spec.paras ?? []).map((para) => (para ? paraFields(para) : []));
+  if (paras.some((f) => f.length > 0)) fields.push(['paras', `[${paras.map((f) => (f.length > 0 ? style(f) : 'null')).join(', ')}]`]);
+  if (layout.highlights.length > 0) ctx.warn(`${ctx.page}: a highlight or a shade behind text is not written to an Illustrator script, so the text is written without it`);
+  if (layout.markers.length > 0) ctx.warn(`${ctx.page}: a list's bullets and numbers are not written to an Illustrator script, so its paragraphs are written without them`);
   fields.push(['opacity', opacityField((stroke.opacity ?? defaultOpacityFor('text')) * ink.alpha)]);
-  return [`text(${str(text.replace(/\n/g, '\r'))}, ${num(anchor.x)}, ${num(anchor.y)}, ${style(fields)});`];
+  return [`text(${str(text.replace(/\n/g, '\r'))}, ${num(x)}, ${num(y)}, ${style(fields)});`];
 }
 
 /** A placed image, embedded from the table; or a linked file, placed by link. */
@@ -588,9 +732,31 @@ function imageLines(stroke: Stroke, ctx: Context): string[] {
   return [`image(${n}, ${box}, ${style([['label', str(label)], ['size', num(size)], ['opacity', opacity]])});`];
 }
 
+/** Names each effect a mark or a layer carries that the script does not write; one switched off draws nowhere, and is not named. */
+function sayEffects(effects: unknown, page: string, warn: (message: string) => void): void {
+  for (const effect of activeEffects(effects) ?? []) {
+    warn(`${page}: ${EFFECT_LABELS[effect.type]} is not written to an Illustrator script, so what carries it is drawn without it`);
+  }
+}
+
 /** One mark as the script's calls. */
 function markLines(stroke: Stroke, ctx: Context): string[] {
-  if (readEffects(stroke.effects)) ctx.warn(`${ctx.page}: an effect is not written to an Illustrator script, so what carries it is drawn plain`);
+  sayEffects(stroke.effects, ctx.page, ctx.warn);
+  // A mark a geometry effect draws anew is written as it draws: bent whole by
+  // a Warp; or - a Splatter, a Warp on one part - as its parts, fill under
+  // stroke, each at the mark's own opacity; or built in 3D, as its faces,
+  // far first, in a group that takes the mark's opacity once
+  // (core/geometry-effects.ts).
+  const geometry = geometryOf(stroke);
+  if (geometry?.whole) return markLines(geometry.whole, ctx);
+  if (geometry?.faces) {
+    const lines = geometry.faces.flatMap((face) => markLines(face, ctx));
+    return lines.length > 0 ? [`begin(${pct(markOpacity(stroke))});`, ...lines.map((line) => `  ${line}`), 'end();'] : [];
+  }
+  if (geometry) {
+    const own = markOpacity(stroke);
+    return [geometry.parts!.fill, geometry.parts!.stroke].filter((part) => part.points.length > 0).flatMap((part) => markLines({ ...part, opacity: own }, ctx));
+  }
   if (isTextStroke(stroke)) return textLines(stroke, ctx);
   if (isImageStroke(stroke)) return imageLines(stroke, ctx);
   if (stroke.tool === 'eraser') return eraserLines(stroke, ctx);
@@ -613,7 +779,7 @@ const RUNTIME = `  // Set QUIET to true to have the script report through its re
   var STAMP = new Date().getTime();
   var doc = null, AB = null, X = 0, Y = 0, fresh = false;
   var stack = [], names = [], marks = 0, inMark = false, pageName = "", built = 0;
-  var gradients = {}, fonts = [], families = null, files = [], temps = [];
+  var gradients = {}, styles = {}, fonts = [], faces = {}, families = null, files = [], temps = [];
   var missing = [], refused = [], fontless = [];
 
   // Where the script is, for the message it stops with.
@@ -642,6 +808,7 @@ const RUNTIME = `  // Set QUIET to true to have the script report through its re
     stack = [doc];
     fresh = true;
     gradients = {};
+    styles = {};
     built++;
   }
 
@@ -662,8 +829,10 @@ const RUNTIME = `  // Set QUIET to true to have the script report through its re
     return stack[stack.length - 1];
   }
 
-  // A layer: a layer at the top of the tree, a named group inside one.
-  function open(name, opacity) {
+  // A layer: a layer at the top of the tree, a named group inside one. A
+  // blend is a BlendModes member's name; isolation is set where the version of
+  // Illustrator knows the property, and skipped where it does not.
+  function open(name, opacity, blend, isolated) {
     var parent = top(), item;
     if (parent === doc) {
       item = fresh ? doc.layers[0] : doc.layers.add();
@@ -673,6 +842,12 @@ const RUNTIME = `  // Set QUIET to true to have the script report through its re
     }
     item.name = name;
     if (opacity < 100) item.opacity = opacity;
+    if (blend) item.blendingMode = BlendModes[blend];
+    if (isolated) {
+      try {
+        item.isIsolated = true;
+      } catch (e) {}
+    }
     stack.push(item);
     names.push(name);
     marks = 0;
@@ -828,24 +1003,109 @@ const RUNTIME = `  // Set QUIET to true to have the script report through its re
     return color;
   }
 
-  // Text: point text from its top-left, or area text for a box of fixed width.
+  // Text: point type at its first baseline, area type in its frame, or type on
+  // a path; then its runs' characters and its paragraphs.
   function text(content, x, y, style) {
-    var parent = next(), frame, attributes, face;
+    var parent = next(), frame, i, run, range, shape;
     if (style.box !== undefined) {
       frame = parent.textFrames.areaText(parent.pathItems.rectangle(Y - y, X + x, style.box, style.height));
+    } else if (style.frame !== undefined) {
+      frame = parent.textFrames.areaText(anchors(parent.pathItems.add(), style.frame, true));
+    } else if (style.path !== undefined) {
+      frame = parent.textFrames.pathText(anchors(parent.pathItems.add(), style.path, style.closed === 1), style.start, style.end);
     } else {
-      frame = parent.textFrames.add();
+      frame = parent.textFrames.pointText(at(x, y));
     }
+    if (style.vertical !== undefined) frame.orientation = TextOrientation.VERTICAL;
     frame.contents = content;
-    attributes = frame.textRange.characterAttributes;
-    attributes.size = style.size;
-    attributes.autoLeading = false;
-    attributes.leading = style.leading;
-    attributes.fillColor = rgb(style.color);
-    face = font(style.font);
-    if (face) attributes.textFont = face;
-    if (style.box === undefined) frame.position = at(x, y);
+    charStyle(frame.textRange.characterAttributes, style);
+    for (i = 0; style.runs !== undefined && i < style.runs.length; i++) {
+      run = style.runs[i];
+      range = frame.textRange.characters[run[0]];
+      range.length = run[1] - run[0];
+      // A run that follows a Text Configuration: its Character Style, clear of the text's attributes, then its own.
+      if (run[3] !== undefined) characterStyle(run[3]).applyTo(range, true);
+      charStyle(range.characterAttributes, run[2]);
+    }
+    for (i = 0; style.paras !== undefined && i < style.paras.length && i < frame.paragraphs.length; i++) {
+      if (style.paras[i] !== null) paraStyle(frame.paragraphs[i].paragraphAttributes, style.paras[i]);
+    }
+    shape = frame.textPath;
+    if (style.frameFill !== undefined) {
+      shape.filled = true;
+      shape.fillColor = rgb(style.frameFill);
+    }
+    if (style.frameStroke !== undefined) {
+      shape.stroked = true;
+      shape.strokeColor = rgb(style.frameStroke);
+      shape.strokeWidth = style.frameWidth;
+    }
     if (style.opacity !== undefined) frame.opacity = style.opacity;
+  }
+
+  // A Text Configuration as the document's Character Style of its name, made once a document.
+  function characterStyle(n) {
+    var spec = CONFIGS[n], made = null;
+    if (styles[n] !== undefined) return styles[n];
+    try { made = doc.characterStyles.getByName(spec.name); } catch (e) {}
+    if (!made) made = doc.characterStyles.add(spec.name);
+    charStyle(made.characterAttributes, spec.style);
+    styles[n] = made;
+    return made;
+  }
+
+  // Character attributes, each one the style gives: the whole text's, or a run's.
+  function charStyle(attributes, style) {
+    var face;
+    if (style.size !== undefined) attributes.size = style.size;
+    if (style.leading !== undefined) {
+      attributes.autoLeading = false;
+      attributes.leading = style.leading;
+    }
+    if (style.autoLeading !== undefined) attributes.autoLeading = true;
+    if (style.color !== undefined) attributes.fillColor = rgb(style.color);
+    if (style.font !== undefined) {
+      face = faceOf(style.font, style.face);
+      if (face) attributes.textFont = face;
+    }
+    if (style.tracking !== undefined) attributes.tracking = style.tracking;
+    if (style.kern !== undefined) attributes.kerning = style.kern;
+    if (style.autoKern !== undefined) attributes.kerningMethod = style.autoKern === 1 ? AutoKernType.AUTO : AutoKernType.NOAUTOKERN;
+    if (style.caps !== undefined) attributes.capitalization = style.caps === "all" ? FontCapsOption.ALLCAPS : style.caps === "small" ? FontCapsOption.SMALLCAPS : FontCapsOption.NORMALCAPS;
+    if (style.position !== undefined) attributes.baselinePosition = style.position === "superscript" ? FontBaselineOption.SUPERSCRIPT : style.position === "subscript" ? FontBaselineOption.SUBSCRIPT : FontBaselineOption.NORMALBASELINE;
+    if (style.hscale !== undefined) attributes.horizontalScale = style.hscale;
+    if (style.vscale !== undefined) attributes.verticalScale = style.vscale;
+    if (style.shift !== undefined) attributes.baselineShift = style.shift;
+    if (style.rotate !== undefined) attributes.rotation = style.rotate;
+    if (style.underline !== undefined) attributes.underline = style.underline === 1;
+    if (style.strike !== undefined) attributes.strikeThrough = style.strike === 1;
+  }
+
+  // Paragraph attributes, each one the style gives.
+  function paraStyle(attributes, style) {
+    if (style.justify !== undefined) {
+      attributes.justification = style.justify === "center" ? Justification.CENTER : style.justify === "right" ? Justification.RIGHT : style.justify === "justify" ? Justification.FULLJUSTIFYLASTLINELEFT : Justification.LEFT;
+    }
+    if (style.left !== undefined) attributes.leftIndent = style.left;
+    if (style.right !== undefined) attributes.rightIndent = style.right;
+    if (style.first !== undefined) attributes.firstLineIndent = style.first;
+    if (style.before !== undefined) attributes.spaceBefore = style.before;
+    if (style.after !== undefined) attributes.spaceAfter = style.after;
+    if (style.hyphenate !== undefined) attributes.hyphenation = style.hyphenate === 1;
+  }
+
+  // A family's face by its style's name - Bold, Italic - or the family itself where it has no such face.
+  function faceOf(n, name) {
+    var base = font(n), key = n + "|" + name, found = null, i, face;
+    if (faces[key] !== undefined) return faces[key];
+    if (base && name !== undefined && name !== "Regular") {
+      for (i = 0; i < app.textFonts.length && !found; i++) {
+        face = app.textFonts[i];
+        if (face.family === base.family && face.style === name) found = face;
+      }
+    }
+    faces[key] = found || base;
+    return faces[key];
   }
 
   // The first family of a list that Illustrator has, by the names it is likely installed under.
@@ -1042,6 +1302,11 @@ const TAIL = `  var saved = {}, message = "", notes = [], failed = false, i;
  * of its own, in order. See the module's comment for what becomes what.
  */
 export function sketchesToJsx(sketches: readonly Sketch[], options: JsxOptions = {}): string {
+  return withoutMarkdownReveal(() => withAccentPage(null, () => jsxOf(sketches, options)));
+}
+
+/** The script {@link sketchesToJsx} writes, every Markdown block rendered. */
+function jsxOf(sketches: readonly Sketch[], options: JsxOptions): string {
   // Each thing left out is said once for the script, however often it recurs.
   const said = new Set<string>();
   const warn = (message: string): void => {
@@ -1051,10 +1316,14 @@ export function sketchesToJsx(sketches: readonly Sketch[], options: JsxOptions =
   };
   const fonts = new FontTable();
   const images = new ImageTable();
+  const configs = new ConfigTable();
   const contents: string[] = [];
   const body: string[] = [];
 
   sketches.forEach((sketch, index) => {
+    // A layer's Warp bends what it holds: each mark is built as it is bent; its code is accented for its paper.
+    bindGeometry(sketch);
+    setAccentPage(sketch.background);
     const page = `page "${sketch.name}"`;
     const box = options.crops?.[index] ?? { x: 0, y: 0, width: sketch.width, height: sketch.height };
     const width = Math.max(1, box.width);
@@ -1066,7 +1335,7 @@ export function sketchesToJsx(sketches: readonly Sketch[], options: JsxOptions =
       return read;
     };
     const paper = options.transparent ? null : shown(paint(sketch.background));
-    const ctx: Context = { page, paper, warn, paint, fonts, images, linkFolder: options.linkFolder };
+    const ctx: Context = { page, paper, warn, paint, fonts, images, configs, linkFolder: options.linkFolder };
     contents.push(`// Page ${index + 1}: ${str(sketch.name)}, ${num(width)} x ${num(height)}.`);
     if (index > 0) body.push('');
     body.push(`    page(${str(sketch.name)}, ${num(box.x)}, ${num(box.y)}, ${num(width)}, ${num(height)});`);
@@ -1091,8 +1360,13 @@ export function sketchesToJsx(sketches: readonly Sketch[], options: JsxOptions =
     }
     const emit = (layer: Layer, depth: number): void => {
       const pad = `    ${'  '.repeat(depth)}`;
-      body.push(`${pad}open(${str(layer.name)}, ${pct(layer.opacity)});`);
-      if (readEffects(layer.effects)) warn(`${page}: an effect is not written to an Illustrator script, so what carries it is drawn plain`);
+      // A blend, and a group's isolation, as Illustrator's Transparency panel
+      // has them; a layer with neither is opened as it always was.
+      const isolated = layer.group === true && layer.isolate === true;
+      const blend = isBlended(layer.blend) ? str(blendModeInfo(layer.blend).jsx) : isolated ? 'null' : '';
+      const transparency = blend ? `, ${blend}${isolated ? ', true' : ''}` : '';
+      body.push(`${pad}open(${str(layer.name)}, ${pct(layer.opacity)}${transparency});`);
+      sayEffects(layer.effects, page, warn);
       if (layer.group) {
         // A clip group: what it holds in a group of its own, clipped by the
         // clip mark drawn on top of it as the clipping path.
@@ -1134,6 +1408,7 @@ export function sketchesToJsx(sketches: readonly Sketch[], options: JsxOptions =
     '',
     `  var IMAGES = [${images.entries.length > 0 ? `\n${images.entries.join(',\n')}\n  ` : ''}];`,
     `  var FONTS = [${fonts.entries.length > 0 ? `\n${fonts.entries.map((entry) => `    ${entry}`).join(',\n')}\n  ` : ''}];`,
+    `  var CONFIGS = [${configs.entries.length > 0 ? `\n${configs.entries.map((entry) => `    ${entry}`).join(',\n')}\n  ` : ''}];`,
     '',
     '  function build() {',
     ...body,

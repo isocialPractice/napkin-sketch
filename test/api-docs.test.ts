@@ -22,6 +22,7 @@ import {
   isNavLine,
   pageKind,
   SCHEMA_PATH,
+  STYLE_SCHEMA_PATH,
   VERB_GROUPS,
   type DocPage,
 } from '../src/docs/api-docs.js';
@@ -163,7 +164,7 @@ test('every link to a heading on a page reaches one', () => {
 
 test('the index lists every page with a title and a summary', () => {
   const index = JSON.parse(read(INDEX_PATH)) as { pages: Array<{ path: string; title: string; summary: string; kind: string }> };
-  assert.deepEqual(index.pages.map((p) => p.path).sort(), [...PAGE_PATHS, SCHEMA_PATH].sort());
+  assert.deepEqual(index.pages.map((p) => p.path).sort(), [...PAGE_PATHS, SCHEMA_PATH, STYLE_SCHEMA_PATH].sort());
   for (const entry of index.pages) {
     assert.ok(entry.title, `${entry.path} has a title`);
     assert.ok(entry.summary.length > 20, `${entry.path} has a summary`);

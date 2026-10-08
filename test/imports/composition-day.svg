@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240">
+  <rect id="Background" x="10" y="10" width="380" height="220" fill="#f4f1ea"/>
+  <text id="Title" x="40" y="90" font-family="Segoe UI" font-size="36" fill="#1f2328">Acme Corp</text>
+  <path id="Outline" d="M 40 130 L 360 130 L 360 210 L 40 210 Z" fill="none" stroke="#1f2328" stroke-width="6"/>
+</svg>

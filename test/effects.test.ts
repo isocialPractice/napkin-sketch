@@ -16,7 +16,26 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { colorMatrix, cssFilter, effectReach, readEffects, scaleEffects, svgFilterMarkup, type Effect } from '../src/core/effects.js';
+import { markParts } from '../src/core/appearance.js';
+import {
+  EFFECT_DEFAULTS,
+  EFFECT_LABELS,
+  EFFECT_TYPES,
+  activeEffects,
+  colorMatrix,
+  cssFilter,
+  defaultEffect,
+  effectLayout,
+  effectPlan,
+  effectReach,
+  isCssEffect,
+  readEffects,
+  scaleEffects,
+  svgFilterMarkup,
+  svgUnderFilterMarkup,
+  type Effect,
+  type EffectOf,
+} from '../src/core/effects.js';
 import { compositionToSvg, createComposition, decodePng, renderPng } from '../src/core/graphic-design/index.js';
 import type { CompositionDocument } from '../src/core/graphic-design/types.js';
 import { parseSketchBook, serializeSketchBook } from '../src/core/serialize.js';
@@ -376,12 +395,254 @@ test('the lowering carries a mark\'s effects to its element, and a layer\'s to i
   assert.deepEqual(children[1].effects, [{ type: 'invert', amount: 1 }]);
 });
 
-test('a sketch\'s PNG draws its effects, and its PDF prints them plain and says so', () => {
+test('a sketch\'s PNG draws its effects, and its PDF prints without them and names each', () => {
   const sketch = sketchWith(undefined, [squareMark(20, 20, 60, { effects: [{ type: 'drop-shadow', dx: 20, dy: 20, blur: 0, color: '#326478' }] })]);
   const png = decodePng(renderSketch(sketch, { format: 'png' }));
   const p = (95 * png.width + 95) * 4;
   assert.deepEqual([...png.data.slice(p, p + 4)], [0x32, 0x64, 0x78, 255], 'the shadow, past the square');
   const warnings: string[] = [];
   renderSketch(sketch, { format: 'pdf', onWarning: (message) => warnings.push(message) });
-  assert.deepEqual(warnings, ['page "effects": an effect is not drawn in a PDF, so what carries it prints plain']);
+  assert.deepEqual(warnings, ['page "effects": Outer Shadow is not drawn in a PDF, so what carries it prints without it']);
+});
+
+// ---- The appearance effects ----------------------------------------------------------
+
+test('an appearance effect reads its defaults for what it leaves out, holds its shares, and drops what is not one', () => {
+  assert.deepEqual(readEffects([{ type: 'outer-glow' }]), [{ type: 'outer-glow', blur: 7, spread: 0, color: '#ffffbe', blend: 'sheer', opacity: 0.75 }]);
+  assert.deepEqual(readEffects([{ type: 'inner-glow', source: 'center', blend: 'Screen', opacity: 2 }])?.[0], {
+    type: 'inner-glow',
+    blur: 7,
+    choke: 0,
+    source: 'center',
+    color: '#ffffbe',
+    blend: 'sheer',
+    opacity: 1,
+  });
+  const bevel = readEffects([{ type: 'bevel', style: 'outer', altitude: 120, depth: 0, angle: -60, highlight: { color: '#ffcc00' } }])?.[0];
+  assert.deepEqual(bevel, {
+    type: 'bevel',
+    style: 'outer',
+    depth: 1,
+    direction: 'up',
+    size: 5,
+    soften: 0,
+    angle: 300,
+    altitude: 90,
+    highlight: { color: '#ffcc00', blend: 'sheer', opacity: 0.75 },
+    shadow: { color: '#000000', blend: 'stack', opacity: 0.75 },
+  });
+  assert.equal((readEffects([{ type: 'emboss', style: 'sideways' }])?.[0] as EffectOf<'emboss'>).style, 'emboss', 'a style that is not one is the default');
+  assert.equal(readEffects([{ type: 'feather', radius: -1 }]), undefined, 'a negative length is no effect');
+  assert.equal(readEffects([{ type: 'inner-shadow', blur: 'soft' }]), undefined);
+  assert.deepEqual(readEffects([{ type: 'inner-shadow', choke: 140 }])?.[0], { ...EFFECT_DEFAULTS['inner-shadow'], choke: 100 });
+});
+
+test('a drop shadow written before its spread, opacity and blend reads as it always painted, and keeps only what it has', () => {
+  assert.deepEqual(readEffects([{ type: 'drop-shadow', dx: 2, dy: 3 }]), [{ type: 'drop-shadow', dx: 2, dy: 3, blur: 0, color: '#000000' }]);
+  assert.deepEqual(readEffects([{ type: 'drop-shadow', dx: 2, dy: 3, spread: 0, opacity: 1, blend: 'normal' }]), [
+    { type: 'drop-shadow', dx: 2, dy: 3, blur: 0, color: '#000000' },
+  ]);
+  assert.deepEqual(readEffects([{ type: 'drop-shadow', dx: 2, dy: 3, spread: 30, opacity: 0.5, blend: 'multiply' }]), [
+    { type: 'drop-shadow', dx: 2, dy: 3, blur: 0, color: '#000000', spread: 30, opacity: 0.5, blend: 'stack' },
+  ]);
+});
+
+test('an effect keeps its aim at a fill or a stroke and its switch, and only when they are not the defaults', () => {
+  assert.deepEqual(readEffects([{ type: 'blur', radius: 2, target: 'fill', on: false }]), [{ type: 'blur', radius: 2, target: 'fill', on: false }]);
+  assert.deepEqual(readEffects([{ type: 'blur', radius: 2, target: 'object', on: true }]), [{ type: 'blur', radius: 2 }]);
+  assert.deepEqual(readEffects([{ type: 'blur', radius: 2, target: 'outline' }]), [{ type: 'blur', radius: 2 }], 'an aim that is not one is the whole mark');
+  assert.deepEqual(activeEffects([{ type: 'blur', radius: 2, on: false }, { type: 'sepia', amount: 1 }]), [{ type: 'sepia', amount: 1 }], 'a switched-off effect does not draw');
+  assert.equal(activeEffects([{ type: 'blur', radius: 2, on: false }]), undefined);
+  assert.equal(EFFECT_TYPES.length, Object.keys(EFFECT_LABELS).length, 'every effect has a name');
+  assert.deepEqual(defaultEffect('bevel').highlight, { color: '#ffffff', blend: 'sheer', opacity: 0.75 });
+  const fresh = defaultEffect('bevel');
+  fresh.highlight.color = '#000000';
+  assert.equal(EFFECT_DEFAULTS.bevel.highlight.color, '#ffffff', 'a fresh effect is a copy');
+});
+
+test('each appearance effect reaches as far as it draws or reads, scales with its mark, and a switched-off one reaches nowhere', () => {
+  assert.equal(effectReach([{ type: 'feather', radius: 10 }]), 15);
+  assert.equal(effectReach([{ ...EFFECT_DEFAULTS['inner-shadow'], dx: 3, dy: -6, blur: 4 }]), 12);
+  assert.equal(effectReach([{ ...EFFECT_DEFAULTS['outer-glow'], blur: 10 }]), 15);
+  assert.equal(effectReach([{ ...EFFECT_DEFAULTS.bevel, size: 4, soften: 2 }]), 9);
+  assert.equal(effectReach([{ type: 'blur', radius: 3, on: false }]), 0);
+  const [glow, bevel] = scaleEffects([{ ...EFFECT_DEFAULTS['outer-glow'], blur: 10, spread: 40 }, { ...EFFECT_DEFAULTS.bevel, size: 4, soften: 2, depth: 150 }], 2) as [
+    EffectOf<'outer-glow'>,
+    EffectOf<'bevel'>,
+  ];
+  assert.deepEqual([glow.blur, glow.spread], [20, 40], 'a spread is a share of the blur, and does not scale');
+  assert.deepEqual([bevel.size, bevel.soften, bevel.depth, bevel.angle], [8, 4, 150, 120]);
+});
+
+test('a canvas filter writes only the CSS filter functions, a shadow\'s opacity in its color', () => {
+  assert.equal(cssFilter([{ type: 'blur', radius: 2 }, { type: 'feather', radius: 4 }, { type: 'sepia', amount: 1, on: false }]), 'blur(2px)');
+  assert.equal(cssFilter([{ type: 'drop-shadow', dx: 1, dy: 2, blur: 3, color: '#ff0000', opacity: 0.5 }]), 'drop-shadow(1px 2px 3px rgba(255, 0, 0, 0.5))');
+  assert.equal(isCssEffect({ type: 'drop-shadow', dx: 1, dy: 2, blur: 3, color: '#000', spread: 20 }), false, 'no CSS function spreads a shadow');
+  assert.equal(isCssEffect({ ...EFFECT_DEFAULTS['outer-glow'] }), false);
+});
+
+test('a shadow at the end of a list that blends is laid under its carrier; a Normal one before it stays in the picture', () => {
+  const stack: Effect = { type: 'drop-shadow', dx: 4, dy: 4, blur: 2, color: '#000', blend: 'stack' };
+  const glow: Effect = { ...EFFECT_DEFAULTS['outer-glow'] };
+  const plain: Effect = { type: 'drop-shadow', dx: 1, dy: 1, blur: 0, color: '#000' };
+  assert.deepEqual(effectLayout([{ type: 'blur', radius: 1 }, stack]), { chain: [{ type: 'blur', radius: 1 }], unders: [stack] });
+  assert.deepEqual(effectLayout([plain, stack, glow]), { chain: [plain], unders: [stack, glow] });
+  assert.deepEqual(effectLayout([stack, { type: 'sepia', amount: 1 }]).unders, [], 'an effect after it works on it');
+  assert.deepEqual(effectLayout([plain]).unders, [], 'a Normal shadow looks the same in the picture');
+  assert.deepEqual(effectLayout([stack], false), { chain: [stack], unders: [] }, 'and a carrier that cannot lay one under keeps it');
+  assert.deepEqual(effectLayout([{ ...stack, on: false }]), { chain: [], unders: [] });
+});
+
+test('a mark with a fill and a stroke splits when either takes effects of its own; with one part, that part\'s effects come first', () => {
+  const fill: Effect = { type: 'blur', radius: 1, target: 'fill' };
+  const stroke: Effect = { type: 'sepia', amount: 1, target: 'stroke' };
+  const whole: Effect = { type: 'invert', amount: 1 };
+  assert.deepEqual(effectPlan([fill, stroke, whole], { fill: true, stroke: true }), { split: true, fill: [fill], stroke: [stroke], object: [whole] });
+  assert.deepEqual(effectPlan([whole, stroke], { fill: false, stroke: true }), { split: false, fill: [], stroke: [], object: [stroke, whole] });
+  assert.deepEqual(effectPlan([fill, whole], { fill: false, stroke: true }).object, [whole], 'an effect aimed at a part it does not have draws nothing');
+  assert.deepEqual(effectPlan([fill, whole], null).object, [fill, whole], 'a layer has no parts: everything works on its picture');
+  assert.equal(effectPlan([whole], { fill: true, stroke: true }).split, false, 'no split without an aimed effect');
+  assert.deepEqual(markParts({ id: 't', tool: 'text', color: '#000', width: 1, points: [{ x: 0, y: 0 }], text: 'Hi' }), { fill: true, stroke: false });
+  assert.deepEqual(markParts(squareMark(0, 0, 10)), { fill: true, stroke: true });
+  assert.deepEqual(markParts(squareMark(0, 0, 10, { noStroke: true })), { fill: true, stroke: false });
+});
+
+test('each appearance effect is written as its graph of SVG filter primitives, one switched off left out', () => {
+  const region = { x: 0, y: 0, width: 100, height: 100 };
+  const graph = (effects: Effect[]): string => svgFilterMarkup(effects, 'fx', region, String);
+  assert.match(
+    graph([{ type: 'feather', radius: 8 }]),
+    /<feGaussianBlur in="SourceGraphic" stdDeviation="4" result="fx-0-blur"\/><feComponentTransfer in="fx-0-blur" result="fx-0-levels"><feFuncA type="linear" slope="2" intercept="-1"\/><\/feComponentTransfer><feComposite in="SourceGraphic" in2="fx-0-levels" operator="in" result="fx-0"\/>/,
+  );
+  const inner = graph([{ ...EFFECT_DEFAULTS['inner-shadow'], dx: 3, dy: 4, blur: 6 }]);
+  assert.match(inner, /<feFuncA type="table" tableValues="1 0"\/>/, 'an inner shadow comes from outside the shape');
+  assert.match(inner, /<feBlend in="fx-0-inside" in2="SourceGraphic" mode="multiply" result="fx-0"\/>/, 'and multiplies over it');
+  const bevel = graph([{ ...EFFECT_DEFAULTS.bevel, size: 8 }]);
+  assert.match(
+    bevel,
+    /<feDiffuseLighting in="fx-0-levels" surfaceScale="4" diffuseConstant="1" kernelUnitLength="1" lighting-color="#ffffff" result="fx-0-light"><feDistantLight azimuth="240" elevation="30"\/><\/feDiffuseLighting>/,
+  );
+  assert.match(bevel, /mode="multiply"/);
+  assert.match(bevel, /mode="screen" result="fx-0"\/>/, 'the light last, by screen');
+  assert.match(graph([{ ...EFFECT_DEFAULTS['outer-glow'], spread: 50 }]), /<feFuncA type="linear" slope="2" intercept="0"\/>/, 'a spread of 50 doubles the matte');
+  assert.doesNotMatch(graph([{ type: 'blur', radius: 2, on: false }]), /<fe/, 'a switched-off effect is left out');
+  assert.match(graph([{ type: 'blur', radius: 2, on: false }, { type: 'sepia', amount: 1 }]), /result="fx-1"/, 'and the effects after it keep their places');
+});
+
+test('the shadow laid under a carrier on its own is a filter that draws it alone, after the ones before it are laid under the picture', () => {
+  const region = { x: 0, y: 0, width: 100, height: 100 };
+  const stack: Effect = { type: 'drop-shadow', dx: 4, dy: 4, blur: 0, color: '#000000', blend: 'stack' };
+  const glow: Effect = { ...EFFECT_DEFAULTS['outer-glow'] };
+  const first = svgUnderFilterMarkup([stack, glow], 0, 'u', region, String) ?? '';
+  assert.match(
+    first,
+    /<feOffset in="SourceGraphic" dx="4" dy="4" result="u-0-offset"\/><feFlood flood-color="#000000" flood-opacity="1" result="u-0-color"\/><feComposite in="u-0-color" in2="u-0-offset" operator="in" result="u-0"\/><\/filter>$/,
+  );
+  const second = svgUnderFilterMarkup([stack, glow], 1, 'u', region, String) ?? '';
+  assert.match(second, /<feMerge result="u-0">/, 'the shadow before it is laid under the picture first');
+  assert.match(second, /result="u-1"\/><\/filter>$/, 'and the glow alone comes out');
+  assert.equal(svgUnderFilterMarkup([{ ...stack, color: 'nope' }], 0, 'u', region, String), null, 'a color that is not one draws nothing');
+});
+
+test('the sketch SVG lays a blended shadow under its mark as a <use>, and writes a mark whose parts take effects as a group of the two', () => {
+  const shade: Effect = { type: 'drop-shadow', dx: 6, dy: 6, blur: 0, color: '#ff0000', blend: 'stack' };
+  const svg = sketchToSvg(sketchWith(undefined, [squareMark(20, 20, 60, { effects: [shade] })]));
+  assert.match(svg, /<use href="#mark-0" filter="url\(#effect-\d+\)" style="mix-blend-mode:multiply" data-napkin-part="under"\/>\n<path id="mark-0" data-effects=/);
+  assert.doesNotMatch(svg, /<path id="mark-0" filter=/, 'the mark itself has no filter left to run');
+
+  const split = sketchToSvg(sketchWith(undefined, [squareMark(20, 20, 60, { effects: [{ type: 'blur', radius: 2, target: 'fill' }, { type: 'sepia', amount: 1 }] })]));
+  assert.match(split, /<g filter="url\(#effect-\d+\)" data-effects="[^"]+" data-tool="pen" data-i="0" data-napkin-split="1" style="isolation:isolate">/);
+  assert.match(split, /<path data-napkin-part="fill" filter="url\(#effect-\d+\)" d="[^"]+" stroke="none" fill="#ffe08a"/);
+  assert.match(split, /<path data-napkin-part="stroke" d="[^"]+" stroke="#1f2328"[^>]* data-tool="pen" data-i="0"\/>/, 'the stroke alone, which carries the mark');
+
+  const faded = sketchToSvg(sketchWith(undefined, [squareMark(20, 20, 60, { opacity: 0.5, effects: [shade] })]));
+  assert.doesNotMatch(faded, /<use/, 'a translucent mark keeps its shadow in its picture');
+});
+
+test('the lowering splits a mark whose parts take effects, isolated, at the mark\'s opacity, and keeps the switched-off ones out', () => {
+  const sketch = sketchWith(undefined, [
+    squareMark(20, 20, 60, {
+      opacity: 0.5,
+      effects: [{ type: 'blur', radius: 2, target: 'fill' }, { type: 'sepia', amount: 1 }, { type: 'invert', amount: 1, on: false }],
+    }),
+  ]);
+  const [layer] = sketchToComposition(sketch).elements;
+  const [mark] = layer.type === 'group' ? layer.children : [];
+  assert.equal(mark.type, 'group');
+  if (mark.type !== 'group') return;
+  assert.equal(mark.isolate, true);
+  assert.equal(mark.opacity, 0.5);
+  assert.deepEqual(mark.effects, [{ type: 'sepia', amount: 1 }]);
+  assert.deepEqual(
+    mark.children.map((child) => [child.effects, child.opacity, child.stroke ?? null]),
+    [
+      [[{ type: 'blur', radius: 2 }], undefined, null],
+      [undefined, undefined, '#1f2328'],
+    ],
+  );
+});
+
+test('the PDF and the Illustrator script name each effect they leave out, once, and not one switched off', () => {
+  const sketch = sketchWith([{ ...EFFECT_DEFAULTS['outer-glow'] }, { type: 'blur', radius: 1, on: false }], [
+    squareMark(20, 20, 60, { effects: [{ ...EFFECT_DEFAULTS.bevel }, { type: 'feather', radius: 4 }] }),
+    squareMark(100, 20, 40, { effects: [{ ...EFFECT_DEFAULTS.bevel }] }),
+  ]);
+  const pdf: string[] = [];
+  renderSketch(sketch, { format: 'pdf', onWarning: (message) => pdf.push(message) });
+  assert.deepEqual(pdf, [
+    'page "effects": Outer Glow is not drawn in a PDF, so what carries it prints without it',
+    'page "effects": Bevel is not drawn in a PDF, so what carries it prints without it',
+    'page "effects": Feather is not drawn in a PDF, so what carries it prints without it',
+  ]);
+  const jsx: string[] = [];
+  renderSketch(sketch, { format: 'jsx', onWarning: (message) => jsx.push(message) });
+  assert.equal(jsx.filter((message) => / is not written /.test(message)).length, 3);
+});
+
+test('the PNG draws each appearance effect as rsvg-convert draws its SVG graph', { skip: RSVG ? false : RSVG_SKIP }, () => {
+  // Every blur here is at least two deviations wide: below that librsvg's
+  // Gaussian is narrower than the specification's, which the PNG follows.
+  const dir = mkdtempSync(join(tmpdir(), 'napkin-appearance-'));
+  try {
+    const square = (effects: Effect[]) => (d: ReturnType<typeof createComposition>) =>
+      d.rect({ x: 50, y: 40, width: 100, height: 70, fill: '#4a7fb5', effects });
+    const relief = (extra: Partial<EffectOf<'bevel'>> | Partial<EffectOf<'emboss'>>, type: 'bevel' | 'emboss' = 'bevel'): Effect =>
+      ({ ...EFFECT_DEFAULTS[type], size: 12, ...extra }) as Effect;
+    const cases: Array<[string, (design: ReturnType<typeof createComposition>) => void]> = [
+      ['spread shadow', square([{ type: 'drop-shadow', dx: 6, dy: 6, blur: 10, color: '#000000', spread: 40, opacity: 0.75 }])],
+      ['outer glow', square([{ ...EFFECT_DEFAULTS['outer-glow'], blur: 14, spread: 20, color: '#ff8a00', blend: 'normal', opacity: 0.9 }])],
+      ['inner shadow', square([{ ...EFFECT_DEFAULTS['inner-shadow'], dx: 5, dy: 5, blur: 8 }])],
+      ['inner glow', square([{ ...EFFECT_DEFAULTS['inner-glow'], blur: 14, choke: 30, opacity: 0.9 }])],
+      ['center glow', square([{ ...EFFECT_DEFAULTS['inner-glow'], blur: 20, source: 'center', opacity: 0.9 }])],
+      ['feather', square([{ type: 'feather', radius: 12 }])],
+      ['inner bevel', square([relief({ style: 'inner' })])],
+      ['outer bevel', square([relief({ style: 'outer' })])],
+      ['emboss', square([relief({ style: 'emboss' }, 'emboss')])],
+      ['pillow', square([relief({ style: 'pillow', size: 10, soften: 6 }, 'emboss')])],
+      ['pressed', square([relief({ style: 'inner', size: 14, depth: 250, direction: 'down', angle: 45, altitude: 50, soften: 4 })])],
+    ];
+    for (const [name, build] of cases) {
+      const design = createComposition({ width: 200, height: 150, background: '#ffffff' });
+      build(design);
+      const doc = design.toDocument();
+      const ours = decodePng(renderPng(doc).data);
+      writeFileSync(join(dir, 'case.svg'), compositionToSvg(doc));
+      const run = spawnSync(RSVG!, [join(dir, 'case.svg'), '-o', join(dir, 'case.png')]);
+      assert.equal(run.status, 0, String(run.stderr));
+      const theirs = decodePng(new Uint8Array(readFileSync(join(dir, 'case.png'))));
+      let total = 0;
+      let far = 0;
+      for (let i = 0; i < ours.data.length; i++) {
+        const d = Math.abs(ours.data[i] - theirs.data[i]);
+        total += d;
+        if (d > 8) far++;
+      }
+      const mean = total / ours.data.length;
+      // librsvg works each primitive in 8 bits, which a lighting filter's slope steps show.
+      assert.ok(mean < 0.5, `${name}: the two renders differ by ${mean.toFixed(3)} a channel on average`);
+      assert.ok(far / ours.data.length < 0.005, `${name}: ${far} channels differ by more than 8`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

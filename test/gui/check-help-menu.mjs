@@ -1,19 +1,23 @@
 /**
  * The Help menu, in the running app.
  *
- * The menu bar's Help menu holds Verbose, Tool Types and Source Code, with no
- * Source Docs row while the site's deployment is unchecked, and Tool Types
- * lists five rows: Transform, Draw, Pages, Layers and Automate.
+ * The menu bar's Help menu holds Verbose, Tool Types, Source Code and About
+ * napkin-sketch, with no Source Docs row while the site's deployment is
+ * unchecked, and Tool Types lists seven rows: Transform, Draw, Pages, Layers,
+ * Automate, Effect and Type.
  *
  * Help > Verbose opens the documentation window at the guide, read from
  * `docs/` on disk: a window of its own, with the site's own menu and no
  * bridge to the app. A page link stays in the window, Alt and an arrow go
  * back and forward, and a web link goes to the system browser - which a
  * check run records rather than opens - leaving the page where it was. Each
- * Tool Types row shows its quickstart in that same window, and the Automate
- * one leads to the Animation Mode page, which names the assemblies and the
- * frames. Help > Source Code sends the repository to the browser. Ctrl+W
- * closes the window, and Help > Verbose opens a new one.
+ * Tool Types row shows its page - a quickstart, or the effects guide - in
+ * that same window, and the Automate quickstart leads to the Animation Mode
+ * page, which names the assemblies and the frames. Help > About napkin-sketch
+ * shows the About page there, which leads to the third-party notices, each
+ * bundled package's and the hyphenation patterns'. Help > Source Code sends
+ * the repository to the browser. Ctrl+W closes the window, and Help > Verbose
+ * opens a new one.
  *
  * The app runs with a user-data folder of the check's own, removed after it.
  */
@@ -29,6 +33,8 @@ const TOPICS = [
   ['help-topic:pages', 'Pages', 'quickstart/pages'],
   ['help-topic:layers', 'Layers', 'quickstart/layers'],
   ['help-topic:automate', 'Automate', 'quickstart/automate'],
+  ['help-topic:effect', 'Effect', 'guide/effects'],
+  ['help-topic:type', 'Type', 'guide/type'],
 ];
 const ALT = 1;
 const CTRL = 2;
@@ -106,9 +112,9 @@ try {
   // ---- The rows ------------------------------------------------------------------------------------
   const items = await bar();
   const help = items.find((item) => item.label === 'Help');
-  c.eq('Help holds Verbose, Tool Types and Source Code', labels(help?.submenu).join(' | '), 'Verbose | Tool Types | Source Code');
+  c.eq('Help holds Verbose, Tool Types, Source Code and About', labels(help?.submenu).join(' | '), 'Verbose | Tool Types | Source Code | About napkin-sketch');
   c.eq('with no Source Docs row while the deployment is unchecked', rowOf(items, 'help-source-docs'), null);
-  c.eq('Tool Types lists five', labels(rowOf(items, 'help-tool-types')?.submenu).join(' | '), TOPICS.map(([, label]) => label).join(' | '));
+  c.eq('Tool Types lists seven', labels(rowOf(items, 'help-tool-types')?.submenu).join(' | '), TOPICS.map(([, label]) => label).join(' | '));
   c.eq('no documentation window is open at the start', (await docsWindows()).length, 0);
 
   // ---- Help > Verbose ------------------------------------------------------------------------------
@@ -150,8 +156,12 @@ try {
     await menu(id);
     shown.push((await reaches(`${file}.html`)) ? file : `${id} -> ${JSON.stringify(await docsAt())}`);
   }
-  c.eq('each Tool Types row shows its quickstart', shown.join(' | '), TOPICS.map(([, , file]) => file).join(' | '));
+  c.eq('each Tool Types row shows its page', shown.join(' | '), TOPICS.map(([, , file]) => file).join(' | '));
   c.eq('in the one window', (await docsWindows()).length, 1);
+
+  // Back to the Automate quickstart, which the last row left.
+  await menu('help-topic:automate');
+  await reaches('quickstart/automate.html');
 
   await clickIn('main a[href="../guide/animation-mode.html#frame-names"]');
   c.ok('the Automate quickstart leads to the Animation Mode page', await reaches('guide/animation-mode.html'), JSON.stringify(await docsAt()));
@@ -162,6 +172,22 @@ try {
     table: document.querySelector('#frame-names ~ .table-wrap table')?.textContent.includes('animationLayer-walk_1') ?? false,
   };`);
   c.ok('at its frame names, with the six assemblies above them', animation.hash === '#frame-names' && animation.assemblies && animation.frames === 'Frame names' && animation.table, JSON.stringify(animation));
+
+  // ---- Help > About ----------------------------------------------------------------------------------
+  c.ok('Help > About napkin-sketch runs from the menu bar', await menu('help-about'));
+  c.ok('it shows the About page in the same window', await reaches('about.html'), JSON.stringify(await docsAt()));
+  const about = await docs.evalIn(`return {
+    h1: document.querySelector('main h1')?.textContent.trim() ?? null,
+    version: /This documents napkin-sketch \\d/.test(document.body.textContent),
+    license: document.body.textContent.includes('MIT License'),
+  };`);
+  c.ok('which says the version and the license', /^About and license/.test(about.h1 ?? '') && about.version && about.license, JSON.stringify(about));
+  await clickIn('main a[href="third-party-notices.html"]');
+  c.ok('and leads to the third-party notices', await reaches('third-party-notices.html'), JSON.stringify(await docsAt()));
+  const unsaid = await docs.evalIn(`return ['marked 18.0.14', 'marked-highlight 2.2.4', 'highlight.js 11.12.0', 'Ivan Sagalaev', 'Gerard D.C. Kuiken', 'OFL.txt']
+    .filter((text) => !document.body.textContent.includes(text));`);
+  c.eq('each bundled notice on it', unsaid.join(', '), '');
+  c.eq('still in the one window', (await docsWindows()).length, 1);
 
   // ---- Source Code, and closing --------------------------------------------------------------------
   const sentBefore = (await opened()).length;

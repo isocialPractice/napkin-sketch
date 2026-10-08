@@ -38,15 +38,17 @@
   press; `Alt` with a menu's underlined letter always works. See [Alt and the
   menu bar](gestures.md#alt-and-the-menu-bar).
 - **Right-click the canvas** for Cut, Copy, Paste, Paste in Place, Duplicate,
-  Delete, Select All, Deselect All, and the [Wipe Stacks](transform.md#wipe-stacks)
-  for two or more selected shapes. Right-clicking an element that is not
+  Delete, Select All, Deselect All, the [Wipe Stacks](transform.md#wipe-stacks)
+  for two or more selected shapes, and the Effect menu's Apply Last Effect,
+  Last Effect, Expand Appearance and Clear Appearance
+  ([Effects](effects.md)). Right-clicking an element that is not
   selected picks it first, so *Copy* means the thing just clicked, and a
   right-click on empty paper keeps the selection. The layers panel's own menu
   carries the same clipboard rows, since a lit layer row is a selection. Every
   row shows its shortcut at its right edge, and greys when there is nothing
   for it to act on.
 - **Menu buttons toggle** — a button that drops a menu (Export, the pages
-  panel's hamburger, Close Shape) reads as pressed while its menu is out, and
+  panel's hamburger, Close Shape, the Appearance and Properties panels' fx) reads as pressed while its menu is out, and
   pressing it again puts the menu away. A menu row with nested entries opens
   them beside itself on hover, and that panel stays put long enough to be
   reached across the rows in between.
@@ -76,13 +78,15 @@ each menu takes and holds:
 | :--- | :---- | :---- |
 | File | `file` | New Sketch; Open…; Import…; Save; Save As…; Export: PNG Image…, SVG Vector…, JPEG Image…, PDF Document…; Exit |
 | Edit | `edit`, `edit:mixed`, `Subtract:element`, `edit:selection` | Undo; Redo; Cut; Copy; Paste; Paste in Place; Duplicate; Delete; Select All; Verbose Settings…; Rearrange Toolbar; Edit Keyboard Shortcuts…; Edit Tool Types…; Animation Mode (once installed) |
-| View | `view` | Toggle Pages Panel; Toggle Layers Panel; Toggle Properties Panel; Quick Settings; Toggle Developer Tools; Fit All in View; Zoom In; Zoom Out; Toggle Full Screen |
-| Transform | `transform`, `Add:vector`, `Modify:element`, `Combine:element`, `Subtract:vector` | Vector Path; Transform Box; Move…; Rotate…; Join; Close Shape: Sharp, Smooth; Wipe Stacks: Wipe In, Wipe Out, Mid Wipe, Outer Wipes, Clean Wipe; Mirror…; Sharpen: Sharpen Selection…, Sharpen All; Mesh Warp; Liquify |
+| View | `view` | Toggle Pages Panel; Toggle Layers Panel; Toggle Properties Panel; Toggle Appearance Panel; Toggle Composition Styles Panel; Toggle Character Panel; Toggle Paragraph Panel; Quick Settings; Toggle Developer Tools; Fit All in View; Zoom In; Zoom Out; Toggle Full Screen |
+| Transform | `transform`, `Add:vector`, `Modify:element`, `Combine:element`, `Subtract:vector`, `Convert:type` | Vector Path; Transform Box; Move…; Rotate…; Join; Close Shape: Sharp, Smooth; Wipe Stacks: Wipe In, Wipe Out, Mid Wipe, Outer Wipes, Clean Wipe; Mirror…; Expand Text to Shape; Sharpen: Sharpen Selection…, Sharpen All; Mesh Warp; Liquify |
+| Effect | `effect`, `Modify:effect`, `Add:effect` | Apply Last Effect; Last Effect…; Blur: Gaussian Blur…; Adjust Colors: Brightness…, Contrast…, Saturate…, Grayscale…, Sepia…, Invert…, Hue Rotate…, Opacity…; Stylize: Feather…, Outer Shadow…, Inner Shadow…, Outer Glow…, Inner Glow…, Bevel…, Emboss…, Splatter…; Warp: Arc…, Arch…, Unroll…, Shell…, Windy…, Breezy…, Curvy…, Chart…, Puffy…, Expand…, Cram…, Twirl…; 3D: Extrude…, Revolve…, 3D Options; Expand Appearance; Clear Appearance |
+| Type | `type`, `Modify:type`, `Convert:type` | Font; Size: 6 pt, 7 pt, 8 pt, 9 pt, 10 pt, 11 pt, 12 pt, 14 pt, 18 pt, 21 pt, 24 pt, 36 pt, 48 pt, 60 pt, 72 pt, Other; Character…; Paragraph…; Text Configurations…; Type on a Path: Type on a Path Options…, Flip; Type Orientation: Horizontal, Vertical; Area Type Options…; Markdown Flow; Clean Language Accents: Apply…, Remove Accents, Languages…; Expand Text to Shape |
 | Sketch | `sketch`, `Add:mark`, `Modify:vector`, `Subtract:mark` | Brush; Marker; Eraser; Shape Eraser; Shape Stacker; Split; Apply Erasers; Text; Copic; Pencil; Smear; Direct; Stroke Profile…; Fill in Front; Swap Fill and Stroke |
-| Layers | `layers`, `Add:layer`, `Modify:layer`, `Subtract:layer` | Add Layer; Group Layer; Ungroup; Rename; Delete Layer; Move Layer: Layer Up, Layer Down; Clipping Mask: Make, Release; Hide Layers Panel |
+| Layers | `layers`, `Add:layer`, `Modify:layer`, `Subtract:layer` | Add Layer; Group Layer; Ungroup; Rename; Delete Layer; Move Layer: Layer Up, Layer Down; Clipping Mask: Make, Release; Blend: Next Blend Mode, Previous Blend Mode, Normal, Soak Blend (Darken), Stack Blend (Multiply), Scorch Blend (Color Burn), Dry Blend (Lighten), Sheer Blend (Screen), Bleach Blend (Color Dodge), Fold Blend (Overlay), Light Blend (Soft Light), Heavy Blend (Hard Light), Messy Blend (Difference), Avoidance Blend (Exclusion), Tidy Blend (Hue), Bright Blend (Saturation), Dye Blend (Color), Cover Blend (Luminosity), Isolate Blending; Hide Layers Panel |
 | Pages | `pages` | Add Page: Default New Page, Custom New Page…, From Selection; Delete Page; Previous Page; Next Page; Page Settings…; Hide Pages Panel |
 | Automate | `automate`, `automate:mixed` | Generate Script: From Media File…, Selected Layers…, From Session History…; Track History; History Limit… |
-| Help | `help` | Verbose; Tool Types: Transform, Draw, Pages, Layers, Automate; Source Code; Source Docs (once the site is published) |
+| Help | `help` | Verbose; Tool Types: Transform, Draw, Pages, Layers, Automate, Effect, Type; Source Code; Source Docs (once the site is published); About napkin-sketch |
 <!-- menus:end -->
 
 A toolbar tool such as Rectangle, and a key such as Quick Width, is in no
@@ -114,6 +118,10 @@ changes a tool's type, and so the menus that list it.
 | Toggle Pages Panel | View | `Ctrl+B` |  |
 | Toggle Layers Panel | View | `Ctrl+L` |  |
 | Toggle Properties Panel | View | `Ctrl+P` |  |
+| Toggle Appearance Panel | View | `Shift+F6` | The selection's fill, stroke and effects, in the order they are applied |
+| Toggle Composition Styles Panel | View | `Shift+F5` | Your styles that restyle a page by its layers' names, one click each |
+| Toggle Character Panel | View | `Ctrl+Shift+T` | The Type panel on Character: the font, size, spacing and style of the text |
+| Toggle Paragraph Panel | View | `Ctrl+Alt+T` | The Type panel on Paragraph: alignment, lists, indents and spacing |
 | Quick Settings | View | `Ctrl+,` |  |
 | Toggle Developer Tools | View | `Ctrl+Shift+I` |  |
 | Fit All in View | View | `Ctrl+0` |  |
@@ -128,13 +136,18 @@ changes a tool's type, and so the menus that list it.
 | Mirror | Transform | `O` | Horizontally or vertically, in place or as a copy |
 | Sharpen All | Transform > Sharpen | `H` |  |
 | Liquify | Transform | `Shift+R` | Bend the marks under a brush - Warp, Twirl, Pucker or Bloat; press for the four |
+| Apply Last Effect | Effect | `Ctrl+Shift+E` | The effect applied last, again, on the selection |
+| Last Effect | Effect | `Ctrl+Alt+Shift+E` | The effect applied last, its options open on the selection |
+| Markdown Flow | Type | `Ctrl+Alt+M` | The selected text is typed as Markdown and shown as it renders; off, it keeps the rendered text |
+| Clean Language Accents: Apply | Type > Clean Language Accents | `Ctrl+Alt+L` | Colors the code in the selected text's paragraphs as a language reads it, live as it is edited: an installed language, or Auto |
+| Expand Text to Shape | Transform | `Ctrl+Shift+O` | A vector editor's Create Outlines: each glyph a shape, in a group named after the text |
 | Brush | Sketch | `B` | Pressure-aware variable width |
 | Marker | Sketch | `M` |  |
 | Eraser | Sketch | `E` | Cuts the selection, or every mark it touches, out of the drawing |
 | Shape Eraser | Sketch | `Shift+E` | Drag a shape to cut it out of the selected marks; press for the shapes |
 | Shape Stacker | Sketch | `Shift+M` | Drag across the pieces of the selected shapes to merge them, Alt to take them away; press for the Wipe Stacks |
 | Split | Sketch | `J` | Click a path to cut it where you click, as scissors do; a closed one opens there |
-| Text | Sketch | `T` | Click = auto-sizing box, drag = fixed width with wrap |
+| Text | Sketch | `T` | Click = new text or edit a text, in or along a selected path; drag = text box |
 | Copic marker | Sketch | `K` | Flat broad nib, rotatable |
 | Pencil | Sketch | `N` | Graphite and charcoal by hardness, through the paper's grain; press for the drawing kit |
 | Smear | Sketch | `Shift+N` | A blending stump: drag over pencil marks to spread their graphite; Quick Width sizes it, Quick Opacity sets its strength |
@@ -148,6 +161,8 @@ changes a tool's type, and so the menus that list it.
 | Layer Down | Layers > Move Layer | `Ctrl+[` |  |
 | Make Clipping Mask | Layers > Clipping Mask | `Ctrl+7` | Groups the selection; it shows only inside the closed path on top |
 | Release Clipping Mask | Layers > Clipping Mask | `Ctrl+Alt+7` | Takes the clip off; the group stays a group |
+| Next Blend Mode | Layers > Blend | `Shift++` | Steps the selected layers to the next mode, as a photo editor's Shift+Plus does |
+| Previous Blend Mode | Layers > Blend | `Shift+-` |  |
 | Previous Page | Pages | `PageUp` |  |
 | Next Page | Pages | `PageDown` |  |
 | Select | Not in a menu | `S` | Black arrow; active at launch |
@@ -163,6 +178,11 @@ changes a tool's type, and so the menus that list it.
 | Next Color | Not in a menu | `C` | Steps through the Quick Access colors |
 | Previous Color | Not in a menu | `Shift+C` | Steps back through them |
 <!-- shortcuts:end -->
+
+While a text is being edited its keys are the text's: letters type, and the
+editor has keys of its own for size, leading, kerning, alignment and the
+rest, listed in [The editor keys](type.md#the-editor-keys). They are not in
+Edit Keyboard Shortcuts.
 
 ## Changing a shortcut
 
@@ -222,12 +242,13 @@ removes your file.
 
 **Help > Verbose** opens this documentation in a window of its own, at
 [Using the app](index.md). The pages are the app's own copy of this site,
-so they open with no network. **Help > Tool Types** opens a quickstart in
-the same window: [Transform](../quickstart/transform.md),
+so they open with no network. **Help > Tool Types** opens a menu's page in
+the same window: a quickstart for [Transform](../quickstart/transform.md),
 [Draw](../quickstart/draw.md), [Pages](../quickstart/pages.md),
-[Layers](../quickstart/layers.md) or [Automate](../quickstart/automate.md),
+[Layers](../quickstart/layers.md) and [Automate](../quickstart/automate.md),
 which leads on to [Animation Mode](animation-mode.md), its assemblies and
-its frame names.
+its frame names; and for Effect and Type, the guide's
+[Effects](effects.md) and [Type](type.md).
 
 In the documentation window, a link to another page opens it there and a
 link to the web opens in your browser. `Alt + Left` and `Alt + Right` go back
@@ -238,7 +259,9 @@ Choosing another Help row shows its page in the window already open.
 
 **Help > Source Code** opens the project's page in your browser. **Help >
 Source Docs** opens the published site there, and is left out of the menu
-until the site's deployment has been checked.
+until the site's deployment has been checked. **Help > About napkin-sketch**
+shows the [About](../about.md) page in the documentation window: the version,
+the license and the third-party notices.
 
 A copy of the app built from the repository reads the pages from its
 `docs/` folder, which `npm run site` writes; a Help row says so when they

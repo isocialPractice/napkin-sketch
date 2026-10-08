@@ -25,6 +25,7 @@ import {
   verbTablesMarkdown,
 } from '../core/script/reference.js';
 import { instructionsSchema } from '../core/script/schema.js';
+import { compositionStyleSchema } from '../core/composition-style.js';
 
 /** A page: its path from the repository root with `/` between folders, and its text with `\n` line ends. */
 export interface DocPage {
@@ -32,7 +33,7 @@ export interface DocPage {
   text: string;
 }
 
-/** The nine categories the documentation is in, in the order the hub lists them. */
+/** The ten categories the documentation is in, in the order the hub lists them. */
 export const DOC_CATEGORIES: ReadonlyArray<{ id: string; title: string; summary: string }> = [
   {
     id: 'language',
@@ -62,13 +63,18 @@ export const DOC_CATEGORIES: ReadonlyArray<{ id: string; title: string; summary:
   {
     id: 'node',
     title: 'Using napkin-sketch from code',
-    summary: 'The two entries, ES modules and CommonJS, types, the result object, and what throws.',
+    summary: "The package's entries, ES modules and CommonJS, types, the result object, and what throws.",
+  },
+  {
+    id: 'markdown',
+    title: 'Markdown Flow and Clean Language Accents',
+    summary: "napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36.",
   },
   {
     id: 'engines',
     title: 'The drawing engines',
     summary:
-      "The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify.",
+      "The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify; blends, effects, Splatter, Warp and 3D; type, its layout, hyphenation and fonts; Text Configurations and Composition Styles.",
   },
   {
     id: 'interop',
@@ -89,7 +95,34 @@ export const HUB_PAGES = ['API.md', 'API-QUICKSTART.md', 'API-CHEATSHEET.md'] as
 export const CATEGORY_PAGES = ['README.md', 'QUICKSTART.md', 'CHEATSHEET.md'] as const;
 
 export const SCHEMA_PATH = 'docs/api/schema/instructions.schema.json';
+/** The composition style format as a JSON Schema (core/composition-style.ts). */
+export const STYLE_SCHEMA_PATH = 'docs/api/schema/composition-style.schema.json';
 export const INDEX_PATH = 'docs/api/INDEX.json';
+
+/** Each JSON Schema the docs carry: where it is written, the category it belongs to, its entry in the index, and what makes it. */
+const SCHEMAS: ReadonlyArray<{ path: string; category: string; title: string; summary: string; order: number; make: () => unknown }> = [
+  {
+    path: SCHEMA_PATH,
+    category: 'language',
+    title: 'The object form as a JSON Schema',
+    summary: 'A JSON Schema, draft-07, for a script built as JSON: check one against it before handing it over. validateScript is the full check.',
+    order: 100,
+    make: instructionsSchema,
+  },
+  {
+    path: STYLE_SCHEMA_PATH,
+    category: 'compose',
+    title: 'Composition styles as a JSON Schema',
+    summary: 'A JSON Schema, draft-07, for a composition style file: rules by layer name. validateCompositionStyle is the full check, and says why a style is not one.',
+    order: 101,
+    make: compositionStyleSchema,
+  },
+];
+
+/** The schema a path is, if it is one. */
+function schemaAt(path: string): (typeof SCHEMAS)[number] | undefined {
+  return SCHEMAS.find((schema) => schema.path === path);
+}
 
 /** The `napkin-script` skill's verb reference, which the scripting helper carries: written here, never by hand. */
 export const SKILL_REFERENCE_PATH = 'ai-helper/scripting/skills/napkin-script/references/verbs.md';
@@ -191,7 +224,7 @@ export function fillTables(text: string): string {
 
 /** What kind of page a path is. */
 export function pageKind(path: string): 'hub' | 'verbose' | 'quickstart' | 'cheatsheet' | 'schema' {
-  if (path === SCHEMA_PATH) return 'schema';
+  if (schemaAt(path)) return 'schema';
   if (path === 'API.md') return 'hub';
   if (/(^|\/)(API-)?QUICKSTART\.md$/.test(path)) return 'quickstart';
   if (/(^|\/)(API-)?CHEATSHEET\.md$/.test(path)) return 'cheatsheet';
@@ -200,7 +233,8 @@ export function pageKind(path: string): 'hub' | 'verbose' | 'quickstart' | 'chea
 
 /** The category a path is in, or null for a root page. */
 export function pageCategory(path: string): string | null {
-  if (path === SCHEMA_PATH) return 'language';
+  const schema = schemaAt(path);
+  if (schema) return schema.category;
   return /^docs\/api\/([^/]+)\//.exec(path)?.[1] ?? null;
 }
 
@@ -234,15 +268,13 @@ function summaryOf(text: string): string {
 function indexEntry(page: DocPage): Record<string, unknown> {
   const text = page.text;
   const lines = text.endsWith('\n') ? text.split('\n').length - 1 : text.split('\n').length;
-  const schema = page.path === SCHEMA_PATH;
+  const schema = schemaAt(page.path);
   return {
     path: page.path,
     category: pageCategory(page.path),
     kind: pageKind(page.path),
-    title: schema ? 'The object form as a JSON Schema' : titleOf(text),
-    summary: schema
-      ? 'A JSON Schema, draft-07, for a script built as JSON: check one against it before handing it over. validateScript is the full check.'
-      : summaryOf(text),
+    title: schema ? schema.title : titleOf(text),
+    summary: schema ? schema.summary : summaryOf(text),
     lines,
     tokens: Math.round(text.length / 4),
   };
@@ -255,7 +287,8 @@ function pageOrder(path: string): number {
   const category = DOC_CATEGORIES.findIndex((c) => path.startsWith(`docs/api/${c.id}/`));
   const kind = (CATEGORY_PAGES as readonly string[]).indexOf(path.slice(path.lastIndexOf('/') + 1));
   if (category >= 0 && kind >= 0) return 10 + category * 3 + kind;
-  if (path === SCHEMA_PATH) return 100;
+  const schema = schemaAt(path);
+  if (schema) return schema.order;
   return 1000;
 }
 
@@ -323,7 +356,7 @@ export function skillReferenceMarkdown(): string {
 
 export function generateDocs(pages: readonly DocPage[]): DocPage[] {
   const filled = pages.filter((page) => page.path.endsWith('.md')).map((page) => ({ path: page.path, text: fillTables(page.text) }));
-  const schema = { path: SCHEMA_PATH, text: `${JSON.stringify(instructionsSchema(), null, 2)}\n` };
-  const index = { path: INDEX_PATH, text: `${JSON.stringify(docsIndex([...filled, schema]), null, 2)}\n` };
-  return [...filled, schema, index, { path: SKILL_REFERENCE_PATH, text: skillReferenceMarkdown() }];
+  const schemas = SCHEMAS.map((schema) => ({ path: schema.path, text: `${JSON.stringify(schema.make(), null, 2)}\n` }));
+  const index = { path: INDEX_PATH, text: `${JSON.stringify(docsIndex([...filled, ...schemas]), null, 2)}\n` };
+  return [...filled, ...schemas, index, { path: SKILL_REFERENCE_PATH, text: skillReferenceMarkdown() }];
 }

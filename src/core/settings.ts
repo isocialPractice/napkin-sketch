@@ -13,6 +13,7 @@ import {
   DEFAULT_ANIMATION_LOG_FILE,
   LEGACY_ANIMATION_HELPER_COMMANDS,
 } from './animation.js';
+import { ACCENT_LANGUAGES, COMMON_ACCENT_LANGUAGES } from './type/accents.js';
 
 /** Where the application menu (toolbar) is rendered. */
 export type MenuPlacement = 'top' | 'side' | 'both';
@@ -175,6 +176,71 @@ export interface AppSettings {
   trackHistory: boolean;
   /** How many tracked steps are kept, the oldest going first (50-5000, in steps of 50). */
   historyLimit: number;
+  /**
+   * How long a report toast stays before it fades, in seconds (5-60, in steps
+   * of 5), unless the pointer or the focus is on it; 0 keeps it until closed.
+   */
+  reportToastSeconds: number;
+  /**
+   * Scale Strokes and Effects, as a vector editor names it: a transform takes
+   * a mark's line weight and its effects with it - a scale scales them, a turn
+   * turns a shadow's offset and a bevel's light, a mirror flips them. On by
+   * default; off, they stay as they were.
+   */
+  scaleStrokesAndEffects: boolean;
+  /**
+   * Use Preview Bounds, as a vector editor names it: a mark's bounds - its
+   * selection box, the box Transform and Align read, where a click picks it -
+   * take in what its effects paint outside it, a shadow or a glow. Off by
+   * default: the bounds are the mark's own.
+   */
+  usePreviewBounds: boolean;
+  /**
+   * Show the 3D gumball: a selected mark built in 3D shows the gumball on the
+   * canvas - arrows, squares, arcs and boxes to move, turn and scale it in
+   * depth - in place of a Transform Box. On by default; off, the 3D Options
+   * panel is the only control, and the Transform Box works as for any mark.
+   */
+  show3dGumball: boolean;
+  /**
+   * Show the Type panel with the text tool: the panel comes up by itself
+   * when the Text tool is in hand and a text is selected or being typed, and
+   * goes again when another tool is chosen - unless it was opened by hand. On
+   * by default.
+   */
+  typePanelAutoShow: boolean;
+  /**
+   * The family a new text is set in: the one last chosen in the Type panel.
+   * Empty for the app's own, the system's interface font.
+   */
+  textFont: string;
+  /**
+   * New text starts in Markdown Flow: what is typed in a new text is Markdown,
+   * shown as it renders, as Type > Markdown Flow makes a text. Off by default.
+   */
+  markdownNewText: boolean;
+  /**
+   * The languages Clean Language Accents color, by highlight.js id: the 36 of
+   * its common set to begin with. Type > Clean Language Accents > Languages...
+   * adds and takes away.
+   */
+  accentLanguages: string[];
+  /** The colors code is accented in: `auto` follows each page's paper, else Napkin Light or Napkin Dark. */
+  accentTheme: 'auto' | 'light' | 'dark';
+  /**
+   * Detect the language of unlabelled code: a Markdown code block that names
+   * no language is read as the installed one it reads most like. Off by
+   * default, since it guesses.
+   */
+  accentDetect: boolean;
+  /**
+   * Draw text as shapes in PDF: a PDF export draws each glyph as its font's
+   * own outline, so the page looks as the canvas does wherever it is opened;
+   * off, text is set in Helvetica, which a reader can select and search. A
+   * text whose font cannot be read is set in Helvetica either way. On by
+   * default.
+   */
+  pdfTextAsShapes: boolean;
 }
 
 /** Canonical default quick-access colors (the project ink palette). */
@@ -231,6 +297,8 @@ export const SETTINGS_LIMITS = {
   copicRotateSpeedDeg: { min: 15, max: 360, step: 15 },
   copicWidthMultiplier: { min: 1, max: 4, step: 0.25 },
   historyLimit: { min: 50, max: 5000, step: 50 },
+  // 0 is "until closed"; anything else is 5 to 60.
+  reportToastSeconds: { min: 0, max: 60, step: 5 },
 } as const;
 
 /** Factory for a fresh, valid settings object. */
@@ -278,7 +346,34 @@ export function defaultSettings(): AppSettings {
     animationLogFile: DEFAULT_ANIMATION_LOG_FILE,
     trackHistory: false,
     historyLimit: 500,
+    reportToastSeconds: 15,
+    scaleStrokesAndEffects: true,
+    usePreviewBounds: false,
+    show3dGumball: true,
+    typePanelAutoShow: true,
+    textFont: '',
+    markdownNewText: false,
+    accentLanguages: [...COMMON_ACCENT_LANGUAGES],
+    accentTheme: 'auto',
+    accentDetect: false,
+    pdfTextAsShapes: true,
   };
+}
+
+/** A list of accent languages read from anything: the catalog's ids it names, each once, in its order; the common set when it is not a list. */
+function normalizeAccentLanguages(value: unknown, fallback: readonly string[]): string[] {
+  if (!Array.isArray(value)) return [...fallback];
+  const known = new Set(ACCENT_LANGUAGES.map((language) => language.id));
+  return [...new Set(value.filter((id): id is string => typeof id === 'string' && known.has(id)))];
+}
+
+/** The longest font family name kept. */
+export const FONT_NAME_MAX = 200;
+
+/** A font family's name as a setting keeps it: trimmed, its control characters gone, and not too long. */
+function normalizeFontName(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback;
+  return value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, FONT_NAME_MAX);
 }
 
 /** Clamps a number into [min, max], falling back to `fallback` when not finite. */
@@ -310,6 +405,21 @@ export function normalizeHexColor(value: unknown): string | null {
 function legacyDirectSelect(raw: Record<string, unknown>): unknown {
   const saved = raw.directSelectSensitivityPx;
   return saved === 3 && !('selectSensitivityPx' in raw) ? defaultSettings().directSelectSensitivityPx : saved;
+}
+
+/**
+ * A report toast's time: 0 (or less) keeps reports until they are closed, and
+ * any other number is held to 5-60 in steps of 5. Rounding to the step alone
+ * would read a hand-written 2 as 0 and keep every report for ever; a positive
+ * number means "fade", so it never rounds down to "never".
+ */
+function normalizeReportSeconds(value: unknown, fallback: number): number {
+  const lim = SETTINGS_LIMITS.reportToastSeconds;
+  const n = typeof value === 'number' ? value : Number(value);
+  if (value === undefined || value === null || value === '' || !Number.isFinite(n)) return fallback;
+  if (n <= 0) return 0;
+  const stepped = Math.round(Math.min(lim.max, n) / lim.step) * lim.step;
+  return Math.max(lim.step, stepped);
 }
 
 /**
@@ -420,6 +530,17 @@ export function normalizeSettings(input: unknown): AppSettings {
       Math.round(
         clampNumber(raw.historyLimit, lim.historyLimit.min, lim.historyLimit.max, base.historyLimit) / lim.historyLimit.step,
       ) * lim.historyLimit.step,
+    reportToastSeconds: normalizeReportSeconds(raw.reportToastSeconds, base.reportToastSeconds),
+    scaleStrokesAndEffects: typeof raw.scaleStrokesAndEffects === 'boolean' ? raw.scaleStrokesAndEffects : base.scaleStrokesAndEffects,
+    usePreviewBounds: typeof raw.usePreviewBounds === 'boolean' ? raw.usePreviewBounds : base.usePreviewBounds,
+    show3dGumball: typeof raw.show3dGumball === 'boolean' ? raw.show3dGumball : base.show3dGumball,
+    typePanelAutoShow: typeof raw.typePanelAutoShow === 'boolean' ? raw.typePanelAutoShow : base.typePanelAutoShow,
+    textFont: normalizeFontName(raw.textFont, base.textFont),
+    markdownNewText: typeof raw.markdownNewText === 'boolean' ? raw.markdownNewText : base.markdownNewText,
+    accentLanguages: normalizeAccentLanguages(raw.accentLanguages, base.accentLanguages),
+    accentTheme: raw.accentTheme === 'light' || raw.accentTheme === 'dark' || raw.accentTheme === 'auto' ? raw.accentTheme : base.accentTheme,
+    accentDetect: typeof raw.accentDetect === 'boolean' ? raw.accentDetect : base.accentDetect,
+    pdfTextAsShapes: typeof raw.pdfTextAsShapes === 'boolean' ? raw.pdfTextAsShapes : base.pdfTextAsShapes,
   };
 
   result.quickColors = normalizeQuickColors(raw.quickColors, result.quickColorCount);

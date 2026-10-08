@@ -27,7 +27,8 @@
  *   subpath becomes one editable vector stroke, with its transform applied
  *   to the anchors. Fill-only shapes import as fill-only (no outline). Path
  *   data the parser cannot read is sampled along its length as a fallback.
- *   `<text>` becomes text items and `<image>` becomes placed image items.
+ *   `<text>` becomes text items - its styled stretches runs, a `<textPath>`
+ *   type on a path - and `<image>` becomes placed image items.
  */
 
 import {
@@ -41,9 +42,13 @@ import {
 } from '../core/types.js';
 import { normalizeGradient, normalizeSmudges } from '../core/serialize.js';
 import { readEffects, type Effect } from '../core/effects.js';
+import { blendModeOf, isBlended, type BlendModeId } from '../core/blend.js';
 import { linkKind, linkName, linkPlaceholder } from '../core/link.js';
 import { DEFAULT_PENCIL, parsePencil } from '../core/pencil.js';
 import { elementSubpaths, parsePathD, sampleAnchors, type ParsedSubpath } from '../core/path-data.js';
+import { lengthTable } from '../core/arc-length.js';
+import { faceName } from '../core/type/measure.js';
+import { mapTypesetAnchors, readTypeset, scaleTypeset, withTypeset, type CharAttrs, type TypeRun, type TypeSpec } from '../core/type/model.js';
 
 // The DOM-free path-data parsers, re-exported for callers that reach them
 // through the importer.
@@ -60,6 +65,10 @@ export interface ImportedLayer {
   effects?: Effect[];
   /** The group's clip mark, from its `clip-path`: one of the strokes in its children. */
   clip?: Stroke;
+  /** Its blend, from napkin's `data-blend` or the `mix-blend-mode` it was drawn with. */
+  blend?: BlendModeId;
+  /** A group's Isolate Blending, from `isolation: isolate`. */
+  isolate?: boolean;
 }
 
 /** Result of parsing an SVG document. */
@@ -238,7 +247,11 @@ function sortByOrder(items: OrderedStroke[]): Stroke[] {
 /** Direct children that can hold drawable content. */
 function contentChildren(parent: Element): Element[] {
   return Array.from(parent.children).filter(
-    (child) => !NON_CONTENT_TAGS.has(child.tagName.toLowerCase()),
+    (child) =>
+      !NON_CONTENT_TAGS.has(child.tagName.toLowerCase()) &&
+      // A shadow napkin lays under a mark or a layer on its own is a <use> of
+      // it: the effect it draws is in the mark's own `data-effects`.
+      child.getAttribute('data-napkin-part') !== 'under',
   );
 }
 
@@ -384,7 +397,7 @@ function groupToLayer(
     const items: OrderedStroke[] = [];
     for (const child of kids) elementToStrokes(child as SVGElement, root, items, nextOrder);
     collectMaskErasers(group, root, items, nextOrder);
-    return { name, opacity, strokes: sortByOrder(items), ...effectsOf(group) };
+    return { name, opacity, strokes: sortByOrder(items), ...effectsOf(group), ...blendOf(group) };
   }
 
   const children = childLayers(kids, root, nextOrder, splitUnnamed);
@@ -397,9 +410,9 @@ function groupToLayer(
   }
   if (clip) {
     children.push({ name: clip.name, opacity: 1, strokes: [clip.stroke] });
-    return { name, opacity, strokes: [], children, clip: clip.stroke, ...effectsOf(group) };
+    return { name, opacity, strokes: [], children, clip: clip.stroke, ...effectsOf(group), ...blendOf(group) };
   }
-  return { name, opacity, strokes: [], children, ...effectsOf(group) };
+  return { name, opacity, strokes: [], children, ...effectsOf(group), ...blendOf(group) };
 }
 
 /**
@@ -483,12 +496,14 @@ function childLayers(
       continue;
     }
 
+    // A mark another editor blended carries its blend to the layer it gets:
+    // a blend is a layer's, and every mark has a layer of its own.
     const named = elementName(child);
     if (named !== null) {
       flushRun();
       const marks: OrderedStroke[] = [];
       elementToStrokes(child as SVGElement, root, marks, nextOrder);
-      layers.push({ name: named, opacity: 1, strokes: sortByOrder(marks) });
+      layers.push({ name: named, opacity: 1, strokes: sortByOrder(marks), ...blendOf(child) });
       continue;
     }
 
@@ -500,7 +515,7 @@ function childLayers(
       flushRun();
       const marks: OrderedStroke[] = [];
       elementToStrokes(child as SVGElement, root, marks, nextOrder);
-      layers.push({ name: unnamedLabel(child), opacity: 1, strokes: sortByOrder(marks) });
+      layers.push({ name: unnamedLabel(child), opacity: 1, strokes: sortByOrder(marks), ...blendOf(child) });
       continue;
     }
 
@@ -559,6 +574,19 @@ function cssString(value: string): string {
   return `"${value.replace(/["\\]/g, '\\$&')}"`;
 }
 
+/**
+ * An element's blend and Isolate Blending, as fields to spread in: napkin's
+ * `data-blend` first, then the `mix-blend-mode` it is drawn with - an
+ * attribute, inline CSS or a class rule alike, since it is read from the
+ * computed style. Nothing for Normal.
+ */
+function blendOf(el: Element): { blend?: BlendModeId; isolate?: boolean } {
+  const style = getComputedStyle(el);
+  const blend = blendModeOf(el.getAttribute('data-blend')) ?? blendModeOf(style.mixBlendMode);
+  const isolate = el.tagName.toLowerCase() === 'g' && style.isolation === 'isolate';
+  return { ...(isBlended(blend) ? { blend } : {}), ...(isolate ? { isolate: true } : {}) };
+}
+
 /** The effects napkin-sketch wrote on an element as `data-effects`, as a field to spread in: nothing when it has none. */
 function effectsOf(el: Element): { effects?: Effect[] } {
   const raw = el.getAttribute('data-effects');
@@ -606,8 +634,32 @@ function elementMarks(
   const recorded = orderAttr !== null && orderAttr.trim() !== '' ? Number(orderAttr) : NaN;
   const order = Number.isFinite(recorded) ? recorded : nextOrder() + 1_000_000;
 
-  if (tag === 'text') {
-    const stroke = textToStroke(el as SVGTextElement, root);
+  // A napkin mark whose fill and stroke take effects of their own is a group
+  // of the two, each drawn alone: the stroke part is the mark, the fill part
+  // gives back its fill, and the group's opacity is the mark's.
+  if (tag === 'g' && el.hasAttribute('data-napkin-split')) {
+    const line = el.querySelector(':scope > [data-napkin-part="stroke"]');
+    const fillPart = el.querySelector(':scope > [data-napkin-part="fill"]');
+    if (!line) return;
+    const before = out.length;
+    elementMarks(line as SVGElement, root, out, nextOrder, forceTool);
+    const opacity = clamp01(Number(el.getAttribute('opacity') ?? 1));
+    for (let k = before; k < out.length; k++) {
+      const stroke = out[k].stroke;
+      const fill = fillPart?.getAttribute('data-fill');
+      if (fill && stroke.points.length > 2) stroke.fill = fill;
+      const gradient = fillPart ? napkinGradient(fillPart) : undefined;
+      if (gradient && stroke.points.length > 2) stroke.gradient = gradient;
+      // The stroke part draws the outline, unless the mark had it switched off
+      // - a fill-only mark a Splatter split - which the part says.
+      if (!line.hasAttribute('data-nostroke')) delete stroke.noStroke;
+      if (opacity < 1) stroke.opacity = opacity;
+    }
+    return;
+  }
+  // A text mark: a `<text>`, or the group napkin writes for one with paint of its own.
+  if (tag === 'text' || (tag === 'g' && el.getAttribute('data-tool') === 'text')) {
+    const stroke = textToStroke(el as SVGGraphicsElement, root);
     if (stroke) out.push({ order, stroke });
     return;
   }
@@ -632,6 +684,9 @@ function elementMarks(
   if (el.hasAttribute('data-tool') && el.hasAttribute('data-d')) {
     const stroke = profiledToStroke(el, root);
     if (stroke) {
+      // A smeared Pencil whose line a Splatter hatched carries its passes here.
+      const smudges = stroke.tool === 'pencil' ? readSmudges(el.getAttribute('data-smudges')) : undefined;
+      if (smudges) stroke.smudges = smudges;
       out.push({ order, stroke });
       return;
     }
@@ -857,7 +912,7 @@ function profiledToStroke(el: Element, root: SVGSVGElement): Stroke | null {
   if (!subpaths || subpaths.length === 0) return null;
   const matrix = matrixToRoot(el as SVGGraphicsElement, root);
   const dataTool = el.getAttribute('data-tool');
-  const tool: Tool = dataTool === 'marker' ? 'marker' : dataTool === 'pencil' ? 'pencil' : 'pen';
+  const tool: Tool = dataTool === 'marker' ? 'marker' : dataTool === 'pencil' ? 'pencil' : dataTool === 'copic' ? 'copic' : 'pen';
   const color = normalizeColor(el.getAttribute('data-color') ?? DEFAULT_INK);
   const width = importWidth((Number(el.getAttribute('data-width')) || 1) * matrixScale(matrix));
   const opacity = clamp01(Number(getComputedStyle(el).opacity || 1));
@@ -878,6 +933,11 @@ function profiledToStroke(el: Element, root: SVGSVGElement): Stroke | null {
   }
   const fill = el.getAttribute('data-fill');
   if (fill && stroke.points.length > 2) stroke.fill = fill;
+  // A Copic's nib rides along as its own markup carries it.
+  if (tool === 'copic') {
+    const nib = Number(el.getAttribute('data-nib'));
+    if (Number.isFinite(nib)) stroke.nibAngle = ((nib % 360) + 360) % 360;
+  }
   // A Pencil mark's outline is filled with its grain; the pencil itself rides along.
   if (tool === 'pencil') stroke.pencil = parsePencil(el.getAttribute('data-pencil') ?? '') ?? { ...DEFAULT_PENCIL };
   applyNapkinPaint(el, stroke);
@@ -1068,25 +1128,27 @@ function findPaintServer(
  * swapped), which only a pen or marker mark keeps. Foreign SVGs carry none of
  * these and pass through untouched.
  */
-function applyNapkinPaint(el: Element, stroke: Stroke): void {
+/** The gradient napkin wrote on an element as `data-gradient`, read: undefined when there is none, or none that reads. */
+function napkinGradient(el: Element): Gradient | undefined {
   const raw = el.getAttribute('data-gradient');
-  if (raw) {
-    let parsed: unknown = null;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      parsed = null; // Malformed attribute: keep whatever flat fill was read.
-    }
-    const gradient = normalizeGradient(parsed);
-    if (gradient) {
-      stroke.gradient = gradient;
-      // The flat fill beneath the gradient is kept when the export carried
-      // one; without it the computed `url(#…)` paint is not a color and must
-      // not be stored as one.
-      const kept = el.getAttribute('data-fill');
-      if (kept) stroke.fill = kept;
-      else delete stroke.fill;
-    }
+  if (!raw) return undefined;
+  try {
+    return normalizeGradient(JSON.parse(raw)) ?? undefined;
+  } catch {
+    return undefined; // Malformed attribute: keep whatever flat fill was read.
+  }
+}
+
+function applyNapkinPaint(el: Element, stroke: Stroke): void {
+  const gradient = napkinGradient(el);
+  if (gradient) {
+    stroke.gradient = gradient;
+    // The flat fill beneath the gradient is kept when the export carried
+    // one; without it the computed `url(#…)` paint is not a color and must
+    // not be stored as one.
+    const kept = el.getAttribute('data-fill');
+    if (kept) stroke.fill = kept;
+    else delete stroke.fill;
   }
   const dash = el.getAttribute('data-dash');
   if (dash === 'dashed' || dash === 'dotted') stroke.strokeStyle = dash;
@@ -1149,45 +1211,228 @@ function makeStroke(
   };
 }
 
-function textToStroke(el: SVGTextElement, root: SVGSVGElement): Stroke | null {
+/**
+ * A text item from a `<text>`, or from the group napkin writes for a text
+ * mark with paint of its own.
+ *
+ * napkin's own text comes back from what it carries: the text as typed
+ * (`data-text`), its anchor (`data-anchor`) and its typeset
+ * (`data-typeset`), through the element's transform. A file from before
+ * carries `data-text` and `data-box` beside lines anchored at their tops
+ * (`dominant-baseline="hanging"`).
+ *
+ * Anyone else's text is read from what it draws: a `<tspan>` with a place of
+ * its own on another line starts a line, and each stretch in a style of its
+ * own is a run - its family, size, weight, slant, color, decoration, letter
+ * spacing and small capitals. A `<textPath>` makes it Path Typing along its
+ * path from its start offset; a vertical `writing-mode` sets it vertically;
+ * `text-anchor` aligns it.
+ */
+function textToStroke(el: SVGGraphicsElement, root: SVGSVGElement): Stroke | null {
   const matrix = matrixToRoot(el, root);
+  const scale = matrixScale(matrix);
+  const typed = el.getAttribute('data-text');
+  const anchorAttr = el.getAttribute('data-anchor');
+  if (typed !== null && anchorAttr !== null) return napkinText(el, matrix, scale, typed, anchorAttr);
+
   const style = getComputedStyle(el);
   const size = parseFloat(style.fontSize) || 24;
   const x = parseFloat(el.getAttribute('x') ?? '0');
   const rawY = parseFloat(el.getAttribute('y') ?? '0');
-  // napkin exports anchor at the glyph top (hanging); generic SVG text
-  // anchors at the baseline.
-  const hanging =
-    el.getAttribute('dominant-baseline') === 'hanging' || style.dominantBaseline === 'hanging';
-  const y = hanging ? rawY : rawY - size * 0.8;
-
-  const tspans = Array.from(el.querySelectorAll('tspan'));
-  const lines =
-    tspans.length > 0
-      ? tspans.map((t) => t.textContent ?? '')
-      : (el.textContent ?? '').split('\n');
-  // napkin's own export carries a boxed text as typed, and its box, beside
-  // the lines it was wrapped into for viewers that cannot wrap.
-  const typed = el.getAttribute('data-text');
+  // napkin exports from before anchor at the glyph top (hanging); other text anchors at the baseline.
+  const hanging = el.getAttribute('dominant-baseline') === 'hanging' || style.dominantBaseline === 'hanging';
+  const vertical = /^(vertical|tb)/.test(style.writingMode || el.getAttribute('writing-mode') || '');
+  const along = el.querySelector('textPath');
+  const pieces = textPieces(el, scale);
+  // napkin's own export from before carries a boxed text as typed, and its box, beside the lines it was wrapped into.
   const box = parseFloat(el.getAttribute('data-box') ?? '');
-  const text = (typed ?? lines.join('\n')).trimEnd();
+  const text = (typed ?? pieces.map((piece) => piece.text).join('')).trimEnd();
   if (!text) return null;
 
-  const anchor = applyMatrix(matrix, x, y);
   const opacity = clamp01(Number(style.opacity || 1) * Number(style.fillOpacity || 1));
-  return {
+  const first = pieces[0]?.attrs ?? {};
+  const baseSize = first.fontSize ?? size * scale;
+  let anchor = applyMatrix(matrix, x, hanging ? rawY : rawY - size * 0.8);
+  if (vertical) anchor = applyMatrix(matrix, x + size / 2, rawY);
+  let stroke: Stroke = {
     id: createId('tx'),
     tool: 'text',
-    color: style.fill !== 'none' && style.fill ? normalizeColor(style.fill) : '#1f2328',
+    color: first.color ?? (style.fill !== 'none' && style.fill ? normalizeColor(style.fill) : '#1f2328'),
     width: 1,
     points: [{ x: anchor.x, y: anchor.y, pressure: 0.5 }],
     text,
-    fontSize: size * matrixScale(matrix),
-    fontFamily: style.fontFamily || DEFAULT_FONT_FAMILY,
-    ...(typed !== null && Number.isFinite(box) && box > 0 ? { textBoxWidth: box * matrixScale(matrix) } : {}),
+    fontSize: baseSize,
+    fontFamily: first.fontFamily ?? (style.fontFamily || DEFAULT_FONT_FAMILY),
+    ...(typed !== null && Number.isFinite(box) && box > 0 ? { textBoxWidth: box * scale } : {}),
     opacity: opacity < 1 ? opacity : undefined,
     sharpened: true,
   };
+  if (typed !== null) return stroke;
+
+  // Each stretch in a style of its own is a run; the text's own alignment and kind say the rest.
+  const runs: TypeRun[] = [];
+  let at = 0;
+  for (const piece of pieces) {
+    if (piece.text.length > 0 && Object.keys(piece.attrs).length > 0) runs.push({ start: at, end: Math.min(text.length, at + piece.text.length), attrs: piece.attrs });
+    at += piece.text.length;
+  }
+  const anchorWord = style.textAnchor || el.getAttribute('text-anchor') || 'start';
+  const align = anchorWord === 'middle' ? 'center' : anchorWord === 'end' ? 'right' : null;
+  const spec: TypeSpec = { kind: 'point', runs, ...(vertical ? { orientation: 'vertical' as const } : {}), ...(align ? { paras: text.split('\n').map(() => ({ align })) } : {}) };
+  const path = along ? textPathOf(along, root) : null;
+  if (path) {
+    stroke.points = [{ x: path.anchors[0].p.x, y: path.anchors[0].p.y, pressure: 0.5 }];
+    spec.kind = 'path';
+    spec.path = {
+      anchors: path.anchors.map((a) => relativeAnchor(a, path.anchors[0].p)),
+      start: path.start,
+      end: Number.MAX_SAFE_INTEGER,
+      align: 'baseline',
+      effect: 'rainbow',
+      ...(path.closed ? { closed: true } : {}),
+    };
+  }
+  stroke = withTypeset(stroke, spec);
+  return stroke;
+}
+
+/** A napkin text mark, from the data its outermost element carries, through its transform. */
+function napkinText(el: SVGGraphicsElement, matrix: DOMMatrix, scale: number, typed: string, anchorAttr: string): Stroke | null {
+  const [ax, ay] = anchorAttr.trim().split(/[\s,]+/).map(Number);
+  if (!Number.isFinite(ax) || !Number.isFinite(ay)) return null;
+  // The base font and ink: the text's own, or - for a text written as its shapes - the group's.
+  const textEl = el.tagName.toLowerCase() === 'text' ? el : ((el.querySelector('text') as SVGGraphicsElement | null) ?? el);
+  const size = parseFloat(textEl?.getAttribute('font-size') ?? '') || 24;
+  const anchor = applyMatrix(matrix, ax, ay);
+  const opacity = clamp01(Number(el.getAttribute('opacity') ?? 1));
+  const box = parseFloat(el.getAttribute('data-box') ?? '');
+  let stroke: Stroke = {
+    id: createId('tx'),
+    tool: 'text',
+    color: textEl?.getAttribute('fill') ?? '#1f2328',
+    width: 1,
+    points: [{ x: anchor.x, y: anchor.y, pressure: 0.5 }],
+    text: typed,
+    fontSize: size * scale,
+    fontFamily: textEl?.getAttribute('font-family') ?? DEFAULT_FONT_FAMILY,
+    ...(Number.isFinite(box) && box > 0 ? { textBoxWidth: box * scale } : {}),
+    opacity: opacity < 1 ? opacity : undefined,
+    sharpened: true,
+  };
+  const raw = el.getAttribute('data-typeset');
+  if (raw) {
+    try {
+      const spec = readTypeset(JSON.parse(raw), typed);
+      if (spec) {
+        // The frame or the path turns and scales with the element; the sizes scale with it.
+        const turned = mapTypesetAnchors(spec, (p) => ({ x: (matrix.a * p.x + matrix.c * p.y) / scale, y: (matrix.b * p.x + matrix.d * p.y) / scale }));
+        stroke = withTypeset(stroke, scale === 1 ? turned : scaleTypeset(turned, scale, scale));
+      }
+    } catch {
+      // A typeset that does not read leaves the text as plain point text.
+    }
+  }
+  return stroke;
+}
+
+/** One stretch of a foreign text in one style: what it says, and its attributes. */
+interface TextPiece {
+  text: string;
+  attrs: Partial<CharAttrs>;
+}
+
+/**
+ * A text element's stretches, in order, each with the character attributes
+ * its style gives it, and a newline before each `<tspan>` that is placed on
+ * another line. Whitespace folds as SVG folds it, unless the text keeps it.
+ */
+function textPieces(el: Element, scale: number): TextPiece[] {
+  const pieces: TextPiece[] = [];
+  let lineY: number | null = null;
+  const keeps = el.getAttribute('xml:space') === 'preserve' || /^pre/.test(getComputedStyle(el).whiteSpace);
+  const walk = (node: Element, decorations: Set<string>): void => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === 3) {
+        let value = child.textContent ?? '';
+        if (!keeps) value = value.replace(/\s+/g, ' ');
+        if (value) pieces.push({ text: value, attrs: pieceAttrs(node, scale, decorations) });
+        continue;
+      }
+      if (!(child instanceof Element)) continue;
+      const tag = child.tagName.toLowerCase();
+      if (tag !== 'tspan' && tag !== 'textpath' && tag !== 'a') continue;
+      const yAttr = child.getAttribute('y');
+      const dy = parseFloat(child.getAttribute('dy') ?? '');
+      const y = yAttr !== null ? parseFloat(yAttr.trim().split(/[\s,]+/)[0]) : NaN;
+      const newLine = (Number.isFinite(y) && lineY !== null && Math.abs(y - lineY) > 1e-6) || (Number.isFinite(dy) && dy !== 0);
+      if (Number.isFinite(y)) lineY = y;
+      else if (Number.isFinite(dy) && lineY !== null) lineY += dy;
+      if (newLine && pieces.length > 0) {
+        // The line before it ends where its last word does.
+        const last = pieces[pieces.length - 1];
+        last.text = last.text.replace(/ +$/, '');
+        pieces.push({ text: '\n', attrs: last.attrs });
+      }
+      const own = new Set(decorations);
+      const line = (child.getAttribute('text-decoration') ?? getComputedStyle(child).textDecorationLine ?? '').split(/\s+/);
+      for (const word of line) if (word === 'underline' || word === 'line-through') own.add(word);
+      walk(child, own);
+    }
+  };
+  if (lineY === null) {
+    const y = parseFloat((el.getAttribute('y') ?? '').trim().split(/[\s,]+/)[0]);
+    if (Number.isFinite(y)) lineY = y;
+  }
+  const top = new Set<string>();
+  for (const word of (el.getAttribute('text-decoration') ?? '').split(/\s+/)) if (word === 'underline' || word === 'line-through') top.add(word);
+  walk(el, top);
+  // A line starts where its first word does.
+  for (let k = 0; k < pieces.length; k++) {
+    if (k === 0 || pieces[k - 1].text === '\n') pieces[k].text = pieces[k].text.replace(/^ +/, '');
+  }
+  return pieces.filter((piece) => piece.text.length > 0);
+}
+
+/** The character attributes an element's style gives the text in it. */
+function pieceAttrs(node: Element, scale: number, decorations: ReadonlySet<string>): Partial<CharAttrs> {
+  const style = getComputedStyle(node);
+  const size = (parseFloat(style.fontSize) || 24) * scale;
+  const weight = style.fontWeight === 'bold' ? 700 : Number(style.fontWeight) || 400;
+  const attrs: Partial<CharAttrs> = {
+    fontFamily: style.fontFamily || DEFAULT_FONT_FAMILY,
+    fontSize: size,
+    fontStyle: faceName(weight, style.fontStyle === 'italic' || style.fontStyle === 'oblique'),
+  };
+  if (style.fill && style.fill !== 'none') attrs.color = normalizeColor(style.fill);
+  if (decorations.has('underline')) attrs.underline = true;
+  if (decorations.has('line-through')) attrs.strike = true;
+  const spacing = parseFloat(style.letterSpacing);
+  if (Number.isFinite(spacing) && spacing !== 0) attrs.tracking = Math.round(((spacing * scale) / size) * 1000);
+  if (style.fontVariantCaps === 'small-caps' || /small-caps/.test(style.fontVariant)) attrs.caps = 'small';
+  return attrs;
+}
+
+/** The path a `<textPath>` runs along, on the page, and how far along it the text starts. */
+function textPathOf(along: Element, root: SVGSVGElement): { anchors: VectorAnchor[]; closed: boolean; start: number } | null {
+  const ref = (along.getAttribute('href') ?? along.getAttribute('xlink:href') ?? '').replace(/^#/, '');
+  const target = ref ? root.querySelector(`[id=${cssString(ref)}]`) : null;
+  const d = target?.getAttribute('d');
+  if (!target || !d) return null;
+  const sub = parsePathD(d)?.[0];
+  if (!sub || sub.anchors.length < 2) return null;
+  const m = matrixToRoot(target as SVGGraphicsElement, root);
+  const map = (p: { x: number; y: number }): { x: number; y: number } => applyMatrix(m, p.x, p.y);
+  const anchors = sub.anchors.map((a) => ({ p: map(a.p), ...(a.hIn ? { hIn: map(a.hIn) } : {}), ...(a.hOut ? { hOut: map(a.hOut) } : {}) }));
+  const offset = (along.getAttribute('startOffset') ?? '0').trim();
+  const total = lengthTable(anchors, sub.closed).total;
+  const start = offset.endsWith('%') ? (parseFloat(offset) / 100) * total : (parseFloat(offset) || 0) * matrixScale(m);
+  return { anchors, closed: sub.closed, start: Math.max(0, Number.isFinite(start) ? start : 0) };
+}
+
+/** An anchor made relative to a point. */
+function relativeAnchor(a: VectorAnchor, to: { x: number; y: number }): VectorAnchor {
+  const rel = (p: { x: number; y: number }): { x: number; y: number } => ({ x: p.x - to.x, y: p.y - to.y });
+  return { p: rel(a.p), ...(a.hIn ? { hIn: rel(a.hIn) } : {}), ...(a.hOut ? { hOut: rel(a.hOut) } : {}) };
 }
 
 /**

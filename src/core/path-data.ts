@@ -529,6 +529,36 @@ export function sampleAnchors(anchors: readonly VectorAnchor[], closed: boolean)
 }
 
 /**
+ * Anchors as SVG path data, as few numbers as they take: a line where a
+ * segment is straight - neither handle off its anchor - and a cubic where it
+ * bends. Each `move` anchor starts a subpath, and each subpath closes when
+ * `closed`, a bent closing segment drawn before the `Z`. What
+ * {@link parsePathD} reads back is the same anchors.
+ */
+export function anchorsToPathData(anchors: readonly VectorAnchor[], closed: boolean, format: (n: number) => string = String): string {
+  const parts: string[] = [];
+  const pt = (p: Vec2): string => `${format(p.x)} ${format(p.y)}`;
+  const off = (h: Vec2 | undefined, p: Vec2): boolean => h !== undefined && (Math.abs(h.x - p.x) > COINCIDENT || Math.abs(h.y - p.y) > COINCIDENT);
+  const bends = (from: VectorAnchor, to: VectorAnchor): boolean => off(from.hOut, from.p) || off(to.hIn, to.p);
+  const segment = (from: VectorAnchor, to: VectorAnchor): string =>
+    bends(from, to) ? `C${pt(from.hOut ?? from.p)} ${pt(to.hIn ?? to.p)} ${pt(to.p)}` : `L${pt(to.p)}`;
+  let start = 0;
+  for (let i = 1; i <= anchors.length; i++) {
+    if (i < anchors.length && !anchors[i].move) continue;
+    const sub = anchors.slice(start, i);
+    parts.push(`M${pt(sub[0].p)}`);
+    for (let k = 1; k < sub.length; k++) parts.push(segment(sub[k - 1], sub[k]));
+    if (closed && sub.length >= 2) {
+      const last = sub[sub.length - 1];
+      if (bends(last, sub[0])) parts.push(segment(last, sub[0]));
+      parts.push('Z');
+    }
+    start = i;
+  }
+  return parts.join('');
+}
+
+/**
  * Samples a whole mark - every subpath, each later one starting at a `move`
  * anchor - into the points a stroke carries, pressure and all. Each subpath is
  * sampled by {@link sampleAnchors} and closes back to its own start when the

@@ -19,14 +19,16 @@
  */
 
 import { simplify } from '../sharpen/geometry.js';
-import { readEffects } from './effects.js';
+import { markEffectPlan, markOpacity } from './appearance.js';
+import { bindGeometry, drawnMark, drawnPart, geometryOf } from './geometry-effects.js';
+import { activeEffects, untargeted, type Effect } from './effects.js';
+import { isBlended } from './blend.js';
 import { parseColor } from './graphic-design/color.js';
 import type { CompositionDocument, Element, GradientPaint, Paint } from './graphic-design/types.js';
 import { copicNibPolygons } from './nib.js';
 import { activeProfile, profileInputOf, profileOutline } from './stroke-profile.js';
 import { EXPORT_SIMPLIFY_EPSILON, PathData, pathD } from './svg-path.js';
 import {
-  DEFAULT_FONT_FAMILY,
   dashPatternFor,
   defaultOpacityFor,
   isImageStroke,
@@ -40,6 +42,12 @@ import {
 import { clipIndex } from './clip.js';
 import { encodePng } from './graphic-design/png.js';
 import { pencilPicture, pencilRegion, pngDataUrl } from './pencil.js';
+import { anchorsToPathData } from './path-data.js';
+import { layoutType, typeSpans } from './type/layout.js';
+import { withAccentPage } from './type/accents.js';
+import { withoutMarkdownReveal } from './type/markdown-flow.js';
+import { outlineSource, outlineText } from './type/outline.js';
+import { faceStyle, type TypeFont } from './type/measure.js';
 
 /** What of a sketch {@link sketchToComposition} draws. */
 export interface SketchCompositionOptions {
@@ -82,6 +90,13 @@ function paintCheck(onWarning?: (message: string) => void): PaintCheck {
 
 /** A sketch as a composition, ready for `rasterizeComposition` or `compositionToSvg`. */
 export function sketchToComposition(sketch: Sketch, options: SketchCompositionOptions = {}): CompositionDocument {
+  return withoutMarkdownReveal(() => withAccentPage(sketch.background, () => compositionOf(sketch, options)));
+}
+
+/** The composition {@link sketchToComposition} makes, every Markdown block rendered, code accented for its paper. */
+function compositionOf(sketch: Sketch, options: SketchCompositionOptions): CompositionDocument {
+  // A layer's Warp bends what it holds: each mark is drawn as it is bent.
+  bindGeometry(sketch);
   const crop = options.crop;
   const paint = paintCheck(options.onWarning);
   const byLayer = strokesByLayer(sketch);
@@ -105,8 +120,15 @@ export function sketchToComposition(sketch: Sketch, options: SketchCompositionOp
   const clips = clipIndex(sketch);
   const lowerLayer = (layer: Layer): Element | null => {
     if (!layer.visible) return null;
-    const effects = readEffects(layer.effects);
-    const own = { name: layer.name, ...(layer.opacity < 1 ? { opacity: layer.opacity } : {}), ...(effects ? { effects } : {}) };
+    const read = activeEffects(layer.effects);
+    const effects = read ? untargeted(read) : undefined;
+    const own = {
+      name: layer.name,
+      ...(layer.opacity < 1 ? { opacity: layer.opacity } : {}),
+      ...(effects ? { effects } : {}),
+      ...(isBlended(layer.blend) ? { blend: layer.blend } : {}),
+      ...(layer.group && layer.isolate ? { isolate: true } : {}),
+    };
     if (layer.group) {
       const children = (childrenOf.get(layer.id) ?? []).map(lowerLayer).filter((el): el is Element => el !== null);
       if (children.length === 0) return null;
@@ -123,7 +145,7 @@ export function sketchToComposition(sketch: Sketch, options: SketchCompositionOp
     const strokes = clips.any ? (byLayer.get(layer.id) ?? []).filter((s) => !clips.marks.has(s.id)) : (byLayer.get(layer.id) ?? []);
     if (strokes.length === 0) return null;
     const erase = strokes.filter((s) => s.tool === 'eraser').flatMap(eraserElements);
-    const children = strokes.filter((s) => s.tool !== 'eraser').flatMap((s) => withEffects(markElements(s, paint, options.scale ?? 1), s));
+    const children = strokes.filter((s) => s.tool !== 'eraser').flatMap((s) => lowerMark(s, paint, options.scale ?? 1));
     return { type: 'group', ...own, children, ...(erase.length > 0 ? { erase } : {}) };
   };
 
@@ -170,15 +192,55 @@ function outlineData(contours: ReadonlyArray<ReadonlyArray<{ x: number; y: numbe
 }
 
 /**
- * A mark's elements with its effects on them: on the one element it draws as,
- * or on a group around the several, so the effects see the mark whole, as
- * the SVG's filter on the mark's outermost element does.
+ * Elements with an effect list on them: on the one element there is, or on a
+ * group around the several, so the effects see them whole, as the SVG's
+ * filter on a mark's outermost element does.
  */
-function withEffects(elements: Element[], stroke: Stroke): Element[] {
-  const effects = readEffects(stroke.effects);
-  if (!effects || elements.length === 0) return elements;
-  if (elements.length === 1) return [{ ...elements[0], effects }];
-  return [{ type: 'group', effects, children: elements }];
+function withEffects(elements: Element[], effects: readonly Effect[]): Element[] {
+  if (effects.length === 0 || elements.length === 0) return elements;
+  if (elements.length === 1) return [{ ...elements[0], effects: untargeted(effects) }];
+  return [{ type: 'group', effects: untargeted(effects), children: elements }];
+}
+
+/**
+ * One mark as the elements that draw it, bent by its Warps, with its effects
+ * (core/appearance.ts): on the mark as a whole, or - for a mark whose fill
+ * and stroke each take effects of their own - as a group of its fill alone
+ * and its stroke alone, each through its own effects, the whole mark's on the
+ * group, and the mark's opacity on the group too, so the two parts take it as
+ * one picture. The group is isolated, as the canvas composes the parts inside
+ * the mark.
+ */
+function lowerMark(stroke: Stroke, paint: PaintCheck, scale: number): Element[] {
+  const plan = markEffectPlan(stroke);
+  // A mark 3D built is its faces, far first: as a group that takes the mark's
+  // opacity and its effects once, when it has either.
+  const faces = geometryOf(stroke)?.faces;
+  if (faces) {
+    const children = faces.flatMap((face) => markElements(face, paint, scale));
+    if (!plan || children.length === 0) return children;
+    const opacity = markOpacity(stroke);
+    return [{ type: 'group', ...(opacity < 1 ? { opacity } : {}), ...(plan.object.length > 0 ? { effects: untargeted(plan.object) } : {}), children }];
+  }
+  // A mark a Warp bent whole is drawn as it is bent (core/geometry-effects.ts).
+  if (!plan) return markElements(drawnMark(stroke), paint, scale);
+  if (!plan.split) return withEffects(markElements(drawnMark(stroke), paint, scale), plan.object);
+  const children = [
+    ...withEffects(markElements(drawnPart(stroke, 'fill'), paint, scale), plan.fill),
+    ...withEffects(markElements(drawnPart(stroke, 'stroke'), paint, scale), plan.stroke),
+  ];
+  if (children.length === 0) return [];
+  const opacity = markOpacity(stroke);
+  return [
+    {
+      type: 'group',
+      // A part's own blended shadow mixes with the part under it, and no further.
+      isolate: true,
+      ...(opacity < 1 ? { opacity } : {}),
+      ...(plan.object.length > 0 ? { effects: untargeted(plan.object) } : {}),
+      children,
+    },
+  ];
 }
 
 /** One mark as the elements that draw it. */
@@ -262,26 +324,106 @@ function pencilElements(stroke: Stroke, scale: number): Element[] {
   ];
 }
 
-/** A text item: text set from its top, a line and a quarter apart, wrapped in its box when it has one. */
+/** Four corners as path data. */
+function cornersD(corners: ReadonlyArray<{ x: number; y: number }>): string {
+  return `${corners.map((p, k) => `${k === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join('')}Z`;
+}
+
+/** A font as a text element's style: its family, size, weight and slant. */
+function fontStyleOf(font: TypeFont): { fontFamily: string; fontSize: number; fontWeight: number; fontStyle: 'normal' | 'italic' } {
+  const { weight, italic } = faceStyle(font.style);
+  return { fontFamily: font.family, fontSize: font.size, fontWeight: weight, fontStyle: italic ? 'italic' : 'normal' };
+}
+
+/**
+ * A text item as its shapes, when an outline source can draw them - a
+ * headless render given its fonts' files (core/type/outline.ts). Otherwise,
+ * as the type layout sets it with the built-in face - the face the
+ * composition draws text in: its frame's paint, its shades and
+ * highlights, each stretch in one style a text element on its baseline, each
+ * turned or scaled character alone, turned and scaled about its origin (a
+ * Path Typing slant left out), its list markers, and its underlines and
+ * strikethroughs as thin filled shapes. A group, when the mark has an opacity
+ * of its own, so what overlaps is not laid twice.
+ */
 function textElements(stroke: Stroke, paint: PaintCheck): Element[] {
-  const anchor = stroke.points[0];
-  if (!anchor || !stroke.text) return [];
-  const box = stroke.textBoxWidth && stroke.textBoxWidth > 0 ? stroke.textBoxWidth : 0;
-  return [
-    {
+  if (!stroke.points[0]) return [];
+  // With fonts to draw it from - a headless render given its font files - a text is its shapes.
+  const source = outlineSource();
+  if (source) {
+    const outlined = outlineText(stroke, layoutType(stroke, source.measure), source);
+    if (outlined.marks) {
+      const shapes = outlined.marks.flatMap(({ mark }) => markElements(mark, paint, 1));
+      if (shapes.length === 0) return [];
+      return typeof stroke.opacity === 'number' ? [{ type: 'group', opacity: stroke.opacity, children: shapes }] : shapes;
+    }
+  }
+  const layout = layoutType(stroke);
+  const out: Element[] = [];
+  const frame = layout.frame;
+  if (frame && (frame.fill || frame.stroke)) {
+    out.push({
+      type: 'path',
+      d: anchorsToPathData(frame.anchors, true),
+      fill: frame.fill ? paint(frame.fill) : null,
+      stroke: frame.stroke ? paint(frame.stroke) : null,
+      ...(frame.stroke ? { strokeWidth: frame.width ?? 1 } : {}),
+    });
+  }
+  for (const highlight of layout.highlights) out.push({ type: 'path', d: cornersD(highlight.corners), fill: paint(highlight.color) });
+  for (const span of typeSpans(layout)) {
+    if (span.text.trim() === '') continue;
+    if (span.plain) {
+      out.push({
+        type: 'text',
+        x: span.x,
+        y: span.y,
+        text: span.text,
+        ...fontStyleOf(span.font),
+        ...(span.tracking !== 0 ? { letterSpacing: span.tracking } : {}),
+        ...(span.wordSpace !== 0 ? { wordSpacing: span.wordSpace } : {}),
+        fill: paint(span.color),
+        baseline: 'alphabetic',
+      });
+      continue;
+    }
+    // A turn and two scales about its origin: the composition's own transform, which has no slant.
+    const g = span.glyphs[0];
+    const [a, b, c, d] = g.matrix;
+    const sx = Math.hypot(a, b);
+    const sy = sx > 0 ? (a * d - b * c) / sx : 1;
+    const turn = (Math.atan2(b, a) * 180) / Math.PI;
+    out.push({
       type: 'text',
-      x: anchor.x,
-      y: anchor.y,
-      text: stroke.text,
-      fontSize: stroke.fontSize ?? 24,
-      fontFamily: stroke.fontFamily ?? DEFAULT_FONT_FAMILY,
-      fill: paint(stroke.color),
-      baseline: 'top',
-      lineHeight: 1.25,
-      ...(box > 0 ? { maxWidth: box } : {}),
-      ...(typeof stroke.opacity === 'number' ? { opacity: stroke.opacity } : {}),
-    },
-  ];
+      x: g.x,
+      y: g.y,
+      text: g.ch,
+      ...fontStyleOf(g.font),
+      fill: paint(g.color),
+      baseline: 'alphabetic',
+      origin: { x: g.x, y: g.y },
+      ...(Math.abs(turn) > 1e-9 ? { rotate: turn } : {}),
+      ...(Math.abs(sx - 1) > 1e-9 || Math.abs(sy - 1) > 1e-9 ? { scale: { x: sx, y: sy } } : {}),
+    });
+  }
+  for (const marker of layout.markers) {
+    out.push({ type: 'text', x: marker.x, y: marker.y, text: marker.text, ...fontStyleOf(marker.font), fill: paint(marker.color), baseline: 'alphabetic' });
+  }
+  for (const line of layout.decorations) {
+    const length = Math.hypot(line.to.x - line.from.x, line.to.y - line.from.y);
+    if (length === 0) continue;
+    const nx = (-(line.to.y - line.from.y) / length) * (line.thickness / 2);
+    const ny = ((line.to.x - line.from.x) / length) * (line.thickness / 2);
+    const corners = [
+      { x: line.from.x + nx, y: line.from.y + ny },
+      { x: line.to.x + nx, y: line.to.y + ny },
+      { x: line.to.x - nx, y: line.to.y - ny },
+      { x: line.from.x - nx, y: line.from.y - ny },
+    ];
+    out.push({ type: 'path', d: cornersD(corners), fill: paint(line.color) });
+  }
+  if (out.length === 0) return [];
+  return typeof stroke.opacity === 'number' ? [{ type: 'group', opacity: stroke.opacity, children: out }] : out;
 }
 
 /** A placed image stretched to its box; a link as a linked image, which the rasterizer follows only through its resolver. */

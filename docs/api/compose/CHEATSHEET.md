@@ -44,6 +44,8 @@ Reminders for compositions: the page, every element, paint, masks, rendering, an
 | `rotate`, `scale`, `translate`, `origin` | Degrees clockwise; a number or `{ x, y }`; `{ x, y }`; the pivot, default the centre |
 | `clip` | A mask id, or an inline shape |
 | `effects` | `[{ type: 'blur', radius: 4 }, { type: 'sepia', amount: 0.8 }]`, drawn in order |
+| `blend` | `'stack'` (Multiply), `'sheer'` (Screen) or another of the sixteen napkin names |
+| `isolate` | A group's: `true` mixes its children's blends only with each other |
 | `id`, `name`, `visible` | An SVG id; `data-name`; `false` keeps it out of every render |
 
 ## Text
@@ -69,6 +71,17 @@ Reminders for compositions: the page, every element, paint, masks, rendering, an
 | A hole in a group | `design.group({ erase: [{ type: 'circle', cx: 60, cy: 40, r: 14 }] }, (g) => { ... })` |
 | A shadow | `effects: [{ type: 'drop-shadow', dx: 4, dy: 4, blur: 8, color: 'rgba(0, 0, 0, 0.4)' }]` |
 | One shadow for a group | `design.group({ effects: [{ type: 'drop-shadow', dx: 0, dy: 6, blur: 6, color: '#0006' }] }, (g) => { ... })` |
+| A bevel on the fill, a glow round the stroke | `effects: [{ type: 'bevel', size: 8, target: 'fill' }, { type: 'outer-glow', target: 'stroke' }]` |
+
+## Composition Styles
+
+| Call | Gives |
+| --- | --- |
+| `validateCompositionStyle(json)` | `{ ok, style, errors, notes }`: every reason a style is not one, a sentence each |
+| `applyCompositionStyle(design, style)` | `{ composition, report }`: a new composition, restyled by its elements' names |
+| `applyCompositionStyle(page, style, { configs })` | `{ sketch, strokes, layers, configs, report }`: a page, by its layers' names |
+| `captureCompositionStyle(page, 'Day')` | A page's named layers as a style that, applied again, changes nothing |
+| `compositionReportLines(report)` | What did not match, a line each, with the nearest name |
 
 ## Rendering
 

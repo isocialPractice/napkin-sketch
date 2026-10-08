@@ -32,14 +32,24 @@ import {
 import { DEFAULT_SHARPEN_OPTIONS, type SharpenOptions } from '../sharpen/sharpen.js';
 import type { EraseResult } from '../core/erase.js';
 import { CLIP_GROUP_NAME, makeClip, releaseClip, type ClipProblem } from '../core/clip.js';
+import { isBlended, type BlendModeId } from '../core/blend.js';
+import { effectsAfterTransform, sameEffects } from '../core/appearance.js';
+import { bindGeometry } from '../core/geometry-effects.js';
+import type { Effect } from '../core/effects.js';
 import type { MarkEdit } from '../core/wipe.js';
 import { paintPatch, swapPaint, type ColorTarget } from '../core/paint.js';
 import { DEFAULT_PENCIL, type PencilChoice } from '../core/pencil.js';
 import { mapSmudges } from '../core/smudge.js';
 import { catmullRom, cubicBezierPoints, rotateAbout, rotationTrig } from '../sharpen/geometry.js';
 import { mirrorStroke, type Mirror, type TransformBox } from '../core/transform.js';
+import { mapTypesetAnchors, scaleTypeShape, scaleTypeset, textColorPatch, typeSpecOf, typesetIsShape, type TextConfig } from '../core/type/model.js';
+import { adoptTextConfigs } from '../core/type/configs.js';
+import { withMarkdownConfigs } from '../core/type/markdown-flow.js';
 
 /** Applies a property patch to a stroke in place: a key set to `undefined` is taken away, not stored. */
+/** A text mark's text and type: what {@link Store.setTypeset} writes. */
+export const TYPE_FIELDS = ['text', 'typeset', 'fontSize', 'fontFamily', 'color', 'textBoxWidth'] as const;
+
 function applyPatch(stroke: Stroke, patch: Partial<Stroke>): void {
   const record = stroke as unknown as Record<string, unknown>;
   for (const [key, value] of Object.entries(patch)) {
@@ -125,11 +135,19 @@ export type ImportedLayerNode = ImportedTreeNode;
 
 type Listener = () => void;
 
-/** One undo/redo snapshot of the active page (strokes + layer stack). */
+/**
+ * One undo/redo snapshot of the active page (strokes + layer stack), and the
+ * book's Text Configurations, which a step on the page can change. A step
+ * that reaches past the page - a configuration changed under text on every
+ * page - holds the other pages' marks too.
+ */
 interface PageSnapshot {
   strokes: Stroke[];
   layers: Layer[];
   activeLayerId: string;
+  textConfigs: TextConfig[] | undefined;
+  /** The other pages' marks as they were, by page id: a step that reached every page. */
+  pages?: Array<{ id: string; strokes: Stroke[] }>;
 }
 
 /** An edit shown live, and everything needed to put the page back if it goes. */
@@ -142,6 +160,8 @@ interface Transaction {
   /** The command running when it began, and when that was: its step is recorded under them. */
   command: string | null;
   at: string;
+  /** Something was changed since it began: there is a step to undo. */
+  touched?: boolean;
 }
 
 /**
@@ -186,6 +206,13 @@ export class Store {
 
   /** Ids of the layers highlighted in the layers panel (Shift multi-select). */
   selectedLayerIds = new Set<string>();
+  /**
+   * Whether a transform takes a mark's line weight and effects with it, as a
+   * vector editor's Scale Strokes and Effects: a scale scales its width and
+   * its effects' lengths, a turn turns a shadow's offset and a bevel's light,
+   * and a mirror flips them. Set from the setting of that name.
+   */
+  scaleStrokesAndEffects = true;
 
   /** Ids of currently selected strokes (Select tool). */
   selectedIds = new Set<string>();
@@ -215,6 +242,9 @@ export class Store {
   // The edit being shown live, if one is open (see beginTransaction).
   private transaction: Transaction | null = null;
 
+  // Told before the page in view changes (see onPageLeave).
+  private pageLeaveListeners = new Set<() => void>();
+
   // Track History's hook (see onHistory). With no listener, none of it runs.
   private historyListeners = new Set<(event: HistoryEvent) => void>();
   private pendingStep: PendingStep | null = null;
@@ -234,7 +264,25 @@ export class Store {
     return () => this.listeners.delete(listener);
   }
 
+  /**
+   * Hears the page in view about to change - another page turned to, one
+   * added or removed, a new book - while it is still the old one: for an
+   * edit held open on it, such as text being typed, to finish there.
+   * Returns the function that stops listening.
+   */
+  onPageLeave(listener: () => void): () => void {
+    this.pageLeaveListeners.add(listener);
+    return () => this.pageLeaveListeners.delete(listener);
+  }
+
+  private leavePage(): void {
+    for (const listener of this.pageLeaveListeners) listener();
+  }
+
   private emit(): void {
+    // A layer's Warp bends what it holds over the box of all of it: laid on
+    // again at every change, so the marks' bounds and hits follow it.
+    bindGeometry(this.sketch);
     for (const l of this.listeners) l();
   }
 
@@ -264,6 +312,7 @@ export class Store {
 
   /** Replaces the entire book (e.g. after opening a file) and resets history. */
   setBook(book: SketchBook, filePath: string | null): void {
+    this.leavePage();
     this.settleTransaction();
     this.flushHistoryStep();
     this.book = book;
@@ -281,13 +330,16 @@ export class Store {
     this.emit();
   }
 
-  /** Pushes the current page state onto the undo stack before a mutation. */
-  pushHistory(): void {
+  /**
+   * Pushes the current page state onto the undo stack before a mutation;
+   * with `book`, every other page's marks too, for a change that reaches them.
+   */
+  pushHistory(book = false): void {
     // An edit that keeps history is the end of any edit being previewed: the
     // preview is what is on the page, so it is kept, and this builds on it.
     this.settleTransaction();
     this.flushHistoryStep();
-    const before = this.snapshot();
+    const before = this.snapshot(book);
     this.undoStack.push(before);
     if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift();
     this.redoStack = [];
@@ -385,12 +437,12 @@ export class Store {
    * was previewing. Beginning a second transaction settles the first the same
    * way. The owner's own commit or rollback does not call back.
    */
-  beginTransaction(onSettled?: () => void): void {
+  beginTransaction(onSettled?: () => void, book = false): void {
     this.settleTransaction();
     // The step before is over: what the transaction previews is not part of it.
     this.flushHistoryStep();
     this.transaction = {
-      before: this.snapshot(),
+      before: this.snapshot(book),
       dirty: this.dirty,
       selectedIds: [...this.selectedIds],
       selectedLayerIds: [...this.selectedLayerIds],
@@ -461,20 +513,33 @@ export class Store {
     open.onSettled?.();
   }
 
-  /** True when the active page is exactly what a snapshot holds. */
+  /** True when the active page - and the book's configurations, and any other pages the snapshot holds - are exactly what it holds. */
   private pageMatches(snapshot: PageSnapshot): boolean {
     return (
       snapshot.activeLayerId === this.activeLayerId &&
       sameData(snapshot.layers, this.sketch.layers) &&
-      sameData(snapshot.strokes, this.sketch.strokes)
+      sameData(snapshot.strokes, this.sketch.strokes) &&
+      sameData(snapshot.textConfigs ?? [], this.book.textConfigs ?? []) &&
+      (snapshot.pages ?? []).every((page) => {
+        const sketch = this.book.sketches.find((s) => s.id === page.id);
+        return !sketch || sketch.strokes === page.strokes || sameData(page.strokes, sketch.strokes);
+      })
     );
   }
 
-  private snapshot(): PageSnapshot {
+  /**
+   * The page as it is, with the book's configurations; with `book`, the other
+   * pages' marks too. Those are kept as they are, not copied: a change that
+   * reaches another page puts new marks there rather than changing these, and
+   * nothing else can change a page while another is in view.
+   */
+  private snapshot(book = false): PageSnapshot {
     return {
       strokes: this.cloneStrokes(this.sketch.strokes),
       layers: this.sketch.layers.map((l) => ({ ...l })),
       activeLayerId: this.activeLayerId,
+      textConfigs: this.book.textConfigs ? [...this.book.textConfigs] : undefined,
+      ...(book ? { pages: this.book.sketches.filter((s) => s !== this.sketch).map((s) => ({ id: s.id, strokes: [...s.strokes] })) } : {}),
     };
   }
 
@@ -482,6 +547,12 @@ export class Store {
     this.sketch.strokes = snapshot.strokes;
     this.sketch.layers = snapshot.layers;
     this.activeLayerId = snapshot.activeLayerId;
+    if (snapshot.textConfigs) this.book.textConfigs = [...snapshot.textConfigs];
+    else delete this.book.textConfigs;
+    for (const page of snapshot.pages ?? []) {
+      const sketch = this.book.sketches.find((s) => s.id === page.id);
+      if (sketch) sketch.strokes = page.strokes;
+    }
   }
 
   /**
@@ -537,6 +608,7 @@ export class Store {
     const target =
       strokes[0].tool === 'eraser' ? this.activeLayer : this.elementLayerFor(strokes[0].tool);
     for (const stroke of strokes) stroke.layer = target.id;
+    this.adoptConfigs(strokes);
     this.sketch.strokes.push(...strokes);
     this.touch();
   }
@@ -584,6 +656,142 @@ export class Store {
     const idx = this.sketch.strokes.findIndex((s) => s.id === id);
     if (idx === -1) return;
     this.sketch.strokes[idx] = next;
+    this.touch();
+  }
+
+  /**
+   * Gives a text mark the text and type of `next` - its text, its typeset and
+   * the base the typeset is kept against - with no history of its own: the
+   * type editor writes every keystroke this way inside the typing
+   * transaction it opens, so a burst of typing is one undo step. A field
+   * `next` leaves out is taken away.
+   */
+  setTypeset(id: string, next: Pick<Stroke, (typeof TYPE_FIELDS)[number]>): void {
+    this.setTypesets([{ id, next }], false);
+  }
+
+  /**
+   * Gives several text marks their text and type at once, as
+   * {@link setTypeset} gives one: the Type panel's change to the selected
+   * texts, one undo step for all of them - or with `history` false part of
+   * the step that is open, as a drag on a field's name previews. Returns how
+   * many marks it reached.
+   */
+  setTypesets(entries: ReadonlyArray<{ id: string; next: Pick<Stroke, (typeof TYPE_FIELDS)[number]> }>, history = true): number {
+    const reached = entries.flatMap(({ id, next }) => {
+      const stroke = this.sketch.strokes.find((s) => s.id === id);
+      return stroke ? [{ stroke, next }] : [];
+    });
+    if (reached.length === 0) return 0;
+    if (history) this.pushHistory();
+    for (const { stroke, next } of reached) {
+      const patch: Partial<Stroke> = {};
+      for (const key of TYPE_FIELDS) (patch as Record<string, unknown>)[key] = next[key];
+      applyPatch(stroke, patch);
+    }
+    // A text pasted from another book brings the configurations it follows.
+    this.adoptConfigs(reached.map(({ stroke }) => stroke));
+    this.touch();
+    return reached.length;
+  }
+
+  // ---- Text Configurations (core/type/configs.ts) ---------------------------
+
+  /** The book's Text Configurations, in the order the Type panel lists them. */
+  get textConfigs(): readonly TextConfig[] {
+    return this.book.textConfigs ?? [];
+  }
+
+  /**
+   * Sets the book's Text Configurations, and puts the text on every page
+   * through `restyle` - a configuration changed, renamed or deleted - as one
+   * undo step that reaches every page; or with `history` false, part of the
+   * step open, such as a preview's. A text `restyle` gives back as it was is
+   * left alone, and a page none changed keeps its marks.
+   */
+  editTextConfigs(configs: readonly TextConfig[], restyle: ((stroke: Stroke) => Stroke) | null, history = true): void {
+    if (history) this.pushHistory(true);
+    if (configs.length > 0) this.book.textConfigs = [...configs];
+    else delete this.book.textConfigs;
+    if (restyle) {
+      for (const sketch of this.book.sketches) {
+        let changed = false;
+        const next = sketch.strokes.map((stroke) => {
+          if (!isTextStroke(stroke)) return stroke;
+          const made = restyle(stroke);
+          if (made !== stroke) changed = true;
+          return made;
+        });
+        // New marks rather than changed ones, so a snapshot of the page as it was still holds it.
+        if (changed) sketch.strokes = next;
+      }
+    }
+    this.touch();
+  }
+
+  /**
+   * Marks from elsewhere - pasted, imported - with the Text Configurations
+   * they carry brought into the book by name: one the book has, they follow
+   * as the book defines it; one it has not joins its list. Changes the marks
+   * in place, inside the step that adds them.
+   */
+  private adoptConfigs(strokes: readonly Stroke[]): void {
+    // A Markdown Flow text carries the Markdown configurations, as the book defines them when it has them.
+    for (const stroke of strokes) {
+      const carrying = withMarkdownConfigs(stroke, this.textConfigs);
+      if (carrying !== stroke) stroke.typeset = carrying.typeset;
+    }
+    if (!strokes.some((stroke) => stroke.typeset?.configs)) return;
+    const adopted = adoptTextConfigs(this.textConfigs, strokes, () => createId('tc'));
+    strokes.forEach((stroke, i) => {
+      if (adopted.strokes[i] !== stroke) stroke.typeset = adopted.strokes[i].typeset;
+    });
+    if (adopted.list.length !== this.textConfigs.length) this.book.textConfigs = adopted.list;
+  }
+
+  /**
+   * Adds a new mark with no history of its own, on a layer of its own as
+   * {@link addStroke} gives it: a new text's first keystroke, inside the
+   * typing transaction, so the mark and what was typed are one undo step.
+   */
+  addStrokeLive(stroke: Stroke): void {
+    stroke.layer = this.elementLayerFor(stroke.tool).id;
+    this.adoptConfigs([stroke]);
+    this.sketch.strokes.push(stroke);
+    this.touch();
+  }
+
+  /**
+   * Puts a mark in another's place - on its layer, where it stood among the
+   * marks - and takes that one off the page: a path the Text tool turns into
+   * type. Without `history` it joins the step that is open. False when the
+   * mark to replace is not on the page.
+   */
+  replaceMark(oldId: string, next: Stroke, history = true): boolean {
+    const index = this.sketch.strokes.findIndex((s) => s.id === oldId);
+    if (index < 0) return false;
+    if (history) this.pushHistory();
+    next.layer = this.sketch.strokes[index].layer;
+    this.adoptConfigs([next]);
+    this.sketch.strokes[index] = next;
+    this.selectedIds.delete(oldId);
+    this.touch();
+    return true;
+  }
+
+  /**
+   * Removes one mark, and the layer that leaves empty, as
+   * {@link deleteSelected} does: a text left with no text when its editing
+   * ends. Without `history` it joins the step that is open.
+   */
+  removeMark(id: string, history = true): void {
+    const stroke = this.sketch.strokes.find((s) => s.id === id);
+    if (!stroke) return;
+    if (history) this.pushHistory();
+    const affected = new Set([layerOf(this.sketch, stroke).id]);
+    this.sketch.strokes = this.sketch.strokes.filter((s) => s.id !== id);
+    this.pruneEmptyLayers(affected);
+    this.selectedIds.delete(id);
     this.touch();
   }
 
@@ -939,6 +1147,87 @@ export class Store {
   }
 
   /**
+   * Expand Appearance (core/appearance.ts's expandAppearance), as one undo
+   * step: each mark named gives way to the marks it becomes. One mark takes
+   * its place outright, on its layer. Several - a Splatter's hatch beside the
+   * mark's outline - become a group in its place: the group takes the name,
+   * visibility, lock, blend and effects of the mark's layer, and the layer's
+   * opacity times the mark's, with the whole mark's effects ahead of the
+   * layer's own; each new mark gets a layer of its own in it, bottom first. A
+   * layer that held other marks as well keeps them, and the group goes just
+   * above it. What the marks became is selected. False when no mark named is
+   * on the page.
+   *
+   * Expand Text to Shape asks more of it: `grouped`, a group even round one
+   * mark; `name`, the group's name in place of the layer's - the text's
+   * first words; `labels`, each new mark's layer's name - its character.
+   */
+  expandMarks(
+    items: ReadonlyArray<{
+      id: string;
+      marks: readonly Stroke[];
+      effects: readonly Effect[];
+      opacity: number;
+      grouped?: boolean;
+      name?: string;
+      labels?: readonly string[];
+    }>,
+  ): boolean {
+    const found = items.filter((item) => item.marks.length > 0 && this.sketch.strokes.some((s) => s.id === item.id));
+    if (found.length === 0) return false;
+    this.pushHistory();
+    const selected: string[] = [];
+    for (const item of found) {
+      const stroke = this.sketch.strokes.find((s) => s.id === item.id)!;
+      const index = this.sketch.strokes.indexOf(stroke);
+      if (item.marks.length === 1 && !item.grouped) {
+        const mark = { ...item.marks[0], id: stroke.id, ...(stroke.layer ? { layer: stroke.layer } : {}) };
+        this.sketch.strokes[index] = mark;
+        selected.push(mark.id);
+        continue;
+      }
+      const leaf = layerOf(this.sketch, stroke);
+      const alone = !this.sketch.strokes.some((s) => s !== stroke && layerOf(this.sketch, s).id === leaf.id);
+      const group = createGroupLayer(item.name ?? leaf.name);
+      group.parent = leaf.parent;
+      group.visible = leaf.visible;
+      group.locked = leaf.locked;
+      group.opacity = leaf.opacity * item.opacity;
+      if (isBlended(leaf.blend)) group.blend = leaf.blend;
+      const effects = [...item.effects, ...(leaf.effects ?? [])];
+      if (effects.length > 0) group.effects = effects;
+      // Each mark on a layer of its own inside the group, named as a new mark's layer is.
+      const counts = new Map<string, number>();
+      const layers = item.marks.map((mark, k) => {
+        const label = item.labels?.[k];
+        if (label !== undefined) {
+          const named = createLayer(label);
+          named.parent = group.id;
+          return named;
+        }
+        const base = TOOL_LAYER_NAMES[mark.tool] ?? 'Layer';
+        const n = (counts.get(base) ?? this.sketch.layers.filter((l) => l.name.startsWith(base)).length) + 1;
+        counts.set(base, n);
+        const layer = createLayer(`${base} ${n}`);
+        layer.parent = group.id;
+        return layer;
+      });
+      // The group's rows: its layers, then the group itself, which the panel draws above them.
+      const at = this.sketch.layers.findIndex((l) => l.id === leaf.id);
+      if (alone) this.sketch.layers.splice(at, 1, ...layers, group);
+      else this.sketch.layers.splice(at + 1, 0, ...layers, group);
+      if (alone && this.activeLayerId === leaf.id) this.activeLayerId = group.id;
+      const marks = item.marks.map((mark, k) => ({ ...mark, layer: layers[k].id }));
+      this.sketch.strokes.splice(index, 1, ...marks);
+      selected.push(...marks.map((mark) => mark.id));
+    }
+    this.selectedIds = new Set(selected);
+    this.syncLayerHighlight();
+    this.touch();
+    return true;
+  }
+
+  /**
    * Removes the candidate layers that no longer hold strokes, then any group
    * emptied by that removal. Always keeps at least one drawable layer. A
    * layer holding only eraser marks is empty - they cut what is on their own
@@ -986,7 +1275,8 @@ export class Store {
     this.flushHistoryStep();
     const prev = this.undoStack.pop();
     if (!prev) return;
-    const current = this.snapshot();
+    // What comes back holds what the step reached, so redo can put back as much.
+    const current = this.snapshot(prev.pages !== undefined);
     this.redoStack.push(current);
     this.restore(prev);
     this.selectedIds.clear();
@@ -1000,7 +1290,7 @@ export class Store {
     this.flushHistoryStep();
     const next = this.redoStack.pop();
     if (!next) return;
-    const current = this.snapshot();
+    const current = this.snapshot(next.pages !== undefined);
     this.undoStack.push(current);
     this.restore(next);
     this.selectedIds.clear();
@@ -1009,8 +1299,9 @@ export class Store {
     this.touch();
   }
 
+  /** True when there is a step to undo: one on the stack, or a transaction open that has changed something - a burst of typing under way. */
   get canUndo(): boolean {
-    return this.undoStack.length > 0;
+    return this.undoStack.length > 0 || this.transaction?.touched === true;
   }
 
   get canRedo(): boolean {
@@ -1022,6 +1313,7 @@ export class Store {
   /** Adds a new blank page after the active one and switches to it. */
   addPage(name = 'unnamed'): void {
     // A transaction belongs to the page it began on, and history is per page.
+    this.leavePage();
     this.settleTransaction();
     this.flushHistoryStep();
     const sketch = createSketch(name);
@@ -1037,8 +1329,10 @@ export class Store {
   /** Appends already-built pages (e.g. from a PDF import) after the active one. */
   addImportedPages(pages: Sketch[]): void {
     if (pages.length === 0) return;
+    this.leavePage();
     this.settleTransaction();
     this.flushHistoryStep();
+    for (const page of pages) this.adoptConfigs(page.strokes);
     this.book.sketches.splice(this.activeIndex + 1, 0, ...pages);
     this.activeIndex += 1;
     this.resetPageState();
@@ -1061,6 +1355,7 @@ export class Store {
   /** Removes the active page (keeps at least one). */
   removePage(): void {
     if (this.book.sketches.length <= 1) return;
+    this.leavePage();
     this.settleTransaction();
     this.flushHistoryStep();
     this.book.sketches.splice(this.activeIndex, 1);
@@ -1073,6 +1368,7 @@ export class Store {
   goToPage(index: number): void {
     const clamped = Math.max(0, Math.min(this.book.sketches.length - 1, index));
     if (clamped === this.activeIndex) return;
+    this.leavePage();
     this.settleTransaction();
     this.flushHistoryStep();
     this.activeIndex = clamped;
@@ -1236,6 +1532,7 @@ export class Store {
     // from a file, so the two cannot disagree about the tree a file makes.
     const built = buildImportedLayers(imported);
     this.sketch.layers.push(...built.layers);
+    this.adoptConfigs(built.strokes);
     this.sketch.strokes.push(...built.strokes);
     if (built.active) this.activeLayerId = built.active;
     this.touch();
@@ -1292,6 +1589,7 @@ export class Store {
     // Paint order within the copy is the order the originals had.
     marks.sort((a, b) => a.order - b.order);
     const added = marks.map((m) => m.stroke);
+    this.adoptConfigs(added);
     this.sketch.strokes.push(...added);
 
     // The pasted root becomes the active row, the way a new layer does.
@@ -1484,6 +1782,95 @@ export class Store {
   }
 
   /**
+   * Sets the blend of each layer named, as one step (core/blend.ts). Normal
+   * takes the field away, so a layer set back to Normal is the layer it was.
+   * False, with no step, when every one already has it.
+   */
+  setLayersBlend(ids: Iterable<string>, blend: BlendModeId, history = true): boolean {
+    const wanted = new Set(ids);
+    const changing = this.sketch.layers.filter((layer) => wanted.has(layer.id) && (layer.blend ?? 'normal') !== blend);
+    if (changing.length === 0) return false;
+    if (history) this.pushHistory();
+    for (const layer of changing) {
+      if (isBlended(blend)) layer.blend = blend;
+      else delete layer.blend;
+    }
+    this.touch();
+    return true;
+  }
+
+  /**
+   * Gives the marks named new effect lists, as one step: `change` is the new
+   * list, or what to make of each mark's own. Each mark takes a new array,
+   * never its old one changed - an undo snapshot shares the old one - and an
+   * empty list takes the field away. Erasers have none. False when nothing
+   * changes.
+   */
+  setEffects(
+    ids: Iterable<string>,
+    change: readonly Effect[] | ((current: readonly Effect[], stroke: Stroke) => readonly Effect[]),
+    history = true,
+  ): boolean {
+    const wanted = new Set(ids);
+    const updates: Array<[Stroke, Effect[]]> = [];
+    for (const stroke of this.sketch.strokes) {
+      if (!wanted.has(stroke.id) || stroke.tool === 'eraser') continue;
+      const current = stroke.effects ?? [];
+      const next = typeof change === 'function' ? change(current, stroke) : change;
+      if (!sameEffects(current, next)) updates.push([stroke, [...next]]);
+    }
+    if (updates.length === 0) return false;
+    if (history) this.pushHistory();
+    for (const [stroke, next] of updates) {
+      if (next.length > 0) stroke.effects = next;
+      else delete stroke.effects;
+    }
+    this.touch();
+    return true;
+  }
+
+  /** The same for layers and groups: a layer's effects work on its whole picture. */
+  setLayerEffects(
+    ids: Iterable<string>,
+    change: readonly Effect[] | ((current: readonly Effect[], layer: Layer) => readonly Effect[]),
+    history = true,
+  ): boolean {
+    const wanted = new Set(ids);
+    const updates: Array<[Layer, Effect[]]> = [];
+    for (const layer of this.sketch.layers) {
+      if (!wanted.has(layer.id)) continue;
+      const current = layer.effects ?? [];
+      const next = typeof change === 'function' ? change(current, layer) : change;
+      if (!sameEffects(current, next)) updates.push([layer, [...next]]);
+    }
+    if (updates.length === 0) return false;
+    if (history) this.pushHistory();
+    for (const [layer, next] of updates) {
+      if (next.length > 0) layer.effects = next;
+      else delete layer.effects;
+    }
+    this.touch();
+    return true;
+  }
+
+  /**
+   * Turns Isolate Blending on or off for each group named, as one step;
+   * layers that are not groups are passed by. False when nothing changes.
+   */
+  setLayersIsolate(ids: Iterable<string>, on: boolean, history = true): boolean {
+    const wanted = new Set(ids);
+    const changing = this.sketch.layers.filter((layer) => wanted.has(layer.id) && layer.group === true && (layer.isolate === true) !== on);
+    if (changing.length === 0) return false;
+    if (history) this.pushHistory();
+    for (const layer of changing) {
+      if (on) layer.isolate = true;
+      else delete layer.isolate;
+    }
+    this.touch();
+    return true;
+  }
+
+  /**
    * Updates a layer's properties. Structural toggles push a history step;
    * pass `history: false` for continuous updates (opacity slider drags).
    */
@@ -1501,6 +1888,52 @@ export class Store {
       this.selectedIds = new Set([...this.selectedIds].filter((sid) => !affected.has(sid)));
     }
     this.touch();
+  }
+
+  /**
+   * A composition style's restyle (core/composition-style.ts) as one undo
+   * step - or, with `history` false, part of the step open: the marks it
+   * changed, and the layers it changed, a field set to undefined taken away.
+   * The Text Configurations the restyled texts follow join the book. Nothing,
+   * and no step, when nothing changes. The selection stays, less what a layer
+   * hidden or locked now holds.
+   */
+  restyle(
+    edit: { readonly strokes: readonly Stroke[]; readonly layers: ReadonlyArray<{ readonly id: string; readonly patch: Partial<Omit<Layer, 'id'>> }> },
+    history = true,
+  ): boolean {
+    const marks = new Map(edit.strokes.map((stroke) => [stroke.id, stroke]));
+    const layers = edit.layers.filter(({ id }) => this.sketch.layers.some((layer) => layer.id === id));
+    if (!this.sketch.strokes.some((stroke) => marks.has(stroke.id)) && layers.length === 0) return false;
+    if (history) this.pushHistory();
+    const made: Stroke[] = [];
+    // New marks and new layers, so the snapshot just taken still holds the page as it was.
+    this.sketch.strokes = this.sketch.strokes.map((stroke) => {
+      const next = marks.get(stroke.id);
+      if (!next) return stroke;
+      const mark = { ...next, id: stroke.id, layer: stroke.layer };
+      made.push(mark);
+      return mark;
+    });
+    this.adoptConfigs(made);
+    const shut = new Set<string>();
+    for (const { id, patch } of layers) {
+      const index = this.sketch.layers.findIndex((layer) => layer.id === id);
+      const layer = { ...this.sketch.layers[index] } as unknown as Record<string, unknown>;
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === undefined) delete layer[key];
+        else layer[key] = value;
+      }
+      this.sketch.layers[index] = layer as unknown as Layer;
+      if (patch.visible === false || patch.locked === true) shut.add(id);
+    }
+    if (shut.size > 0 && this.selectedIds.size > 0) {
+      const ids = new Set([...shut].flatMap((id) => [id, ...descendantLayerIds(this.sketch, id)]));
+      const affected = new Set(this.sketch.strokes.filter((s) => s.layer && ids.has(s.layer)).map((s) => s.id));
+      this.selectedIds = new Set([...this.selectedIds].filter((sid) => !affected.has(sid)));
+    }
+    this.touch();
+    return true;
   }
 
   // ---- Close shape ----------------------------------------------------------
@@ -1785,7 +2218,9 @@ export class Store {
         stroke.fill = color;
         filled++;
       } else {
-        stroke.color = color;
+        // A text takes the color whole, its runs' own colors too.
+        if (isTextStroke(stroke)) applyPatch(stroke, textColorPatch(stroke, color));
+        else stroke.color = color;
         recolored++;
       }
     }
@@ -1911,15 +2346,30 @@ export class Store {
       if (isImageStroke(stroke)) {
         stroke.imageWidth = Math.max(1, (stroke.imageWidth ?? 100) * sx);
         stroke.imageHeight = Math.max(1, (stroke.imageHeight ?? 100) * sy);
-      } else if (isTextStroke(stroke)) {
-        // Type scales by one factor; the mean of the two keeps a non-uniform
-        // scale from silently ignoring one axis.
-        stroke.fontSize = Math.max(1, (stroke.fontSize ?? 24) * ((sx + sy) / 2));
+      } else if (isTextStroke(stroke) && typeSpecOf(stroke).kind !== 'point') {
+        // Sheet and Path Typing: the frame or the path scales, and the type
+        // keeps its size and reflows in it, as a vector editor's area type and
+        // type on a path do.
+        if (stroke.typeset) stroke.typeset = scaleTypeShape(stroke.typeset, sx, sy);
         if (stroke.textBoxWidth) stroke.textBoxWidth = Math.max(1, stroke.textBoxWidth * sx);
-      } else {
+      } else if (isTextStroke(stroke)) {
+        // Sideless Typing scales its type, by one factor; the mean of the two
+        // keeps a non-uniform scale from silently ignoring one axis.
+        stroke.fontSize = Math.max(1, (stroke.fontSize ?? 24) * ((sx + sy) / 2));
+        // Its runs and paragraphs scale with it.
+        if (stroke.typeset) stroke.typeset = scaleTypeset(stroke.typeset, sx, sy);
+      } else if (this.scaleStrokesAndEffects) {
         // Line weight follows the shape so a scaled-down element does not
         // keep a disproportionately heavy outline.
         stroke.width = Math.max(0.5, stroke.width * Math.sqrt(Math.abs(sx * sy)));
+      }
+      // Its effects scale with it too, and a scale through zero mirrors them.
+      if (this.scaleStrokesAndEffects && stroke.effects) {
+        stroke.effects = effectsAfterTransform(stroke.effects, {
+          scale: Math.sqrt(Math.abs(sx * sy)),
+          flipX: sx < 0 && !isTextStroke(stroke),
+          flipY: sy < 0 && !isTextStroke(stroke),
+        });
       }
     }
     this.touch();
@@ -1939,7 +2389,9 @@ export class Store {
    * along the page's own axis and an image into an upright box - so those two
    * orbit the centre without tipping. An image orbits by its middle rather
    * than by the top-left corner its anchor records, which is what keeps a
-   * turned image where the eye expects it.
+   * turned image where the eye expects it. Path type's path turns with it,
+   * and the text follows the path; so does area type's frame when it is not
+   * a rectangle.
    */
   rotateStrokes(
     ids: Iterable<string>,
@@ -1978,6 +2430,9 @@ export class Store {
         continue;
       }
       for (const p of stroke.points) turn(p);
+      if (isTextStroke(stroke) && stroke.typeset && typesetIsShape(stroke.typeset)) {
+        stroke.typeset = mapTypesetAnchors(stroke.typeset, (p) => rotateAbout(p, 0, 0, trig));
+      }
       if (stroke.smudges) stroke.smudges = mapSmudges(stroke.smudges, (p) => rotateAbout(p, cx, cy, trig));
       if (stroke.vector) {
         for (const anchor of stroke.vector.anchors) {
@@ -1989,6 +2444,11 @@ export class Store {
       if (stroke.tool === 'copic') {
         const nib = (stroke.nibAngle ?? DEFAULT_NIB_ANGLE) + degrees;
         stroke.nibAngle = ((nib % 360) + 360) % 360;
+      }
+      // A shadow turns with the mark that casts it, and a bevel's light too;
+      // text and images orbit upright, so theirs stay as they are.
+      if (this.scaleStrokesAndEffects && stroke.effects && !isTextStroke(stroke)) {
+        stroke.effects = effectsAfterTransform(stroke.effects, { rotate: degrees });
       }
     }
     this.touch();
@@ -2011,7 +2471,13 @@ export class Store {
     const strokes = this.sketch.strokes.filter((s) => targets.has(s.id));
     if (strokes.length === 0) return;
     if (options.history !== false) this.pushHistory();
-    for (const stroke of strokes) mirrorStroke(stroke, mirror, options.boxOf?.(stroke));
+    for (const stroke of strokes) {
+      mirrorStroke(stroke, mirror, options.boxOf?.(stroke));
+      // A shadow and a bevel's light flip with the mark; text stays readable, so its own stay.
+      if (this.scaleStrokesAndEffects && stroke.effects && !isTextStroke(stroke)) {
+        stroke.effects = effectsAfterTransform(stroke.effects, { flipX: mirror.flipX, flipY: mirror.flipY });
+      }
+    }
     this.touch();
   }
 
@@ -2032,6 +2498,7 @@ export class Store {
   // ---- Status --------------------------------------------------------------
 
   private touch(): void {
+    if (this.transaction) this.transaction.touched = true;
     this.dirty = true;
     this.sketch.updatedAt = new Date().toISOString();
     this.emit();

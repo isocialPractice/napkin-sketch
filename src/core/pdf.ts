@@ -17,8 +17,17 @@
  * - A gradient fill prints as the shape's flat fill.
  * - Effects - a blur, a shadow, a color shift, on a mark or a layer - are
  *   not drawn: what carries them prints plain.
- * - A text box wraps between words where the built-in face breaks it, as the
- *   SVG export wraps it, and is set in Helvetica.
+ * - Text is drawn as shapes where its fonts can be read: each glyph its
+ *   font's own outline (core/type/outline.ts), laid out by the current
+ *   outline source's measure - the canvas's in the app, the font files' in
+ *   a headless render given them - as the canvas draws it. Where a font
+ *   cannot be read, or `textAsShapes` is false, it is set as the type layout
+ *   sets it with the built-in face (as the SVG export sets it without a
+ *   measure of its own): its lines, its frame or its path, each stretch in
+ *   one style a string from its start, in Helvetica - bold and oblique where
+ *   a run is - with its letter and word spacing; a character turned or
+ *   scaled on its own is placed through its own text matrix, and
+ *   underlines, strikethroughs and highlights are filled shapes.
  * - Image items are embedded only when their data URL is a JPEG
  *   (`image/jpeg`); callers should pre-convert other formats.
  *
@@ -44,6 +53,7 @@ import {
   type Layer,
   type Sketch,
   type Stroke,
+  type VectorAnchor,
 } from './types.js';
 import { copicNibPolygons } from './nib.js';
 import { meanPressure, pencilMeanCoverage, pencilPaint, pencilPicture, pencilRegion } from './pencil.js';
@@ -52,7 +62,16 @@ import { clipIndex } from './clip.js';
 import { linkName } from './link.js';
 import { activeProfile, profileInputOf, profileOutline } from './stroke-profile.js';
 import { parseColor } from './graphic-design/color.js';
-import { wrapText } from './graphic-design/font.js';
+import { layoutType, typeSpans } from './type/layout.js';
+import { setAccentPage, withAccentPage } from './type/accents.js';
+import { withoutMarkdownReveal } from './type/markdown-flow.js';
+import { faceStyle } from './type/measure.js';
+import { outlineSource, outlineText } from './type/outline.js';
+import { blendModeInfo, isBlended, type BlendModeId } from './blend.js';
+import { activeEffects, EFFECT_LABELS } from './effects.js';
+import { markOpacity } from './appearance.js';
+import { bindGeometry, geometryOf } from './geometry-effects.js';
+import { paintSteps, type PaintIndex } from './paint-order.js';
 
 /** RGB color with components in 0-1. */
 type Rgb = [number, number, number];
@@ -92,6 +111,13 @@ export interface PdfOptions {
   crops?: ReadonlyArray<{ x: number; y: number; width: number; height: number } | null | undefined>;
   /** Told about each thing a page holds that the PDF leaves out or prints as a stand-in. */
   onWarning?: (message: string) => void;
+  /**
+   * Draws text as shapes - its glyphs' outlines, from the current outline
+   * source - where its fonts can be read, so the page looks as the canvas
+   * does on any computer; a text whose font cannot be read is set in
+   * Helvetica, and said. Default true. False sets all text in Helvetica.
+   */
+  textAsShapes?: boolean;
 }
 
 /** Formats a number for a PDF content stream (compact, no exponent). */
@@ -178,6 +204,11 @@ function strokeAlpha(stroke: Stroke, layerOpacity: number): number {
  * Returns a latin1-safe string; persist it with binary/latin1 encoding.
  */
 export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): string {
+  return withoutMarkdownReveal(() => withAccentPage(null, () => pdfOf(sketches, options)));
+}
+
+/** The document {@link sketchesToPdf} writes, every Markdown block rendered. */
+function pdfOf(sketches: Sketch[], options: PdfOptions): string {
   // Object 1: catalog, 2: pages tree, 3: Helvetica. ExtGStates, images, and
   // per-page objects are appended in that order below.
   const objects: string[] = [
@@ -187,20 +218,55 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
   ];
   const addObject = (body: string): number => objects.push(body);
 
-  // Shared ExtGState per distinct alpha, and image XObject per data URL.
-  const gstates = new Map<number, { name: string; obj: number }>();
+  // Helvetica is object 3, as F1; its bold and oblique faces are added the first time a run asks for one.
+  const fonts = new Map<string, { name: string; obj: number }>([['Helvetica', { name: 'F1', obj: 3 }]]);
+  const fontFor = (style: string): string => {
+    const { weight, italic } = faceStyle(style);
+    const base = weight >= 600 ? (italic ? 'Helvetica-BoldOblique' : 'Helvetica-Bold') : italic ? 'Helvetica-Oblique' : 'Helvetica';
+    let entry = fonts.get(base);
+    if (!entry) {
+      entry = { name: `F${fonts.size + 1}`, obj: addObject(`<< /Type /Font /Subtype /Type1 /BaseFont /${base} /Encoding /WinAnsiEncoding >>`) };
+      fonts.set(base, entry);
+    }
+    return entry.name;
+  };
+
+  // Shared ExtGState per distinct alpha and blend, and image XObject per data URL.
+  const gstates = new Map<string, { name: string; obj: number }>();
   const images = new Map<string, { name: string; obj: number; width: number; height: number }>();
 
-  const gstateFor = (alpha: number): string => {
-    const key = Math.round(alpha * 1000);
+  /** The graphics state for an alpha, mixed by a blend when it has one (PDF's `/BM`). */
+  const gstateFor = (alpha: number, blend?: BlendModeId): string => {
+    const value = Math.round(alpha * 1000) / 1000;
+    const mode = isBlended(blend) ? blend : null;
+    const key = mode ? `${value} ${mode}` : String(value);
     let entry = gstates.get(key);
     if (!entry) {
-      const value = key / 1000;
-      const obj = addObject(`<< /Type /ExtGState /CA ${value} /ca ${value} >>`);
+      // A state for a blend alone leaves the alpha as it is.
+      const fields = [...(mode && value >= 1 ? [] : [`/CA ${value} /ca ${value}`]), ...(mode ? [`/BM /${blendModeInfo(mode).pdf}`] : [])];
+      const obj = addObject(`<< /Type /ExtGState ${fields.join(' ')} >>`);
       entry = { name: `GS${gstates.size + 1}`, obj };
       gstates.set(key, entry);
     }
     return entry.name;
+  };
+
+  // A blended layer, and a group with a blend or Isolate Blending, print as a
+  // transparency group: a form XObject of their own, composited as one
+  // picture, as the canvas lays a picture down. Their resources are the
+  // page's, which are only known once everything is written, so each form
+  // carries this token until then.
+  const RESOURCES = '%%napkin-resources%%';
+  const forms: Array<{ name: string; obj: number }> = [];
+  const formFor = (content: string, box: readonly [number, number, number, number]): string => {
+    const name = `Fm${forms.length + 1}`;
+    const obj = addObject(
+      `<< /Type /XObject /Subtype /Form /BBox [${box.map(num).join(' ')}] ` +
+        `/Group << /S /Transparency /I true /K false >> /Resources ${RESOURCES} ` +
+        `/Length ${content.length} >>\nstream\n${content}\nendstream`,
+    );
+    forms.push({ name, obj });
+    return name;
   };
 
   const imageFor = (dataUrl: string): { name: string; width: number; height: number } | null => {
@@ -262,6 +328,8 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
     /** The media box, in PDF points: left, bottom, right, top. */
     media: [number, number, number, number];
     content: string;
+    /** Whether it blends: the page is then a transparency group in RGB, which fixes the space the blends mix in. */
+    blends: boolean;
   }
   const pages: PendingPage[] = [];
 
@@ -274,8 +342,16 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
   };
 
   for (const [index, sketch] of sketches.entries()) {
+    // A layer's Warp bends what it holds: each mark prints as it is bent; its code is accented for its paper.
+    bindGeometry(sketch);
+    setAccentPage(sketch.background);
     const H = sketch.height;
     const ops: string[] = [];
+    // A crop is the media box: page pixels, flipped to PDF's upward y.
+    const crop = options.crops?.[index];
+    const media: PendingPage['media'] = crop
+      ? [crop.x, H - crop.y - crop.height, crop.x + crop.width, H - crop.y]
+      : [0, 0, sketch.width, H];
     // Both resolved once for the page rather than per layer (see
     // strokesByLayer and effectiveLayers).
     const byLayer = strokesByLayer(sketch);
@@ -283,13 +359,19 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
     const clips = clipIndex(sketch);
     const page = `page "${sketch.name}"`;
     const layerById = new Map(sketch.layers.map((l) => [l.id, l]));
-    const effectsAbove = (layer: Layer): boolean => {
+    // Each effect a PDF does not draw is named, once for the document: an
+    // effect switched off draws nowhere, and is not.
+    const sayEffects = (effects: unknown): void => {
+      for (const effect of activeEffects(effects) ?? []) {
+        warn(`${page}: ${EFFECT_LABELS[effect.type]} is not drawn in a PDF, so what carries it prints without it`);
+      }
+    };
+    const sayEffectsAbove = (layer: Layer): void => {
       const seen = new Set<string>();
       for (let at: Layer | undefined = layer; at && !seen.has(at.id); at = at.parent ? layerById.get(at.parent) : undefined) {
         seen.add(at.id);
-        if (at.effects && at.effects.length > 0) return true;
+        sayEffects(at.effects);
       }
-      return false;
     };
 
     // An ExtGState for any alpha below 1, as the operator list to splice in.
@@ -301,6 +383,117 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
       return paint;
     };
 
+    /** A color as fill paint, at `alpha` times its own: the operators, or null for what is not a color. */
+    const fillPaint = (color: string, alpha: number): string[] | null => {
+      const ink = paintOf(color);
+      if (!ink) return null;
+      const [r, g, b] = ink.rgb;
+      return [...alphaOps(alpha * ink.alpha), `${col(r)} ${col(g)} ${col(b)} rg`];
+    };
+    /** Anchors as a PDF path, each subpath closed when `closed`, y flipped up. */
+    const anchorPath = (anchors: readonly VectorAnchor[], closed: boolean): string => {
+      const pt = (p: { x: number; y: number }): string => `${num(p.x)} ${num(H - p.y)}`;
+      const parts: string[] = [];
+      let start = 0;
+      for (let i = 1; i <= anchors.length; i++) {
+        if (i < anchors.length && !anchors[i].move) continue;
+        const sub = anchors.slice(start, i);
+        parts.push(`${pt(sub[0].p)} m`);
+        const segment = (a: VectorAnchor, b: VectorAnchor): string => (a.hOut || b.hIn ? `${pt(a.hOut ?? a.p)} ${pt(b.hIn ?? b.p)} ${pt(b.p)} c` : `${pt(b.p)} l`);
+        for (let k = 1; k < sub.length; k++) parts.push(segment(sub[k - 1], sub[k]));
+        if (closed && sub.length > 1) {
+          const last = sub[sub.length - 1];
+          if (last.hOut || sub[0].hIn) parts.push(segment(last, sub[0]));
+          parts.push('h');
+        }
+        start = i;
+      }
+      return parts.join(' ');
+    };
+    /**
+     * A text as the shapes it is drawn as, each at the text's opacity: its
+     * glyphs' outlines from the current source, where it can read them. A
+     * text it cannot is itself, set in Helvetica, and said.
+     */
+    const textShapes = (text: Stroke): Stroke[] => {
+      const source = outlineSource();
+      if (options.textAsShapes === false || !source || !text.points[0]) return [text];
+      const out = outlineText(text, layoutType(text, source.measure), source);
+      if (out.problem !== null) {
+        warn(`${out.problem}, so a text is set in Helvetica.`);
+        return [text];
+      }
+      const own = markOpacity(text);
+      return out.marks.map((shape) => ({ ...shape.mark, opacity: own }));
+    };
+    /** Four corners as a filled PDF shape. */
+    const quad = (corners: ReadonlyArray<{ x: number; y: number }>): string =>
+      `${corners.map((p, k) => `${num(p.x)} ${num(H - p.y)} ${k === 0 ? 'm' : 'l'}`).join(' ')} h f`;
+
+    /**
+     * A text mark as the type layout sets it with the built-in face: its
+     * frame's paint, its shades and highlights, each stretch in one style as
+     * a string from its start, each character turned or scaled on its own
+     * through its own text matrix, its list markers, and its underlines and
+     * strikethroughs as thin filled shapes.
+     */
+    const typeOps = (stroke: Stroke, alpha: number): string[] => {
+      const layout = layoutType(stroke);
+      const out: string[] = [];
+      const frame = layout.frame;
+      if (frame?.fill || frame?.stroke) {
+        const fill = frame.fill ? fillPaint(frame.fill, alpha) : null;
+        const line = frame.stroke ? paintOf(frame.stroke) : null;
+        const path = anchorPath(frame.anchors, true);
+        if (fill) out.push('q', ...fill, `${path} f`, 'Q');
+        if (line) out.push('q', ...alphaOps(alpha * line.alpha), `${line.rgb.map(col).join(' ')} RG`, `${num(frame.width ?? 1)} w`, `${path} S`, 'Q');
+      }
+      for (const highlight of layout.highlights) {
+        const paint = fillPaint(highlight.color, alpha);
+        if (paint) out.push('q', ...paint, quad(highlight.corners), 'Q');
+      }
+      // The text is one text object, so a reader takes its lines as one text: each stretch its color,
+      // alpha, font, spacing and matrix, the state carried on from the stretch before.
+      const shown: string[] = [];
+      const state = { alpha: 1, tc: 0, tw: 0 };
+      const show = (color: string, font: { style: string; size: number }, matrix: number[], x: number, y: number, body: string, tc = 0, tw = 0): void => {
+        const ink = paintOf(color);
+        if (!ink) return;
+        const a = Math.round(alpha * ink.alpha * 1000) / 1000;
+        if (a !== state.alpha) shown.push(`/${gstateFor(a)} gs`);
+        if (Math.abs(tc - state.tc) > 1e-9) shown.push(`${num(tc)} Tc`);
+        if (Math.abs(tw - state.tw) > 1e-9) shown.push(`${num(tw)} Tw`);
+        Object.assign(state, { alpha: a, tc, tw });
+        shown.push(`${ink.rgb.map(col).join(' ')} rg /${fontFor(font.style)} ${num(font.size)} Tf ${matrix.map((v) => num(v)).join(' ')} ${num(x)} ${num(H - y)} Tm (${pdfString(body)}) Tj`);
+      };
+      for (const span of typeSpans(layout)) {
+        if (span.text.trim() === '') continue;
+        if (span.plain) show(span.color, span.font, [1, 0, 0, 1], span.x, span.y, span.text, span.tracking, span.wordSpace);
+        else {
+          // A glyph's x axis and its downward y axis on the page, as PDF's upward text space takes them.
+          const g = span.glyphs[0];
+          show(g.color, g.font, [g.matrix[0], -g.matrix[1], -g.matrix[2], g.matrix[3]], g.x, g.y, g.ch);
+        }
+      }
+      for (const marker of layout.markers) show(marker.color, marker.font, [1, 0, 0, 1], marker.x, marker.y, marker.text);
+      if (shown.length > 0) out.push('q', 'BT', ...shown, 'ET', 'Q');
+      for (const line of layout.decorations) {
+        const paint = fillPaint(line.color, alpha);
+        const length = Math.hypot(line.to.x - line.from.x, line.to.y - line.from.y);
+        if (!paint || length === 0) continue;
+        const nx = (-(line.to.y - line.from.y) / length) * (line.thickness / 2);
+        const ny = ((line.to.x - line.from.x) / length) * (line.thickness / 2);
+        const corners = [
+          { x: line.from.x + nx, y: line.from.y + ny },
+          { x: line.to.x + nx, y: line.to.y + ny },
+          { x: line.to.x - nx, y: line.to.y - ny },
+          { x: line.from.x - nx, y: line.from.y - ny },
+        ];
+        out.push('q', ...paint, quad(corners), 'Q');
+      }
+      return out;
+    };
+
     // The paper, matching the JPEG export behaviour; a transparent page has none.
     const paper = paintOf(sketch.background);
     if (paper && paper.alpha > 0) {
@@ -308,14 +501,15 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
       ops.push('q', ...alphaOps(paper.alpha), `${col(br)} ${col(bg)} ${col(bb)} rg`, `0 0 ${num(sketch.width)} ${num(H)} re f`, 'Q');
     }
 
-    for (const layer of sketch.layers) {
-      if (layer.group) continue; // groups paint nothing themselves
-      const effective = effectiveOf.get(layer.id);
-      if (!effective || !effective.visible) continue;
-      if (effectsAbove(layer)) warn(`${page}: an effect is not drawn in a PDF, so what carries it prints plain`);
+    /**
+     * One drawing layer's marks onto `ops`, each at its own alpha times
+     * `opacity`: the layer's and its groups', up to the picture it prints in.
+     */
+    const paintLayer = (layer: Layer, opacity: number, ops: string[]): void => {
+      sayEffectsAbove(layer);
       // A clip mark paints nothing while it clips; a layer left with nothing is passed by.
       const marks = clips.any ? (byLayer.get(layer.id) ?? []).filter((s) => !clips.marks.has(s.id)) : (byLayer.get(layer.id) ?? []);
-      if (marks.length === 0) continue;
+      if (marks.length === 0) return;
       // In a clip group the layer paints inside every clip above it: each one's
       // contours a path, made the clip (W) and drawn nothing (n).
       const above = clips.of(layer);
@@ -326,43 +520,27 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
           ops.push(...outline, 'W n');
         }
       }
-      for (const stroke of marks) {
-        if (stroke.effects && stroke.effects.length > 0) {
-          warn(`${page}: an effect is not drawn in a PDF, so what carries it prints plain`);
-        }
-        const alpha = strokeAlpha(stroke, effective.opacity);
+      // A mark a geometry effect draws anew prints as it draws: bent whole by
+      // a Warp; or - a Splatter, a Warp on one part - as its parts, fill under
+      // stroke; or built in 3D, as its faces, far first; the parts and the
+      // faces each at the mark's own opacity (core/geometry-effects.ts). The
+      // effects it leaves out are its own.
+      for (const mark of marks) sayEffects(mark.effects);
+      const drawn = marks.flatMap((mark) => {
+        const geometry = geometryOf(mark);
+        if (!geometry && isTextStroke(mark)) return textShapes(mark);
+        if (!geometry) return [mark];
+        if (geometry.whole) return [geometry.whole];
+        const own = markOpacity(mark);
+        if (geometry.faces) return geometry.faces.map((face) => ({ ...face, opacity: own }));
+        return [geometry.parts!.fill, geometry.parts!.stroke].filter((part) => part.points.length > 0).map((part) => ({ ...part, opacity: own }));
+      });
+      for (const stroke of drawn) {
+        const alpha = strokeAlpha(stroke, opacity);
         const gs = alpha < 1 ? `/${gstateFor(alpha)} gs` : '';
 
         if (isTextStroke(stroke)) {
-          const anchor = stroke.points[0];
-          if (!anchor || !stroke.text) continue;
-          const ink = paintOf(stroke.color);
-          if (!ink) continue;
-          const size = stroke.fontSize ?? 24;
-          const leading = size * 1.25;
-          const [r, g, b] = ink.rgb;
-          // A fixed-width box breaks between words where the built-in face breaks it, as the SVG does.
-          const box = stroke.textBoxWidth && stroke.textBoxWidth > 0 ? stroke.textBoxWidth : 0;
-          const lines =
-            box > 0
-              ? stroke.text.split('\n').flatMap((paragraph) => wrapText(paragraph, box, { fontSize: size }))
-              : stroke.text.split('\n');
-          const text = lines
-            .map((line, i) => `(${pdfString(line)}) Tj${i < lines.length - 1 ? ' T*' : ''}`)
-            .join(' ');
-          ops.push(
-            'q',
-            ...alphaOps(alpha * ink.alpha),
-            `${col(r)} ${col(g)} ${col(b)} rg`,
-            'BT',
-            `/F1 ${num(size)} Tf`,
-            `${num(leading)} TL`,
-            // Canvas anchors text at the glyph top; PDF at the baseline.
-            `${num(anchor.x)} ${num(H - anchor.y - size * 0.8)} Td`,
-            text,
-            'ET',
-            'Q',
-          );
+          if (stroke.points[0] && (stroke.text || stroke.typeset?.frame)) ops.push(...typeOps(stroke, alpha));
           continue;
         }
 
@@ -435,9 +613,11 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
             // Each `move` point opens a new subpath so compound shapes keep
             // their holes (`h` closes only the current subpath; `f` closes
             // the rest implicitly).
+            // A closed path of anchors is filled by its curves, exactly; a shape of points, by its points.
             const fillPath =
-              pts.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 || p.move ? 'm' : 'l'}`).join(' ') +
-              ' h f';
+              stroke.vector?.closed && stroke.vector.anchors.length > 2
+                ? `${anchorPath(stroke.vector.anchors, true)} f`
+                : pts.map((p, i) => `${num(p.x)} ${num(H - p.y)} ${i === 0 || p.move ? 'm' : 'l'}`).join(' ') + ' h f';
             ops.push('q', ...alphaOps(alpha * fill.alpha), `${col(fr)} ${col(fg)} ${col(fb)} rg`, fillPath, 'Q');
           }
         }
@@ -524,24 +704,86 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
         );
       }
       if (above.length > 0) ops.push('Q');
-    }
+    };
 
-    // A crop is the media box: page pixels, flipped to PDF's upward y.
-    const crop = options.crops?.[index];
-    const media: PendingPage['media'] = crop
-      ? [crop.x, H - crop.y - crop.height, crop.x + crop.width, H - crop.y]
-      : [0, 0, sketch.width, H];
-    pages.push({ media, content: ops.join('\n') });
+    // The groups that print as a transparency group of their own: one with a
+    // blend or Isolate Blending, and a translucent one holding a blended layer
+    // (core/paint-order.ts, pictureGroupIds) - what the canvas paints as one
+    // picture, less the effects and clips, which a PDF does not draw that way.
+    const holdsBlend = new Set<string>();
+    for (const layer of sketch.layers) {
+      if (!isBlended(layer.blend)) continue;
+      const seen = new Set<string>();
+      for (let at = layer.parent ? layerById.get(layer.parent) : undefined; at && !seen.has(at.id); at = at.parent ? layerById.get(at.parent) : undefined) {
+        seen.add(at.id);
+        holdsBlend.add(at.id);
+      }
+    }
+    const formIndex: PaintIndex = {
+      byId: layerById,
+      pictureGroups: new Set(
+        sketch.layers
+          .filter((l) => l.group && (isBlended(l.blend) || l.isolate === true || (l.opacity < 1 && holdsBlend.has(l.id))))
+          .map((l) => l.id),
+      ),
+    };
+    // The opacity of `layer` and every group above it, up to `scope` and not
+    // counting it: at the page's top, the effective opacity itself.
+    const opacityTo = (layer: Layer, scope: Layer | null): number => {
+      if (!scope) return effectiveOf.get(layer.id)?.opacity ?? layer.opacity;
+      let opacity = 1;
+      const seen = new Set<string>();
+      for (let at: Layer | undefined = layer; at && !seen.has(at.id) && at.id !== scope.id; at = at.parent ? layerById.get(at.parent) : undefined) {
+        seen.add(at.id);
+        opacity *= at.opacity;
+      }
+      return opacity;
+    };
+    let blends = false;
+    /** A picture's operators as a transparency group, laid down at `opacity` through `blend`. */
+    const throughForm = (inner: string[], opacity: number, blend: BlendModeId | undefined): string[] => {
+      blends = true;
+      const name = formFor(inner.join('\n'), media);
+      const state = isBlended(blend) || opacity < 1 ? [`/${gstateFor(opacity, blend)} gs`] : [];
+      return ['q', ...state, `/${name} Do`, 'Q'];
+    };
+    // The layers bottom first, in the steps the canvas paints them in (core/paint-order.ts).
+    const paints = (layer: Layer): boolean => effectiveOf.get(layer.id)?.visible === true;
+    const emit = (scope: Layer | null, out: string[]): void => {
+      for (const step of paintSteps(sketch, scope, formIndex, paints)) {
+        if (step.kind === 'group') {
+          const inner: string[] = [];
+          emit(step.group, inner);
+          if (inner.length > 0) out.push(...throughForm(inner, opacityTo(step.group, scope), step.group.blend));
+        } else if (isBlended(step.layer.blend)) {
+          // A blended layer prints whole and then mixes, so its own marks -
+          // a shape's fill and its outline - lie over each other as on the
+          // canvas rather than each mixing with what is under the layer.
+          const inner: string[] = [];
+          paintLayer(step.layer, 1, inner);
+          if (inner.length > 0) out.push(...throughForm(inner, opacityTo(step.layer, scope), step.layer.blend));
+        } else {
+          paintLayer(step.layer, opacityTo(step.layer, scope), out);
+        }
+      }
+    };
+    emit(null, ops);
+
+    pages.push({ media, content: ops.join('\n'), blends });
   }
 
-  // Shared resource dictionary referencing every gstate and image object.
+  // Shared resource dictionary referencing every gstate, image and form object.
   const gstateEntries = [...gstates.values()].map((e) => `/${e.name} ${e.obj} 0 R`).join(' ');
-  const imageEntries = [...images.values()].map((e) => `/${e.name} ${e.obj} 0 R`).join(' ');
+  const imageEntries = [...images.values(), ...forms].map((e) => `/${e.name} ${e.obj} 0 R`).join(' ');
+  const fontEntries = [...fonts.values()].map((e) => `/${e.name} ${e.obj} 0 R`).join(' ');
   const resources =
-    `<< /Font << /F1 3 0 R >>` +
+    `<< /Font << ${fontEntries} >>` +
     (gstateEntries ? ` /ExtGState << ${gstateEntries} >>` : '') +
     (imageEntries ? ` /XObject << ${imageEntries} >>` : '') +
     ` >>`;
+  // Each form's resources are the page's, now that they are known. The token
+  // is in the form's dictionary, ahead of its stream, so the first one is it.
+  for (const form of forms) objects[form.obj - 1] = objects[form.obj - 1].replace(RESOURCES, resources);
 
   const pageIds: number[] = [];
   for (const page of pages) {
@@ -550,7 +792,9 @@ export function sketchesToPdf(sketches: Sketch[], options: PdfOptions = {}): str
     );
     const pageId = addObject(
       `<< /Type /Page /Parent 2 0 R /MediaBox [${page.media.map(num).join(' ')}] ` +
-        `/Resources ${resources} /Contents ${contentId} 0 R >>`,
+        `/Resources ${resources} /Contents ${contentId} 0 R` +
+        (page.blends ? ` /Group << /S /Transparency /CS /DeviceRGB >>` : '') +
+        ` >>`,
     );
     pageIds.push(pageId);
   }

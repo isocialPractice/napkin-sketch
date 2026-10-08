@@ -95,6 +95,7 @@ class SettingsApp {
     this.setRange('qs-textsize', lim.textSize);
     this.setRange('quick-color-count', lim.quickColorCount);
     this.setRange('autosave', lim.autoSaveIntervalSec);
+    this.setRange('report-seconds', lim.reportToastSeconds);
     this.setRange('copic-hold', lim.copicHoldSec);
     this.setRange('copic-speed', lim.copicRotateSpeedDeg);
     this.setRange('copic-width-mult', lim.copicWidthMultiplier);
@@ -172,6 +173,33 @@ class SettingsApp {
     el<HTMLInputElement>('show-selection-borders').addEventListener('change', (e) =>
       this.patch({ showSelectionBorders: (e.target as HTMLInputElement).checked }),
     );
+    el<HTMLInputElement>('scale-strokes-effects').addEventListener('change', (e) =>
+      this.patch({ scaleStrokesAndEffects: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('use-preview-bounds').addEventListener('change', (e) =>
+      this.patch({ usePreviewBounds: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('show-3d-gumball').addEventListener('change', (e) =>
+      this.patch({ show3dGumball: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('type-panel-auto-show').addEventListener('change', (e) =>
+      this.patch({ typePanelAutoShow: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('text-font').addEventListener('change', (e) =>
+      this.patch({ textFont: (e.target as HTMLInputElement).value }),
+    );
+    el<HTMLInputElement>('markdown-new-text').addEventListener('change', (e) =>
+      this.patch({ markdownNewText: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLSelectElement>('accent-theme').addEventListener('change', (e) =>
+      this.patch({ accentTheme: (e.target as HTMLSelectElement).value as AppSettings['accentTheme'] }),
+    );
+    el<HTMLInputElement>('accent-detect').addEventListener('change', (e) =>
+      this.patch({ accentDetect: (e.target as HTMLInputElement).checked }),
+    );
+    el<HTMLInputElement>('pdf-text-as-shapes').addEventListener('change', (e) =>
+      this.patch({ pdfTextAsShapes: (e.target as HTMLInputElement).checked }),
+    );
     el<HTMLInputElement>('warp-show-mesh').addEventListener('change', (e) =>
       this.patch({ warpShowMesh: (e.target as HTMLInputElement).checked }),
     );
@@ -207,6 +235,9 @@ class SettingsApp {
     );
     el<HTMLInputElement>('autosave').addEventListener('input', (e) =>
       this.patch({ autoSaveIntervalSec: Number((e.target as HTMLInputElement).value) }),
+    );
+    el<HTMLInputElement>('report-seconds').addEventListener('input', (e) =>
+      this.patch({ reportToastSeconds: Number((e.target as HTMLInputElement).value) }),
     );
     el<HTMLInputElement>('remember').addEventListener('change', (e) =>
       this.patch({ rememberSettings: (e.target as HTMLInputElement).checked }),
@@ -311,6 +342,16 @@ class SettingsApp {
     this.setValue('direct-select-px', s.directSelectSensitivityPx);
     el('direct-select-px-value').textContent = `${s.directSelectSensitivityPx}px`;
     el<HTMLInputElement>('show-selection-borders').checked = s.showSelectionBorders;
+    el<HTMLInputElement>('scale-strokes-effects').checked = s.scaleStrokesAndEffects;
+    el<HTMLInputElement>('use-preview-bounds').checked = s.usePreviewBounds;
+    el<HTMLInputElement>('show-3d-gumball').checked = s.show3dGumball;
+    el<HTMLInputElement>('type-panel-auto-show').checked = s.typePanelAutoShow;
+    const textFont = el<HTMLInputElement>('text-font');
+    if (document.activeElement !== textFont) textFont.value = s.textFont;
+    el<HTMLInputElement>('markdown-new-text').checked = s.markdownNewText;
+    el<HTMLSelectElement>('accent-theme').value = s.accentTheme;
+    el<HTMLInputElement>('accent-detect').checked = s.accentDetect;
+    el<HTMLInputElement>('pdf-text-as-shapes').checked = s.pdfTextAsShapes;
     el<HTMLInputElement>('warp-show-mesh').checked = s.warpShowMesh;
 
     el<HTMLInputElement>('qs-live-sharpen').checked = s.liveSharpen;
@@ -336,6 +377,8 @@ class SettingsApp {
     this.setValue('autosave', s.autoSaveIntervalSec);
     el('autosave-value').textContent =
       s.autoSaveIntervalSec > 0 ? `every ${s.autoSaveIntervalSec}s` : 'off';
+    this.setValue('report-seconds', s.reportToastSeconds);
+    el('report-seconds-value').textContent = s.reportToastSeconds > 0 ? `${s.reportToastSeconds} s` : 'until closed';
 
     el<HTMLInputElement>('remember').checked = s.rememberSettings;
 

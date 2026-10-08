@@ -28,8 +28,11 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 - **Four commands.** `napkin-sketch draw`, `check`, `render` and `verbs` run
   scripts from a shell or a batch file, and from Python, C or anything else
   through standard input and one line of JSON back.
-- **Two package entries.** `napkin-sketch` runs anywhere and reads no file;
-  `napkin-sketch/node` reads scripts, images and books and writes files.
+- **Three package entries.** `napkin-sketch` runs anywhere and reads no file;
+  `napkin-sketch/node` reads scripts, images and books and writes files; and
+  `napkin-sketch/markdown` gives the first a Markdown reader and a code
+  highlighter, so Markdown Flow text draws as its Markdown renders and code is
+  colored.
 - **The engines the tools stand on.** The Eraser's cut, the Wipe Stacks and
   the Shape Stacker, Split, clipping masks, the Pencil and its Smear, and
   Liquify are functions too, which a program calls on a page with no window:
@@ -40,8 +43,12 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 - **Not a way to open files from a script.** A script names an image, a book
   or a linked file; the program running it reads them, and links are read
   only inside one folder.
-- **Not a font engine.** The PNG sets text in a built-in single-stroke face,
-  and the SVG and the PDF name the font for the reader to set.
+- **Not a font engine.** Without fonts, the PNG sets text in a built-in
+  single-stroke face, and the SVG and the PDF name the font for the reader to
+  set. A host may hand a render font files by family (`fonts`, optional):
+  then text is laid out by the fonts' own advances and kerning, and the PNG
+  and the PDF draw each glyph as its outline. It reads TrueType and OpenType
+  outlines; it does no shaping - no ligatures, no scripts that join.
 - **Not a general SVG renderer.** It reads the SVG other editors write -
   layers, curves, gradients' stops - and says what it leaves out rather than
   drawing it wrong.
@@ -58,8 +65,9 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 | [The graphic design API](docs/api/compose/README.md) | Compositions built in code - shapes, text, media, masks, gradients, effects - rendered to SVG or PNG. | [reference](docs/api/compose/README.md), [quickstart](docs/api/compose/QUICKSTART.md), [cheatsheet](docs/api/compose/CHEATSHEET.md) |
 | [Writing a drawing out](docs/api/output/README.md) | SVG, PNG, PDF, .skbk and an Illustrator script from one call, the box every format is cut to, and what each format keeps. | [reference](docs/api/output/README.md), [quickstart](docs/api/output/QUICKSTART.md), [cheatsheet](docs/api/output/CHEATSHEET.md) |
 | [The napkin-sketch command line](docs/api/cli/README.md) | draw, check, render and verbs from a shell or any language, with --json and exit codes. | [reference](docs/api/cli/README.md), [quickstart](docs/api/cli/QUICKSTART.md), [cheatsheet](docs/api/cli/CHEATSHEET.md) |
-| [Using napkin-sketch from code](docs/api/node/README.md) | The two entries, ES modules and CommonJS, types, the result object, and what throws. | [reference](docs/api/node/README.md), [quickstart](docs/api/node/QUICKSTART.md), [cheatsheet](docs/api/node/CHEATSHEET.md) |
-| [The drawing engines](docs/api/engines/README.md) | The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify. | [reference](docs/api/engines/README.md), [quickstart](docs/api/engines/QUICKSTART.md), [cheatsheet](docs/api/engines/CHEATSHEET.md) |
+| [Using napkin-sketch from code](docs/api/node/README.md) | The package's entries, ES modules and CommonJS, types, the result object, and what throws. | [reference](docs/api/node/README.md), [quickstart](docs/api/node/QUICKSTART.md), [cheatsheet](docs/api/node/CHEATSHEET.md) |
+| [Markdown Flow and Clean Language Accents](docs/api/markdown/README.md) | napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36. | [reference](docs/api/markdown/README.md), [quickstart](docs/api/markdown/QUICKSTART.md), [cheatsheet](docs/api/markdown/CHEATSHEET.md) |
+| [The drawing engines](docs/api/engines/README.md) | The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify; blends, effects, Splatter, Warp and 3D; type, its layout, hyphenation and fonts; Text Configurations and Composition Styles. | [reference](docs/api/engines/README.md), [quickstart](docs/api/engines/QUICKSTART.md), [cheatsheet](docs/api/engines/CHEATSHEET.md) |
 | [Working with other programs](docs/api/interop/README.md) | Illustrator and Inkscape through SVG, an Illustrator script that rebuilds a drawing, files linked from elsewhere, and what survives a round trip. | [reference](docs/api/interop/README.md), [quickstart](docs/api/interop/QUICKSTART.md), [cheatsheet](docs/api/interop/CHEATSHEET.md) |
 | [The AI helpers](docs/api/ai/README.md) | The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages. | [reference](docs/api/ai/README.md), [quickstart](docs/api/ai/QUICKSTART.md), [cheatsheet](docs/api/ai/CHEATSHEET.md) |
 <!-- categories:end -->
@@ -100,7 +108,7 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 | A shell, a batch file, CI | `napkin-sketch draw card.napkin --to svg,png` | [The command line](docs/api/cli/QUICKSTART.md) |
 | Python, C, any language | `napkin-sketch draw - --json`, the script on standard input | [The callers](docs/api/cli/README.md#worked-examples) |
 | Node | `drawFile('card.napkin', { formats: ['svg', 'png'] })` | [Using it from code](docs/api/node/QUICKSTART.md) |
-| A browser or a bundler | `drawSvg(text)`, `evaluate(text)` | [The two entries](docs/api/node/README.md#the-two-entries) |
+| A browser or a bundler | `drawSvg(text)`, `evaluate(text)` | [The entries](docs/api/node/README.md#the-entries) |
 | Code that lays out a graphic | `createComposition({ width, height })` | [The graphic design API](docs/api/compose/QUICKSTART.md) |
 | An AI tool | the `graphic-designer` and `scripting` helpers | [The AI helpers](docs/api/ai/QUICKSTART.md) |
 | A sentence | `napkin-sketch draw --prompt "a three-box flowchart with arrows"` | [Drawing from a request](docs/api/ai/README.md#drawing-from-a-request) |

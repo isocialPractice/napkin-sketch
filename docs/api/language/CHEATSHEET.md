@@ -21,10 +21,8 @@ Reminders for the language: syntax, values, the verbs that shape a script, funct
 | Length | `120`, `10mm`, `0.5in`, `12pt`, `4px`, `50%` | `120`, `"10mm"`, `"50%"` |
 | Expression, anywhere a number or a length goes | `(width / 2)`, `(i * 40 + 20)` | `{ "expr": "width / 2" }` |
 | String | `"Acme Corp"`, `"one\ntwo"` | `"Acme Corp"` |
-| Color | `#1f2328`, `steelblue`, `rgb(31, 35, 40)` | `"#1f2328"` |
-| Switch | `on`, `off` | `true`, `false` |
-| Points | `0 0, 10 0, 5 8` | `[{ "x": 0, "y": 0 }, ...]` |
-| Stops | `(#ffffff 0, #000000 1)` | `[{ "color": "#ffffff", "offset": 0 }, ...]` |
+| Color; switch | `#1f2328`, `steelblue`, `rgb(31, 35, 40)`; `on`, `off` | `"#1f2328"`; `true`, `false` |
+| Points; stops | `0 0, 10 0, 5 8`; `(#ffffff 0, #000000 1)` | `[{ "x": 0, "y": 0 }, ...]`; `[{ "color": "#ffffff", "offset": 0 }, ...]` |
 
 ## The verbs that shape a script
 
@@ -85,8 +83,7 @@ Reminders for the language: syntax, values, the verbs that shape a script, funct
 
 | Call | Gives |
 | --- | --- |
-| `parseScript(text)`, `validateScript(json)` | `{ ok, script, diagnostics }` from text or the object form, `{ fragment }` for a piece of one; never throws |
-| `formatScript(script)`, `formatDiagnostic(d, 'card.napkin')` | The script as canonical text; a diagnostic as `card.napkin:3:1: error unknown-verb: ...` |
+| `parseScript(text)`, `validateScript(json)`; `formatScript(script)`, `formatDiagnostic(d, 'card.napkin')` | `{ ok, script, diagnostics }` from text or the object form (`{ fragment }` for a piece of one), never throwing; the script as canonical text, and a diagnostic as `card.napkin:3:1: error unknown-verb: ...` |
 
 ## Diagnostic codes
 
@@ -120,6 +117,7 @@ Reminders for the language: syntax, values, the verbs that shape a script, funct
 | `unknown-shape` | error | shape names something the shape library does not have. |
 | `unknown-asset` | error | image names an asset the host did not supply. |
 | `unknown-document` | error | use names a document the host did not supply. |
+| `unknown-config` | error | config names a Text Configuration no textconfig before it defined. |
 | `image-size-unknown` | warning | An image's size cannot be read from its data, so it is placed square: 100 by 100, or the one size given by itself. |
 | `glyph-missing` | warning | text as marks has a character the built-in face does not draw; it is left as a gap. |
 | `unknown-field` | warning | An instruction in a JSON script has a field its verb does not have; it is left out. |
@@ -131,6 +129,8 @@ Reminders for the language: syntax, values, the verbs that shape a script, funct
 | `duplicate-definition` | warning | A second define replaces an earlier one of the same name. |
 | `link-unresolved` | warning | A linked file could not be read for an output that has to draw it, so its placeholder was drawn instead. |
 | `unused-effect` | warning | An effect nothing took: no layer, group or mark followed it before its block, its page or the script ended. |
+| `unused-blend` | warning | A blend nothing took: no layer or group followed it before another blend, its block, its page or the script ended. A blend is a layer's, so a mark alone does not take it. |
+| `unused-accent` | warning | An accent nothing took: no text followed it before another accent, its block, its page or the script ended, or the text was drawn as marks. |
 | `wipe-skipped` | warning | A wipe's or a stack's block drew marks it cannot combine - text, pictures, linked files, eraser marks - and they are drawn as they are. |
 | `wipe-empty` | warning | A wipe or a stack left nothing: out-front's bottom mark wholly covered by the rest, say, or a stack remove taking every piece. |
 | `wipe-failed` | warning | A wipe or a stack could not combine its block's marks - fewer than two it can combine, more than it takes, or geometry it could not make - so they are drawn as they are. |

@@ -17,6 +17,8 @@
 
 import { apply, meanScale, type Matrix } from '../graphic-design/geometry.js';
 import { profileIsSymmetric } from '../stroke-profile.js';
+import { strokeBounds } from '../bounds.js';
+import { scaleTypeset } from '../type/model.js';
 import {
   DEFAULT_NIB_ANGLE,
   isImageStroke,
@@ -270,10 +272,12 @@ const round6 = (value: number): number => Math.round(value * 1e6) / 1e6;
  * and handle mapped, the width scaled by the transform's mean scale, and a
  * nib's angle and a linear gradient's axis turned with it. A mirror swaps the
  * sides of a profile that leans, as the Mirror palette does. A text item or
- * an image stays upright (see {@link uprightBox}); `measure` gives a text
- * item's box. The copy has no id and no layer: whoever adds it gives it both.
+ * an image stays upright (see {@link uprightBox}): a text item's box is
+ * where the type layout sets it with the built-in face, and its typeset -
+ * its frame or its path, its runs and paragraphs - scales with its size. The
+ * copy has no id and no layer: whoever adds it gives it both.
  */
-export function copyStroke(stroke: Stroke, m: Matrix, measure: (text: Stroke) => { width: number; height: number }): Stroke {
+export function copyStroke(stroke: Stroke, m: Matrix): Stroke {
   const copy = JSON.parse(JSON.stringify(stroke)) as Stroke;
   copy.id = '';
   delete copy.layer;
@@ -281,12 +285,15 @@ export function copyStroke(stroke: Stroke, m: Matrix, measure: (text: Stroke) =>
   if (identity) return copy;
   const anchor = copy.points[0];
   if (isTextStroke(copy)) {
-    if (!anchor) return copy;
+    const box = anchor ? strokeBounds(stroke) : null;
+    if (!anchor || !box) return copy;
     const k = meanScale(m);
-    const placed = uprightBox({ x: anchor.x, y: anchor.y, ...measure(stroke) }, m, k, k);
-    copy.points = [{ ...anchor, x: placed.x, y: placed.y }];
+    const placed = uprightBox({ x: box.minX, y: box.minY, width: box.maxX - box.minX, height: box.maxY - box.minY }, m, k, k);
+    // The anchor keeps its place in the box, the box scaled.
+    copy.points = [{ ...anchor, x: round6(placed.x + (anchor.x - box.minX) * k), y: round6(placed.y + (anchor.y - box.minY) * k) }];
     copy.fontSize = round6((copy.fontSize ?? 24) * k);
     if (copy.textBoxWidth) copy.textBoxWidth = round6(copy.textBoxWidth * k);
+    if (copy.typeset) copy.typeset = scaleTypeset(copy.typeset, k, k);
     return copy;
   }
   if (isImageStroke(copy)) {

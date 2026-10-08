@@ -104,9 +104,9 @@ try {
   // ---- The menu bar Electron holds ----------------------------------------------------
   let bar = await readBar(page);
   c.eq(
-    'the menu bar holds the nine menus',
+    'the menu bar holds the eleven menus',
     labelsOf(bar).join(', '),
-    'File, Edit, View, Transform, Sketch, Layers, Pages, Automate, Help',
+    'File, Edit, View, Transform, Effect, Type, Sketch, Layers, Pages, Automate, Help',
   );
   const edit = labelsOf(menuOf(bar, 'Edit'));
   c.ok('Rotate and Mirror have left Edit', !edit.includes('Rotate…') && !edit.includes('Mirror…'), edit.join(' | '));
@@ -114,7 +114,7 @@ try {
   c.eq(
     'Transform holds its rows',
     labelsOf(menuOf(bar, 'Transform')).join(' | '),
-    'Vector Path | --- | Transform Box | Move… | Rotate… | Join | Close Shape | Wipe Stacks | Mirror… | --- | Sharpen | Mesh Warp | Liquify',
+    'Vector Path | --- | Transform Box | Move… | Rotate… | Join | Close Shape | Wipe Stacks | Mirror… | Expand Text to Shape | --- | Sharpen | Mesh Warp | Liquify',
   );
   c.eq('Sketch holds its tools', labelsOf(menuOf(bar, 'Sketch')).join(' | '), 'Brush | Marker | Eraser | Shape Eraser | Shape Stacker | Split | Apply Erasers | Text | Copic | Pencil | Smear | Direct | --- | Stroke Profile… | Fill in Front | Swap Fill and Stroke');
   const apply = rowOf(bar, 'apply-erasers');
@@ -168,7 +168,7 @@ try {
   c.eq(
     'the canvas menu, with nothing selected',
     (await page.evalIn(ROWS('context-menu')))?.join(' | '),
-    'Cut [Ctrl+X] (disabled) | Copy [Ctrl+C] (disabled) | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] (disabled) | --- | Delete [Delete] (disabled) | --- | Select All [Ctrl+A] | Deselect All [Ctrl+Shift+A] (disabled) | --- | Wipe Stacks (disabled) >',
+    'Cut [Ctrl+X] (disabled) | Copy [Ctrl+C] (disabled) | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] (disabled) | --- | Delete [Delete] (disabled) | --- | Select All [Ctrl+A] | Deselect All [Ctrl+Shift+A] (disabled) | --- | Wipe Stacks (disabled) > | --- | Apply Last Effect [Ctrl+Shift+E] (disabled) | Last Effect… [Ctrl+Alt+Shift+E] (disabled) | Expand Appearance (disabled) | Clear Appearance (disabled)',
   );
   await escape(page);
   c.eq('Escape closes it', await page.evalIn(ROWS('context-menu')), null);
@@ -179,7 +179,7 @@ try {
   c.eq(
     'the canvas menu, with everything selected',
     (await page.evalIn(ROWS('context-menu')))?.join(' | '),
-    'Cut [Ctrl+X] | Copy [Ctrl+C] | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] | --- | Delete [Delete] | --- | Select All [Ctrl+A] | Deselect All [Ctrl+Shift+A] | --- | Wipe Stacks (disabled) >',
+    'Cut [Ctrl+X] | Copy [Ctrl+C] | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] | --- | Delete [Delete] | --- | Select All [Ctrl+A] | Deselect All [Ctrl+Shift+A] | --- | Wipe Stacks (disabled) > | --- | Apply Last Effect [Ctrl+Shift+E] (disabled) | Last Effect… [Ctrl+Alt+Shift+E] (disabled) | Expand Appearance (disabled) | Clear Appearance (disabled)',
   );
   await escape(page);
 
@@ -190,7 +190,7 @@ try {
   c.eq(
     'the layers panel menu, labels in order',
     layerRows.map((row) => row.replace(/ \(disabled\)$/, '')).join(' | '),
-    'Add Layer | Group Layer [Ctrl+G] | Ungroup [Ctrl+Shift+G] | Rename [F2] | Delete Layer | --- | Cut [Ctrl+X] | Copy [Ctrl+C] | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] | --- | Move > | Clipping Mask > | --- | Hide Layers Panel',
+    'Add Layer | Group Layer [Ctrl+G] | Ungroup [Ctrl+Shift+G] | Rename [F2] | Delete Layer | --- | Cut [Ctrl+X] | Copy [Ctrl+C] | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] | --- | Move > | Clipping Mask > | Blend > | --- | Hide Layers Panel',
   );
   await hover(page, await page.evalIn(ROW_CENTER('context-menu', 'Move')));
   c.eq(

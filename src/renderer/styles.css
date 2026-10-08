@@ -700,24 +700,35 @@ body {
   cursor: crosshair;
 }
 
-/* ---- Text editor overlay ------------------------------------------------- */
+/* ---- Type editor ----------------------------------------------------------- */
 
-.text-editor {
-  position: absolute;
+/*
+ * The type editor's hidden field (type-editor.ts): it holds the keyboard, the
+ * IME and the clipboard while the canvas draws the text, the caret and the
+ * selection. Invisible but focusable - never display: none, which would lose
+ * the focus - and placed at the caret, as tall as it is, so an IME shows its
+ * candidates there. It takes no pointer.
+ */
+.type-input {
+  position: fixed;
+  left: 0;
+  top: 0;
   z-index: 20;
-  min-width: 120px;
-  min-height: 1.4em;
+  width: 1px;
+  height: 1em;
   padding: 0;
   margin: 0;
-  border: 1px dashed var(--primary);
-  border-radius: var(--r-sm);
-  background: rgba(255, 255, 255, 0.88);
-  resize: both;
+  border: 0;
   outline: none;
-  line-height: 1.25;
+  resize: none;
   overflow: hidden;
-  /* field-sizing lets the textarea grow with content in supporting browsers. */
-  field-sizing: content;
+  white-space: pre;
+  line-height: 1;
+  opacity: 0;
+  color: transparent;
+  background: transparent;
+  caret-color: transparent;
+  pointer-events: none;
 }
 
 /* ---- Settings panel ------------------------------------------------------ */
@@ -771,6 +782,23 @@ body {
 .settings-field input[type="range"] {
   width: 100%;
   accent-color: var(--primary);
+}
+
+.settings-text {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--s1) var(--s2);
+}
+
+.settings-text:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 
 .settings-row {
@@ -1188,6 +1216,11 @@ body {
    note, laid over the drawing about to be moved. As with Rotate this is a
    starting size and not a limit; the grip still writes an inline width. */
 #move-dialog .export-dialog-inner {
+  width: 340px;
+}
+
+/* Clean Language Accents > Apply: a language and a check, no wider than they need. */
+#accent-apply-dialog .export-dialog-inner {
   width: 340px;
 }
 
@@ -2280,6 +2313,197 @@ body {
   color: var(--ink);
 }
 
+/* ---- Report toasts (report-toast.ts) ---------------------------------------- */
+
+/* What an action could not do, line by line, in the bottom-right corner: up
+   to three stacked upward, newest at the bottom. The column sits clear of the
+   status bar and the nib indicator (--report-bottom is set from their boxes),
+   above the dialogs so a report raised behind one is still read, and below
+   the menus. The empty column lets pointer events through to the canvas. */
+.report-toasts {
+  position: fixed;
+  right: var(--s4);
+  bottom: var(--report-bottom, var(--s4));
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  width: min(360px, calc(100vw - 2 * var(--s4)));
+  pointer-events: none;
+}
+
+.report-toast {
+  --report-accent: var(--warn);
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--s2) var(--s1) var(--s2) var(--s3);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--report-accent);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  font-size: 13px;
+  pointer-events: auto;
+  transition: opacity var(--motion), transform var(--motion);
+}
+
+.report-toast.is-info {
+  --report-accent: var(--primary);
+}
+
+.report-toast:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.report-toast.is-entering,
+.report-toast.is-leaving {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.report-toast.is-leaving {
+  pointer-events: none;
+}
+
+.report-toast-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.report-toast-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--report-accent);
+}
+
+.report-toast-icon svg,
+.report-toast-close svg,
+.report-toast-more svg {
+  width: 16px;
+  height: 16px;
+}
+
+.report-toast-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-toast-close,
+.report-toast-more,
+.report-toast-action {
+  font: inherit;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--motion), color var(--motion), border-color var(--motion);
+}
+
+.report-toast-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.report-toast-close:hover,
+.report-toast-more:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.report-toast-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  margin: 2px 0 0 20px;
+  padding: 2px var(--s1);
+  font-size: 12px;
+}
+
+.report-toast-more svg {
+  transition: transform var(--motion);
+}
+
+.report-toast-more[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.report-toast-close:focus-visible,
+.report-toast-more:focus-visible,
+.report-toast-action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* The details scroll on their own past 40% of the window, so a long report
+   never pushes the stack off the screen. */
+.report-toast-details {
+  max-height: 40vh;
+  margin: var(--s1) var(--s2) 0 24px;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.report-toast-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--s2);
+  padding: var(--s1) 0;
+  border-top: 1px solid var(--border);
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.report-toast-text {
+  flex: 1 1 100%;
+  overflow-wrap: anywhere;
+}
+
+.report-toast-suggestion {
+  color: var(--ink);
+}
+
+/* --ink, not --primary: the dark theme's primary is 3.5:1 on its surface,
+   short of the 4.5:1 that 12 px text needs. */
+.report-toast-action {
+  padding: 1px var(--s2);
+  color: var(--ink);
+  border-color: var(--border-strong);
+}
+
+.report-toast-action:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.report-toast-row.is-done {
+  color: var(--ok);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-toast,
+  .report-toast-more svg {
+    transition: none;
+  }
+}
+
 /* ---- Export dialog ------------------------------------------------------- */
 
 .export-dialog {
@@ -2834,6 +3058,44 @@ body {
   min-width: 0;
 }
 
+/* The blend select sits under the opacity, its label in the same column. */
+.layers-blend {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.layers-blend select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 2px var(--s1);
+}
+
+.layers-blend select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* A blended layer's row: two circles and their lens (core/blend.ts). */
+.layer-blend-badge {
+  display: inline-grid;
+  flex: none;
+  margin-left: var(--s1);
+  color: var(--ink-soft);
+}
+
+.layer-blend-badge svg {
+  width: 16px;
+  height: 12px;
+}
+
 #layer-opacity-value {
   min-width: 38px;
   text-align: right;
@@ -3058,6 +3320,9 @@ body {
 .prop-unit-wide {
   width: auto;
   flex: 1;
+  /* A select is as wide as its longest choice unless told it may shrink:
+     the blend modes' names would push the panel wider than it is. */
+  min-width: 0;
 }
 
 /* Fixed-unit fields (stroke width, stop offset) label their unit in text. */
@@ -3110,6 +3375,11 @@ body {
   border-radius: var(--r-sm);
 }
 
+/* Only a gradient fill has stops to edit: with none, the editor goes. */
+.gradient-editor.is-hidden {
+  display: none;
+}
+
 .gradient-bar {
   position: relative;
   height: 26px;
@@ -3155,4 +3425,1269 @@ body {
 
 .gradient-editor.is-radial #gradient-angle-row {
   display: none;
+}
+
+/* ---- The Appearance panel (appearance-panel.ts) --------------------------- */
+
+/* A palette that stays up while the drawing goes on: no backdrop, and the
+   overlay passes the pointer through to the canvas, as Move's does. */
+#appearance-dialog {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+/* Scoped to the panel, not the overlay: docked, the panel leaves its overlay behind. */
+.appearance-panel {
+  width: 300px;
+  gap: var(--s2);
+}
+
+/* The close button takes the title's right edge; the dock button sits beside it. */
+.popup-close-btn {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.popup-close-btn:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.popup-close-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.appearance-panel .popup-dock-btn {
+  right: 28px;
+}
+
+/* What is selected heads the list, as the first row of a vector editor's panel. */
+.appearance-heading {
+  margin: 0;
+  padding: 0 var(--s1);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.appearance-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 64px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.appearance-panel.is-empty .appearance-rows,
+.appearance-panel.is-empty .appearance-opacity-row {
+  opacity: 0.55;
+}
+
+.appearance-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 32px;
+  padding: 0 var(--s2);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  min-width: 0;
+  user-select: none;
+}
+
+.appearance-row:hover {
+  border-color: var(--border);
+}
+
+.appearance-row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* The selected row: a border and a tint, so it does not rest on color alone. */
+.appearance-row.is-selected {
+  border-color: var(--primary);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+/* An effect aimed at the stroke or the fill sits under its row. */
+.appearance-row.is-nested {
+  margin-left: var(--s4);
+}
+
+.appearance-row.is-plain {
+  cursor: default;
+  color: var(--ink-soft);
+  background: transparent;
+}
+
+.appearance-row.is-plain:hover {
+  border-color: transparent;
+}
+
+/* A switched-off effect keeps its row, struck through and faded. */
+.appearance-row.is-off .appearance-name {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.appearance-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appearance-row.is-paint .appearance-name {
+  font-weight: 600;
+}
+
+.appearance-detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.appearance-swatch {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--surface);
+}
+
+/* None, as a vector editor draws it: a white square with a red slash. */
+.appearance-swatch.is-none {
+  background: linear-gradient(to top right, transparent calc(50% - 1px), var(--danger) calc(50% - 1px), var(--danger) calc(50% + 1px), transparent calc(50% + 1px)), var(--surface);
+}
+
+.appearance-swatch.is-mixed {
+  background: repeating-linear-gradient(45deg, var(--ink-soft) 0 3px, var(--surface) 3px 6px);
+}
+
+.appearance-fx {
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-soft);
+  font: italic 600 13px Georgia, 'Times New Roman', serif;
+  cursor: pointer;
+}
+
+.appearance-fx:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.appearance-fx:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* Dragging a row: where it would land. */
+.appearance-panel.is-dragging .appearance-row {
+  cursor: grabbing;
+}
+
+.appearance-row.drop-above {
+  box-shadow: 0 -2px 0 0 var(--primary);
+}
+
+.appearance-row.drop-below {
+  box-shadow: 0 2px 0 0 var(--primary);
+}
+
+.appearance-row.drop-into {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.appearance-opacity-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.appearance-opacity-row label {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.appearance-opacity-row .prop-num {
+  flex: 0 0 64px;
+  width: 64px;
+}
+
+.appearance-opacity-row select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--s1);
+}
+
+.appearance-foot {
+  display: flex;
+  gap: var(--s1);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--border);
+}
+
+.appearance-foot .btn {
+  flex: 1;
+  padding-left: var(--s1);
+  padding-right: var(--s1);
+  font-size: 12px;
+}
+
+/* The fx buttons read as a vector editor's: the two letters, in italics. */
+.appearance-fx-add,
+.prop-fx {
+  font: italic 600 14px Georgia, 'Times New Roman', serif;
+}
+
+.prop-fx {
+  flex: 0 0 auto;
+  min-width: 40px;
+}
+
+.prop-effects {
+  flex: 1;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+/* ---- 3D Options (three-d-panel.ts) ---------------------------------------- */
+
+/* A palette that stays up while the drawing goes on, as the Appearance panel:
+   no backdrop, and the overlay passes the pointer through to the canvas. */
+#three-d-dialog {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+/* Scoped to the panel, not the overlay: docked, the panel leaves its overlay
+   behind. Floating, its fields scroll inside it, so it is never taller than
+   the window. */
+.three-d-panel {
+  width: 320px;
+  gap: var(--s2);
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+}
+
+.three-d-panel .is-hidden {
+  display: none;
+}
+
+.three-d-panel .popup-dock-btn {
+  right: 28px;
+}
+
+.three-d-panel.is-empty .three-d-body {
+  display: none;
+}
+
+.three-d-add {
+  display: flex;
+  gap: var(--s2);
+}
+
+.three-d-add .btn {
+  flex: 1 1 0;
+}
+
+.three-d-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The cube a drag turns, as a vector editor's track cube. */
+.three-d-cube {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 132px;
+  height: 132px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  cursor: grab;
+  touch-action: none;
+}
+
+.three-d-cube:active {
+  cursor: grabbing;
+}
+
+.three-d-cube:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* Position and Surface fold; each row stands a step below the one before. */
+.three-d-section > summary {
+  cursor: pointer;
+}
+
+/* A Mixed angle's dial: no hand, since the marks' angles differ. */
+.angle-dial.is-mixed .angle-dial-hand {
+  visibility: hidden;
+}
+
+.three-d-section > .effect-field {
+  margin-top: var(--s2);
+}
+
+/* ---- The Type panel (type-panel.ts) --------------------------------------- */
+
+/* A palette that stays up while the typing goes on, as the Appearance panel. */
+#type-dialog {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+/* Scoped to the panel, not the overlay: docked, the panel leaves its overlay
+   behind. Floating, a tab scrolls inside it, so it is never taller than the
+   window. */
+.type-panel {
+  width: 304px;
+  gap: var(--s2);
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+}
+
+.type-panel .is-hidden {
+  display: none;
+}
+
+.type-panel .popup-dock-btn {
+  right: 28px;
+}
+
+.type-tabs {
+  display: flex;
+  gap: var(--s1);
+  border-bottom: 1px solid var(--border);
+}
+
+.type-tab {
+  padding: var(--s1) var(--s2);
+  margin-bottom: -1px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.type-tab:hover {
+  color: var(--ink);
+}
+
+.type-tab.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--primary);
+}
+
+.type-target {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A tab's controls, top to bottom, scrolling when the panel is short. */
+.type-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Room for the focus rings, which the scrolling box would clip. */
+  padding: var(--s1);
+  margin: calc(-1 * var(--s1));
+}
+
+.type-font-row {
+  display: flex;
+  gap: var(--s1);
+}
+
+.type-combo {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.type-panel input[type="text"],
+.type-select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--s1) var(--s2);
+}
+
+.type-panel input:disabled,
+.type-select:disabled {
+  color: var(--ink-faint);
+  background: var(--surface-2);
+}
+
+/* A family this computer does not have: its name in the warning color. */
+.type-combo.is-missing input {
+  color: var(--warn);
+  border-color: var(--warn);
+  font-style: italic;
+}
+
+/* The family list drops below the field, each name in its own face. */
+.type-family-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 2;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--s1);
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-2);
+}
+
+.type-family-option {
+  padding: var(--s1) var(--s2);
+  font-size: 15px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.type-family-option:hover,
+.type-family-option.is-active {
+  background: var(--surface-2);
+  outline: 1px solid var(--border-strong);
+}
+
+/* The recent fonts stand apart from the rest. */
+.type-family-option.is-recent + .type-family-option:not(.is-recent) {
+  margin-top: var(--s1);
+  border-top: 1px solid var(--border);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.type-family-none {
+  padding: var(--s1) var(--s2);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* The Text Configurations tab: its name and menu, the list, and its buttons. */
+.type-configs-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+
+.type-configs-title {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.type-configs-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: var(--s1);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-2);
+}
+
+.type-configs-menu-item {
+  padding: var(--s1) var(--s2);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.type-configs-menu-item:hover:not(:disabled),
+.type-configs-menu-item:focus-visible {
+  background: var(--surface-2);
+  outline: 1px solid var(--border-strong);
+}
+
+/* Over the panel's own greyed button: a menu row greys its words alone. */
+.type-panel .type-configs-menu-item:disabled {
+  color: var(--ink-faint);
+  background: none;
+  cursor: default;
+}
+
+.type-configs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 96px;
+  margin: 0;
+  padding: var(--s1);
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.type-config-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s1);
+  padding: var(--s1) var(--s2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.type-config-row:hover {
+  background: var(--surface-2);
+}
+
+.type-config-row.is-chosen {
+  background: var(--surface-2);
+  outline: 1px solid var(--primary);
+}
+
+.type-config-row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -1px;
+}
+
+.type-config-name {
+  overflow: hidden;
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.type-config-name.is-default {
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+/* The text has attributes of its own beyond the configuration it follows. */
+.type-config-plus {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.type-configs-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.type-configs-gap {
+  flex: 1 1 auto;
+}
+
+.type-configs-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.type-icon-btn {
+  flex: 0 0 auto;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 var(--s1);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.type-icon-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+/* The number fields, two to a row: a name to drag, and a box to type in. */
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2) var(--s3);
+}
+
+.type-field {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s1);
+}
+
+.type-label {
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: ew-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+.type-label:hover {
+  color: var(--ink);
+}
+
+.type-label.is-disabled {
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.type-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+.type-toggle {
+  min-width: 36px;
+  height: 28px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.type-toggle.is-small-caps {
+  font-variant-caps: small-caps;
+}
+
+.type-toggle.is-underline {
+  text-decoration: underline;
+}
+
+.type-toggle.is-strike {
+  text-decoration: line-through;
+}
+
+/* On, every target; or some of them: a dashed edge. */
+.type-toggle[aria-pressed="true"],
+.type-seg-btn[aria-pressed="true"] {
+  color: var(--primary-ink);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.type-toggle[aria-pressed="mixed"],
+.type-seg-btn[aria-pressed="mixed"] {
+  border-style: dashed;
+  border-color: var(--primary);
+}
+
+.type-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.type-row-label {
+  flex: 0 0 72px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.type-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.type-seg-btn {
+  padding: var(--s1) var(--s2);
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.type-seg-btn:hover:not(:disabled):not([aria-pressed="true"]),
+.type-toggle:hover:not(:disabled):not([aria-pressed="true"]) {
+  background: var(--surface-2);
+}
+
+.type-panel button:disabled {
+  color: var(--ink-faint);
+  background: var(--surface-2);
+  border-color: var(--border);
+  cursor: default;
+}
+
+.type-panel input[type="color"] {
+  width: 48px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+/* A color the targets differ in: the well shows the first, its edge dashed. */
+.type-panel input[type="color"].is-mixed {
+  border-style: dashed;
+  border-color: var(--primary);
+}
+
+/* Bulleted and Numbered, each with its style, and the level's two arrows. */
+.type-lists {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: var(--s1) var(--s2);
+  align-items: center;
+}
+
+.type-lists .type-icon-btn {
+  justify-self: start;
+}
+
+.type-check {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.type-panel button:focus-visible,
+.type-panel input:focus-visible,
+.type-panel select:focus-visible,
+.type-label:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* ---- Effect options (effect-options.ts) ----------------------------------- */
+
+/* A palette, not a sheet: the preview is the canvas underneath. So are the Type menu's forms. */
+#effect-options-dialog,
+#type-options-dialog {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+#effect-options-dialog .export-dialog-inner,
+#type-options-dialog .export-dialog-inner {
+  width: 340px;
+  min-height: 0;
+  gap: var(--s3);
+  /* The fields scroll, not the popup, so its title and its OK stay in view
+     when a tall form - a bevel's - is taller than the window. */
+  overflow: hidden;
+}
+
+.effect-options-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Room for the fields' focus rings, which the scrolling box would clip. */
+  padding: var(--s1);
+  margin: calc(-1 * var(--s1));
+}
+
+/* A field a row: its name, its control, its unit, and an angle's dial. */
+.effect-field {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 24px 32px;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.effect-field input[type="number"],
+.effect-field input[type="text"],
+.effect-field select {
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--s1) var(--s2);
+}
+
+.effect-field select {
+  grid-column: 2 / span 3;
+}
+
+/* The Type menu's forms: a length typed with its unit, a name, and a paint - a box for whether there is one, and its color. */
+.type-option .type-option-length {
+  grid-column: 2 / span 2;
+}
+
+.type-option .type-option-text {
+  grid-column: 2 / span 3;
+}
+
+.type-option-paint {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  grid-column: 2 / span 3;
+}
+
+.type-option.is-disabled label {
+  opacity: 0.5;
+}
+
+.effect-field input[type="color"] {
+  width: 48px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.effect-field input:focus-visible,
+.effect-field select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.effect-unit {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* A line about what the effect works on, under its name; and 3D Options' line about the selection. */
+.effect-options-note,
+.three-d-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+/* A Warp's style bending a grid, as the form has it. */
+.effect-warp-thumbnail {
+  display: block;
+  width: 100%;
+  height: 96px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.effect-warp-thumbnail polyline {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.effect-warp-thumbnail polyline.is-edge {
+  stroke: var(--ink);
+  stroke-width: 1.4;
+}
+
+.effect-options-group {
+  margin: var(--s2) 0 0;
+  padding-top: var(--s2);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* An angle's dial: a circle and a hand, turned by a drag or the arrow keys. */
+.angle-dial {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.angle-dial::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: var(--r-full);
+  background: var(--ink);
+}
+
+.angle-dial-hand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background: var(--ink);
+  transform-origin: 0 50%;
+  transform: rotate(var(--angle, 0deg));
+}
+
+.angle-dial:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.effect-options-actions {
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+/* ---- Composition Styles (composition-styles-panel.ts, composition-rule-form.ts) ---- */
+
+/* A palette that stays up while the drawing goes on, as the Appearance panel does. */
+#composition-styles-dialog {
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+.composition-styles-panel {
+  width: 300px;
+  gap: var(--s2);
+}
+
+.composition-styles-panel .popup-dock-btn {
+  right: 28px;
+}
+
+/* The list and the note under it take turns: the note only while the library is empty. */
+.composition-styles-panel .is-hidden {
+  display: none;
+}
+
+.composition-styles-heading {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.composition-styles-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-height: 64px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.composition-styles-list:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.composition-styles-empty {
+  margin: 0;
+  padding: var(--s3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/* A style a row: its thumbnail, its name over its rules, and Applied when it is the page's. */
+.composition-style-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s1);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  cursor: pointer;
+  user-select: none;
+}
+
+.composition-style-row:hover {
+  border-color: var(--border);
+}
+
+/* The chosen style: a border and a bar, so it does not rest on color alone. */
+.composition-style-row.is-chosen {
+  border-color: var(--primary);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.composition-style-thumb {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: repeating-conic-gradient(var(--surface-2) 0% 25%, var(--surface) 0% 50%) 50% / 8px 8px;
+}
+
+.composition-style-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* While its thumbnail is drawn, a row shows its empty frame. */
+.composition-style-row.is-drawing .composition-style-thumb img {
+  visibility: hidden;
+}
+
+.composition-style-words {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* The name, and Applied beside it when it is the page's, so the summary has the row's width. */
+.composition-style-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  min-width: 0;
+}
+
+.composition-style-name,
+.composition-style-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composition-style-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.composition-style-summary {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* Applied, in words: the style last applied to the page in view. */
+.composition-style-applied {
+  display: none;
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.composition-style-row.is-applied .composition-style-applied {
+  display: inline-block;
+}
+
+/* Six buttons in two rows of three: one row of six is too narrow to read. */
+.composition-styles-foot {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* The rule form: a field a row, a check, its name and its control. */
+#composition-rule-dialog .export-dialog-inner {
+  width: 420px;
+  max-height: 80vh;
+}
+
+.composition-rule-group {
+  margin: var(--s2) 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.composition-rule-row {
+  display: grid;
+  grid-template-columns: auto 10rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s2);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.composition-rule-set {
+  margin: 0;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+}
+
+.composition-rule-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.composition-rule-label {
+  cursor: pointer;
+}
+
+/* A field the rule does not set: its control dimmed, still there to set. */
+.composition-rule-row:not(.is-set) .composition-rule-input,
+.composition-rule-row:not(.is-set) .composition-rule-color {
+  opacity: 0.55;
+}
+
+.composition-rule-color {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  min-width: 0;
+}
+
+.composition-rule-well {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: none;
+}
+
+.composition-rule-json {
+  resize: vertical;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+/* The rule editor: a field over the table, and buttons in a row. */
+.config-field {
+  margin: 0;
+}
+
+.config-cell-button {
+  white-space: nowrap;
+}
+
+.config-button-text {
+  margin-right: var(--s2);
+  font-size: 12px;
+  color: var(--ink-soft);
+  white-space: normal;
+}
+
+.config-row-button {
+  padding: 2px var(--s2);
+  font-size: 12px;
 }

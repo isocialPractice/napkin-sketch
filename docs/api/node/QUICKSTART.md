@@ -2,8 +2,8 @@
 
 [API hub](../../../API.md) · [Reference](README.md) · **Quickstart** · [Cheatsheet](CHEATSHEET.md)
 
-The package has two entries - `napkin-sketch`, which runs anywhere, and
-`napkin-sketch/node`, which reads and writes files - and this is the path from
+The package's two main entries are `napkin-sketch`, which runs anywhere,
+and `napkin-sketch/node`, which reads and writes files; this is the path from
 a clone to a Node program that draws a script to files.
 
 ## The whole thing in four steps
@@ -86,8 +86,8 @@ would be `drawing.svg` and `drawing.png`.
 
 ## Where to go next
 
-- [The two entries](README.md#the-two-entries): what each one holds, and why a
-  browser build imports only the first.
+- [The entries](README.md#the-entries): what each one holds, and why a
+  browser build leaves out `napkin-sketch/node`.
 - [ES modules, CommonJS and TypeScript](README.md#es-modules-commonjs-and-typescript):
   the types, by name.
 - [Writing files](README.md#writing-files) and [Options](README.md#options):

@@ -92,6 +92,33 @@ test('draw reads a script from standard input, as text or as the object form', a
   });
 });
 
+test("draw --composition-style restyles every page by its layers' names once drawn, and says what did not match", async () => {
+  await inFolder(async (dir) => {
+    writeFileSync(join(dir, 'card.napkin'), 'napkin 1\npage 200 100\nname "card"\nlayer "Background"\nfill #ffffff\nrect 0 0 200 100\nlayer "Title"\ntext "Acme Corp" at 20 50\n');
+    const style = { napkinCompositionStyle: 1, name: 'Midnight', strokes: { Background: { fill: '#000133' } }, text: { Titel: { color: '#ffffff' } } };
+    writeFileSync(join(dir, 'midnight.json'), JSON.stringify(style));
+    const drawn = await run(dir, ['draw', 'card.napkin', '--composition-style', 'midnight.json']);
+    assert.equal(drawn.code, EXIT.ok);
+    assert.equal(drawn.out, 'card.svg\n');
+    assert.match(readFileSync(join(dir, 'card.svg'), 'utf8'), /fill="#000133"/, 'the background restyled');
+    assert.equal(drawn.err, "card.napkin: warning: Midnight: Text rule 'Titel' matched no layer. Did you mean 'Title'?\n");
+    const strict = await run(dir, ['draw', 'card.napkin', '--composition-style=midnight.json', '--strict', '--name', 'strict']);
+    assert.equal(strict.code, EXIT.script, 'with --strict a rule that matched nothing is a failure');
+    assert.equal(existsSync(join(dir, 'strict.svg')), false, 'and nothing is written');
+    writeFileSync(join(dir, 'bad.json'), JSON.stringify({ name: 'Midnight' }));
+    const bad = await run(dir, ['draw', 'card.napkin', '--composition-style', 'bad.json']);
+    assert.equal(bad.code, EXIT.usage);
+    assert.equal(bad.err, 'napkin-sketch: bad.json is not a composition style: napkinCompositionStyle is missing: a composition style says its format, 1.\n');
+    writeFileSync(join(dir, 'nope.json'), 'nope');
+    assert.match((await run(dir, ['draw', 'card.napkin', '--composition-style', 'nope.json'])).err, /^napkin-sketch: nope\.json is not JSON: /);
+    const missing = await run(dir, ['draw', 'card.napkin', '--composition-style', 'missing.json']);
+    assert.equal(missing.code, EXIT.io);
+    assert.match(missing.err, /^napkin-sketch: cannot read missing\.json: /);
+    assert.match((await run(dir, ['check', 'card.napkin', '--composition-style', 'midnight.json'])).err, /--composition-style/, 'check takes no style');
+    assert.match(COMMAND_HELP.draw, /--composition-style <style\.json>/, 'draw --help names it');
+  });
+});
+
 test('--json prints one line of JSON on standard output, and nothing else anywhere', async () => {
   await inFolder(async (dir) => {
     const drawn = await run(dir, ['draw', '-', '--json', '--to', 'png', '--scale', '2'], CARD);

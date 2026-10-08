@@ -14,6 +14,7 @@ import {
   deriveName,
   normalizeSketchBook,
   parseSketchBook,
+  parseSketchBookFile,
   serializeSketchBook,
   withSketchBookExtension,
 } from './serialize.js';
@@ -28,9 +29,13 @@ export {
 
 /** Reads and validates a sketch book from disk. Throws if the file is unreadable. */
 export async function readSketchBook(filePath: string): Promise<SketchBook> {
+  return (await readSketchBookFile(filePath)).book;
+}
+
+/** Reads a sketch book as {@link readSketchBook} does, and says whether a newer napkin-sketch saved it. */
+export async function readSketchBookFile(filePath: string): Promise<{ book: SketchBook; newer: boolean }> {
   const full = resolve(withSketchBookExtension(filePath));
-  const text = await readFile(full, 'utf8');
-  return parseSketchBook(text, deriveName(full));
+  return parseSketchBookFile(await readFile(full, 'utf8'), deriveName(full));
 }
 
 /**

@@ -52,13 +52,20 @@ export interface RowState {
   readonly checked: boolean | null;
 }
 
-/** Every row of the menu bar that has an id, with what this state makes of it. */
+/**
+ * Every row of the menu bar that has an id, with what this state makes of it:
+ * each id once, a tool two menus hold being the same command in both.
+ */
 export function rowStates(registry: MenuRegistry, state: MenuState): RowState[] {
   const found: RowState[] = [];
+  const seen = new Set<string>();
   const visit = (rows: readonly MenuRow[]): void => {
     for (const row of rows) {
       if (row.kind === 'separator') continue;
-      if (row.role === null) found.push({ id: row.id, enabled: !row.disabled, checked: row.checked });
+      if (row.role === null && !seen.has(row.id)) {
+        seen.add(row.id);
+        found.push({ id: row.id, enabled: !row.disabled, checked: row.checked });
+      }
       if (row.submenu) visit(row.submenu);
     }
   };

@@ -21,7 +21,7 @@
 <path d="M292 205h76c3.87 0 7 3.13 7 7v36c0 3.87-3.13 7-7 7H292c-3.87 0-7-3.13-7-7V212c0-3.87 3.13-7 7-7Z" stroke="#1f2328" stroke-width="1.5" fill="#ffe08a" data-fill="#ffe08a" data-tool="pen" data-i="4"/>
 </g>
 <g id="Words" data-name="Words" inkscape:label="Words" inkscape:groupmode="layer">
-<text x="310.87" y="220" font-size="14" font-family="&quot;Segoe UI&quot;, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif" fill="#1f2328" dominant-baseline="hanging" data-tool="text" data-i="5"><tspan x="310.87" dy="0">Acme</tspan></text>
+<text x="310.87" y="230.27" font-size="14" font-family="&quot;Segoe UI&quot;, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif" fill="#1f2328" xml:space="preserve" data-tool="text" data-i="5" data-anchor="330 220" data-text="Acme" data-typeset="{&quot;kind&quot;:&quot;point&quot;,&quot;paras&quot;:[{&quot;align&quot;:&quot;center&quot;}]}"><tspan x="310.87" y="230.27">Acme</tspan></text>
 </g>
 <g id="Mark" data-name="Mark" inkscape:label="Mark" inkscape:groupmode="layer">
 <g id="Dot" data-name="Dot" inkscape:label="Dot" inkscape:groupmode="layer">

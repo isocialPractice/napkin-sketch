@@ -60,6 +60,17 @@ export interface PopupCapabilities {
  */
 export type PanelAfterApply = 'remains' | 'dismisses';
 
+/** A popup's state as {@link PopupManager.describe} reports it; `box` is in client pixels. */
+export interface PopupState {
+  open: boolean;
+  docked: boolean;
+  placed: boolean;
+  dockable: boolean;
+  /** Its position in the dock column, top first, or null while it floats. */
+  dockIndex: number | null;
+  box: { left: number; top: number; width: number; height: number };
+}
+
 /** How far a placed panel must stay on screen, so it can always be grabbed again. */
 const REACHABLE_PX = 64;
 
@@ -268,6 +279,26 @@ export class PopupManager {
   }
 
   /**
+   * What a popup is doing, as a GUI check reads it: open or closed, docked or
+   * floating, placed or centred, its place in the dock column, and the box it
+   * is drawn in. Null for an id that never registered.
+   */
+  describe(dialogId: string): PopupState | null {
+    const entry = this.entries.get(dialogId);
+    if (!entry) return null;
+    const box = entry.panel.getBoundingClientRect();
+    const dockIndex = entry.docked && this.dockHost ? Array.prototype.indexOf.call(this.dockHost.children, entry.panel) : -1;
+    return {
+      open: !entry.overlay.classList.contains('is-hidden'),
+      docked: entry.docked,
+      placed: entry.overlay.classList.contains('is-placed'),
+      dockable: entry.caps.dockable,
+      dockIndex: dockIndex >= 0 ? dockIndex : null,
+      box: { left: box.left, top: box.top, width: box.width, height: box.height },
+    };
+  }
+
+  /**
    * Puts a panel at a point outright, which is what an opener uses to park a
    * palette clear of the work. Ignored for a docked popup, whose position is
    * the dock's business.
@@ -343,9 +374,10 @@ export class PopupManager {
     const { panel } = entry;
     const title = panel.querySelector<HTMLElement>('.export-dialog-title');
     if (title) {
-      // The dock button lives in the title bar, so a press on it is a press on
-      // the button and not the start of a drag.
-      this.attachDragHandle(entry, title, (ev) => !this.onDockButton(ev));
+      // The dock button lives in the title bar, and a panel may put a button of
+      // its own there - a close button - so a press on one is a press on the
+      // button and not the start of a drag.
+      this.attachDragHandle(entry, title, (ev) => !this.onTitleButton(ev));
     }
     this.attachDragHandle(entry, panel, (ev) => this.onBorder(panel, ev));
 
@@ -439,9 +471,9 @@ export class PopupManager {
 
   // ---- Docking -------------------------------------------------------------
 
-  /** True when the press landed on a dock button rather than on the title bar itself. */
-  private onDockButton(ev: PointerEvent): boolean {
-    return ev.target instanceof Element && ev.target.closest('.popup-dock-btn') !== null;
+  /** True when the press landed on a button in the title bar - the dock button, a close button - rather than on the bar itself. */
+  private onTitleButton(ev: PointerEvent): boolean {
+    return ev.target instanceof Element && ev.target.closest('button') !== null;
   }
 
   /** Adds the dock toggle to a popup's title bar. */
@@ -552,18 +584,22 @@ export class PopupManager {
   private ensureDockHost(): HTMLElement {
     if (this.dockHost) return this.dockHost;
     const existing = document.getElementById('popup-dock');
-    if (existing) {
-      this.dockHost = existing;
-      return existing;
+    const host = existing ?? document.createElement('aside');
+    if (!existing) {
+      host.id = 'popup-dock';
+      host.className = 'popup-dock';
+      host.setAttribute('aria-label', 'Docked panels');
+      // The workspace row is the parent the side panels share; falling back to
+      // the body keeps a stray call from throwing rather than from working.
+      const row = document.getElementById('properties-panel')?.parentElement ?? document.body;
+      row.appendChild(host);
     }
-    const host = document.createElement('aside');
-    host.id = 'popup-dock';
-    host.className = 'popup-dock';
-    host.setAttribute('aria-label', 'Docked panels');
-    // The workspace row is the parent the side panels share; falling back to
-    // the body keeps a stray call from throwing rather than from working.
-    const row = document.getElementById('properties-panel')?.parentElement ?? document.body;
-    row.appendChild(host);
+    // The column animates its width, as the side panels do, so a canvas
+    // sized when the dock opened or closed was sized mid-transition and drew
+    // its last frame stretched. It is told again once the width lands.
+    host.addEventListener('transitionend', (ev) => {
+      if (ev.target === host && ev.propertyName === 'width') this.onLayoutChange();
+    });
     this.dockHost = host;
     return host;
   }

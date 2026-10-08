@@ -25,7 +25,9 @@ import {
   type TextElement,
   eraseShapes,
 } from './types.js';
-import { effectReach, filterRegion, readEffects, svgFilterMarkup } from '../effects.js';
+import { activeEffects, effectBlend, effectLayout, effectReach, filterRegion, svgFilterMarkup, svgUnderFilterMarkup } from '../effects.js';
+import { blendModeInfo, blendModeOf, isBlended, type BlendModeId } from '../blend.js';
+import { canSeparate, resolveAppearance } from './appearance.js';
 import { apply, contourBounds, elementMatrix, flattenShape, IDENTITY, shapeCentre, type Matrix } from './geometry.js';
 import { layoutText, transformText } from './font.js';
 import { flatPaint, gradientAxis, isGradientPaint, sortedStops, type PaintBox } from './gradient.js';
@@ -44,6 +46,10 @@ interface Refs {
   gradients: Map<object, string>;
   masks: Map<object, string>;
   filters: Map<object, string>;
+  /** The shadows an element lays under itself on its own: each a `<use>` of it, through its own filter, by its blend. */
+  unders: Map<object, Array<{ filter: string; blend: BlendModeId }>>;
+  /** Ids given to elements a `<use>` refers to. */
+  ids: Map<object, string>;
 }
 
 /** Escapes the five characters that cannot appear raw in XML text or values. */
@@ -112,12 +118,20 @@ function frameAttrs(
 ): Record<string, string | number | undefined> {
   const clipId = refs.clips.get(el);
   const clip = typeof el.clip === 'string' ? el.clip : clipId;
+  // A blend and Isolate Blending are CSS with no presentation attribute: the
+  // one style written, with the napkin id beside the blend for napkin's own
+  // importer.
+  const blend = 'blend' in el ? blendModeOf(el.blend) : undefined;
+  const isolate = 'isolate' in el && el.isolate === true;
+  const css = [...(isBlended(blend) ? [`mix-blend-mode:${blendModeInfo(blend).css}`] : []), ...(isolate ? ['isolation:isolate'] : [])];
   return {
-    id: el.id,
+    id: refs.ids.get(el) ?? el.id,
     'data-name': el.name,
     transform: matrixAttr(elementMatrix(el, shapeCentre(el)), precision),
     'clip-path': clip ? `url(#${clip})` : undefined,
     filter: refs.filters.has(el) ? `url(#${refs.filters.get(el)})` : undefined,
+    'data-blend': isBlended(blend) ? blend : undefined,
+    style: css.length > 0 ? css.join(';') : undefined,
   };
 }
 
@@ -188,6 +202,33 @@ function elementMarkup(
   pretty: boolean,
 ): string {
   if (el.visible === false) return '';
+  const nl = pretty ? '\n' : '';
+  const own = elementOnly(el, precision, refs, indent, pretty);
+  const unders = refs.unders.get(el);
+  if (!unders || own === '') return own;
+  // Each shadow it lays under itself is a <use> of it through a filter that
+  // draws the shadow alone, mixing by its blend with what is under it - the
+  // last one cast lowest - and napkin's importer passes a <use> by.
+  const id = escapeXml(refs.ids.get(el) ?? el.id ?? '');
+  const copies = [...unders]
+    .reverse()
+    .map(
+      (under) =>
+        `${indent}<use href="#${id}" xlink:href="#${id}" filter="url(#${under.filter})"` +
+        `${isBlended(under.blend) ? ` style="mix-blend-mode:${blendModeInfo(under.blend).css}"` : ''} data-napkin-part="under"/>${nl}`,
+    )
+    .join('');
+  return copies + own;
+}
+
+/** One element's own markup. */
+function elementOnly(
+  el: Element,
+  precision: number,
+  refs: Refs,
+  indent: string,
+  pretty: boolean,
+): string {
   const frame = attrs(frameAttrs(el, precision, refs));
   const paint = attrs(paintAttrs(el, precision, refs.gradients.get(el)));
   const nl = pretty ? '\n' : '';
@@ -449,7 +490,7 @@ function localBox(el: Element): Edges | null {
       for (const child of el.children) {
         const inner = localBox(child);
         if (!inner) continue;
-        const effects = readEffects(child.effects);
+        const effects = activeEffects(child.effects);
         const placed = placedBox(effects ? grown(inner, effectReach(effects)) : inner, elementMatrix(child, shapeCentre(child)));
         box = box ? joined(box, placed) : placed;
       }
@@ -493,20 +534,36 @@ function collectFilterDefs(
   counter: { next: number },
   precision: number,
 ): void {
+  const format = (value: number): string => fmt(value, precision);
   for (const el of elements) {
-    const effects = readEffects(el.effects);
+    const effects = activeEffects(el.effects);
     const box = effects ? localBox(el) : null;
     if (effects && box) {
+      // The region fits the shadows laid under the element too, which share it.
       const region = filterRegion(box, effects);
-      const format = (value: number): string => fmt(value, precision);
-      const key = JSON.stringify([effects, [region.x, region.y, region.width, region.height].map(format)]);
-      let id = seen.get(key);
-      if (!id) {
-        id = `effect-${counter.next++}`;
-        seen.set(key, id);
-        defs.push(svgFilterMarkup(effects, id, region, format));
+      const { chain, unders } = effectLayout(effects, canSeparate(el));
+      if (chain.length > 0) {
+        const key = JSON.stringify([chain, [region.x, region.y, region.width, region.height].map(format)]);
+        let id = seen.get(key);
+        if (!id) {
+          id = `effect-${counter.next++}`;
+          seen.set(key, id);
+          defs.push(svgFilterMarkup(chain, id, region, format));
+        }
+        refs.filters.set(el, id);
       }
-      refs.filters.set(el, id);
+      const laid: Array<{ filter: string; blend: BlendModeId }> = [];
+      unders.forEach((under, k) => {
+        const id = `effect-${counter.next++}`;
+        const markup = svgUnderFilterMarkup(unders, k, id, region, format);
+        if (!markup) return;
+        defs.push(markup);
+        laid.push({ filter: id, blend: effectBlend(under) });
+      });
+      if (laid.length > 0) {
+        refs.unders.set(el, laid);
+        if (el.id === undefined) refs.ids.set(el, `effect-source-${counter.next++}`);
+      }
     }
     if (el.type === 'group') collectFilterDefs(el.children, refs, defs, seen, counter, precision);
   }
@@ -546,12 +603,14 @@ export function compositionToSvg(doc: CompositionDocument, options: SvgOptions =
   const nl = pretty ? '\n' : '';
   const indent = pretty ? '  ' : '';
 
-  const refs: Refs = { clips: new Map(), gradients: new Map(), masks: new Map(), filters: new Map() };
+  const refs: Refs = { clips: new Map(), gradients: new Map(), masks: new Map(), filters: new Map(), unders: new Map(), ids: new Map() };
+  // Every pass reads the one resolved tree: effects switched off gone, and a fill's and a stroke's own split out.
+  const elements = resolveAppearance(doc.elements);
   const clips: ClipDefinition[] = [...doc.clips];
-  collectInlineClips(doc.elements, clips, refs.clips, { next: 1 });
+  collectInlineClips(elements, clips, refs.clips, { next: 1 });
   const paintDefs: string[] = [];
-  collectPaintDefs(doc.elements, refs, paintDefs, { next: 1 }, precision);
-  collectFilterDefs(doc.elements, refs, paintDefs, new Map(), { next: 1 }, precision);
+  collectPaintDefs(elements, refs, paintDefs, { next: 1 }, precision);
+  collectFilterDefs(elements, refs, paintDefs, new Map(), { next: 1 }, precision);
   const defs = [...clipDefs(clips, precision, refs), ...paintDefs];
   const defsMarkup =
     defs.length > 0 ? `${indent}<defs>${nl}${defs.map((def) => `${pretty ? '    ' : ''}${def}${nl}`).join('')}${indent}</defs>${nl}` : '';
@@ -579,7 +638,7 @@ export function compositionToSvg(doc: CompositionDocument, options: SvgOptions =
         'data-name': 'background',
       })}/>${nl}`
     : '';
-  const body = doc.elements
+  const body = elements
     .map((el) => elementMarkup(el, precision, refs, indent, pretty))
     .join('');
 

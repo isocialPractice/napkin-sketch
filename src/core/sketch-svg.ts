@@ -5,7 +5,6 @@
  */
 
 import {
-  DEFAULT_FONT_FAMILY,
   DEFAULT_NIB_ANGLE,
   dashPatternFor,
   defaultOpacityFor,
@@ -18,12 +17,30 @@ import {
   type Stroke,
 } from './types.js';
 import { copicNibPolygons } from './nib.js';
-import { effectReach, filterRegion, readEffects, svgFilterMarkup, type Effect } from './effects.js';
+import { markEffectPlan, markOpacity, partOnly } from './appearance.js';
+import { bindGeometry, geometryOf } from './geometry-effects.js';
+import {
+  activeEffects,
+  effectBlend,
+  effectLayout,
+  effectReach,
+  filterRegion,
+  readEffects,
+  svgFilterMarkup,
+  svgUnderFilterMarkup,
+  type Effect,
+  type EffectPlan,
+  type FilterRegion,
+} from './effects.js';
+import { blendModeInfo, isBlended } from './blend.js';
 import { linkName } from './link.js';
 import { activeProfile, profileInputOf, profileOutline } from './stroke-profile.js';
 import { simplify } from '../sharpen/geometry.js';
-import { wrapText } from './graphic-design/font.js';
 import { strokeBounds } from './bounds.js';
+import { HEADLESS_MEASURE, type TypeMeasure } from './type/measure.js';
+import { withAccentPage } from './type/accents.js';
+import { withoutMarkdownReveal } from './type/markdown-flow.js';
+import { typeSourceAttrs, typeSvg } from './type/svg.js';
 import { clipIndex } from './clip.js';
 import { GRAIN_TEXELS_PER_PX, GRAIN_TILE_SIZE, grainTilePng, meanPressure, pencilCoverage, pencilPaint, pencilPicture, pencilRegion, pngDataUrl } from './pencil.js';
 import { encodePng } from './graphic-design/png.js';
@@ -40,7 +57,25 @@ export interface SvgExportOptions {
   crop?: { minX: number; minY: number; maxX: number; maxY: number };
   /** Leave the background rect out, so the document is transparent. */
   transparent?: boolean;
+  /**
+   * The measure text is set with (core/type/layout.ts): the canvas's, in the
+   * app, so the file breaks lines where the app does; the built-in face's
+   * when none is given.
+   */
+  typeMeasure?: TypeMeasure;
 }
+
+/**
+ * How wide a viewer may set text that has no measure of its own: a little
+ * wider than most real faces, for the room a filter and a box leave it.
+ */
+const VIEWER_MEASURE: TypeMeasure = {
+  id: 'svg-viewer',
+  exact: false,
+  smallCaps: false,
+  width: (text, font) => [...text].length * font.size * 0.65,
+  extent: (font) => HEADLESS_MEASURE.extent(font),
+};
 
 /** Rounds to two decimals, so bounds-derived sizes stay readable. */
 function round2(value: number): number {
@@ -75,6 +110,13 @@ function round2(value: number): number {
  * page on its paper color.
  */
 export function sketchToSvg(sketch: Sketch, options: SvgExportOptions = {}): string {
+  return withoutMarkdownReveal(() => withAccentPage(sketch.background, () => svgOf(sketch, options)));
+}
+
+/** The document {@link sketchToSvg} writes, every Markdown block rendered, code accented for its paper. */
+function svgOf(sketch: Sketch, options: SvgExportOptions): string {
+  // A layer's Warp bends what it holds: each mark is written as it is bent.
+  bindGeometry(sketch);
   const { background } = sketch;
   // The document window: the page by default, or the crop box, which is
   // reached by offsetting the viewBox rather than moving the geometry -
@@ -97,6 +139,9 @@ export function sketchToSvg(sketch: Sketch, options: SvgExportOptions = {}): str
   const defaults = paintDefaults(sketch);
   // Clip groups: each clips with a mark that paints nothing while it does.
   const clips = clipIndex(sketch);
+  // Text is set with the caller's measure, and boxed by it - or, with none, by a viewer's guess.
+  const typeOptions = { measure: options.typeMeasure ?? HEADLESS_MEASURE, fmt, esc: escXml, defs, newId: (base: string) => uniqueId(base, usedIds) };
+  const markBox = (stroke: Stroke): Edges | null => inkBox(stroke, options.typeMeasure ?? VIEWER_MEASURE);
 
   // The Pencil's grain: the paper's tooth carried once, as a PNG, and one
   // paint for each tone, pencil and pressure the page draws with - the tile
@@ -121,20 +166,47 @@ export function sketchToSvg(sketch: Sketch, options: SvgExportOptions = {}): str
 
   // One filter for each effect list over each region, shared when two ask for the same one.
   const filterIds = new Map<string, string>();
-  const effectAttrs = (effects: Effect[], box: Edges | null): string => {
-    let filter = '';
-    if (box) {
-      const region = filterRegion(box, effects);
-      const key = JSON.stringify([effects, [region.x, region.y, region.width, region.height].map(fmt)]);
-      let id = filterIds.get(key);
-      if (!id) {
-        id = `effect-${filterIds.size + 1}`;
-        filterIds.set(key, id);
-        defs.push(svgFilterMarkup(effects, id, region, fmt));
-      }
-      filter = `filter="url(#${id})" `;
+  let filterCount = 0;
+  const filterFor = (effects: Effect[], region: FilterRegion): string => {
+    const key = JSON.stringify([effects, [region.x, region.y, region.width, region.height].map(fmt)]);
+    let id = filterIds.get(key);
+    if (!id) {
+      id = `effect-${++filterCount}`;
+      filterIds.set(key, id);
+      defs.push(svgFilterMarkup(effects, id, region, fmt));
     }
-    return `${filter}data-effects="${escXml(JSON.stringify(effects))}"`;
+    return id;
+  };
+  /**
+   * What a mark's or a layer's outermost element carries for its effects:
+   * its id when a shadow is laid under it on its own, the filter for the ones
+   * that run on it, and the whole list - the ones switched off too - as
+   * `data-effects`, which napkin's importer reads back.
+   */
+  const effectAttrs = (all: Effect[], chain: Effect[], region: FilterRegion | null, id: string | null): string => {
+    const named = id ? `id="${id}" ` : '';
+    const filter = region && chain.length > 0 ? `filter="url(#${filterFor(chain, region)})" ` : '';
+    return `${named}${filter}data-effects="${escXml(JSON.stringify(all))}"`;
+  };
+  /**
+   * The shadows laid under a mark or a layer on their own (effectLayout):
+   * each a <use> of it, through a filter that draws that shadow alone, mixing
+   * by its blend with what is under it - the last one cast lowest. Napkin's
+   * importer passes a <use> by.
+   */
+  const underUses = (target: string, unders: Effect[], region: FilterRegion | null): string[] => {
+    if (!region) return [];
+    const uses: string[] = [];
+    unders.forEach((under, k) => {
+      const id = `effect-${++filterCount}`;
+      const markup = svgUnderFilterMarkup(unders, k, id, region, fmt);
+      if (!markup) return;
+      defs.push(markup);
+      const blend = effectBlend(under);
+      const style = isBlended(blend) ? ` style="mix-blend-mode:${blendModeInfo(blend).css}"` : '';
+      uses.push(`<use href="#${target}" filter="url(#${id})"${style} data-napkin-part="under"/>`);
+    });
+    return uses.reverse();
   };
 
   // A rect covering the whole document window, wherever the viewBox sits.
@@ -173,10 +245,10 @@ export function sketchToSvg(sketch: Sketch, options: SvgExportOptions = {}): str
       box = box ? joined(box, reached) : reached;
     };
     if (layer.group) {
-      for (const child of childrenOf.get(layer.id) ?? []) add(layerBox(child), readEffects(child.effects));
+      for (const child of childrenOf.get(layer.id) ?? []) add(layerBox(child), activeEffects(child.effects));
     } else {
       for (const stroke of byLayer.get(layer.id) ?? []) {
-        if (stroke.tool !== 'eraser') add(markBox(stroke), readEffects(stroke.effects));
+        if (stroke.tool !== 'eraser') add(markBox(stroke), activeEffects(stroke.effects));
       }
     }
     return box;
@@ -189,15 +261,37 @@ export function sketchToSvg(sketch: Sketch, options: SvgExportOptions = {}): str
     if (!layer.visible) return null;
     const li = layerIndex.get(layer.id) ?? 0;
     const name = escXml(layer.name);
+    const layerId = uniqueId(idFromName(layer.name) || `layer-${li}`, usedIds);
     const attrs = [
-      `id="${uniqueId(idFromName(layer.name) || `layer-${li}`, usedIds)}"`,
+      `id="${layerId}"`,
       `data-name="${name}"`,
       `inkscape:label="${name}"`,
       `inkscape:groupmode="layer"`,
     ];
     if (layer.opacity < 1) attrs.push(`opacity="${layer.opacity}"`);
+    // A blend, and a group's Isolate Blending, are CSS with no presentation
+    // attribute, so they are the one `style` the writer writes; the napkin id
+    // goes beside the blend for the round trip. The art itself is not
+    // isolated from the background: a blend mixes with the paper, as on the
+    // canvas.
+    const css: string[] = [];
+    if (isBlended(layer.blend)) {
+      css.push(`mix-blend-mode:${blendModeInfo(layer.blend).css}`);
+      attrs.push(`data-blend="${layer.blend}"`);
+    }
+    if (layer.group && layer.isolate) css.push('isolation:isolate');
+    if (css.length > 0) attrs.push(`style="${css.join(';')}"`);
     const layerEffects = readEffects(layer.effects);
-    if (layerEffects) attrs.push(effectAttrs(layerEffects, layerBox(layer)));
+    // A layer's shadows go under it on their own when it is laid down just as
+    // it is drawn: solid, by no blend of its own, and with no eraser to cut them.
+    const own = layer.group ? [] : byLayer.get(layer.id) ?? [];
+    const layerActive = activeEffects(layer.effects) ?? [];
+    const layerLayout = effectLayout(layerActive, layer.opacity >= 1 && !isBlended(layer.blend) && !own.some((s) => s.tool === 'eraser'));
+    const layerBoxNow = layerEffects ? layerBox(layer) : null;
+    const layerRegion = layerBoxNow ? filterRegion(layerBoxNow, layerActive) : null;
+    if (layerEffects) attrs.push(effectAttrs(layerEffects, layerLayout.chain, layerRegion, null));
+    const layerUses = underUses(layerId, layerLayout.unders, layerRegion);
+    const withUses = (markup: string): string => [...layerUses, markup].join('\n');
 
     if (layer.group) {
       const inner = (childrenOf.get(layer.id) ?? [])
@@ -217,15 +311,14 @@ export function sketchToSvg(sketch: Sketch, options: SvgExportOptions = {}): str
         // picture before its effects: with effects, the clip goes on a group
         // of its own inside, which the importer reads back as this one.
         if (layerEffects) {
-          return `<g ${attrs.join(' ')}>\n<g clip-path="url(#${clipId})" data-clip-inner="1">\n${inner.join('\n')}\n</g>\n</g>`;
+          return withUses(`<g ${attrs.join(' ')}>\n<g clip-path="url(#${clipId})" data-clip-inner="1">\n${inner.join('\n')}\n</g>\n</g>`);
         }
         attrs.push(`clip-path="url(#${clipId})"`);
       }
-      return `<g ${attrs.join(' ')}>\n${inner.join('\n')}\n</g>`;
+      return withUses(`<g ${attrs.join(' ')}>\n${inner.join('\n')}\n</g>`);
     }
 
     // A clip mark paints nothing while it clips: it is in its group's <clipPath>.
-    const own = byLayer.get(layer.id) ?? [];
     const strokes = clips.any ? own.filter((s) => !clips.marks.has(s.id)) : own;
     if (strokes.length === 0) return null;
 
@@ -245,21 +338,88 @@ export function sketchToSvg(sketch: Sketch, options: SvgExportOptions = {}): str
       .filter((s) => s.tool !== 'eraser')
       .map((s) => {
         const order = orderOf(s);
+        // A mark a Warp bent whole is written as it is bent, and carries the
+        // mark it stands for, so napkin's importer rebuilds the mark and its
+        // live effect (core/geometry-effects.ts).
+        const geometry = geometryOf(s);
+        const bent = geometry?.whole ?? null;
+        const d = bent ?? s;
         let markup: string;
-        if (isTextStroke(s)) markup = svgText(s, order);
-        else if (isImageStroke(s)) markup = svgImage(s, order);
-        else if (s.tool === 'copic') markup = svgCopic(s, order);
-        else if (s.tool === 'pencil') markup = s.smudges?.length ? svgSmearedPencil(s, order) : svgPencil(s, order, pencilFill(s));
-        else if (activeProfile(s) && !s.noStroke) markup = svgProfiled(s, order, defs);
-        else markup = svgPath(s, order, defaults, undefined, defs);
-        // A mark's effects go on its outermost element, which is the whole mark.
+        // A mark 3D built is a group of its faces, far first, carrying the mark
+        // it stands for, so napkin reads back the mark and its live 3D.
+        // A text a Warp or 3D draws as its outlines is the group of its shapes,
+        // carrying the text it stands for.
+        if (geometry?.faces && isTextStroke(s)) markup = withAttrs(facesMarkup(geometry.faces, s, order), typeSourceAttrs(s, typeOptions));
+        else if (geometry?.faces) markup = withSource(facesMarkup(geometry.faces, s, order), s);
+        else if (isTextStroke(d)) markup = typeSvg(d, order, typeOptions);
+        else if (isImageStroke(d)) markup = svgImage(d, order);
+        else if (d.tool === 'copic') markup = svgCopic(d, order);
+        else if (d.tool === 'pencil') markup = d.smudges?.length ? svgSmearedPencil(d, order) : svgPencil(d, order, pencilFill(d));
+        else if (activeProfile(d) && !d.noStroke) markup = svgProfiled(d, order, defs);
+        else markup = svgPath(d, order, defaults, undefined, defs);
+        if (bent && markup) markup = withSource(markup, s);
         const effects = readEffects(s.effects);
-        return effects && markup ? markup.replace(/^<[a-z]+/, (tag) => `${tag} ${effectAttrs(effects, markBox(s))}`) : markup;
+        if (!effects || !markup) return markup;
+        // A mark's effects go on its outermost element, which is the whole
+        // mark - for one whose fill and stroke take effects of their own, a
+        // group of the two, each through its own filter.
+        const plan = markEffectPlan(s);
+        const box = markBox(s);
+        const region = box && plan ? filterRegion(box, [...plan.fill, ...plan.stroke, ...plan.object]) : null;
+        if (plan?.split) markup = splitMarkup(s, order, plan, region);
+        // Its shadows go under it on their own only when it is solid: its
+        // opacity would otherwise fall on them twice.
+        const layout = effectLayout(plan?.object ?? [], markOpacity(s) >= 1);
+        const id = layout.unders.length > 0 ? uniqueId(`mark-${order}`, usedIds) : null;
+        const outer = markup.replace(/^<[a-z]+/, (tag) => `${tag} ${effectAttrs(effects, layout.chain, region, id)}`);
+        return id ? [...underUses(id, layout.unders, region), outer].join('\n') : outer;
       })
       .filter(Boolean);
 
-    return `<g ${attrs.join(' ')}>\n${marks.join('\n')}\n</g>`;
+    return withUses(`<g ${attrs.join(' ')}>\n${marks.join('\n')}\n</g>`);
   };
+
+  /**
+   * A mark whose fill and stroke take effects of their own: a group carrying
+   * the mark's tool, order and opacity - napkin's importer reads it back as
+   * one mark - around its fill alone and its stroke alone, the stroke on top,
+   * each through its own filter. The whole mark's effects go on the group,
+   * which is isolated: a part's blended shadow mixes with the part under it,
+   * as on the canvas, which composes the two inside the mark.
+   */
+  function splitMarkup(s: Stroke, order: number, plan: EffectPlan, region: FilterRegion | null): string {
+    const part = (markup: string, effects: Effect[], name: 'fill' | 'stroke'): string => {
+      const { chain, unders } = effectLayout(effects);
+      const id = unders.length > 0 ? uniqueId(`mark-${order}-${name}`, usedIds) : null;
+      const named = id ? ` id="${id}"` : '';
+      const filter = region && chain.length > 0 ? ` filter="url(#${filterFor(chain, region)})"` : '';
+      const own = markup.replace(/^<[a-z]+/, (tag) => `${tag}${named} data-napkin-part="${name}"${filter}`);
+      return id ? [...underUses(id, unders, region), own].join('\n') : own;
+    };
+    // A part a geometry effect drew anew or bent - a Splatter's hatch, a
+    // Warp's curve - is written as it draws, and carries what it stands for,
+    // so napkin's importer rebuilds the mark and its live effect
+    // (core/geometry-effects.ts).
+    const drawn = geometryOf(s);
+    const parts = drawn?.parts ?? (drawn?.whole ? { fill: partOnly(drawn.whole, 'fill'), stroke: partOnly(drawn.whole, 'stroke'), changed: { fill: true, stroke: true } } : null);
+    const strokeOnly = parts?.stroke ?? partOnly(s, 'stroke');
+    let line: string;
+    if (strokeOnly.tool === 'copic') line = svgCopic(strokeOnly, order);
+    else if (strokeOnly.tool === 'pencil') line = svgPencil(strokeOnly, order, pencilFill(strokeOnly));
+    else if (activeProfile(strokeOnly)) line = svgProfiled(strokeOnly, order, defs);
+    else line = svgPath(strokeOnly, order, defaults, undefined, defs);
+    if (parts?.changed.stroke && line) line = withSource(line, partOnly(s, 'stroke'));
+    // The fill is a plain fill whatever the tool, as the canvas paints it.
+    let fill = svgPath(parts?.fill ?? partOnly(s, 'fill'), order, defaults, undefined, defs);
+    // A gradient's part is filled with it, which says so; a flat fill's hatch is stroked in it.
+    if (parts?.changed.fill && fill && !s.gradient && s.fill) fill = withAttrs(fill, { 'data-fill': escXml(s.fill) });
+    const opacity = markOpacity(s);
+    const alpha = opacity < 1 ? ` opacity="${opacity}"` : '';
+    return (
+      `<g data-tool="${s.tool}" data-i="${order}" data-napkin-split="1" style="isolation:isolate"${alpha}>\n` +
+      `${part(fill, plan.fill, 'fill')}\n${part(line, plan.stroke, 'stroke')}\n</g>`
+    );
+  }
 
   const groups = topLevel.map(emitLayer).filter((g): g is string => g !== null);
   // Inherited paint, stated once. `stroke-width` is only worth naming when
@@ -293,25 +453,12 @@ const joined = (a: Edges, b: Edges): Edges => ({
   maxY: Math.max(a.maxY, b.maxY),
 });
 
-/** A text item's lines, as {@link svgText} breaks them. */
-function textLines(stroke: Stroke): string[] {
-  const text = stroke.text ?? '';
-  const size = stroke.fontSize ?? 24;
-  const box = stroke.textBoxWidth && stroke.textBoxWidth > 0 ? stroke.textBoxWidth : 0;
-  return box > 0 ? text.split('\n').flatMap((paragraph) => wrapText(paragraph, box, { fontSize: size })) : text.split('\n');
-}
-
 /**
  * Where a mark's ink can reach: its bounds grown by its width. A text item is
- * given a generous measure, since a viewer sets it in a real face.
+ * set with `measure` and grown by its size.
  */
-function markBox(stroke: Stroke): Edges | null {
-  const box = strokeBounds(stroke, (s) => {
-    const size = s.fontSize ?? 24;
-    const lines = textLines(s);
-    const width = s.textBoxWidth && s.textBoxWidth > 0 ? s.textBoxWidth : Math.max(0, ...lines.map((line) => line.length)) * size * 0.65;
-    return { width, height: lines.length * size * 1.25 };
-  });
+function inkBox(stroke: Stroke, measure: TypeMeasure): Edges | null {
+  const box = strokeBounds(stroke, measure);
   if (!box) return null;
   return grown(box, isTextStroke(stroke) ? stroke.fontSize ?? 24 : isImageStroke(stroke) ? 0 : stroke.width);
 }
@@ -514,6 +661,80 @@ function profileMirroredData(stroke: Stroke): string {
 }
 
 /**
+ * Markup a geometry effect drew - a hatched stroke, a bent mark - carrying
+ * the mark it stands for, as that mark's own markup would (REUSE: the
+ * importer's readers). A Copic carries its centreline samples and nib, as
+ * {@link svgCopic} writes them; any other mark its centreline, width, ink,
+ * dash and profile, as a profiled stroke does, and its flat fill; a Pencil
+ * its paint and smudges too. What the drawn markup already says of these is
+ * said again of the source, never twice.
+ */
+function withSource(markup: string, line: Stroke): string {
+  const data: Record<string, string> = {};
+  // A Copic's own markup is a path; in a group it carries its centreline and nib as any line does.
+  if (line.tool === 'copic' && !/^<g[\s>]/.test(markup)) {
+    data['data-pts'] = line.points.map((p) => `${fmt(p.x)},${fmt(p.y)}`).join(' ');
+    data['data-nib'] = fmt(line.nibAngle ?? DEFAULT_NIB_ANGLE);
+    data['data-width'] = String(line.width);
+  } else {
+    data['data-d'] = pathD(line);
+    data['data-color'] = escXml(line.color);
+    data['data-width'] = String(line.width);
+    if (line.strokeStyle) data['data-dash'] = line.strokeStyle;
+    const profile = activeProfile(line);
+    if (profile) {
+      data['data-profile'] = profile;
+      if (line.profileMirrored) data['data-profile-mirrored'] = '1';
+    }
+    if (line.fill && !line.gradient && line.points.length > 2) data['data-fill'] = escXml(line.fill);
+    if (line.tool === 'copic') data['data-nib'] = fmt(line.nibAngle ?? DEFAULT_NIB_ANGLE);
+    if (line.tool === 'pencil') {
+      data['data-pencil'] = escXml(pencilPaint(line.pencil).name);
+      if (line.smudges && line.smudges.length > 0) data['data-smudges'] = escXml(JSON.stringify(line.smudges));
+    }
+  }
+  data['data-tool'] = line.tool;
+  return withAttrs(markup, data);
+}
+
+/**
+ * A mark's 3D faces, far first, as a group that takes the mark's opacity
+ * once: each face a path round its rings, in its fill, with a cap's stroke
+ * along its outline.
+ */
+function facesMarkup(faces: readonly Stroke[], mark: Stroke, order: number): string {
+  const opacity = markOpacity(mark);
+  const alpha = opacity < 1 ? ` opacity="${opacity}"` : '';
+  const paths = faces.map((face) => {
+    const d = new PathData();
+    face.points.forEach((p, i) => {
+      if (i === 0 || p.move) {
+        if (i > 0) d.close();
+        d.moveTo(p.x, p.y);
+      } else d.lineTo(p.x, p.y);
+    });
+    d.close();
+    const fill = face.fill ? ` fill="${escXml(face.fill)}"` : ' fill="none"';
+    const stroke = face.noStroke ? ' stroke="none"' : ` stroke="${escXml(face.color)}" stroke-width="${face.width}"`;
+    return `<path d="${d.toString()}"${fill}${stroke}/>`;
+  });
+  return `<g data-tool="${mark.tool}" data-i="${order}" data-napkin-faces="1"${alpha}>\n${paths.join('\n')}\n</g>`;
+}
+
+/** Markup with attributes set on its first tag: one it has takes the new value, one it has not is added. */
+function withAttrs(markup: string, attrs: Record<string, string>): string {
+  const end = markup.indexOf('>');
+  if (end < 0) return markup;
+  let head = markup.slice(0, end);
+  for (const [name, value] of Object.entries(attrs)) {
+    const existing = new RegExp(`\\s${name}="[^"]*"`);
+    const attr = ` ${name}="${value}"`;
+    head = existing.test(head) ? head.replace(existing, () => attr) : head.replace(/^<[a-z]+/, (tag) => tag + attr);
+  }
+  return head + markup.slice(end);
+}
+
+/**
  * A gradient paint server for a stroke's fill, sized to the shape's bounding
  * box in user space (`gradientUnits="userSpaceOnUse"`) so it lines up with
  * the canvas rendering exactly. Returns null when the gradient has too few
@@ -640,32 +861,6 @@ function svgSmearedPencil(stroke: Stroke, order: number): string {
     `<image x="${fmt(region.x / SMEARED_SCALE)}" y="${fmt(region.y / SMEARED_SCALE)}" width="${fmt(region.width / SMEARED_SCALE)}" height="${fmt(region.height / SMEARED_SCALE)}" ` +
     `preserveAspectRatio="none" href="${pngDataUrl(png)}"${alpha} ${data}/>`
   );
-}
-
-/**
- * A text item: one `<tspan>` a line. A fixed-width box wraps between words,
- * which SVG text does not do, and nothing here can measure the font the app
- * sets it in, so the lines are broken where the built-in face breaks them -
- * the measure the composition renderers use too. The text as typed and the
- * box's width ride along as `data-text` and `data-box`, so the importer
- * restores the box rather than the lines it was broken into.
- */
-function svgText(stroke: Stroke, order: number): string {
-  const anchor = stroke.points[0];
-  if (!anchor || !stroke.text) return '';
-  const size = stroke.fontSize ?? 24;
-  const lineHeight = size * 1.25;
-  const color = escXml(stroke.color);
-  const family = escXml(stroke.fontFamily ?? DEFAULT_FONT_FAMILY);
-  const opacity = typeof stroke.opacity === 'number' ? ` opacity="${stroke.opacity}"` : '';
-  const box = stroke.textBoxWidth && stroke.textBoxWidth > 0 ? stroke.textBoxWidth : 0;
-  const lines = box > 0 ? stroke.text.split('\n').flatMap((paragraph) => wrapText(paragraph, box, { fontSize: size })) : stroke.text.split('\n');
-  // A newline in an attribute has to be a character reference, or a reader folds it into a space.
-  const kept = box > 0 ? ` data-box="${fmt(box)}" data-text="${escXml(stroke.text).replace(/\n/g, '&#10;')}"` : '';
-  const tspans = lines
-    .map((line, i) => `<tspan x="${fmt(anchor.x)}" dy="${i === 0 ? 0 : fmt(lineHeight)}">${escXml(line)}</tspan>`)
-    .join('');
-  return `<text x="${fmt(anchor.x)}" y="${fmt(anchor.y)}" font-size="${size}" font-family="${family}" fill="${color}" dominant-baseline="hanging"${opacity} data-tool="text" data-i="${order}"${kept}>${tspans}</text>`;
 }
 
 /**

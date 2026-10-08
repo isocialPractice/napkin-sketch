@@ -10,6 +10,7 @@
  */
 
 import type { Effect } from '../effects.js';
+import { isBlended, type BlendModeId } from '../blend.js';
 import { SKETCHBOOK_VERSION, type Layer, type Sketch, type SketchBook, type Stroke } from '../types.js';
 
 /** A page as a sink is asked to make it. Sizes are in pixels. */
@@ -28,6 +29,10 @@ export interface LayerProps {
   locked?: boolean;
   /** Effects for the layer or group, added after any it carries already. */
   effects?: Effect[];
+  /** The layer's or group's blend (core/blend.ts); `normal` takes one it carries away. */
+  blend?: BlendModeId;
+  /** A group's Isolate Blending, carried over from a placed document's layers. */
+  isolate?: boolean;
 }
 
 /** Where marks are going, saved so a block can put it back when it ends. */
@@ -159,6 +164,11 @@ export class SketchSink implements ScriptSink {
     if (props.hidden) layer.visible = false;
     if (props.locked) layer.locked = true;
     if (props.effects && props.effects.length > 0) layer.effects = [...(layer.effects ?? []), ...props.effects];
+    if (props.blend !== undefined) {
+      if (isBlended(props.blend)) layer.blend = props.blend;
+      else delete layer.blend;
+    }
+    if (props.isolate && layer.group) layer.isolate = true;
   }
 
   useLayer(name: string, props: LayerProps): void {

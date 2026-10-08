@@ -10,6 +10,7 @@
  */
 
 import { displayChord } from '../core/menu/chords.js';
+import { MENU_PREDICATE_REASONS } from '../core/menu/ids.js';
 import type { MenuRow } from '../core/menu/registry.js';
 
 /** One entry in the shared right-click menu and the toolbar dropdowns. */
@@ -19,6 +20,8 @@ export interface ContextMenuItem {
   chord?: string;
   action?: () => void;
   disabled?: boolean;
+  /** The row's tooltip: why it is greyed, when it is. */
+  title?: string;
   /** Renders a divider line instead of a button. */
   separator?: boolean;
   /**
@@ -75,6 +78,8 @@ export function contextMenuItems(
   return rows.map((row): ContextMenuItem => {
     if (row.kind === 'separator') return { separator: true };
     const item: ContextMenuItem = { label: row.label, disabled: row.disabled };
+    const reason = row.disabled && row.disabledWhen ? MENU_PREDICATE_REASONS[row.disabledWhen] : undefined;
+    if (reason) item.title = reason;
     if (row.chord !== null) item.chord = displayChord(row.chord, options);
     if (row.submenu !== null) item.items = contextMenuItems(row.submenu, run, options);
     else item.action = () => run(row.id);

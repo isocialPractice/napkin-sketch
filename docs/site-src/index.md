@@ -3,7 +3,7 @@
 ![napkin-sketch: its logo beside the app, a sketch on the canvas with the Layers and Properties panels open](../assets/banner.gif)
 
 <!-- version:start -->
-This documents napkin-sketch **1.0.0-alpha.4.6.0**.
+This documents napkin-sketch **1.0.0-alpha.5.0.0**.
 <!-- version:end -->
 
 Quick and easy computer sketching with a drawing GUI that simulates pen and
@@ -83,7 +83,10 @@ the tests. [About and license](about.md) says more.
 - [Vector paths and stroke profiles](guide/vector-paths.md) - Editing anchors and handles, rounding corners, Sharpen Selection, and the four stroke profiles.
 - [Selecting and editing](guide/selection.md) - Selecting, filling, widening, the clipboard, and what a press on a selection does.
 - [Transform, Rotate, Mirror, Mesh Warp, Liquify and Wipe Stacks](guide/transform.md) - The Transform box, Rotate, Mirror, Mesh Warp, Liquify, the Wipe Stacks, and docking their panels.
+- [Effects and the Appearance panel](guide/effects.md) - The Effect menu, the Appearance panel, the options of each effect, 3D Options and the gumball, and effects that follow a transform.
+- [Type](guide/type.md) - Typing and editing text on the canvas, in a shape and along a path too, the Type panel and its fonts, the Type menu, and the editor keys.
 - [Layers and the Properties panel](guide/layers.md) - The Layers panel, groups, restacking, and editing a selection in the Properties panel.
+- [Composition Styles](guide/composition-styles.md) - Rules by layer name that restyle a page in one click: the panel, editing a style, the report, and the style file.
 - [Pages](guide/pages.md) - The pages panel, page sizes, and the three ways to add a page.
 - [Import and export](guide/import-export.md) - What SVG, PDF and pictures arrive as, and what PNG, JPEG, SVG and PDF exports keep.
 - [Sharpening](guide/sharpen.md) - Live sharpen, Sharpen all, and how the auto-sharpen engine decides what a stroke meant.

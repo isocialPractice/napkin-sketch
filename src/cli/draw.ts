@@ -28,6 +28,7 @@ import {
   fileStem,
   loadAssets,
   loadDocuments,
+  loadFonts,
   scriptName,
   writeBook,
   type DrawToFilesOptions,
@@ -47,6 +48,7 @@ import { DIAGNOSTICS, SCRIPT_VERSION, VERB_CATEGORIES, VERBS, type Diagnostic } 
 import { SHAPE_NAMES } from '../core/script/library.js';
 import type { RenderFormat } from '../core/script/render.js';
 import { readSketchBook } from '../core/sketchbook.js';
+import { validateCompositionStyle, type CompositionStyle } from '../core/composition-style.js';
 import type { SketchBook } from '../core/types.js';
 import { parseArgs, type Command, type CommandArgs } from './args.js';
 import { onPath, runScriptHelper } from './helper.js';
@@ -148,6 +150,9 @@ Options:
                           the script's folder)
   --asset <name>=<file>   An image the script places by name; repeatable
   --use <name>=<book>     A .skbk book the script copies in; repeatable
+  --composition-style <style.json>
+                          Restyle every page by its layers' names once drawn;
+                          a rule that matched nothing is a warning
   --seed <n>              The seed for the hand-drawn pass
   --scale <n>             PNG pixels a page pixel (default: 1)
   --crop auto|none|<x,y,w,h>
@@ -374,6 +379,11 @@ function fromCwd(files: Readonly<Record<string, string>>, cwd: string): Record<s
   return Object.fromEntries(Object.entries(files).map(([name, file]) => [name, file.startsWith('data:') ? file : resolve(cwd, file)]));
 }
 
+/** `--font` files, by family, from the working folder. */
+function fontsFromCwd(fonts: Readonly<Record<string, readonly string[]>>, cwd: string): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(fonts).map(([family, files]) => [family, files.map((file) => resolve(cwd, file))]));
+}
+
 /** A path as a person reads it: from the working folder, unless `--out` was absolute. */
 function shownPath(path: string, args: CommandArgs, cwd: string): string {
   return args.out && isAbsolute(args.out) ? path : relative(cwd, path) || path;
@@ -411,9 +421,37 @@ interface DrawFrom {
   documents: DrawToFilesOptions['documents'];
 }
 
+/**
+ * The composition style `--composition-style` names, read from the working
+ * folder: the style, or why it is not one. A file that cannot be read is
+ * exit code 3.
+ */
+async function readStyleFile(io: CommandIo, path: string): Promise<{ style: CompositionStyle } | { error: string }> {
+  let text: string;
+  try {
+    text = (await readFile(resolve(io.cwd, path), 'utf8')).replace(/^\uFEFF/, '');
+  } catch (err) {
+    throw new IoError(`cannot read ${path}: ${(err as Error).message}`);
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (err) {
+    return { error: `${path} is not JSON: ${(err as Error).message}` };
+  }
+  const read = validateCompositionStyle(raw);
+  return read.ok && read.style ? { style: read.style } : { error: `${path} is not a composition style: ${read.errors.join(' ')}` };
+}
+
 /** Draws a script in hand to the files the arguments ask for, and reports it. */
 async function drawSource(io: CommandIo, args: CommandArgs, report: CommandReport, source: ScriptSource, from: DrawFrom): Promise<number> {
   const { base, links } = from;
+  let compositionStyle: CompositionStyle | undefined;
+  if (args.compositionStyle !== undefined) {
+    const read = await readStyleFile(io, args.compositionStyle);
+    if ('error' in read) return finish(io, args, report, EXIT.usage, { kind: 'input', message: read.error });
+    compositionStyle = read.style;
+  }
   let result;
   try {
     result = await drawToFiles(source, {
@@ -424,12 +462,14 @@ async function drawSource(io: CommandIo, args: CommandArgs, report: CommandRepor
       formats: args.formats,
       assets: from.assets,
       documents: from.documents,
+      fonts: fontsFromCwd(args.fonts, io.cwd),
       resolveLink: links.resolveLink,
       seed: args.seed,
       ...(args.limit !== undefined ? { limits: { instructions: args.limit } } : {}),
       scale: args.scale,
       crop: args.crop,
       strict: args.strict,
+      ...(compositionStyle ? { compositionStyle } : {}),
     });
   } catch (err) {
     throw new IoError((err as Error).message.replace(/^napkin-sketch: /, ''));
@@ -592,6 +632,7 @@ async function render(io: CommandIo, args: CommandArgs, report: CommandReport): 
       formats: args.formats,
       crop: args.crop,
       scale: args.scale,
+      fonts: await loadFonts(fontsFromCwd(args.fonts, io.cwd)),
       resolveLink: links.resolveLink,
       strict: args.strict,
       onWarning: (message) => report.warnings.push(message),
@@ -636,6 +677,7 @@ async function animate(io: CommandIo, args: CommandArgs, report: CommandReport, 
       formats: args.formats,
       registration: result.output.registration,
       scale: args.scale,
+      fonts: await loadFonts(fontsFromCwd(args.fonts, io.cwd)),
       resolveLink: links.resolveLink,
       strict: args.strict,
       onWarning: (message) => report.warnings.push(message),

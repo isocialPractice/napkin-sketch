@@ -154,6 +154,108 @@
           judged with something selected. The Move palette carries the same
           switch, beside its live preview.
         </p>
+        <label class="switch settings-row">
+          <input id="scale-strokes-effects" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Scale Strokes and Effects</span>
+        </label>
+        <p class="settings-hint">
+          A transform takes a mark's line weight and its effects with it, as a
+          vector editor's setting of the name does: scaling it scales its
+          width and its effects, turning it turns a shadow's offset and a
+          bevel's light, and mirroring it flips them. On by default. Off, they
+          stay as they were whatever the mark goes through.
+        </p>
+        <label class="switch settings-row">
+          <input id="use-preview-bounds" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Use Preview Bounds</span>
+        </label>
+        <p class="settings-hint">
+          A mark's bounds take in what its effects paint outside it - a shadow,
+          a glow, an outer bevel - so its selection box, the Transform Box and
+          Align go round them, and a click on its shadow picks it. Off by
+          default: the bounds are the mark's own, as a vector editor's are.
+        </p>
+        <label class="switch settings-row">
+          <input id="show-3d-gumball" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Show the 3D gumball</span>
+        </label>
+        <p class="settings-hint">
+          A mark built in 3D, selected alone, shows the gumball: arrows, squares,
+          arcs and boxes on the canvas that move it, turn it and scale it in
+          depth, in X red, Y green and Z blue. On by default. Off, the 3D
+          Options panel is the only control, and the Transform Box edits the
+          shape the 3D is built from, as it does with the gumball up.
+        </p>
+      </section>
+
+      <section class="settings-section" aria-label="Type">
+        <h2>Type</h2>
+        <label class="switch settings-row">
+          <input id="type-panel-auto-show" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Show the Type panel with the text tool</span>
+        </label>
+        <p class="settings-hint">
+          The Type panel comes up by itself while the Text tool is in hand and a
+          text is selected or being typed, and goes when another tool is chosen.
+          A panel opened from the View menu stays. On by default.
+        </p>
+        <label class="settings-field">
+          <span>Font for new text</span>
+          <input id="text-font" class="settings-text" type="text" spellcheck="false" autocomplete="off" placeholder="The system's interface font" />
+        </label>
+        <p class="settings-hint">
+          The family a new text is set in. The Type panel sets it to the last
+          font chosen there; empty, new text takes the system's interface font.
+        </p>
+        <label class="switch settings-row">
+          <input id="markdown-new-text" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">New text starts in Markdown Flow</span>
+        </label>
+        <p class="settings-hint">
+          What is typed in a new text is Markdown, shown as it renders: a
+          heading, a list, a quote, code. Type &gt; Markdown Flow turns it on
+          and off for a text. Off by default.
+        </p>
+        <label class="settings-field">
+          <span>Code colors</span>
+          <select id="accent-theme">
+            <option value="auto">Follow the page</option>
+            <option value="light">Napkin Light</option>
+            <option value="dark">Napkin Dark</option>
+          </select>
+        </label>
+        <p class="settings-hint">
+          The colors Clean Language Accents give code: Napkin Light on a light
+          page and Napkin Dark on a dark one, or one of them always. Each color
+          stands out clearly from its theme's code shade.
+        </p>
+        <label class="switch settings-row">
+          <input id="accent-detect" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Detect the language of unlabelled code</span>
+        </label>
+        <p class="settings-hint">
+          A Markdown code block that names no language is colored as the
+          installed language it reads most like. Off by default, since it
+          guesses. Type &gt; Clean Language Accents &gt; Languages installs
+          more languages.
+        </p>
+        <label class="switch settings-row">
+          <input id="pdf-text-as-shapes" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Draw text as shapes in PDF</span>
+        </label>
+        <p class="settings-hint">
+          A PDF draws each letter as its font's own outline, so the page looks
+          as it does here on any computer. Off, text is set in Helvetica, which
+          a PDF reader can select and search. A text whose font cannot be read
+          is set in Helvetica either way. On by default.
+        </p>
       </section>
 
       <section class="settings-section" aria-label="Quick settings">
@@ -307,6 +409,15 @@
           <span>Auto-save <em id="autosave-value">off</em></span>
           <input id="autosave" type="range" />
         </label>
+        <label class="settings-field">
+          <span>Reports fade after <em id="report-seconds-value">15 s</em></span>
+          <input id="report-seconds" type="range" />
+        </label>
+        <p class="settings-hint">
+          A report lists what an action could not do, in the bottom-right
+          corner. It stays put while the pointer or the keyboard is on it, or
+          while its details are open. At 0 it stays until it is closed.
+        </p>
         <label class="switch settings-row">
           <input id="wipe-animation" type="checkbox" />
           <span class="switch-track" aria-hidden="true"></span>

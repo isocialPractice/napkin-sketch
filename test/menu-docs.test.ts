@@ -80,14 +80,19 @@ test('the menus table has a row for each menu of the menu bar, with what places 
   const rows = rowsOf(SHORTCUTS_PAGE, 'menus');
   assert.deepEqual(
     rows.map((row) => row.split(' | ')[0].slice(2)),
-    ['File', 'Edit', 'View', 'Transform', 'Sketch', 'Layers', 'Pages', 'Automate', 'Help'],
+    ['File', 'Edit', 'View', 'Transform', 'Effect', 'Type', 'Sketch', 'Layers', 'Pages', 'Automate', 'Help'],
   );
   const row = (menu: string): string => rows.find((line) => line.startsWith(`| ${menu} |`))!;
-  assert.match(row('Transform'), /^\| Transform \| `transform`, `Add:vector`, `Modify:element`, `Combine:element`, `Subtract:vector` \| Vector Path; /);
+  assert.match(row('Transform'), /^\| Transform \| `transform`, `Add:vector`, `Modify:element`, `Combine:element`, `Subtract:vector`, `Convert:type` \| Vector Path; /);
+  assert.match(row('Transform'), /Mirror…; Expand Text to Shape; Sharpen: /);
   assert.match(row('Transform'), /Wipe Stacks: Wipe In, Wipe Out, Mid Wipe, Outer Wipes, Clean Wipe;/);
   assert.match(row('Transform'), /Close Shape: Sharp, Smooth;/);
   assert.match(row('Edit'), /Animation Mode \(once installed\)/);
-  assert.match(row('Help'), /Tool Types: Transform, Draw, Pages, Layers, Automate; Source Code; Source Docs \(once the site is published\) \|$/);
+  assert.match(row('Effect'), /^\| Effect \| `effect`, `Modify:effect`, `Add:effect` \| Apply Last Effect; Last Effect…; Blur: Gaussian Blur…; Adjust Colors: /);
+  assert.match(row('Effect'), /Stylize: Feather…, Outer Shadow…, Inner Shadow…, Outer Glow…, Inner Glow…, Bevel…, Emboss…, Splatter…; Warp: Arc…, Arch…, Unroll…, Shell…, Windy…, Breezy…, Curvy…, Chart…, Puffy…, Expand…, Cram…, Twirl…; 3D: Extrude…, Revolve…, 3D Options; Expand Appearance; Clear Appearance \|$/);
+  assert.match(row('Type'), /^\| Type \| `type`, `Modify:type`, `Convert:type` \| Font; Size: 6 pt, 7 pt, .*, 72 pt, Other; Character…; Paragraph…; /);
+  assert.match(row('Type'), /Type on a Path: Type on a Path Options…, Flip; Type Orientation: Horizontal, Vertical; Area Type Options…; Markdown Flow; Clean Language Accents: Apply…, Remove Accents, Languages…; Expand Text to Shape \|$/);
+  assert.match(row('Help'), /Tool Types: Transform, Draw, Pages, Layers, Automate, Effect, Type; Source Code; Source Docs \(once the site is published\); About napkin-sketch \|$/);
 });
 
 test('a tool moved by a user file moves in the menus table too', () => {

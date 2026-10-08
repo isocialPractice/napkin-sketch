@@ -8,7 +8,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import * as api from '../src/api/index.js';
@@ -118,12 +119,30 @@ test('the barrel exports the Illustrator script writer beside the PDF writer', (
   assert.match(api.sketchesToJsx([api.createSketch('card')]), /^\/\/@target illustrator\n/);
 });
 
-test('the barrel exports effects: their names, the reader, and the canvas filter', () => {
+test('the barrel exports effects: their names, the reader, the canvas filter, and the pixel passes', () => {
   const now = exportsOf('src/api/index.ts');
-  for (const name of ['EFFECT_TYPES', 'cssFilter', 'readEffects']) assert.ok(now.values.includes(name), `the barrel exports ${name}`);
-  for (const name of ['Effect', 'EffectType']) assert.ok(now.types.includes(name), `the barrel exports the type ${name}`);
-  assert.deepEqual([...api.EFFECT_TYPES], ['blur', 'brightness', 'contrast', 'saturate', 'grayscale', 'sepia', 'invert', 'hue-rotate', 'opacity', 'drop-shadow']);
+  for (const name of ['EFFECT_TYPES', 'EFFECT_DEFAULTS', 'EFFECT_LABELS', 'cssFilter', 'readEffects', 'activeEffects', 'defaultEffect', 'effectPlan', 'runEffects', 'markParts']) {
+    assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  }
+  for (const name of ['Effect', 'EffectType', 'EffectTarget', 'EffectShade', 'FxImage']) assert.ok(now.types.includes(name), `the barrel exports the type ${name}`);
+  assert.deepEqual(
+    [...api.EFFECT_TYPES],
+    ['blur', 'brightness', 'contrast', 'saturate', 'grayscale', 'sepia', 'invert', 'hue-rotate', 'opacity', 'drop-shadow', 'feather', 'bevel', 'emboss', 'inner-shadow', 'outer-glow', 'inner-glow', 'splatter', 'warp', '3d'],
+  );
   assert.equal(api.cssFilter([{ type: 'blur', radius: 2 }]), 'blur(2px)');
+  assert.equal(api.EFFECT_LABELS['drop-shadow'], 'Outer Shadow');
+  assert.equal(api.defaultEffect('outer-glow').blend, 'sheer');
+});
+
+test('the barrel exports Napkin Blends: the modes and their names, and the math that mixes them', () => {
+  const now = exportsOf('src/api/index.ts');
+  for (const name of ['BLEND_MODES', 'BLEND_MODE_IDS', 'BLEND_MODE_NAMES', 'blendChannel', 'blendColor', 'blendModeInfo', 'blendModeOf', 'blendPixel', 'compositeOperation', 'isBlended', 'isSeparable']) {
+    assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  }
+  for (const name of ['BlendFamily', 'BlendMode', 'BlendModeId', 'GlobalCompositeOperationName', 'Rgb', 'Rgba', 'SeparableBlendModeId']) assert.ok(now.types.includes(name), `and the type ${name}`);
+  assert.equal(api.BLEND_MODES.length, 16);
+  assert.equal(api.blendModeOf('Multiply'), 'stack');
+  assert.deepEqual(api.blendPixel('stack', [1, 0.8, 0, 1], [0.2, 0.6, 1, 1]).map((v) => Math.round(v * 100) / 100), [0.2, 0.48, 0, 1]);
 });
 
 test('the barrel exports paint: the two targets, and the rules of the fill and stroke control', () => {
@@ -213,15 +232,208 @@ test('the barrel exports clipping masks: making, releasing, and what a clip show
   assert.equal(api.CLIP_GROUP_NAME, 'Clip Group');
 });
 
-test('napkin-sketch/node exports the host, and every composition file helper beside it', () => {
-  const host = ['drawFile', 'drawToFiles', 'readScript', 'loadAssets', 'loadDocuments', 'writeBook', 'resolveLinkFromDir'];
+test("the barrel exports the appearance stack and the pixel passes: the panel's sections, its pure edits, and effects drawn over a picture", () => {
+  const now = exportsOf('src/api/index.ts');
+  const values = [
+    'GEOMETRY_EFFECT_TYPES', 'MARK_ONLY_EFFECT_TYPES', 'activeGeometryEffects', 'effectPaintReach', 'readEffect',
+    'BLEND_FIELD_CHOICES', 'EFFECT_FIELDS', 'EFFECT_ORIGINS', 'addEffect', 'aimedAt', 'appearanceSections', 'duplicateEffect', 'effectFieldValue', 'effectName',
+    'effectsAfterTransform', 'expandAppearance', 'geometryShape', 'hasGeometryEffects', 'inDrawingOrder', 'isGeometryEffect', 'moveEffect', 'partOnly',
+    'registerGeometryEffect', 'removeEffect', 'replaceEffect', 'retargetEffect', 'sameEffects', 'splitsParts', 'targetOf', 'toggleEffect', 'withEffectField',
+    'blankImage', 'blurPixels', 'fromRgba8', 'imageInkBox', 'layOnto', 'toRgba8',
+  ];
+  for (const name of values) assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  for (const name of ['FxBox', 'FxImage', 'FxUnder', 'FxWarn', 'ReliefEffect', 'ThreeDLight', 'ThreeDShading']) assert.ok(now.types.includes(name), `and the type ${name}`);
+  // The engines page's example: an edit gives a new list, and the panel's sections sort it by target.
+  let effects = api.addEffect([], api.defaultEffect('outer-glow'));
+  effects = api.addEffect(effects, api.defaultEffect('bevel'), 'fill');
+  effects = api.toggleEffect(effects, 0);
+  const sections = api.appearanceSections(effects);
+  assert.deepEqual([sections.fill.length, sections.object.length, effects[0].on], [1, 1, false]);
+  const data = new Uint8ClampedArray(9 * 9 * 4);
+  data.set([255, 255, 255, 255], (4 * 9 + 4) * 4);
+  const img = api.fromRgba8(data, 9, 9);
+  assert.deepEqual(api.runEffects(img, [{ type: 'blur', radius: 1 }], [1, 0, 0, 1, 0, 0], () => {}), [], 'nothing laid under it apart');
+  const out = api.toRgba8(img);
+  assert.ok(out[(4 * 9 + 4) * 4 + 3] < 255 && out[(4 * 9 + 5) * 4 + 3] > 0, 'the blur spreads the white pixel to its neighbour');
+});
+
+test('the barrel exports Splatter, Warp and 3D: the hatch, the twelve styles, the solids and their faces', () => {
+  const now = exportsOf('src/api/index.ts');
+  const values = [
+    'SPLATTER_MAX_PASSES', 'SPLATTER_PRESETS', 'SPLATTER_PRESET_LABELS', 'SPLATTER_PRESET_NAMES', 'matchingPreset', 'splatterAnchors', 'splatterPaths', 'splatterPresetOf',
+    'WARP_PARTS', 'WARP_STYLES', 'WARP_STYLE_LABELS', 'WARP_STYLE_ORIGINS', 'warpPartFor', 'warpPartsOf', 'warpStyleMap', 'warpStyleOf',
+    'bindGeometry', 'drawnMark', 'drawnMarks', 'drawnPart', 'geometryOf', 'geometryParts',
+    'extrudeMesh', 'revolveMesh', 'revolveStepCount', 'triangulate', 'buildSolid', 'projectPoint', 'render3d', 'renderSolid', 'threeDView', 'viewOf', 'viewPoint',
+  ];
+  for (const name of values) assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  const types = ['SplatterOptions', 'WarpMap', 'WarpStyle', 'DrawnGeometry', 'ThreeDMesh', 'MeshFace', 'ThreeDOutline', 'RevolveShape', 'ThreeDFace', 'Solid', 'ThreeDEffect', 'ThreeDView'];
+  for (const name of types) assert.ok(now.types.includes(name), `and the type ${name}`);
+  const square = [[{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 60, y: 60 }, { x: 0, y: 60 }]];
+  assert.equal(api.splatterPaths(square, { ...api.SPLATTER_PRESETS.sharp, seed: 1 }).length, 1, 'one hatch for one region');
+  assert.equal(api.WARP_STYLES.length, 12);
+  const arc = api.warpStyleMap('arc', { minX: 0, minY: 0, maxX: 200, maxY: 100 }, { orientation: 'horizontal', bend: 50, distortH: 0, distortV: 0, part: 'whole' });
+  const corner = arc.point({ x: 0, y: 0 });
+  assert.deepEqual([Math.round(corner.x), Math.round(corner.y)], [-25, 52], 'an arc swings its corner out and down');
+  const block = api.extrudeMesh({ rings: [[{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 40 }, { x: 0, y: 40 }]], closed: true }, 20, true);
+  assert.deepEqual([block.faces.length, block.faces.filter((face) => face.kind === 'cap').length, block.closed], [6, 2, true]);
+  assert.equal(api.triangulate([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }]).triangles.length, 2);
+});
+
+test("the barrel exports the 3D gumball's sums: its layout, what a point is on, and what a drag does", () => {
+  const now = exportsOf('src/api/index.ts');
+  for (const name of ['cancelGumballDrag', 'dragGumball', 'eulerOf', 'gumballHit', 'gumballLayout', 'gumballMoved', 'startGumballDrag', 'trackballTurn']) {
+    assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  }
+  for (const name of ['GumballDrag', 'GumballHandle', 'GumballKeys', 'GumballLayout', 'GumballObject']) assert.ok(now.types.includes(name), `and the type ${name}`);
+  // A turn read back from a matrix: none from the identity, and none from a drag that has not moved.
+  assert.deepEqual(api.eulerOf([1, 0, 0, 0, 1, 0, 0, 0, 1]).map((v) => Math.round(v) + 0), [0, 0, 0]);
+  assert.deepEqual(api.trackballTurn([10, 20, 30], 0, 0, 100).map((v) => Math.round(v)), [10, 20, 30]);
+});
+
+test('the barrel exports arc length: a path walked by distance, and the nearest length to a point', () => {
+  const now = exportsOf('src/api/index.ts');
+  for (const name of ['cubicAt', 'cubicDerivative', 'curvatureAtLength', 'lengthTable', 'nearestLength', 'normalAtLength', 'pointAtLength', 'segmentTAtLength', 'tangentAtLength']) {
+    assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  }
+  for (const name of ['LengthTable', 'Vec']) assert.ok(now.types.includes(name), `and the type ${name}`);
+  const line = api.lengthTable([{ p: { x: 0, y: 0 } }, { p: { x: 100, y: 0 } }]);
+  assert.equal(line.total, 100);
+  assert.deepEqual(api.pointAtLength(line, 25), { x: 25, y: 0 });
+  const near = api.nearestLength(line, { x: 40, y: 10 });
+  assert.deepEqual([near.length, near.point.x, near.distance].map((v) => Math.round(v)), [40, 40, 10]);
+});
+
+test("the barrel exports type: its model, its layout, hyphenation, the panel's readers, and the font reader that draws it as shapes", () => {
+  const now = exportsOf('src/api/index.ts');
+  const values = [
+    'CHAR_KEYS', 'CONFIG_KEYS', 'CONFIG_NAME_MAX', 'DEFAULT_CHAR', 'DEFAULT_PARA', 'PARA_KEYS', 'TYPE_LIMITS', 'applyChar', 'applyPara', 'baseAttrs', 'charAttrsAt',
+    'paraAttrsOf', 'paragraphAt', 'paragraphRanges', 'readCharAttrs', 'readParaAttrs', 'readTextConfig', 'readTextConfigs', 'readTypeset', 'recolorText', 'restyleText',
+    'sameConfigName', 'spliceText', 'styleSegments', 'typeSpecOf', 'withTypeset', 'glyphCorners', 'layoutForEditing', 'layoutType', 'typeSpans', 'HEADLESS_MEASURE',
+    'HYPHENATION_NOTICE', 'ILLUSTRATOR_LIMITS', 'TEX_LIMITS', 'hyphenatable', 'hyphenate', 'hyphenationPoints', 'applyTypeChange', 'readTargets', 'typingAttrsAt',
+    'typeOnPath', 'typeablePath', 'TYPE_OPTION_FIELDS', 'typeOptionValues', 'typeOptionsKindOf', 'withTypeOptions', 'glyphOutline', 'isSfntProblem', 'openSfnt',
+    'sfntFaceNames', 'facesFromFiles', 'fileOutlineSource', 'outlineSource', 'outlineText', 'setOutlineSource', 'sfntMeasure', 'withOutlineSource',
+  ];
+  for (const name of values) assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  const types = ['CharAttrs', 'ParaAttrs', 'TypeSpec', 'TypeRun', 'TextConfig', 'TypeLayout', 'TypeMeasure', 'TypeFont', 'HyphenationLimits', 'TypeChange', 'SfntFace', 'OutlineSource', 'TextOutlines'];
+  for (const name of types) assert.ok(now.types.includes(name), `and the type ${name}`);
+  const text = { id: 't', tool: 'text' as const, color: '#1f2328', width: 1, points: [{ x: 20, y: 40 }], text: 'Acme Corp\nannual report', fontSize: 24 };
+  const layout = api.layoutType(text);
+  assert.deepEqual([layout.lines.length, layout.glyphs.length, layout.overset], [2, 22, false]);
+  assert.equal(api.hyphenate('composition').join('-'), 'com-po-si-tion');
+  const bytes = new Uint8Array(readFileSync(join(ROOT, 'test', 'fonts', 'napkin-test-sans.ttf')));
+  const face = api.openSfnt(bytes);
+  if (api.isSfntProblem(face)) throw new Error(face.problem);
+  assert.equal(face.format, 'truetype');
+  const source = api.fileOutlineSource({ 'Acme Sans': bytes }, api.HEADLESS_MEASURE);
+  const word = { ...text, text: 'AVTo', fontFamily: 'Acme Sans' };
+  assert.deepEqual(api.outlineText(word, api.layoutType(word, source.measure), source).marks?.map((made) => made.label), ['A', 'V', 'T', 'o'], 'a mark a glyph');
+});
+
+test("the barrel exports Text Configurations: a book's named character attributes, applied, resolved, merged and dropped", () => {
+  const now = exportsOf('src/api/index.ts');
+  const values = [
+    'DEFAULT_CONFIG_NAME', 'NEW_CONFIG_NAME', 'adoptTextConfigs', 'applyTextConfig', 'breakTextConfigLink', 'canonicalConfig', 'captureConfigAttrs', 'clearTextOverrides',
+    'configInUse', 'configsOf', 'detachTextConfig', 'dropUnusedTextConfigs', 'duplicateTextConfig', 'followedConfigIds', 'followsConfig', 'mergeTextConfigs', 'newTextConfig',
+    'nextConfigName', 'overridesOf', 'readConfigTargets', 'replaceTextConfig', 'resolveRunAttrs', 'revertTextConfig', 'sameConfigAttrs', 'syncBookConfigs', 'uniqueConfigName',
+    'unusedTextConfigs', 'withConfigDefinitions',
+  ];
+  for (const name of values) assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  for (const name of ['ConfigMerge', 'ConfigReading']) assert.ok(now.types.includes(name), `and the type ${name}`);
+  const heading = api.newTextConfig([], { fontSize: 40, fontStyle: 'Bold' }, 'tc_heading', 'Heading');
+  const text = { id: 't', tool: 'text' as const, color: '#1f2328', width: 1, points: [{ x: 20, y: 60 }], text: 'Acme Corp', fontSize: 24 };
+  const styled = api.applyTextConfig(text, { start: 0, end: 4 }, heading);
+  assert.equal(api.styleSegments(styled).map((segment) => `${segment.end}:${segment.attrs.fontSize}`).join(' '), '4:40 9:24');
+  assert.equal(api.resolveRunAttrs(api.baseAttrs(text), heading, { color: '#c0392b' }).fontStyle, 'Bold', 'its base, then the configuration, then the overrides');
+  assert.deepEqual([...api.configsOf(styled).keys()], ['tc_heading'], 'the text carries a copy of what it follows, by id');
+});
+
+test('the barrel exports Markdown Flow, and napkin-sketch/markdown registers its reader with it', async () => {
+  const now = exportsOf('src/api/index.ts');
+  for (const name of ['MARKDOWN_CONFIG_NAMES', 'MARKDOWN_THEME', 'markdownConfig', 'markdownEnter', 'markdownLexer', 'markdownMissing', 'markdownShown', 'markdownToType', 'setMarkdownLexer', 'typeShown', 'withMarkdownConfigs', 'withoutMarkdownReveal']) {
+    assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  }
+  for (const name of ['MarkdownBlock', 'MarkdownCell', 'MarkdownConfigKey', 'MarkdownLexer', 'MarkdownMissing', 'MarkdownOptions', 'MarkdownShown', 'MarkdownTheme', 'MarkdownToken', 'MarkdownType']) {
+    assert.ok(now.types.includes(name), `and the type ${name}`);
+  }
+  api.setMarkdownLexer(null);
+  assert.equal(api.markdownToType('**x**').text, '**x**', 'with no lexer the core shows the Markdown as it is');
+  const markdown = await import('../src/markdown/index.js');
+  assert.equal(api.markdownLexer(), markdown.markedLexer, 'importing the subpath registers its lexer with the barrel');
+  assert.equal(api.markdownToType('**x**').text, 'x');
+  assert.equal(markdown.markdownToType('# Notes\n\n- one\n- **two**').text, 'Notes\none\ntwo', 'the example its comment gives');
+  assert.equal(typeof (node as Record<string, unknown>).drawFile, 'function', 'and napkin-sketch/node reads with it too');
+  const build = readFileSync(join(ROOT, 'scripts', 'build.mjs'), 'utf8');
+  assert.match(build, /plugins: \[apiExternal\],\s*entryPoints: \[resolve\(root, 'src\/markdown\/index\.ts'\)\],\s*outfile: resolve\(root, 'dist\/markdown\/index\.js'\)/, 'the build writes the entry, the API left to import');
+  assert.match(build, /'dist\/markdown'/, 'and scopes its folder to ESM');
+});
+
+test('the barrel exports Clean Language Accents, and napkin-sketch/markdown gives it highlight.js and the way to install a language', async () => {
+  const now = exportsOf('src/api/index.ts');
+  const values = [
+    'ACCENT_LANGUAGES', 'ACCENT_SCOPES', 'ACCENT_THEMES', 'COMMON_ACCENT_LANGUAGES', 'accentGeneration', 'accentHighlighter', 'accentLanguage', 'accentOptions', 'accentRuns',
+    'accentShown', 'accentThemeFor', 'applyAccent', 'contrastRatio', 'currentAccentTheme', 'hasAccent', 'hljsHtmlToRuns', 'paragraphSpan', 'relativeLuminance',
+    'setAccentHighlighter', 'setAccentOptions', 'setAccentPage', 'withAccentPage',
+  ];
+  for (const name of values) {
+    assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  }
+  for (const name of ['AccentHighlighter', 'AccentLanguage', 'AccentResult', 'AccentRole', 'AccentRun', 'AccentTheme', 'AccentThemeId']) assert.ok(now.types.includes(name), `and the type ${name}`);
+  assert.equal(api.ACCENT_LANGUAGES.length, 193);
+  assert.equal(api.ACCENT_THEMES.dark.name, 'Napkin Dark');
+  const markdown = await import('../src/markdown/index.js');
+  assert.equal(api.accentHighlighter(), markdown.hljsHighlighter, 'importing the subpath registers highlight.js with the barrel');
+  assert.equal(api.accentRuns('x = 1', 'python').language, 'python');
+  for (const name of ['registerAccentLanguage', 'unregisterAccentLanguage', 'accentLanguagesInstalled']) assert.equal(typeof (markdown as Record<string, unknown>)[name], 'function', `the subpath exports ${name}`);
+  assert.equal(markdown.accentLanguagesInstalled().length, 36);
+});
+
+test('the barrel exports Composition Styles, which restyle a page and a composition alike', () => {
+  const now = exportsOf('src/api/index.ts');
+  const values = [
+    'COMPOSITION_RULE_FIELDS', 'COMPOSITION_RULE_KEYS', 'COMPOSITION_RULE_KINDS', 'COMPOSITION_RULE_LABELS', 'COMPOSITION_STYLE_FORMAT', 'COMPOSITION_STYLE_NAME_MAX',
+    'COMPOSITION_STYLE_SCHEMA_ID', 'applyCompositionStyle', 'applyCompositionStyleToBook', 'captureCompositionStyle', 'captureLayerRule', 'compositionReportLines',
+    'compositionReportTitle', 'compositionRuleSummary', 'compositionStyleFileName', 'compositionStyleRuleCount', 'compositionStyleSchema', 'isDefaultLayerName',
+    'layerNameKey', 'nameDistance', 'nameSuggestions', 'renameLayers', 'serializeCompositionStyle', 'uniqueStyleName', 'validateCompositionStyle',
+  ];
+  for (const name of values) assert.ok(now.values.includes(name), `the barrel exports ${name}`);
+  const types = ['CompositionFieldKind', 'CompositionStyle', 'CompositionLayerRule', 'CompositionTextRule', 'CompositionStrokeRule', 'CompositionStyleReport', 'CompositionStyleValidation', 'SketchStyleResult'];
+  for (const name of types) {
+    assert.ok(now.types.includes(name), `and the type ${name}`);
+  }
+  const style = { napkinCompositionStyle: 1, name: 'Midnight', layers: { Background: { opacity: 0.5 } } };
+  assert.equal(api.validateCompositionStyle(style).ok, true);
+  const composition = api.createComposition();
+  composition.rect({ name: 'background', x: 0, y: 0, width: 10, height: 10, fill: '#ffffff' });
+  const { composition: styled, report } = api.applyCompositionStyle(composition, style);
+  assert.equal(styled.elements[0].opacity, 0.5, 'a composition, by its elements\' names');
+  assert.equal(api.compositionReportTitle(report), 'Applied Midnight');
+  assert.deepEqual(api.nameSuggestions('Titel', ['Title']), ['Title']);
+  assert.equal(api.nameDistance('Titel', 'Title'), 1, 'two letters swapped are one slip');
+  assert.equal(api.layerNameKey('  Title '), api.layerNameKey('title'), 'a name matches trimmed and in any case');
+});
+
+test('napkin-sketch/node exports the host, and every composition file helper beside it', async () => {
+  const host = ['drawFile', 'drawToFiles', 'readScript', 'loadAssets', 'loadDocuments', 'loadFonts', 'readCompositionStyle', 'writeBook', 'resolveLinkFromDir'];
   for (const name of host) assert.equal(typeof (node as Record<string, unknown>)[name], 'function', `${name} is exported`);
   for (const name of Object.keys(designFiles)) {
     assert.equal((node as Record<string, unknown>)[name], (designFiles as Record<string, unknown>)[name], `${name} is re-exported as it is`);
   }
   const types = exportsOf('src/api/node.ts').types;
-  for (const name of ['DrawResult', 'DrawToFilesOptions', 'WriteBookOptions', 'WrittenFile']) {
+  for (const name of ['DrawResult', 'DrawToFilesOptions', 'FontSources', 'WriteBookOptions', 'WrittenFile']) {
     assert.ok(types.includes(name), `napkin-sketch/node exports the type ${name}`);
+  }
+  // A composition style read from a file, checked as the panel and the command line check it.
+  const dir = mkdtempSync(join(tmpdir(), 'napkin-style-'));
+  try {
+    const file = join(dir, 'midnight.json');
+    writeFileSync(file, JSON.stringify({ napkinCompositionStyle: 1, name: 'Midnight', layers: { Background: { opacity: 0.5 } } }));
+    assert.equal((await node.readCompositionStyle(file)).name, 'Midnight');
+    writeFileSync(file, '{');
+    await assert.rejects(node.readCompositionStyle(file), /is not JSON/);
+    writeFileSync(file, JSON.stringify({ name: 'Midnight' }));
+    await assert.rejects(node.readCompositionStyle(file), /is not a composition style/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -234,6 +446,8 @@ test('the package map points each entry at what the build writes', () => {
     import: './dist/graphic-design/files.js',
     default: './dist/graphic-design/files.js',
   });
+  assert.deepEqual(pkg.exports['./markdown'], { types: './dist/markdown/index.d.ts', import: './dist/markdown/index.js', default: './dist/markdown/index.js' });
+  assert.deepEqual(Object.keys(pkg.exports).sort(), ['.', './embed', './graphic-design/files', './markdown', './node', './styles.css'], 'and no entry this test does not know');
   assert.ok(pkg.files.includes('docs/api'), 'the documentation ships with the package');
   const build = readFileSync(join(ROOT, 'scripts', 'build.mjs'), 'utf8');
   assert.match(build, /entryPoints: \[resolve\(root, 'src\/api\/node\.ts'\)\],\s*outfile: resolve\(root, 'dist\/node\/index\.js'\)/, 'the build writes the node entry');

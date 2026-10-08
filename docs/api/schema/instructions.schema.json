@@ -79,6 +79,18 @@
             "$ref": "#/definitions/verbs/font"
           },
           {
+            "$ref": "#/definitions/verbs/character"
+          },
+          {
+            "$ref": "#/definitions/verbs/paragraph"
+          },
+          {
+            "$ref": "#/definitions/verbs/textconfig"
+          },
+          {
+            "$ref": "#/definitions/verbs/accent"
+          },
+          {
             "$ref": "#/definitions/verbs/rect"
           },
           {
@@ -182,6 +194,9 @@
           },
           {
             "$ref": "#/definitions/verbs/effect"
+          },
+          {
+            "$ref": "#/definitions/verbs/blend"
           },
           {
             "$ref": "#/definitions/verbs/crop"
@@ -292,6 +307,175 @@
       "required": [
         "color",
         "offset"
+      ],
+      "additionalProperties": false
+    },
+    "run": {
+      "type": "object",
+      "description": "A run of a text: from start to end (not included), and the character attributes it has.",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "config": {
+          "type": "string"
+        },
+        "face": {
+          "type": "string"
+        },
+        "tracking": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        },
+        "kern": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        },
+        "kerning": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "none"
+          ]
+        },
+        "leading": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        },
+        "spacing": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        },
+        "caps": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "all",
+            "small"
+          ]
+        },
+        "hscale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        },
+        "vscale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        },
+        "shift": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        },
+        "rotate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        },
+        "highlight": {
+          "type": "string",
+          "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+        },
+        "position": {
+          "anyOf": [
+            {
+              "const": "superscript"
+            },
+            {
+              "const": "subscript"
+            }
+          ]
+        },
+        "underline": {
+          "type": "boolean"
+        },
+        "strike": {
+          "type": "boolean"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+            },
+            {
+              "$ref": "#/definitions/expression"
+            }
+          ]
+        },
+        "family": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string",
+          "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+        }
+      },
+      "required": [
+        "start",
+        "end"
       ],
       "additionalProperties": false
     },
@@ -1178,6 +1362,1121 @@
         },
         "required": [
           "verb"
+        ],
+        "additionalProperties": false
+      },
+      "character": {
+        "type": "object",
+        "title": "character",
+        "description": "The character attributes of text after it: its face, tracking, kerning, leading, word spacing, capitals, scales, baseline shift, turn and highlight, and whether it is a superscript or a subscript, underlined or struck through. reset puts every one back.",
+        "properties": {
+          "verb": {
+            "const": "character"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "face": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tracking": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kern": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kerning": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "none"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "leading": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spacing": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "caps": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "all",
+                  "small"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hscale": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vscale": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shift": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rotate": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "highlight": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "anyOf": [
+              {
+                "const": "superscript"
+              },
+              {
+                "const": "subscript"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "underline": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "strike": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reset": {
+            "anyOf": [
+              {
+                "const": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb"
+        ],
+        "additionalProperties": false
+      },
+      "paragraph": {
+        "type": "object",
+        "title": "paragraph",
+        "description": "The paragraph attributes of text after it: its alignment, its indents, the space before and after it, whether it hyphenates, and a bulleted or numbered list at a level. reset puts every one back.",
+        "properties": {
+          "verb": {
+            "const": "paragraph"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "align": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "left",
+                  "center",
+                  "right",
+                  "justify"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "indent": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "indentRight": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "first": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "before": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hyphenate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "list": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bullet",
+                  "number",
+                  "none"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reset": {
+            "anyOf": [
+              {
+                "const": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb"
+        ],
+        "additionalProperties": false
+      },
+      "textconfig": {
+        "type": "object",
+        "title": "textconfig",
+        "description": "Defines a Text Configuration, a vector editor's Character Style: a named set of character attributes the book keeps, which text follows with config and its runs with config in their clauses. What a text has of its own overrides it. Defined again under its name, it changes for every text that follows it.",
+        "properties": {
+          "verb": {
+            "const": "textconfig"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "name": {
+            "type": "string"
+          },
+          "face": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tracking": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kerning": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "none"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "leading": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spacing": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "caps": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "all",
+                  "small"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hscale": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vscale": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shift": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rotate": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "highlight": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "position": {
+            "anyOf": [
+              {
+                "const": "superscript"
+              },
+              {
+                "const": "subscript"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "underline": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "strike": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "accent": {
+        "type": "object",
+        "title": "accent",
+        "description": "A Clean Language Accent for the next text: its paragraphs are colored as a language reads them - keywords, strings, numbers, comments, names - live as the app edits them. A language by its id or a name highlight.js knows it by (a name no word spells in quotes, \"c++\"), auto for the one the code reads most like, or none. It waits for the next text; one nothing takes is reported.",
+        "properties": {
+          "verb": {
+            "const": "accent"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "none",
+              "1c",
+              "abnf",
+              "accesslog",
+              "actionscript",
+              "as",
+              "ada",
+              "angelscript",
+              "asc",
+              "apache",
+              "apacheconf",
+              "applescript",
+              "osascript",
+              "arcade",
+              "arduino",
+              "ino",
+              "armasm",
+              "arm",
+              "asciidoc",
+              "adoc",
+              "aspectj",
+              "autohotkey",
+              "ahk",
+              "autoit",
+              "avrasm",
+              "awk",
+              "axapta",
+              "x++",
+              "bash",
+              "sh",
+              "zsh",
+              "basic",
+              "bnf",
+              "brainfuck",
+              "bf",
+              "c",
+              "h",
+              "cal",
+              "capnproto",
+              "capnp",
+              "ceylon",
+              "clean",
+              "dcl",
+              "icl",
+              "clojure",
+              "clj",
+              "edn",
+              "clojure-repl",
+              "cmake",
+              "cmake.in",
+              "coffeescript",
+              "coffee",
+              "cson",
+              "iced",
+              "coq",
+              "cos",
+              "cls",
+              "cpp",
+              "c++",
+              "cc",
+              "cxx",
+              "h++",
+              "hh",
+              "hpp",
+              "hxx",
+              "crmsh",
+              "crm",
+              "pcmk",
+              "crystal",
+              "cr",
+              "csharp",
+              "c#",
+              "cs",
+              "csp",
+              "css",
+              "d",
+              "dart",
+              "delphi",
+              "dfm",
+              "dpr",
+              "pas",
+              "pascal",
+              "diff",
+              "patch",
+              "django",
+              "jinja",
+              "dns",
+              "bind",
+              "zone",
+              "dockerfile",
+              "docker",
+              "dos",
+              "bat",
+              "batch",
+              "cmd",
+              "dsconfig",
+              "dts",
+              "dust",
+              "dst",
+              "ebnf",
+              "elixir",
+              "ex",
+              "exs",
+              "elm",
+              "erb",
+              "erlang",
+              "erl",
+              "erlang-repl",
+              "excel",
+              "xls",
+              "xlsx",
+              "fix",
+              "flix",
+              "fortran",
+              "f90",
+              "f95",
+              "freedesktop",
+              "desktop",
+              "systemd",
+              "fsharp",
+              "f#",
+              "fs",
+              "gams",
+              "gms",
+              "gauss",
+              "gss",
+              "gcode",
+              "nc",
+              "gherkin",
+              "feature",
+              "glsl",
+              "gml",
+              "go",
+              "golang",
+              "golo",
+              "gradle",
+              "graphql",
+              "gql",
+              "groovy",
+              "haml",
+              "handlebars",
+              "hbs",
+              "html.handlebars",
+              "html.hbs",
+              "htmlbars",
+              "haskell",
+              "hs",
+              "haxe",
+              "hx",
+              "hsp",
+              "http",
+              "https",
+              "hy",
+              "hylang",
+              "inform7",
+              "i7",
+              "ini",
+              "toml",
+              "irpf90",
+              "isbl",
+              "java",
+              "jsp",
+              "javascript",
+              "cjs",
+              "js",
+              "jsx",
+              "mjs",
+              "jboss-cli",
+              "wildfly-cli",
+              "json",
+              "json5",
+              "jsonc",
+              "julia",
+              "julia-repl",
+              "jldoctest",
+              "kotlin",
+              "kt",
+              "ktm",
+              "kts",
+              "ktx",
+              "lasso",
+              "lassoscript",
+              "ls",
+              "latex",
+              "tex",
+              "ldif",
+              "leaf",
+              "less",
+              "lisp",
+              "livecodeserver",
+              "livescript",
+              "ls",
+              "llvm",
+              "lsl",
+              "lua",
+              "pluto",
+              "makefile",
+              "mak",
+              "make",
+              "mk",
+              "markdown",
+              "md",
+              "mkd",
+              "mkdown",
+              "mathematica",
+              "mma",
+              "wl",
+              "matlab",
+              "maxima",
+              "mel",
+              "mercury",
+              "m",
+              "moo",
+              "mipsasm",
+              "mips",
+              "mizar",
+              "mojolicious",
+              "monkey",
+              "moonscript",
+              "moon",
+              "n1ql",
+              "nestedtext",
+              "nt",
+              "nginx",
+              "nginxconf",
+              "nim",
+              "nix",
+              "nixos",
+              "node-repl",
+              "nsis",
+              "objectivec",
+              "mm",
+              "obj-c",
+              "obj-c++",
+              "objc",
+              "objective-c++",
+              "ocaml",
+              "ml",
+              "openscad",
+              "scad",
+              "oxygene",
+              "parser3",
+              "perl",
+              "pl",
+              "pm",
+              "pf",
+              "pf.conf",
+              "pgsql",
+              "postgres",
+              "postgresql",
+              "php",
+              "php-template",
+              "plaintext",
+              "text",
+              "txt",
+              "pony",
+              "powershell",
+              "ps",
+              "ps1",
+              "pwsh",
+              "processing",
+              "pde",
+              "profile",
+              "prolog",
+              "properties",
+              "protobuf",
+              "proto",
+              "puppet",
+              "pp",
+              "purebasic",
+              "pb",
+              "pbi",
+              "python",
+              "gyp",
+              "ipython",
+              "py",
+              "python-repl",
+              "pycon",
+              "q",
+              "k",
+              "kdb",
+              "qml",
+              "qt",
+              "r",
+              "reasonml",
+              "re",
+              "rib",
+              "roboconf",
+              "graph",
+              "instances",
+              "routeros",
+              "mikrotik",
+              "rsl",
+              "ruby",
+              "gemspec",
+              "irb",
+              "podspec",
+              "rb",
+              "thor",
+              "ruleslanguage",
+              "rust",
+              "rs",
+              "sas",
+              "scala",
+              "scheme",
+              "scm",
+              "scilab",
+              "sci",
+              "scss",
+              "shell",
+              "console",
+              "shellsession",
+              "smali",
+              "smalltalk",
+              "st",
+              "sml",
+              "ml",
+              "sqf",
+              "sql",
+              "stan",
+              "stanfuncs",
+              "stata",
+              "ado",
+              "do",
+              "step21",
+              "p21",
+              "step",
+              "stp",
+              "stylus",
+              "styl",
+              "subunit",
+              "swift",
+              "taggerscript",
+              "tap",
+              "tcl",
+              "tk",
+              "thrift",
+              "tp",
+              "twig",
+              "craftcms",
+              "typescript",
+              "cts",
+              "mts",
+              "ts",
+              "tsx",
+              "vala",
+              "vbnet",
+              "vb",
+              "vbscript",
+              "vbs",
+              "vbscript-html",
+              "verilog",
+              "sv",
+              "svh",
+              "v",
+              "vhdl",
+              "vim",
+              "wasm",
+              "wren",
+              "x86asm",
+              "xl",
+              "tao",
+              "xml",
+              "atom",
+              "html",
+              "plist",
+              "rss",
+              "svg",
+              "wsf",
+              "xhtml",
+              "xjb",
+              "xsd",
+              "xsl",
+              "xquery",
+              "xpath",
+              "xq",
+              "xqm",
+              "yaml",
+              "yml",
+              "zephir",
+              "zep"
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "language"
         ],
         "additionalProperties": false
       },
@@ -3270,7 +4569,7 @@
       "text": {
         "type": "object",
         "title": "text",
-        "description": "A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as brush strokes instead.",
+        "description": "A text item, set and aligned, and editable in the app: Sideless Typing from its anchor, Sheet Typing in a box or inside a shape, or Path Typing along a path, set in its runs' styles, the whole of it following a Text Configuration with config. With markdown its text is Markdown, shown as it renders: Markdown Flow. With as marks the letters are drawn as brush strokes instead.",
         "properties": {
           "verb": {
             "const": "text"
@@ -3351,6 +4650,74 @@
               }
             ]
           },
+          "inside": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "along": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT])?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "flip": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "rainbow",
+                  "skew",
+                  "ribbon",
+                  "stair",
+                  "gravity"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "align": {
             "anyOf": [
               {
@@ -3358,8 +4725,52 @@
                 "enum": [
                   "left",
                   "center",
-                  "right"
+                  "right",
+                  "justify"
                 ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vertical": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "config": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runs": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/run"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "markdown": {
+            "anyOf": [
+              {
+                "type": "boolean"
               },
               {
                 "type": "null"
@@ -3674,7 +5085,7 @@
       "effect": {
         "type": "object",
         "title": "effect",
-        "description": "An effect for the next layer, group or mark the script makes, as its CSS filter function works: blur, brightness, contrast, saturate, grayscale, sepia, invert, hue-rotate, opacity or drop-shadow. Several stack in order, and none clears what is waiting.",
+        "description": "An effect for the next layer, group or mark the script makes: a CSS filter function - blur, brightness, contrast, saturate, grayscale, sepia, invert, hue-rotate, opacity or drop-shadow, which is Outer Shadow - an appearance effect - feather, bevel, emboss, inner-shadow, outer-glow or inner-glow - or splatter, a vector editor's Scribble, which draws a mark's fill as a loose hatch (on a layer or a group it draws nothing) - or warp, a vector editor's Warp, which bends what takes it by a style, a layer's or a group's marks as one - or extrude and revolve, a vector editor's Classic 3D, which build a mark in depth and draw it as shaded faces (on a layer or a group they draw nothing). Any of them also takes `on fill` or `on stroke`, to work on that part of a mark alone, and `hidden`, to be kept without being drawn. Several stack in order, and none clears what is waiting.",
         "properties": {
           "verb": {
             "const": "effect"
@@ -3713,6 +5124,36 @@
               },
               {
                 "const": "drop-shadow"
+              },
+              {
+                "const": "feather"
+              },
+              {
+                "const": "bevel"
+              },
+              {
+                "const": "emboss"
+              },
+              {
+                "const": "inner-shadow"
+              },
+              {
+                "const": "outer-glow"
+              },
+              {
+                "const": "inner-glow"
+              },
+              {
+                "const": "splatter"
+              },
+              {
+                "const": "warp"
+              },
+              {
+                "const": "extrude"
+              },
+              {
+                "const": "revolve"
               },
               {
                 "const": "none"
@@ -3847,11 +5288,1078 @@
                 "type": "null"
               }
             ]
+          },
+          "spread": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "choke": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blend": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "soak",
+                  "stack",
+                  "scorch",
+                  "dry",
+                  "sheer",
+                  "bleach",
+                  "fold",
+                  "light",
+                  "heavy",
+                  "messy",
+                  "avoidance",
+                  "tidy",
+                  "bright",
+                  "dye",
+                  "cover",
+                  "darken",
+                  "multiply",
+                  "color-burn",
+                  "lighten",
+                  "screen",
+                  "color-dodge",
+                  "overlay",
+                  "soft-light",
+                  "hard-light",
+                  "difference",
+                  "exclusion",
+                  "hue",
+                  "saturation",
+                  "color",
+                  "luminosity"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opacity": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "style": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "inner",
+                  "outer"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "emboss",
+                  "pillow"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "arc",
+                  "arch",
+                  "unroll",
+                  "shell",
+                  "windy",
+                  "breezy",
+                  "curvy",
+                  "chart",
+                  "puffy",
+                  "expand",
+                  "cram",
+                  "twirl",
+                  "arc-lower",
+                  "arc-upper",
+                  "bulge",
+                  "shell-lower",
+                  "shell-upper",
+                  "flag",
+                  "wave",
+                  "fish",
+                  "rise",
+                  "fisheye",
+                  "inflate",
+                  "squeeze",
+                  "twist"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "depth": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "altitude": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "soften": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "const": "up"
+              },
+              {
+                "const": "down"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lightColor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lightOpacity": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lightBlend": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "soak",
+                  "stack",
+                  "scorch",
+                  "dry",
+                  "sheer",
+                  "bleach",
+                  "fold",
+                  "light",
+                  "heavy",
+                  "messy",
+                  "avoidance",
+                  "tidy",
+                  "bright",
+                  "dye",
+                  "cover",
+                  "darken",
+                  "multiply",
+                  "color-burn",
+                  "lighten",
+                  "screen",
+                  "color-dodge",
+                  "overlay",
+                  "soft-light",
+                  "hard-light",
+                  "difference",
+                  "exclusion",
+                  "hue",
+                  "saturation",
+                  "color",
+                  "luminosity"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shadeColor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "A CSS color: a name, #rgb to #rrggbbaa, rgb(), rgba(), hsl() or hsla()."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shadeOpacity": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shadeBlend": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "soak",
+                  "stack",
+                  "scorch",
+                  "dry",
+                  "sheer",
+                  "bleach",
+                  "fold",
+                  "light",
+                  "heavy",
+                  "messy",
+                  "avoidance",
+                  "tidy",
+                  "bright",
+                  "dye",
+                  "cover",
+                  "darken",
+                  "multiply",
+                  "color-burn",
+                  "lighten",
+                  "screen",
+                  "color-dodge",
+                  "overlay",
+                  "soft-light",
+                  "hard-light",
+                  "difference",
+                  "exclusion",
+                  "hue",
+                  "saturation",
+                  "color",
+                  "luminosity"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "const": "edge"
+              },
+              {
+                "const": "center"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "default",
+                  "childlike",
+                  "dense",
+                  "loose",
+                  "moire",
+                  "sharp",
+                  "sketch",
+                  "snarl",
+                  "swash",
+                  "tight",
+                  "zig-zag"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "overlap": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "overlapVariation": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "width": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "curviness": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "curvinessVariation": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spacing": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spacingVariation": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bend": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orientation": {
+            "anyOf": [
+              {
+                "const": "horizontal"
+              },
+              {
+                "const": "vertical"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "distortH": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "distortV": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "part": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "whole",
+                  "lower",
+                  "upper"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hollow": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "offset": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "axis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "left",
+                  "right"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "segments": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rotateX": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rotateY": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rotateZ": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "positionX": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "positionY": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "positionZ": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?(?:[pP][xX]|[iI][nN]|[mM][mM]|[pP][tT]|%)?$"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scaleX": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scaleY": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scaleZ": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perspective": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shading": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "plastic",
+                  "diffuse",
+                  "none",
+                  "wireframe"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lightAzimuth": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lightElevation": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lightIntensity": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lightAmbient": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/expression"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "fill",
+                  "stroke"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "verb",
           "type"
+        ],
+        "additionalProperties": false
+      },
+      "blend": {
+        "type": "object",
+        "title": "blend",
+        "description": "How the next layer or group the script makes mixes with what is drawn under it, the page's background included: a Napkin Blend by its name or by Illustrator's - stack or multiply, sheer or screen, cover or luminosity. A blend is a layer's, so it waits for the next layer or group; normal sets one back.",
+        "properties": {
+          "verb": {
+            "const": "blend"
+          },
+          "at": {
+            "$ref": "#/definitions/position"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "soak",
+              "stack",
+              "scorch",
+              "dry",
+              "sheer",
+              "bleach",
+              "fold",
+              "light",
+              "heavy",
+              "messy",
+              "avoidance",
+              "tidy",
+              "bright",
+              "dye",
+              "cover",
+              "darken",
+              "multiply",
+              "color-burn",
+              "lighten",
+              "screen",
+              "color-dodge",
+              "overlay",
+              "soft-light",
+              "hard-light",
+              "difference",
+              "exclusion",
+              "hue",
+              "saturation",
+              "color",
+              "luminosity"
+            ]
+          }
+        },
+        "required": [
+          "verb",
+          "mode"
         ],
         "additionalProperties": false
       },

@@ -35,10 +35,25 @@ src/
 │   ├── surface.ts      # High-DPI, layered canvas rendering + SVG export
 │   ├── svg-import.ts   # SVG → layered strokes importer (browser-only)
 │   ├── popup.ts        # What every editing popup shares: moving, docking, staying on screen
+│   ├── report-toast.ts # Report toasts: what an action could not do, line by line, bottom right
+│   ├── appearance-panel.ts # The Appearance panel: the selection's effects, in the order they draw
+│   ├── effect-options.ts # The effect options popup: one form for every effect, from its fields
+│   ├── three-d-panel.ts # 3D Options: the selection's 3D, edited live
+│   ├── gumball.ts      # The 3D gumball: moving, turning and scaling in depth; its sums need no DOM
+│   ├── type-editor.ts  # The type editor: a text edited where it stands on the canvas
+│   ├── type-panel.ts   # The Type panel: the Character, Paragraph and Text Configurations tabs
+│   ├── type-options.ts # Type on a Path Options, Area Type Options and a configuration's Options
+│   ├── type-measure.ts # The canvas's type measure: how wide the system's fonts set a string
+│   ├── type-paint.ts   # A type layout painted on the canvas: frame, shades, text, decoration
+│   ├── type-faces.ts   # This computer's fonts as outlines, read from their files when asked for
+│   ├── font-list.ts    # The fonts on this computer, read with the Local Font Access API
+│   ├── composition-styles-panel.ts # The Composition Styles panel: the library, a style a click
+│   ├── composition-rule-form.ts # The form one rule of a Composition Style is set in
 │   └── store.ts        # App state, layer stack, undo/redo history
 ├── assets/
 │   ├── move-popup.svg  # The cursor over something the Move panel can move
-│   └── rotate-popup.svg # The cursor of a Rotate drag
+│   ├── rotate-popup.svg # The cursor of a Rotate drag
+│   └── type-*cursor.svg # The Text tool's three cursors: a text, a text in a shape, on a path
 ├── sharpen/
 │   ├── geometry.ts     # Geometry & curve utilities
 │   └── sharpen.ts      # Auto-sharpen engine
@@ -46,6 +61,12 @@ src/
 │   ├── index.ts        # Public, browser-safe API barrel: `napkin-sketch`
 │   ├── node.ts         # Node-only entry: `napkin-sketch/node`, the file half
 │   └── embed.ts        # Embeddable NapkinSketch editor
+├── markdown/           # `napkin-sketch/markdown`: marked's lexer and highlight.js, for a core
+│   ├── index.ts        # The entry: registers both with the API's core
+│   ├── core.ts         # Both registered with the core the app, the CLI and napkin-sketch/node use
+│   ├── lexer.ts        # Markdown Flow's reader: marked, with GitHub's tables and task lists
+│   ├── highlight.ts    # Clean Language Accents' reader: highlight.js, its 36 common languages
+│   └── wire.ts         # The readers wired to a core given, and a language installed or taken away
 ├── docs/
 │   ├── api-docs.ts     # The documentation's generated parts: tables, schema, index
 │   ├── menu-docs.ts    # The menus table and the shortcut tables, from the menu registry
@@ -85,6 +106,35 @@ src/
     ├── mesh-warp.ts    # Mesh Warp: bending art by pins, as Illustrator's Puppet Warp does
     ├── liquify.ts      # Liquify: Warp, Twirl, Pucker and Bloat, fields that bend marks under a brush
     ├── stroke-profile.ts # Stroke profiles: how a stroke's width runs along its length
+    ├── blend.ts        # Napkin Blends: the sixteen blend modes, their names, and the W3C math
+    ├── appearance.ts   # A mark's appearance: its parts, and its effects laid out over them
+    ├── appearance-fx.ts # Effects on pixels: the passes the canvas and the PNG run over a picture
+    ├── geometry-effects.ts # What a mark draws once a Warp, a Splatter or a 3D has worked on it
+    ├── splatter.ts     # Splatter: a region's fill as one loose hatch, as Scribble draws it
+    ├── warp-styles.ts  # Warp's twelve styles: closed-form maps of the plane over a box
+    ├── random.ts       # Seeded randomness: the same hatch and grain every time
+    ├── arc-length.ts   # A path walked by distance: where a length lands, which way it runs
+    ├── composition-style.ts # Composition Styles: rules by layer name that restyle a page or a composition
+    ├── three-d/        # Classic 3D: Extrude and Revolve, drawn as shaded vector faces
+    │   ├── mesh.ts          # An outline built in depth: its faces, caps and a revolve's steps
+    │   └── render.ts        # The mesh lit and drawn as flat faces, far ones first
+    ├── type/           # Type: the model and the layout, and what reads and draws them
+    │   ├── model.ts         # A text's runs, paragraphs and configuration copies, and its edits
+    │   ├── layout.ts        # Where every character goes: point, area and path type, either way up
+    │   ├── measure.ts       # How text is measured: the built-in face's widths, or a font's own
+    │   ├── caret.ts         # The caret and the selection, and where each key takes them
+    │   ├── panel.ts         # The Type panel's model: what each field shows and each control does
+    │   ├── tool.ts          # What the Text tool makes of a gesture
+    │   ├── options.ts       # The Type menu's options forms, as data
+    │   ├── configs.ts       # Text Configurations: named character attributes a run follows
+    │   ├── markdown-flow.ts # Markdown Flow: a text typed as Markdown, shown as it renders
+    │   ├── accents.ts       # Clean Language Accents: code colored as its language reads it
+    │   ├── accent-languages.json # highlight.js's languages, written by npm run accent-languages
+    │   ├── hyphenate.ts     # Hyphenation by Liang's algorithm over the en-US patterns
+    │   ├── hyphenation/     # The patterns, en-us.json, with their notice
+    │   ├── sfnt.ts          # A font file's glyph outlines, read with no DOM
+    │   ├── outline.ts       # Text as shapes: its glyphs drawn from its fonts' own outlines
+    │   └── svg.ts           # A text as SVG, set as the layout sets it
     ├── menu/           # The menus as data: every command, its type and its shortcut
     │   ├── tool-types.json  # Every command, the type that places it, and the menus
     │   ├── shortcuts.json   # Every command's keyboard shortcut
@@ -140,6 +190,7 @@ src/
     │   ├── gradient.ts #   Gradient paint: where it runs, and its color along the way
     │   ├── canvas.ts   #   Canvas 2D painter (the GUI-canvas target)
     │   ├── effects.ts  #   Effects on pixels: the rasterizer's passes over an element's picture
+    │   ├── appearance.ts #  An element's effects as its renderers draw them, fill and stroke apart
     │   ├── brand.ts    #   Brand resources: a design language's own files
     │   └── files.ts    #   Node-only file helpers (data URLs, paired export)
     ├── paths.ts        # Dependency-free path helpers
@@ -156,7 +207,7 @@ docs/api/               # The API documentation; API.md at the root maps it
 ├── INDEX.json          # Every page: its kind, first paragraph and size
 ├── schema/             # The object form as a JSON Schema, generated
 ├── cli/examples/       # Callers in sh, cmd, Node, Python and C, run by the tests
-└── <category>/         # language, drawing, compose, output, cli, node, engines, interop, ai
+└── <category>/         # language, drawing, compose, output, cli, node, markdown, engines, interop, ai
     ├── README.md       #   The reference
     ├── QUICKSTART.md   #   A path that runs as written
     ├── CHEATSHEET.md   #   Tables and one-line reminders

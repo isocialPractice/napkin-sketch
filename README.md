@@ -42,15 +42,33 @@ written from the Markdown in [`docs/site-src/`](docs/site-src/).
   [Transform](https://isocialpractice.github.io/napkin-sketch/guide/transform.html),
   [the Shape Stacker](https://isocialpractice.github.io/napkin-sketch/guide/tools.html#shape-stacker),
   [Split](https://isocialpractice.github.io/napkin-sketch/guide/tools.html#split).
+- **Sets type as a vector editor does** - typed on the canvas, in a box, in a
+  shape or along a path, with a Type panel of character and paragraph
+  attributes, Text Configurations and Expand Text to Shape; Markdown Flow,
+  which shows Markdown as it renders, and Clean Language Accents, which color
+  code as its language reads it:
+  [Type](https://isocialpractice.github.io/napkin-sketch/guide/type.html).
 - **Keeps things in order** - layers and groups, clipping masks, and pages
   of any size:
   [Layers](https://isocialpractice.github.io/napkin-sketch/guide/layers.html),
   [Clipping masks](https://isocialpractice.github.io/napkin-sketch/guide/layers.html#clipping-masks),
   [Pages](https://isocialpractice.github.io/napkin-sketch/guide/pages.html).
+- **Restyles a page in one click** - Composition Styles, rules keyed by layer
+  name, from a panel, the command line or code:
+  [Composition Styles](https://isocialpractice.github.io/napkin-sketch/guide/composition-styles.html).
+- **Effects and blends, as Illustrator's Appearance and Transparency panels
+  have them** - shadows, glows, bevels, embosses, feathers, blurs and color
+  adjustments, Splatter's scribbled fill, Warp's twelve styles, and 3D Extrude
+  and Revolve turned with a gumball, on a mark's fill, its stroke or the
+  whole of it, reordered and switched off in the Appearance panel, and
+  following the mark through a scale, a turn or a mirror; and sixteen blend
+  modes on layers and groups, under napkin names:
+  [Effects](https://isocialpractice.github.io/napkin-sketch/guide/effects.html),
+  [Blend modes](https://isocialpractice.github.io/napkin-sketch/guide/layers.html#blend-modes).
 - **Round-trips SVG** - imports another editor's layers, curves, gradients and
   clipping masks, and exports them small, with PNG, JPEG and PDF beside:
   [Import and export](https://isocialpractice.github.io/napkin-sketch/guide/import-export.html).
-- **Nine menus and your own keys** - every command in the menu bar, every key
+- **Eleven menus and your own keys** - every command in the menu bar, every key
   changeable:
   [Menus and shortcuts](https://isocialpractice.github.io/napkin-sketch/guide/menus-and-shortcuts.html).
 - **Writes scripts** - a file, the selected layers or the session's history as
@@ -211,4 +229,6 @@ npm run site         # Rewrite the documentation site from docs/site-src/ and do
 
 ## License
 
-MIT
+MIT. The code and data napkin-sketch bundles from others - `marked`,
+`marked-highlight`, highlight.js and the en-US hyphenation patterns - keep
+their own licenses, in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

@@ -35,6 +35,7 @@ import { LENGTH_UNITS } from '../src/core/units.js';
 import { STROKE_PROFILES, STROKE_STYLES, toolId } from '../src/core/types.js';
 import verbTable from '../src/core/script/verbs.json';
 import { STACK_MODES, WIPE_OPS } from '../src/core/wipe.js';
+import { BLEND_MODE_NAMES } from '../src/core/blend.js';
 
 const isSlot = (p: FormPart): p is SlotPart => 'slot' in p;
 const isClause = (p: FormPart): p is ClausePart => 'clause' in p;
@@ -131,7 +132,7 @@ test('every way of writing a verb writes exactly the fields its type has', () =>
 });
 
 test('slots are well formed', () => {
-  const types = new Set(['length', 'number', 'integer', 'string', 'identifier', 'color', 'choice', 'switch', 'pencil', 'points', 'stops']);
+  const types = new Set(['length', 'number', 'integer', 'string', 'identifier', 'color', 'choice', 'switch', 'pencil', 'language', 'points', 'stops', 'runs']);
   const axes = new Set(['x', 'y', 'min', 'none', 'axis']);
   for (const verb of VERBS) {
     for (const form of verb.forms) {
@@ -199,6 +200,13 @@ test('the choice lists match the model they choose from', () => {
   assert.deepEqual(choices('profile', 'profile'), [...STROKE_PROFILES]);
   assert.deepEqual(choices('wipe', 'op'), [...WIPE_OPS], "the Wipe Stacks' ops, in the menus' order");
   assert.deepEqual(choices('stack', 'mode'), [...STACK_MODES]);
+  assert.deepEqual(choices('blend', 'mode'), [...BLEND_MODE_NAMES], 'the napkin names, then the names Illustrator and CSS give them');
+  // An effect's blends - a shadow's or a glow's, a bevel's light and shade - choose from the same names.
+  const effectBlends = specOf('effect')
+    .forms.flatMap(slotsOf)
+    .filter((s) => ['blend', 'lightBlend', 'shadeBlend'].includes(s.slot.slot));
+  assert.equal(effectBlends.length, 8, 'the four shadows and glows, and the light and the shade of a bevel and an emboss');
+  for (const s of effectBlends) assert.deepEqual(s.slot.choices, [...BLEND_MODE_NAMES], `effect ${s.slot.slot}`);
 });
 
 test('every verb has a summary and an example that uses it', () => {

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown Flow and Clean Language Accents - napkin-sketch</title>
+<meta name="description" content="napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script src="../../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../../index.html">Home</a></li><li><a href="../../install.html">Install</a></li><li><a href="../../quickstart.html">Quickstart</a></li><li><a href="../../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../../quickstart/draw.html">Draw</a></li><li><a href="../../quickstart/transform.html">Transform</a></li><li><a href="../../quickstart/layers.html">Layers</a></li><li><a href="../../quickstart/pages.html">Pages</a></li><li><a href="../../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="../../guide/index.html">Overview</a></li><li><a href="../../guide/tools.html">Tools</a></li><li><a href="../../guide/gestures.html">Gestures</a></li><li><a href="../../guide/vector-paths.html">Vector paths</a></li><li><a href="../../guide/selection.html">Selection and editing</a></li><li><a href="../../guide/transform.html">Transform</a></li><li><a href="../../guide/effects.html">Effects</a></li><li><a href="../../guide/type.html">Type</a></li><li><a href="../../guide/layers.html">Layers</a></li><li><a href="../../guide/composition-styles.html">Composition Styles</a></li><li><a href="../../guide/pages.html">Pages</a></li><li><a href="../../guide/import-export.html">Import and export</a></li><li><a href="../../guide/sharpen.html">Sharpen</a></li><li><a href="../../guide/settings.html">Settings</a></li><li><a href="../../guide/menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="../../guide/automate.html">Automate</a></li><li><a href="../../guide/animation-mode.html">Animation Mode</a></li><li><a href="../../guide/skbk-format.html">The .skbk format</a></li><li><a href="../../guide/command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../index.html">Overview</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../language/index.html">Reference</a></li><li><a href="../language/quickstart.html">Quickstart</a></li><li><a href="../language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../drawing/index.html">Reference</a></li><li><a href="../drawing/quickstart.html">Quickstart</a></li><li><a href="../drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../compose/index.html">Reference</a></li><li><a href="../compose/quickstart.html">Quickstart</a></li><li><a href="../compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../output/index.html">Reference</a></li><li><a href="../output/quickstart.html">Quickstart</a></li><li><a href="../output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../cli/index.html">Reference</a></li><li><a href="../cli/quickstart.html">Quickstart</a></li><li><a href="../cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../node/index.html">Reference</a></li><li><a href="../node/quickstart.html">Quickstart</a></li><li><a href="../node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group" open><summary>Markdown Flow and Clean Language Accents</summary><ul><li><a href="index.html" aria-current="page">Reference</a></li><li><a href="quickstart.html">Quickstart</a></li><li><a href="cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The drawing engines</summary><ul><li><a href="../engines/index.html">Reference</a></li><li><a href="../engines/quickstart.html">Quickstart</a></li><li><a href="../engines/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../interop/index.html">Reference</a></li><li><a href="../interop/quickstart.html">Quickstart</a></li><li><a href="../interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../ai/index.html">Reference</a></li><li><a href="../ai/quickstart.html">Quickstart</a></li><li><a href="../ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../../embed.html">Embedding</a></li><li><a href="../../scripting.html">Scripting</a></li><li><a href="../../ai-helpers.html">AI helpers</a></li><li><a href="../../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../../develop/building.html">Building</a></li><li><a href="../../develop/testing.html">Testing</a></li><li><a href="../../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../../changelog.html">Changelog</a></li><li><a href="../../about.html">About and license</a></li><li><a href="../../third-party-notices.html">Third-party notices</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Reference</span></nav>
+<h1 id="markdown-flow-and-clean-language-accents">Markdown Flow and Clean Language Accents<a class="anchor" href="#markdown-flow-and-clean-language-accents" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
+<p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<p><code>napkin-sketch/markdown</code> gives <code>napkin-sketch</code> its readers: marked's lexer, so
+a Markdown Flow text draws as its Markdown renders, and highlight.js, so code
+is colored as its language reads it. This page is the reference for that
+entry, for the calls in <code>napkin-sketch</code> that read with what it gives, and for
+installing a language beyond the 36 common ones.</p>
+<p><strong>Contents</strong></p>
+<ul>
+<li><a href="#what-this-is">What this is</a></li>
+<li><a href="#the-mental-model">The mental model</a></li>
+<li><a href="#reference">Reference</a>
+<ul>
+<li><a href="#the-entry">The entry</a></li>
+<li><a href="#reading-markdown-markdowntotype">Reading Markdown: markdownToType</a></li>
+<li><a href="#a-text-in-markdown-flow">A text in Markdown Flow</a></li>
+<li><a href="#coloring-code-accentruns">Coloring code: accentRuns</a></li>
+<li><a href="#installing-a-language-registeraccentlanguage">Installing a language: registerAccentLanguage</a></li>
+<li><a href="#themes-and-the-page">Themes and the page</a></li>
+<li><a href="#readers-of-your-own">Readers of your own</a></li>
+</ul></li>
+<li><a href="#worked-examples">Worked examples</a></li>
+<li><a href="#limits">Limits</a></li>
+<li><a href="#for-agents">For agents</a></li>
+<li><a href="#see-also">See also</a></li>
+</ul>
+<h2 id="what-this-is">What this is<a class="anchor" href="#what-this-is" aria-label="Link to this section">#</a></h2>
+<p>Two of the app's type features read text with libraries: <strong>Markdown Flow</strong>,
+where a text is typed as Markdown and shown as it renders, reads with
+<a href="https://marked.js.org" rel="noopener">marked</a>'s lexer; <strong>Clean Language Accents</strong>, where
+code is colored by its language, reads with
+<a href="https://highlightjs.org" rel="noopener">highlight.js</a>. The core holds neither. It reads
+with the lexer and the highlighter it is given, so <code>napkin-sketch</code> stays
+small and runs anywhere, and <code>napkin-sketch/markdown</code> is the entry that gives
+them.</p>
+<p>Importing it once is all a program does. After that, <code>napkin-sketch</code> draws a
+Markdown Flow text as its Markdown renders, colors a fenced code block whose
+language is installed, and colors a paragraph's <code>accent</code>: on the page, in SVG,
+PDF and PNG, and in an Illustrator script. The command line, the app and
+<code>napkin-sketch/node</code> import it already.</p>
+<h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
+<pre><code class="language-text"> import 'napkin-sketch/markdown'
+    --&gt; setMarkdownLexer(marked's lexer)          Markdown Flow reads with it
+    --&gt; setAccentHighlighter(highlight.js, 36)    Clean Language Accents read with it
+
+ a text, flow markdown --&gt; markdownToType --&gt; what is shown: text, runs, paragraphs
+ code + a language    --&gt; accentRuns     --&gt; colored runs, in Napkin Light or Dark
+ registerAccentLanguage(id, definition)   --&gt; one more of highlight.js's 193</code></pre>
+<p>What is drawn is worked out as the text is laid out, never stored: the
+Markdown stays the text, and the accent stays the paragraph's language.</p>
+<h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
+<h3 id="the-entry">The entry<a class="anchor" href="#the-entry" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Export</th><th>What it is</th></tr></thead>
+<tbody>
+<tr><td><code>markdownToType(source, theme?, options?)</code></td><td>Markdown read with marked's lexer: what a text shows</td></tr>
+<tr><td><code>registerAccentLanguage(id, definition?)</code></td><td>Installs a language; true when it is installed</td></tr>
+<tr><td><code>unregisterAccentLanguage(id)</code></td><td>Takes a language away: its code is plain from then on</td></tr>
+<tr><td><code>accentLanguagesInstalled()</code></td><td>The ids installed now, the 36 common ones to begin with</td></tr>
+<tr><td><code>markedLexer</code></td><td>marked's lexer, as Markdown Flow reads with it</td></tr>
+<tr><td><code>hljsHighlighter</code></td><td>highlight.js, as Clean Language Accents read with it</td></tr>
+<tr><td><code>MARKDOWN_THEME</code>, <code>MARKDOWN_CONFIG_NAMES</code></td><td>How each part of Markdown looks, and the Text Configurations that style it</td></tr>
+<tr><td><code>markdownEnter(source, index)</code></td><td>What Enter does at <code>index</code>: a list or a quote carried on</td></tr>
+</tbody></table></div>
+<p>It imports <code>napkin-sketch</code> rather than holding a copy of it, so the readers
+it registers are the ones the API reads with, in one program however many
+times either is imported.</p>
+<h3 id="reading-markdown-markdowntotype">Reading Markdown: markdownToType<a class="anchor" href="#reading-markdown-markdowntotype" aria-label="Link to this section">#</a></h3>
+<p><code>markdownToType(source)</code> reads Markdown as a text shows it: its <code>text</code>, with
+the Markdown taken out; <code>runs</code>, the attributes of each stretch, a Text
+Configuration's link among them; <code>paras</code>, each paragraph's alignment, list,
+shade and quote bar; <code>configs</code>, the configurations the runs follow; <code>map</code>,
+where in the source each character came from; and <code>blocks</code>, the source's
+blocks. Headings, emphasis, inline and fenced code, lists and task lists,
+quotes, rules, links and GitHub's tables are read; an image is its alt text.</p>
+<pre><code class="language-js">import { markdownToType } from 'napkin-sketch/markdown';
+
+const shown = markdownToType('# Acme Corp\n\nSales are **up**:\n\n- Widgets\n- Gadgets');
+shown.text; // 'Acme Corp\nSales are up:\nWidgets\nGadgets'
+shown.paras[2]?.list; // { kind: 'bullet', level: 1 }</code></pre>
+<h3 id="a-text-in-markdown-flow">A text in Markdown Flow<a class="anchor" href="#a-text-in-markdown-flow" aria-label="Link to this section">#</a></h3>
+<p>A text whose <code>typeset.flow</code> is <code>markdown</code> keeps its Markdown as its text and
+is drawn as the Markdown renders. A script makes one with <code>markdown</code>:</p>
+<pre><code class="language-napkin">textconfig &quot;Markdown Heading 1&quot; color #27486d
+text &quot;# Acme Corp\n\nSales are **up**:\n\n- Widgets\n- Gadgets&quot; at 40 60 size 14 markdown</code></pre>
+<p>Each part is styled by a Text Configuration of the book's - Markdown Heading
+1 to 6, Markdown Code, Markdown Code Block, Markdown Quote and Markdown Link -
+so restyling one restyles every text that uses it. <code>withMarkdownConfigs</code>
+gives a text the ones it is missing, <code>markdownShown</code> is the text as it is
+drawn, and <code>markdownMissing</code> names the fenced blocks whose language is not
+installed.</p>
+<h3 id="coloring-code-accentruns">Coloring code: accentRuns<a class="anchor" href="#coloring-code-accentruns" aria-label="Link to this section">#</a></h3>
+<p><code>accentRuns(code, language)</code> colors code as a language reads it: its <code>runs</code>,
+each a stretch, the highlight.js scope that colors it and the color; the
+<code>language</code> it was read as; and <code>missing</code>, the language asked for when none is
+installed by that name. A language is its id or an alias (<code>py</code>, <code>ts</code>), <code>auto</code>
+for the installed language it reads most like, or <code>none</code>.</p>
+<pre><code class="language-js">import { accentRuns } from 'napkin-sketch';
+import 'napkin-sketch/markdown';
+
+const { runs, language } = accentRuns('def total(prices):\n    return sum(prices)', 'py');
+language; // 'python'
+runs[0]; // { start: 0, end: 3, scope: 'keyword', color: '#cf222e' }</code></pre>
+<p>A paragraph's <code>accent</code> colors it the same way as the text is laid out, a run
+of paragraphs with one accent read as one piece of code; <code>applyAccent</code> sets
+it, and a script's <code>accent python</code> does it for the next text.</p>
+<h3 id="installing-a-language-registeraccentlanguage">Installing a language: registerAccentLanguage<a class="anchor" href="#installing-a-language-registeraccentlanguage" aria-label="Link to this section">#</a></h3>
+<p>The 36 languages of highlight.js's common set are installed when the entry
+is imported. Any other of its 193 is installed from its definition, which
+highlight.js ships one file a language:</p>
+<pre><code class="language-js">import { accentRuns } from 'napkin-sketch';
+import { registerAccentLanguage, unregisterAccentLanguage } from 'napkin-sketch/markdown';
+import fortran from 'highlight.js/lib/languages/fortran';
+
+registerAccentLanguage('fortran', fortran); // true
+accentRuns('x = 1', 'fortran').language; // 'fortran'
+unregisterAccentLanguage('fortran');
+accentRuns('x = 1', 'fortran').missing; // 'fortran'</code></pre>
+<p>A common language taken away comes back with <code>registerAccentLanguage(id)</code>
+and no definition. <code>ACCENT_LANGUAGES</code> in <code>napkin-sketch</code> lists all 193, by
+id, name and aliases, and <code>accentLanguage(name)</code> finds one by any of them.</p>
+<h3 id="themes-and-the-page">Themes and the page<a class="anchor" href="#themes-and-the-page" aria-label="Link to this section">#</a></h3>
+<p>Code is colored in <strong>Napkin Light</strong> or <strong>Napkin Dark</strong> (<code>ACCENT_THEMES</code>),
+every color at least 4.5:1 against its theme's code shade. Each page picks
+the one its paper suits - Dark on a page white text reads better on - unless
+<code>setAccentOptions({ theme: 'light' })</code> or <code>'dark'</code> picks one for all.
+<code>setAccentOptions({ detect: true })</code> reads a fenced block that names no
+language for the one it reads most like. Every writer colors each page for
+its own paper; <code>withAccentPage(background, make)</code> does the same for a
+program's own drawing.</p>
+<h3 id="readers-of-your-own">Readers of your own<a class="anchor" href="#readers-of-your-own" aria-label="Link to this section">#</a></h3>
+<p>The core takes any lexer and highlighter of the same shape:
+<code>setMarkdownLexer(lexer)</code> with a function from Markdown to marked's tokens,
+and <code>setAccentHighlighter(highlighter)</code> with <code>highlight</code>, <code>highlightAuto</code> and
+<code>resolve</code>, giving highlight.js's HTML, which <code>hljsHtmlToRuns</code> reads - only its
+spans and entities, anything else as the text it is, so nothing is ever
+rendered as HTML. Null takes either away: Markdown then shows as typed, and
+code is plain.</p>
+<h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
+<p>A page with a Markdown Flow note and a Python listing, written as SVG:</p>
+<pre><code class="language-js">import { drawSvg } from 'napkin-sketch';
+import 'napkin-sketch/markdown';
+
+const { svg, diagnostics } = drawSvg(
+  'napkin 1\npage 480 320\nbackground #ffffff\n' +
+    'text &quot;## Acme Corp\\n\\n- **Widgets** up\\n- Gadgets steady&quot; at 40 60 size 16 markdown\n' +
+    'font &quot;Consolas&quot; 14\naccent python\n' +
+    'text &quot;def total(prices):\\n    return sum(prices)  # in cents&quot; at 40 200\n',
+);
+diagnostics.length; // 0</code></pre>
+<p>The same script draws its heading, bullets and colored code from the command
+line, which imports the entry already:
+<code>napkin-sketch draw note.napkin --to svg,png</code>.</p>
+<h2 id="limits">Limits<a class="anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>No readers, no rendering.</strong> Without the entry - or readers of one's own -
+a Markdown Flow text shows its Markdown as typed, and code is plain: the
+text is never lost, only drawn as it is.</li>
+<li><strong>Images are their alt text.</strong> A Markdown image is not fetched.</li>
+<li><strong>Detection guesses.</strong> <code>auto</code> and detection pick the installed language
+code reads most like; a short snippet may read as another.</li>
+<li><strong>The entry is ESM</strong>, as <code>napkin-sketch</code> is, and holds marked and
+highlight.js's common set: about 390 KB.</li>
+</ul>
+<h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Import <code>napkin-sketch/markdown</code> once, before drawing</strong>, when a script has
+<code>markdown</code> or <code>accent</code>; the command line and <code>napkin-sketch/node</code> need
+nothing.</li>
+<li><strong>Name languages by id</strong> (<code>python</code>, <code>typescript</code>); an alias reads too, and
+the script keeps the id.</li>
+<li><strong>Install a language before the text that uses it is drawn</strong>: what is
+drawn is worked out then.</li>
+<li><strong>Read <code>missing</code></strong> from <code>accentRuns</code>, and <code>markdownMissing(text)</code>, to say
+which languages a drawing needs installed.</li>
+</ul>
+<h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="../drawing/index.html#text">Drawing with napkin script</a>: <code>text ...
+markdown</code>, <code>textconfig</code> and <code>accent</code>.</li>
+<li><a href="../node/index.html">Using napkin-sketch from code</a>: the package's entries.</li>
+<li><a href="../engines/index.html">The drawing engines</a>: the type engine, Text
+Configurations and the layout these readers feed.</li>
+<li><a href="https://github.com/isocialPractice/napkin-sketch/tree/main/src/markdown"><code>src/markdown/</code></a>: the entry, marked's lexer and
+highlight.js's reader; and
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/type/markdown-flow.ts"><code>src/core/type/markdown-flow.ts</code></a>
+and <a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/core/type/accents.ts"><code>accents.ts</code></a>, the core.</li>
+</ul>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="../node/cheatsheet.html" rel="prev"><span>Previous</span>Using napkin-sketch from code: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>Markdown Flow and Clean Language Accents: quickstart</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/api/markdown/README.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

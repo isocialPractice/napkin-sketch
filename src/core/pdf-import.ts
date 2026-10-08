@@ -21,6 +21,7 @@
 
 import { inflateSync } from 'node:zlib';
 import { createId, type Point, type Stroke } from './types.js';
+import { HEADLESS_MEASURE } from './type/measure.js';
 
 /** One page recovered from a PDF document. */
 export interface ImportedPdfPage {
@@ -335,7 +336,9 @@ function interpret(
     const size = fontSize * matScale(full);
     const pos = apply(full, 0, 0);
     const x = pos.x - x0;
-    const yTop = pageHeight - (pos.y - y0) - size * 0.8;
+    // A text mark is anchored at the top of its line, the built-in face's ascent above the baseline napkin writes.
+    const ascent = HEADLESS_MEASURE.extent({ family: '', style: 'Regular', size, kerning: true, smallCaps: false }).ascent;
+    const yTop = pageHeight - (pos.y - y0) - ascent;
 
     // Merge consecutive lines of one text block into a multi-line item.
     if (

@@ -16,7 +16,7 @@
  */
 
 import { hasErrors, makeDiagnostic, sortDiagnostics, suggest } from './diagnostics.js';
-import { VERB_ALIASES, VERB_WORDS, checkValue, formBlock, formFor, formSlots, isFlagPart, signaturesOf } from './grammar.js';
+import { VERB_ALIASES, VERB_WORDS, checkValue, formBlock, formFor, formSlots, isFlagPart, orderedRun, runForm, signaturesOf } from './grammar.js';
 import {
   INSTRUCTION_FIELDS,
   SCRIPT_LIMITS,
@@ -105,6 +105,13 @@ function copyValue(slot: SlotPart, value: unknown): unknown {
       }));
     case 'color':
       return String(value).trim().toLowerCase();
+    case 'runs':
+      return (value as Record<string, unknown>[]).map((run) => {
+        const slots = formSlots(runForm());
+        const copied: Record<string, unknown> = { ...run };
+        for (const { slot: inner } of slots) if (run[inner.slot] !== undefined) copied[inner.slot] = copyValue(inner, run[inner.slot]);
+        return orderedRun(copied);
+      });
     default:
       return tidyScalar(value);
   }

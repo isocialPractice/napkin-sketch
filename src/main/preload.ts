@@ -19,7 +19,7 @@ import {
   type NapkinBridge,
   type OpenResult,
   type SaveImagesResult,
-  type SaveResult,
+  type CompositionStyleFile, type OpenTextResult, type SaveResult,
 } from '../core/ipc.js';
 import type { AnimationModeStatus } from '../core/animation-install.js';
 import type { LaunchOptions } from '../core/launch.js';
@@ -31,7 +31,7 @@ import type { SketchBook } from '../core/types.js';
 const bridge: NapkinBridge = {
   getLaunch: (): Promise<LaunchOptions> => ipcRenderer.invoke(IPC.getLaunch),
   loadBook: (filePath: string): Promise<OpenResult> => ipcRenderer.invoke(IPC.loadBook, filePath),
-  openBook: (): Promise<OpenResult> => ipcRenderer.invoke(IPC.openBook),
+  openBook: (options?: { title?: string }): Promise<OpenResult> => ipcRenderer.invoke(IPC.openBook, options),
   saveBook: (filePath: string | null, book: SketchBook): Promise<SaveResult> =>
     ipcRenderer.invoke(IPC.saveBook, filePath, book),
   saveBookAs: (book: SketchBook): Promise<SaveResult> => ipcRenderer.invoke(IPC.saveBookAs, book),
@@ -41,7 +41,12 @@ const bridge: NapkinBridge = {
     ipcRenderer.invoke(IPC.saveSvg, svgContent, suggestedName),
   saveText: (text: string, suggestedName: string, extension: string): Promise<SaveResult> =>
     ipcRenderer.invoke(IPC.saveText, text, suggestedName, extension),
+  listCompositionStyles: (): Promise<CompositionStyleFile[]> => ipcRenderer.invoke(IPC.listCompositionStyles),
+  writeCompositionStyle: (file: string, text: string): Promise<SaveResult> => ipcRenderer.invoke(IPC.writeCompositionStyle, file, text),
+  deleteCompositionStyle: (file: string): Promise<boolean> => ipcRenderer.invoke(IPC.deleteCompositionStyle, file),
+  openCompositionStyle: (): Promise<OpenTextResult> => ipcRenderer.invoke(IPC.openCompositionStyle),
   writeClipboardText: (text: string): Promise<void> => ipcRenderer.invoke(IPC.writeClipboardText, text),
+  readClipboardText: (): Promise<string> => ipcRenderer.invoke(IPC.readClipboardText),
   savePdf: (pdfContent: string, suggestedName: string): Promise<SaveResult> =>
     ipcRenderer.invoke(IPC.savePdf, pdfContent, suggestedName),
   importFile: (): Promise<ImportFileResult> => ipcRenderer.invoke(IPC.importFile),

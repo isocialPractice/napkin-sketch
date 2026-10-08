@@ -14,7 +14,10 @@ arranges and saves what was drawn. For the essentials alone, start with the
 - [Vector paths and stroke profiles](vector-paths.md) - Editing anchors and handles, rounding corners, Sharpen Selection, and the four stroke profiles.
 - [Selecting and editing](selection.md) - Selecting, filling, widening, the clipboard, and what a press on a selection does.
 - [Transform, Rotate, Mirror, Mesh Warp, Liquify and Wipe Stacks](transform.md) - The Transform box, Rotate, Mirror, Mesh Warp, Liquify, the Wipe Stacks, and docking their panels.
+- [Effects and the Appearance panel](effects.md) - The Effect menu, the Appearance panel, the options of each effect, 3D Options and the gumball, and effects that follow a transform.
+- [Type](type.md) - Typing and editing text on the canvas, in a shape and along a path too, the Type panel and its fonts, the Type menu, and the editor keys.
 - [Layers and the Properties panel](layers.md) - The Layers panel, groups, restacking, and editing a selection in the Properties panel.
+- [Composition Styles](composition-styles.md) - Rules by layer name that restyle a page in one click: the panel, editing a style, the report, and the style file.
 - [Pages](pages.md) - The pages panel, page sizes, and the three ways to add a page.
 - [Import and export](import-export.md) - What SVG, PDF and pictures arrive as, and what PNG, JPEG, SVG and PDF exports keep.
 - [Sharpening](sharpen.md) - Live sharpen, Sharpen all, and how the auto-sharpen engine decides what a stroke meant.

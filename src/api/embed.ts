@@ -27,6 +27,7 @@ import {
   type ToolAlias,
   toolId,
 } from '../core/types.js';
+import { applyCompositionStyle, type CompositionStyle, type CompositionStyleReport } from '../core/composition-style.js';
 import { parseSketchBook, serializeSketchBook } from '../core/serialize.js';
 import { sketchesToPdf } from '../core/pdf.js';
 import { DEFAULT_SHARPEN_OPTIONS, sharpenStroke, sharpenStrokes, type SharpenOptions } from '../sharpen/sharpen.js';
@@ -181,6 +182,26 @@ export class NapkinSketch {
     this.undoStack.length = 0;
     this.redoStack.length = 0;
     this.fit();
+  }
+
+  // ---- Composition Styles -------------------------------------------------
+
+  /**
+   * Restyles the drawing by its layers' names, as a composition style's rules
+   * ask (core/composition-style.ts), and gives the report: the rules that
+   * matched no layer, with the nearest names, and anything else that did not
+   * go as asked. A change to the marks can be undone; the editor's history
+   * holds marks only, so a change to the layers cannot. Throws when `style`
+   * is not a composition style.
+   */
+  applyCompositionStyle(style: CompositionStyle | unknown): CompositionStyleReport {
+    const result = applyCompositionStyle(this.sketch, style);
+    if (result.report.changed === 0) return result.report;
+    if (result.strokes.length > 0) this.pushHistory();
+    this.sketch.strokes = result.sketch.strokes;
+    this.sketch.layers = result.sketch.layers;
+    this.commit();
+    return result.report;
   }
 
   /** Exports the current drawing as a data URL (PNG or JPEG). */

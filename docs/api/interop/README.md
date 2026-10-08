@@ -109,7 +109,17 @@ writer, so they write the same file.
 - **Effects are filters.** A mark's or a layer's effects are a `<filter>` of
   SVG 1.1 primitives - a Gaussian blur, a color matrix, and for a shadow the
   blur, offset, flood, composite and merge - in sRGB, so Inkscape and a
-  browser draw them, and the list rides along as `data-effects`.
+  browser draw them, and the list rides along as `data-effects`. A Splatter
+  is no filter: a splattered mark is written as its fill and its stroke
+  apart (`data-napkin-split`, `data-napkin-part`), the hatched part as the
+  lines it draws, carrying the mark it stands for - a fill's `data-fill`, a
+  line's centreline as a profiled mark's, a Copic's `data-pts` and
+  `data-nib` - so napkin reads back the mark and its live effect. A Warp is
+  no filter either: a warped mark is written bent, carrying the mark it was
+  in the same way, and a layer's or a group's Warp is on its group, its marks
+  written bent, each carrying itself as it was. A 3D mark is a group of its
+  faces, far first (`data-napkin-faces`), carrying the mark it was built
+  from the same way.
 - **The root says who wrote it**, `data-generator="napkin-sketch"`, and states
   paint most marks share - `fill="none"`, round caps and joins, the most common
   stroke width - once, for the marks to inherit.
@@ -179,11 +189,16 @@ const imported = importSvg(svgText, { unnamedRootName: 'logo' });
 | Width profiles and Copic nibs | Yes, from `data-d`, `data-profile`, `data-nib` | As the filled outline they draw | As the filled outline they draw |
 | Gradients | Yes, from `data-gradient` | Yes, as SVG gradients | Yes, as gradients with the same stops |
 | Dashes | Yes, from `data-dash` | Yes, as `stroke-dasharray` | Yes, as `strokeDashes` |
-| Text | Yes, with a wrapped box's width | As text, a `<tspan>` a line, in the reader's copy of the font | As text frames, a box as area text |
+| Text | Yes, with its runs, paragraphs, frame or path, and the Text Configurations its runs follow, from `data-typeset` | As text, a `<tspan>` a stretch in one style and a `<textPath>` for type on a path, in the reader's copy of the font | As text frames: point, area and path type, each run's characters and each paragraph set |
+| Markdown Flow text | Yes, its Markdown and its flow, from `data-text` and `data-typeset` | As it renders: the rendered text in its styles, with a quote's bars, a rule and a code block's shade as shapes under it | As it renders: the rendered text and its styles, plain text, since Illustrator has no Markdown |
+| Code colored by a Clean Language Accent | Yes, live: each paragraph's accent, from `data-typeset` | Each stretch of code in its color, a `fill` on its `<tspan>` | Each stretch of code in its color, as the run's fill |
 | Placed images | Yes, embedded | Yes, embedded | Yes, embedded |
 | Linked files | Yes, as links | As a linked image, drawn when the editor can reach the file | Yes, as placed items linked to the file |
 | Erased areas | Yes, as eraser marks on their layer | As a mask | As strokes in the paper's color |
 | Effects | Yes, from `data-effects` | As SVG filters | No: drawn plain |
+| A Splatter | Yes, live, from `data-effects` and the mark it stands for | As the lines it draws | As the lines it draws |
+| A Warp | Yes, live, from `data-effects` and the mark it stands for | As the bent shape | As the bent paths |
+| 3D | Yes, live, from `data-effects` and the mark it stands for | As its faces | As a group of its faces |
 
 The SVG writer's reductions - shortest path spellings, shared paint on the
 root, defaults left unwritten - change no coordinate: a napkin export read back
@@ -209,7 +224,7 @@ would have made of it:
 | A profiled or Copic mark | The outline it fills, as the SVG export writes it |
 | Paint | `RGBColor`s, round caps and joins, `strokeDashes`, and `opacity`, with a color's own alpha folded in; a fill and an outline of different alphas are a group of two paths |
 | A gradient | A `GradientColor` over a gradient with the same stops, a stop's alpha its opacity, laid on the axis the SVG draws it on |
-| Text | Point text from the item's top-left, or area text for a box of fixed width, set in the first family of the item's font list that Illustrator has |
+| Text | Point text on its first baseline, area text in a box or a shape, or path text along a path, set in the first family of the item's font list that Illustrator has; each run's characters and each paragraph's attributes are set on their ranges, and a run that follows a Text Configuration takes the document's Character Style of its name, made once, and then its own attributes. A Markdown Flow text is written as it renders: its rendered text, its headings', code's and links' Character Styles |
 | An image | Embedded: its bytes ride in the script, which writes them to a scratch file, places it, embeds it as a `RasterItem` and deletes the file |
 | A link | A `PlacedItem` whose `file` is the linked file: a linked file, in Illustrator's own sense |
 
@@ -228,9 +243,11 @@ would have made of it:
   with no family Illustrator has is set in Illustrator's default face. The
   script lists all of these when it ends.
 - **What the writer cannot make, it says** through `onWarning`: an effect is
-  left off, and an eraser is drawn in the paper's color, as the PDF draws one,
-  so it covers what lies under it on other layers too. On a transparent page
-  an eraser is left out.
+  left off - a Splatter, a Warp and 3D aside, which it draws as the lines, the
+  bent paths and the faces they are - and an
+  eraser is drawn in the paper's color, as the PDF draws one, so it covers
+  what lies under it on other layers too. On a transparent page an eraser is
+  left out.
 - **A run reports.** While it builds, the script works in the document's
   coordinates and keeps Illustrator's dialogs down, and it puts both settings
   back after. It ends quietly when everything was built as asked, and alerts
@@ -438,7 +455,9 @@ warns that `assets/logo.svg` could not be read, and exits with code 3.
 - **The Illustrator script leaves effects off, and paints erasers.** Illustrator
   keeps its effects as live effects, which a script cannot set, and a mask a
   script cannot cut, so an effect is left off and an eraser is drawn in the
-  paper's color; the writer says so for each.
+  paper's color; the writer says so for each. A Splatter, a Warp and 3D are
+  the exceptions: they are drawn as the lines, the bent paths and the faces
+  they are, which a script can build.
 - **An SVG link is a placeholder in Illustrator.** Illustrator's scripting
   places raster images, PDFs and Illustrator files by link, not an SVG; place
   it with File > Place, or link a PNG or a PDF.

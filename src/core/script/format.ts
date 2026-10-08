@@ -8,8 +8,8 @@
  * recorded session a script somebody can read and edit.
  */
 
-import { formBlock, formFor, isClausePart, isFlagPart, isSlotPart, isWordPart } from './grammar.js';
-import { verbSpec, type Instruction, type PointArg, type SlotPart, type StopArg } from './instructions.js';
+import { formBlock, formFor, isClausePart, isFlagPart, isSlotPart, isWordPart, runForm } from './grammar.js';
+import { verbSpec, type Instruction, type PointArg, type RunArg, type SlotPart, type StopArg, type VerbForm } from './instructions.js';
 import { formatNumber, isExpr, quoteString } from './values.js';
 
 /** How to write a script. */
@@ -41,13 +41,32 @@ function formatValue(slot: SlotPart, value: unknown): string {
     case 'pencil':
       // `charcoal-4B` is two words in a script: the hyphen before a digit would read as a minus.
       return String(value).replace('-', ' ');
+    case 'language':
+      // A name a word spells is written bare; `c++` or `1c`, in quotes.
+      return /^[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z][A-Za-z0-9_]*)*$/.test(String(value)) ? String(value) : quoteString(String(value));
     case 'points':
       return (value as PointArg[]).map((point) => `${scalar(point.x)} ${scalar(point.y)}`).join(', ');
     case 'stops':
       return `(${(value as StopArg[]).map((stop) => `${stop.color} ${scalar(stop.offset)}`).join(', ')})`;
+    case 'runs':
+      return `(${(value as RunArg[]).map((run) => [String(run.start), String(run.end), ...clauseWords(runForm(), run as unknown as Record<string, unknown>)].join(' ')).join(', ')})`;
     default:
       return scalar(value);
   }
+}
+
+/** The clauses and flags of a form a record gives, as words: a clause whole, a flag where its value is set. */
+function clauseWords(form: VerbForm, record: Readonly<Record<string, unknown>>): string[] {
+  const words: string[] = [];
+  for (const part of form.parts) {
+    if (isClausePart(part)) {
+      const given = part.parts.filter((slot) => record[slot.slot] !== undefined);
+      if (given.length > 0) words.push(part.clause, ...given.map((slot) => formatValue(slot, record[slot.slot])));
+    } else if (isFlagPart(part) && record[part.field] === part.value) {
+      words.push(part.flag);
+    }
+  }
+  return words;
 }
 
 /** A comment as one line of script text. */
@@ -76,14 +95,7 @@ function write(list: readonly Instruction[], level: number, indent: string, line
       if (isWordPart(part)) words.push(part.word);
       else if (isSlotPart(part) && record[part.slot] !== undefined) words.push(formatValue(part, record[part.slot]));
     }
-    for (const part of form.parts) {
-      if (isClausePart(part)) {
-        const given = part.parts.filter((slot) => record[slot.slot] !== undefined);
-        if (given.length > 0) words.push(part.clause, ...given.map((slot) => formatValue(slot, record[slot.slot])));
-      } else if (isFlagPart(part) && record[part.field] === part.value) {
-        words.push(part.flag);
-      }
-    }
+    words.push(...clauseWords(form, record));
     const pad = indent.repeat(level);
     const block = formBlock(form);
     if (block) {

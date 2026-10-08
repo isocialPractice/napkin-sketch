@@ -4,13 +4,13 @@
   "categories": [
     { "id": "document", "title": "Document", "summary": "The page: its size, background and name, the unit bare numbers are read in, the seed, and more pages." },
     { "id": "layers", "title": "Layers", "summary": "Named layers and nested groups, with opacity, visibility and lock." },
-    { "id": "paint", "title": "Paint", "summary": "What every mark after it is drawn with: tool, color, width, opacity, fill, gradient, outline, dash, profile, nib, font, and the hand-drawn pass." },
+    { "id": "paint", "title": "Paint", "summary": "What every mark after it is drawn with: tool, color, width, opacity, fill, gradient, outline, dash, profile, nib, pencil, font, the hand-drawn pass, and the character, paragraph, Text Configuration and code accent of the text after it." },
     { "id": "shapes", "title": "Shapes", "summary": "Marks built from Bezier anchors: rectangles, circles, ellipses, lines, polygons, stars, arcs, spirals and the shape library, and marks combined as the Wipe Stacks and the Shape Stacker combine them." },
     { "id": "paths", "title": "Paths", "summary": "Marks written segment by segment, from SVG path data or from a block of steps, curves through points, and paths cut where a point lands on them." },
     { "id": "transforms", "title": "Transforms", "summary": "Translate, rotate, scale and mirror, baked into the anchors of every mark after them, with push and pop to undo them." },
     { "id": "control", "title": "Control", "summary": "Named numbers, reusable definitions, and repetition." },
     { "id": "media", "title": "Text and media", "summary": "Text, placed images, linked files, and documents the host supplied." },
-    { "id": "effects", "title": "Effects", "summary": "Blur, shadow and color effects for the next layer, group or mark, as CSS filter functions are: drawn in SVG, in PNG and in the app, and left out of a PDF." },
+    { "id": "effects", "title": "Effects", "summary": "Effects for the next layer, group or mark - blur, color, shadows, glows, bevels, emboss and feather, Splatter, Warp and 3D - and the blend mode of the next layer or group." },
     { "id": "output", "title": "Output", "summary": "Hints the renderers read: the box every output is cut to, and one box every page shares." }
   ],
   "verbs": [
@@ -306,6 +306,110 @@
         },
         { "signature": "font <size>", "parts": [{ "slot": "size", "type": "length", "axis": "min" }] }
       ]
+    },
+    {
+      "name": "character",
+      "category": "paint",
+      "context": "document",
+      "summary": "The character attributes of text after it: its face, tracking, kerning, leading, word spacing, capitals, scales, baseline shift, turn and highlight, and whether it is a superscript or a subscript, underlined or struck through. reset puts every one back.",
+      "example": "character face \"Bold\" tracking 50 underline",
+      "forms": [
+        {
+          "signature": "character [face \"<face>\"] [tracking <n>] [kern <n>] [kerning auto|none] [leading <length>] [spacing <n>%] [caps normal|all|small] [hscale <n>%] [vscale <n>%] [shift <length>] [rotate <degrees>] [highlight <color>] [super|sub] [underline] [strike]",
+          "parts": [
+            { "clause": "face", "optional": true, "parts": [{ "slot": "face", "type": "string" }] },
+            { "clause": "tracking", "optional": true, "parts": [{ "slot": "tracking", "type": "number" }] },
+            { "clause": "kern", "optional": true, "parts": [{ "slot": "kern", "type": "number" }] },
+            { "clause": "kerning", "optional": true, "parts": [{ "slot": "kerning", "type": "choice", "choices": ["auto", "none"] }] },
+            { "clause": "leading", "optional": true, "parts": [{ "slot": "leading", "type": "length", "axis": "min" }] },
+            { "clause": "spacing", "optional": true, "parts": [{ "slot": "spacing", "type": "number", "percent": true }] },
+            { "clause": "caps", "optional": true, "parts": [{ "slot": "caps", "type": "choice", "choices": ["normal", "all", "small"] }] },
+            { "clause": "hscale", "optional": true, "parts": [{ "slot": "hscale", "type": "number", "percent": true }] },
+            { "clause": "vscale", "optional": true, "parts": [{ "slot": "vscale", "type": "number", "percent": true }] },
+            { "clause": "shift", "optional": true, "parts": [{ "slot": "shift", "type": "length", "axis": "min" }] },
+            { "clause": "rotate", "optional": true, "parts": [{ "slot": "rotate", "type": "number" }] },
+            { "clause": "highlight", "optional": true, "parts": [{ "slot": "highlight", "type": "color" }] },
+            { "flag": "super", "field": "position", "value": "superscript" },
+            { "flag": "sub", "field": "position", "value": "subscript" },
+            { "flag": "underline", "field": "underline", "value": true },
+            { "flag": "strike", "field": "strike", "value": true }
+          ]
+        },
+        { "signature": "character reset", "parts": [{ "word": "reset" }], "set": { "reset": true } }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "category": "paint",
+      "context": "document",
+      "summary": "The paragraph attributes of text after it: its alignment, its indents, the space before and after it, whether it hyphenates, and a bulleted or numbered list at a level. reset puts every one back.",
+      "example": "paragraph align justify first 18 hyphenate",
+      "forms": [
+        {
+          "signature": "paragraph [align left|center|right|justify] [indent <left> [<right>]] [first <length>] [before <length>] [after <length>] [hyphenate|nohyphenate] [list bullet|number|none] [level <n>]",
+          "parts": [
+            {
+              "clause": "align",
+              "optional": true,
+              "parts": [{ "slot": "align", "type": "choice", "choices": ["left", "center", "right", "justify"] }]
+            },
+            {
+              "clause": "indent",
+              "optional": true,
+              "parts": [{ "slot": "indent", "type": "length", "axis": "x" }, { "slot": "indentRight", "type": "length", "axis": "x", "optional": true }]
+            },
+            { "clause": "first", "optional": true, "parts": [{ "slot": "first", "type": "length", "axis": "x" }] },
+            { "clause": "before", "optional": true, "parts": [{ "slot": "before", "type": "length", "axis": "y" }] },
+            { "clause": "after", "optional": true, "parts": [{ "slot": "after", "type": "length", "axis": "y" }] },
+            { "flag": "hyphenate", "field": "hyphenate", "value": true },
+            { "flag": "nohyphenate", "field": "hyphenate", "value": false },
+            { "clause": "list", "optional": true, "parts": [{ "slot": "list", "type": "choice", "choices": ["bullet", "number", "none"] }] },
+            { "clause": "level", "optional": true, "parts": [{ "slot": "level", "type": "integer", "literal": true }] }
+          ]
+        },
+        { "signature": "paragraph reset", "parts": [{ "word": "reset" }], "set": { "reset": true } }
+      ]
+    },
+    {
+      "name": "textconfig",
+      "category": "paint",
+      "context": "document",
+      "summary": "Defines a Text Configuration, a vector editor's Character Style: a named set of character attributes the book keeps, which text follows with config and its runs with config in their clauses. What a text has of its own overrides it. Defined again under its name, it changes for every text that follows it.",
+      "example": "textconfig \"Callout\" face \"Bold\" color #cc0000",
+      "forms": [
+        {
+          "signature": "textconfig \"<name>\" [face \"<face>\"] [tracking <n>] [kerning auto|none] [leading <length>] [spacing <n>%] [caps normal|all|small] [hscale <n>%] [vscale <n>%] [shift <length>] [rotate <degrees>] [highlight <color>] [super|sub] [underline] [strike] [size <size>] [family \"<family>\"] [color <color>]",
+          "parts": [
+            { "slot": "name", "type": "string" },
+            { "clause": "face", "optional": true, "parts": [{ "slot": "face", "type": "string" }] },
+            { "clause": "tracking", "optional": true, "parts": [{ "slot": "tracking", "type": "number" }] },
+            { "clause": "kerning", "optional": true, "parts": [{ "slot": "kerning", "type": "choice", "choices": ["auto", "none"] }] },
+            { "clause": "leading", "optional": true, "parts": [{ "slot": "leading", "type": "length", "axis": "min" }] },
+            { "clause": "spacing", "optional": true, "parts": [{ "slot": "spacing", "type": "number", "percent": true }] },
+            { "clause": "caps", "optional": true, "parts": [{ "slot": "caps", "type": "choice", "choices": ["normal", "all", "small"] }] },
+            { "clause": "hscale", "optional": true, "parts": [{ "slot": "hscale", "type": "number", "percent": true }] },
+            { "clause": "vscale", "optional": true, "parts": [{ "slot": "vscale", "type": "number", "percent": true }] },
+            { "clause": "shift", "optional": true, "parts": [{ "slot": "shift", "type": "length", "axis": "min" }] },
+            { "clause": "rotate", "optional": true, "parts": [{ "slot": "rotate", "type": "number" }] },
+            { "clause": "highlight", "optional": true, "parts": [{ "slot": "highlight", "type": "color" }] },
+            { "flag": "super", "field": "position", "value": "superscript" },
+            { "flag": "sub", "field": "position", "value": "subscript" },
+            { "flag": "underline", "field": "underline", "value": true },
+            { "flag": "strike", "field": "strike", "value": true },
+            { "clause": "size", "optional": true, "parts": [{ "slot": "size", "type": "length", "axis": "min" }] },
+            { "clause": "family", "optional": true, "parts": [{ "slot": "family", "type": "string" }] },
+            { "clause": "color", "optional": true, "parts": [{ "slot": "color", "type": "color" }] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "accent",
+      "category": "paint",
+      "context": "document",
+      "summary": "A Clean Language Accent for the next text: its paragraphs are colored as a language reads them - keywords, strings, numbers, comments, names - live as the app edits them. A language by its id or a name highlight.js knows it by (a name no word spells in quotes, \"c++\"), auto for the one the code reads most like, or none. It waits for the next text; one nothing takes is reported.",
+      "example": "font \"Consolas\" 14\naccent python\ntext \"def greet(name):\\n    return 'Hello, ' + name\" at 40 60",
+      "forms": [{ "signature": "accent <language>", "parts": [{ "slot": "language", "type": "language" }] }]
     },
     {
       "name": "rect",
@@ -868,11 +972,11 @@
       "name": "text",
       "category": "media",
       "context": "document",
-      "summary": "A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as brush strokes instead.",
+      "summary": "A text item, set and aligned, and editable in the app: Sideless Typing from its anchor, Sheet Typing in a box or inside a shape, or Path Typing along a path, set in its runs' styles, the whole of it following a Text Configuration with config. With markdown its text is Markdown, shown as it renders: Markdown Flow. With as marks the letters are drawn as brush strokes instead.",
       "example": "text \"Acme Corp\" at 200 70 size 28 align center",
       "forms": [
         {
-          "signature": "text \"<text>\" at <x> <y> [size <size>] [box <width>] [align left|center|right] [as marks]",
+          "signature": "text \"<text>\" at <x> <y> [size <size>] [box <width>] [inside \"<path data>\"] [along \"<path data>\"] [start <length>] [flip] [effect rainbow|skew|ribbon|stair|gravity] [align left|center|right|justify] [vertical] [config \"<name>\"] [runs (<start> <end> [config \"<name>\"] <character clauses>, ...)] [markdown] [as marks]",
           "parts": [
             { "slot": "text", "type": "string" },
             {
@@ -881,11 +985,24 @@
             },
             { "clause": "size", "optional": true, "parts": [{ "slot": "size", "type": "length", "axis": "min" }] },
             { "clause": "box", "optional": true, "parts": [{ "slot": "box", "type": "length", "axis": "x" }] },
+            { "clause": "inside", "optional": true, "parts": [{ "slot": "inside", "type": "string" }] },
+            { "clause": "along", "optional": true, "parts": [{ "slot": "along", "type": "string" }] },
+            { "clause": "start", "optional": true, "parts": [{ "slot": "start", "type": "length", "axis": "none" }] },
+            { "flag": "flip", "field": "flip", "value": true },
+            {
+              "clause": "effect",
+              "optional": true,
+              "parts": [{ "slot": "effect", "type": "choice", "choices": ["rainbow", "skew", "ribbon", "stair", "gravity"] }]
+            },
             {
               "clause": "align",
               "optional": true,
-              "parts": [{ "slot": "align", "type": "choice", "choices": ["left", "center", "right"] }]
+              "parts": [{ "slot": "align", "type": "choice", "choices": ["left", "center", "right", "justify"] }]
             },
+            { "flag": "vertical", "field": "vertical", "value": true },
+            { "clause": "config", "optional": true, "parts": [{ "slot": "config", "type": "string" }] },
+            { "clause": "runs", "optional": true, "parts": [{ "slot": "runs", "type": "runs" }] },
+            { "flag": "markdown", "field": "markdown", "value": true },
             { "flag": "as marks", "field": "asMarks", "value": true }
           ]
         }
@@ -972,30 +1089,200 @@
       "name": "effect",
       "category": "effects",
       "context": "document",
-      "summary": "An effect for the next layer, group or mark the script makes, as its CSS filter function works: blur, brightness, contrast, saturate, grayscale, sepia, invert, hue-rotate, opacity or drop-shadow. Several stack in order, and none clears what is waiting.",
-      "example": "effect drop-shadow 4 4 8 #00000066\nrect 40 40 200 120 r 12",
+      "summary": "An effect for the next layer, group or mark the script makes: a CSS filter function - blur, brightness, contrast, saturate, grayscale, sepia, invert, hue-rotate, opacity or drop-shadow, which is Outer Shadow - an appearance effect - feather, bevel, emboss, inner-shadow, outer-glow or inner-glow - or splatter, a vector editor's Scribble, which draws a mark's fill as a loose hatch (on a layer or a group it draws nothing) - or warp, a vector editor's Warp, which bends what takes it by a style, a layer's or a group's marks as one - or extrude and revolve, a vector editor's Classic 3D, which build a mark in depth and draw it as shaded faces (on a layer or a group they draw nothing). Any of them also takes `on fill` or `on stroke`, to work on that part of a mark alone, and `hidden`, to be kept without being drawn. Several stack in order, and none clears what is waiting.",
+      "example": "effect drop-shadow 4 4 8 #00000066\nrect 40 40 200 120 r 12\neffect bevel size 6 on fill\neffect outer-glow 10 #ffcc00 blend normal\nrect 280 40 160 120 r 12",
       "forms": [
-        { "signature": "effect blur <radius>", "parts": [{ "word": "blur" }, { "slot": "radius", "type": "length", "axis": "min" }], "set": { "type": "blur" } },
-        { "signature": "effect brightness <amount>", "parts": [{ "word": "brightness" }, { "slot": "amount", "type": "number" }], "set": { "type": "brightness" } },
-        { "signature": "effect contrast <amount>", "parts": [{ "word": "contrast" }, { "slot": "amount", "type": "number" }], "set": { "type": "contrast" } },
-        { "signature": "effect saturate <amount>", "parts": [{ "word": "saturate" }, { "slot": "amount", "type": "number" }], "set": { "type": "saturate" } },
-        { "signature": "effect grayscale [<0-1>]", "parts": [{ "word": "grayscale" }, { "slot": "amount", "type": "number", "optional": true }], "set": { "type": "grayscale" } },
-        { "signature": "effect sepia [<0-1>]", "parts": [{ "word": "sepia" }, { "slot": "amount", "type": "number", "optional": true }], "set": { "type": "sepia" } },
-        { "signature": "effect invert [<0-1>]", "parts": [{ "word": "invert" }, { "slot": "amount", "type": "number", "optional": true }], "set": { "type": "invert" } },
-        { "signature": "effect hue-rotate <degrees>", "parts": [{ "word": "hue-rotate" }, { "slot": "angle", "type": "number" }], "set": { "type": "hue-rotate" } },
-        { "signature": "effect opacity <0-1>", "parts": [{ "word": "opacity" }, { "slot": "amount", "type": "number" }], "set": { "type": "opacity" } },
+        { "signature": "effect blur <radius>", "parts": [{ "word": "blur" }, { "slot": "radius", "type": "length", "axis": "min" }, { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] }, { "flag": "hidden", "field": "hidden", "value": true }], "set": { "type": "blur" } },
+        { "signature": "effect brightness <amount>", "parts": [{ "word": "brightness" }, { "slot": "amount", "type": "number" }, { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] }, { "flag": "hidden", "field": "hidden", "value": true }], "set": { "type": "brightness" } },
+        { "signature": "effect contrast <amount>", "parts": [{ "word": "contrast" }, { "slot": "amount", "type": "number" }, { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] }, { "flag": "hidden", "field": "hidden", "value": true }], "set": { "type": "contrast" } },
+        { "signature": "effect saturate <amount>", "parts": [{ "word": "saturate" }, { "slot": "amount", "type": "number" }, { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] }, { "flag": "hidden", "field": "hidden", "value": true }], "set": { "type": "saturate" } },
+        { "signature": "effect grayscale [<0-1>]", "parts": [{ "word": "grayscale" }, { "slot": "amount", "type": "number", "optional": true }, { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] }, { "flag": "hidden", "field": "hidden", "value": true }], "set": { "type": "grayscale" } },
+        { "signature": "effect sepia [<0-1>]", "parts": [{ "word": "sepia" }, { "slot": "amount", "type": "number", "optional": true }, { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] }, { "flag": "hidden", "field": "hidden", "value": true }], "set": { "type": "sepia" } },
+        { "signature": "effect invert [<0-1>]", "parts": [{ "word": "invert" }, { "slot": "amount", "type": "number", "optional": true }, { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] }, { "flag": "hidden", "field": "hidden", "value": true }], "set": { "type": "invert" } },
+        { "signature": "effect hue-rotate <degrees>", "parts": [{ "word": "hue-rotate" }, { "slot": "angle", "type": "number" }, { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] }, { "flag": "hidden", "field": "hidden", "value": true }], "set": { "type": "hue-rotate" } },
+        { "signature": "effect opacity <0-1>", "parts": [{ "word": "opacity" }, { "slot": "amount", "type": "number" }, { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] }, { "flag": "hidden", "field": "hidden", "value": true }], "set": { "type": "opacity" } },
         {
-          "signature": "effect drop-shadow <dx> <dy> <blur> <color>",
+          "signature": "effect drop-shadow <dx> <dy> <blur> <color> [spread <0-100>] [blend <mode>] [opacity <0-1>]",
           "parts": [
             { "word": "drop-shadow" },
             { "slot": "dx", "type": "length", "axis": "x" },
             { "slot": "dy", "type": "length", "axis": "y" },
             { "slot": "blur", "type": "length", "axis": "min" },
-            { "slot": "color", "type": "color" }
+            { "slot": "color", "type": "color" },
+            { "clause": "spread", "optional": true, "parts": [{ "slot": "spread", "type": "number" }] },
+            { "clause": "blend", "optional": true, "parts": [{ "slot": "blend", "type": "choice", "choices": ["normal", "soak", "stack", "scorch", "dry", "sheer", "bleach", "fold", "light", "heavy", "messy", "avoidance", "tidy", "bright", "dye", "cover", "darken", "multiply", "color-burn", "lighten", "screen", "color-dodge", "overlay", "soft-light", "hard-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] }] },
+            { "clause": "opacity", "optional": true, "parts": [{ "slot": "opacity", "type": "number" }] },
+            { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] },
+            { "flag": "hidden", "field": "hidden", "value": true }
           ],
           "set": { "type": "drop-shadow" }
         },
+        { "signature": "effect feather <radius>", "parts": [{ "word": "feather" }, { "slot": "radius", "type": "length", "axis": "min" }, { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] }, { "flag": "hidden", "field": "hidden", "value": true }], "set": { "type": "feather" } },
+        {
+          "signature": "effect bevel [inner|outer] [size <n>] [depth <percent>] [angle <degrees>] [altitude <degrees>] [soften <n>] [up|down] [light <color> [<0-1>]] [shade <color> [<0-1>]] [light-blend <mode>] [shade-blend <mode>]",
+          "parts": [
+            { "word": "bevel" },
+            { "slot": "style", "type": "choice", "choices": ["inner", "outer"], "optional": true },
+            { "clause": "size", "optional": true, "parts": [{ "slot": "size", "type": "length", "axis": "min" }] },
+            { "clause": "depth", "optional": true, "parts": [{ "slot": "depth", "type": "number" }] },
+            { "clause": "angle", "optional": true, "parts": [{ "slot": "angle", "type": "number" }] },
+            { "clause": "altitude", "optional": true, "parts": [{ "slot": "altitude", "type": "number" }] },
+            { "clause": "soften", "optional": true, "parts": [{ "slot": "soften", "type": "length", "axis": "min" }] },
+            { "flag": "up", "field": "direction", "value": "up" },
+            { "flag": "down", "field": "direction", "value": "down" },
+            { "clause": "light", "optional": true, "parts": [{ "slot": "lightColor", "type": "color" }, { "slot": "lightOpacity", "type": "number", "optional": true }] },
+            { "clause": "shade", "optional": true, "parts": [{ "slot": "shadeColor", "type": "color" }, { "slot": "shadeOpacity", "type": "number", "optional": true }] },
+            { "clause": "light-blend", "optional": true, "parts": [{ "slot": "lightBlend", "type": "choice", "choices": ["normal", "soak", "stack", "scorch", "dry", "sheer", "bleach", "fold", "light", "heavy", "messy", "avoidance", "tidy", "bright", "dye", "cover", "darken", "multiply", "color-burn", "lighten", "screen", "color-dodge", "overlay", "soft-light", "hard-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] }] },
+            { "clause": "shade-blend", "optional": true, "parts": [{ "slot": "shadeBlend", "type": "choice", "choices": ["normal", "soak", "stack", "scorch", "dry", "sheer", "bleach", "fold", "light", "heavy", "messy", "avoidance", "tidy", "bright", "dye", "cover", "darken", "multiply", "color-burn", "lighten", "screen", "color-dodge", "overlay", "soft-light", "hard-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] }] },
+            { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] },
+            { "flag": "hidden", "field": "hidden", "value": true }
+          ],
+          "set": { "type": "bevel" }
+        },
+        {
+          "signature": "effect emboss [emboss|pillow] [size <n>] [depth <percent>] [angle <degrees>] [altitude <degrees>] [soften <n>] [up|down] [light <color> [<0-1>]] [shade <color> [<0-1>]] [light-blend <mode>] [shade-blend <mode>]",
+          "parts": [
+            { "word": "emboss" },
+            { "slot": "style", "type": "choice", "choices": ["emboss", "pillow"], "optional": true },
+            { "clause": "size", "optional": true, "parts": [{ "slot": "size", "type": "length", "axis": "min" }] },
+            { "clause": "depth", "optional": true, "parts": [{ "slot": "depth", "type": "number" }] },
+            { "clause": "angle", "optional": true, "parts": [{ "slot": "angle", "type": "number" }] },
+            { "clause": "altitude", "optional": true, "parts": [{ "slot": "altitude", "type": "number" }] },
+            { "clause": "soften", "optional": true, "parts": [{ "slot": "soften", "type": "length", "axis": "min" }] },
+            { "flag": "up", "field": "direction", "value": "up" },
+            { "flag": "down", "field": "direction", "value": "down" },
+            { "clause": "light", "optional": true, "parts": [{ "slot": "lightColor", "type": "color" }, { "slot": "lightOpacity", "type": "number", "optional": true }] },
+            { "clause": "shade", "optional": true, "parts": [{ "slot": "shadeColor", "type": "color" }, { "slot": "shadeOpacity", "type": "number", "optional": true }] },
+            { "clause": "light-blend", "optional": true, "parts": [{ "slot": "lightBlend", "type": "choice", "choices": ["normal", "soak", "stack", "scorch", "dry", "sheer", "bleach", "fold", "light", "heavy", "messy", "avoidance", "tidy", "bright", "dye", "cover", "darken", "multiply", "color-burn", "lighten", "screen", "color-dodge", "overlay", "soft-light", "hard-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] }] },
+            { "clause": "shade-blend", "optional": true, "parts": [{ "slot": "shadeBlend", "type": "choice", "choices": ["normal", "soak", "stack", "scorch", "dry", "sheer", "bleach", "fold", "light", "heavy", "messy", "avoidance", "tidy", "bright", "dye", "cover", "darken", "multiply", "color-burn", "lighten", "screen", "color-dodge", "overlay", "soft-light", "hard-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] }] },
+            { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] },
+            { "flag": "hidden", "field": "hidden", "value": true }
+          ],
+          "set": { "type": "emboss" }
+        },
+        {
+          "signature": "effect inner-shadow <dx> <dy> <blur> <color> [choke <0-100>] [blend <mode>] [opacity <0-1>]",
+          "parts": [
+            { "word": "inner-shadow" },
+            { "slot": "dx", "type": "length", "axis": "x" },
+            { "slot": "dy", "type": "length", "axis": "y" },
+            { "slot": "blur", "type": "length", "axis": "min" },
+            { "slot": "color", "type": "color" },
+            { "clause": "choke", "optional": true, "parts": [{ "slot": "choke", "type": "number" }] },
+            { "clause": "blend", "optional": true, "parts": [{ "slot": "blend", "type": "choice", "choices": ["normal", "soak", "stack", "scorch", "dry", "sheer", "bleach", "fold", "light", "heavy", "messy", "avoidance", "tidy", "bright", "dye", "cover", "darken", "multiply", "color-burn", "lighten", "screen", "color-dodge", "overlay", "soft-light", "hard-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] }] },
+            { "clause": "opacity", "optional": true, "parts": [{ "slot": "opacity", "type": "number" }] },
+            { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] },
+            { "flag": "hidden", "field": "hidden", "value": true }
+          ],
+          "set": { "type": "inner-shadow" }
+        },
+        {
+          "signature": "effect outer-glow [<blur>] [<color>] [spread <0-100>] [blend <mode>] [opacity <0-1>]",
+          "parts": [
+            { "word": "outer-glow" },
+            { "slot": "blur", "type": "length", "axis": "min", "optional": true },
+            { "slot": "color", "type": "color", "optional": true },
+            { "clause": "spread", "optional": true, "parts": [{ "slot": "spread", "type": "number" }] },
+            { "clause": "blend", "optional": true, "parts": [{ "slot": "blend", "type": "choice", "choices": ["normal", "soak", "stack", "scorch", "dry", "sheer", "bleach", "fold", "light", "heavy", "messy", "avoidance", "tidy", "bright", "dye", "cover", "darken", "multiply", "color-burn", "lighten", "screen", "color-dodge", "overlay", "soft-light", "hard-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] }] },
+            { "clause": "opacity", "optional": true, "parts": [{ "slot": "opacity", "type": "number" }] },
+            { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] },
+            { "flag": "hidden", "field": "hidden", "value": true }
+          ],
+          "set": { "type": "outer-glow" }
+        },
+        {
+          "signature": "effect inner-glow [<blur>] [<color>] [choke <0-100>] [edge|center] [blend <mode>] [opacity <0-1>]",
+          "parts": [
+            { "word": "inner-glow" },
+            { "slot": "blur", "type": "length", "axis": "min", "optional": true },
+            { "slot": "color", "type": "color", "optional": true },
+            { "clause": "choke", "optional": true, "parts": [{ "slot": "choke", "type": "number" }] },
+            { "flag": "edge", "field": "source", "value": "edge" },
+            { "flag": "center", "field": "source", "value": "center" },
+            { "clause": "blend", "optional": true, "parts": [{ "slot": "blend", "type": "choice", "choices": ["normal", "soak", "stack", "scorch", "dry", "sheer", "bleach", "fold", "light", "heavy", "messy", "avoidance", "tidy", "bright", "dye", "cover", "darken", "multiply", "color-burn", "lighten", "screen", "color-dodge", "overlay", "soft-light", "hard-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] }] },
+            { "clause": "opacity", "optional": true, "parts": [{ "slot": "opacity", "type": "number" }] },
+            { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] },
+            { "flag": "hidden", "field": "hidden", "value": true }
+          ],
+          "set": { "type": "inner-glow" }
+        },
+        {
+          "signature": "effect splatter [preset <name>] [angle <degrees>] [overlap <n> [<variation>]] [width <n>] [curviness <percent> [<variation>]] [spacing <n> [<variation>]] [seed <n>]",
+          "parts": [
+            { "word": "splatter" },
+            { "clause": "preset", "optional": true, "parts": [{ "slot": "preset", "type": "choice", "choices": ["default", "childlike", "dense", "loose", "moire", "sharp", "sketch", "snarl", "swash", "tight", "zig-zag"] }] },
+            { "clause": "angle", "optional": true, "parts": [{ "slot": "angle", "type": "number" }] },
+            { "clause": "overlap", "optional": true, "parts": [{ "slot": "overlap", "type": "length", "axis": "min" }, { "slot": "overlapVariation", "type": "length", "axis": "min", "optional": true }] },
+            { "clause": "width", "optional": true, "parts": [{ "slot": "width", "type": "length", "axis": "min" }] },
+            { "clause": "curviness", "optional": true, "parts": [{ "slot": "curviness", "type": "number" }, { "slot": "curvinessVariation", "type": "number", "optional": true }] },
+            { "clause": "spacing", "optional": true, "parts": [{ "slot": "spacing", "type": "length", "axis": "min" }, { "slot": "spacingVariation", "type": "length", "axis": "min", "optional": true }] },
+            { "clause": "seed", "optional": true, "parts": [{ "slot": "seed", "type": "number" }] },
+            { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] },
+            { "flag": "hidden", "field": "hidden", "value": true }
+          ],
+          "set": { "type": "splatter" }
+        },
+        {
+          "signature": "effect warp <style> [bend <percent>] [horizontal|vertical] [distort <percent> [<percent>]] [part whole|lower|upper]",
+          "parts": [
+            { "word": "warp" },
+            { "slot": "style", "type": "choice", "choices": ["arc", "arch", "unroll", "shell", "windy", "breezy", "curvy", "chart", "puffy", "expand", "cram", "twirl", "arc-lower", "arc-upper", "bulge", "shell-lower", "shell-upper", "flag", "wave", "fish", "rise", "fisheye", "inflate", "squeeze", "twist"] },
+            { "clause": "bend", "optional": true, "parts": [{ "slot": "bend", "type": "number", "percent": true }] },
+            { "flag": "horizontal", "field": "orientation", "value": "horizontal" },
+            { "flag": "vertical", "field": "orientation", "value": "vertical" },
+            { "clause": "distort", "optional": true, "parts": [{ "slot": "distortH", "type": "number", "percent": true }, { "slot": "distortV", "type": "number", "percent": true, "optional": true }] },
+            { "clause": "part", "optional": true, "parts": [{ "slot": "part", "type": "choice", "choices": ["whole", "lower", "upper"] }] },
+            { "clause": "on", "optional": true, "parts": [{ "slot": "target", "type": "choice", "choices": ["fill", "stroke"] }] },
+            { "flag": "hidden", "field": "hidden", "value": true }
+          ],
+          "set": { "type": "warp" }
+        },
+        {
+          "signature": "effect extrude [<depth>] [rotate <x> <y> <z>] [perspective <degrees>] [shading plastic|diffuse|none|wireframe] [hollow] [light <azimuth> <elevation> [<intensity> [<ambient>]]] [position <x> <y> <z>] [scale <x> <y> <z>]",
+          "parts": [
+            { "word": "extrude" },
+            { "slot": "depth", "type": "length", "axis": "min", "optional": true },
+            { "clause": "rotate", "optional": true, "parts": [{ "slot": "rotateX", "type": "number" }, { "slot": "rotateY", "type": "number" }, { "slot": "rotateZ", "type": "number" }] },
+            { "clause": "perspective", "optional": true, "parts": [{ "slot": "perspective", "type": "number" }] },
+            { "clause": "shading", "optional": true, "parts": [{ "slot": "shading", "type": "choice", "choices": ["plastic", "diffuse", "none", "wireframe"] }] },
+            { "flag": "hollow", "field": "hollow", "value": true },
+            { "clause": "light", "optional": true, "parts": [{ "slot": "lightAzimuth", "type": "number" }, { "slot": "lightElevation", "type": "number" }, { "slot": "lightIntensity", "type": "number", "optional": true }, { "slot": "lightAmbient", "type": "number", "optional": true }] },
+            { "clause": "position", "optional": true, "parts": [{ "slot": "positionX", "type": "length", "axis": "min" }, { "slot": "positionY", "type": "length", "axis": "min" }, { "slot": "positionZ", "type": "length", "axis": "min" }] },
+            { "clause": "scale", "optional": true, "parts": [{ "slot": "scaleX", "type": "number" }, { "slot": "scaleY", "type": "number" }, { "slot": "scaleZ", "type": "number" }] },
+            { "flag": "hidden", "field": "hidden", "value": true }
+          ],
+          "set": { "type": "extrude" }
+        },
+        {
+          "signature": "effect revolve [angle <degrees>] [offset <n>] [axis left|right] [segments <n>] [rotate <x> <y> <z>] [perspective <degrees>] [shading plastic|diffuse|none|wireframe] [hollow] [light <azimuth> <elevation> [<intensity> [<ambient>]]] [position <x> <y> <z>] [scale <x> <y> <z>]",
+          "parts": [
+            { "word": "revolve" },
+            { "clause": "angle", "optional": true, "parts": [{ "slot": "angle", "type": "number" }] },
+            { "clause": "offset", "optional": true, "parts": [{ "slot": "offset", "type": "length", "axis": "min" }] },
+            { "clause": "axis", "optional": true, "parts": [{ "slot": "axis", "type": "choice", "choices": ["left", "right"] }] },
+            { "clause": "segments", "optional": true, "parts": [{ "slot": "segments", "type": "integer" }] },
+            { "clause": "rotate", "optional": true, "parts": [{ "slot": "rotateX", "type": "number" }, { "slot": "rotateY", "type": "number" }, { "slot": "rotateZ", "type": "number" }] },
+            { "clause": "perspective", "optional": true, "parts": [{ "slot": "perspective", "type": "number" }] },
+            { "clause": "shading", "optional": true, "parts": [{ "slot": "shading", "type": "choice", "choices": ["plastic", "diffuse", "none", "wireframe"] }] },
+            { "flag": "hollow", "field": "hollow", "value": true },
+            { "clause": "light", "optional": true, "parts": [{ "slot": "lightAzimuth", "type": "number" }, { "slot": "lightElevation", "type": "number" }, { "slot": "lightIntensity", "type": "number", "optional": true }, { "slot": "lightAmbient", "type": "number", "optional": true }] },
+            { "clause": "position", "optional": true, "parts": [{ "slot": "positionX", "type": "length", "axis": "min" }, { "slot": "positionY", "type": "length", "axis": "min" }, { "slot": "positionZ", "type": "length", "axis": "min" }] },
+            { "clause": "scale", "optional": true, "parts": [{ "slot": "scaleX", "type": "number" }, { "slot": "scaleY", "type": "number" }, { "slot": "scaleZ", "type": "number" }] },
+            { "flag": "hidden", "field": "hidden", "value": true }
+          ],
+          "set": { "type": "revolve" }
+        },
         { "signature": "effect none", "parts": [{ "word": "none" }], "set": { "type": "none" } }
+      ]
+    },
+    {
+      "name": "blend",
+      "category": "effects",
+      "context": "document",
+      "summary": "How the next layer or group the script makes mixes with what is drawn under it, the page's background included: a Napkin Blend by its name or by Illustrator's - stack or multiply, sheer or screen, cover or luminosity. A blend is a layer's, so it waits for the next layer or group; normal sets one back.",
+      "example": "blend stack\nlayer \"Shadow\"\ncircle 140 140 80",
+      "forms": [
+        { "signature": "blend <mode>", "parts": [{ "slot": "mode", "type": "choice", "choices": ["normal", "soak", "stack", "scorch", "dry", "sheer", "bleach", "fold", "light", "heavy", "messy", "avoidance", "tidy", "bright", "dye", "cover", "darken", "multiply", "color-burn", "lighten", "screen", "color-dodge", "overlay", "soft-light", "hard-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] }] }
       ]
     },
     {
@@ -1073,6 +1360,7 @@
     { "code": "unknown-shape", "level": "error", "summary": "shape names something the shape library does not have." },
     { "code": "unknown-asset", "level": "error", "summary": "image names an asset the host did not supply." },
     { "code": "unknown-document", "level": "error", "summary": "use names a document the host did not supply." },
+    { "code": "unknown-config", "level": "error", "summary": "config names a Text Configuration no textconfig before it defined." },
     { "code": "image-size-unknown", "level": "warning", "summary": "An image's size cannot be read from its data, so it is placed square: 100 by 100, or the one size given by itself." },
     { "code": "glyph-missing", "level": "warning", "summary": "text as marks has a character the built-in face does not draw; it is left as a gap." },
     { "code": "unknown-field", "level": "warning", "summary": "An instruction in a JSON script has a field its verb does not have; it is left out." },
@@ -1084,6 +1372,8 @@
     { "code": "duplicate-definition", "level": "warning", "summary": "A second define replaces an earlier one of the same name." },
     { "code": "link-unresolved", "level": "warning", "summary": "A linked file could not be read for an output that has to draw it, so its placeholder was drawn instead." },
     { "code": "unused-effect", "level": "warning", "summary": "An effect nothing took: no layer, group or mark followed it before its block, its page or the script ended." },
+    { "code": "unused-blend", "level": "warning", "summary": "A blend nothing took: no layer or group followed it before another blend, its block, its page or the script ended. A blend is a layer's, so a mark alone does not take it." },
+    { "code": "unused-accent", "level": "warning", "summary": "An accent nothing took: no text followed it before another accent, its block, its page or the script ended, or the text was drawn as marks." },
     { "code": "wipe-skipped", "level": "warning", "summary": "A wipe's or a stack's block drew marks it cannot combine - text, pictures, linked files, eraser marks - and they are drawn as they are." },
     { "code": "wipe-empty", "level": "warning", "summary": "A wipe or a stack left nothing: out-front's bottom mark wholly covered by the rest, say, or a stack remove taking every piece." },
     { "code": "wipe-failed", "level": "warning", "summary": "A wipe or a stack could not combine its block's marks - fewer than two it can combine, more than it takes, or geometry it could not make - so they are drawn as they are." },

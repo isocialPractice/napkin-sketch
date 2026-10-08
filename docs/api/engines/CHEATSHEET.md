@@ -78,6 +78,39 @@ Reminders for the engines: what each call takes, what it gives back, and where i
 | `liquifiable(mark)`, `liquifyReaches(mark, dab)` | Whether it bends; whether a dab reaches it |
 | `liquifyFalloff(distance, radius)` | 1 at the centre to 0 at the rim |
 
+## Blends, effects, Splatter, Warp and 3D
+
+| Call | Gives |
+| --- | --- |
+| `BLEND_MODES`, `blendModeOf(name)` | The sixteen modes; the id any of a mode's names gives, or undefined |
+| `blendPixel(mode, backdrop, source)` | Two straight RGBA pixels, channels 0 to 1, mixed |
+| `defaultEffect(type)` | An effect with a vector editor's defaults |
+| `addEffect(effects, effect, target)`, `removeEffect`, `moveEffect`, `toggleEffect` | A new list, the one given unchanged |
+| `appearanceSections(effects)` | `{ stroke, fill, object }`: the Appearance panel's sections |
+| `effectsAfterTransform(effects, transform)` | The list scaled, turned or mirrored with its mark |
+| `fromRgba8`, `runEffects(img, effects, matrix, warn)`, `toRgba8` | Effects drawn over a picture in place; what is laid under it apart |
+| `splatterPaths(region, options)` | A region's fill as a hatch, paths of cubic anchors; `SPLATTER_PRESETS` by name |
+| `warpStyleMap(style, box, options)` | One of `WARP_STYLES` over a box: `point(p)` and `jacobian(p)` |
+| `extrudeMesh(outline, depth, caps)`, `revolveMesh(outline, shape, tolerance)` | A solid: `faces`, each a cap or a side, and `closed` |
+| `render3d(mark, effect)` | A 3D effect's shaded faces, far ones first |
+
+## Type, paths and styles
+
+| Call | Gives |
+| --- | --- |
+| `lengthTable(anchors, closed)` | A path's lengths, `total` among them |
+| `pointAtLength`, `tangentAtLength`, `normalAtLength(table, s)` | The point, direction and normal that far along |
+| `curvatureAtLength(table, s)`, `nearestLength(table, p)` | The bend there; `{ length, point, distance }` nearest a point |
+| `layoutType(mark, measure)` | `{ lines, glyphs, overset }`, set in the built-in face with no measure |
+| `hyphenate(word)` | The word's parts, broken where the en-US patterns allow |
+| `openSfnt(bytes)`, `glyphOutline(face, glyphId)` | A font file read, or `{ problem }`; a glyph's contours |
+| `fileOutlineSource(files, measure)` | Font files by family as a measure and the faces to draw from |
+| `outlineText(mark, layout, source)` | `{ marks }`: a text as its glyphs' outlines, a mark each |
+| `newTextConfig(list, attrs, id, name)` | A Text Configuration |
+| `applyTextConfig(mark, range, config)`, `resolveRunAttrs(base, config, overrides)` | A stretch put on one; what a run draws as |
+| `applyCompositionStyle(page, style)` | `{ sketch, report }`: the page restyled by its layers' names, and what did not match |
+| `captureCompositionStyle(page, name)`, `validateCompositionStyle(raw)` | A page's named layers as a style; `{ ok, style, errors, notes }` |
+
 ## Limits
 
 | Limit | Value |
@@ -99,4 +132,7 @@ Reminders for the engines: what each call takes, what it gives back, and where i
 | Is it clipped here | `clippedAt(page, mark, point, clipIndex(page))` |
 | A pencil's tone | `pencilPaint('2B').tone` |
 | A dent pushed into the marks | `liquifyMarks(marks, [{ mode: 'warp', x, y, radius, dx, dy }], { refit: 0.5 })` |
+| A glow on a mark | `addEffect(mark.effects ?? [], defaultEffect('outer-glow'))` |
+| A word broken | `hyphenate('composition').join('-')` |
+| A page in another style | `applyCompositionStyle(page, style).sketch` |
 | An edit made | changed in place, removed gone, added on `above` ([the helper](README.md#applying-an-edit)) |

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Text tool's cursor for Sideless Typing: an I-beam, its hotspot at its
+     middle (12, 12), the short bar under it marking the baseline - light
+     under dark, to read on any paper. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <g fill="none" stroke-linecap="round">
+    <path d="M9 4.5H15M9 19.5H15M12 4.5V19.5M10 15.5H14" stroke="#ffffff" stroke-width="3.4" />
+    <path d="M9 4.5H15M9 19.5H15M12 4.5V19.5M10 15.5H14" stroke="#1f2328" stroke-width="1.4" />
+  </g>
+</svg>

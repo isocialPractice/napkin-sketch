@@ -12,6 +12,7 @@ import { COLOR_NAMES } from '../graphic-design/color.js';
 import { parseExpression } from './expr.js';
 import {
   VERB_NAMES,
+  verbSpec,
   type BlockPart,
   type ClausePart,
   type DiagnosticCode,
@@ -25,12 +26,89 @@ import {
 } from './instructions.js';
 import { isColor, isExpr, isIdentifier, isKnownUnit, readLengthLiteral, RESERVED_NAMES, UNITS_SENTENCE } from './values.js';
 import { parsePencil } from '../pencil.js';
+import { ACCENT_LANGUAGES, accentLanguage } from '../type/accents.js';
+import { suggest } from './diagnostics.js';
+
+/** The two words a language slot takes beside a language: `auto`, the one the code reads most like, and `none`. */
+function isAccentWord(value: string): boolean {
+  return value === 'auto' || value === 'none';
+}
 
 export const isSlotPart = (part: FormPart): part is SlotPart => 'slot' in part;
 export const isWordPart = (part: FormPart): part is WordPart => 'word' in part;
 export const isClausePart = (part: FormPart): part is ClausePart => 'clause' in part;
 export const isFlagPart = (part: FormPart): part is FlagPart => 'flag' in part;
 export const isBlockPart = (part: FormPart): part is BlockPart => 'block' in part;
+
+/** The Text Configuration a run of a text follows, by name: written first, its own attributes after it override it. */
+const RUN_CONFIG_CLAUSE: ClausePart = { clause: 'config', optional: true, parts: [{ slot: 'config', type: 'string' }] };
+
+/**
+ * The clauses a run of a text takes beyond `character`'s: a size, a family
+ * and a color of its own, which `font` and `color` set for a whole text.
+ */
+const RUN_OWN_CLAUSES: readonly ClausePart[] = [
+  { clause: 'size', optional: true, parts: [{ slot: 'size', type: 'length', axis: 'min' }] },
+  { clause: 'family', optional: true, parts: [{ slot: 'family', type: 'string' }] },
+  { clause: 'color', optional: true, parts: [{ slot: 'color', type: 'color' }] },
+];
+
+let runFormKept: VerbForm | null = null;
+
+/**
+ * How a run of a text is written inside `runs (...)`, after its start and its
+ * end: the Text Configuration it follows, `character`'s clauses and flags,
+ * then a size, a family and a color of its own. The parser reads a run with
+ * it, the formatter writes one with it, and the validator checks one against
+ * it, so the three agree.
+ */
+export function runForm(): VerbForm {
+  if (runFormKept) return runFormKept;
+  const character = verbSpec('character')?.forms[0];
+  runFormKept = {
+    signature: '<start> <end> [config "<name>"] [character clauses] [size <size>] [family "<family>"] [color <color>]',
+    parts: [RUN_CONFIG_CLAUSE, ...(character?.parts ?? []), ...RUN_OWN_CLAUSES],
+  };
+  return runFormKept;
+}
+
+/** A run's fields in the order they are written: its start and end, then the run form's. */
+export function orderedRun(fields: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const out: Record<string, unknown> = { start: fields.start, end: fields.end };
+  const form = runForm();
+  for (const { slot } of formSlots(form)) if (fields[slot.slot] !== undefined) out[slot.slot] = fields[slot.slot];
+  for (const flag of form.parts.filter(isFlagPart)) if (fields[flag.field] !== undefined && out[flag.field] === undefined) out[flag.field] = fields[flag.field];
+  return out;
+}
+
+/** What is wrong with a run, when something is: its start and end, and each attribute against the run form. */
+function checkRun(run: unknown): ValueProblem | null {
+  if (!run || typeof run !== 'object' || Array.isArray(run)) {
+    return { code: 'invalid-value', message: 'A run is an object: its `start`, its `end`, and its attributes.' };
+  }
+  const r = run as Record<string, unknown>;
+  const start = r.start;
+  const end = r.end;
+  if (typeof start !== 'number' || typeof end !== 'number' || !Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start) {
+    return { code: 'invalid-value', message: 'A run needs a whole-number `start` and an `end` after it, counting characters from 0.' };
+  }
+  const form = runForm();
+  const slots = formSlots(form);
+  const flags = form.parts.filter(isFlagPart);
+  for (const [field, value] of Object.entries(r)) {
+    if (field === 'start' || field === 'end' || value === undefined) continue;
+    const slot = slots.find((s) => s.slot.slot === field);
+    if (slot) {
+      const problem = checkValue(slot.slot, value);
+      if (problem) return problem;
+      continue;
+    }
+    const own = flags.filter((flag) => flag.field === field);
+    if (own.some((flag) => flag.value === value)) continue;
+    return { code: 'invalid-value', message: `A run has no \`${field}\`${own.length > 0 ? ` of ${JSON.stringify(value)}` : ''}.` };
+  }
+  return null;
+}
 
 /** One slot of a form, with whether the form can leave it out and the clause it sits in. */
 export interface FormSlot {
@@ -71,6 +149,7 @@ export function describeSlot(slot: SlotPart): string {
         ? 'a length, such as `400` or `210mm`'
         : 'a length, such as `120`, `10mm` or `50%`';
     case 'number':
+      if (slot.percent) return 'a percent, such as `50` or `50%`, or an expression in parentheses';
       return slot.literal ? 'a number' : 'a number, or an expression in parentheses';
     case 'integer':
       return slot.literal ? 'a whole number' : 'a whole number, or an expression in parentheses';
@@ -86,10 +165,14 @@ export function describeSlot(slot: SlotPart): string {
       return '`on` or `off`';
     case 'pencil':
       return 'a pencil: a graphite grade from `9H` to `9B`, or `charcoal`, `compressed` or `vine` and its grade, such as `charcoal 4B` or `vine soft`';
+    case 'language':
+      return 'a language highlight.js reads, by its id or a name it goes by - such as `python`, `ts` or `"c++"` - or `auto` or `none`';
     case 'points':
       return 'a list of points, `x y, x y, ...`';
     case 'stops':
       return 'gradient stops, `(color offset, color offset, ...)`';
+    case 'runs':
+      return 'runs of the text, `(start end attributes, start end attributes, ...)`';
   }
 }
 
@@ -104,8 +187,10 @@ export const EXPECTED_CODES: Readonly<Record<SlotType, DiagnosticCode>> = {
   choice: 'expected-choice',
   switch: 'expected-choice',
   pencil: 'expected-choice',
+  language: 'expected-choice',
   points: 'expected-points',
   stops: 'expected-stops',
+  runs: 'invalid-value',
 };
 
 /** What went wrong with a value, when something did. */
@@ -208,6 +293,11 @@ export function checkValue(slot: SlotPart, value: unknown): ValueProblem | null 
       return typeof value === 'string' && parsePencil(value)
         ? null
         : { code: 'expected-choice', message: `\`${String(value)}\` is not ${describeSlot(slot)}.` };
+    case 'language': {
+      if (typeof value === 'string' && (isAccentWord(value) || accentLanguage(value) !== null)) return null;
+      const guess = typeof value === 'string' ? suggest(value, ACCENT_LANGUAGES.flatMap((language) => [language.id, ...language.aliases])) : null;
+      return { code: 'expected-choice', message: `\`${String(value)}\` is not ${describeSlot(slot)}.${guess ? ` Did you mean \`${guess}\`?` : ''}` };
+    }
     case 'points': {
       if (!Array.isArray(value)) return { code: 'expected-points', message: 'A list of points was expected.' };
       const min = slot.minItems ?? 1;
@@ -223,6 +313,14 @@ export function checkValue(slot: SlotPart, value: unknown): ValueProblem | null 
       if (value.length < 2) return { code: 'expected-stops', message: 'A gradient needs at least two stops.' };
       for (const stop of value) {
         const problem = checkStop(stop);
+        if (problem) return problem;
+      }
+      return null;
+    }
+    case 'runs': {
+      if (!Array.isArray(value)) return { code: 'invalid-value', message: 'A list of runs was expected: `(start end attributes, ...)`.' };
+      for (const run of value) {
+        const problem = checkRun(run);
         if (problem) return problem;
       }
       return null;

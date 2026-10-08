@@ -3,16 +3,26 @@
  * SVG read back with them, and a composition painted into a canvas through
  * `ctx.filter`.
  *
- * Four runs. The first opens the book a script with effects writes and looks
+ * Six runs. The first opens the book a script with effects writes and looks
  * for what each one paints: a mark's shadow in the shadow's color, down and
  * right of the mark; a layer's grayscale, with its green gone gray; and a
  * group's shadow, which is one picture, so where its two children's shadows
  * overlap it is no darker than where they do not. The second opens a blurred
  * square and counts the soft halo around it. The third imports the SVG
  * `renderSketch` writes for the shadow and the grayscale, which carries them
- * as `data-effects`, and finds both painted again. The fourth paints a
- * composition with effects into a canvas of its own, in the app's page, with
- * the composition canvas painter.
+ * as `data-effects`, and finds both painted again.
+ *
+ * The fourth opens a page of the appearance effects on kraft paper and reads
+ * known points: an Inner Glow aimed at a mark's fill, which leaves its stroke
+ * clean; a Bevel, light at the top left and shaded at the bottom right; a
+ * red shadow that multiplies, into the blue layer under it and into the
+ * paper; and a Feather, faded at the edge and solid inside. Then it pans, and
+ * counts the effect pictures the canvas works out: a pan works out none. The
+ * fifth imports that page's SVG - a mark split into its fill and its stroke,
+ * a shadow laid under its mark as a <use> - and finds each mark and effect
+ * back as one, painted as before. The sixth paints a composition with effects
+ * into a canvas of its own, in the app's page, with the composition canvas
+ * painter, a shadow that multiplies among them.
  *
  * The script module and the painter are TypeScript, so they are bundled with
  * esbuild first, into a temporary folder.
@@ -212,7 +222,127 @@ try {
   await stop(app);
 }
 
-// ---- Four: a composition painted into a canvas through ctx.filter ------------------------------
+// ---- Four and five: the appearance effects on the canvas, and back from the SVG ----------------
+
+const APPEARANCE_SCRIPT = `napkin 1
+page 1280 800
+background #d9c49a
+layer "Back"
+stroke off fill #3399ff
+rect 640 300 260 200
+layer "Glow"
+stroke on color #1f2328 width 8 fill #ffe08a
+effect inner-glow 16 #ff0000 blend normal opacity 1 on fill
+rect 100 100 240 160
+layer "Bevel"
+stroke off fill #4a7fb5
+effect bevel size 12
+rect 100 400 240 160
+layer "Shade"
+fill #ffffff
+effect drop-shadow 60 60 0 #ff0000 blend multiply
+rect 500 260 200 160
+layer "Soft"
+fill #000000
+effect feather 20
+rect 1000 100 200 200
+`;
+
+/** The canvas's colors at page points, as [r, g, b] each, after the next frame. */
+const colorsAt = (points) => `
+  await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+  const v = window.napkinCheck.viewState();
+  const cv = document.getElementById('canvas');
+  const k = cv.width / cv.getBoundingClientRect().width;
+  const ctx = cv.getContext('2d');
+  return ${JSON.stringify(points)}.map((p) => Array.from(ctx.getImageData(Math.round((v.panX + p.x * v.zoom) * k), Math.round((v.panY + p.y * v.zoom) * k), 1, 1).data.slice(0, 3)));
+`;
+const near = (got, want, tolerance) => got.every((v, i) => Math.abs(v - want[i]) <= tolerance);
+const mean = (rgb) => (rgb[0] + rgb[1] + rgb[2]) / 3;
+
+/** The appearance probes, read on a page drawn from APPEARANCE_SCRIPT, the paper kraft. */
+async function probeAppearance(page, name) {
+  const [stroke, fillEdge, fillMiddle, lit, shaded, flat, overBlue, overPaper, white, featherEdge, featherIn] = await page.evalIn(
+    colorsAt([
+      { x: 220, y: 100 },
+      { x: 220, y: 106 },
+      { x: 220, y: 180 },
+      { x: 106, y: 406 },
+      { x: 334, y: 554 },
+      { x: 220, y: 480 },
+      { x: 730, y: 450 },
+      { x: 600, y: 450 },
+      { x: 600, y: 340 },
+      { x: 1001, y: 200 },
+      { x: 1040, y: 200 },
+    ]),
+  );
+  c.ok(`${name}: an Inner Glow aimed at the fill leaves the stroke clean`, near(stroke, [0x1f, 0x23, 0x28], 8), JSON.stringify(stroke));
+  c.ok(`${name}: and glows red inside it`, fillEdge[0] > 240 && fillEdge[1] < 210, JSON.stringify(fillEdge));
+  c.ok(`${name}: and leaves the fill's middle as it is`, near(fillMiddle, [0xff, 0xe0, 0x8a], 4), JSON.stringify(fillMiddle));
+  c.ok(`${name}: a Bevel lit from the upper left is light at its top-left corner and shaded at its bottom right`, mean(lit) > mean(flat) + 20 && mean(shaded) < mean(flat) - 20, JSON.stringify({ lit, flat, shaded }));
+  c.ok(`${name}: and flat in its middle`, near(flat, [0x4a, 0x7f, 0xb5], 4), JSON.stringify(flat));
+  c.ok(`${name}: a red shadow that multiplies mixes with the blue layer under it`, near(overBlue, [0x33, 0, 0], 6), JSON.stringify(overBlue));
+  c.ok(`${name}: and with the paper`, near(overPaper, [0xd9, 0, 0], 6), JSON.stringify(overPaper));
+  c.ok(`${name}: under the mark that casts it, the mark`, near(white, [255, 255, 255], 3), JSON.stringify(white));
+  c.ok(`${name}: Feather fades a mark to almost nothing at its edge`, mean(featherEdge) > 140, JSON.stringify(featherEdge));
+  c.ok(`${name}: and leaves it solid inside`, mean(featherIn) < 12, JSON.stringify(featherIn));
+}
+
+const appearance = bookOf('appearance', APPEARANCE_SCRIPT);
+app = launch({ mode: 'book', filePath: appearance.path });
+try {
+  const page = await connect();
+  await page.send('Runtime.enable');
+  await sleep(3500);
+  await probeAppearance(page, 'The appearance effects');
+
+  // A pan reuses each mark's effect picture: none is worked out again.
+  const rasters = await page.evalIn('return window.napkinCheck.effectRasters();');
+  const before = await page.evalIn('return window.napkinCheck.viewState();');
+  const box = await page.evalIn("const r = document.getElementById('canvas').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };");
+  for (const deltaY of [120, 120, -120]) {
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: box.x, y: box.y, deltaX: 0, deltaY });
+    await sleep(250);
+  }
+  const after = await page.evalIn('return window.napkinCheck.viewState();');
+  const again = await page.evalIn('return window.napkinCheck.effectRasters();');
+  c.ok('the canvas worked out the marks\' effect pictures', rasters >= 3, `${rasters} pictures`);
+  c.ok('a pan works none of them out again', after.panY !== before.panY && again === rasters, JSON.stringify({ rasters, again, before: before.panY, after: after.panY }));
+} catch (err) {
+  console.error('check failed:', err);
+  process.exitCode = 1;
+} finally {
+  await stop(app);
+}
+
+const appearanceSvg = join(dir, 'appearance.svg');
+writeFileSync(appearanceSvg, renderSketch(appearance.result.book.sketches[0], { format: 'svg' }));
+const kraft = bookOf('kraft', 'napkin 1\npage 1280 800\nbackground #d9c49a\nname "kraft"\n');
+app = launch({ mode: 'book', filePath: kraft.path, importFiles: [appearanceSvg] });
+try {
+  const page = await connect();
+  await page.send('Runtime.enable');
+  await sleep(3500);
+  const marks = await page.evalIn('return window.napkinCheck.strokeSummary();');
+  const effectsOn = async (layer) => {
+    const mark = marks.find((m) => m.layer === layer);
+    return mark ? (await page.evalIn(`return window.napkinCheck.effectsOf(${JSON.stringify(mark.id)});`))?.mark ?? null : null;
+  };
+  const glow = await effectsOn('Glow');
+  c.ok('an imported napkin SVG brings a mark split into its fill and its stroke back as one mark', marks.filter((m) => m.layer === 'Glow').length === 1, JSON.stringify(marks.filter((m) => m.layer === 'Glow')));
+  c.ok('with its effect aimed at its fill', glow?.[0]?.type === 'inner-glow' && glow[0].target === 'fill', JSON.stringify(glow));
+  const shade = await effectsOn('Shade');
+  c.ok('and a shadow that multiplies, as one effect, not as the copy laid under its mark', shade?.length === 1 && shade[0].blend === 'stack' && marks.filter((m) => m.layer === 'Shade').length === 1, JSON.stringify(shade));
+  await probeAppearance(page, 'Read back from the SVG');
+} catch (err) {
+  console.error('check failed:', err);
+  process.exitCode = 1;
+} finally {
+  await stop(app);
+}
+
+// ---- Six: a composition painted into a canvas ----------------------------------------------------
 
 const painterEntry = join(dir, 'painter.ts');
 writeFileSync(
@@ -228,13 +358,16 @@ export function run() {
   });
   design.rect({ x: 140, y: 20, width: 60, height: 60, fill: '#00ff00', effects: [{ type: 'grayscale', amount: 1 }] });
   design.rect({ x: 150, y: 100, width: 40, height: 40, fill: '#000000', effects: [{ type: 'blur', radius: 4 }] });
+  // A shadow no CSS filter draws: drawn on the pixel passes, and laid under its element by its blend.
+  design.rect({ x: 20, y: 105, width: 60, height: 40, fill: '#3399ff' });
+  design.rect({ x: 10, y: 95, width: 30, height: 20, fill: '#ffffff', effects: [{ type: 'drop-shadow', dx: 30, dy: 20, blur: 0, color: '#ff0000', blend: 'stack' }] });
   const canvas = document.createElement('canvas');
   canvas.width = 240;
   canvas.height = 160;
   const ctx = canvas.getContext('2d');
   paintComposition(ctx, design.toDocument());
   const at = (x, y) => Array.from(ctx.getImageData(x, y, 1, 1).data);
-  return { overlap: at(65, 75), single: at(30, 75), gray: at(170, 50), edge: at(150, 120), middle: at(170, 120) };
+  return { overlap: at(65, 75), single: at(30, 75), gray: at(170, 50), edge: at(150, 120), middle: at(170, 120), multiplied: at(60, 130) };
 }
 `,
 );
@@ -249,6 +382,7 @@ try {
   c.ok('the canvas painter draws a group with effects as one picture', Math.abs(seen.overlap[0] - seen.single[0]) <= 2 && Math.abs(seen.single[0] - 128) <= 3, JSON.stringify(seen));
   c.ok("and an element's grayscale", Math.abs(seen.gray[0] - 182) <= 2 && Math.abs(seen.gray[1] - 182) <= 2, JSON.stringify(seen.gray));
   c.ok('and its blur, soft at the edge and solid in the middle', seen.edge[0] > 40 && seen.edge[0] < 215 && seen.middle[0] < 10, JSON.stringify({ edge: seen.edge, middle: seen.middle }));
+  c.ok('and a red shadow that multiplies into the blue under its element', Math.abs(seen.multiplied[0] - 0x33) <= 4 && seen.multiplied[1] <= 4 && seen.multiplied[2] <= 4, JSON.stringify(seen.multiplied));
 } catch (err) {
   console.error('check failed:', err);
   process.exitCode = 1;

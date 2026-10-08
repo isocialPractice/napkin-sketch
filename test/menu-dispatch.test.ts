@@ -195,6 +195,11 @@ test("a context menu shows each row's label, shortcut and state, and a click run
     'Deselect All [Ctrl+Shift+A]',
     '---',
     'Wipe Stacks []',
+    '---',
+    'Apply Last Effect [Ctrl+Shift+E]',
+    'Last Effect… [Ctrl+Alt+Shift+E]',
+    'Expand Appearance []',
+    'Clear Appearance []',
   ]);
   items[2].action!();
   items[9].action!();
@@ -215,6 +220,15 @@ test("a submenu inside the canvas menu's Wipe Stacks panel lays its rows out in 
   const greyed = inlineDeeperSubmenus(contextMenuItems(contextItems(registry, 'canvas', { fewerThanTwoShapes: true }), () => {}).find((item) => item.label === 'Wipe Stacks')!.items!);
   assert.ok(greyed.filter((item) => !item.separator).every((item) => item.disabled), 'greyed with fewer than two shapes, the laid-out rows too');
   assert.deepEqual(inlineDeeperSubmenus([{ label: 'A' }, { separator: true }, { separator: true }, { label: 'B' }, { separator: true }]).map((i) => i.label ?? '---'), ['A', '---', 'B'], 'no separator twice, none at the end');
+});
+
+test('a greyed Warp row says why in the in-page menus, and a live one says nothing', () => {
+  const rows = (noShapes: boolean): ContextMenuItem[] =>
+    contextMenuItems(contextItems(registry, 'effect-button', { noShapes }), () => {}).find((item) => item.label === 'Warp')!.items!;
+  const greyed = rows(true);
+  assert.equal(greyed.length, 12);
+  assert.ok(greyed.every((item) => item.disabled && /Pictures take no Warp, Splatter or 3D/.test(item.title ?? '')), JSON.stringify(greyed[0]));
+  assert.ok(rows(false).every((item) => !item.disabled && item.title === undefined));
 });
 
 test('a row with a submenu opens it rather than running anything, and a Mac reads the shortcuts its own way', () => {

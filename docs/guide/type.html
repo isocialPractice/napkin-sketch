@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Type - napkin-sketch</title>
+<meta name="description" content="Typing and editing text on the canvas, in a shape and along a path too, the Type panel and its fonts, the Type menu, and the editor keys.">
+<meta name="generator" content="napkin-sketch npm run site">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to the page</a>
+<header class="topbar">
+<button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
+<a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
+<span class="topbar-spacer"></span>
+<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
+<button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
+</header>
+<div class="scrim" data-scrim></div>
+<nav class="sidebar" id="menu" aria-label="Documentation">
+<p class="nav-section">Start</p>
+<ul><li><a href="../index.html">Home</a></li><li><a href="../install.html">Install</a></li><li><a href="../quickstart.html">Quickstart</a></li><li><a href="../cheatsheet.html">Cheatsheet</a></li></ul>
+<p class="nav-section">Quickstarts</p>
+<ul><li><a href="../quickstart/draw.html">Draw</a></li><li><a href="../quickstart/transform.html">Transform</a></li><li><a href="../quickstart/layers.html">Layers</a></li><li><a href="../quickstart/pages.html">Pages</a></li><li><a href="../quickstart/automate.html">Automate</a></li></ul>
+<p class="nav-section">Using the app</p>
+<ul><li><a href="index.html">Overview</a></li><li><a href="tools.html">Tools</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="vector-paths.html">Vector paths</a></li><li><a href="selection.html">Selection and editing</a></li><li><a href="transform.html">Transform</a></li><li><a href="effects.html">Effects</a></li><li><a href="type.html" aria-current="page">Type</a></li><li><a href="layers.html">Layers</a></li><li><a href="composition-styles.html">Composition Styles</a></li><li><a href="pages.html">Pages</a></li><li><a href="import-export.html">Import and export</a></li><li><a href="sharpen.html">Sharpen</a></li><li><a href="settings.html">Settings</a></li><li><a href="menus-and-shortcuts.html">Menus and shortcuts</a></li><li><a href="automate.html">Automate</a></li><li><a href="animation-mode.html">Animation Mode</a></li><li><a href="skbk-format.html">The .skbk format</a></li><li><a href="command-line.html">Command line</a></li></ul>
+<p class="nav-section">Drawing from a script</p>
+<ul><li><a href="../api/index.html">Overview</a></li><li><a href="../api/quickstart.html">Quickstart</a></li><li><a href="../api/cheatsheet.html">Cheatsheet</a></li><li><details class="nav-group"><summary>The napkin script language</summary><ul><li><a href="../api/language/index.html">Reference</a></li><li><a href="../api/language/quickstart.html">Quickstart</a></li><li><a href="../api/language/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Drawing with napkin script</summary><ul><li><a href="../api/drawing/index.html">Reference</a></li><li><a href="../api/drawing/quickstart.html">Quickstart</a></li><li><a href="../api/drawing/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The graphic design API</summary><ul><li><a href="../api/compose/index.html">Reference</a></li><li><a href="../api/compose/quickstart.html">Quickstart</a></li><li><a href="../api/compose/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Writing a drawing out</summary><ul><li><a href="../api/output/index.html">Reference</a></li><li><a href="../api/output/quickstart.html">Quickstart</a></li><li><a href="../api/output/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The napkin-sketch command line</summary><ul><li><a href="../api/cli/index.html">Reference</a></li><li><a href="../api/cli/quickstart.html">Quickstart</a></li><li><a href="../api/cli/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Using napkin-sketch from code</summary><ul><li><a href="../api/node/index.html">Reference</a></li><li><a href="../api/node/quickstart.html">Quickstart</a></li><li><a href="../api/node/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Markdown Flow and Clean Language Accents</summary><ul><li><a href="../api/markdown/index.html">Reference</a></li><li><a href="../api/markdown/quickstart.html">Quickstart</a></li><li><a href="../api/markdown/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The drawing engines</summary><ul><li><a href="../api/engines/index.html">Reference</a></li><li><a href="../api/engines/quickstart.html">Quickstart</a></li><li><a href="../api/engines/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>Working with other programs</summary><ul><li><a href="../api/interop/index.html">Reference</a></li><li><a href="../api/interop/quickstart.html">Quickstart</a></li><li><a href="../api/interop/cheatsheet.html">Cheatsheet</a></li></ul></details></li><li><details class="nav-group"><summary>The AI helpers</summary><ul><li><a href="../api/ai/index.html">Reference</a></li><li><a href="../api/ai/quickstart.html">Quickstart</a></li><li><a href="../api/ai/cheatsheet.html">Cheatsheet</a></li></ul></details></li></ul>
+<p class="nav-section">Building on it</p>
+<ul><li><a href="../embed.html">Embedding</a></li><li><a href="../scripting.html">Scripting</a></li><li><a href="../ai-helpers.html">AI helpers</a></li><li><a href="../ai-helper.html">Helper plugins</a></li></ul>
+<p class="nav-section">Developing</p>
+<ul><li><a href="../develop/building.html">Building</a></li><li><a href="../develop/testing.html">Testing</a></li><li><a href="../develop/project-structure.html">Project structure</a></li></ul>
+<p class="nav-section">Project</p>
+<ul><li><a href="../changelog.html">Changelog</a></li><li><a href="../about.html">About and license</a></li><li><a href="../third-party-notices.html">Third-party notices</a></li></ul>
+</nav>
+<main class="page" id="content">
+<article class="content">
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Using the app</a> <span class="sep">/</span> <span aria-current="page">Type</span></nav>
+<h1 id="type">Type<a class="anchor" href="#type" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#typing-a-new-text">Typing a new text</a></li><li><a href="#sheet-typing">Sheet Typing</a></li><li><a href="#path-typing">Path Typing</a></li><li><a href="#text-that-runs-out-of-room">Text that runs out of room</a></li><li><a href="#editing-a-text-again">Editing a text again</a></li><li><a href="#the-caret-and-the-selection">The caret and the selection</a></li><li><a href="#moving-the-caret">Moving the caret</a></li><li><a href="#putting-the-text-down">Putting the text down</a></li><li><a href="#undo">Undo</a></li><li><a href="#the-clipboard">The clipboard</a></li><li><a href="#typing-with-an-input-method">Typing with an input method</a></li><li><a href="#the-type-panel">The Type panel</a></li><li><a href="#text-configurations">Text Configurations</a></li><li><a href="#markdown-flow">Markdown Flow</a></li><li><a href="#clean-language-accents">Clean Language Accents</a></li><li><a href="#the-type-menu">The Type menu</a></li><li><a href="#expand-text-to-shape">Expand Text to Shape</a></li><li><a href="#the-editor-keys">The editor keys</a></li><li><a href="#screen-readers">Screen readers</a></li></ul></details>
+<p><em>New in 1.0.0-alpha.5.0.0.</em></p>
+<h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Text is typed where it stands on the canvas.</strong> The text, the caret and
+the selection are drawn on the page itself, so what you type looks as it
+will look in an export: its runs of styles, a frame it fills, a path it
+follows, vertical columns.</li>
+<li><strong>The Text tool (<code>T</code>)</strong> reads what it clicks and what is selected. On the
+canvas it begins <strong>Sideless Typing</strong>, a text that grows as it is typed; in
+a selected shape, <strong>Sheet Typing</strong>, lines that fill the shape; on a
+selected path, <strong>Path Typing</strong>, characters that follow it. A drag draws a
+new text box, and a click on a text edits it (see
+<a href="#typing-a-new-text">Typing a new text</a>).</li>
+<li><strong>A double-click</strong> on a text with the Select or Direct Select tool edits it
+too, the caret where the click was.</li>
+<li><strong><code>Enter</code> makes a new line.</strong> <code>Esc</code> or <code>Ctrl+Enter</code> puts the text down.</li>
+<li><strong>A burst of typing is one undo step.</strong> <code>Ctrl+Z</code> takes back what was typed
+since the last pause.</li>
+<li><strong>The editor keys</strong> size, space, shift and align what is selected, as a
+vector editor's do (see <a href="#the-editor-keys">The editor keys</a>).</li>
+<li><strong>The Type panel</strong> (<code>Ctrl+Shift+T</code>, <code>Ctrl+Alt+T</code>) sets the font, size,
+spacing and style of the text, and its paragraphs' alignment, lists and
+indents (see <a href="#the-type-panel">The Type panel</a>).</li>
+<li><strong>Text Configurations</strong>, a vector editor's Character Styles, are named sets
+of character attributes that text follows: change one, and every text that
+follows it changes (see <a href="#text-configurations">Text Configurations</a>).</li>
+<li><strong>Markdown Flow</strong> (<code>Ctrl+Alt+M</code>) types a text as Markdown and shows it as it
+renders - headings, lists, quotes, code, tables - the block the caret is in
+showing its Markdown (see <a href="#markdown-flow">Markdown Flow</a>).</li>
+<li><strong>Clean Language Accents</strong> (<code>Ctrl+Alt+L</code>) color code as its language reads
+it, live as it is edited, in Markdown and in any text (see
+<a href="#clean-language-accents">Clean Language Accents</a>).</li>
+<li><strong>The Type menu</strong> sets the size and the orientation, and holds the options
+of text in a shape and of text along a path (see <a href="#the-type-menu">The Type menu</a>).</li>
+<li><strong>Expand Text to Shape</strong> (<code>Ctrl+Shift+O</code>) turns a text into its glyphs'
+shapes, as its font draws them (see
+<a href="#expand-text-to-shape">Expand Text to Shape</a>). A Warp, a Splatter and 3D
+work on a text through the same outlines, and it stays text (see
+<a href="effects.html#text-through-its-outlines">Effects</a>).</li>
+</ul>
+<h2 id="typing-a-new-text">Typing a new text<a class="anchor" href="#typing-a-new-text" aria-label="Link to this section">#</a></h2>
+<p>The Text tool reads the gesture, and what is selected, as a vector editor's
+Type, Area Type and Type on a Path tools would between them. Only a
+<strong>selected</strong> path turns into type: a path the tool merely clicks on stays a
+path, and the text is typed beside it.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Gesture</th><th>Makes</th></tr></thead>
+<tbody>
+<tr><td>Click on the canvas, or on art that is not selected</td><td><strong>Sideless Typing</strong> at the click: the top of its first line is there, and it grows as it is typed</td></tr>
+<tr><td>Drag on the canvas</td><td><strong>Sheet Typing</strong> in a new rectangle, the drag's</td></tr>
+<tr><td>Click inside, or on, a selected closed shape</td><td><strong>Sheet Typing</strong> inside the shape</td></tr>
+<tr><td>Click on a selected open path</td><td><strong>Path Typing</strong> along the path, from the click</td></tr>
+<tr><td><code>Alt</code> + click on a selected closed shape</td><td><strong>Path Typing</strong> along its outline</td></tr>
+<tr><td><code>Alt</code> + click on a selected open path</td><td><strong>Sheet Typing</strong> in the region the path closes</td></tr>
+<tr><td><code>Ctrl+V</code> with a path selected, text on the clipboard, and no text being typed</td><td><strong>Path Typing</strong> of the clipboard's text along the path, from its start</td></tr>
+<tr><td>Click on a text</td><td>edits it</td></tr>
+</tbody></table></div>
+<p>The pointer shows what a click will do: an I-beam for Sideless Typing, an
+I-beam in a dotted box over a selected closed shape, and an I-beam on a wavy
+line over a selected path.</p>
+<p>A new text is not on the page until its first character is typed. Put down
+with nothing typed, it leaves no mark and no undo step; emptied before it is
+put down, it goes. The spaces a text is typed with are kept, at its start and
+its end too.</p>
+<p>A new text takes the last font chosen in the Type panel, the text size set
+in Quick Settings, and the tool's ink.</p>
+<h2 id="sheet-typing">Sheet Typing<a class="anchor" href="#sheet-typing" aria-label="Link to this section">#</a></h2>
+<p>A text in a shape runs its lines inside it, each as wide as the shape is
+where the line falls, so text in a circle is set as a circle.</p>
+<ul>
+<li><strong>The shape becomes the text's frame</strong> with the first character typed, in
+the same undo step: the path is gone from the page, and its fill and
+stroke are the frame's own, drawn under the text. <strong>Type &gt; Area Type
+Options...</strong> changes them.</li>
+<li><strong>A drag's rectangle keeps its size</strong>, and text that does not fit runs out
+of room (see <a href="#text-that-runs-out-of-room">Text that runs out of room</a>).
+A drag too flat to hold one line makes a box as wide as the drag that
+grows down to fit.</li>
+<li><strong>Direct Select reaches the frame's anchors</strong> and handles, as it reaches any
+path's. Moving one reshapes the frame and the text reflows in it; the
+characters keep their size.</li>
+<li><strong>The Transform Box scales the frame, not the text</strong>: a wider frame holds
+longer lines. A Sideless Typing text scales its characters, as before.</li>
+</ul>
+<h2 id="path-typing">Path Typing<a class="anchor" href="#path-typing" aria-label="Link to this section">#</a></h2>
+<p>A text along a path follows it, each character standing across the path at
+its place.</p>
+<ul>
+<li><strong>The path becomes the text's path</strong> with the first character typed, in the
+same undo step. Its own fill and stroke are dropped, as a vector editor
+drops them.</li>
+<li><strong>The brackets.</strong> While the text is selected alone with the Select tool,
+three brackets stand on the path: the start, the end, and in the middle the
+center, on the side the text stands. Drag the start or the end along the
+path to set where the text may run. Drag the center across the path to flip
+the text to the other side. Each drag is one undo step.</li>
+<li><strong>Direct Select</strong> moves the path's anchors and handles, and the text
+follows. <strong>The Transform Box</strong> scales the path, not the text.</li>
+<li><strong>Type &gt; Type on a Path</strong> holds its options and <strong>Flip</strong> (see
+<a href="#the-type-menu">The Type menu</a>).</li>
+</ul>
+<h2 id="text-that-runs-out-of-room">Text that runs out of room<a class="anchor" href="#text-that-runs-out-of-room" aria-label="Link to this section">#</a></h2>
+<p>A text in a shape or along a path that holds more than it can show marks it
+with a red plus in a small box: at the frame's lower right corner, or at the
+end bracket of a text along a path. Nothing typed is lost. Make the frame larger, the path longer or the
+text smaller, and the rest shows again.</p>
+<h2 id="editing-a-text-again">Editing a text again<a class="anchor" href="#editing-a-text-again" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>With the Text tool</strong>, click a text: the caret goes before the character
+you clicked, or after it when you clicked its second half.</li>
+<li><strong>With the Select or Direct Select tool</strong>, double-click a text. The tool
+stays in hand: a click on the text places the caret, and a click off it
+puts the text down and does what that tool does.</li>
+</ul>
+<p>While a text is edited it has no selection box. A text in a shape and a text
+on a path show their frame or their path as a faint dashed guide. Selected,
+they show it as a faint line.</p>
+<h2 id="the-caret-and-the-selection">The caret and the selection<a class="anchor" href="#the-caret-and-the-selection" aria-label="Link to this section">#</a></h2>
+<p>The caret stands on the line, as tall as the text typing there would set:
+the character before it, or at a line's start the one after. A size the
+editor keys set for the next text shows in the caret's height before
+anything is typed. Along a path the caret stands across the path; in
+vertical text it lies across the column. It blinks while the text has the
+keyboard, and keeps its place in the text through a pan or a zoom.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>To select</th><th>Do</th></tr></thead>
+<tbody>
+<tr><td>From the caret to a place</td><td><code>Shift</code> + click there</td></tr>
+<tr><td>What a drag crosses</td><td>Drag across the text</td></tr>
+<tr><td>A word</td><td>Double-click it</td></tr>
+<tr><td>A paragraph</td><td>Triple-click it</td></tr>
+<tr><td>All the text</td><td><code>Ctrl+A</code></td></tr>
+<tr><td>A character or a line more</td><td><code>Shift</code> + an arrow key</td></tr>
+</tbody></table></div>
+<p>The selection is drawn as a highlight over each line it covers. When a panel
+takes the keyboard, the highlight dims and the caret hides; click the text to
+carry on.</p>
+<h2 id="moving-the-caret">Moving the caret<a class="anchor" href="#moving-the-caret" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Keys</th><th>Moves the caret</th></tr></thead>
+<tbody>
+<tr><td><code>Left</code> / <code>Right</code></td><td>a character back or on</td></tr>
+<tr><td><code>Up</code> / <code>Down</code></td><td>a line up or down, keeping its place along the line</td></tr>
+<tr><td><code>Ctrl+Left</code> / <code>Ctrl+Right</code></td><td>a word back or on</td></tr>
+<tr><td><code>Ctrl+Up</code> / <code>Ctrl+Down</code></td><td>a paragraph back or on</td></tr>
+<tr><td><code>Home</code> / <code>End</code></td><td>to the line's start or end</td></tr>
+<tr><td><code>Ctrl+Home</code> / <code>Ctrl+End</code></td><td>to the text's start or end</td></tr>
+</tbody></table></div>
+<p><code>Shift</code> with any of them selects as it goes. In vertical text the arrows
+follow the columns: <code>Up</code> and <code>Down</code> step through a column, and <code>Left</code> moves
+on to the next column, which is the one to the left. Along a path, <code>Up</code> and
+<code>Down</code> go to the text's start and end.</p>
+<h2 id="putting-the-text-down">Putting the text down<a class="anchor" href="#putting-the-text-down" aria-label="Link to this section">#</a></h2>
+<p>Any of these ends the editing and keeps what was typed:</p>
+<ul>
+<li><code>Esc</code>, or <code>Ctrl+Enter</code>;</li>
+<li>choosing another tool;</li>
+<li>a click off the text with the Select or Direct Select tool;</li>
+<li>a <code>Ctrl</code> + click elsewhere: holding <code>Ctrl</code> with the Text tool shows the
+last selection tool, as it does over any drawing tool, and its click puts
+the text down.</li>
+</ul>
+<p>The text is left selected. Holding <code>Ctrl</code> leaves the keyboard with the text,
+so <code>Ctrl+C</code>, <code>Ctrl+V</code> and the editor keys still reach it while the selection
+tool shows.</p>
+<h2 id="undo">Undo<a class="anchor" href="#undo" aria-label="Link to this section">#</a></h2>
+<p>A burst of typing is one undo step. A burst ends after a second with no key,
+when the caret moves somewhere else, when an editor key changes the style, or
+when the text is put down. A paste, a cut and each editor key are steps of
+their own. Undo and redo while editing keep the editing going; an undo that
+takes away a text's first characters takes the new text away with them.</p>
+<h2 id="the-clipboard">The clipboard<a class="anchor" href="#the-clipboard" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>Copy</strong> puts the selected text on the clipboard as plain text, and with
+its styles for napkin-sketch.</li>
+<li><strong>Paste</strong> into a text keeps the styles of text copied from a text here.
+Text from anywhere else takes the style at the caret.</li>
+<li><strong><code>Ctrl+Shift+V</code></strong> pastes plain text, in the style at the caret.</li>
+</ul>
+<p>While a text is edited, Edit &gt; Cut, Copy, Paste, Delete and Select All act
+on the text, and Paste in Place is the plain paste.</p>
+<h2 id="typing-with-an-input-method">Typing with an input method<a class="anchor" href="#typing-with-an-input-method" aria-label="Link to this section">#</a></h2>
+<p>An input method's composition is drawn in the text as it is typed,
+underlined, and replaced by what it commits. The input method's candidates
+show beside the caret.</p>
+<h2 id="the-type-panel">The Type panel<a class="anchor" href="#the-type-panel" aria-label="Link to this section">#</a></h2>
+<p>The Type panel is a vector editor's Character, Paragraph and Character
+Styles panels in one, a tab each: <strong>Character</strong>, <strong>Paragraph</strong> and
+<strong>Configurations</strong> (see <a href="#text-configurations">Text Configurations</a>).</p>
+<ul>
+<li><strong>View &gt; Toggle Character Panel</strong> (<code>Ctrl+Shift+T</code>) brings it up on
+Character, and <strong>View &gt; Toggle Paragraph Panel</strong> (<code>Ctrl+Alt+T</code>) on
+Paragraph; the same key again puts it away. Both keys work while a text is
+being typed.</li>
+<li><strong>It comes up by itself</strong> while the Text tool is in hand and a text is
+selected or being typed, and goes again when another tool is chosen. One
+opened from the View menu stays; one put away stays away until the Text
+tool is put down or no text is selected. <strong>Show the Type panel with the
+text tool</strong>, in the Type section of Verbose Settings, turns this off.</li>
+</ul>
+<p>The first time it comes up it is docked beside the canvas; it floats, moves
+and docks as the other panels do. Docked, it narrows the canvas, and text
+being typed where the panel now stands is panned back into view.</p>
+<h3 id="what-it-changes">What it changes<a class="anchor" href="#what-it-changes" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>While</th><th>It changes</th></tr></thead>
+<tbody>
+<tr><td>characters are selected in a text being typed</td><td>those characters</td></tr>
+<tr><td>only the caret is in a text being typed</td><td>what is typed next; kerning, alignment and lists change the text at the caret</td></tr>
+<tr><td>texts are selected with a selection tool</td><td>all of each text</td></tr>
+<tr><td>no text is selected or typed</td><td>the next text: its font, its size and its color</td></tr>
+</tbody></table></div>
+<p>A field the selected text differs in is blank, and a button pressed for part
+of it has a dashed edge. Each change is one undo step.</p>
+<h3 id="the-character-tab">The Character tab<a class="anchor" href="#the-character-tab" aria-label="Link to this section">#</a></h3>
+<ul>
+<li><strong>Font family</strong>: type to search the fonts on this computer, each name shown
+in its own face, the fonts chosen lately first. <code>↻</code> reads the fonts again,
+for one installed while the app was open.</li>
+<li><strong>Font style</strong>: the family's faces.</li>
+<li><strong>Size</strong> and <strong>Leading</strong>, in points. Leading is the line height: <code>Auto</code> is a
+line and a quarter of the size, and a share such as <code>140%</code> sets it to that
+share of each character's size.</li>
+<li><strong>Kerning</strong>: <code>Auto</code>, the font's own pairs; <code>None</code>; or a number, kerning by
+hand in thousandths of an em - between the characters either side of the
+caret, or after each selected character.</li>
+<li><strong>Tracking</strong>, in thousandths of an em, and <strong>Words</strong>, a word space's width as
+a share of the font's own.</li>
+<li><strong>Rotate</strong>, each character turned about its own middle; <strong>V Scale</strong> and
+<strong>H Scale</strong>; <strong>Shift</strong>, the baseline shift, up, in points.</li>
+<li><strong>All Caps</strong>, <strong>Small Caps</strong>, <strong>Superscript</strong>, <strong>Subscript</strong>, <strong>Underline</strong>
+and <strong>Strikethrough</strong>: on, or off when every selected character has it.</li>
+<li><strong>Orientation</strong>: horizontal lines or vertical columns. Text along a path
+stays horizontal.</li>
+<li><strong>Color</strong>: the text's. The swatches and the color well color the text being
+typed too, or what is typed next.</li>
+</ul>
+<h3 id="the-paragraph-tab">The Paragraph tab<a class="anchor" href="#the-paragraph-tab" aria-label="Link to this section">#</a></h3>
+<ul>
+<li><strong>Left</strong>, <strong>Center</strong>, <strong>Right</strong> and <strong>Justify</strong>.</li>
+<li><strong>Bulleted</strong> and <strong>Numbered</strong> lists, each with its style - a bullet, or
+<code>1.</code>, <code>a.</code> or <code>i.</code> - and <code>←</code> and <code>→</code> for a shallower or a deeper
+level. Pressed again, a list comes off.</li>
+<li>The <strong>Left</strong>, <strong>Right</strong> and <strong>First</strong> line indents, and the space <strong>Before</strong>
+and <strong>After</strong> a paragraph, in points.</li>
+<li><strong>Hyphenate</strong>: a word breaks at the end of a line, with a hyphen, where the
+US English patterns allow it.</li>
+</ul>
+<p>A paragraph change takes every paragraph the selection touches, or the
+caret's.</p>
+<h3 id="typing-values">Typing values<a class="anchor" href="#typing-values" aria-label="Link to this section">#</a></h3>
+<p>A number field takes a value with its unit - <code>12pt</code>, <code>16px</code>, <code>3mm</code>, <code>1cm</code>,
+<code>0.5in</code> or <code>1pc</code> - and a bare number in its own unit. <code>Up</code> and <code>Down</code> step
+it, <code>Shift</code> by ten. A drag on a field's name changes the value as it goes,
+and is one undo step when let go; <code>Esc</code> during the drag takes it back.</p>
+<h3 id="fonts-this-computer-does-not-have">Fonts this computer does not have<a class="anchor" href="#fonts-this-computer-does-not-have" aria-label="Link to this section">#</a></h3>
+<p>A book whose text uses a font this computer does not have opens with a report
+in the bottom-right corner - &quot;1 font is not installed&quot; - with a row for each
+font and <strong>Find text</strong>, which selects the texts that use it. Those texts are
+drawn in a default face and keep their font, so on a computer that has it
+they are as they were. The panel shows such a family in the warning color.</p>
+<h3 id="the-next-text">The next text<a class="anchor" href="#the-next-text" aria-label="Link to this section">#</a></h3>
+<p>A new text is set in the last font chosen in the panel: <strong>Font for new text</strong>
+in Verbose Settings, which can be typed there too.</p>
+<h2 id="text-configurations">Text Configurations<a class="anchor" href="#text-configurations" aria-label="Link to this section">#</a></h2>
+<p>Text Configurations are a vector editor's Character Styles: named sets of
+character attributes - a font, a face, a size, a color, the spacing, the
+lines and the capitals - kept in the book, which runs of text follow. Change
+a configuration, and every text that follows it changes, on every page.
+<strong>Type &gt; Text Configurations...</strong> brings up the Type panel on its third tab,
+<strong>Configurations</strong>.</p>
+<ul>
+<li><strong>The list</strong> starts with the <strong>Default Configuration</strong>, a text's own
+attributes, and then the book's configurations, each name drawn in its own
+style. The one the selected text follows is chosen. A <strong>+</strong> after it says
+the text has attributes of its own beyond it: overrides.</li>
+<li><strong>A click</strong> on a configuration applies it to what the panel acts on - the
+selected characters, what is typed next at the caret, or the selected
+texts - and each part keeps its overrides. <strong>Alt</strong> and a click clears them,
+so the text is the configuration's alone. A click on the Default
+Configuration takes a configuration off, keeping the overrides. Each is one
+undo step. With no text selected, a click only chooses a configuration for
+the commands below.</li>
+<li><strong>Kerning by hand</strong> stays through both, as it is between two characters.</li>
+</ul>
+<p>The tab's <code>☰</code> menu holds its commands, and <code>+</code> and <code>−</code> are New and Delete:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Command</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><strong>New Text Configuration</strong> (<code>+</code>)</td><td>a configuration of what the selected text has beyond its own base - a bold red word gives one that is bold and red - which the text then follows; it is named Text Configuration 1, 2 and on until its Options name it</td></tr>
+<tr><td><strong>Duplicate Text Configuration</strong></td><td>a copy of the chosen one, named for it with <code>copy</code> after</td></tr>
+<tr><td><strong>Delete Text Configuration</strong> (<code>−</code>)</td><td>deletes the chosen one; when text follows it, it asks: <strong>Break Link</strong> keeps that text's look as its own, and <strong>Revert to Default</strong> takes the text back to its own attributes, keeping its overrides</td></tr>
+<tr><td><strong>Redefine Text Configuration</strong></td><td>the chosen one takes the selected text's attributes, and every text that follows it changes</td></tr>
+<tr><td><strong>Text Configuration Options...</strong></td><td>its name and each attribute it sets, blank where it sets none; <strong>Preview</strong> shows each change on every text that follows it. A double-click on a configuration opens them too</td></tr>
+<tr><td><strong>Clear Overrides</strong></td><td>the selected text keeps what it follows, and nothing of its own beyond it</td></tr>
+<tr><td><strong>Break Link to Configuration</strong></td><td>the selected text keeps its look, and follows no configuration</td></tr>
+<tr><td><strong>Load Text Configurations...</strong></td><td>another book's configurations, merged in by name: one alike is kept once, and one with a name this book has but set otherwise comes in numbered, such as <code>Callout 2</code></td></tr>
+</tbody></table></div>
+<p>A change to a configuration - redefined, renamed, deleted or loaded - is one
+undo step, which takes the text on every page back with it.</p>
+<p><strong>Where they live.</strong> The configurations are the book's, shared by its pages
+and saved with it. A text carries a copy of each one it follows, so it looks
+the same copied into another book, exported, or drawn from a script. Pasted
+into a book that has a configuration of that name, it follows that book's;
+into one that has none, the configuration joins the book.</p>
+<ul>
+<li><strong>The SVG export</strong> keeps the link and the definition in the text's data,
+so napkin-sketch reads the text back following its configuration.</li>
+<li><strong>The Illustrator script</strong> makes each configuration a Character Style of
+its document and applies it, so the link holds in Illustrator too.</li>
+<li><strong>PNG and PDF</strong> draw the text as it looks.</li>
+<li><strong>A script</strong> defines one with <code>textconfig &quot;Callout&quot; face &quot;Bold&quot; color
+#cc0000</code>, and a text follows it with <code>config &quot;Callout&quot;</code>, whole or a run at
+a time. Generate Script writes them back (see <a href="automate.html">Automate</a>).</li>
+</ul>
+<h2 id="markdown-flow">Markdown Flow<a class="anchor" href="#markdown-flow" aria-label="Link to this section">#</a></h2>
+<p><strong>Type &gt; Markdown Flow</strong> (<code>Ctrl+Alt+M</code>) makes the selected text - or the one
+being typed - a Markdown Flow text: what is typed in it is Markdown, and it
+shows as the Markdown renders. Its characters become its Markdown. With
+<strong>New text starts in Markdown Flow</strong> on in Verbose Settings, every new text
+starts that way. The row is checked while the text it acts on is one.</p>
+<ul>
+<li><strong>The block the caret is in shows its Markdown</strong>: the paragraph, heading,
+list item, quote, code block or table, with its <code>#</code>, its <code>**</code> and its list
+marker <code>-</code> muted. Every other block shows as it renders.</li>
+<li><strong><code>Enter</code> ends the line</strong>, and the block renders as the caret moves on. In
+a list item, <code>Enter</code> starts the next item - its number counted on, a task's
+box open - and on an empty item it ends the list; in a quote it starts the
+next quoted line; in a fenced code block it is a newline alone.</li>
+<li><strong>The caret moves through the Markdown.</strong> An arrow key into a rendered block
+shows its Markdown, the caret where it was.</li>
+<li><strong><code>Esc</code> renders everything</strong>, and a burst of typing is one undo step, as in
+any text.</li>
+</ul>
+<h3 id="what-renders">What renders<a class="anchor" href="#what-renders" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Markdown</th><th>Shows as</th></tr></thead>
+<tbody>
+<tr><td><code>#</code> to <code>######</code> headings</td><td><strong>Markdown Heading 1</strong> to <strong>6</strong>: bold, at 2, 1.5, 1.25, 1.1, 1 and 0.9 times the text's size, with space before and after</td></tr>
+<tr><td><code>**strong**</code>, <code>*em*</code>, <code>~~struck~~</code></td><td>a bold face, an italic face, a line through</td></tr>
+<tr><td><code>`code`</code></td><td><strong>Markdown Code</strong>: a monospaced face on a light highlight</td></tr>
+<tr><td>a fenced or an indented code block</td><td><strong>Markdown Code Block</strong>: monospaced lines on a shade; a block that names its language is colored as the language reads it (see <a href="#clean-language-accents">Clean Language Accents</a>)</td></tr>
+<tr><td><code>-</code>, <code>*</code>, <code>+</code> and <code>1.</code> lists, nested</td><td>bulleted and numbered lists, a level for each step in; <code>- [ ]</code> and <code>- [x]</code> show an open box and a ticked one</td></tr>
+<tr><td><code>&gt;</code> quotes</td><td><strong>Markdown Quote</strong>: stood in, in the quote color, with a bar down the left for each quote it is in</td></tr>
+<tr><td><code>---</code></td><td>a rule across the line</td></tr>
+<tr><td><code>[words](https://example.com)</code></td><td><strong>Markdown Link</strong>: the words, underlined in the link color; the address stays in the Markdown, and nothing opens</td></tr>
+<tr><td><code>![words](picture.png)</code></td><td>the words, in italics: pictures are not fetched</td></tr>
+<tr><td>tables</td><td>a line a row, the header's cells bold, each column starting where the widest cell before it ends</td></tr>
+<tr><td>raw HTML, such as <code>&lt;b&gt;</code></td><td>its own characters, as typed: nothing is made of it</td></tr>
+</tbody></table></div>
+<p>A single <code>Enter</code> is a line break, as typing expects, and a blank line starts a
+new paragraph, with a little space between.</p>
+<p><strong>Restyling Markdown.</strong> Headings, code, quotes and links follow Text
+Configurations - Markdown Heading 1 to 6, Markdown Code, Markdown Code Block,
+Markdown Quote and Markdown Link - which the book takes in the first time it
+holds a Markdown Flow text. Change one in the Configurations tab, and what it
+styles changes in every Markdown Flow text. A heading's size is its level's
+share of the text's own size, unless its configuration sets a size. Deleting
+one sets it back to how it was first made.</p>
+<p><strong>Turning it off</strong> asks first. The text keeps what it shows - the rendered
+words, the headings' sizes, the lists' bullets, the quotes' bars - as plain
+text, and its Markdown goes. Undo brings the Markdown back.</p>
+<p><strong>Where it goes.</strong> A Markdown Flow text keeps its Markdown: the book saves it,
+and a copy from the text copies it. Exports draw it as it renders, every
+block rendered wherever the caret is: the SVG keeps the Markdown in the text's
+data, to read back; the PDF and the PNG draw the rendered text; and the
+Illustrator script writes the rendered text and its styles, since Illustrator
+has no Markdown. A script makes one with <code>text &quot;# Notes&quot; at 40 60 markdown</code>
+(see <a href="automate.html">Automate</a>).</p>
+<h2 id="clean-language-accents">Clean Language Accents<a class="anchor" href="#clean-language-accents" aria-label="Link to this section">#</a></h2>
+<p>Clean Language Accents color code as its language reads it: keywords,
+strings, numbers, comments, names and types, each a color. highlight.js reads
+the code, and nothing in it is ever run or drawn as HTML.</p>
+<ul>
+<li><strong>In Markdown Flow</strong>, a fenced code block that names its language - a fence
+of three backticks followed by <code>ts</code> or <code>python</code> - is colored as it is
+typed. A block that names none stays plain, unless <strong>Detect the language of
+unlabelled code</strong> is on in Verbose Settings, which colors it as the
+installed language it reads most like; it is off to begin with, since it
+guesses. A block whose language is not installed shows plain, and while the
+text is edited a line under it says so: &quot;fortran is not installed - Type &gt;
+Clean Language Accents &gt; Languages&quot;.</li>
+<li><strong>In any other text</strong>, <strong>Type &gt; Clean Language Accents &gt; Apply...</strong>
+(<code>Ctrl+Alt+L</code>) colors the paragraphs of the selected text - the ones the
+selection touches in the text being typed, or every paragraph of the
+selected texts. It asks for a language from the installed ones, or
+<strong>Auto</strong>, the one the code reads most like, and with <strong>Use a monospace
+font</strong> (on to begin with) sets the paragraphs in Markdown Code too.</li>
+<li><strong>The colors are live.</strong> They are worked out as the text is laid out, never
+stored, so they follow every edit: type a keyword, and it is colored.</li>
+<li><strong>Remove Accents</strong> takes the colors off the paragraphs of the selected
+text. Each of these is one undo step.</li>
+</ul>
+<p><strong>Languages.</strong> The 36 languages of highlight.js's common set come installed:
+bash, c, cpp, csharp, css, diff, go, graphql, ini, java, javascript, json,
+kotlin, less, lua, makefile, markdown, objectivec, perl, php, php-template,
+plaintext, python, python-repl, r, ruby, rust, scss, shell, sql, swift,
+typescript, vbnet, wasm, xml and yaml. <strong>Type &gt; Clean Language Accents &gt;
+Languages...</strong> lists all 193, the installed ones checked, with a search and
+filters for the installed and the common ones: check one to install it, and
+uncheck one to show its code plain. A fence may name a language by any name
+it goes by - <code>ts</code> for TypeScript, <code>py</code> for Python.</p>
+<p><strong>Colors.</strong> Two themes, <strong>Napkin Light</strong> and <strong>Napkin Dark</strong>, give every
+color at least 4.5:1 against their own code shade, so code reads at any size.
+By default the theme follows each page's paper - Napkin Dark on a page white
+text reads better on - and <strong>Code colors</strong> in Verbose Settings picks one
+always. A Markdown code block sits on its theme's shade.</p>
+<p><strong>Where they go.</strong> Exports draw the colors - SVG, PDF, PNG and the
+Illustrator script alike - and the SVG keeps each paragraph's accent in the
+text's data, so a text read back stays live. A script colors the next text
+with <code>accent python</code>, <code>accent auto</code> or a name in quotes, <code>accent &quot;c++&quot;</code> (see
+<a href="automate.html">Automate</a>).</p>
+<h2 id="the-type-menu">The Type menu<a class="anchor" href="#the-type-menu" aria-label="Link to this section">#</a></h2>
+<p>The Type menu sits between Effect and Sketch, as a vector editor's does.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Row</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><strong>Font</strong></td><td>brings up the Type panel on Character, its font field ready to type a name in</td></tr>
+<tr><td><strong>Size</strong></td><td>a size from 6 to 72 pt, checked when the text has it; <strong>Other</strong> brings up the panel's size field</td></tr>
+<tr><td><strong>Character...</strong> and <strong>Paragraph...</strong></td><td>bring up the Type panel on that tab</td></tr>
+<tr><td><strong>Text Configurations...</strong></td><td>brings up the Type panel on Configurations (see <a href="#text-configurations">Text Configurations</a>)</td></tr>
+<tr><td><strong>Type on a Path &gt; Type on a Path Options...</strong></td><td>the options of the selected text along a path</td></tr>
+<tr><td><strong>Type on a Path &gt; Flip</strong></td><td>the selected text along a path runs the other way, on the path's other side</td></tr>
+<tr><td><strong>Type Orientation &gt; Horizontal</strong> and <strong>Vertical</strong></td><td>set the selected text in lines or in columns, the one it has checked; text along a path has no vertical</td></tr>
+<tr><td><strong>Area Type Options...</strong></td><td>the options of the selected text in a shape</td></tr>
+<tr><td><strong>Markdown Flow</strong> (<code>Ctrl+Alt+M</code>)</td><td>the selected text typed as Markdown and shown as it renders, checked when it is; off, it keeps what it shows (see <a href="#markdown-flow">Markdown Flow</a>)</td></tr>
+<tr><td><strong>Clean Language Accents &gt; Apply...</strong> (<code>Ctrl+Alt+L</code>), <strong>Remove Accents</strong> and <strong>Languages...</strong></td><td>color the code in the selected text's paragraphs, take the colors off, and install or take away languages (see <a href="#clean-language-accents">Clean Language Accents</a>)</td></tr>
+<tr><td><strong>Expand Text to Shape</strong> (<code>Ctrl+Shift+O</code>)</td><td>turns the selected text into its shapes; also in the Transform menu (see <a href="#expand-text-to-shape">Expand Text to Shape</a>)</td></tr>
+</tbody></table></div>
+<p>Font, Size and Type Orientation act on what the Type panel acts on: the
+characters selected in the text being typed, or what is typed next at its
+caret; else the selected texts; else, for Font and Size, the next text. A row
+with nothing to act on is greyed.</p>
+<h3 id="type-on-a-path-options">Type on a Path Options<a class="anchor" href="#type-on-a-path-options" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Field</th><th>Sets</th></tr></thead>
+<tbody>
+<tr><td><strong>Effect</strong></td><td>how each character stands on the path: <strong>Rainbow</strong> turns each with the path; <strong>Skew</strong> keeps its upright strokes upright, slanting it along the path; <strong>3D Ribbon</strong> keeps its level strokes level; <strong>Stair Step</strong> turns none, each upright on the path; <strong>Gravity</strong> turns each to face the middle of the path's box</td></tr>
+<tr><td><strong>Align to Path</strong></td><td>which line of the characters sits on the path: <strong>Ascender</strong>, <strong>Descender</strong>, <strong>Center</strong> or <strong>Baseline</strong></td></tr>
+<tr><td><strong>Spacing</strong></td><td>in points: draws the characters together round a sharp turn, so they do not fan apart on its outside; below 0 spreads them</td></tr>
+<tr><td><strong>Flip</strong></td><td>the text runs the other way, on the path's other side</td></tr>
+</tbody></table></div>
+<h3 id="area-type-options">Area Type Options<a class="anchor" href="#area-type-options" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Field</th><th>Sets</th></tr></thead>
+<tbody>
+<tr><td><strong>Inset Spacing</strong></td><td>in points, how far the text stands in from the frame</td></tr>
+<tr><td><strong>Auto Size</strong></td><td>the frame grows down to fit the text, and shrinks with it; only a rectangle square to the page grows, so the field is greyed for other frames</td></tr>
+<tr><td><strong>Frame Fill</strong> and <strong>Frame Stroke</strong></td><td>the frame's own paint, under the text: a tick for whether it has one, and its color</td></tr>
+<tr><td><strong>Stroke Weight</strong></td><td>the weight of the frame's outline, greyed while it has none</td></tr>
+</tbody></table></div>
+<p>Both forms work as an effect's options do. <strong>Preview</strong> shows each change on
+the canvas as it is made; <strong>OK</strong>, or <code>Enter</code>, keeps it as one undo step, and
+<strong>Cancel</strong>, or <code>Esc</code>, puts the text back. On several texts, a form opens with
+the first one's values and changes only the fields changed, so each text
+keeps the rest. A length is typed with its unit, as in the Type panel.</p>
+<h2 id="expand-text-to-shape">Expand Text to Shape<a class="anchor" href="#expand-text-to-shape" aria-label="Link to this section">#</a></h2>
+<p><strong>Type &gt; Expand Text to Shape</strong> and <strong>Transform &gt; Expand Text to Shape</strong>
+(<code>Ctrl+Shift+O</code>), a vector editor's Create Outlines, turn each selected text -
+or the one being typed - into the shapes it is drawn as:</p>
+<ul>
+<li><strong>A shape a glyph</strong>, its font's own outline where the type layout set it,
+its counters holes, in its run's color; a space makes none.</li>
+<li><strong>In a group named after the text's first words</strong>, each shape on a layer
+named after its letter. The frame's own fill and stroke, the highlights, the
+list markers and the underlines and strikethroughs come out as shapes too,
+in the order they are painted.</li>
+<li><strong>The text's effects, blend, opacity and place</strong> in the layers go on the
+group. It is one undo step, and the shapes are selected.</li>
+</ul>
+<p>The outlines are read from the font's own file on this computer, TrueType
+and OpenType alike, a font collection's faces among them. A text whose font
+cannot be read - one not installed, one with no glyph for a character it
+holds, or a kind napkin-sketch does not read, such as a variable font's other
+instances - stays text, and a report in the bottom-right corner says which
+font and why, with <strong>Find text</strong> to select it.</p>
+<p>Small capitals the font does not have are capitals at 70%, as the canvas sets
+them; a bold or an italic face the family does not have is drawn with the
+nearest face it does have.</p>
+<p>A PDF export draws text the same way, with <strong>Draw text as shapes in PDF</strong> on
+(see <a href="settings.html">Settings</a>).</p>
+<h2 id="the-editor-keys">The editor keys<a class="anchor" href="#the-editor-keys" aria-label="Link to this section">#</a></h2>
+<p>These keys are the editor's own while a text is edited, as Illustrator's
+are. They are not in Edit Keyboard Shortcuts.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Keys</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>Enter</code></td><td>a new line; in Markdown Flow, a list's next item or a quote's next line (see <a href="#markdown-flow">Markdown Flow</a>)</td></tr>
+<tr><td><code>Esc</code> / <code>Ctrl+Enter</code></td><td>puts the text down</td></tr>
+<tr><td><code>Ctrl+Shift+.</code> / <code>Ctrl+Shift+,</code></td><td>size up / down by 2 pt (<code>Ctrl+Alt+Shift+.</code> / <code>,</code> by 10 pt)</td></tr>
+<tr><td><code>Alt+Up</code> / <code>Alt+Down</code></td><td>leading down / up by 2 pt</td></tr>
+<tr><td><code>Alt+Right</code> / <code>Alt+Left</code></td><td>kerning at the caret, or tracking over a selection, +20 / -20 thousandths of an em (<code>Ctrl+Alt</code> by 100)</td></tr>
+<tr><td><code>Alt+Shift+Up</code> / <code>Alt+Shift+Down</code></td><td>baseline shift up / down by 2 pt</td></tr>
+<tr><td><code>Ctrl+Shift+L</code> / <code>C</code> / <code>R</code> / <code>J</code></td><td>align left / center / right / justify</td></tr>
+<tr><td><code>Ctrl+Shift+K</code></td><td>All Caps on, or off when it is all on already</td></tr>
+<tr><td><code>Ctrl+Shift+X</code></td><td>horizontal scale back to 100%</td></tr>
+<tr><td><code>Ctrl+Alt+Q</code></td><td>tracking and kerning back to 0</td></tr>
+<tr><td><code>Ctrl+Shift+V</code></td><td>paste plain text</td></tr>
+</tbody></table></div>
+<p>With characters selected, a key changes them. With only the caret, a key
+sets what the next typed text takes, and the caret shows its size; kerning
+is the exception, since it is between the characters either side of the
+caret, and changes there at once. Alignment is a paragraph's: it changes
+every paragraph the selection touches, or the caret's.</p>
+<p>On a keyboard where <code>AltGr</code> types a character, <code>AltGr</code> with a key types that
+character, never an editor key.</p>
+<h2 id="screen-readers">Screen readers<a class="anchor" href="#screen-readers" aria-label="Link to this section">#</a></h2>
+<p>The text being edited is held in a hidden text field named for it (&quot;Text:&quot;
+and its first words), so a screen reader reads and edits it as any text
+field.</p>
+<nav class="page-nav" aria-label="Previous and next pages"><a href="effects.html" rel="prev"><span>Previous</span>Effects and the Appearance panel</a><a href="layers.html" rel="next"><span>Next</span>Layers and the Properties panel</a></nav>
+</article>
+</main>
+<footer class="site-footer">
+<p>napkin-sketch is published under the MIT license. These pages are written from the repository's own Markdown by <code>npm run site</code>; the tables in them come from the code.</p>
+<p><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/docs/site-src/guide/type.md" rel="noopener">This page's source</a></p>
+</footer>
+</body>
+</html>

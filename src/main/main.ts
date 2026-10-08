@@ -8,7 +8,7 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, screen, shell } from 'electron';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { appendFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import {
   ANIMATION_FORM_FILE,
@@ -31,7 +31,7 @@ import {
 } from '../core/animation-install.js';
 import { classifyHelperFailure, helperBinary, helperToolFor } from '../core/ai-tool.js';
 import { decodeLaunchOptions, LAUNCH_ENV_KEY, type LaunchOptions } from '../core/launch.js';
-import { IPC, type AnimationFrameOutput, type AnimationHelperResult, type ExportFormat, type HistoryStats, type ImageFormat, type ImportFileResult, type AppMenuItemSnapshot, type MenuConfig, type MenuConfigResult, type OpenResult, type SaveImagesResult, type SaveResult } from '../core/ipc.js';
+import { COMPOSITION_STYLE_FILE, IPC, type CompositionStyleFile, type OpenTextResult, type AnimationFrameOutput, type AnimationHelperResult, type ExportFormat, type HistoryStats, type ImageFormat, type ImportFileResult, type AppMenuItemSnapshot, type MenuConfig, type MenuConfigResult, type OpenResult, type SaveImagesResult, type SaveResult } from '../core/ipc.js';
 import {
   isHelpTopic,
   isMainCommand,
@@ -42,14 +42,14 @@ import {
   type MenuCommand,
   type MenuState,
 } from '../core/menu/ids.js';
-import { DOCS_INDEX_PAGE, DOCS_SITE_URL, REPO_URL } from '../core/menu/links.js';
+import { DOCS_ABOUT_PAGE, DOCS_INDEX_PAGE, DOCS_SITE_URL, REPO_URL } from '../core/menu/links.js';
 import { planUserFiles, readOverridesText, SHORTCUTS_FILE, TOOL_TYPES_FILE } from '../core/menu/overrides.js';
 import { defaultRegistry, helpTopics, loadRegistry, type MenuRegistry } from '../core/menu/registry.js';
 import { importPdf } from '../core/pdf-import.js';
 import { docsAppCommand, docsKey, docsLink, docsPlan, docsRoot, type DocsAction } from './docs.js';
 import { applicationMenuTemplate, menuStructureKey, rowStates } from './menu.js';
 import {
-  readSketchBook,
+  readSketchBookFile,
   withSketchBookExtension,
   writeSketchBook,
 } from '../core/sketchbook.js';
@@ -82,6 +82,11 @@ let docsWindow: BrowserWindow | null = null;
 let currentSettings: AppSettings = defaultSettings();
 
 /** Absolute path to the persisted settings file in the user-data directory. */
+/** The user's Composition Styles library: one JSON file a style, in the app's own folder. */
+function compositionStylesDir(): string {
+  return join(app.getPath('userData'), 'composition-styles');
+}
+
 function settingsFilePath(): string {
   return join(app.getPath('userData'), 'settings.json');
 }
@@ -450,6 +455,7 @@ const mainCommands: Record<MainCommandId, () => void> = {
   'help-source-docs': () => {
     if (DOCS_SITE_URL !== null) openLink(DOCS_SITE_URL);
   },
+  'help-about': () => openDocs(DOCS_ABOUT_PAGE),
 };
 
 /** Runs a command the main process owns, a Help > Tool Types row included. */
@@ -495,11 +501,20 @@ function refreshMenuState(): void {
     buildMenu();
     return;
   }
+  // Every item a row's id names: a tool two menus hold is two items of one id.
+  const items = new Map<string, Electron.MenuItem[]>();
+  const index = (list: readonly Electron.MenuItem[]): void => {
+    for (const item of list) {
+      if (item.id) items.set(item.id, [...(items.get(item.id) ?? []), item]);
+      if (item.submenu) index(item.submenu.items);
+    }
+  };
+  index(menu.items);
   for (const row of rowStates(menuRegistry, state)) {
-    const item = menu.getMenuItemById(row.id);
-    if (!item) continue;
-    if (item.enabled !== row.enabled) item.enabled = row.enabled;
-    if (row.checked !== null && item.checked !== row.checked) item.checked = row.checked;
+    for (const item of items.get(row.id) ?? []) {
+      if (item.enabled !== row.enabled) item.enabled = row.enabled;
+      if (row.checked !== null && item.checked !== row.checked) item.checked = row.checked;
+    }
   }
 }
 
@@ -1226,17 +1241,17 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.loadBook, async (_event, filePath: string): Promise<OpenResult> => {
     try {
-      const book = await readSketchBook(filePath);
-      return { ok: true, filePath: withSketchBookExtension(filePath), book };
+      const { book, newer } = await readSketchBookFile(filePath);
+      return { ok: true, filePath: withSketchBookExtension(filePath), book, ...(newer ? { newer } : {}) };
     } catch (err) {
       return { ok: false, error: (err as Error).message };
     }
   });
 
-  ipcMain.handle(IPC.openBook, async (): Promise<OpenResult> => {
+  ipcMain.handle(IPC.openBook, async (_event, options?: { title?: unknown }): Promise<OpenResult> => {
     if (!mainWindow) return { ok: false, error: 'No window available.' };
     const picked = await dialog.showOpenDialog(mainWindow, {
-      title: 'Open sketch book',
+      title: typeof options?.title === 'string' && options.title !== '' ? options.title : 'Open sketch book',
       filters: [{ name: 'Sketch Book', extensions: [SKETCHBOOK_EXTENSION] }],
       properties: ['openFile'],
     });
@@ -1245,8 +1260,8 @@ function registerIpc(): void {
     }
     try {
       const filePath = picked.filePaths[0];
-      const book = await readSketchBook(filePath);
-      return { ok: true, filePath, book };
+      const { book, newer } = await readSketchBookFile(filePath);
+      return { ok: true, filePath, book, ...(newer ? { newer } : {}) };
     } catch (err) {
       return { ok: false, error: (err as Error).message };
     }
@@ -1452,6 +1467,8 @@ function registerIpc(): void {
     if (typeof text === 'string') clipboard.writeText(text);
   });
 
+  ipcMain.handle(IPC.readClipboardText, (): string => clipboard.readText());
+
   ipcMain.handle(IPC.readClipboardSvg, (): string | null => {
     const text = clipboard.readText();
     return typeof text === 'string' && /<svg[\s>]/i.test(text) ? text : null;
@@ -1466,6 +1483,65 @@ function registerIpc(): void {
     await persistSettings();
     broadcastSettings();
     return currentSettings;
+  });
+
+  // ---- Composition Styles: the user's library, one JSON file a style ----
+
+  ipcMain.handle(IPC.listCompositionStyles, async (): Promise<CompositionStyleFile[]> => {
+    const folder = compositionStylesDir();
+    let names: string[];
+    try {
+      names = (await readdir(folder)).filter((name) => COMPOSITION_STYLE_FILE.test(name)).sort((a, b) => a.localeCompare(b));
+    } catch {
+      return [];
+    }
+    const files: CompositionStyleFile[] = [];
+    for (const file of names) {
+      try {
+        files.push({ file, text: await readFile(join(folder, file), 'utf-8') });
+      } catch {
+        // A file that cannot be read is left out; the rest still load.
+      }
+    }
+    return files;
+  });
+
+  ipcMain.handle(IPC.writeCompositionStyle, async (_event, file: unknown, text: unknown): Promise<SaveResult> => {
+    if (typeof file !== 'string' || !COMPOSITION_STYLE_FILE.test(file) || file.includes('..')) return { ok: false, error: 'That is not a name a style file can have.' };
+    if (typeof text !== 'string') return { ok: false, error: 'There is no style to write.' };
+    const folder = compositionStylesDir();
+    try {
+      await mkdir(folder, { recursive: true });
+      await writeFile(join(folder, file), text, 'utf-8');
+      return { ok: true, filePath: join(folder, file) };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC.deleteCompositionStyle, async (_event, file: unknown): Promise<boolean> => {
+    if (typeof file !== 'string' || !COMPOSITION_STYLE_FILE.test(file) || file.includes('..')) return false;
+    try {
+      await rm(join(compositionStylesDir(), file), { force: true });
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  ipcMain.handle(IPC.openCompositionStyle, async (): Promise<OpenTextResult> => {
+    if (!mainWindow) return { ok: false, error: 'No window available.' };
+    const picked = await dialog.showOpenDialog(mainWindow, {
+      title: 'Import Composition Style',
+      filters: [{ name: 'Composition style', extensions: ['json'] }],
+      properties: ['openFile'],
+    });
+    if (picked.canceled || picked.filePaths.length === 0) return { ok: false, cancelled: true };
+    try {
+      return { ok: true, filePath: picked.filePaths[0], text: await readFile(picked.filePaths[0], 'utf-8') };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle(IPC.exportSettings, async (): Promise<SaveResult> => {

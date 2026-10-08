@@ -3,7 +3,8 @@
  * from Markdown, with one chrome stamped into every page.
  *
  * The pages come from three kinds of source. The API documentation and the
- * root guides (`QUICKSTART.md`, `CHEATSHEET.md`, `API*.md`, `CHANGELOG.md`)
+ * root guides (`QUICKSTART.md`, `CHEATSHEET.md`, `API*.md`, `CHANGELOG.md`,
+ * `THIRD-PARTY-NOTICES.md`)
  * ship in the npm package and `npm run api-docs` rewrites their tables every
  * release, so the site renders them where they are and never edits them. The
  * app's manual, moved out of the README, lives in `docs/site-src/` as
@@ -102,7 +103,10 @@ export const SITE_PAGES: readonly SitePage[] = [
   page('guide/vector-paths.html', SRC('guide/vector-paths.md'), 'Vector paths and stroke profiles', 'Vector paths', 'guide', 'Editing anchors and handles, rounding corners, Sharpen Selection, and the four stroke profiles.'),
   page('guide/selection.html', SRC('guide/selection.md'), 'Selecting and editing', 'Selection and editing', 'guide', 'Selecting, filling, widening, the clipboard, and what a press on a selection does.'),
   page('guide/transform.html', SRC('guide/transform.md'), 'Transform, Rotate, Mirror, Mesh Warp, Liquify and Wipe Stacks', 'Transform', 'guide', 'The Transform box, Rotate, Mirror, Mesh Warp, Liquify, the Wipe Stacks, and docking their panels.'),
+  page('guide/effects.html', SRC('guide/effects.md'), 'Effects and the Appearance panel', 'Effects', 'guide', 'The Effect menu, the Appearance panel, the options of each effect, 3D Options and the gumball, and effects that follow a transform.'),
+  page('guide/type.html', SRC('guide/type.md'), 'Type', 'Type', 'guide', 'Typing and editing text on the canvas, in a shape and along a path too, the Type panel and its fonts, the Type menu, and the editor keys.'),
   page('guide/layers.html', SRC('guide/layers.md'), 'Layers and the Properties panel', 'Layers', 'guide', 'The Layers panel, groups, restacking, and editing a selection in the Properties panel.'),
+  page('guide/composition-styles.html', SRC('guide/composition-styles.md'), 'Composition Styles', 'Composition Styles', 'guide', "Rules by layer name that restyle a page in one click: the panel, editing a style, the report, and the style file."),
   page('guide/pages.html', SRC('guide/pages.md'), 'Pages', 'Pages', 'guide', 'The pages panel, page sizes, and the three ways to add a page.'),
   page('guide/import-export.html', SRC('guide/import-export.md'), 'Import and export', 'Import and export', 'guide', 'What SVG, PDF and pictures arrive as, and what PNG, JPEG, SVG and PDF exports keep.'),
   page('guide/sharpen.html', SRC('guide/sharpen.md'), 'Sharpening', 'Sharpen', 'guide', 'Live sharpen, Sharpen all, and how the auto-sharpen engine decides what a stroke meant.'),
@@ -113,7 +117,7 @@ export const SITE_PAGES: readonly SitePage[] = [
   page('guide/skbk-format.html', SRC('guide/skbk-format.md'), 'The .skbk file format', 'The .skbk format', 'guide', 'What a saved sketch book holds, and how older files open.'),
   page('guide/command-line.html', SRC('guide/command-line.md'), 'The command line', 'Command line', 'guide', 'Opening the app from a shell: every option, and the four commands that need no window.'),
 
-  page('api/index.html', HUB_PAGES[0], 'Drawing from a script', 'Overview', 'api', 'napkin script and its API: what it is, the nine categories of pages, and where to start.'),
+  page('api/index.html', HUB_PAGES[0], 'Drawing from a script', 'Overview', 'api', 'napkin script and its API: what it is, the ten categories of pages, and where to start.'),
   page('api/quickstart.html', HUB_PAGES[1], 'API quickstart', 'Quickstart', 'api', 'The whole API in five steps.'),
   page('api/cheatsheet.html', HUB_PAGES[2], 'API cheatsheet', 'Cheatsheet', 'api', 'Every verb, command, import, option and exit code on one page.'),
   ...DOC_CATEGORIES.flatMap((category) => [
@@ -133,6 +137,7 @@ export const SITE_PAGES: readonly SitePage[] = [
 
   page('changelog.html', 'CHANGELOG.md', 'Changelog', 'Changelog', 'project', 'Every release, newest first.'),
   page('about.html', SRC('about.md'), 'About and license', 'About and license', 'project', 'The license, the repository, and how these pages are kept true.'),
+  page('third-party-notices.html', 'THIRD-PARTY-NOTICES.md', 'Third-party notices', 'Third-party notices', 'project', 'The code and data napkin-sketch bundles from others, and the license of each.'),
 ];
 
 /** Files the site publishes as they are, copied from the repository: `docs/` path to source. */
@@ -141,11 +146,12 @@ export const SITE_COPIES: Readonly<Record<string, string>> = {
 };
 
 /**
- * Files kept by hand in `docs/`: what every page needs, and the home page's
+ * Files kept by hand in `docs/`: what every page needs, the home page's
  * banner, a GIF that plays once and holds its last frame (it carries no
- * loop block, which `test/site.test.ts` holds it to).
+ * loop block, which `test/site.test.ts` holds it to), and the effects
+ * guide's drawing of the 3D gumball.
  */
-export const SITE_STATIC = ['assets/site.css', 'assets/site.js', '.nojekyll', 'assets/banner.gif'] as const;
+export const SITE_STATIC = ['assets/site.css', 'assets/site.js', '.nojekyll', 'assets/banner.gif', 'assets/gumball.svg'] as const;
 
 // ---- Text ---------------------------------------------------------------------------------------
 

@@ -197,7 +197,7 @@ test('Reset to defaults, accepted, leaves nothing to save, so the file goes', ()
   assert.equal(back.toolForChord('Ctrl+Y'), 'redo', 'the hidden second shortcut is back too');
 });
 
-test('the spec: three columns, the six main types as radios, and Reset beside Accept', () => {
+test('the spec: three columns, the eight main types as radios, and Reset beside Accept', () => {
   const rows = shortcutRows(registry);
   let reset = 0;
   const spec = shortcutEditorSpec(registry, rows, { onAccept: () => {}, onReset: () => reset++ });
@@ -206,7 +206,7 @@ test('the spec: three columns, the six main types as radios, and Reset beside Ac
     spec.columns.map((column) => `${column.heading}:${column.kind}`),
     ['Tool:text', 'Type:text', 'Keyboard Shortcut:key'],
   );
-  assert.deepEqual(spec.filters?.map((filter) => filter.label), ['App', 'Composition', 'GUI', 'Draw', 'API', 'docs']);
+  assert.deepEqual(spec.filters?.map((filter) => filter.label), ['App', 'Composition', 'GUI', 'Draw', 'Effect', 'Type', 'API', 'docs']);
   const draw = spec.filters!.find((filter) => filter.label === 'Draw')!;
   assert.equal(draw.test(row(rows, 'mirror')), true);
   assert.equal(draw.test(row(rows, 'undo')), false);
@@ -358,6 +358,8 @@ test('the spec: a drop-down of the types the menus take, "Not in a menu" first, 
       'App: App:Add:layer App:Modify:layer App:Subtract:layer',
       'Composition: Composition:edit:mixed Composition:Subtract:element Composition:edit:selection',
       'Draw: Draw:Add:vector Draw:Modify:element Draw:Combine:element Draw:Subtract:vector Draw:Add:mark Draw:Modify:vector Draw:Subtract:mark',
+      'Effect: Effect:Add:effect Effect:Modify:effect',
+      'Type: Type:Modify:type Type:Convert:type',
       'API: API:automate:mixed',
     ],
   );

@@ -59,6 +59,7 @@ unable to start.
 ```text
 napkin-sketch draw <script | -> [--to svg,png,pdf,skbk,jsx] [--out <dir>] [--name <stem>]
                    [--base <dir>] [--asset <name>=<file> ...] [--use <name>=<book.skbk> ...]
+                   [--font <family>=<file> ...] [--composition-style <style.json>]
                    [--seed <n>] [--scale <n>] [--crop auto|none|<x,y,w,h>] [--limit <n>]
                    [--json] [--strict] [--quiet]
 napkin-sketch draw --prompt "<request>" [--helper <command>] [the options above]
@@ -72,6 +73,8 @@ napkin-sketch draw --prompt "<request>" [--helper <command>] [the options above]
 | `--base` | the script's folder | The folder linked files are read inside. |
 | `--asset` | none | `<name>=<file>`: an image the script places by name. Repeat it for more. |
 | `--use` | none | `<name>=<book.skbk>`: a book the script copies in with `use`. Repeat it for more. |
+| `--font` | none | `<family>=<file>`: a font file text in that family is drawn from - laid out by its own advances and kerning, its glyphs drawn as shapes in a PNG and a PDF. Repeat it for more families, and for a family's other faces. Text in a family not given is drawn in the built-in face, and the report says so. |
+| `--composition-style` | none | A [composition style](../compose/README.md#composition-styles) every page is restyled by once it is drawn, by its layers' names. A rule that matched nothing is a warning, with the nearest name. A file that is not JSON, or not a style, stops the command with exit code `1` before anything is drawn. |
 | `--seed` | `0` | The seed for [the hand-drawn pass](../drawing/README.md#the-hand-drawn-pass). |
 | `--scale` | `1` | PNG pixels a page pixel: `2` for a retina asset. |
 | `--crop` | the script's own `crop` | `auto` for the ink, `none` for the whole page, or a box `x,y,width,height`. |
@@ -111,7 +114,8 @@ script that places an image reports `unknown-asset`.
 
 ```text
 napkin-sketch render <book.skbk> [--to svg,png,pdf,skbk,jsx] [--page <n>] [--out <dir>] [--name <stem>]
-                     [--base <dir>] [--scale <n>] [--crop auto|none|<x,y,w,h>] [--json] [--strict] [--quiet]
+                     [--base <dir>] [--font <family>=<file> ...] [--scale <n>] [--crop auto|none|<x,y,w,h>]
+                     [--json] [--strict] [--quiet]
 napkin-sketch render <book.skbk> --animate <type> [--frames <n>] [--facing left|right] [--page <n>]
                      [--to ...] [--out <dir>] [--name <stem>] [--base <dir>] [--scale <n>] [--json] [--strict] [--quiet]
 ```
@@ -119,7 +123,7 @@ napkin-sketch render <book.skbk> --animate <type> [--frames <n>] [--facing left|
 Writes a sketch book - one the app saved, or one `draw` wrote - as files named
 after the book's file. `--page 2` writes page 2 alone, still named for its
 place in the book: `deck-2.png`. The `.skbk` may be left off the name, as the
-app's own `--book` allows.
+app's own `--book` allows. `--font` hands it font files as `draw` takes them.
 
 `--animate walk` writes the figure on the page as animation frames instead,
 drawn from the measured walk cycle with no AI. The figure is found as
@@ -181,7 +185,7 @@ spread over lines here to read:
   ],
   "warnings": [],
   "stats": { "instructions": 4, "marks": 1, "anchors": 8, "points": 101, "pages": 1 },
-  "version": "1.0.0-alpha.4.6.0",
+  "version": "1.0.0-alpha.5.0.0",
   "language": 1
 }
 ```

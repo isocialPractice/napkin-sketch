@@ -9,34 +9,94 @@
  * everything it holds as one picture, laid down where its first painting
  * layer would have been, so a drop shadow falls under the whole group rather
  * than under each of its parts. A clip group paints as one picture too, which
- * its clip then cuts to the clip mark's interior (core/clip.ts).
+ * its clip then cuts to the clip mark's interior (core/clip.ts), and so does a
+ * group with a blend or Isolate Blending (core/blend.ts).
  *
  * Nothing here touches the DOM.
  */
 
-import { readEffects } from './effects.js';
+import { layerUnders, markUnders } from './appearance.js';
+import { isBlended } from './blend.js';
+import { activeEffects } from './effects.js';
 import { strokesByLayer, type Layer, type Sketch, type Stroke } from './types.js';
 
 /** What the steps are worked out from: the layers by id, and the groups that paint as one picture. */
 export interface PaintIndex {
   readonly byId: ReadonlyMap<string, Layer>;
-  /** Groups that paint as one picture: those with effects, and those with a clip. */
+  /** Groups that paint as one picture: see {@link pictureGroupIds}. */
   readonly pictureGroups: ReadonlySet<string>;
 }
 
-/** Whether a group paints as one picture: it has effects, or a clip to cut the picture with. */
+/**
+ * Whether a group paints as one picture whatever it holds: it has effects, a
+ * clip to cut the picture with, a blend to lay the picture down with, or
+ * Isolate Blending, which keeps the blends inside it from reaching past it.
+ */
 export function paintsAsPicture(layer: Layer): boolean {
-  return layer.group === true && (readEffects(layer.effects) !== undefined || layer.clip !== undefined);
+  return (
+    layer.group === true &&
+    (activeEffects(layer.effects) !== undefined || layer.clip !== undefined || isBlended(layer.blend) || layer.isolate === true)
+  );
 }
 
-/** One step of painting a scope: a drawing layer's marks, or a group with effects painted as one picture. */
+/**
+ * The groups of a page that paint as one picture: those that do whatever they
+ * hold ({@link paintsAsPicture}), and a group with an opacity below 1 that
+ * holds a blended layer, or a layer or a mark that lays a shadow under itself
+ * by a blend (core/appearance.ts's markUnders and layerUnders).
+ *
+ * SVG, PDF and the headless renderer all composite a translucent group as one
+ * picture, so a blend inside one mixes only with what else the group holds.
+ * The canvas otherwise passes a group's opacity down to each layer in it; with
+ * a blend inside, that would mix with the page under the group, and the
+ * drawing would not look like its exports. Without one there is nothing to
+ * tell the two apart, so the canvas keeps its cheaper way.
+ */
+export function pictureGroupIds(sketch: Sketch): Set<string> {
+  const ids = new Set(sketch.layers.filter(paintsAsPicture).map((layer) => layer.id));
+  const byId = new Map(sketch.layers.map((layer) => [layer.id, layer]));
+  const mixing = mixingLayers(sketch);
+  for (const layer of sketch.layers) {
+    if (!mixing.has(layer.id)) continue;
+    const seen = new Set<string>();
+    for (let at = layer.parent ? byId.get(layer.parent) : undefined; at && !seen.has(at.id); at = at.parent ? byId.get(at.parent) : undefined) {
+      seen.add(at.id);
+      if (at.group && at.opacity < 1) ids.add(at.id);
+    }
+  }
+  return ids;
+}
+
+/** One step of painting a scope: a drawing layer's marks, or a group painted as one picture. */
 export type PaintStep = { kind: 'leaf'; layer: Layer } | { kind: 'group'; group: Layer };
 
 export function paintIndex(sketch: Sketch): PaintIndex {
   return {
     byId: new Map(sketch.layers.map((layer) => [layer.id, layer])),
-    pictureGroups: new Set(sketch.layers.filter(paintsAsPicture).map((layer) => layer.id)),
+    pictureGroups: pictureGroupIds(sketch),
   };
+}
+
+/**
+ * The layers of a page that mix with what is under them by anything but
+ * Normal: those with a blend, those that lay a shadow under themselves by one,
+ * and those holding a mark that does.
+ */
+function mixingLayers(sketch: Sketch): Set<string> {
+  const ids = new Set(sketch.layers.filter((layer) => isBlended(layer.blend) || layerUnders(layer).length > 0).map((layer) => layer.id));
+  for (const stroke of sketch.strokes) {
+    if (stroke.layer && stroke.effects && markUnders(stroke).length > 0) ids.add(stroke.layer);
+  }
+  return ids;
+}
+
+/**
+ * Whether anything on a page mixes with what is under it by a blend - a
+ * layer, or a shadow laid under its layer or its mark: what decides that the
+ * canvas puts the paper under the ink.
+ */
+export function pageBlends(sketch: Sketch): boolean {
+  return mixingLayers(sketch).size > 0;
 }
 
 /** Whether `layer` sits somewhere inside `group`. */

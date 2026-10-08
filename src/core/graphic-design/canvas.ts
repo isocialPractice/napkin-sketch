@@ -29,7 +29,10 @@ import {
 import { contourBounds, elementMatrix, flattenShape, shapeCentre, type Contour, type Matrix } from './geometry.js';
 import { layoutText, transformText } from './font.js';
 import { flatPaint, gradientAxis, isGradientPaint, sortedStops, type PaintBox } from './gradient.js';
-import { cssFilter, readEffects, type Effect } from '../effects.js';
+import { fromRgba8, runEffects, toRgba8 } from '../appearance-fx.js';
+import { activeEffects, cssFilter, effectLayout, isCssEffect, type Effect } from '../effects.js';
+import { canSeparate, resolveAppearance } from './appearance.js';
+import { blendModeOf, compositeOperation, isBlended, type BlendModeId } from '../blend.js';
 import { toPx } from '../units.js';
 
 /** Resolves an `image` element's `src` to something the canvas can draw. */
@@ -95,10 +98,10 @@ function canvasGradient(ctx: CanvasRenderingContext2D, paint: GradientPaint, box
 }
 
 /**
- * Draws a group with an opacity, or with shapes to erase, on a canvas of its
- * own and lays it down once at the alpha the context already carries, as the
- * rasterizer and SVG composite a group. Erase shapes clear that canvas where
- * they paint.
+ * Draws a group with an opacity, with shapes to erase, with Isolate Blending or
+ * with a clip on a canvas of its own and lays it down once at the alpha and
+ * inside the clip the context already carries, as the rasterizer and SVG
+ * composite a group. Erase shapes clear that canvas where they paint.
  */
 function paintIsolated(
   ctx: CanvasRenderingContext2D,
@@ -126,10 +129,13 @@ function paintIsolated(
 
 /**
  * Draws an element that carries effects: its own picture - a group's as one -
- * on a canvas of its own, then that picture through the effects as a CSS
- * filter, then a group's erase shapes cut from the filtered picture, as SVG
- * masks after it filters, and last the result laid down at the alpha and
- * inside the clip the context already carries.
+ * on a canvas of its own, then that picture through the effects - as a CSS
+ * filter when every one is a CSS filter function, otherwise through the pixel
+ * passes the rasterizer runs (core/appearance-fx.ts) - then a group's erase
+ * shapes cut from the filtered picture, as SVG masks after it filters, and
+ * last the result laid down at the alpha and inside the clip the context
+ * already carries, after any shadow it lays under itself on its own, mixed by
+ * that shadow's blend.
  */
 function paintFiltered(
   ctx: CanvasRenderingContext2D,
@@ -165,9 +171,18 @@ function paintFiltered(
   } as Element;
   pctx.setTransform(transform);
   paintElement(pctx, plain, clips, options);
-  fctx.filter = cssFilter(effects, transform);
-  fctx.drawImage(picture, 0, 0);
-  fctx.filter = 'none';
+  const { unders } = effectLayout(effects, canSeparate(el));
+  let laid: ReturnType<typeof runEffects> = [];
+  if (unders.length === 0 && effects.every(isCssEffect)) {
+    fctx.filter = cssFilter(effects, transform);
+    fctx.drawImage(picture, 0, 0);
+    fctx.filter = 'none';
+  } else {
+    const img = fromRgba8(pctx.getImageData(0, 0, width, height).data, width, height);
+    const m: Matrix = [transform.a, transform.b, transform.c, transform.d, transform.e, transform.f];
+    laid = runEffects(img, effects, m, () => {}, canSeparate(el));
+    fctx.putImageData(new ImageData(toRgba8(img), width, height), 0, 0);
+  }
   const erase = el.type === 'group' ? el.erase ?? [] : [];
   if (erase.length > 0) {
     fctx.setTransform(transform);
@@ -176,7 +191,57 @@ function paintFiltered(
   }
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // The shadows laid under it on their own, the last one cast lowest, each by its blend.
+  for (let k = laid.length - 1; k >= 0; k--) {
+    const under = laid[k];
+    const layer = document.createElement('canvas');
+    layer.width = under.image.width;
+    layer.height = under.image.height;
+    layer.getContext('2d')?.putImageData(new ImageData(toRgba8(under.image), under.image.width, under.image.height), 0, 0);
+    ctx.globalCompositeOperation = compositeOperation(under.blend);
+    ctx.drawImage(layer, under.x, under.y);
+  }
+  ctx.globalCompositeOperation = 'source-over';
   ctx.drawImage(filtered, 0, 0);
+  ctx.restore();
+}
+
+/**
+ * Draws a blended element: its own picture - effects and all, a group's as
+ * one - on a canvas of its own, then laid down through the blend at the alpha
+ * and inside the clip the context already carries, as SVG composites an
+ * element with a `mix-blend-mode`.
+ */
+function paintBlended(
+  ctx: CanvasRenderingContext2D,
+  el: Element,
+  blend: BlendModeId,
+  clips: Map<string, ClipShape[]>,
+  options: PaintOptions,
+): void {
+  const picture = document.createElement('canvas');
+  picture.width = ctx.canvas.width;
+  picture.height = ctx.canvas.height;
+  const pctx = picture.getContext('2d');
+  if (!pctx) return;
+  // The context stands in the element's frame with its clip and alpha, so the
+  // picture is the element less those, and less the blend it is laid down by.
+  const plain = {
+    ...el,
+    blend: undefined,
+    opacity: undefined,
+    clip: undefined,
+    rotate: undefined,
+    scale: undefined,
+    translate: undefined,
+    origin: undefined,
+  } as Element;
+  pctx.setTransform(ctx.getTransform());
+  paintElement(pctx, plain, clips, options);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = compositeOperation(blend);
+  ctx.drawImage(picture, 0, 0);
   ctx.restore();
 }
 
@@ -236,7 +301,14 @@ function paintElement(
   if (el.clip) applyClip(ctx, el.clip, clips);
   applyPaint(ctx, el);
 
-  const effects = readEffects(el.effects);
+  const blend = blendModeOf(el.blend);
+  if (isBlended(blend)) {
+    paintBlended(ctx, el, blend, clips, options);
+    ctx.restore();
+    return;
+  }
+
+  const effects = activeEffects(el.effects);
   if (effects) {
     paintFiltered(ctx, el, effects, clips, options);
     ctx.restore();
@@ -245,7 +317,8 @@ function paintElement(
 
   switch (el.type) {
     case 'group':
-      if ((el.opacity === undefined || el.opacity >= 1) && !(el.erase && el.erase.length > 0)) {
+      // A clipped group is one picture too, as the rasterizer and SVG draw it, so the blends inside stay inside.
+      if ((el.opacity === undefined || el.opacity >= 1) && !(el.erase && el.erase.length > 0) && el.isolate !== true && !el.clip) {
         for (const child of el.children) paintElement(ctx, child, clips, options);
       } else {
         paintIsolated(ctx, el, clips, options);
@@ -304,6 +377,6 @@ export function paintComposition(
     ctx.fillStyle = doc.background;
     ctx.fillRect(0, 0, doc.width, doc.height);
   }
-  for (const el of doc.elements) paintElement(ctx, el, clips, options);
+  for (const el of resolveAppearance(doc.elements)) paintElement(ctx, el, clips, options);
   ctx.restore();
 }

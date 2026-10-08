@@ -157,7 +157,8 @@ try {
   // ---- Rotate to the clipboard's type --------------------------------------------------------
   await page.send('Input.insertText', { text: 'rotate' });
   await sleep(250);
-  c.eq('the search keeps Rotate', (await view()).shown.join(), 'Rotate');
+  // Adjust Colors > Hue Rotate (1.0.0-alpha.5.0.0) has the word in its name too.
+  c.eq('the search keeps Rotate, and Hue Rotate', (await view()).shown.join(), 'Rotate,Hue Rotate');
   rotate = await chooseType('Rotate', 'Composition:edit:mixed', 'up');
   v = await view();
   c.ok(

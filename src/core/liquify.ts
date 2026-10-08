@@ -24,6 +24,8 @@
  * Nothing here touches the DOM.
  */
 
+// REUSE: core/arc-length.ts's Bezier evaluator, which path type measures its paths with.
+import { cubicAt } from './arc-length.js';
 import { fitCurve, fittedPressureAt } from './fit-curve.js';
 import { mapStrokeGeometry, WARP_TOLERANCE, type PointMap } from './mesh-warp.js';
 import { sampleVectorPathPoints } from '../sharpen/geometry.js';
@@ -437,11 +439,3 @@ function dist(a: Vec, b: Vec): number {
   return Math.hypot(b.x - a.x, b.y - a.y);
 }
 
-function cubicAt(p0: Vec, c1: Vec, c2: Vec, p3: Vec, t: number): Vec {
-  const u = 1 - t;
-  const w0 = u * u * u;
-  const w1 = 3 * u * u * t;
-  const w2 = 3 * u * t * t;
-  const w3 = t * t * t;
-  return { x: w0 * p0.x + w1 * c1.x + w2 * c2.x + w3 * p3.x, y: w0 * p0.y + w1 * c1.y + w2 * c2.y + w3 * p3.y };
-}

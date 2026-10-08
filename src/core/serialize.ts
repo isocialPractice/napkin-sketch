@@ -10,6 +10,8 @@
  */
 
 import { extension, stem } from './paths.js';
+import { readTextConfigs, readTypeset, withTypeset } from './type/model.js';
+import { dropUnusedTextConfigs, syncBookConfigs } from './type/configs.js';
 import {
   SKETCHBOOK_EXTENSION,
   SKETCHBOOK_VERSION,
@@ -29,6 +31,7 @@ import {
   type VectorAnchor,
 } from './types.js';
 import { readEffects } from './effects.js';
+import { blendModeOf, isBlended } from './blend.js';
 import { normalizeClips } from './clip.js';
 import { linkKind } from './link.js';
 import { DEFAULT_PENCIL, pencilGrade, type PencilChoice } from './pencil.js';
@@ -153,7 +156,7 @@ function normalizeStroke(raw: unknown): Stroke | null {
   // An eraser clears; it has no picture of its own for an effect to work on.
   const effects = tool !== 'eraser' ? readEffects(r.effects) : undefined;
 
-  return {
+  const stroke: Stroke = {
     id: typeof r.id === 'string' ? r.id : createId('st'),
     tool,
     color: typeof r.color === 'string' ? r.color : '#1f2328',
@@ -201,6 +204,9 @@ function normalizeStroke(raw: unknown): Stroke | null {
     link: isImage ? normalizeLink(r.link) : undefined,
     ...(effects ? { effects } : {}),
   };
+  // A text mark's type beyond its base, made sound for its text and in step with its first character.
+  const typeset = isText ? readTypeset(r.typeset, r.text as string) : undefined;
+  return typeset ? withTypeset(stroke, typeset) : stroke;
 }
 
 /**
@@ -246,6 +252,9 @@ function normalizeLayer(raw: unknown, index: number): Layer | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   const effects = readEffects(r.effects);
+  // A blend by any of its names, kept only when it mixes: Normal is no blend.
+  // A hand-edited file that says `multiply` reads as Stack Blend.
+  const blend = blendModeOf(r.blend);
   return {
     id: typeof r.id === 'string' ? r.id : createId('ly'),
     name: typeof r.name === 'string' && r.name.length > 0 ? r.name : `Layer ${index + 1}`,
@@ -256,6 +265,8 @@ function normalizeLayer(raw: unknown, index: number): Layer | null {
     parent: typeof r.parent === 'string' ? r.parent : undefined,
     ...(effects ? { effects } : {}),
     ...(r.group === true && typeof r.clip === 'string' ? { clip: r.clip } : {}),
+    ...(isBlended(blend) ? { blend } : {}),
+    ...(r.group === true && r.isolate === true ? { isolate: true } : {}),
   };
 }
 
@@ -325,37 +336,73 @@ function normalizeSketch(raw: unknown): Sketch {
   return sketch;
 }
 
-/** Coerces an arbitrary parsed object into a valid SketchBook. */
-export function normalizeSketchBook(raw: unknown, fallbackName = 'untitled'): SketchBook {
+/** How {@link normalizeSketchBook} reads a book. */
+export interface NormalizeOptions {
+  /** Drops the Text Configurations no text follows, which are kept unless this asks. */
+  dropUnusedConfigs?: boolean;
+}
+
+/**
+ * Coerces an arbitrary parsed object into a valid SketchBook. Its text is put
+ * in step with its Text Configurations: each text carries the book's
+ * definitions, and a configuration a text carries that the book's list has
+ * not joins the list.
+ */
+export function normalizeSketchBook(raw: unknown, fallbackName = 'untitled', options: NormalizeOptions = {}): SketchBook {
   if (!raw || typeof raw !== 'object') {
     return createSketchBook(fallbackName);
   }
   const r = raw as Record<string, unknown>;
   const sketches = Array.isArray(r.sketches) ? r.sketches.map(normalizeSketch) : [];
+  const configs = readTextConfigs(r.textConfigs);
   const book: SketchBook = {
     format: 'napkin-sketch',
     version: SKETCHBOOK_VERSION,
     name: typeof r.name === 'string' ? r.name : fallbackName,
     sketches: sketches.length > 0 ? sketches : [createSketch()],
+    ...(configs.length > 0 ? { textConfigs: configs } : {}),
     createdAt: typeof r.createdAt === 'string' ? r.createdAt : new Date().toISOString(),
     updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : new Date().toISOString(),
   };
-  return book;
+  syncBookConfigs(book, () => createId('tc'));
+  // The list where the format keeps it, before the timestamps, should the text have brought it.
+  const { createdAt, updatedAt, ...head } = book;
+  const ordered: SketchBook = { ...head, createdAt, updatedAt };
+  return options.dropUnusedConfigs ? dropUnusedTextConfigs(ordered) : ordered;
 }
 
 /** Serializes a sketch book to pretty-printed, human-diffable JSON. */
 export function serializeSketchBook(book: SketchBook): string {
-  const toWrite: SketchBook = { ...book, updatedAt: new Date().toISOString() };
+  // The timestamps last, as the format keeps them, wherever an edit put the configurations.
+  const { createdAt, updatedAt: _was, ...head } = book;
+  const toWrite: SketchBook = { ...head, createdAt, updatedAt: new Date().toISOString() };
   return JSON.stringify(toWrite, null, 2);
 }
 
 /** Parses and normalizes a sketch book from a JSON string. */
 export function parseSketchBook(text: string, fallbackName = 'untitled'): SketchBook {
+  return parseSketchBookFile(text, fallbackName).book;
+}
+
+/** The format version a document says it was saved in, or 0 when it says none. */
+export function savedVersion(raw: unknown): number {
+  if (!raw || typeof raw !== 'object') return 0;
+  const version = (raw as Record<string, unknown>).version;
+  return typeof version === 'number' && Number.isFinite(version) ? version : 0;
+}
+
+/**
+ * Parses a sketch book as {@link parseSketchBook} does, and says whether a
+ * newer napkin-sketch saved it - a format version past this build's - so
+ * that parts of it this build does not know may not show, and saving it here
+ * writes only what this build knows.
+ */
+export function parseSketchBookFile(text: string, fallbackName = 'untitled'): { book: SketchBook; newer: boolean } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (err) {
     throw new Error(`Not a valid .skbk document: ${(err as Error).message}`);
   }
-  return normalizeSketchBook(parsed, fallbackName);
+  return { book: normalizeSketchBook(parsed, fallbackName), newer: savedVersion(parsed) > SKETCHBOOK_VERSION };
 }

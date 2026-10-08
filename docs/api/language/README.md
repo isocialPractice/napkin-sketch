@@ -96,7 +96,8 @@ repeat 3 as i { rect (20 + i * 40) 200 30 30 }
   instructions, and `}`. A block can also sit on one line.
 - **Paint instructions share a line.** On a line that starts with a paint verb
   (`tool`, `color`, `width`, `opacity`, `fill`, `gradient`, `stroke`, `style`,
-  `profile`, `nib`, `rough`, `font`), another paint verb starts the next
+  `profile`, `nib`, `pencil`, `rough`, `font`, `character`, `paragraph`,
+  `textconfig`, `accent`), another paint verb starts the next
   instruction. Nothing else chains, so in `layer "Sky" opacity 0.8` the
   `opacity` is the layer's own.
 - **Comments.** `#` at the start of a line, or followed by a space, starts a
@@ -123,6 +124,7 @@ repeat 3 as i { rect (20 + i * 40) 200 30 30 }
 | Switch | `on`, `off` | `true`, `false` | |
 | Points | `0 0, 10 0, 5 8` | `[{ "x": 0, "y": 0 }, ...]` | Each coordinate is a length. |
 | Stops | `(#ffffff 0, #000000 1)`, `(red, blue)` | `[{ "color": "#ffffff", "offset": 0 }, ...]` | Offsets from 0 to 1, or percentages. |
+| Runs | `(0 4 face "Bold", 6 11 underline color red)` | `[{ "start": 0, "end": 4, "face": "Bold" }, ...]` | Where each starts and ends, counting characters from 0, then its attributes. |
 
 **Units.** A length can carry `px`, `in`, `mm` or `pt` straight after its
 number. A bare number is read in the units in force, which are pixels until a
@@ -149,6 +151,56 @@ or `rgb()`, `rgba()`, `hsl()` and `hsla()`, written with no space before the
 **Gradient stops.** A color and an offset, separated by commas inside
 parentheses. Give every stop an offset, as a number from 0 to 1 or a
 percentage, or give none and they are spaced evenly.
+
+**Runs.** A text's `runs` give stretches of it styles of their own, separated
+by commas inside parentheses. Each is where it starts and where it ends - two
+whole numbers, counting the text's characters from 0, the end not included -
+then `character`'s clauses and flags, and a `size`, a `family` and a
+`color` of its own: `text "Acme Corp" at 20 20 runs (0 4 face "Bold", 5 9
+color #c0392b underline)`. The text's first character sets its base, so the
+size, family and color `font` and `color` gave it may move to a run. A run
+may first name the Text Configuration it follows, `config "<name>"`, which
+its other clauses override.
+
+**Text Configurations.** `textconfig "<name>"` defines one, a vector
+editor's Character Style: `character`'s clauses, but `kern`, with a `size`,
+a `family` and a `color`, under a name the book keeps. `config "<name>"`
+on a `text` has the whole text follow it, and in a run, that run; what the
+text or the run has of its own overrides it. A name is the same name in any
+case, and one no `textconfig` before it defined is `unknown-config`.
+Defined again, a configuration changes for every text that follows it.
+
+**Markdown Flow.** The `markdown` flag on a `text` makes its text Markdown,
+shown as it renders: `text "# Notes\n\n- one\n- **two**" at 40 60 markdown`.
+A heading, code, a quote and a link follow the Markdown configurations,
+`Markdown Heading 1` to `6`, `Markdown Code`, `Markdown Code Block`,
+`Markdown Quote` and `Markdown Link`, which the book takes in; a
+`textconfig` of one of those names, before the text, restyles it. The
+browser-safe entry reads Markdown with the lexer it is given: importing
+`napkin-sketch/markdown` gives it marked's, as the command line and
+`napkin-sketch/node` have. With none, the text shows its Markdown as typed.
+`as marks` takes no `markdown`.
+
+**Clean Language Accents.** `accent <language>` colors the next `text` as a
+language reads it - keywords, strings, numbers, comments, names - every
+paragraph of it: `accent python` then `text "x = 1  # one" at 40 60`. A
+language is its highlight.js id or a name it goes by (`ts`, `py`); one no
+word spells goes in quotes, `accent "c++"`; `auto` takes the language the
+code reads most like, and `none` colors nothing. It waits for the next
+`text`, and one nothing takes - another `accent`, the end of its block or a
+text drawn `as marks` comes first - is `unused-accent`. A Markdown Flow text's
+fenced code needs no `accent`: a fence that names its language is colored.
+The colors come from the highlighter the core is given, as the lexer does:
+`napkin-sketch/markdown` gives it highlight.js with its 36 common languages,
+and `registerAccentLanguage` installs more.
+
+**Type.** A `text` is Sideless Typing from its anchor, the top of its first
+line; `box` sets it in a rectangle that grows to fit, `inside "<path
+data>"` in a shape, and `along "<path data>"` on a path, both drawn from
+the anchor; `vertical` sets it in columns that run right to left.
+`character` and `paragraph` set what every text after them has, as
+`font` does, until a `reset`; `align` on a text sets its paragraphs'
+alignment for it alone.
 
 ### Expressions
 
@@ -321,7 +373,7 @@ Named layers and nested groups, with opacity, visibility and lock.
 
 #### Paint
 
-What every mark after it is drawn with: tool, color, width, opacity, fill, gradient, outline, dash, profile, nib, font, and the hand-drawn pass.
+What every mark after it is drawn with: tool, color, width, opacity, fill, gradient, outline, dash, profile, nib, pencil, font, the hand-drawn pass, and the character, paragraph, Text Configuration and code accent of the text after it.
 
 | Verb | Written | Fields in JSON | What it does |
 | --- | --- | --- | --- |
@@ -338,6 +390,10 @@ What every mark after it is drawn with: tool, color, width, opacity, fill, gradi
 | `pencil` | `pencil <grade> [<color>]` | `pencil, color?` | Takes up the Pencil at a grade: graphite alone, 9H to 9B, or charcoal (HB to 6B), compressed (2B to 6B) or vine (hard, medium, soft) and its grade. Every mark after it is drawn with that lead through the paper's grain, in its tone - or in the color given, a colored pencil. The width is the line's own; the app's softer leads draw broader at one tool width. |
 | `rough` | `rough <0-1> [passes 1\|2] [overshoot <length>]`<br>`rough off` | `amount, passes?, overshoot?` | The hand-drawn pass for every mark after it: 0 is exact, 1 is clearly drawn by hand, and off is 0. Seeded, so it draws the same way every run. |
 | `font` | `font "<family>" [<size>]`<br>`font <size>` | `family?, size?` | The font family and size of text after it. |
+| `character` | `character [face "<face>"] [tracking <n>] [kern <n>] [kerning auto\|none] [leading <length>] [spacing <n>%] [caps normal\|all\|small] [hscale <n>%] [vscale <n>%] [shift <length>] [rotate <degrees>] [highlight <color>] [super\|sub] [underline] [strike]`<br>`character reset` | `face?, tracking?, kern?, kerning?, leading?, spacing?, caps?, hscale?, vscale?, shift?, rotate?, highlight?, position?, underline?, strike?, reset?` | The character attributes of text after it: its face, tracking, kerning, leading, word spacing, capitals, scales, baseline shift, turn and highlight, and whether it is a superscript or a subscript, underlined or struck through. reset puts every one back. |
+| `paragraph` | `paragraph [align left\|center\|right\|justify] [indent <left> [<right>]] [first <length>] [before <length>] [after <length>] [hyphenate\|nohyphenate] [list bullet\|number\|none] [level <n>]`<br>`paragraph reset` | `align?, indent?, indentRight?, first?, before?, after?, hyphenate?, list?, level?, reset?` | The paragraph attributes of text after it: its alignment, its indents, the space before and after it, whether it hyphenates, and a bulleted or numbered list at a level. reset puts every one back. |
+| `textconfig` | `textconfig "<name>" [face "<face>"] [tracking <n>] [kerning auto\|none] [leading <length>] [spacing <n>%] [caps normal\|all\|small] [hscale <n>%] [vscale <n>%] [shift <length>] [rotate <degrees>] [highlight <color>] [super\|sub] [underline] [strike] [size <size>] [family "<family>"] [color <color>]` | `name, face?, tracking?, kerning?, leading?, spacing?, caps?, hscale?, vscale?, shift?, rotate?, highlight?, position?, underline?, strike?, size?, family?, color?` | Defines a Text Configuration, a vector editor's Character Style: a named set of character attributes the book keeps, which text follows with config and its runs with config in their clauses. What a text has of its own overrides it. Defined again under its name, it changes for every text that follows it. |
+| `accent` | `accent <language>` | `language` | A Clean Language Accent for the next text: its paragraphs are colored as a language reads them - keywords, strings, numbers, comments, names - live as the app edits them. A language by its id or a name highlight.js knows it by (a name no word spells in quotes, "c++"), auto for the one the code reads most like, or none. It waits for the next text; one nothing takes is reported. |
 
 #### Shapes
 
@@ -409,18 +465,19 @@ Text, placed images, linked files, and documents the host supplied.
 
 | Verb | Written | Fields in JSON | What it does |
 | --- | --- | --- | --- |
-| `text` | `text "<text>" at <x> <y> [size <size>] [box <width>] [align left\|center\|right] [as marks]` | `text, x, y, size?, box?, align?, asMarks?` | A text item, measured and aligned, and editable in the app. With as marks the letters are drawn as brush strokes instead. |
+| `text` | `text "<text>" at <x> <y> [size <size>] [box <width>] [inside "<path data>"] [along "<path data>"] [start <length>] [flip] [effect rainbow\|skew\|ribbon\|stair\|gravity] [align left\|center\|right\|justify] [vertical] [config "<name>"] [runs (<start> <end> [config "<name>"] <character clauses>, ...)] [markdown] [as marks]` | `text, x, y, size?, box?, inside?, along?, start?, flip?, effect?, align?, vertical?, config?, runs?, markdown?, asMarks?` | A text item, set and aligned, and editable in the app: Sideless Typing from its anchor, Sheet Typing in a box or inside a shape, or Path Typing along a path, set in its runs' styles, the whole of it following a Text Configuration with config. With markdown its text is Markdown, shown as it renders: Markdown Flow. With as marks the letters are drawn as brush strokes instead. |
 | `image` | `image "<asset or data URL>" at <x> <y> [size <width> [<height>]]` | `src, x, y, width?, height?` | Places an image: an asset the host supplied, by name, or a data URL. Nothing is read from disk. |
 | `link` | `link "<path>" at <x> <y> [size <width> [<height>]] [name "<layer name>"]` | `href, x, y, width?, height?, name?` | Places a linked file: one selectable element that references the file instead of drawing its contents into the page. |
 | `use` | `use "<document>" [at <x> <y>] [scale <s>] [layer "<name>"]` | `name, x?, y?, scale?, layer?` | Copies in a document the host supplied, as a group, with its layers and anchors. |
 
 #### Effects
 
-Blur, shadow and color effects for the next layer, group or mark, as CSS filter functions are: drawn in SVG, in PNG and in the app, and left out of a PDF.
+Effects for the next layer, group or mark - blur, color, shadows, glows, bevels, emboss and feather, Splatter, Warp and 3D - and the blend mode of the next layer or group.
 
 | Verb | Written | Fields in JSON | What it does |
 | --- | --- | --- | --- |
-| `effect` | `effect blur <radius>`<br>`effect brightness <amount>`<br>`effect contrast <amount>`<br>`effect saturate <amount>`<br>`effect grayscale [<0-1>]`<br>`effect sepia [<0-1>]`<br>`effect invert [<0-1>]`<br>`effect hue-rotate <degrees>`<br>`effect opacity <0-1>`<br>`effect drop-shadow <dx> <dy> <blur> <color>`<br>`effect none` | `type, radius?, amount?, angle?, dx?, dy?, blur?, color?` | An effect for the next layer, group or mark the script makes, as its CSS filter function works: blur, brightness, contrast, saturate, grayscale, sepia, invert, hue-rotate, opacity or drop-shadow. Several stack in order, and none clears what is waiting. |
+| `effect` | `effect blur <radius>`<br>`effect brightness <amount>`<br>`effect contrast <amount>`<br>`effect saturate <amount>`<br>`effect grayscale [<0-1>]`<br>`effect sepia [<0-1>]`<br>`effect invert [<0-1>]`<br>`effect hue-rotate <degrees>`<br>`effect opacity <0-1>`<br>`effect drop-shadow <dx> <dy> <blur> <color> [spread <0-100>] [blend <mode>] [opacity <0-1>]`<br>`effect feather <radius>`<br>`effect bevel [inner\|outer] [size <n>] [depth <percent>] [angle <degrees>] [altitude <degrees>] [soften <n>] [up\|down] [light <color> [<0-1>]] [shade <color> [<0-1>]] [light-blend <mode>] [shade-blend <mode>]`<br>`effect emboss [emboss\|pillow] [size <n>] [depth <percent>] [angle <degrees>] [altitude <degrees>] [soften <n>] [up\|down] [light <color> [<0-1>]] [shade <color> [<0-1>]] [light-blend <mode>] [shade-blend <mode>]`<br>`effect inner-shadow <dx> <dy> <blur> <color> [choke <0-100>] [blend <mode>] [opacity <0-1>]`<br>`effect outer-glow [<blur>] [<color>] [spread <0-100>] [blend <mode>] [opacity <0-1>]`<br>`effect inner-glow [<blur>] [<color>] [choke <0-100>] [edge\|center] [blend <mode>] [opacity <0-1>]`<br>`effect splatter [preset <name>] [angle <degrees>] [overlap <n> [<variation>]] [width <n>] [curviness <percent> [<variation>]] [spacing <n> [<variation>]] [seed <n>]`<br>`effect warp <style> [bend <percent>] [horizontal\|vertical] [distort <percent> [<percent>]] [part whole\|lower\|upper]`<br>`effect extrude [<depth>] [rotate <x> <y> <z>] [perspective <degrees>] [shading plastic\|diffuse\|none\|wireframe] [hollow] [light <azimuth> <elevation> [<intensity> [<ambient>]]] [position <x> <y> <z>] [scale <x> <y> <z>]`<br>`effect revolve [angle <degrees>] [offset <n>] [axis left\|right] [segments <n>] [rotate <x> <y> <z>] [perspective <degrees>] [shading plastic\|diffuse\|none\|wireframe] [hollow] [light <azimuth> <elevation> [<intensity> [<ambient>]]] [position <x> <y> <z>] [scale <x> <y> <z>]`<br>`effect none` | `type, radius?, amount?, angle?, dx?, dy?, blur?, color?, spread?, choke?, blend?, opacity?, style?, size?, depth?, altitude?, soften?, direction?, lightColor?, lightOpacity?, lightBlend?, shadeColor?, shadeOpacity?, shadeBlend?, source?, preset?, overlap?, overlapVariation?, width?, curviness?, curvinessVariation?, spacing?, spacingVariation?, seed?, bend?, orientation?, distortH?, distortV?, part?, hollow?, offset?, axis?, segments?, rotateX?, rotateY?, rotateZ?, positionX?, positionY?, positionZ?, scaleX?, scaleY?, scaleZ?, perspective?, shading?, lightAzimuth?, lightElevation?, lightIntensity?, lightAmbient?, target?, hidden?` | An effect for the next layer, group or mark the script makes: a CSS filter function - blur, brightness, contrast, saturate, grayscale, sepia, invert, hue-rotate, opacity or drop-shadow, which is Outer Shadow - an appearance effect - feather, bevel, emboss, inner-shadow, outer-glow or inner-glow - or splatter, a vector editor's Scribble, which draws a mark's fill as a loose hatch (on a layer or a group it draws nothing) - or warp, a vector editor's Warp, which bends what takes it by a style, a layer's or a group's marks as one - or extrude and revolve, a vector editor's Classic 3D, which build a mark in depth and draw it as shaded faces (on a layer or a group they draw nothing). Any of them also takes `on fill` or `on stroke`, to work on that part of a mark alone, and `hidden`, to be kept without being drawn. Several stack in order, and none clears what is waiting. |
+| `blend` | `blend <mode>` | `mode` | How the next layer or group the script makes mixes with what is drawn under it, the page's background included: a Napkin Blend by its name or by Illustrator's - stack or multiply, sheer or screen, cover or luminosity. A blend is a layer's, so it waits for the next layer or group; normal sets one back. |
 
 #### Output
 
@@ -478,6 +535,7 @@ card.napkin.json[1][0]: error expected-length: `x` of `rect` at [1][0]: `ten` is
 | `unknown-shape` | error | shape names something the shape library does not have. |
 | `unknown-asset` | error | image names an asset the host did not supply. |
 | `unknown-document` | error | use names a document the host did not supply. |
+| `unknown-config` | error | config names a Text Configuration no textconfig before it defined. |
 | `image-size-unknown` | warning | An image's size cannot be read from its data, so it is placed square: 100 by 100, or the one size given by itself. |
 | `glyph-missing` | warning | text as marks has a character the built-in face does not draw; it is left as a gap. |
 | `unknown-field` | warning | An instruction in a JSON script has a field its verb does not have; it is left out. |
@@ -489,6 +547,8 @@ card.napkin.json[1][0]: error expected-length: `x` of `rect` at [1][0]: `ten` is
 | `duplicate-definition` | warning | A second define replaces an earlier one of the same name. |
 | `link-unresolved` | warning | A linked file could not be read for an output that has to draw it, so its placeholder was drawn instead. |
 | `unused-effect` | warning | An effect nothing took: no layer, group or mark followed it before its block, its page or the script ended. |
+| `unused-blend` | warning | A blend nothing took: no layer or group followed it before another blend, its block, its page or the script ended. A blend is a layer's, so a mark alone does not take it. |
+| `unused-accent` | warning | An accent nothing took: no text followed it before another accent, its block, its page or the script ended, or the text was drawn as marks. |
 | `wipe-skipped` | warning | A wipe's or a stack's block drew marks it cannot combine - text, pictures, linked files, eraser marks - and they are drawn as they are. |
 | `wipe-empty` | warning | A wipe or a stack left nothing: out-front's bottom mark wholly covered by the rest, say, or a stack remove taking every piece. |
 | `wipe-failed` | warning | A wipe or a stack could not combine its block's marks - fewer than two it can combine, more than it takes, or geometry it could not make - so they are drawn as they are. |

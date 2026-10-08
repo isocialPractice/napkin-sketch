@@ -193,20 +193,43 @@ function zoomRowsTheApps(rows: NativeRow[]): NativeRow[] {
   });
 }
 
-test('File, Edit and View are the old menus with exactly the four documented changes', () => {
+/** Change 5: View > Toggle Appearance Panel (1.0.0-alpha.5.0.0) joins the panel rows, after the Properties panel's. */
+function appearanceRowAdded(rows: NativeRow[]): NativeRow[] {
+  const at = rows.findIndex((row) => row.label === 'Toggle Properties Panel') + 1;
+  return [...rows.slice(0, at), { label: 'Toggle Appearance Panel', accelerator: 'Shift+F6', registerAccelerator: false }, ...rows.slice(at)];
+}
+
+/** Change 6: View > Toggle Character Panel and Toggle Paragraph Panel (1.0.0-alpha.5.0.0), the Type panel's two tabs, after the Appearance panel's. */
+function typeRowsAdded(rows: NativeRow[]): NativeRow[] {
+  const at = rows.findIndex((row) => row.label === 'Toggle Appearance Panel') + 1;
+  return [
+    ...rows.slice(0, at),
+    { label: 'Toggle Character Panel', accelerator: 'CmdOrCtrl+Shift+T' },
+    { label: 'Toggle Paragraph Panel', accelerator: 'CmdOrCtrl+Alt+T' },
+    ...rows.slice(at),
+  ];
+}
+
+/** Change 7: View > Toggle Composition Styles Panel (1.0.0-alpha.5.0.0), after the Appearance panel's: a Shift chord, the page's. */
+function compositionStylesRowAdded(rows: NativeRow[]): NativeRow[] {
+  const at = rows.findIndex((row) => row.label === 'Toggle Appearance Panel') + 1;
+  return [...rows.slice(0, at), { label: 'Toggle Composition Styles Panel', accelerator: 'Shift+F5', registerAccelerator: false }, ...rows.slice(at)];
+}
+
+test('File, Edit and View are the old menus with exactly the seven documented changes', () => {
   for (const animation of [true, false]) {
     const menus = nativeMenus(registry, { animationNotInstalled: !animation });
     const menu = (label: string) => withoutIds(menus.find((m) => m.label === label)!.submenu);
     assert.deepEqual(menu('File'), exportInNewOrder(TODAY_FILE), `File, animation ${animation}`);
     assert.deepEqual(menu('Edit'), editorsAdded(rotateAndMirrorMoved(todayEdit(animation))), `Edit, animation ${animation}`);
-    assert.deepEqual(menu('View'), zoomRowsTheApps(TODAY_VIEW), `View, animation ${animation}`);
+    assert.deepEqual(menu('View'), compositionStylesRowAdded(typeRowsAdded(appearanceRowAdded(zoomRowsTheApps(TODAY_VIEW)))), `View, animation ${animation}`);
   }
 });
 
-test('the menu bar holds nine menus, in the order this release sets out', () => {
+test('the menu bar holds eleven menus, Effect between Transform and Sketch and Type after it, as in a vector editor', () => {
   assert.deepEqual(
     menuTree(registry).map((menu) => menu.label),
-    ['File', 'Edit', 'View', 'Transform', 'Sketch', 'Layers', 'Pages', 'Automate', 'Help'],
+    ['File', 'Edit', 'View', 'Transform', 'Effect', 'Type', 'Sketch', 'Layers', 'Pages', 'Automate', 'Help'],
   );
 });
 
@@ -298,6 +321,36 @@ const TODAY_CLOSE_SHAPE_BUTTON: Shape[] = [
 ];
 
 const NEW_FORMATS = [item('PNG Image…'), item('SVG Vector…'), item('JPEG Image…'), item('PDF Document…')];
+
+/** Layers > Blend: the two steps, then the sixteen modes in Illustrator's families, then Isolate Blending. */
+const BLEND_ROWS: Shape[] = [
+  item('Next Blend Mode'),
+  item('Previous Blend Mode'),
+  '---',
+  item('Normal'),
+  '---',
+  item('Soak Blend (Darken)'),
+  item('Stack Blend (Multiply)'),
+  item('Scorch Blend (Color Burn)'),
+  '---',
+  item('Dry Blend (Lighten)'),
+  item('Sheer Blend (Screen)'),
+  item('Bleach Blend (Color Dodge)'),
+  '---',
+  item('Fold Blend (Overlay)'),
+  item('Light Blend (Soft Light)'),
+  item('Heavy Blend (Hard Light)'),
+  '---',
+  item('Messy Blend (Difference)'),
+  item('Avoidance Blend (Exclusion)'),
+  '---',
+  item('Tidy Blend (Hue)'),
+  item('Bright Blend (Saturation)'),
+  item('Dye Blend (Color)'),
+  item('Cover Blend (Luminosity)'),
+  '---',
+  item('Isolate Blending', 'notGroup'),
+];
 const NEW_ADD_PAGE = [item('Default New Page'), item('Custom New Page…'), item('From Selection', 'noSelection')];
 
 /**
@@ -312,20 +365,32 @@ function withPageTurns(rows: Shape[]): Shape[] {
 
 test('the right-click menus and dropdowns are the old ones with exactly the documented changes', () => {
   const expected: Record<string, Shape[]> = {
-    // The new Layers menu: "Delete Layer", the two restack rows in a Move submenu, and the
-    // Clipping Mask's two after it. Hide gains a question that is never yes inside the open
-    // panel, and is there for the menu bar.
+    // The new Layers menu: "Delete Layer", the two restack rows in a Move submenu, the
+    // Clipping Mask's two after it, and Blend's modes in Illustrator's families (since
+    // 1.0.0-alpha.5.0.0). Hide gains a question that is never yes inside the open panel,
+    // and is there for the menu bar.
     layers: replace(
       replace(
         replace(replace(TODAY_LAYERS_PANEL, 'Delete Layer(s)', item('Delete Layer')), 'Move Layer(s) Up', sub('Move', [item('Layer Up'), item('Layer Down')])),
         'Move Layer(s) Down',
         sub('Clipping Mask', [item('Make', 'noMarksSelected'), item('Release', 'noClipGroup')]),
+        sub('Blend', BLEND_ROWS),
       ),
       'Hide Layers Panel',
       item('Hide Layers Panel', 'layersHidden'),
     ),
     // The Wipe Stacks, a block of their own at the end, greyed with fewer than two shapes.
-    canvas: [...TODAY_CANVAS, '---', sub('Wipe Stacks', WIPE_STACKS, 'fewerThanTwoShapes')],
+    canvas: [
+      ...TODAY_CANVAS,
+      '---',
+      sub('Wipe Stacks', WIPE_STACKS, 'fewerThanTwoShapes'),
+      // The Effect menu's own commands (1.0.0-alpha.5.0.0), Expand Appearance among them, as the plan asks.
+      '---',
+      item('Apply Last Effect', 'noLastEffect'),
+      item('Last Effect…', 'noLastEffect'),
+      item('Expand Appearance', 'noGeometryEffects'),
+      item('Clear Appearance', 'noEffects'),
+    ],
     // The new Pages menu: Add Page opens the three ways to start a page, and
     // Previous and Next Page have a block of their own.
     pages: withPageTurns(
@@ -387,6 +452,7 @@ function menuBar(state: MenuState = {}): string {
  * app already had for Group Layer, Ungroup and Rename, which the list leaves
  * out but the app still honours. The Transform box and Stroke Profile joined
  * it when the CHANGELOG was checked against the menus before the release.
+ * Effect and Type came with 1.0.0-alpha.5.0.0.
  */
 const MENU_BAR = [
   'File',
@@ -427,6 +493,10 @@ const MENU_BAR = [
   '  Toggle Pages Panel (Ctrl+B)',
   '  Toggle Layers Panel (Ctrl+L)',
   '  Toggle Properties Panel (Ctrl+P)',
+  '  Toggle Appearance Panel (Shift+F6)',
+  '  Toggle Composition Styles Panel (Shift+F5)',
+  '  Toggle Character Panel (Ctrl+Shift+T)',
+  '  Toggle Paragraph Panel (Ctrl+Alt+T)',
   '  Quick Settings (Ctrl+,)',
   '  ---',
   '  Toggle Developer Tools (Ctrl+Shift+I)',
@@ -455,12 +525,99 @@ const MENU_BAR = [
   '    Outer Wipes',
   '    Clean Wipe',
   '  Mirror… (O)',
+  '  Expand Text to Shape (Ctrl+Shift+O)',
   '  ---',
   '  Sharpen',
   '    Sharpen Selection…',
   '    Sharpen All (H)',
   '  Mesh Warp',
   '  Liquify (Shift+R)',
+  'Effect',
+  '  Apply Last Effect (Ctrl+Shift+E)',
+  '  Last Effect… (Ctrl+Alt+Shift+E)',
+  '  ---',
+  '  Blur',
+  '    Gaussian Blur…',
+  '  Adjust Colors',
+  '    Brightness…',
+  '    Contrast…',
+  '    Saturate…',
+  '    Grayscale…',
+  '    Sepia…',
+  '    Invert…',
+  '    Hue Rotate…',
+  '    Opacity…',
+  '  Stylize',
+  '    Feather…',
+  '    Outer Shadow…',
+  '    Inner Shadow…',
+  '    Outer Glow…',
+  '    Inner Glow…',
+  '    Bevel…',
+  '    Emboss…',
+  '    Splatter…',
+  '  Warp',
+  '    Arc…',
+  '    Arch…',
+  '    Unroll…',
+  '    Shell…',
+  '    Windy…',
+  '    Breezy…',
+  '    Curvy…',
+  '    Chart…',
+  '    Puffy…',
+  '    Expand…',
+  '    Cram…',
+  '    Twirl…',
+  '  3D',
+  '    Extrude…',
+  '    Revolve…',
+  '    ---',
+  '    3D Options',
+  '  ---',
+  '  Expand Appearance',
+  '  Clear Appearance',
+  'Type',
+  '  Font',
+  '  Size',
+  '    [ ] 6 pt',
+  '    [ ] 7 pt',
+  '    [ ] 8 pt',
+  '    [ ] 9 pt',
+  '    [ ] 10 pt',
+  '    [ ] 11 pt',
+  '    [ ] 12 pt',
+  '    [ ] 14 pt',
+  '    [ ] 18 pt',
+  '    [ ] 21 pt',
+  '    [ ] 24 pt',
+  '    [ ] 36 pt',
+  '    [ ] 48 pt',
+  '    [ ] 60 pt',
+  '    [ ] 72 pt',
+  '    ---',
+  '    Other',
+  '  ---',
+  '  Character…',
+  '  Paragraph…',
+  '  Text Configurations…',
+  '  ---',
+  '  Type on a Path',
+  '    Type on a Path Options…',
+  '    Flip',
+  '  Type Orientation',
+  '    [ ] Horizontal',
+  '    [ ] Vertical',
+  '  Area Type Options…',
+  '  ---',
+  '  [ ] Markdown Flow (Ctrl+Alt+M)',
+  '  Clean Language Accents',
+  '    Apply… (Ctrl+Alt+L)',
+  '    Remove Accents',
+  '    ---',
+  '    Languages…',
+  '  ---',
+  '  Expand Text to Shape (Ctrl+Shift+O)',
   'Sketch',
   '  Brush (B)',
   '  Marker (M)',
@@ -491,6 +648,33 @@ const MENU_BAR = [
   '  Clipping Mask',
   '    Make (Ctrl+7)',
   '    Release (Ctrl+Alt+7)',
+  '  Blend',
+  '    Next Blend Mode (Shift++)',
+  '    Previous Blend Mode (Shift+-)',
+  '    ---',
+  '    [ ] Normal',
+  '    ---',
+  '    [ ] Soak Blend (Darken)',
+  '    [ ] Stack Blend (Multiply)',
+  '    [ ] Scorch Blend (Color Burn)',
+  '    ---',
+  '    [ ] Dry Blend (Lighten)',
+  '    [ ] Sheer Blend (Screen)',
+  '    [ ] Bleach Blend (Color Dodge)',
+  '    ---',
+  '    [ ] Fold Blend (Overlay)',
+  '    [ ] Light Blend (Soft Light)',
+  '    [ ] Heavy Blend (Hard Light)',
+  '    ---',
+  '    [ ] Messy Blend (Difference)',
+  '    [ ] Avoidance Blend (Exclusion)',
+  '    ---',
+  '    [ ] Tidy Blend (Hue)',
+  '    [ ] Bright Blend (Saturation)',
+  '    [ ] Dye Blend (Color)',
+  '    [ ] Cover Blend (Luminosity)',
+  '    ---',
+  '    [ ] Isolate Blending',
   '  ---',
   '  Hide Layers Panel',
   'Pages',
@@ -521,9 +705,13 @@ const MENU_BAR = [
   '    Pages',
   '    Layers',
   '    Automate',
+  '    Effect',
+  '    Type',
   '  ---',
   '  Source Code',
   '  Source Docs',
+  '  ---',
+  '  About napkin-sketch',
 ].join('\n');
 
 test('the menu bar is the one this release sets out, row for row', () => {
@@ -559,7 +747,7 @@ test('a row the state disables or checks says so, in the menu bar and in the nat
   assert.ok(fromHistory && fromHistory.kind === 'item' && fromHistory.disabled);
 });
 
-test('the menu bar claims only the chords it claimed before; the page keeps the rest', () => {
+test("the menu bar claims only the chords it claimed before, the Type panel's, Expand Text to Shape's, Markdown Flow's and Clean Language Accents'; the page keeps the rest", () => {
   const claimed: string[] = [];
   const pageKept: string[] = [];
   const visit = (items: readonly NativeItem[]): void => {
@@ -572,6 +760,8 @@ test('the menu bar claims only the chords it claimed before; the page keeps the 
   };
   for (const menu of nativeMenus(registry)) visit(menu.submenu);
   assert.deepEqual(claimed.sort(), [
+    // Expand Text to Shape's, once though two menus hold it: it reaches the text being typed, as a vector editor's Create Outlines does.
+    'expand-text',
     'fit-view',
     'import',
     'new-sketch',
@@ -580,10 +770,16 @@ test('the menu bar claims only the chords it claimed before; the page keeps the 
     'save',
     'save-as',
     'toggle-animation',
+    // The Type panel's, as the other panels' are: they reach it from the text being typed.
+    'toggle-character',
     'toggle-layers',
     'toggle-pages',
+    'toggle-paragraph',
     'toggle-properties',
     'toggle-settings',
+    // Clean Language Accents > Apply's and Markdown Flow's, as Expand Text to Shape's: they reach the text being typed.
+    'type-accents-apply',
+    'type-markdown',
     'undo',
     'verbose-settings',
     'zoom-in',
@@ -604,6 +800,8 @@ test('Help > Tool Types lists the menus that name a page, in the order they give
       ['help-topic:pages', 'Pages', 'quickstart/pages'],
       ['help-topic:layers', 'Layers', 'quickstart/layers'],
       ['help-topic:automate', 'Automate', 'quickstart/automate'],
+      ['help-topic:effect', 'Effect', 'guide/effects'],
+      ['help-topic:type', 'Type', 'guide/type'],
     ],
   );
   const help = menuTree(registry).find((menu) => menu.id === 'help')!;
@@ -678,6 +876,26 @@ test('the tools a user can move to another type are the ones the plan lists', ()
     'sharpen',
     'tool-warp',
     'tool-liquify',
+    'apply-last-effect',
+    'last-effect',
+    'effect-blur',
+    'effect-adjust',
+    'effect-stylize',
+    'effect-warp',
+    'effect-3d',
+    'expand-appearance',
+    'clear-appearance',
+    'type-font',
+    'type-size',
+    'type-character',
+    'type-paragraph',
+    'type-configs',
+    'type-on-path',
+    'type-orientation',
+    'type-area-options',
+    'type-markdown',
+    'type-accents',
+    'expand-text',
     'tool-pen',
     'tool-marker',
     'tool-eraser',
@@ -697,6 +915,7 @@ test('the tools a user can move to another type are the ones the plan lists', ()
     'delete-layer',
     'move-layer',
     'clipping-mask',
+    'layer-blend',
     'tool-select',
     'tool-rect',
     'tool-ellipse',
@@ -732,8 +951,18 @@ test("every shortcut can be changed but a role row's and a submenu's", () => {
     'wipe-stacks',
     'wipe-out',
     'sharpen',
+    'effect-blur',
+    'effect-adjust',
+    'effect-stylize',
+    'effect-warp',
+    'effect-3d',
+    'type-size',
+    'type-on-path',
+    'type-orientation',
+    'type-accents',
     'move-layer',
     'clipping-mask',
+    'layer-blend',
     'add-page',
     'generate-script',
     'help-tool-types',
@@ -748,6 +977,8 @@ test('the types a tool can be moved to are the sub-types the menus accept, by ma
       main: 'Draw',
       types: ['Draw:Add:vector', 'Draw:Modify:element', 'Draw:Combine:element', 'Draw:Subtract:vector', 'Draw:Add:mark', 'Draw:Modify:vector', 'Draw:Subtract:mark'],
     },
+    { main: 'Effect', types: ['Effect:Add:effect', 'Effect:Modify:effect'] },
+    { main: 'Type', types: ['Type:Modify:type', 'Type:Convert:type'] },
     { main: 'API', types: ['API:automate:mixed'] },
   ]);
 });

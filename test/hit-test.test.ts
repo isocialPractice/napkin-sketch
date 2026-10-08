@@ -9,6 +9,8 @@ import assert from 'node:assert/strict';
 
 import { hitMark, inkDistance, marksInBox, outlineDistance } from '../src/core/hit-test.js';
 import { paintOrder } from '../src/core/paint-order.js';
+import type { TypeMeasure } from '../src/core/type/measure.js';
+import { withTypeset } from '../src/core/type/model.js';
 import type { Layer, Sketch, Stroke } from '../src/core/types.js';
 
 const layer = (id: string, extra: Partial<Layer> = {}): Layer => ({
@@ -183,11 +185,30 @@ test('the Copic picks on its broad nib', () => {
   assert.ok(inkDistance(copic, { x: 50, y: 14 }) > 3);
 });
 
-test('text and images pick by their boxes', () => {
+/** Every character half an em wide, its ascent 0.8 em and its descent 0.2. */
+const HALF_EM: TypeMeasure = {
+  id: 'half-em',
+  exact: true,
+  smallCaps: false,
+  width: (text, font) => [...text].length * font.size * 0.5,
+  extent: (font) => ({ ascent: font.size * 0.8, descent: font.size * 0.2 }),
+};
+
+test('text picks by the box its lines cover, and Path Typing by its characters and its path', () => {
   const text: Stroke = { ...pen('t', 'L', [[10, 10]]), tool: 'text', text: 'hello', fontSize: 20 };
-  const measure = (): { width: number; height: number } => ({ width: 50, height: 20 });
-  assert.equal(inkDistance(text, { x: 30, y: 20 }, measure), 0);
-  assert.equal(inkDistance(text, { x: 30, y: 33 }, measure), 3);
+  // Five characters 10 across, a line and a quarter of 20 down.
+  assert.equal(inkDistance(text, { x: 30, y: 20 }, HALF_EM), 0);
+  assert.equal(inkDistance(text, { x: 30, y: 33 }, HALF_EM), 0);
+  assert.equal(inkDistance(text, { x: 30, y: 38 }, HALF_EM), 3);
+  assert.equal(inkDistance(text, { x: 64, y: 20 }, HALF_EM), 4);
+  // Along a straight path from (10, 100): the characters stand on it, and the path itself is a hairline.
+  const along = withTypeset({ ...text, points: [{ x: 10, y: 100, pressure: 0.5 }] }, {
+    kind: 'path',
+    path: { anchors: [{ p: { x: 0, y: 0 } }, { p: { x: 200, y: 0 } }], start: 0, end: 200, align: 'baseline', effect: 'rainbow' },
+  });
+  assert.equal(inkDistance(along, { x: 20, y: 95 }, HALF_EM), 0, 'on a character');
+  assert.equal(inkDistance(along, { x: 150, y: 100 }, HALF_EM), 0, 'on the path past the text');
+  assert.equal(inkDistance(along, { x: 150, y: 90 }, HALF_EM), 9.5, 'above the path, past the text');
 });
 
 test('a rubber band takes a line it only crosses, a fill it sits in, and never an eraser', () => {

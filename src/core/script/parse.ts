@@ -20,7 +20,8 @@
  * so `layer "Sky" opacity 0.8` keeps `opacity` as the layer's own.
  */
 
-import { COLOR_WORDS, EXPECTED_CODES, VERB_ALIASES, VERB_WORDS, describeSlot, formBlock, isClausePart, isFlagPart, isSlotPart, isWordPart, signaturesOf } from './grammar.js';
+import { COLOR_WORDS, EXPECTED_CODES, VERB_ALIASES, VERB_WORDS, checkValue, describeSlot, formBlock, isClausePart, isFlagPart, isSlotPart, isWordPart, orderedRun, runForm, signaturesOf } from './grammar.js';
+import { accentLanguage } from '../type/accents.js';
 import { makeDiagnostic, sortDiagnostics, suggest, hasErrors, type Where } from './diagnostics.js';
 import { parseExpression } from './expr.js';
 import {
@@ -345,6 +346,12 @@ class Parser {
             fail(makeDiagnostic('unexpected-token', `\`${flag.flag}\` is given twice.`, this.at(token), { verb: spec.name }), i);
             break;
           }
+          // Two flags that set one field, \`super\` and \`sub\`, say two things at once.
+          const rival = flags.find((f) => f !== flag && f.field === flag.field && used.has(f.flag));
+          if (rival) {
+            fail(makeDiagnostic('unexpected-token', `\`${rival.flag}\` and \`${flag.flag}\` cannot both be given: give one.`, this.at(token), { verb: spec.name }), i);
+            break;
+          }
           used.add(flag.flag);
           fields[flag.field] = flag.value;
           i += flag.flag.split(' ').length;
@@ -470,11 +477,59 @@ class Parser {
       }
       case 'pencil':
         return this.readPencil(spec, i, end);
+      case 'language':
+        return this.readLanguage(spec, slot, i, end);
       case 'points':
         return this.readPoints(spec, slot, i, end);
       case 'stops':
         return this.readStops(spec, i, end);
+      case 'runs':
+        return this.readRuns(spec, i, end);
     }
+  }
+
+  /**
+   * A text's runs, `(start end attributes, ...)`: each a stretch of the text
+   * from `start` to `end`, counting characters from 0, then its attributes,
+   * read with the run form - `character`'s clauses and flags, and a size, a
+   * family and a color of its own.
+   */
+  private readRuns(spec: VerbSpec, i: number, end: number): SlotResult {
+    const open = this.tokens[i];
+    if (!isPunct(open, '(')) return NOFIT;
+    const close = this.closing(i, end);
+    if (close < 0) return this.problem('invalid-value', 'The list of runs is not closed with `)`.', open, spec.name);
+    // Split at the commas between runs, not the ones inside `rgb(...)`.
+    const entries: [number, number][] = [];
+    let depth = 0;
+    let from = i + 1;
+    for (let j = i + 1; j < close; j++) {
+      const token = this.tokens[j];
+      if (isPunct(token, '(')) depth++;
+      else if (isPunct(token, ')')) depth--;
+      else if (depth === 0 && isPunct(token, ',')) {
+        entries.push([from, j]);
+        from = j + 1;
+      }
+    }
+    entries.push([from, close]);
+    const runs: Record<string, unknown>[] = [];
+    for (const [start, stop] of entries) {
+      const first = this.tokens[start];
+      const second = this.tokens[start + 1];
+      const whole = (token: Token | undefined): boolean => token !== undefined && token.kind === 'number' && !token.unit && Number.isInteger(token.value);
+      if (stop - start < 2 || !whole(first) || !whole(second)) {
+        return this.problem('invalid-value', 'A run starts with where it starts and where it ends, two whole numbers counting characters from 0: `(0 5 face "Bold")`.', first ?? open, spec.name);
+      }
+      const match = this.matchForm(spec, runForm(), start + 2, stop, false);
+      if (match.errors.length > 0) return { kind: 'error', diagnostic: match.errors[0] };
+      if (match.next !== stop) {
+        const token = this.tokens[match.next];
+        return this.problem('unexpected-token', `A run did not expect \`${token.text}\` there: it takes \`character\`'s attributes, and \`size\`, \`family\` and \`color\`.`, token, spec.name);
+      }
+      runs.push(orderedRun({ start: first.value as number, end: second.value as number, ...match.fields }));
+    }
+    return { kind: 'ok', value: runs, next: close + 1 };
   }
 
   /**
@@ -482,6 +537,29 @@ class Parser {
    * unit, `HB` and `F` as words - or a medium and its grade, as two words
    * (`charcoal 4B`, `vine soft`) or one (`vine-soft`), or a string.
    */
+  /**
+   * A language: a word, or a string for a name no word spells (`"c++"`), by
+   * its id or a name highlight.js knows it by - the catalog's id is what is
+   * kept - or `auto` or `none`.
+   */
+  private readLanguage(spec: VerbSpec, slot: SlotPart, i: number, end: number): SlotResult {
+    if (i >= end) return NOFIT;
+    const token = this.tokens[i];
+    const name =
+      token.kind === 'word'
+        ? token.text.toLowerCase()
+        : token.kind === 'string'
+          ? (token.value as string).trim().toLowerCase()
+          : token.kind === 'number' && token.unit && Number.isInteger(token.value)
+            ? `${token.value as number}${token.unit}`.toLowerCase()
+            : null;
+    if (name === null) return NOFIT;
+    if (name === 'auto' || name === 'none') return { kind: 'ok', value: name, next: i + 1 };
+    const language = accentLanguage(name);
+    if (language) return { kind: 'ok', value: language.id, next: i + 1 };
+    return this.problem('expected-choice', checkValue(slot, name)?.message ?? `\`${name}\` is not a language.`, token, spec.name);
+  }
+
   private readPencil(spec: VerbSpec, i: number, end: number): SlotResult {
     if (i >= end) return NOFIT;
     const text = (token: Token): string | null => {
@@ -538,6 +616,8 @@ class Parser {
       return this.readExpression(spec, i, end);
     }
     if (token.kind !== 'number') return NOFIT;
+    // A percent may say so: `bend 50%` is `bend 50`.
+    if (token.unit === '%' && slot.percent && slot.type === 'number') return { kind: 'ok', value: token.value as number, next: i + 1 };
     if (token.unit) {
       const what = token.unit === '%' ? 'a percentage' : 'a unit';
       return this.problem(

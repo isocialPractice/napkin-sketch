@@ -154,7 +154,22 @@ For the **Verify the Check workflow and Dependabot** item under Current.
   graph > Dependabot (or Settings > Code security). The first PRs to expect
   are majors - Electron 45 is due to go stable on 2026-10-20 - and releases
   of the exactly pinned `highlight.js`, `marked` and `marked-highlight`.
-- **Attempts**: 0
+- **Attempts**: 1. The first Check run on `main` (8e45dfb, run 38014972250,
+  2026-10-10) passed on Linux and macOS and failed 13 unit tests on Windows:
+  the eleven golden SVG, the written triangle script and the site's banner
+  test. `.gitattributes` had never been committed - the global gitignore
+  covers dotfiles - so the runner, whose Git has `core.autocrlf` on, checked
+  them out as CRLF. Fixed in a small change: `.gitattributes` is staged with
+  `git add -f` and marks the PNG golden binary, and the site test folds CRLF
+  in the pages it reads. A clone made with `core.autocrlf=true` reproduced
+  the same 13 failures, then passed all 1773 tests with the fix. Commit and
+  push it, then ask the next run on `main` how each OS fared.
+- **Dependabot has run**: on 2026-10-10 it opened eight PRs. Seven failed on
+  Windows alone, from the same CRLF checkout; once the fix is on `main`, ask
+  each for `@dependabot rebase`. The eighth, TypeScript 5.9 to 7.0, also
+  fails on Linux and macOS: TypeScript 7 drops `ScriptTarget.ES3`, which the
+  script writer's ES3 test compiles with. Leave it unmerged until that test
+  has another way to hold the script to ES3.
 - **When all three jobs are green and Dependabot has run**: tick the item
   and drop this note.
 

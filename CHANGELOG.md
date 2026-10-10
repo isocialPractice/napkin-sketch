@@ -86,6 +86,14 @@ the one kept in `assets/`, used as it is.
 - **A build no longer replaces the app icon** with the old generated tile.
 - **Undo and redo drop Direct Select's picks**, which named anchors by their
   place in a path that the step may have reshaped.
+- **The unit tests pass on Windows checkouts that turn line ends to CRLF.**
+  `.gitattributes`, which keeps the golden scripts and their SVG at LF, had
+  never been committed, so the Check workflow's Windows job - Git there has
+  `core.autocrlf` on - read every golden, and the written triangle script,
+  as CRLF, and 13 tests failed while Linux and macOS passed. It is committed
+  now, and marks the PNG golden binary, which as text Git reported changed
+  when it was not. The site test reads its pages with CRLF folded to LF, as
+  its check against the generator already did.
 
 ## [1.0.0-alpha.5.0.0] - 2026-10-05
 

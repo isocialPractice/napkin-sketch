@@ -53,7 +53,9 @@ const FILES = buildSite(reader, {
   license: reader.read('LICENSE') ?? undefined,
 });
 const PAGE_FILES = SITE_PAGES.map((page) => `${SITE_DIR}/${page.out}`);
-const html = (out: string): string => readFileSync(full(`${SITE_DIR}/${out}`), 'utf8');
+// A Windows checkout with core.autocrlf on hands the pages over as CRLF; the
+// generator writes LF, and the tests read what it wrote.
+const html = (out: string): string => readFileSync(full(`${SITE_DIR}/${out}`), 'utf8').replace(/\r\n/g, '\n');
 
 function markdownUnder(dir: string): string[] {
   if (!existsSync(full(dir))) return [];

@@ -1,0 +1,10 @@
+# The golden scripts and the SVG they draw are compared byte for byte, so they
+# keep LF line ends on every checkout, whatever core.autocrlf says.
+#
+# Force-add this file when committing (git add -f): an ignore rule covering
+# dotfiles would otherwise leave it untracked, and a Windows checkout with
+# core.autocrlf on - the CI runner's - would hand every golden over as CRLF.
+test/scripts/** text eol=lf
+# The PNG golden beside them is a picture: no line ends to normalize, and
+# marked as text Git would strip the CR bytes its pixels happen to hold.
+test/scripts/**/*.png binary

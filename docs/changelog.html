@@ -126,6 +126,14 @@ draws or resizes one. <code>assets/icon.png</code> is a 1024 x 1024 square made 
 <li><strong>A build no longer replaces the app icon</strong> with the old generated tile.</li>
 <li><strong>Undo and redo drop Direct Select's picks</strong>, which named anchors by their
 place in a path that the step may have reshaped.</li>
+<li><strong>The unit tests pass on Windows checkouts that turn line ends to CRLF.</strong>
+<code>.gitattributes</code>, which keeps the golden scripts and their SVG at LF, had
+never been committed, so the Check workflow's Windows job - Git there has
+<code>core.autocrlf</code> on - read every golden, and the written triangle script,
+as CRLF, and 13 tests failed while Linux and macOS passed. It is committed
+now, and marks the PNG golden binary, which as text Git reported changed
+when it was not. The site test reads its pages with CRLF folded to LF, as
+its check against the generator already did.</li>
 </ul>
 <h2 id="100-alpha500---2026-10-05">[1.0.0-alpha.5.0.0] - 2026-10-05<a class="anchor" href="#100-alpha500---2026-10-05" aria-label="Link to this section">#</a></h2>
 <p>Effects, type and styles, as a vector editor has them, make this a major

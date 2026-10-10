@@ -46,7 +46,7 @@
 full reference see <a href="index.html">README.md</a>; for the shortcut tables see
 <a href="cheatsheet.html">CHEATSHEET.md</a>.</p>
 <h2 id="1-install">1. Install<a class="anchor" href="#1-install" aria-label="Link to this section">#</a></h2>
-<p>Requires <strong>Node.js 18+</strong>.</p>
+<p>Requires <strong>Node.js 22.12 or newer</strong>.</p>
 <pre><code class="language-bash">npm install
 npm run build
 npm start          # builds, then opens a new blank sketch</code></pre>
@@ -101,7 +101,9 @@ canvas highlights the matching rows, and the other way round.</p>
 <p>Press <code>S</code> for the Select tool, click a shape, press <code>X</code> to put the fill in
 front, then click a Quick Access Color to <strong>fill</strong> it (with the stroke in front,
 the color goes to its outline). Press <code>A</code> for Direct Select and drag an anchor point to reshape
-a path.</p>
+a path; drag over empty canvas to pick the anchors in a box, then drag one of
+them or press the arrow keys to move them all, or <code>Delete</code> to take them out
+of the path.</p>
 <h2 id="5-save-and-export">5. Save and export<a class="anchor" href="#5-save-and-export" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>
 <thead><tr><th style="text-align:left">Action</th><th style="text-align:left">Shortcut</th></tr></thead>
@@ -171,7 +173,10 @@ install and sign in to yourself. Add it with
 <tr><td style="text-align:left"><code>Ctrl + Shift + N</code> does nothing</td><td style="text-align:left">Animation Mode is not installed; run <code>npm run animation-mode -- --status</code></td></tr>
 <tr><td style="text-align:left">The cursor is a crosshair, not a circle</td><td style="text-align:left">CapsLock is on; that is the precision cursor</td></tr>
 <tr><td style="text-align:left">A change to the source is not showing</td><td style="text-align:left">Rebuild with <code>npm run build</code>, or leave <code>npm run build:watch</code> running</td></tr>
+<tr><td style="text-align:left">Linux: a SUID sandbox error on <code>npm start</code></td><td style="text-align:left">See the install page's [install errors][install-errors]</td></tr>
+<tr><td style="text-align:left">macOS: <code>spawn ... ENOENT</code>, malware warning</td><td style="text-align:left">See the install page's [install errors][install-errors]</td></tr>
 </tbody></table></div>
+<p>[install-errors]: https://isocialpractice.github.io/napkin-sketch/install.html#troubleshooting-install-errors</p>
 <nav class="page-nav" aria-label="Previous and next pages"><a href="install.html" rel="prev"><span>Previous</span>Installation</a><a href="cheatsheet.html" rel="next"><span>Next</span>Cheatsheet</a></nav>
 </article>
 </main>

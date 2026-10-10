@@ -287,6 +287,131 @@ export function splitMark(stroke: Stroke, at: SplitPoint): SplitPieces | null {
 }
 
 /**
+ * What deleting anchors and segments leaves of a mark, as Direct Select's
+ * Delete makes it: `changed` takes the mark's place, keeping its id - null
+ * when nothing of it is left - and each of `added` is a new mark.
+ */
+export interface DeletedParts {
+  changed: Stroke | null;
+  added: Stroke[];
+}
+
+/**
+ * A mark with some of its anchors and segments deleted, as a vector editor's
+ * Direct Selection deletes them: an anchor takes both of its segments with
+ * it, and a segment goes alone, its anchors staying. What is left of each
+ * subpath is runs - stretches of anchors still joined - and each run of two
+ * or more becomes an open path of its own; a run of one is dropped, one point
+ * being no path. So a closed path that loses an anchor or a segment opens
+ * there, starting just after the gap and running the way it ran, and an open
+ * path that loses one in its middle splits in two. New ends lose their
+ * handle out of the path. Subpaths that lose nothing stay together in the
+ * mark, which keeps its id; with none, the first run keeps it.
+ *
+ * Indices are Direct Select's (core/direct-select.ts): anchors of a path of
+ * anchors, or points of a mark of bare points, a ring's closing point
+ * included; a segment is named by the anchor it starts from. Null when the
+ * mark has no path to delete from, or nothing named is on it.
+ */
+export function deleteParts(stroke: Stroke, parts: { anchors: ReadonlySet<number>; segments: ReadonlySet<number> }): DeletedParts | null {
+  const subs = subsOf(stroke);
+  if (!subs) return null;
+  const vectorMark = stroke.vector !== undefined && stroke.vector.anchors.length >= 2;
+
+  // Each subpath's deleted anchors and segments, by its own indices.
+  const gone = subs.map(() => ({ anchors: new Set<number>(), segments: new Set<number>() }));
+  const mark = (s: number, local: number, global: number): void => {
+    if (parts.anchors.has(global)) gone[s].anchors.add(local);
+    if (parts.segments.has(global)) gone[s].segments.add(local);
+  };
+  if (vectorMark) {
+    let s = -1;
+    let local = 0;
+    stroke.vector!.anchors.forEach((a, i) => {
+      if (a.move || s < 0) {
+        s++;
+        local = 0;
+      }
+      mark(s, local++, i);
+    });
+  } else {
+    // A ring's closing point is its first again: picked, it is that corner;
+    // its segment index never names one, the closing segment starting at the
+    // point before it.
+    let s = -1;
+    let start = 0;
+    stroke.points.forEach((p, i) => {
+      if (p.move || s < 0) {
+        s++;
+        start = i;
+      }
+      const local = i - start;
+      const sub = subs[s];
+      if (sub.closed && local === sub.anchors.length) {
+        if (parts.anchors.has(i)) gone[s].anchors.add(0);
+        return;
+      }
+      mark(s, local, i);
+    });
+  }
+
+  const kept: Sub[] = [];
+  const runs: Array<{ sub: Sub; fromRing: boolean }> = [];
+  let touched = false;
+  subs.forEach((sub, s) => {
+    const n = sub.anchors.length;
+    const lost = gone[s];
+    // An anchor takes the segments either side of it.
+    const cut = new Set(lost.segments);
+    for (const a of lost.anchors) {
+      if (sub.closed || a < n - 1) cut.add(a);
+      if (sub.closed) cut.add((a - 1 + n) % n);
+      else if (a > 0) cut.add(a - 1);
+    }
+    if (lost.anchors.size === 0 && cut.size === 0) {
+      kept.push(sub);
+      return;
+    }
+    touched = true;
+    // Walk the subpath from just after the first gap - from its start, when
+    // it is open - gathering the anchors still joined.
+    const begin = sub.closed ? (Math.min(...cut) + 1) % n : 0;
+    const steps = n;
+    let run: number[] = [];
+    const close = (): void => {
+      if (run.length >= 2) {
+        const anchors = run.map((k, i) => (i === 0 ? starting(sub.anchors[k]) : i === run.length - 1 ? ending(sub.anchors[k]) : copy(sub.anchors[k])));
+        runs.push({ sub: { anchors, closed: false }, fromRing: sub.closed });
+      }
+      run = [];
+    };
+    for (let step = 0; step < steps; step++) {
+      const k = (begin + step) % n;
+      if (lost.anchors.has(k)) {
+        close();
+        continue;
+      }
+      run.push(k);
+      // The segment out of k joins the next anchor unless it is cut, or the
+      // walk has come round to where it began.
+      const last = step === steps - 1 || (!sub.closed && k === n - 1);
+      if (last || cut.has(k)) close();
+    }
+    close();
+  });
+  if (!touched) return null;
+
+  const pieces: Stroke[] = [];
+  if (kept.length > 0) pieces.push(markOf(stroke, kept, vectorMark));
+  // A run from a ring is a path of anchors, as Split makes an opened ring: a
+  // run of bare points whose ends met would read as closed again.
+  for (const { sub, fromRing } of runs) pieces.push(markOf(stroke, [sub], fromRing || vectorMark));
+  if (pieces.length === 0) return { changed: null, added: [] };
+  const [first, ...rest] = pieces;
+  return { changed: { ...first, id: stroke.id }, added: rest.map((piece) => ({ ...piece, id: createId('st') })) };
+}
+
+/**
  * A mark with these subpaths in place of its own, painted as it was: a path
  * of anchors when `vector` - its points sampled from them - and otherwise bare
  * points, each ring ending where it began.

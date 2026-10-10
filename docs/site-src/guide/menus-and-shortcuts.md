@@ -151,7 +151,7 @@ changes a tool's type, and so the menus that list it.
 | Copic marker | Sketch | `K` | Flat broad nib, rotatable |
 | Pencil | Sketch | `N` | Graphite and charcoal by hardness, through the paper's grain; press for the drawing kit |
 | Smear | Sketch | `Shift+N` | A blending stump: drag over pencil marks to spread their graphite; Quick Width sizes it, Quick Opacity sets its strength |
-| Direct Select | Sketch | `A` | White arrow; drags anchor points |
+| Direct Select | Sketch | `A` | White arrow; picks, moves and deletes anchor points and segments |
 | Fill in Front | Sketch | `X` | The colors paint the fill, not the stroke; again for the stroke |
 | Swap Fill and Stroke | Sketch | `Shift+X` | The tool's ink and fill, or the selected shapes' fill and outline |
 | Group Layer | Layers | `Ctrl+G` | Groups the selected layers |

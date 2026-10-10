@@ -41,6 +41,7 @@
 <article class="content">
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Start</a> <span class="sep">/</span> <span aria-current="page">Install</span></nav>
 <h1 id="installation">Installation<a class="anchor" href="#installation" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#desktop-app-recommended">Desktop app (recommended)</a></li><li><a href="#build-and-run-from-source-all-platforms">Build-and-run from source (all platforms)</a></li><li><a href="#troubleshooting-install-errors">Troubleshooting install errors</a></li></ul></details>
 <h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
 <ul>
 <li><strong>Installable desktop app</strong> with a Start-menu/desktop shortcut and app icon
@@ -77,7 +78,9 @@ executable and run it directly — no installation needed:</p>
 use a tool such as <code>appimaged</code> or <code>AppImageLauncher</code>, or create a <code>.desktop</code>
 file manually.</p>
 <h2 id="build-and-run-from-source-all-platforms">Build-and-run from source (all platforms)<a class="anchor" href="#build-and-run-from-source-all-platforms" aria-label="Link to this section">#</a></h2>
-<p>Requires <strong>Node.js 18+</strong> and a compatible Electron version.</p>
+<p>Requires <strong>Node.js 22.12 or newer</strong>: Electron's installer, which <code>npm install</code>
+runs to download the app's Electron, needs it. If <code>npm install</code> or
+<code>npm start</code> fails, see <a href="#troubleshooting-install-errors">Troubleshooting install errors</a>.</p>
 <pre><code class="language-bash">npm install
 npm run build
 npm start          # builds then opens a new blank sketch</code></pre>
@@ -88,6 +91,95 @@ npm link
 napkin-sketch      # launches from anywhere</code></pre>
 <p>Once published to npm it can be installed directly:</p>
 <pre><code class="language-bash">npm install -g napkin-sketch</code></pre>
+<h2 id="troubleshooting-install-errors">Troubleshooting install errors<a class="anchor" href="#troubleshooting-install-errors" aria-label="Link to this section">#</a></h2>
+<p>Both errors below happen after <code>npm run build</code> has finished: the build is
+fine, and it is starting Electron that fails.</p>
+<h3 id="linux-the-suid-sandbox-helper-binary-was-found-but-is-not-configured-correctly">Linux: &quot;The SUID sandbox helper binary was found, but is not configured correctly&quot;<a class="anchor" href="#linux-the-suid-sandbox-helper-binary-was-found-but-is-not-configured-correctly" aria-label="Link to this section">#</a></h3>
+<p><strong>Why it happens.</strong> Chromium's sandbox uses unprivileged user namespaces.
+Ubuntu 23.10 and later, 24.04, and distributions built on them such as Mint
+and Pop!_OS restrict those through AppArmor. Electron then falls back to its
+<code>chrome-sandbox</code> helper, which has to be owned by root with the setuid bit
+set - and <code>npm install</code> writes it as an ordinary file, so Electron stops.</p>
+<p><strong>Check it.</strong></p>
+<pre><code class="language-bash">sysctl kernel.apparmor_restrict_unprivileged_userns</code></pre>
+<p><code>1</code> means the restriction is on, and is the cause.</p>
+<p><strong>Fix 1, recommended: an AppArmor profile for the development Electron.</strong> It
+keeps the sandbox on, and lasts through <code>npm install</code>. Run it from the
+repository's root folder: the heredoc is unquoted, so <code>$PWD</code> fills in the
+path to this checkout's Electron.</p>
+<pre><code class="language-bash">sudo tee /etc/apparmor.d/napkin-sketch-electron &gt;/dev/null &lt;&lt;EOF
+abi &lt;abi/4.0&gt;,
+include &lt;tunables/global&gt;
+
+profile napkin-sketch-electron $PWD/node_modules/electron/dist/electron flags=(unconfined) {
+  userns,
+  include if exists &lt;local/napkin-sketch-electron&gt;
+}
+EOF
+sudo apparmor_parser -r /etc/apparmor.d/napkin-sketch-electron</code></pre>
+<p>The profile names this checkout's path, so write it again if the repository
+moves.</p>
+<p><strong>Fix 2: do what the message asks.</strong> This works at once, but every
+<code>npm install</code> puts the file back as it was, so it has to be repeated.</p>
+<pre><code class="language-bash">sudo chown root:root node_modules/electron/dist/chrome-sandbox
+sudo chmod 4755 node_modules/electron/dist/chrome-sandbox</code></pre>
+<p><strong>Fix 3, development only: no sandbox.</strong></p>
+<pre><code class="language-bash">npm start -- --no-sandbox</code></pre>
+<p><code>--no-sandbox</code> launches Electron without Chromium's sandbox. That is fine for
+trying your own checkout, and never for a build you hand to anyone else.</p>
+<p><code>sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0</code> also makes
+the error go, but it lowers that protection for the whole system, not just
+for this app; prefer the profile.</p>
+<h3 id="macos-spawn--electron-enoent">macOS: &quot;spawn ... Electron ENOENT&quot;<a class="anchor" href="#macos-spawn--electron-enoent" aria-label="Link to this section">#</a></h3>
+<p><code>npm start</code> stops with <code>spawn ... Electron ENOENT</code>, or with
+<code>napkin-sketch: the Electron binary is missing</code>, followed by the path it
+looked for.</p>
+<p><strong>Why it happens.</strong> <code>ENOENT</code> means there is no Electron at that path.
+Electron's own install step downloads and unpacks <code>Electron.app</code> into
+<code>node_modules/electron/dist/</code>, and that step did not finish, did not run, or
+what it unpacked was taken away afterwards.</p>
+<p><strong>Check it.</strong></p>
+<pre><code class="language-bash">ls node_modules/electron/dist/
+cat node_modules/electron/path.txt</code></pre>
+<p><strong>Fix it.</strong> Reinstall Electron:</p>
+<pre><code class="language-bash">rm -rf node_modules/electron
+npm install</code></pre>
+<p>or run only its download again:</p>
+<pre><code class="language-bash">node node_modules/electron/install.js</code></pre>
+<p><strong>If it keeps coming back</strong>, one of these is the usual cause:</p>
+<ul>
+<li><strong>Install scripts are switched off.</strong> <code>ignore-scripts=true</code> in the
+project's <code>.npmrc</code> or in <code>~/.npmrc</code>, or <code>npm install --ignore-scripts</code>,
+skips Electron's download.</li>
+<li><strong><code>node_modules</code> came from another computer.</strong> Copied or synced from a
+Linux or Windows machine, it holds that system's Electron. Never share
+<code>node_modules</code> between operating systems: run <code>npm install</code> on each.</li>
+<li><strong>iCloud is offloading the checkout.</strong> With iCloud <strong>Desktop &amp; Documents</strong>
+and <strong>Optimize Mac Storage</strong> on, a checkout under <code>~/Documents</code> or
+<code>~/Desktop</code> can have files inside the <code>.app</code> bundle moved to the cloud.
+Keep the repository somewhere else, such as <code>~/dev/</code>.</li>
+<li><strong>The download was interrupted.</strong> A network or proxy problem stops it
+part-way; <code>npm install --foreground-scripts</code> shows its output, so you can
+see where it fails.</li>
+</ul>
+<h3 id="macos-a-malware-warning-about-electron">macOS: a malware warning about Electron<a class="anchor" href="#macos-a-malware-warning-about-electron" aria-label="Link to this section">#</a></h3>
+<p>macOS warns that Electron contains malware and offers to move it to the
+Trash. This is also the most common reason for the <code>ENOENT</code> above: the app
+was moved away.</p>
+<p><strong>Why it happens.</strong> XProtect, the malware scanner built into macOS,
+quarantined the downloaded Electron. It has been seen with Electron 31, which
+is long past its support; napkin-sketch now builds on Electron 44, and a
+fresh install of it is the fix.</p>
+<p><strong>Do not restore <code>Electron.app</code> from the Trash.</strong> Clear the cached download
+and install again instead:</p>
+<pre><code class="language-bash">rm -rf node_modules ~/Library/Caches/electron
+npm install
+npm start</code></pre>
+<p>To see what XProtect detected:</p>
+<pre><code class="language-bash">log show --last 2h --predicate 'eventMessage CONTAINS[c] &quot;xprotect&quot;' | grep -i -E &quot;electron|detect&quot;</code></pre>
+<p>If a fresh install is flagged as well, check that <code>ELECTRON_MIRROR</code> is not
+set to an unofficial mirror, and run a malware scan: the problem is then on
+the computer, not in the package.</p>
 <nav class="page-nav" aria-label="Previous and next pages"><a href="index.html" rel="prev"><span>Previous</span>napkin-sketch documentation</a><a href="quickstart.html" rel="next"><span>Next</span>Quickstart</a></nav>
 </article>
 </main>

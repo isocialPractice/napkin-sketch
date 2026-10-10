@@ -6,7 +6,7 @@ full reference see [README.md](README.md); for the shortcut tables see
 
 ## 1. Install
 
-Requires **Node.js 18+**.
+Requires **Node.js 22.12 or newer**.
 
 ```bash
 npm install
@@ -76,7 +76,9 @@ canvas highlights the matching rows, and the other way round.
 Press `S` for the Select tool, click a shape, press `X` to put the fill in
 front, then click a Quick Access Color to **fill** it (with the stroke in front,
 the color goes to its outline). Press `A` for Direct Select and drag an anchor point to reshape
-a path.
+a path; drag over empty canvas to pick the anchors in a box, then drag one of
+them or press the arrow keys to move them all, or `Delete` to take them out
+of the path.
 
 ## 5. Save and export
 
@@ -153,3 +155,7 @@ so `--sharpen` produces the same result on disk as the GUI does on screen.
 | `Ctrl + Shift + N` does nothing              | Animation Mode is not installed; run `npm run animation-mode -- --status` |
 | The cursor is a crosshair, not a circle      | CapsLock is on; that is the precision cursor                              |
 | A change to the source is not showing        | Rebuild with `npm run build`, or leave `npm run build:watch` running      |
+| Linux: a SUID sandbox error on `npm start`   | See the install page's [install errors][install-errors]                   |
+| macOS: `spawn ... ENOENT`, malware warning   | See the install page's [install errors][install-errors]                   |
+
+[install-errors]: https://isocialpractice.github.io/napkin-sketch/install.html#troubleshooting-install-errors

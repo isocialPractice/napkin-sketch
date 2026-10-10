@@ -331,6 +331,11 @@ export interface ParsedArgs {
   target: string | undefined;
   sharpenOnly: boolean;
   fullScreen: boolean;
+  /**
+   * Launch Electron without Chromium's sandbox (--no-sandbox): a development
+   * escape hatch for Linux systems that block the sandbox, never a default.
+   */
+  noSandbox: boolean;
   /** Single file to import into the opening sketch (-i, --import). */
   importFile: string | undefined;
   /** True when -i/--import was passed (even without a value, for validation). */
@@ -372,6 +377,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     target: undefined,
     sharpenOnly: false,
     fullScreen: false,
+    noSandbox: false,
     importFile: undefined,
     importRequested: false,
     multipleImports: [],
@@ -400,6 +406,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
       case '-f':
       case '--full-screen':
         result.fullScreen = true;
+        break;
+      case '--no-sandbox':
+        result.noSandbox = true;
         break;
       case '-b':
       case '--book':

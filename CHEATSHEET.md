@@ -24,7 +24,7 @@ Edit Keyboard Shortcuts** changes them for you alone.
 | Shape Stacker | `Shift+M` | Drag across the pieces of the selected shapes to merge them, Alt to take them away; press for the Wipe Stacks |
 | Split | `J` | Click a path to cut it where you click, as scissors do; a closed one opens there |
 | Select | `S` | Black arrow; active at launch |
-| Direct Select | `A` | White arrow; drags anchor points |
+| Direct Select | `A` | White arrow; picks, moves and deletes anchor points and segments |
 | Text | `T` | Click = new text or edit a text, in or along a selected path; drag = text box |
 | Rectangle | `R` | Hold `Shift` for a square |
 | Ellipse | `L` | Hold `Shift` for a circle |
@@ -115,6 +115,9 @@ The type editor's own keys, while a text is edited ([Type](docs/site-src/guide/t
 | Deselect all                   | `Ctrl + Shift + A`                         |
 | Add to / remove from selection | `Shift` + click                            |
 | Rubber-band select             | Drag over empty space (Select tool)        |
+| Pick anchors or segments with a box | Drag over empty space (Direct Select): anchors when it holds any, else segments |
+| Move picked anchors or segments | Drag one, or the arrow keys, `Shift` for 10 (Direct Select) |
+| Delete picked anchors or segments | `Delete` or `Backspace` (Direct Select): a closed path opens |
 | Drag-copy the selection        | Hold `Alt` and drag                        |
 | Cut / Copy / Paste             | `Ctrl + X` / `Ctrl + C` / `Ctrl + V`       |
 | Paste in Place                 | `Ctrl + Shift + V`                         |
@@ -216,6 +219,7 @@ napkin-sketch [option] [target]
 | `-b, --book`             | Open a saved `.skbk` sketch book                         |
 | `-n, --new`              | New sketch, named `unnamed` or `[target]`                |
 | `-f, --full-screen`      | Open full screen (the default window is maximized)       |
+| `--no-sandbox`           | Launch without Chromium's sandbox: Linux development only |
 | `-i, --import`           | Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch |
 | `-m, --multiple-imports` | Import a comma-separated list, laid out in a grid        |
 | `--sharpen`              | Auto-sharpen a saved sketch on disk, then open it        |
@@ -278,7 +282,6 @@ napkin-sketch verbs --category shapes                # one category
 | `npm run gui-check -- --background`            | The same, off the screen and out of the focus                     |
 | `npm start`                                    | Build, then launch a new sketch                                   |
 | `npm run clean`                                | Remove `dist/`                                                    |
-| `npm run icon`                                 | Generate the app icon from `assets/icon.svg`                      |
 | `npm run import-tree -- <file.svg>`            | Print the layer tree an SVG would import as                       |
 | `npm run todo`                                 | Archive checked `TODO.md` items into its Complete section         |
 | `npm run ai-helper -- --list`                  | Show AI tool targets and the helpers that install to them         |

@@ -91,6 +91,10 @@ setting changed and that grew on screen as you zoomed in.*
 - **Direct Select picks the same way**, at its own reach, the **Direct Select
   sensitivity** (8 unless changed, 1 to 20 screen pixels). See
   [Direct Select](vector-paths.md#direct-select).
+- **Direct Select's box picks points, not marks.** A drag over empty canvas
+  with Direct Select picks the anchors inside the box, or, when it holds
+  none, the segments it crosses. See
+  [Select with a box](vector-paths.md#select-with-a-box).
 
 ## Copy and paste
 

@@ -4,6 +4,89 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Direct Select picks, moves and deletes points as a vector editor's Direct
+Selection does: a box picks the anchors it holds across every path it
+reaches, or the segments it crosses when it holds none, the arrow keys move
+what is picked, and Delete takes it out of the path, opening a closed one.
+Electron moves from 31 to 44 and electron-builder from 24 to 26, the
+install errors seen on Linux and macOS are written up, and a workflow and
+Dependabot check the repository on Linux, macOS and Windows. The app icon is
+the one kept in `assets/`, used as it is.
+
+### Added
+
+- **Direct Select's box.** A drag over empty canvas with Direct Select picks
+  what the box holds, across every path it reaches:
+  - the anchor points inside it, and only those, when it holds any;
+  - when it holds none, every segment it passes through - the stretch of
+    path between two anchors - drawn blue while its anchors stay hollow;
+  - nothing, when it catches nothing: the picks stay as they were.
+
+  A press that does not travel is still a click, which drops the edit, and
+  `Shift` adds what the box picks to what was picked. Text is left out of the
+  box. `window.napkinCheck.directSelectState()` gains every stroke's picked
+  anchors and segments.
+- **Moving a Direct Select selection.** A drag on a picked anchor or segment
+  moves every pick, on every path; a segment carries the anchors at both of
+  its ends. With no button down the arrow keys move the picks a step, `Shift`
+  ten, in the units the position fields show, as a distance on the page
+  whatever the zoom. A drag is one undo step, and so is each press of an arrow
+  key, its repeats included.
+- **Deleting anchor points and segments.** With anchors or segments picked,
+  `Delete`, `Backspace` and the menus' Delete take them out of the path and
+  leave the rest. A deleted anchor takes both of its segments with it and a
+  deleted segment goes alone, so a closed path opens - running on from just
+  after the gap - and an open path splits in two. A lone anchor left over is
+  dropped, and a path with nothing left goes. It is one undo step however
+  many paths the picks were on, and Track History lists it as Direct Select's
+  step. A text's frame or path keeps its points, and a report says so. With
+  only the path picked, Delete takes the whole path, as before.
+- **Checks on every pull request.** A workflow type-checks, builds and runs
+  the unit tests on Linux, macOS and Windows for every pull request and every
+  push to `main`, each from a clean `npm install`.
+- **Dependabot.** Weekly upgrade pull requests for npm packages, Electron and
+  electron-builder together, and for the GitHub Actions the workflows use.
+- **`--no-sandbox`.** The launcher's flag for starting Electron without
+  Chromium's sandbox, for development on a Linux system that blocks it:
+  `npm start -- --no-sandbox`. The sandbox stays on unless it is asked for.
+- **Troubleshooting install errors**, on the install page: the Linux SUID
+  sandbox error and its three fixes, the macOS `spawn ... ENOENT`, and the
+  macOS malware warning about Electron.
+
+### Changed
+
+- **Electron 31 to 44, and electron-builder 24 to 26.** Building from source
+  needs Node.js 22.12 or newer, which Electron's installer asks for; the
+  published package still runs its command line and API on Node.js 18.
+- **The clipboard is Electron's asynchronous one.** Every read and write of
+  the system clipboard is awaited. Under Electron 44 the old reads tested the
+  promise rather than the text, so SVG copied in another editor would no
+  longer have pasted.
+- **The documentation window steps back and forward** through Electron's
+  navigation history, in place of the calls Electron 44 deprecates.
+- **A missing Electron says how to put it back.** When the binary is not
+  there, the launcher names the path it looked for and the commands that
+  reinstall Electron, in place of a bare `spawn ... ENOENT`; on macOS it adds
+  that XProtect may have moved the app to the Trash.
+- **The app icon is the one kept in `assets/`.** The build copies it and never
+  draws or resizes one. `assets/icon.png` is a 1024 x 1024 square made from
+  `assets/icon.svg`, and a test holds it to a square of at least 512.
+- **The Direct Select row** in Edit Tool Types and the cheatsheet now reads
+  "picks, moves and deletes anchor points and segments".
+
+### Removed
+
+- **`npm run icon` and its script**, which drew the old icon over the one in
+  `assets/` on every build.
+
+### Fixed
+
+- **A build no longer replaces the app icon** with the old generated tile.
+- **Undo and redo drop Direct Select's picks**, which named anchors by their
+  place in a path that the step may have reshaped.
+
 ## [1.0.0-alpha.5.0.0] - 2026-10-05
 
 Effects, type and styles, as a vector editor has them, make this a major

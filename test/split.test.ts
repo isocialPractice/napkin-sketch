@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isSplittable, nearestOnMark, splitMark, splitTarget, type SplitPoint } from '../src/core/split.js';
+import { deleteParts, isSplittable, nearestOnMark, splitMark, splitTarget, type SplitPoint } from '../src/core/split.js';
 import type { Point, Stroke, VectorAnchor } from '../src/core/types.js';
 
 type Vec = { x: number; y: number };
@@ -206,4 +206,130 @@ test('the mark to cut: the topmost whose path is in reach, not text or pictures'
   assert.equal(isSplittable(text), false);
   assert.equal(isSplittable({ ...low, tool: 'eraser' }), false, 'an older file\'s eraser mark');
   assert.equal(isSplittable({ ...low, points: pts([{ x: 1, y: 1 }]) }), false, 'a lone dot');
+});
+
+// ---- Direct Select's Delete: anchors and segments taken out of a path ------------
+
+const at = (stroke: Stroke): number[][] => stroke.vector ? stroke.vector.anchors.map((a) => [a.p.x, a.p.y]) : stroke.points.map((p) => [p.x, p.y]);
+const picks = (anchors: number[] = [], segments: number[] = []) => ({ anchors: new Set(anchors), segments: new Set(segments) });
+
+/** A path of corner anchors along the x axis, ten apart: (0,0), (10,0), ... */
+function line(id: string, count: number): Stroke {
+  const anchors: VectorAnchor[] = Array.from({ length: count }, (_, i) => ({ p: { x: i * 10, y: 0 } }));
+  return { id, tool: 'pen', color: '#1f2328', width: 2, points: [], vector: { anchors } };
+}
+
+test('deleting a corner of a closed rectangle leaves an open L, run from just after the gap', () => {
+  // Corners 0 top left, 1 top right, 2 bottom right, 3 bottom left.
+  const rect: Stroke = {
+    id: 'r', tool: 'pen', color: '#1f2328', width: 2, fill: '#e9c46a', points: [],
+    vector: { closed: true, anchors: [{ p: { x: 0, y: 0 } }, { p: { x: 100, y: 0 } }, { p: { x: 100, y: 60 } }, { p: { x: 0, y: 60 } }] },
+  };
+  const out = deleteParts(rect, picks([1]))!;
+  assert.equal(out.added.length, 0, 'one path, opened');
+  assert.equal(out.changed!.id, 'r', 'and it keeps the id');
+  assert.deepEqual(at(out.changed!), [[100, 60], [0, 60], [0, 0]], 'old [2, 3, 0]: bottom right, bottom left, top left');
+  assert.equal(out.changed!.vector!.closed, false);
+  assert.equal(out.changed!.fill, '#e9c46a', 'it keeps its paint');
+});
+
+test('the same corner of a rectangle of bare points, picked by its seam twin or not', () => {
+  const rect = square('r', 0, 0, 100, 60);
+  assert.deepEqual(at(deleteParts(rect, picks([1]))!.changed!), [[100, 60], [0, 60], [0, 0]]);
+  // The seam corner is point 0 and point 4: either one, or both, deletes it.
+  for (const seam of [[0], [4], [0, 4]]) {
+    const out = deleteParts(rect, picks(seam))!;
+    assert.deepEqual(at(out.changed!), [[100, 0], [100, 60], [0, 60]], `the seam picked as ${seam.join(' and ')}`);
+    assert.equal(out.changed!.vector!.closed, false, 'an opened ring of bare points becomes a path of anchors, as Split makes one');
+  }
+});
+
+test('deleting a segment of a closed path opens it there and keeps every anchor', () => {
+  const rect = square('r', 0, 0, 100, 60);
+  // Segment 2 runs from the bottom-right corner to the bottom-left one.
+  const out = deleteParts(rect, picks([], [2]))!;
+  assert.equal(out.added.length, 0);
+  assert.deepEqual(at(out.changed!), [[0, 60], [0, 0], [100, 0], [100, 60]]);
+});
+
+test('deleting an end anchor of an open path shortens it by one', () => {
+  assert.deepEqual(at(deleteParts(line('l', 3), picks([0]))!.changed!), [[10, 0], [20, 0]]);
+  assert.deepEqual(at(deleteParts(line('l', 3), picks([2]))!.changed!), [[0, 0], [10, 0]]);
+});
+
+test('deleting a middle anchor or a middle segment of an open path splits it in two', () => {
+  const byAnchor = deleteParts(line('l', 5), picks([2]))!;
+  assert.deepEqual(at(byAnchor.changed!), [[0, 0], [10, 0]]);
+  assert.equal(byAnchor.changed!.id, 'l');
+  assert.deepEqual(byAnchor.added.map(at), [[[30, 0], [40, 0]]]);
+  assert.notEqual(byAnchor.added[0].id, 'l', 'the second piece is a new mark');
+
+  const bySegment = deleteParts(line('l', 4), picks([], [1]))!;
+  assert.deepEqual(at(bySegment.changed!), [[0, 0], [10, 0]]);
+  assert.deepEqual(bySegment.added.map(at), [[[20, 0], [30, 0]]]);
+});
+
+test('a run of one anchor is dropped, and a mark with nothing left goes', () => {
+  // The middle of three: two lone anchors are left, and neither is a path.
+  assert.deepEqual(deleteParts(line('l', 3), picks([1])), { changed: null, added: [] });
+  assert.deepEqual(deleteParts(line('l', 2), picks([0, 1])), { changed: null, added: [] });
+  // Two opposite corners of a rectangle leave two lone corners.
+  assert.deepEqual(deleteParts(square('r', 0, 0, 100, 60), picks([0, 2])), { changed: null, added: [] });
+});
+
+test('several anchors of a closed path: what is left runs on past the seam', () => {
+  // A hexagon losing anchors 1 and 2 keeps 3, 4, 5, 0 as one run across the seam.
+  const hexagon: Stroke = {
+    id: 'x', tool: 'pen', color: '#1f2328', width: 2, points: [],
+    vector: { closed: true, anchors: [0, 1, 2, 3, 4, 5].map((i) => ({ p: { x: i * 10, y: i % 2 } })) },
+  };
+  const out = deleteParts(hexagon, picks([1, 2]))!;
+  assert.equal(out.added.length, 0);
+  assert.deepEqual(at(out.changed!).map(([x]) => x), [30, 40, 50, 0]);
+});
+
+test('new ends lose their handle out of the path, and the anchors between keep both', () => {
+  const curve: Stroke = {
+    id: 'c', tool: 'pen', color: '#1f2328', width: 2, points: [],
+    vector: {
+      anchors: [
+        { p: { x: 0, y: 0 }, hOut: { x: 5, y: -5 } },
+        { p: { x: 10, y: 0 }, hIn: { x: 5, y: 5 }, hOut: { x: 15, y: -5 } },
+        { p: { x: 20, y: 0 }, hIn: { x: 15, y: 5 }, hOut: { x: 25, y: -5 } },
+        { p: { x: 30, y: 0 }, hIn: { x: 25, y: 5 } },
+      ],
+    },
+  };
+  const out = deleteParts(curve, picks([0]))!;
+  const [first, middle, last] = out.changed!.vector!.anchors;
+  assert.equal(first.hIn, undefined, 'the new start has no way in');
+  assert.deepEqual(first.hOut, { x: 15, y: -5 }, 'and keeps its way on');
+  assert.deepEqual([middle.hIn, middle.hOut], [{ x: 15, y: 5 }, { x: 25, y: -5 }], 'an anchor between keeps both');
+  assert.deepEqual(last.hIn, { x: 25, y: 5 });
+});
+
+test('a compound path: the subpath that opens comes out on its own, the rest stays closed', () => {
+  const holed: Stroke = {
+    id: 'h', tool: 'pen', color: '#1f2328', width: 2, fill: '#e9c46a', points: [],
+    vector: {
+      closed: true,
+      anchors: [
+        { p: { x: 0, y: 0 } }, { p: { x: 100, y: 0 } }, { p: { x: 100, y: 100 } }, { p: { x: 0, y: 100 } },
+        { p: { x: 30, y: 30 }, move: true }, { p: { x: 30, y: 70 } }, { p: { x: 70, y: 70 } }, { p: { x: 70, y: 30 } },
+      ],
+    },
+  };
+  // Anchor 5 is the hole's second.
+  const out = deleteParts(holed, picks([5]))!;
+  assert.equal(out.changed!.id, 'h');
+  assert.equal(out.changed!.vector!.closed, true, 'the outer ring stays closed');
+  assert.deepEqual(at(out.changed!), [[0, 0], [100, 0], [100, 100], [0, 100]]);
+  assert.equal(out.added.length, 1);
+  assert.deepEqual(at(out.added[0]), [[70, 70], [70, 30], [30, 30]], 'the hole, opened after the gap');
+  assert.equal(out.added[0].vector!.closed, false);
+});
+
+test('nothing to delete is null: no part named, or no path to delete from', () => {
+  assert.equal(deleteParts(line('l', 3), picks()), null);
+  assert.equal(deleteParts({ ...line('l', 3), tool: 'text', text: 'hi' } as Stroke, picks([0])), null);
 });

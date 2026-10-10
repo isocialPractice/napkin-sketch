@@ -131,6 +131,59 @@ shut.</li>
 <li><strong>Shift pins every drag</strong> to the nearest axis or 45-degree diagonal: raw
 points and tangent handles as well as a vector path's anchors.</li>
 </ul>
+<h3 id="select-with-a-box">Select with a box<a class="anchor" href="#select-with-a-box" aria-label="Link to this section">#</a></h3>
+<p><em>Drag over empty canvas</em> with Direct Select and a box follows the pointer.
+What it picks when it is let go depends on what it holds, across every path
+it reaches:</p>
+<ul>
+<li><strong>Anchors, when it holds any.</strong> The anchor points inside the box are
+picked, and only those, on however many paths they are; a segment the box
+also crosses is not.</li>
+<li><strong>Segments, when it holds no anchor.</strong> Every segment the box passes
+through is picked - the stretch of path between two anchors - drawn blue
+while its anchors stay hollow. A box drawn across the middle of a
+rectangle's bottom edge picks that edge.</li>
+<li><strong>Nothing, when it catches nothing.</strong> A box over bare canvas leaves the
+picks as they were.</li>
+</ul>
+<p>A press on empty canvas that does not travel is still a click there, and
+drops the edit. <code>Shift</code> adds what the box picks to what is already picked.
+The box leaves text out: a text's frame or path is edited by clicking its
+anchors.</p>
+<h3 id="move-a-selection">Move a selection<a class="anchor" href="#move-a-selection" aria-label="Link to this section">#</a></h3>
+<p><em>Drag a picked anchor or segment</em> to move everything picked, on every path at
+once: a segment carries the anchors at both of its ends, their handles riding
+along, and a rectangle's seam moves as one corner. With no button down the
+<strong>arrow keys</strong> move the picks too - one step a press, ten with <code>Shift</code> - in
+the units the position fields show, so 1 and 10 pixels unless they are set
+otherwise. A step is a distance on the page, whatever the zoom. A drag is one
+undo step and so is each press of an arrow key; holding a key down repeats
+within that one step. With the whole path picked, the arrow keys move it.</p>
+<h3 id="delete-anchor-points-and-segments">Delete anchor points and segments<a class="anchor" href="#delete-anchor-points-and-segments" aria-label="Link to this section">#</a></h3>
+<p>With anchors or segments picked, <code>Delete</code> or <code>Backspace</code> - or <strong>Delete</strong> in
+the Edit menu or the canvas menu - takes them out of the path, and the rest
+stays:</p>
+<ul>
+<li><strong>A deleted anchor takes both of its segments with it.</strong> So a closed path
+opens where the anchor was, running on from the anchor after the gap, and
+an open path splits in two at a middle anchor.</li>
+<li><strong>A deleted segment goes alone</strong>, its anchors staying: a closed path opens
+there, an open path splits there.</li>
+<li><strong>One lone anchor left over is dropped</strong>, one point being no path, and a
+path with nothing left goes.</li>
+</ul>
+<p>A rectangle with its top-right corner deleted becomes an open L, its other
+three corners joined by the two sides that did not touch the deleted one:</p>
+<pre><code class="language-text">o-------o                o
+|       |       -&gt;       |
+|       |                |
+o-------o                o-------o</code></pre>
+<p>It is one undo step, however many paths the picks were on. With only the
+path picked and no anchor or segment, Delete takes the whole path, as it
+always has. A text's frame or path keeps its points: Delete changes nothing
+there and says so. Removing an anchor in the Vector Path tool's edit mode is
+different: it takes out the point and joins its neighbours, so a closed path
+stays closed.</p>
 <h2 id="sharpen-selection">Sharpen Selection<a class="anchor" href="#sharpen-selection" aria-label="Link to this section">#</a></h2>
 <p><strong>Sharpen Selection</strong> (toolbar button): smooths and simplifies the selected
 strokes, like a vector editor's simplify command. A small dialog opens in the

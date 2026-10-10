@@ -84,7 +84,7 @@ written from the Markdown in [`docs/site-src/`](docs/site-src/).
 
 ## [Installation](https://isocialpractice.github.io/napkin-sketch/install.html)
 
-Requires **Node.js 18+**. From a clone:
+Requires **Node.js 22.12 or newer**. From a clone:
 
 ```bash
 npm install
@@ -94,7 +94,8 @@ npm start          # builds, then opens a new blank sketch
 
 `npm link` puts the `napkin-sketch` command on your path, and
 `npm run dist:win` (or `dist:mac`, `dist:linux`) builds a native installer into
-`release/`.
+`release/`. If `npm install` or `npm start` fails on Linux or macOS, see
+[Troubleshooting install errors](https://isocialpractice.github.io/napkin-sketch/install.html#troubleshooting-install-errors).
 
 ## [Usage](https://isocialpractice.github.io/napkin-sketch/guide/command-line.html)
 

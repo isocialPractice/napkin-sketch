@@ -1,0 +1,61 @@
+# Type-checks and runs the unit tests on every pull request - Dependabot's
+# included - and on every push to main, on Linux, macOS and Windows. A clean
+# npm install on each is half the point: it is where Electron's download
+# fails when it fails, and --foreground-scripts puts that download in the
+# log. No lockfile is committed, so this installs from package.json, with no
+# npm cache. The suites read the built graphic-design API from dist/, so the
+# build runs before them. The GUI checks need a display and stay a local step.
+#
+# Force-add this file when committing (git add -f): an ignore rule covering
+# .github/ would otherwise leave it untracked.
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or PR replaces the run in progress.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # The graphic-design fixtures are committed as symlinks. Git for Windows
+      # can check a symlink out as a text file holding its target, which the
+      # analyzer would then read as the graphic; turned on, the links stay
+      # links, as they do on Linux and macOS.
+      - name: Keep symlinks as symlinks (Windows)
+        if: runner.os == 'Windows'
+        run: git config --global core.symlinks true
+
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --foreground-scripts
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Run the unit tests
+        run: npm test

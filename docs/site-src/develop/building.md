@@ -13,6 +13,10 @@ npm run pack-check   # Pack, install the tarball with no Electron, and draw from
 npm run start        # Build, then launch a new sketch
 npm run clean        # Remove dist/
 
+# Linux, development only: launch without Chromium's sandbox, for a system that
+# blocks it (see Troubleshooting install errors on the install page)
+npm start -- --no-sandbox
+
 # Print the layer tree an SVG would import as (runs the real importer in a
 # hidden Electron window; no GUI needed)
 npm run import-tree -- test/imports/applied_layer_names.svg
@@ -43,19 +47,52 @@ The build uses **esbuild** to bundle the Node-side code (CommonJS), the renderer
 (browser IIFE), and the embeddable API (ESM + IIFE); `tsc` is used only for
 type-checking and for emitting the public type declarations.
 
+Building from source needs **Node.js 22.12 or newer**, which Electron's
+installer asks for. The published package, which never installs Electron,
+still runs its command line and API on Node.js 18.
+
+## Continuous checks
+
+Two files under `.github/` keep the repository checked once they are on
+`main`:
+
+- **The Check workflow** (`.github/workflows/ci.yml`) runs on every pull
+  request and every push to `main`, on Linux, macOS and Windows: a clean
+  `npm install`, `npm run typecheck`, `npm run build` and `npm test`. The clean
+  install on each system is where a broken Electron download shows. `npm test`
+  fails while `docs/` is behind its sources, so it checks the site too. The
+  GUI checks need a display, and stay a local step.
+- **Dependabot** (`.github/dependabot.yml`) proposes upgrades as pull requests,
+  weekly: npm packages, with Electron and electron-builder grouped into one
+  pull request, and the GitHub Actions the workflows use. No lockfile is
+  committed, so it raises a pull request only for a release outside a range
+  in `package.json` - a new major version, or any release of a package pinned
+  exactly. Patch and minor releases inside a range arrive with the next
+  `npm install`.
+
 ## Packaging a desktop installer
 
 napkin-sketch builds native installers with **electron-builder** (configured in
-`package.json`). The app icon is generated from `assets/icon.svg` at build time.
+`package.json`).
 
 ```bash
-npm run build      # bundle into dist/ (also writes assets/icon.png)
+npm run build      # bundle into dist/
 npm run dist       # build an installer for the current OS
 npm run dist:win   # Windows NSIS installer (Start-menu + desktop shortcut)
 ```
 
 The Windows NSIS installer registers a Start-menu entry and desktop shortcut
 named **Napkin Sketch** and lets the user choose the install directory.
+
+### App icon
+
+`assets/icon.png` is the app icon, used as it is: the build copies it and
+never draws or resizes one, so the window and every installer show whatever
+icon that file holds. Keep it a square PNG, 1024 x 1024, exported from
+`assets/icon.svg` with the artwork centred on a transparent canvas.
+electron-builder makes the Windows `.ico` and the macOS `.icns` from it, and
+needs at least 512 x 512 for macOS; `npm test` checks that it is square and
+at least that size.
 
 ## Every npm script
 
@@ -66,7 +103,6 @@ named **Napkin Sketch** and lets the user choose the install directory.
 | `npm run build` | `node scripts/build.mjs` |
 | `npm run build:watch` | `node scripts/build.mjs --watch` |
 | `npm run build:types` | `tsc -p tsconfig.types.json` |
-| `npm run icon` | `node scripts/make-icon.mjs` |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test` | `node scripts/test.mjs` |
 | `npm run test:graphic-design-api` | `node scripts/test-graphic-design-api.mjs` |

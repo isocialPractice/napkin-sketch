@@ -17,6 +17,8 @@ at **1.0.0-alpha.3.2.2**. Every item below is patch-level, so the pass lands as
    *Build-side and self-contained: `scripts/make-icon.mjs` plus the
    electron-builder block in `package.json`. Shares no files with the rest of
    the sequence.*
+   *Later: `scripts/make-icon.mjs` was removed - the build now uses the icon
+   kept in `assets/` as it is - and the item lives on in `TODO.md`.*
 
 3. **More tests** - cover the renderer store (undo/redo, pages, selection) and
    the embeddable `NapkinSketch` editor via a DOM test environment.

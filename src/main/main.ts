@@ -379,10 +379,10 @@ function loadDocsPage(win: BrowserWindow, file: string): void {
 
 /** Moves the docs window back or forward through the pages it has shown, or closes it. */
 function runDocsAction(win: BrowserWindow, action: DocsAction): void {
-  const contents = win.webContents;
+  const history = win.webContents.navigationHistory;
   if (action === 'close') win.close();
-  else if (action === 'back' && contents.canGoBack()) contents.goBack();
-  else if (action === 'forward' && contents.canGoForward()) contents.goForward();
+  else if (action === 'back' && history.canGoBack()) history.goBack();
+  else if (action === 'forward' && history.canGoForward()) history.goForward();
 }
 
 /**
@@ -1459,19 +1459,22 @@ function registerIpc(): void {
   // A copied selection also goes out as SVG text, so it can be pasted straight
   // into Illustrator or Inkscape; a paste reads text back the same way, which
   // is how a graphic copied in one of those gets in here.
-  ipcMain.handle(IPC.writeClipboardSvg, (_event, svgContent: string): void => {
-    if (typeof svgContent === 'string' && svgContent !== '') clipboard.writeText(svgContent);
+  // Electron's clipboard is asynchronous: every read and write is awaited, so
+  // a write has landed before the renderer's invoke resolves, and a read is
+  // tested as the text it resolves to rather than as the promise.
+  ipcMain.handle(IPC.writeClipboardSvg, async (_event, svgContent: string): Promise<void> => {
+    if (typeof svgContent === 'string' && svgContent !== '') await clipboard.writeText(svgContent);
   });
 
-  ipcMain.handle(IPC.writeClipboardText, (_event, text: unknown): void => {
-    if (typeof text === 'string') clipboard.writeText(text);
+  ipcMain.handle(IPC.writeClipboardText, async (_event, text: unknown): Promise<void> => {
+    if (typeof text === 'string') await clipboard.writeText(text);
   });
 
-  ipcMain.handle(IPC.readClipboardText, (): string => clipboard.readText());
+  ipcMain.handle(IPC.readClipboardText, (): Promise<string> => clipboard.readText());
 
-  ipcMain.handle(IPC.readClipboardSvg, (): string | null => {
-    const text = clipboard.readText();
-    return typeof text === 'string' && /<svg[\s>]/i.test(text) ? text : null;
+  ipcMain.handle(IPC.readClipboardSvg, async (): Promise<string | null> => {
+    const text = await clipboard.readText();
+    return /<svg[\s>]/i.test(text) ? text : null;
   });
 
   // ---- Settings -------------------------------------------------------------

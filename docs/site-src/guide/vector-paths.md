@@ -91,6 +91,69 @@ blue, and `Esc` drops the edit (`Ctrl+Z` restores the shape).
 - **Shift pins every drag** to the nearest axis or 45-degree diagonal: raw
   points and tangent handles as well as a vector path's anchors.
 
+### Select with a box
+
+*Drag over empty canvas* with Direct Select and a box follows the pointer.
+What it picks when it is let go depends on what it holds, across every path
+it reaches:
+
+- **Anchors, when it holds any.** The anchor points inside the box are
+  picked, and only those, on however many paths they are; a segment the box
+  also crosses is not.
+- **Segments, when it holds no anchor.** Every segment the box passes
+  through is picked - the stretch of path between two anchors - drawn blue
+  while its anchors stay hollow. A box drawn across the middle of a
+  rectangle's bottom edge picks that edge.
+- **Nothing, when it catches nothing.** A box over bare canvas leaves the
+  picks as they were.
+
+A press on empty canvas that does not travel is still a click there, and
+drops the edit. `Shift` adds what the box picks to what is already picked.
+The box leaves text out: a text's frame or path is edited by clicking its
+anchors.
+
+### Move a selection
+
+*Drag a picked anchor or segment* to move everything picked, on every path at
+once: a segment carries the anchors at both of its ends, their handles riding
+along, and a rectangle's seam moves as one corner. With no button down the
+**arrow keys** move the picks too - one step a press, ten with `Shift` - in
+the units the position fields show, so 1 and 10 pixels unless they are set
+otherwise. A step is a distance on the page, whatever the zoom. A drag is one
+undo step and so is each press of an arrow key; holding a key down repeats
+within that one step. With the whole path picked, the arrow keys move it.
+
+### Delete anchor points and segments
+
+With anchors or segments picked, `Delete` or `Backspace` - or **Delete** in
+the Edit menu or the canvas menu - takes them out of the path, and the rest
+stays:
+
+- **A deleted anchor takes both of its segments with it.** So a closed path
+  opens where the anchor was, running on from the anchor after the gap, and
+  an open path splits in two at a middle anchor.
+- **A deleted segment goes alone**, its anchors staying: a closed path opens
+  there, an open path splits there.
+- **One lone anchor left over is dropped**, one point being no path, and a
+  path with nothing left goes.
+
+A rectangle with its top-right corner deleted becomes an open L, its other
+three corners joined by the two sides that did not touch the deleted one:
+
+```text
+o-------o                o
+|       |       ->       |
+|       |                |
+o-------o                o-------o
+```
+
+It is one undo step, however many paths the picks were on. With only the
+path picked and no anchor or segment, Delete takes the whole path, as it
+always has. A text's frame or path keeps its points: Delete changes nothing
+there and says so. Removing an anchor in the Vector Path tool's edit mode is
+different: it takes out the point and joins its neighbours, so a closed path
+stays closed.
+
 ## Sharpen Selection
 
 **Sharpen Selection** (toolbar button): smooths and simplifies the selected

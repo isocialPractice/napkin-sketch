@@ -378,7 +378,8 @@ function segmentNearest(p: Vec, a: Vec, b: Vec): Vec {
   return { x: a.x + t * dx, y: a.y + t * dy };
 }
 
-function segmentDistance(p: Vec, a: Vec, b: Vec): number {
+/** How far `p` is from the segment a-b: from its nearest point on it. */
+export function segmentDistance(p: Vec, a: Vec, b: Vec): number {
   const at = segmentNearest(p, a, b);
   return Math.hypot(p.x - at.x, p.y - at.y);
 }
@@ -388,7 +389,7 @@ function inBox(p: Vec, box: Box): boolean {
 }
 
 /** Whether the segment a-b touches the box: an end inside it, or a crossing of one of its sides. */
-function segmentMeetsBox(a: Vec, b: Vec, box: Box): boolean {
+export function segmentMeetsBox(a: Vec, b: Vec, box: Box): boolean {
   if (inBox(a, box) || inBox(b, box)) return true;
   // Clip the segment's parameter range against each slab (Liang-Barsky).
   let t0 = 0;

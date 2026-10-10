@@ -367,7 +367,7 @@
     { "id": "tool-copic", "label": "Copic", "name": "Copic marker", "type": "Draw:Add:mark", "group": 1, "summary": "Flat broad nib, rotatable" },
     { "id": "tool-pencil", "label": "Pencil", "type": "Draw:Add:mark", "group": 1, "summary": "Graphite and charcoal by hardness, through the paper's grain; press for the drawing kit" },
     { "id": "tool-smear", "label": "Smear", "type": "Draw:Add:mark", "group": 1, "summary": "A blending stump: drag over pencil marks to spread their graphite; Quick Width sizes it, Quick Opacity sets its strength" },
-    { "id": "tool-point", "label": "Direct", "name": "Direct Select", "type": "Draw:Modify:vector", "group": 1, "summary": "White arrow; drags anchor points" },
+    { "id": "tool-point", "label": "Direct", "name": "Direct Select", "type": "Draw:Modify:vector", "group": 1, "summary": "White arrow; picks, moves and deletes anchor points and segments" },
     { "id": "stroke-profile", "label": "Stroke Profile", "type": "Draw:sketch", "group": 2, "dots": true, "summary": "How the width runs along new brush and marker strokes" },
     { "id": "fill-in-front", "label": "Fill in Front", "type": "Draw:sketch", "group": 2, "checked": "fillInFront", "summary": "The colors paint the fill, not the stroke; again for the stroke" },
     { "id": "swap-fill-stroke", "label": "Swap Fill and Stroke", "type": "Draw:sketch", "group": 2, "summary": "The tool's ink and fill, or the selected shapes' fill and outline" },

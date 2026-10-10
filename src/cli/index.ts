@@ -14,6 +14,7 @@
  *   -b, --book <file>   Open a .skbk sketch book.
  *   -n, --new [name]    New sketch named "unnamed" or [name].
  *   -f, --full-screen   Open the GUI window full screen (default: maximized).
+ *       --no-sandbox    Launch without Chromium's sandbox (Linux development only).
  *   -i, --import <f>    Import a file into the opening sketch.
  *   -m, --multiple-imports <f,f,…>  Import several files in a grid.
  *       --sharpen <f>   Auto-sharpen a saved sketch, then open it.
@@ -37,6 +38,7 @@ import {
 import { sharpenStrokes } from '../sharpen/sharpen.js';
 // Markdown Flow text is drawn as its Markdown renders, and code accented: marked's lexer and highlight.js registered.
 import '../markdown/core.js';
+import { DOCS_SITE_ADDRESS } from '../core/menu/links.js';
 import { COMMAND_SUMMARIES, COMMANDS, parseArgs } from './args.js';
 import { runCommand } from './draw.js';
 
@@ -78,6 +80,9 @@ Options:
   -f, --full-screen     Open the GUI window full screen, which hides the window
                         controls. Without it the window opens maximized, so the
                         minimize, restore-down, and close buttons stay in view.
+      --no-sandbox      Launch Electron without Chromium's sandbox. For
+                        development on a Linux system that blocks the sandbox
+                        (the "SUID sandbox helper" error); never for a release.
   -i, --import <file>   Import an SVG, PDF, PNG, JPEG, GIF or WebP file into the
                         opening sketch.
   -m, --multiple-imports <file,file,…>
@@ -136,19 +141,61 @@ function resolveImportFiles(files: string[]): string[] {
   return resolved;
 }
 
+/**
+ * What to do about an Electron binary that is not there, one line each: the
+ * reinstall, the download on its own, and where the install errors are
+ * written up. macOS adds the cause seen most there - its malware scanner
+ * moving `Electron.app` to the Trash - and the one thing not to do about it.
+ */
+function electronReinstallHint(): string {
+  const lines = [
+    'Reinstall Electron from the repository root:',
+    '  rm -rf node_modules/electron && npm install',
+    'or rerun only its download:',
+    '  node node_modules/electron/install.js',
+  ];
+  if (process.platform === 'darwin') {
+    lines.push(
+      'On macOS, XProtect may have moved Electron.app to the Trash. Do not restore it from there;',
+      'reinstall as above.',
+    );
+  }
+  lines.push(`See "Troubleshooting install errors": ${DOCS_SITE_ADDRESS}install.html#troubleshooting-install-errors`);
+  return lines.join('\n');
+}
+
+/** Prints why the GUI cannot start for want of its Electron binary, and exits. */
+function exitForMissingElectron(detail: string): never {
+  console.error(`napkin-sketch: ${detail}`);
+  console.error(electronReinstallHint());
+  process.exit(1);
+}
+
 /** Resolves the Electron executable path from the installed `electron` package. */
 function resolveElectronBinary(): string {
-  // The `electron` package's main export is the path to the binary.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const electronPath = require('electron') as unknown;
+  // The `electron` package's main export is the path to the binary. It throws
+  // when the package's own record of that path (path.txt) is missing, which
+  // is what an interrupted or skipped download leaves behind.
+  let electronPath: unknown;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    electronPath = require('electron') as unknown;
+  } catch {
+    exitForMissingElectron('could not locate the Electron binary; its download did not finish.');
+  }
   if (typeof electronPath !== 'string') {
-    throw new Error('Could not locate the Electron binary. Run "npm install" first.');
+    exitForMissingElectron('could not locate the Electron binary. Run "npm install" first.');
+  }
+  // The record can outlive the binary: a scanner that quarantines it, or a
+  // sync tool that offloads it, leaves path.txt naming a file that is gone.
+  if (!existsSync(electronPath)) {
+    exitForMissingElectron(`the Electron binary is missing: ${electronPath}`);
   }
   return electronPath;
 }
 
 /** Spawns the Electron GUI with the given launch options. */
-function launchGui(options: LaunchOptions): void {
+function launchGui(options: LaunchOptions, noSandbox = false): void {
   const electron = resolveElectronBinary();
   const mainEntry = resolve(HERE, '..', 'main', 'main.js');
 
@@ -162,13 +209,19 @@ function launchGui(options: LaunchOptions): void {
   };
   delete env.ELECTRON_RUN_AS_NODE;
 
-  const child = spawn(electron, [mainEntry], {
+  // --no-sandbox is passed only when asked for: the sandbox stays on by
+  // default everywhere, and the flag is a development escape hatch for Linux
+  // systems that block it.
+  const child = spawn(electron, noSandbox ? [mainEntry, '--no-sandbox'] : [mainEntry], {
     stdio: 'inherit',
     env,
     windowsHide: false,
   });
 
   child.on('error', (err) => {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      exitForMissingElectron(`the Electron binary is missing: ${electron}`);
+    }
     console.error(`napkin-sketch: failed to launch GUI — ${err.message}`);
     process.exit(1);
   });
@@ -270,7 +323,7 @@ async function main(): Promise<void> {
     options.importGrid = multiple.length > 0;
   }
 
-  launchGui(options);
+  launchGui(options, args.noSandbox);
 }
 
 // Only run as a CLI when invoked directly (keeps exports like parseArgs

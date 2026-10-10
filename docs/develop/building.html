@@ -41,6 +41,7 @@
 <article class="content">
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> Developing <span class="sep">/</span> <span aria-current="page">Building</span></nav>
 <h1 id="building-and-packaging">Building and packaging<a class="anchor" href="#building-and-packaging" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#development">Development</a></li><li><a href="#continuous-checks">Continuous checks</a></li><li><a href="#packaging-a-desktop-installer">Packaging a desktop installer</a></li><li><a href="#every-npm-script">Every npm script</a></li></ul></details>
 <h2 id="development">Development<a class="anchor" href="#development" aria-label="Link to this section">#</a></h2>
 <pre><code class="language-bash">npm run build        # Bundle CLI, main, preload, renderer, and the embed API
 npm run build:watch  # Rebuild on change
@@ -51,6 +52,10 @@ npm run gui-check    # Drive the built app and check what it shows (build first)
 npm run pack-check   # Pack, install the tarball with no Electron, and draw from it
 npm run start        # Build, then launch a new sketch
 npm run clean        # Remove dist/
+
+# Linux, development only: launch without Chromium's sandbox, for a system that
+# blocks it (see Troubleshooting install errors on the install page)
+npm start -- --no-sandbox
 
 # Print the layer tree an SVG would import as (runs the real importer in a
 # hidden Electron window; no GUI needed)
@@ -79,14 +84,43 @@ npm run todo</code></pre>
 <p>The build uses <strong>esbuild</strong> to bundle the Node-side code (CommonJS), the renderer
 (browser IIFE), and the embeddable API (ESM + IIFE); <code>tsc</code> is used only for
 type-checking and for emitting the public type declarations.</p>
+<p>Building from source needs <strong>Node.js 22.12 or newer</strong>, which Electron's
+installer asks for. The published package, which never installs Electron,
+still runs its command line and API on Node.js 18.</p>
+<h2 id="continuous-checks">Continuous checks<a class="anchor" href="#continuous-checks" aria-label="Link to this section">#</a></h2>
+<p>Two files under <code>.github/</code> keep the repository checked once they are on
+<code>main</code>:</p>
+<ul>
+<li><strong>The Check workflow</strong> (<code>.github/workflows/ci.yml</code>) runs on every pull
+request and every push to <code>main</code>, on Linux, macOS and Windows: a clean
+<code>npm install</code>, <code>npm run typecheck</code>, <code>npm run build</code> and <code>npm test</code>. The clean
+install on each system is where a broken Electron download shows. <code>npm test</code>
+fails while <code>docs/</code> is behind its sources, so it checks the site too. The
+GUI checks need a display, and stay a local step.</li>
+<li><strong>Dependabot</strong> (<code>.github/dependabot.yml</code>) proposes upgrades as pull requests,
+weekly: npm packages, with Electron and electron-builder grouped into one
+pull request, and the GitHub Actions the workflows use. No lockfile is
+committed, so it raises a pull request only for a release outside a range
+in <code>package.json</code> - a new major version, or any release of a package pinned
+exactly. Patch and minor releases inside a range arrive with the next
+<code>npm install</code>.</li>
+</ul>
 <h2 id="packaging-a-desktop-installer">Packaging a desktop installer<a class="anchor" href="#packaging-a-desktop-installer" aria-label="Link to this section">#</a></h2>
 <p>napkin-sketch builds native installers with <strong>electron-builder</strong> (configured in
-<code>package.json</code>). The app icon is generated from <code>assets/icon.svg</code> at build time.</p>
-<pre><code class="language-bash">npm run build      # bundle into dist/ (also writes assets/icon.png)
+<code>package.json</code>).</p>
+<pre><code class="language-bash">npm run build      # bundle into dist/
 npm run dist       # build an installer for the current OS
 npm run dist:win   # Windows NSIS installer (Start-menu + desktop shortcut)</code></pre>
 <p>The Windows NSIS installer registers a Start-menu entry and desktop shortcut
 named <strong>Napkin Sketch</strong> and lets the user choose the install directory.</p>
+<h3 id="app-icon">App icon<a class="anchor" href="#app-icon" aria-label="Link to this section">#</a></h3>
+<p><code>assets/icon.png</code> is the app icon, used as it is: the build copies it and
+never draws or resizes one, so the window and every installer show whatever
+icon that file holds. Keep it a square PNG, 1024 x 1024, exported from
+<code>assets/icon.svg</code> with the artwork centred on a transparent canvas.
+electron-builder makes the Windows <code>.ico</code> and the macOS <code>.icns</code> from it, and
+needs at least 512 x 512 for macOS; <code>npm test</code> checks that it is square and
+at least that size.</p>
 <h2 id="every-npm-script">Every npm script<a class="anchor" href="#every-npm-script" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>
 <thead><tr><th>Script</th><th>Runs</th></tr></thead>
@@ -95,7 +129,6 @@ named <strong>Napkin Sketch</strong> and lets the user choose the install direct
 <tr><td><code>npm run build</code></td><td><code>node scripts/build.mjs</code></td></tr>
 <tr><td><code>npm run build:watch</code></td><td><code>node scripts/build.mjs --watch</code></td></tr>
 <tr><td><code>npm run build:types</code></td><td><code>tsc -p tsconfig.types.json</code></td></tr>
-<tr><td><code>npm run icon</code></td><td><code>node scripts/make-icon.mjs</code></td></tr>
 <tr><td><code>npm run typecheck</code></td><td><code>tsc --noEmit</code></td></tr>
 <tr><td><code>npm run test</code></td><td><code>node scripts/test.mjs</code></td></tr>
 <tr><td><code>npm run test:graphic-design-api</code></td><td><code>node scripts/test-graphic-design-api.mjs</code></td></tr>

@@ -1,0 +1,23 @@
+# Proposes dependency upgrades as pull requests, weekly. No lockfile is
+# committed, on purpose: Dependabot raises a PR only when a release falls
+# outside a range in package.json - a new major, or any release of an exactly
+# pinned package - which are the upgrades worth a review. Electron and
+# electron-builder move together, so they arrive as one PR. The versions of
+# the GitHub Actions in .github/workflows/ are kept current too.
+#
+# Force-add this file when committing (git add -f): an ignore rule covering
+# .github/ would otherwise leave it untracked, and Dependabot would never run.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      electron:
+        patterns: ["electron", "electron-builder"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

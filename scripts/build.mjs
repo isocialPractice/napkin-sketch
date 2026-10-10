@@ -6,7 +6,7 @@ import { build, context } from 'esbuild';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -182,8 +182,9 @@ async function copyStatic() {
   await cp(resolve(root, 'src/renderer/settings.html'), resolve(root, 'dist/renderer/settings.html'));
   await cp(resolve(root, 'src/renderer/styles.css'), resolve(root, 'dist/renderer/styles.css'));
 
-  // Generate the app icon (pure Node, no native deps) then copy assets.
-  await import(pathToFileURL(resolve(root, 'scripts/make-icon.mjs')).href);
+  // The app icon is the one kept in assets/, copied as it is: the build never
+  // draws, resizes or writes into assets/, so whatever icon is there is the
+  // one the window and the installers use.
   await mkdir(resolve(root, 'dist/assets'), { recursive: true });
   if (existsSync(resolve(root, 'assets/icon.png'))) {
     await cp(resolve(root, 'assets/icon.png'), resolve(root, 'dist/assets/icon.png'));

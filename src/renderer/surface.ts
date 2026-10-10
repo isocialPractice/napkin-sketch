@@ -281,7 +281,19 @@ export interface Overlay {
     outline?: Point[];
     /** Corner-rounding target icon position (Vector Path edit mode). */
     roundTarget?: Point;
+    /**
+     * Segments Direct Select holds, each as the line it draws (a curve along
+     * its curve), drawn blue as a selected path is; the anchors at their ends
+     * stay as they are.
+     */
+    segments?: Array<Array<{ x: number; y: number }>>;
   };
+  /**
+   * Every other mark Direct Select's box holds picks on: its anchors, the
+   * picked ones blue, and its picked segments. No handles - only the edited
+   * mark in {@link anchors} shows those.
+   */
+  pickedAnchors?: Array<{ points: Point[]; selected: number[]; segments: Array<Array<{ x: number; y: number }>> }>;
   /** Mesh Warp's hover outline, mesh and pins. */
   warp?: WarpOverlay;
   /**
@@ -739,6 +751,10 @@ export class Surface {
 
     if (overlay?.rotate) {
       this.paintRotateCenter(ctx, overlay.rotate);
+    }
+
+    for (const picked of overlay?.pickedAnchors ?? []) {
+      this.paintAnchors(ctx, picked);
     }
 
     if (overlay?.anchors) {
@@ -1806,6 +1822,7 @@ export class Surface {
       pathSelected?: boolean;
       outline?: Point[];
       roundTarget?: Point;
+      segments?: Array<Array<{ x: number; y: number }>>;
     },
   ): void {
     const pts = anchors.points;
@@ -1825,6 +1842,18 @@ export class Surface {
       ctx.beginPath();
       outline.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
       ctx.stroke();
+      ctx.lineWidth = 1 / this.zoom;
+    }
+
+    // A selected segment draws the same way, along just its own stretch.
+    if (anchors.segments && anchors.segments.length > 0) {
+      ctx.strokeStyle = blue;
+      ctx.lineWidth = 1.5 / this.zoom;
+      for (const line of anchors.segments) {
+        ctx.beginPath();
+        line.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+        ctx.stroke();
+      }
       ctx.lineWidth = 1 / this.zoom;
     }
 

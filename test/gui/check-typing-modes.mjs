@@ -85,6 +85,7 @@ const KEY = {
   z: ['z', 'KeyZ', 90],
   Z: ['Z', 'KeyZ', 90],
   v: ['v', 'KeyV', 86],
+  Delete: ['Delete', 'Delete', 46],
 };
 
 const app = launch({ mode: 'book', filePath: bookPath });
@@ -291,6 +292,16 @@ try {
   c.ok("Direct Select drags the frame's anchor", Math.abs(moved - (anchors[right].x + 60)) < 3, `${anchors[right].x} -> ${moved}`);
   c.ok('the text reflows in the new frame', JSON.stringify(t.lines.map((l) => [Math.round(l.x), Math.round(l.width)])) !== linesBefore);
   c.eq('its characters keep their size', t.glyphs.map((g) => g.size).join(), sizes);
+
+  // Delete with the frame's anchor still picked: a text frame keeps its
+  // points, and the text is not deleted either - a report says so.
+  const frameAnchors = t.typeset.frame.anchors.length;
+  c.ok("the frame's anchor is still picked after its drag", (await io.eval('return window.napkinCheck.directSelectState().anchors;')).length === 1);
+  await io.key('Delete', 0, 400);
+  t = await io.type(SHEET);
+  c.ok('Delete with a frame anchor picked leaves the text', (await has(SHEET)) && t?.typeset.frame.anchors.length === frameAnchors, JSON.stringify({ anchors: t?.typeset.frame.anchors.length }));
+  const reports = await io.eval('return window.napkinCheck.reportToasts();');
+  c.ok('and a report says the frame keeps its points', reports.some((r) => r.id === 'direct-select-delete-text'), JSON.stringify(reports.map((r) => r.id)));
 
   // ---- Area Type Options ---------------------------------------------------------------------
   await io.tool('tool-select');

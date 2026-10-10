@@ -125,7 +125,8 @@ a text reads as, a field written alone and held to its range, and the fields
 greyed. <code>test/gui/check-typing-modes.mjs</code> makes each typing mode in the app:
 Sideless Typing on the canvas and beside art that is not selected, Sheet
 Typing in a selected circle whose lines keep inside it, an anchor of its
-frame dragged with Direct Select, Path Typing along a selected curve, its
+frame dragged with Direct Select and kept when Delete is pressed on it,
+Path Typing along a selected curve, its
 brackets dragged, a paste along a path, <code>Alt</code> + click along a rectangle's
 outline, and the Type menu's rows and both of its options forms.
 The glyph outlines are held on two fonts in <code>test/fonts/</code>, subsets of two
@@ -347,10 +348,33 @@ takes. <code>npm run gui-check -- select-accuracy</code> clicks beside a line wi
 Select sensitivity at 2 and at 12, moves a layer down and clicks where two
 lines overlap, clicks in an eraser's cut, drags a rubber band across a
 rectangle's edge, and drives Direct Select's reach, its drag threshold, a
-rectangle's seam and <code>Shift</code> on a raw drag. For it the hook adds <code>hitAt()</code>,
-the mark a Select click at a point would pick, and <code>directSelectState()</code>,
-what Direct Select is editing; <code>strokeSummary()</code> gives where each mark
-starts and ends. <code>test/zoom.test.ts</code> holds how far the canvas zooms, a
+rectangle's seam and <code>Shift</code> on a raw drag. It then drives Direct Select's
+box:</p>
+<ul>
+<li>the anchors it holds, across two marks, and no segment;</li>
+<li>a rectangle's bottom edge when it holds no anchor;</li>
+<li>nothing changed by a box over bare canvas;</li>
+<li>a short box that is a click.</li>
+</ul>
+<p>Then what the picks do:</p>
+<ul>
+<li>the picked edge dragged and moved with the arrow keys, a step at a time
+and <code>Shift</code> for ten, each press one undo;</li>
+<li>picks on two marks moved together;</li>
+<li>a rectangle's corner deleted, leaving an open L, and undone;</li>
+<li>a picked segment deleted;</li>
+<li>an open path's middle anchor deleted, splitting it;</li>
+<li>Delete with only the path picked;</li>
+<li>the canvas menu's Delete;</li>
+<li>the moves and the Delete recorded as Direct Select's steps in Track History.</li>
+</ul>
+<p>For it the hook adds <code>hitAt()</code>, the mark a Select click at a point would
+pick, and <code>directSelectState()</code>, what Direct Select is editing and every
+stroke's picked anchors and segments; <code>strokeSummary()</code> gives where each
+mark starts and ends, and <code>strokeGeometry()</code> its points.
+<code>test/direct-select.test.ts</code> holds the box's rule and how segments are
+named, and <code>test/split.test.ts</code> what a Delete leaves of a path.
+<code>test/zoom.test.ts</code> holds how far the canvas zooms, a
 length on the screen measured on the page, the wheel's steps, and when a
 mark or a layer reaches the view; <code>npm run gui-check -- zoom</code> zooms a
 1 x 1 page-pixel mark with <code>Alt</code> + wheel until it fills the canvas's

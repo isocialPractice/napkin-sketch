@@ -11,10 +11,11 @@ the inbox into a roadmap section once it is scheduled.
 ## Current
 
 The active queue. Five entries are patch-sized and carried over from earlier
-releases; each names the group it came from, so an item that grows can be moved
-back without losing where it started. The last is the documentation site's
-deployment check, which the agent note below it carries to the run that can
-make it.
+releases, and three are Direct Select's minor features from the unreleased
+pass; each names the group it came from, so an item that grows can be moved
+back without losing where it started. The last two are deployment checks -
+the documentation site's, and the Check workflow's with Dependabot - which
+the agent notes below carry to the run that can make them.
 
 - [x] **DONE (1.0.0-alpha.5.0.0)** - **Text editor UX**: commit on `Esc`, keep caret styling in sync with the
   selected font size, and reposition on window resize. The type editor draws
@@ -23,8 +24,14 @@ make it.
   keeps its place through a pan, a zoom or a resized window. A text can be
   edited again, and a burst of typing is one undo step.
   - From: Patch
-- [ ] **Icon rasterization**: ship multi-resolution `.ico`/`.icns` instead of a
-  single PNG.
+- [x] **DONE (Unreleased)** - **Icon rasterization**: ship multi-resolution `.ico`/`.icns` instead of a
+  single PNG. electron-builder already builds both from one square PNG, so no
+  rasterizer of the project's own is wanted: `scripts/make-icon.mjs`, which
+  drew the old tile over `assets/icon.png` on every build, is gone, and the
+  build copies the icon kept in `assets/` as it is. `assets/icon.png` is now
+  a 1024 x 1024 square rendered from `assets/icon.svg`, and
+  `test/app-icon.test.ts` holds it to a square of at least 512. The Windows
+  installer built from it carries the new artwork.
   - From: Patch
 - [ ] **More tests**: cover the renderer store (undo/redo, pages, selection) and the
   embeddable `NapkinSketch` editor via a DOM test environment.
@@ -63,11 +70,36 @@ make it.
 - [ ] **Docs**: API reference for the embeddable package and a WordPress block
   example.
   - From: Patch
+- [x] **DONE (Unreleased)** - **Direct Select drag-box selection of anchors and segments**: a drag
+  from empty canvas picks the anchors inside the box, across every mark it
+  reaches, and only those; when it holds none, the segments passing through
+  it; when it catches nothing, nothing changes. A press that does not travel
+  is still a click, and drops the edit. Shift adds to the picks, and text is
+  left out of the box. `src/core/direct-select.ts`.
+  - From: Minor
+- [x] **DONE (Unreleased)** - **Move a Direct Select selection by drag or arrow keys**: a press on
+  a picked anchor or segment drags every pick, on every mark; with no button
+  down the arrow keys move them a step - Shift ten - in the units the
+  position fields show. Each drag and each press is one undo step.
+  - From: Minor
+- [x] **DONE (Unreleased)** - **Delete anchor points and segments, opening or splitting the path**:
+  a deleted anchor takes both of its segments, a deleted segment goes alone,
+  so a closed path opens just after the gap and an open one splits; a lone
+  anchor left over is dropped. A text frame keeps its points. One undo step,
+  and undo and redo drop the picks. `deleteParts` in `src/core/split.ts`.
+  - From: Minor
 - [ ] **Verify the documentation site deployment**: `.github/workflows/pages.yml`
   deploys `docs/` to https://isocialpractice.github.io/napkin-sketch/ once it
   is pushed and Pages is set to deploy from GitHub Actions. Ask the workflow
   run for the pushed commit whether it succeeded; see the agent note below.
   - From: 1.0.0-alpha.4.5.0, Phase P
+- [ ] **Verify the Check workflow and Dependabot**: `.github/workflows/ci.yml`
+  type-checks and runs the unit tests on Linux, macOS and Windows for every
+  pull request and every push to `main`, and `.github/dependabot.yml` asks
+  for weekly upgrade PRs. Neither runs until both are pushed to `main`. Ask
+  the first Check run for the pushed commit how each OS fared, and whether
+  Dependabot has opened its first PRs; see the agent note below.
+  - From: Unreleased, Part D
 
 ## Agent Notes
 
@@ -91,6 +123,40 @@ For the **Verify the documentation site deployment** item under Current.
 - **When it succeeds**: set `DOCS_SITE_URL` in `src/core/menu/links.ts` to
   `DOCS_SITE_ADDRESS`, which makes **Help > Source Docs** appear; then tick
   the item and drop this note.
+
+### Verify the Check workflow and Dependabot
+
+For the **Verify the Check workflow and Dependabot** item under Current.
+
+- **Commit**: the commit on `main` that carries `.github/workflows/ci.yml`
+  and `.github/dependabot.yml`. Nothing had been pushed when they were
+  written: pushing is the owner's call.
+- **Files**: both are ignored by the global gitignore on the machine that
+  wrote them, as `pages.yml` is, so commit them with `git add -f`, and
+  `docs/.nojekyll` with them - the site test fails without it, on every OS
+  the workflow runs.
+- **Check, per OS**: `gh run list --workflow ci.yml --limit 1`, then
+  `gh run view <id>` for the three jobs. A job that fails on one OS only is
+  either fixed in a small change or recorded under **Found Issues** with
+  its log; the workflow is not loosened (`continue-on-error`, a dropped OS)
+  without the owner's say.
+- **Before the push**: on 2026-10-09 the Linux job's steps ran in WSL
+  Ubuntu (Node 26.3, where the runner has 22) on a fresh clone overlaid
+  with the uncommitted changes: install, typecheck, build and the unit tests
+  all passed - 1746 of 1750, 4 skipped, none failed. The same preview showed
+  why the workflow builds before testing (the generated-skill suite reads
+  the built API from `dist/`, and 13 of its tests fail on a clone without
+  it) and why `docs/.nojekyll` must be committed (the site test fails
+  without it). macOS and Windows were not previewed; the Windows job turns
+  `core.symlinks` on before the checkout, so the graphic-design fixtures stay
+  links, as they are on the machine that wrote the workflow.
+- **Dependabot**: its status is under the repository's Insights > Dependency
+  graph > Dependabot (or Settings > Code security). The first PRs to expect
+  are majors - Electron 45 is due to go stable on 2026-10-20 - and releases
+  of the exactly pinned `highlight.js`, `marked` and `marked-highlight`.
+- **Attempts**: 0
+- **When all three jobs are green and Dependabot has run**: tick the item
+  and drop this note.
 
 ## Found Issues
 

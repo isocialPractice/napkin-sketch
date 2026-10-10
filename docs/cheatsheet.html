@@ -63,7 +63,7 @@ Edit Keyboard Shortcuts</strong> changes them for you alone.</p>
 <tr><td style="text-align:left">Shape Stacker</td><td style="text-align:left"><code>Shift+M</code></td><td style="text-align:left">Drag across the pieces of the selected shapes to merge them, Alt to take them away; press for the Wipe Stacks</td></tr>
 <tr><td style="text-align:left">Split</td><td style="text-align:left"><code>J</code></td><td style="text-align:left">Click a path to cut it where you click, as scissors do; a closed one opens there</td></tr>
 <tr><td style="text-align:left">Select</td><td style="text-align:left"><code>S</code></td><td style="text-align:left">Black arrow; active at launch</td></tr>
-<tr><td style="text-align:left">Direct Select</td><td style="text-align:left"><code>A</code></td><td style="text-align:left">White arrow; drags anchor points</td></tr>
+<tr><td style="text-align:left">Direct Select</td><td style="text-align:left"><code>A</code></td><td style="text-align:left">White arrow; picks, moves and deletes anchor points and segments</td></tr>
 <tr><td style="text-align:left">Text</td><td style="text-align:left"><code>T</code></td><td style="text-align:left">Click = new text or edit a text, in or along a selected path; drag = text box</td></tr>
 <tr><td style="text-align:left">Rectangle</td><td style="text-align:left"><code>R</code></td><td style="text-align:left">Hold <code>Shift</code> for a square</td></tr>
 <tr><td style="text-align:left">Ellipse</td><td style="text-align:left"><code>L</code></td><td style="text-align:left">Hold <code>Shift</code> for a circle</td></tr>
@@ -152,6 +152,9 @@ Edit Keyboard Shortcuts</strong> changes them for you alone.</p>
 <tr><td style="text-align:left">Deselect all</td><td style="text-align:left"><code>Ctrl + Shift + A</code></td></tr>
 <tr><td style="text-align:left">Add to / remove from selection</td><td style="text-align:left"><code>Shift</code> + click</td></tr>
 <tr><td style="text-align:left">Rubber-band select</td><td style="text-align:left">Drag over empty space (Select tool)</td></tr>
+<tr><td style="text-align:left">Pick anchors or segments with a box</td><td style="text-align:left">Drag over empty space (Direct Select): anchors when it holds any, else segments</td></tr>
+<tr><td style="text-align:left">Move picked anchors or segments</td><td style="text-align:left">Drag one, or the arrow keys, <code>Shift</code> for 10 (Direct Select)</td></tr>
+<tr><td style="text-align:left">Delete picked anchors or segments</td><td style="text-align:left"><code>Delete</code> or <code>Backspace</code> (Direct Select): a closed path opens</td></tr>
 <tr><td style="text-align:left">Drag-copy the selection</td><td style="text-align:left">Hold <code>Alt</code> and drag</td></tr>
 <tr><td style="text-align:left">Cut / Copy / Paste</td><td style="text-align:left"><code>Ctrl + X</code> / <code>Ctrl + C</code> / <code>Ctrl + V</code></td></tr>
 <tr><td style="text-align:left">Paste in Place</td><td style="text-align:left"><code>Ctrl + Shift + V</code></td></tr>
@@ -248,6 +251,7 @@ table</a>.</p>
 <tr><td style="text-align:left"><code>-b, --book</code></td><td style="text-align:left">Open a saved <code>.skbk</code> sketch book</td></tr>
 <tr><td style="text-align:left"><code>-n, --new</code></td><td style="text-align:left">New sketch, named <code>unnamed</code> or <code>[target]</code></td></tr>
 <tr><td style="text-align:left"><code>-f, --full-screen</code></td><td style="text-align:left">Open full screen (the default window is maximized)</td></tr>
+<tr><td style="text-align:left"><code>--no-sandbox</code></td><td style="text-align:left">Launch without Chromium's sandbox: Linux development only</td></tr>
 <tr><td style="text-align:left"><code>-i, --import</code></td><td style="text-align:left">Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch</td></tr>
 <tr><td style="text-align:left"><code>-m, --multiple-imports</code></td><td style="text-align:left">Import a comma-separated list, laid out in a grid</td></tr>
 <tr><td style="text-align:left"><code>--sharpen</code></td><td style="text-align:left">Auto-sharpen a saved sketch on disk, then open it</td></tr>
@@ -304,7 +308,6 @@ napkin-sketch verbs --category shapes                # one category</code></pre>
 <tr><td style="text-align:left"><code>npm run gui-check -- --background</code></td><td style="text-align:left">The same, off the screen and out of the focus</td></tr>
 <tr><td style="text-align:left"><code>npm start</code></td><td style="text-align:left">Build, then launch a new sketch</td></tr>
 <tr><td style="text-align:left"><code>npm run clean</code></td><td style="text-align:left">Remove <code>dist/</code></td></tr>
-<tr><td style="text-align:left"><code>npm run icon</code></td><td style="text-align:left">Generate the app icon from <code>assets/icon.svg</code></td></tr>
 <tr><td style="text-align:left"><code>npm run import-tree -- &lt;file.svg&gt;</code></td><td style="text-align:left">Print the layer tree an SVG would import as</td></tr>
 <tr><td style="text-align:left"><code>npm run todo</code></td><td style="text-align:left">Archive checked <code>TODO.md</code> items into its Complete section</td></tr>
 <tr><td style="text-align:left"><code>npm run ai-helper -- --list</code></td><td style="text-align:left">Show AI tool targets and the helpers that install to them</td></tr>

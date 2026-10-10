@@ -47,6 +47,10 @@
 - **Smear** (`Shift+N`) — a blending stump for the Pencil's graphite: dragged
   over pencil marks it spreads their tone along the drag, softening hatching
   into shading (see [Smear](#smear)).
+- **Direct Select** (`A`) - picks anchor points and the segments between
+  them, with a click or with a box across several paths, moves them with a
+  drag or the arrow keys, and deletes them, opening a closed path (see
+  [Direct Select](vector-paths.md#direct-select)).
 - **Sketch Support tools** — a second toolbar section with **Rectangle**
   (`R`, `Shift` for a square), **Ellipse** (`L`, `Shift` for a circle),
   **Curve** (`V`: drag a chord that starts and ends at nearby stroke

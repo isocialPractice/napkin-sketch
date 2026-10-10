@@ -130,11 +130,24 @@ import {
   type BlendModeId,
 } from '../core/blend.js';
 import { hitMark, marksInBox, outlineDistance } from '../core/hit-test.js';
+import {
+  addPicks,
+  anchorPositions,
+  boxPickable,
+  boxPicks,
+  emptyPick,
+  movedPoints,
+  onPickedSegment,
+  segmentPolyline,
+  segmentsOf,
+  withSeamTwins,
+  type PointPicks,
+} from '../core/direct-select.js';
 import { paintOrder } from '../core/paint-order.js';
 import { PENCIL_KIT, pencilGrade, pencilPaint, pencilRegion, pencilWidth, rasterizePencil, samePencil, type PencilChoice } from '../core/pencil.js';
 import { DEFAULT_SMEAR_STRENGTH, mapSmudges, smearReaches, smudgeFor } from '../core/smudge.js';
 import { LIQUIFY_MODES, liquifyMarks, liquifyReaches, refitLiquified, type LiquifyDab, type LiquifyMode } from '../core/liquify.js';
-import { isSplittable, splitMark, splitTarget, type SplitPoint } from '../core/split.js';
+import { deleteParts, isSplittable, splitMark, splitTarget, type SplitPoint } from '../core/split.js';
 import { sketchesToPdf, type PdfOptions } from '../core/pdf.js';
 import { defaultSettings, type AppSettings, type QuickModifier } from '../core/settings.js';
 import {
@@ -257,6 +270,7 @@ import {
   stackEdit,
   wipeMarks,
   WIPE_OPERAND_LIMIT,
+  type MarkEdit,
   type StackArrangement,
   type WipeOp,
 } from '../core/wipe.js';
@@ -529,8 +543,20 @@ const SYMMETRY_FADE_MS = 220;
  */
 const SELECT_DRAG_THRESHOLD_PX = 4;
 
-/** What a Direct Select drag carries: raw points, a tangent handle, the path, or a vector anchor or handle. */
-type AnchorDragKind = 'anchor' | 'handle' | 'path' | 'vanchor' | 'vhIn' | 'vhOut';
+/**
+ * What a Direct Select drag carries: raw points, a tangent handle, the path,
+ * a vector anchor or handle, or every pick at once - the anchors and segments
+ * held across strokes, as a box picks them.
+ */
+type AnchorDragKind = 'anchor' | 'handle' | 'path' | 'vanchor' | 'vhIn' | 'vhOut' | 'picks';
+
+/** The Direct Select arrow keys, as the direction each moves its picks. */
+const ARROW_NUDGE: Readonly<Record<string, { x: number; y: number }>> = {
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowRight: { x: 1, y: 0 },
+  ArrowUp: { x: 0, y: -1 },
+  ArrowDown: { x: 0, y: 1 },
+};
 
 /** True when the OS asks for reduced motion; animations are skipped outright. */
 function prefersReducedMotion(): boolean {
@@ -1347,8 +1373,21 @@ class App {
   // 'vhIn'/'vhOut' steer its curvature handles), so a curve shows two or
   // three points rather than every sample.
   private anchorStrokeId: string | null = null;
-  private selectedAnchors = new Set<number>();
+  /**
+   * What Direct Select holds, by mark: anchor indices, and segments by the
+   * anchor each starts from (core/direct-select.ts). A click picks on
+   * {@link anchorStrokeId} alone; a box picks across every mark it reaches.
+   */
+  private pointPicks: PointPicks = new Map();
   private pathSelected = false;
+
+  /**
+   * Direct Select's box, from a press on empty canvas: where it began, in
+   * client pixels, and whether Shift was down there. A release before it has
+   * travelled {@link SELECT_DRAG_THRESHOLD_PX} is a click, which drops the
+   * edit; a box that catches nothing changes nothing.
+   */
+  private pointBoxFrom: { x: number; y: number; shift: boolean } | null = null;
   private anchorDragKind: AnchorDragKind | null = null;
   private anchorDragLast: Point | null = null;
 
@@ -1822,6 +1861,7 @@ class App {
         transform: this.transformOverlay() ?? undefined,
         gumball: this.gumballOverlay() ?? undefined,
         anchors: this.anchorOverlay() ?? undefined,
+        pickedAnchors: this.pickedAnchorsOverlay(),
         warp: this.warpOverlay() ?? undefined,
         typeEdit: this.typeEditor.overlay() ?? undefined,
         typeShapes: this.typeShapesOverlay(),
@@ -1863,6 +1903,7 @@ class App {
     pathSelected?: boolean;
     outline?: Point[];
     roundTarget?: Point;
+    segments?: Array<Array<{ x: number; y: number }>>;
   } | null {
     // Vector Path edit mode: every anchor of the edited path, the selected
     // one with its direction handles, plus the corner-rounding target while
@@ -1908,12 +1949,13 @@ class App {
     // A stroke with Bézier structure shows its few anchors — the curvature
     // lives in the selected anchor's handles — instead of every sample; so
     // does a text's frame or path.
+    const lone = this.loneAnchor();
     if (shape) {
       const anchors = shape.anchors;
       let handleOrigin: number | undefined;
       const handles: Point[] = [];
-      if (this.selectedAnchors.size === 1) {
-        handleOrigin = [...this.selectedAnchors][0];
+      if (lone !== null) {
+        handleOrigin = lone;
         const anchor = anchors[handleOrigin];
         if (anchor?.hIn) handles.push({ ...anchor.hIn, pressure: 0.5 });
         if (anchor?.hOut) handles.push({ ...anchor.hOut, pressure: 0.5 });
@@ -1922,7 +1964,7 @@ class App {
         points: anchors.map((a) => ({ ...a.p, pressure: 0.5 })),
         selected: withSeamTwins(
           anchors.map((a) => a.p),
-          this.selectedAnchors,
+          this.primaryAnchors(),
         ),
         handles,
         handleOrigin,
@@ -1930,23 +1972,56 @@ class App {
         // The whole-path outline follows the sampled curve, not the chord
         // between the two anchors.
         outline: stroke.vector ? stroke.points : sampleOutline(anchors, shape.closed),
+        segments: this.pickedSegmentLines(stroke),
       };
     }
 
     // A single selected anchor exposes its tangent handles.
     let handleOrigin: number | undefined;
     let handles: Point[] = [];
-    if (this.selectedAnchors.size === 1) {
-      handleOrigin = [...this.selectedAnchors][0];
+    if (lone !== null) {
+      handleOrigin = lone;
       handles = this.anchorHandleTips(stroke, handleOrigin).map((h) => h.tip);
     }
     return {
       points: stroke.points,
-      selected: withSeamTwins(stroke.points, this.selectedAnchors),
+      selected: withSeamTwins(stroke.points, this.primaryAnchors()),
       handles,
       handleOrigin,
       pathSelected: this.pathSelected,
+      segments: this.pickedSegmentLines(stroke),
     };
+  }
+
+  /** The segments Direct Select holds on a stroke, each as the line it draws: a curve along its curve. */
+  private pickedSegmentLines(stroke: Stroke): Array<Array<{ x: number; y: number }>> {
+    const held = this.pointPicks.get(stroke.id)?.segments;
+    if (!held || held.size === 0) return [];
+    return segmentsOf(stroke)
+      .filter((segment) => held.has(segment.index))
+      .map((segment) => segmentPolyline(stroke, segment));
+  }
+
+  /**
+   * The anchors of every other stroke Direct Select holds picks on - a box
+   * reaches past the stroke it edits - each with its picked anchors and
+   * segments. Their handles stay hidden: only the edited stroke shows those.
+   */
+  private pickedAnchorsOverlay(): Array<{ points: Point[]; selected: number[]; segments: Array<Array<{ x: number; y: number }>> }> {
+    if (this.store.tool.tool !== 'point' || this.pointPicks.size === 0) return [];
+    const out: Array<{ points: Point[]; selected: number[]; segments: Array<Array<{ x: number; y: number }>> }> = [];
+    for (const [id, pick] of this.pointPicks) {
+      if (id === this.anchorStrokeId) continue;
+      const stroke = this.store.sketch.strokes.find((s) => s.id === id);
+      if (!stroke || !boxPickable(stroke)) continue;
+      const positions = anchorPositions(stroke);
+      out.push({
+        points: positions.map((p) => ({ x: p.x, y: p.y, pressure: 0.5 })),
+        selected: withSeamTwins(positions, pick.anchors),
+        segments: this.pickedSegmentLines(stroke),
+      });
+    }
+    return out;
   }
 
   /**
@@ -2298,6 +2373,7 @@ class App {
     this.shiftToggleId = null;
     this.rubberBandStart = null;
     this.rubberBandBox = null;
+    this.pointBoxFrom = null;
     this.textDragStart = null;
     this.textDragLive = null;
     if (this.bracketDrag?.moved) this.store.rollbackTransaction();
@@ -2747,6 +2823,14 @@ class App {
       return;
     }
 
+    // Direct Select: the box follows the pointer.
+    if (this.pointBoxFrom && this.rubberBandStart !== null && this.activePointerId === e.pointerId) {
+      const pt = this.surface.toSketchPoint(e.clientX, e.clientY, e.pressure);
+      this.rubberBandBox = { x1: this.rubberBandStart.x, y1: this.rubberBandStart.y, x2: pt.x, y2: pt.y };
+      this.scheduleRender();
+      return;
+    }
+
     // Direct Select: drag the grabbed anchor(s), handle, or whole path.
     if (this.anchorDragKind && this.anchorStrokeId && this.activePointerId === e.pointerId) {
       // A press is a click until it travels; only then does the edit begin,
@@ -2771,7 +2855,7 @@ class App {
           const edited = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
           this.store.nudgeStrokePoints(
             this.anchorStrokeId,
-            withSeamTwins(edited?.points ?? [], this.selectedAnchors),
+            withSeamTwins(edited?.points ?? [], this.primaryAnchors()),
             dx,
             dy,
           );
@@ -2783,6 +2867,8 @@ class App {
           this.dragVectorPointHandle(this.anchorDragKind, pt);
         } else if (this.anchorDragKind === 'path') {
           this.store.nudgeStroke(this.anchorStrokeId, dx, dy);
+        } else if (this.anchorDragKind === 'picks') {
+          this.movePicks(dx, dy);
         }
       }
       this.anchorDragLast = pt;
@@ -3103,6 +3189,12 @@ class App {
 
     // Mesh Warp: the release puts the dragged pins down.
     if (this.warpPointerUp(e)) return;
+
+    // Direct Select: the box picks what it holds, or a click drops the edit.
+    if (this.pointBoxFrom && this.rubberBandStart !== null && this.activePointerId === e.pointerId) {
+      this.finishPointBox(e);
+      return;
+    }
 
     // Direct Select: release the dragged anchor(s), handle, or path.
     if (this.anchorDragKind && this.activePointerId === e.pointerId) {
@@ -6058,6 +6150,16 @@ class App {
       ? this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId)
       : null;
 
+    // A press on a picked anchor or a picked segment, on any stroke, carries
+    // every pick: what a box held moves together. A lone anchor is left to the
+    // stroke's own handling below, which reaches its handles first; Shift is
+    // too, where it takes an anchor out of the picks.
+    if (!e.shiftKey && this.loneAnchor() === null && this.pickedUnder(pt, grab)) {
+      this.pathSelected = false;
+      this.armAnchorDrag(e, 'picks', pt);
+      return;
+    }
+
     if (stroke && this.strokeEditable(stroke)) {
       // Strokes with Bézier structure edit through their few anchors — the
       // curvature lives in the handles — instead of raw samples. So does a
@@ -6069,7 +6171,7 @@ class App {
       }
     }
 
-    // Pick a different stroke for editing, or drop the edit on empty canvas.
+    // Pick a different stroke for editing, or start a box on empty canvas.
     // As with the Select tool, a filled shape's interior counts as the shape;
     // the reach is Direct Select's own sensitivity.
     // Direct Select reaches every anchor in a clip group, shown or not.
@@ -6077,16 +6179,187 @@ class App {
     const hit = this.hitTest(pt, undefined, this.settings.directSelectSensitivityPx, true) ?? this.typeShapeAt(pt);
     if (hit && !isImageStroke(hit) && (!isTextStroke(hit) || this.editAnchorsOf(hit))) {
       this.anchorStrokeId = hit.id;
-      this.selectedAnchors.clear();
+      this.clearPointPicks();
       this.pathSelected = false;
       this.store.setSelection([hit.id]);
     } else {
-      this.anchorStrokeId = null;
-      this.selectedAnchors.clear();
-      this.pathSelected = false;
-      this.store.clearSelection();
+      // Empty canvas starts a box. Nothing is dropped on the press: released
+      // where it began it is a click, which drops the edit as a click here
+      // always has; dragged, it picks what it holds (see finishPointBox).
+      this.pointBoxFrom = { x: e.clientX, y: e.clientY, shift: e.shiftKey };
+      this.rubberBandStart = pt;
+      this.rubberBandBox = { x1: pt.x, y1: pt.y, x2: pt.x, y2: pt.y };
+      this.claimPointer(e, 'rubber-band');
     }
     this.scheduleRender();
+  }
+
+  /**
+   * Ends Direct Select's box. One that never travelled is a click on empty
+   * canvas, and drops the edit. Otherwise the box picks anchors when it holds
+   * any, across every mark it reaches, or else the segments passing through
+   * it (core/direct-select.ts); Shift adds to what was held. A box that
+   * catches nothing changes nothing.
+   */
+  private finishPointBox(e: PointerEvent): void {
+    const from = this.pointBoxFrom;
+    const box = this.rubberBandBox;
+    this.pointBoxFrom = null;
+    this.rubberBandStart = null;
+    this.rubberBandBox = null;
+    this.releasePointer();
+    const travelled = from ? Math.hypot(e.clientX - from.x, e.clientY - from.y) : 0;
+    if (!from || !box || travelled < SELECT_DRAG_THRESHOLD_PX) {
+      this.anchorStrokeId = null;
+      this.clearPointPicks();
+      this.pathSelected = false;
+      this.store.clearSelection();
+      this.scheduleRender();
+      return;
+    }
+    const editable = this.editableStrokeIds();
+    const reached = this.store.sketch.strokes.filter((s) => editable.has(s.id) && boxPickable(s));
+    const picked = boxPicks(reached, {
+      minX: Math.min(box.x1, box.x2),
+      minY: Math.min(box.y1, box.y2),
+      maxX: Math.max(box.x1, box.x2),
+      maxY: Math.max(box.y1, box.y2),
+    });
+    if (picked.size > 0) {
+      this.pointPicks = from.shift || e.shiftKey ? addPicks(this.pointPicks, picked) : picked;
+      this.pathSelected = false;
+      // The handles and the body a press can grab belong to the topmost
+      // stroke the picks are on, as a click would have chosen it.
+      const topFirst = paintOrder(this.store.sketch, this.layerPaints()).reverse();
+      this.anchorStrokeId = topFirst.find((s) => this.pointPicks.has(s.id))?.id ?? null;
+      this.store.setSelection([...this.pointPicks.keys()]);
+    }
+    this.scheduleRender();
+  }
+
+  /** Whether a press at `pt` lands within `reach` of a picked anchor or a picked segment, on any stroke. */
+  private pickedUnder(pt: Point, reach: number): boolean {
+    for (const [id, pick] of this.pointPicks) {
+      const stroke = this.store.sketch.strokes.find((s) => s.id === id);
+      if (!stroke || !this.strokeEditable(stroke)) continue;
+      const positions = this.editAnchorsOf(stroke)?.anchors.map((a) => a.p) ?? stroke.points;
+      for (const i of withSeamTwins(positions, pick.anchors)) {
+        const p = positions[i];
+        if (p && Math.hypot(p.x - pt.x, p.y - pt.y) <= reach) return true;
+      }
+      if (onPickedSegment(stroke, pick.segments, pt, reach)) return true;
+    }
+    return false;
+  }
+
+  /** Whether Direct Select holds any anchor or segment, on any stroke. */
+  private hasPointPicks(): boolean {
+    for (const pick of this.pointPicks.values()) {
+      if (pick.anchors.size > 0 || pick.segments.size > 0) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Moves every pick by a delta, stroke by stroke: picked anchors, and both
+   * ends of every picked segment, their handles riding along. A path of
+   * anchors and a text's frame or path are moved through their anchors; a
+   * mark of bare points moves the points, a ring's seam twin with them. No
+   * history is pushed here: a drag pushes it once it has travelled, an arrow
+   * key on its press.
+   */
+  private movePicks(dx: number, dy: number): void {
+    for (const [id, pick] of this.pointPicks) {
+      const stroke = this.store.sketch.strokes.find((s) => s.id === id);
+      if (!stroke || !this.strokeEditable(stroke)) continue;
+      const shape = this.editAnchorsOf(stroke);
+      if (!shape) {
+        this.store.nudgeStrokePoints(id, movedPoints(stroke, pick), dx, dy);
+        continue;
+      }
+      const anchors = cloneAnchors(shape.anchors);
+      // A text's frame or path is picked by clicks alone, never a box, so it
+      // carries anchors and no segments.
+      const moving = isTextStroke(stroke) ? withSeamTwins(anchors.map((a) => a.p), pick.anchors) : movedPoints(stroke, pick);
+      for (const index of moving) {
+        const anchor = anchors[index];
+        if (!anchor) continue;
+        anchor.p.x += dx;
+        anchor.p.y += dy;
+        if (anchor.hIn) {
+          anchor.hIn.x += dx;
+          anchor.hIn.y += dy;
+        }
+        if (anchor.hOut) {
+          anchor.hOut.x += dx;
+          anchor.hOut.y += dy;
+        }
+      }
+      this.commitAnchorEdit(stroke, anchors);
+    }
+  }
+
+  /**
+   * The arrow keys, with Direct Select's picks or its whole path held and no
+   * press under way: each press moves them one step - Shift a coarse step -
+   * in the units the position fields show, as page distance whatever the
+   * zoom. A press is one undo step; the key's auto-repeat joins the step of
+   * the press that began it.
+   */
+  private nudgePoints(direction: { x: number; y: number }, coarse: boolean, repeat: boolean): void {
+    const dx = direction.x * toPx(nudgeStep(this.propUnits.x, coarse), this.propUnits.x);
+    const dy = direction.y * toPx(nudgeStep(this.propUnits.y, coarse), this.propUnits.y);
+    if (!repeat) {
+      // Named as Direct Select's drags are, and left open so the repeats that
+      // follow land in the same step; the next edit closes it.
+      const end = this.store.beginCommand('tool:point');
+      try {
+        this.store.pushHistory();
+      } finally {
+        end();
+      }
+    }
+    if (this.hasPointPicks()) this.movePicks(dx, dy);
+    else if (this.pathSelected && this.anchorStrokeId) this.store.nudgeStroke(this.anchorStrokeId, dx, dy);
+    this.scheduleRender();
+  }
+
+  /** The anchors Direct Select holds on the stroke it edits: where its anchor drags start from. */
+  private primaryAnchors(): Set<number> {
+    return (this.anchorStrokeId ? this.pointPicks.get(this.anchorStrokeId)?.anchors : undefined) ?? new Set();
+  }
+
+  /**
+   * The one anchor Direct Select holds, when it holds exactly one in all and
+   * no segment, on the stroke it edits: the anchor whose handles show.
+   */
+  private loneAnchor(): number | null {
+    let count = 0;
+    let lone: number | null = null;
+    for (const [id, pick] of this.pointPicks) {
+      count += pick.anchors.size + pick.segments.size;
+      if (id === this.anchorStrokeId && pick.anchors.size === 1) lone = [...pick.anchors][0];
+    }
+    return count === 1 ? lone : null;
+  }
+
+  /** Drops every Direct Select pick, on every stroke. */
+  private clearPointPicks(): void {
+    this.pointPicks = new Map();
+  }
+
+  /** Holds just this anchor of one stroke, and nothing else anywhere: a click on it. */
+  private pickAnchorAlone(id: string, index: number): void {
+    this.pointPicks = new Map([[id, { anchors: new Set([index]), segments: new Set<number>() }]]);
+  }
+
+  /** Shift-click: takes one anchor of a stroke in or out, every other pick kept. */
+  private togglePickedAnchor(id: string, index: number): void {
+    const pick = this.pointPicks.get(id) ?? emptyPick();
+    if (pick.anchors.has(index)) pick.anchors.delete(index);
+    else pick.anchors.add(index);
+    if (pick.anchors.size === 0 && pick.segments.size === 0) this.pointPicks.delete(id);
+    else this.pointPicks.set(id, pick);
   }
 
   /**
@@ -6101,8 +6374,8 @@ class App {
       !!q && Math.hypot(q.x - pt.x, q.y - pt.y) <= grab;
 
     // 1. A curvature handle of the lone selected anchor.
-    if (this.selectedAnchors.size === 1) {
-      const origin = [...this.selectedAnchors][0];
+    const origin = this.loneAnchor();
+    if (origin !== null) {
       const anchor = anchors[origin];
       for (const kind of ['vhOut', 'vhIn'] as const) {
         const handle = kind === 'vhIn' ? anchor?.hIn : anchor?.hOut;
@@ -6125,14 +6398,10 @@ class App {
       }
     });
     if (best !== -1) {
-      if (e.shiftKey) {
-        if (this.selectedAnchors.has(best)) this.selectedAnchors.delete(best);
-        else this.selectedAnchors.add(best);
-      } else if (!this.selectedAnchors.has(best)) {
-        this.selectedAnchors = new Set([best]);
-      }
+      if (e.shiftKey) this.togglePickedAnchor(stroke.id, best);
+      else if (!this.primaryAnchors().has(best)) this.pickAnchorAlone(stroke.id, best);
       this.pathSelected = false;
-      if (this.selectedAnchors.has(best)) {
+      if (this.primaryAnchors().has(best)) {
         this.armAnchorDrag(e, 'vanchor', pt);
       } else {
         this.scheduleRender();
@@ -6142,7 +6411,7 @@ class App {
 
     // 3. The path body: select and move the whole path (anchors follow).
     if (this.onPathBody(stroke, pt, grab)) {
-      this.selectedAnchors.clear();
+      this.clearPointPicks();
       this.pathSelected = true;
       this.store.setSelection([stroke.id]);
       this.armAnchorDrag(e, 'path', pt);
@@ -6164,8 +6433,8 @@ class App {
   ): boolean {
     // 1. A tangent-handle tip around a lone selected anchor grabs it: the
     //    drag bends the stroke around the anchor (see applyHandleDrag).
-    if (this.selectedAnchors.size === 1) {
-      const origin = [...this.selectedAnchors][0];
+    const origin = this.loneAnchor();
+    if (origin !== null) {
       for (const handle of this.anchorHandleTips(stroke, origin)) {
         if (Math.hypot(handle.tip.x - pt.x, handle.tip.y - pt.y) <= grab) {
           this.handleDrag = this.captureHandleDrag(stroke, origin, handle);
@@ -6187,14 +6456,10 @@ class App {
       }
     });
     if (best !== -1) {
-      if (e.shiftKey) {
-        if (this.selectedAnchors.has(best)) this.selectedAnchors.delete(best);
-        else this.selectedAnchors.add(best);
-      } else if (!this.selectedAnchors.has(best)) {
-        this.selectedAnchors = new Set([best]);
-      }
+      if (e.shiftKey) this.togglePickedAnchor(stroke.id, best);
+      else if (!this.primaryAnchors().has(best)) this.pickAnchorAlone(stroke.id, best);
       this.pathSelected = false;
-      if (this.selectedAnchors.has(best)) {
+      if (this.primaryAnchors().has(best)) {
         this.armAnchorDrag(e, 'anchor', pt);
       } else {
         this.scheduleRender();
@@ -6204,7 +6469,7 @@ class App {
 
     // 3. The path body (a segment within range): select and move the path.
     if (this.onPathBody(stroke, pt, grab)) {
-      this.selectedAnchors.clear();
+      this.clearPointPicks();
       this.pathSelected = true;
       this.store.setSelection([stroke.id]);
       this.armAnchorDrag(e, 'path', pt);
@@ -6317,7 +6582,7 @@ class App {
     const anchors = cloneAnchors(editing.anchors);
     const moving = withSeamTwins(
       anchors.map((a) => a.p),
-      this.selectedAnchors,
+      this.primaryAnchors(),
     );
     for (const index of moving) {
       const anchor = anchors[index];
@@ -6344,8 +6609,8 @@ class App {
   private dragVectorPointHandle(kind: 'vhIn' | 'vhOut', pt: Point): void {
     const stroke = this.store.sketch.strokes.find((s) => s.id === this.anchorStrokeId);
     const editing = stroke ? this.editAnchorsOf(stroke) : null;
-    if (!stroke || !editing || this.selectedAnchors.size !== 1) return;
-    const origin = [...this.selectedAnchors][0];
+    const origin = this.loneAnchor();
+    if (!stroke || !editing || origin === null) return;
     const anchors = cloneAnchors(editing.anchors);
     const anchor = anchors[origin];
     const handle = kind === 'vhIn' ? anchor?.hIn : anchor?.hOut;
@@ -11334,6 +11599,64 @@ class App {
   }
 
   /**
+   * Delete with Direct Select holding anchors or segments: they go, and the
+   * marks they were on stay (core/split.ts's deleteParts). An anchor takes
+   * both of its segments with it and a segment goes alone, so a closed path
+   * opens and an open one splits; one lone anchor left is dropped, and a mark
+   * with nothing left goes. Every mark the picks were on changes in one undo
+   * step, and what is left is selected. A text's frame or path keeps its
+   * points - the text is not deleted either - and a report says so.
+   *
+   * False when Direct Select holds no picks, for Delete to mean what it
+   * always has: the selected marks, or the selected layer rows.
+   */
+  private deletePointPicks(): boolean {
+    if (this.store.tool.tool !== 'point' || !this.hasPointPicks()) return false;
+    const picked: Array<{ stroke: Stroke; parts: { anchors: Set<number>; segments: Set<number> } }> = [];
+    for (const [id, pick] of this.pointPicks) {
+      if (pick.anchors.size === 0 && pick.segments.size === 0) continue;
+      const stroke = this.store.sketch.strokes.find((s) => s.id === id);
+      if (stroke && this.strokeEditable(stroke)) picked.push({ stroke, parts: pick });
+    }
+    if (picked.some(({ stroke }) => isTextStroke(stroke))) {
+      this.reports.show({
+        id: 'direct-select-delete-text',
+        title: 'A text frame keeps its points',
+        details: [{ text: 'Use the Type tools to reshape it. Nothing was deleted.' }],
+      });
+      return true;
+    }
+    const edit: MarkEdit = { changed: new Map(), removed: new Set(), added: [] };
+    for (const { stroke, parts } of picked) {
+      const out = deleteParts(stroke, parts);
+      if (!out) continue;
+      if (out.changed) edit.changed.set(stroke.id, out.changed);
+      else edit.removed.add(stroke.id);
+      // Each further piece goes on a layer of its own above the mark's, as a
+      // Split's second piece does.
+      const above = layerOf(this.store.sketch, stroke).id;
+      for (const piece of out.added) edit.added.push({ stroke: piece, above });
+    }
+    this.clearPointPicks();
+    this.pathSelected = false;
+    // Named as Direct Select's drags and arrow steps are, a reshape of the
+    // marks rather than a Delete of them, so Track History and Generate
+    // Script list it with them.
+    const end = this.store.beginCommand('tool:point');
+    try {
+      this.store.applyMarkEdit(edit);
+    } finally {
+      end();
+    }
+    if (this.anchorStrokeId && (edit.removed.has(this.anchorStrokeId) || !this.store.sketch.strokes.some((s) => s.id === this.anchorStrokeId))) {
+      this.anchorStrokeId = null;
+    }
+    this.renderLayers();
+    this.scheduleRender();
+    return true;
+  }
+
+  /**
    * Delete as the Edit menu, the canvas menu, and the Delete key all mean it:
    * selected elements go first (emptied layers prune away with them); with
    * none, the selected layer rows go, empty layers and groups included.
@@ -11834,7 +12157,10 @@ class App {
       paste: () => (this.typeEditor.active ? this.typeEditor.paste(false) : this.pasteClipboard(false)),
       'paste-in-place': () => (this.typeEditor.active ? this.typeEditor.paste(true) : this.pasteClipboard(true)),
       duplicate: () => this.duplicateSelection(),
-      'delete-selection': () => (this.typeEditor.active ? this.typeEditor.deleteSelection() : this.deleteSelectionOrLayers()),
+      'delete-selection': () => {
+        if (this.typeEditor.active) this.typeEditor.deleteSelection();
+        else if (!this.deletePointPicks()) this.deleteSelectionOrLayers();
+      },
       'select-all': () => (this.typeEditor.active ? this.typeEditor.selectAll() : this.selectAll()),
       'deselect-all': () => this.store.clearSelection(),
       'toggle-rearrange': () => this.toggleRearrange(),
@@ -14413,11 +14739,18 @@ class App {
       // screen pixels (the Select sensitivity when none is given).
       hitAt: (clientX: number, clientY: number, tolerancePx?: number): string | null =>
         this.pickAt(this.surface.toSketchPoint(clientX, clientY, 0.5), tolerancePx)?.id ?? null,
-      // What Direct Select is editing: the stroke, its picked anchors, and whether the whole path is.
+      // What Direct Select is editing: the stroke, its picked anchors, and
+      // whether the whole path is; and every stroke a box holds picks on,
+      // with its anchors and its segments (by the anchor each starts from).
       directSelectState: () => ({
         stroke: this.anchorStrokeId,
-        anchors: [...this.selectedAnchors],
+        anchors: [...this.primaryAnchors()].sort((a, b) => a - b),
         pathSelected: this.pathSelected,
+        picks: [...this.pointPicks].map(([stroke, pick]) => ({
+          stroke,
+          anchors: [...pick.anchors].sort((a, b) => a - b),
+          segments: [...pick.segments].sort((a, b) => a - b),
+        })),
       }),
       viewState: () => {
         const rect = this.canvas.getBoundingClientRect();
@@ -15135,13 +15468,31 @@ class App {
   private undo(): void {
     this.lineStart = null;
     if (this.warp) this.undoWarpStep();
-    else this.store.undo();
+    else {
+      this.store.undo();
+      this.settlePointPicks();
+    }
   }
 
   /** Redo from anywhere. Inside a warp there is nothing to redo, and the warp is left as it is. */
   private redo(): void {
     this.lineStart = null;
-    if (!this.warp) this.store.redo();
+    if (!this.warp) {
+      this.store.redo();
+      this.settlePointPicks();
+    }
+  }
+
+  /**
+   * After an undo or a redo, Direct Select holds nothing: its picks are
+   * indices into strokes the step may have reshaped, or taken away, so they
+   * are dropped rather than left pointing at anchors that are no longer
+   * those. The stroke in edit stays when it is still on the page.
+   */
+  private settlePointPicks(): void {
+    this.clearPointPicks();
+    this.pathSelected = false;
+    if (this.anchorStrokeId && !this.store.sketch.strokes.some((s) => s.id === this.anchorStrokeId)) this.anchorStrokeId = null;
   }
 
   /** What Mesh Warp draws over the canvas, when the tool is up. */
@@ -17531,12 +17882,32 @@ class App {
         e.preventDefault();
         this.dropPressOf('point-drag');
         this.anchorStrokeId = null;
-        this.selectedAnchors.clear();
+        this.clearPointPicks();
         this.pathSelected = false;
         this.anchorDragKind = null;
         this.handleDrag = null;
         this.anchorDragLast = null;
         this.scheduleRender();
+        return;
+      }
+
+      // Direct Select's arrow keys move what it holds - the picked anchors and
+      // segments, or the whole path - while no press is under way. A slider
+      // or a list with the focus keeps its own arrows.
+      const nudge = ARROW_NUDGE[e.key];
+      if (
+        nudge &&
+        this.store.tool.tool === 'point' &&
+        !this.press &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        (this.hasPointPicks() || (this.pathSelected && this.anchorStrokeId !== null)) &&
+        !(document.activeElement instanceof HTMLInputElement) &&
+        !(document.activeElement instanceof HTMLSelectElement)
+      ) {
+        e.preventDefault();
+        this.nudgePoints(nudge, e.shiftKey, e.repeat);
         return;
       }
 
@@ -17810,7 +18181,7 @@ class App {
     // Leaving the Direct Select tool drops its anchor-edit state.
     if (tool !== 'point' && this.anchorStrokeId !== null) {
       this.anchorStrokeId = null;
-      this.selectedAnchors.clear();
+      this.clearPointPicks();
       this.pathSelected = false;
       this.anchorDragKind = null;
       this.handleDrag = null;
@@ -18542,23 +18913,6 @@ function quadraticPoints(a: Point, c: { x: number; y: number }, b: Point, sample
     });
   }
   return pts;
-}
-
-/**
- * The anchors a Direct Select edit moves: the picked ones, and with the first
- * or last of a closed shape whose ends meet - a rectangle's corner is its
- * first point and its last - the other end too, so the seam never tears.
- */
-function withSeamTwins(points: readonly { x: number; y: number }[], picked: Iterable<number>): number[] {
-  const out = new Set(picked);
-  const last = points.length - 1;
-  const first = points[0];
-  const end = points[last];
-  if (last >= 2 && first && end && Math.hypot(first.x - end.x, first.y - end.y) < 1e-6) {
-    if (out.has(0)) out.add(last);
-    if (out.has(last)) out.add(0);
-  }
-  return [...out];
 }
 
 /** A zoom as a percentage, whole for most and to a tenth below 10%: 125%, 90000%, 20%. */

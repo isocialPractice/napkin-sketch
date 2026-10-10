@@ -72,7 +72,6 @@
     "build": "node scripts/build.mjs",
     "build:watch": "node scripts/build.mjs --watch",
     "build:types": "tsc -p tsconfig.types.json",
-    "icon": "node scripts/make-icon.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test.mjs",
     "test:graphic-design-api": "node scripts/test-graphic-design-api.mjs",
@@ -100,8 +99,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
-    "electron": "^31.0.0",
-    "electron-builder": "^24.13.3",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.23.0",
     "highlight.js": "11.12.0",
     "marked": "18.0.14",
@@ -111,7 +110,7 @@
   "build": {
     "appId": "dev.napkinsketch.app",
     "productName": "Napkin Sketch",
-    "copyright": "Copyright \u00a9 napkin-sketch contributors",
+    "copyright": "Copyright © napkin-sketch contributors",
     "directories": {
       "output": "release"
     },

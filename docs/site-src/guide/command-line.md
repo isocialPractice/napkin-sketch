@@ -13,6 +13,7 @@ napkin-sketch [option] [target]
 | `-b, --book`             | Open a saved sketch book file, using the `.skbk` extension.           |
 | `-n, --new`              | New sketch, using `unnamed` or the name passed as `[target]`.         |
 | `-f, --full-screen`      | Open the GUI window full screen; the default window is maximized.     |
+| `--no-sandbox`           | Launch Electron without Chromium's sandbox: for development on a Linux system that blocks it, never a release. |
 | `-i, --import`           | Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch.    |
 | `-m, --multiple-imports` | Import a comma-separated list of files, laid out in a grid.           |
 | `--sharpen`              | Auto-sharpen a saved sketch so it appears more hand-drawn, then open. |

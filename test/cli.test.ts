@@ -62,6 +62,15 @@ test('parseArgs combines --new with --full-screen', () => {
   assert.equal(r.fullScreen, true);
 });
 
+test('parseArgs reads --no-sandbox, off unless given', () => {
+  assert.equal(parseArgs([]).noSandbox, false);
+  const r = parseArgs(['--new', 'ideas', '--no-sandbox']);
+  assert.equal(r.noSandbox, true);
+  assert.equal(r.mode, 'new');
+  assert.equal(r.target, 'ideas');
+  assert.deepEqual(r.unknown, []);
+});
+
 test('parseArgs reads -i / --import with a file', () => {
   const r = parseArgs(['--import', 'logo.svg']);
   assert.equal(r.importRequested, true);

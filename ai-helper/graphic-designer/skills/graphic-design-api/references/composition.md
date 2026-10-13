@@ -74,7 +74,7 @@ without it `y` is the first baseline and the block hangs below where you think.
 To leave room for what follows, measure instead of guessing:
 
 ```js
-import { layoutText } from 'napkin-sketch';
+import { layoutText } from '@isocialpractice/napkin-sketch';
 const block = layoutText(body, {
   x: MARGIN, y: 148, fontSize: TYPE.body, lineHeight: 1.45,
   align: 'left', baseline: 'top', maxWidth: CONTENT,
@@ -141,7 +141,7 @@ design.group({ id: 'footer' }, (f) => {
 ## Writing both formats
 
 ```js
-import { writeComposition } from 'napkin-sketch/graphic-design/files';
+import { writeComposition } from '@isocialpractice/napkin-sketch/graphic-design/files';
 
 const { svg, png, warnings } = await writeComposition(design, './out', 'card');
 if (warnings.length > 0) console.warn(warnings.join('\n'));

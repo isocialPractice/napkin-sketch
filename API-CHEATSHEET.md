@@ -101,9 +101,9 @@ The whole API on one page: every verb, the command line, the two imports, the re
 
 | Import | For |
 | --- | --- |
-| `import { evaluate, drawSvg, renderSketch, renderBook, parseScript, createComposition } from 'napkin-sketch'` | Scripts and compositions, anywhere |
-| `import { drawFile, drawToFiles, writeBook, loadAssets, resolveLinkFromDir } from 'napkin-sketch/node'` | Files, in Node |
-| `import { booleanOp, eraseMarks, wipeMarks, stackFaces, splitMark, liquifyMarks } from 'napkin-sketch'` | The drawing engines, on a page: [their cheatsheet](docs/api/engines/CHEATSHEET.md) |
+| `import { evaluate, drawSvg, renderSketch, renderBook, parseScript, createComposition } from '@isocialpractice/napkin-sketch'` | Scripts and compositions, anywhere |
+| `import { drawFile, drawToFiles, writeBook, loadAssets, resolveLinkFromDir } from '@isocialpractice/napkin-sketch/node'` | Files, in Node |
+| `import { booleanOp, eraseMarks, wipeMarks, stackFaces, splitMark, liquifyMarks } from '@isocialpractice/napkin-sketch'` | The drawing engines, on a page: [their cheatsheet](docs/api/engines/CHEATSHEET.md) |
 
 ## Render options
 
@@ -141,8 +141,8 @@ The whole API on one page: every verb, the command line, the two imports, the re
 | [Writing a drawing out](docs/api/output/README.md) | SVG, PNG, PDF, .skbk and an Illustrator script from one call, the box every format is cut to, and what each format keeps. | [reference](docs/api/output/README.md), [quickstart](docs/api/output/QUICKSTART.md), [cheatsheet](docs/api/output/CHEATSHEET.md) |
 | [The napkin-sketch command line](docs/api/cli/README.md) | draw, check, render and verbs from a shell or any language, with --json and exit codes. | [reference](docs/api/cli/README.md), [quickstart](docs/api/cli/QUICKSTART.md), [cheatsheet](docs/api/cli/CHEATSHEET.md) |
 | [Using napkin-sketch from code](docs/api/node/README.md) | The package's entries, ES modules and CommonJS, types, the result object, and what throws. | [reference](docs/api/node/README.md), [quickstart](docs/api/node/QUICKSTART.md), [cheatsheet](docs/api/node/CHEATSHEET.md) |
-| [Markdown Flow and Clean Language Accents](docs/api/markdown/README.md) | napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36. | [reference](docs/api/markdown/README.md), [quickstart](docs/api/markdown/QUICKSTART.md), [cheatsheet](docs/api/markdown/CHEATSHEET.md) |
+| [Markdown Flow and Clean Language Accents](docs/api/markdown/README.md) | @isocialpractice/napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36. | [reference](docs/api/markdown/README.md), [quickstart](docs/api/markdown/QUICKSTART.md), [cheatsheet](docs/api/markdown/CHEATSHEET.md) |
 | [The drawing engines](docs/api/engines/README.md) | The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify; blends, effects, Splatter, Warp and 3D; type, its layout, hyphenation and fonts; Text Configurations and Composition Styles. | [reference](docs/api/engines/README.md), [quickstart](docs/api/engines/QUICKSTART.md), [cheatsheet](docs/api/engines/CHEATSHEET.md) |
 | [Working with other programs](docs/api/interop/README.md) | Illustrator and Inkscape through SVG, an Illustrator script that rebuilds a drawing, files linked from elsewhere, and what survives a round trip. | [reference](docs/api/interop/README.md), [quickstart](docs/api/interop/QUICKSTART.md), [cheatsheet](docs/api/interop/CHEATSHEET.md) |
-| [The AI helpers](docs/api/ai/README.md) | The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages. | [reference](docs/api/ai/README.md), [quickstart](docs/api/ai/QUICKSTART.md), [cheatsheet](docs/api/ai/CHEATSHEET.md) |
+| [The AI helpers](docs/api/ai/README.md) | Experimental. The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages. | [reference](docs/api/ai/README.md), [quickstart](docs/api/ai/QUICKSTART.md), [cheatsheet](docs/api/ai/CHEATSHEET.md) |
 <!-- categories:end -->

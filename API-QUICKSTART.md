@@ -2,20 +2,23 @@
 
 [API hub](API.md) · **Quickstart** · [Cheatsheet](API-CHEATSHEET.md)
 
-The whole API in five steps: build, draw a script from the command line, draw
-it from Node, build a graphic in code, and link a logo.
+The whole API in five steps: install, draw a script from the command line,
+draw it from Node, build a graphic in code, and link a logo.
 
 ## The whole thing in five steps
 
-1. Build the clone and put `napkin-sketch` on your PATH:
+1. Install the command line, which puts `napkin-sketch` on your PATH, and the
+   API in a folder of your own:
 
 ```bash
-npm install
-npm run build
-npm link
+npm install -g @isocialpractice/napkin-sketch
+npm install @isocialpractice/napkin-sketch
 ```
 
-2. Save this as `card.napkin` in the clone, and draw it from the command line:
+   From a clone, `npm install`, `npm run build` and `npm link` do the same, and
+   the files below go in the clone.
+
+2. Save this as `card.napkin` in that folder, and draw it from the command line:
 
 ```napkin
 napkin 1
@@ -35,7 +38,7 @@ napkin-sketch draw card.napkin --to svg,png,pdf --out out
    `node draw.mjs`:
 
 ```js
-import { drawFile } from 'napkin-sketch/node';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 const { ok, files, diagnostics } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png'] });
 console.log(ok, files.map((file) => file.path), diagnostics);
@@ -46,7 +49,7 @@ console.log(ok, files.map((file) => file.path), diagnostics);
 
 ```js
 import { writeFile } from 'node:fs/promises';
-import { createComposition } from 'napkin-sketch';
+import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 240, height: 240, background: '#ffffff' });
 design.circle({ cx: 120, cy: 110, r: 80, fill: '#326478' });

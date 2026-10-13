@@ -9,7 +9,8 @@ npm run build:types  # Emit .d.ts declarations for the embeddable API
 npm run typecheck    # Type-check without emitting
 npm test             # Run the unit test suites
 npm run gui-check    # Drive the built app and check what it shows (build first)
-npm run pack-check   # Pack, install the tarball with no Electron, and draw from it
+npm run pack-check   # Pack and install both packages: draw with the API's, find the app's
+npm run pack-gui     # Lay out the desktop app's npm package in release/gui/
 npm run start        # Build, then launch a new sketch
 npm run clean        # Remove dist/
 
@@ -43,13 +44,17 @@ npm run site
 npm run todo
 ```
 
-The build uses **esbuild** to bundle the Node-side code (CommonJS), the renderer
-(browser IIFE), and the embeddable API (ESM + IIFE); `tsc` is used only for
-type-checking and for emitting the public type declarations.
+The build uses **esbuild** to bundle the app's Node-side code (CommonJS) and
+its renderer (browser IIFE), and the package's entries with the command line
+as ES modules built together, so the code they share is written once, in
+`dist/chunks/`, and loaded once. Each bundle is minified; `tsc` is used only
+for type-checking and for emitting the public type declarations.
+The source maps stay in the clone: the app's bundles link theirs, and the
+package's carry no link, since the package leaves the maps out.
 
 Building from source needs **Node.js 22.12 or newer**, which Electron's
 installer asks for. The published package, which never installs Electron,
-still runs its command line and API on Node.js 18.
+asks for the same version, so a clone and an install need one Node.
 
 ## Continuous checks
 
@@ -84,6 +89,38 @@ npm run dist:win   # Windows NSIS installer (Start-menu + desktop shortcut)
 The Windows NSIS installer registers a Start-menu entry and desktop shortcut
 named **Napkin Sketch** and lets the user choose the install directory.
 
+The installer carries the app's bundles without their source maps or
+declarations, and Electron with its English locale only, compressed at
+electron-builder's maximum (`build` in `package.json`). The Windows installer
+is about 100 MB, nearly all of it Electron: the app's own bundles are under
+3 MB of it.
+
+### The app's npm package
+
+The desktop app is published to npm too, as
+`@isocialpractice/napkin-sketch-gui`, which `napkin-sketch --install-gui`
+installs beside the command line. `npm run pack-gui` lays it out in
+`release/gui/` from what the build and the site wrote:
+
+```bash
+npm run build
+npm run site
+npm run pack-gui                       # release/gui/
+cd release/gui && npm pack --dry-run   # what would go to npm
+```
+
+It holds the main process, the window and the manual, with Electron as its
+one dependency at the range in this repository's `devDependencies`, and the
+clone's version, which is the version `--install-gui` asks npm for.
+`dist/main/package.json` names the app `napkin-sketch`, and the command line
+starts Electron on that folder, so the app from npm keeps its settings in a
+`napkin-sketch` folder, as the installers' app does. Every release publishes
+it from `release/gui/` after the API's package and at the same version, since
+`--install-gui` asks npm for the app at the command's own version: an API
+release without the app's leaves that command nothing to install.
+`npm run pack-check` lays it out, packs it and installs it as part of its
+check.
+
 ### App icon
 
 `assets/icon.png` is the app icon, used as it is: the build copies it and
@@ -116,6 +153,7 @@ at least that size.
 | `npm run accent-languages` | `node scripts/accent-languages.mjs` |
 | `npm run site` | `node scripts/site.mjs` |
 | `npm run pack-check` | `node scripts/pack-check.mjs` |
+| `npm run pack-gui` | `node scripts/pack-gui.mjs` |
 | `npm run illustrated-frames` | `node scripts/illustrated-frames.mjs` |
 | `npm run frame-preview` | `node scripts/frame-preview.mjs` |
 | `npm run ai-helper` | `node scripts/install-ai-helper.mjs` |

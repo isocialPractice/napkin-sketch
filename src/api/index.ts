@@ -5,19 +5,19 @@
  * the editor or reuse the auto-sharpen engine without Electron:
  *
  * ```ts
- * import { NapkinSketch, sharpenStrokes } from 'napkin-sketch';
+ * import { NapkinSketch, sharpenStrokes } from '@isocialpractice/napkin-sketch';
  * ```
  *
  * Or draw from written instructions, in a browser or in plain Node:
  *
  * ```ts
- * import { evaluate, renderSketch } from 'napkin-sketch';
+ * import { evaluate, renderSketch } from '@isocialpractice/napkin-sketch';
  * const { ok, book, diagnostics } = evaluate('napkin 1\npage 400 300\ncircle 200 150 60');
  * const svg = renderSketch(book.sketches[0], { format: 'svg' });
  * ```
  *
  * Everything exported here is browser-safe (no Node or Electron imports).
- * Reading and writing files is in `napkin-sketch/node`.
+ * Reading and writing files is in `@isocialpractice/napkin-sketch/node`.
  */
 
 export { NapkinSketch } from './embed.js';
@@ -397,7 +397,7 @@ export {
 } from '../core/arc-length.js';
 
 // Napkin script: a drawing from written instructions, with no DOM. The
-// language reads no file; `napkin-sketch/node` is the host that does.
+// language reads no file; `@isocialpractice/napkin-sketch/node` is the host that does.
 export {
   parseScript,
   validateScript,
@@ -557,7 +557,7 @@ export {
 } from '../core/type/configs.js';
 
 // Markdown Flow: a text typed as Markdown and shown as it renders, read by the
-// lexer it is given - `napkin-sketch/markdown` registers marked's - so the
+// lexer it is given - `@isocialpractice/napkin-sketch/markdown` registers marked's - so the
 // core holds no Markdown reader of its own.
 export {
   MARKDOWN_CONFIG_NAMES,
@@ -585,7 +585,7 @@ export {
 } from '../core/type/markdown-flow.js';
 
 // Clean Language Accents: code colored as its language reads it, from the
-// highlighter the core is given - `napkin-sketch/markdown` gives it
+// highlighter the core is given - `@isocialpractice/napkin-sketch/markdown` gives it
 // highlight.js - in Napkin Light or Napkin Dark.
 export {
   ACCENT_LANGUAGES,

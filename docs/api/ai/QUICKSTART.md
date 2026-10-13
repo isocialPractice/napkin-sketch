@@ -2,6 +2,10 @@
 
 [API hub](../../../API.md) · [Reference](README.md) · **Quickstart** · [Cheatsheet](CHEATSHEET.md)
 
+> **Experimental.** The AI helpers run an agentic AI command-line tool that
+> napkin-sketch does not ship, on your account and at its cost. They are new,
+> and their commands, forms and files may change in a minor release.
+
 The `graphic-designer` helper reads a graphic you already have into a design
 language and hands you a skill that draws new work in it; this is the shortest
 path from a clone to a branded graphic, using the asset and the brand files

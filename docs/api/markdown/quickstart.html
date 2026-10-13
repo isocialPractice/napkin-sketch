@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -58,8 +58,8 @@ text &quot;def total(prices):\n    return sum(prices)  # in cents&quot; at 40 20
 <ol start="2">
 <li>Save this as <code>draw.mjs</code> beside it:</li>
 </ol>
-<pre><code class="language-js">import { drawSvg } from 'napkin-sketch';
-import 'napkin-sketch/markdown';
+<pre><code class="language-js">import { drawSvg } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/markdown';
 import { readFile, writeFile } from 'node:fs/promises';
 
 const { svg, diagnostics } = drawSvg(await readFile('notes.napkin', 'utf8'));
@@ -73,7 +73,7 @@ as typed and the code is plain.</li>
 </ol>
 <h2 id="another-language">Another language<a class="anchor" href="#another-language" aria-label="Link to this section">#</a></h2>
 <p>Code in a language beyond the 36 common ones is plain until it is installed:</p>
-<pre><code class="language-js">import { registerAccentLanguage } from 'napkin-sketch/markdown';
+<pre><code class="language-js">import { registerAccentLanguage } from '@isocialpractice/napkin-sketch/markdown';
 import fortran from 'highlight.js/lib/languages/fortran';
 
 registerAccentLanguage('fortran', fortran);</code></pre>

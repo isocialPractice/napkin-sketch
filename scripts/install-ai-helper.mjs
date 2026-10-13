@@ -27,8 +27,9 @@
  * folder *is* its plugin. It holds the manifest, the command, any subagent, the
  * skills, and the instructions, and the repository root holds the marketplace
  * that lists them. So the target checks that tree, syncs the manifest version
- * to `package.json`, and prints the two `/plugin` commands that load it. See
- * {@link installPlugin}.
+ * to `package.json`, writes each skill's `assets/uri.md` - the address of
+ * every file the npm package leaves out of that folder - and prints the two
+ * `/plugin` commands that load it. See {@link installPlugin}.
  *
  * On clone (postinstall mode): `--on-clone` installs only when the
  * NAPKIN_AI_HELPER environment variable names one or more targets, so a
@@ -345,9 +346,10 @@ export async function sweepLegacyPluginBuild() {
  *       skills/<skill>/                 one folder per skill
  *       instructions/                   the helper contract
  *
- * So this checks the tree is whole, syncs the manifest version, sweeps the
- * build folder an older release generated, and prints the two commands that
- * actually load the plugin - building it was never the step that did.
+ * So this checks the tree is whole, syncs the manifest version and the
+ * skills' address lists ({@link syncUriFiles}), sweeps the build folder an
+ * older release generated, and prints the two commands that actually load
+ * the plugin - building it was never the step that did.
  */
 export async function installPlugin(name = DEFAULT_PLUGIN_HELPER) {
   const { dir } = helper(name);
@@ -360,6 +362,7 @@ export async function installPlugin(name = DEFAULT_PLUGIN_HELPER) {
 
   const { version, changed } = await syncPluginVersion(name);
   if (changed) console.log(`ai-helper: set the ${name} manifest version to ${version}.`);
+  for (const file of await syncUriFiles(name)) console.log(`ai-helper: updated ${file}.`);
   if (await sweepLegacyPluginBuild()) {
     console.log(`ai-helper: removed the retired ${LEGACY_PLUGIN_BUILD}/ build of the plugin.`);
   }
@@ -371,6 +374,83 @@ export async function installPlugin(name = DEFAULT_PLUGIN_HELPER) {
   console.log(
     'ai-helper: or, without a clone, /plugin marketplace add isocialPractice/napkin-sketch'
   );
+}
+
+/**
+ * The files of a skill's `assets/` folder the npm package leaves out: the
+ * reference sheets and the data measured from them, which are most of the
+ * package's weight and which a tool downloads only when it needs one.
+ */
+const REFERENCE_FILE = /\.(svg|png|json)$/;
+
+/** The address list each such `assets/` folder holds in their place. */
+export const URI_FILE = 'uri.md';
+
+/** This repository on GitHub as `owner/name`, from the repository field of `package.json`. */
+async function repositorySlug() {
+  try {
+    const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf-8'));
+    const url = typeof pkg.repository === 'string' ? pkg.repository : (pkg.repository?.url ?? '');
+    const match = /github\.com[/:]([^/]+\/[^/#]+?)(?:\.git)?(?:#.*)?$/.exec(url);
+    if (match) return match[1];
+  } catch {
+    // The fallback below.
+  }
+  return 'isocialPractice/napkin-sketch';
+}
+
+/**
+ * The address list for one skill's `assets/` folder: each reference file by
+ * name, with its address in this repository at the tag of `version`, so the
+ * file a tool downloads is the one the skill's text was written against.
+ */
+export function uriMarkdown(slug, version, assetsDir, files) {
+  const base = `https://raw.githubusercontent.com/${slug}/v${version}/${assetsDir}`;
+  return [
+    '# Reference files, by URI',
+    '',
+    'The sheets and data files of this skill as the repository holds them at the',
+    'tag of this version. An npm install of napkin-sketch ships this file and not',
+    'them; a clone or the GitHub plugin has both. Download one into a working',
+    'folder, then read it; a fetch tool that summarizes a page does not give the',
+    'file. An address that no longer answers is at a tag a later release removed:',
+    'the same path on `main` holds the file as it is now.',
+    '',
+    ...files.map((file) => `- ${file}: ${base}/${file}`),
+    '',
+  ].join('\n');
+}
+
+/**
+ * Writes `assets/uri.md` into each of a helper's skill folders whose
+ * `assets/` holds reference files, and takes it out of one that holds none.
+ * Tracked source, rewritten only when it has drifted from the files beside it
+ * or from the version. Returns what it wrote or removed, from the root.
+ */
+export async function syncUriFiles(name = DEFAULT_PLUGIN_HELPER) {
+  const { dir, skills } = helper(name);
+  const version = await packageVersion();
+  const slug = await repositorySlug();
+  const changed = [];
+  for (const skill of skills) {
+    const assetsDir = `${dir}/skills/${skill}/assets`;
+    const assets = join(root, assetsDir);
+    const uri = join(assets, URI_FILE);
+    const files = (await exists(assets)) ? (await readdir(assets)).filter((file) => REFERENCE_FILE.test(file)).sort() : [];
+    if (files.length === 0) {
+      if (await exists(uri)) {
+        await rm(uri, { force: true });
+        changed.push(`${assetsDir}/${URI_FILE}`);
+      }
+      continue;
+    }
+    const text = uriMarkdown(slug, version, assetsDir, files);
+    const current = (await exists(uri)) ? (await readFile(uri, 'utf-8')).replace(/\r\n/g, '\n') : null;
+    if (current === text) continue;
+    await writeFile(uri, text, 'utf-8');
+    changed.push(`${assetsDir}/${URI_FILE}`);
+  }
+  return changed;
 }
 
 /** Writes one JSON file with a trailing newline. */
@@ -465,7 +545,7 @@ async function run() {
   }
 
   // `--to plugin` names a delivery rather than one folder, so it expands to a
-  // root per selected helper: with no `--helper` that readies both plugins,
+  // root per selected helper: with no `--helper` that readies every plugin,
   // where a dot-folder target takes every selected helper in one pass.
   const dirs = new Set();
   for (const target of targets) {

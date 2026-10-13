@@ -3,7 +3,7 @@
 ![napkin-sketch: its logo beside the app, a sketch on the canvas with the Layers and Properties panels open](../assets/banner.gif)
 
 <!-- version:start -->
-This documents napkin-sketch **1.0.0-alpha.5.0.0**.
+This documents napkin-sketch **1.0.0**.
 <!-- version:end -->
 
 Quick and easy computer sketching with a drawing GUI that simulates pen and
@@ -51,7 +51,7 @@ hand-drawn rather than vector-perfect.
   the engines behind the tools are functions a program calls; see
   [Drawing from a script](scripting.md) and
   [The drawing engines](../api/engines/README.md).
-- **Animates, optionally** - an add-on that draws frames with an AI helper;
+- **Animates, optionally and experimentally** - an add-on that draws frames with an AI helper;
   see [Animation Mode](guide/animation-mode.md).
 
 ## Where these pages come from
@@ -93,7 +93,7 @@ the tests. [About and license](about.md) says more.
 - [Settings](guide/settings.md) - Quick Settings and Verbose Settings, and every setting with its default and range.
 - [Menus and shortcuts](guide/menus-and-shortcuts.md) - The menu bar, the right-click menus, every keyboard shortcut, and changing them.
 - [Automate](guide/automate.md) - Generate Script from a file, the selected layers or the session history, and Track History.
-- [Animation Mode](guide/animation-mode.md) - The optional add-on that draws animation frames with an AI helper: installing it and using it.
+- [Animation Mode](guide/animation-mode.md) - The optional, experimental add-on that draws animation frames with an AI helper: installing it and using it.
 - [The .skbk file format](guide/skbk-format.md) - What a saved sketch book holds, and how older files open.
 - [The command line](guide/command-line.md) - Opening the app from a shell: every option, and the four commands that need no window.
 <!-- pages:guide:end -->
@@ -103,8 +103,8 @@ the tests. [About and license](about.md) says more.
 <!-- pages:building:start -->
 - [Embedding the editor](embed.md) - The editor in your own page, the pure engine, and the graphic-design API.
 - [Drawing from a script](scripting.md) - napkin script from a shell, from Node or from any language, and what it writes.
-- [The AI helpers](ai-helpers.md) - The graphic-designer and scripting helpers: what each does and how to use it.
-- [The AI helper plugins](../../ai-helper/README.md) - The three plugins, and installing them where an AI tool looks.
+- [The AI helpers](ai-helpers.md) - The graphic-designer and scripting helpers, experimental: what each does and how to use it.
+- [The AI helper plugins](../../ai-helper/README.md) - The three plugins, experimental, and installing them where an AI tool looks.
 <!-- pages:building:end -->
 
 ### Developing

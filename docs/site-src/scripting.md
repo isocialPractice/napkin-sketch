@@ -41,8 +41,8 @@ napkin-sketch check card.napkin --json    # one line of JSON: the diagnostics, t
 **From Node**, as a dependency:
 
 ```ts
-import { drawSvg } from 'napkin-sketch';
-import { drawFile } from 'napkin-sketch/node';
+import { drawSvg } from '@isocialpractice/napkin-sketch';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 const { svg, diagnostics } = drawSvg(text);
 const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png'] });
@@ -77,7 +77,7 @@ the object form, and checks it against
 table, so `napkin-sketch verbs` lists it, and `verbs --json` hands all of it to
 an agent at once.
 
-**Or from a sentence.** `napkin-sketch draw --prompt "a three-box flowchart
+**Or from a sentence, experimentally.** `napkin-sketch draw --prompt "a three-box flowchart
 with arrows"` has an AI tool write the script first; napkin-sketch checks it,
 keeps it as a `.napkin` beside the files, and draws it (see
 [the scripting helper](ai-helpers.md#the-scripting-helper)).

@@ -28,6 +28,16 @@ export type QuickModifier = 'ctrl' | 'alt' | 'shift';
 export const QUICK_MODIFIERS: readonly QuickModifier[] = ['ctrl', 'alt', 'shift'];
 
 /** All user-configurable application settings. */
+/** What a PNG export lays under the ink: nothing, or plain white or black. */
+export const PNG_BACKGROUNDS = ['transparent', 'white', 'black'] as const;
+
+export type PngBackground = (typeof PNG_BACKGROUNDS)[number];
+
+/** True for one of the three PNG backgrounds. */
+export function isPngBackground(value: unknown): value is PngBackground {
+  return typeof value === 'string' && (PNG_BACKGROUNDS as readonly string[]).includes(value);
+}
+
 export interface AppSettings {
   /** Multiplier applied to pinch-zoom magnitude (0.25 = gentle, 4 = aggressive). */
   zoomSensitivity: number;
@@ -86,6 +96,23 @@ export interface AppSettings {
    * are on when they are ticked.
    */
   showSelectionBorders: boolean;
+  /**
+   * Transform box on selection: with the Select tool in hand, the box with
+   * its handles comes up by itself around whatever is selected, as a vector
+   * editor's bounding box does, and goes when nothing is. On by default. Off,
+   * the box is put up by hand with Ctrl+T, the Transform button or Transform >
+   * Transform Box, as before. Escape or Ctrl+T put an automatic box away for
+   * that selection; the next selection brings it back. A 3D mark keeps its
+   * gumball either way.
+   */
+  transformOnSelect: boolean;
+  /**
+   * What a PNG export lays under the ink, the last choice made in the Export
+   * dialog: nothing, so the picture drops into another composition, or plain
+   * white or black. The page's paper color and its texture are the screen's
+   * and a JPEG's, which has no transparency.
+   */
+  pngBackground: PngBackground;
   /**
    * Join stroke: when true, a stroke whose end snaps onto another stroke's
    * endpoint (endpoint snap) is merged with that stroke into one stroke.
@@ -316,6 +343,8 @@ export function defaultSettings(): AppSettings {
     selectSensitivityPx: 4,
     directSelectSensitivityPx: 8,
     showSelectionBorders: true,
+    transformOnSelect: true,
+    pngBackground: 'transparent',
     joinStrokeOnSnap: false,
     wipeAnimation: true,
     warpShowMesh: true,
@@ -468,6 +497,9 @@ export function normalizeSettings(input: unknown): AppSettings {
       typeof raw.showSelectionBorders === 'boolean'
         ? raw.showSelectionBorders
         : base.showSelectionBorders,
+    transformOnSelect:
+      typeof raw.transformOnSelect === 'boolean' ? raw.transformOnSelect : base.transformOnSelect,
+    pngBackground: isPngBackground(raw.pngBackground) ? raw.pngBackground : base.pngBackground,
     joinStrokeOnSnap:
       typeof raw.joinStrokeOnSnap === 'boolean' ? raw.joinStrokeOnSnap : base.joinStrokeOnSnap,
     wipeAnimation: typeof raw.wipeAnimation === 'boolean' ? raw.wipeAnimation : base.wipeAnimation,

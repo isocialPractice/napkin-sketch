@@ -1,7 +1,7 @@
 // Draw a napkin script by running the command line from Node: hand it the
 // script on standard input and read the one line of JSON it prints back. A
 // Node program that can import the package does better with
-// `import { drawFile } from 'napkin-sketch/node'`; this is the process
+// `import { drawFile } from '@isocialpractice/napkin-sketch/node'`; this is the process
 // boundary any tool can use.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';

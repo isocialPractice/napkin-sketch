@@ -16,9 +16,10 @@
   adds no layer. The panel is **in view by
   default**, **resizable** (drag its inner edge), and offers a **right-click
   menu** with the menu bar's **Layers** rows (Add Layer, Group Layer, Ungroup,
-  Rename, Delete Layer, a **Move** submenu of Layer Up and Layer Down, a
-  **Clipping Mask** submenu of Make and Release, a **Blend** submenu of the
-  blend modes, Hide Layers Panel) and the clipboard rows between them.
+  Rename, Delete Layer, a **Move** submenu of Layer Up, Layer Down, Layer to
+  Top and Layer to Bottom, a **Select** submenu of Layer Above and Layer
+  Below, a **Clipping Mask** submenu of Make and Release, a **Blend** submenu
+  of the blend modes, Hide Layers Panel) and the clipboard rows between them.
 - **Layer groups** — `Ctrl+G` groups the active layer (nesting allowed);
   group visibility, lock, and opacity apply to every layer inside, and
   `Ctrl+Shift+G` ungroups.
@@ -36,6 +37,10 @@
   rather than letting them pile through. A **selected group travels as a
   block**, carrying everything nested inside it, and a layer only moves among
   its own siblings, so it never leaks out of the group it lives in.
+  `Ctrl+Shift+]` and `Ctrl+Shift+[` take the selection to the top or the
+  bottom of its group in one step, and `Alt+]` and `Alt+[` make the row
+  above or below the active one the selection, as the panel shows its rows;
+  these four answer to the Layers panel, and ask for it when it is hidden.
 - **Properties panel** (`Ctrl + P`) - element-level editing for whatever is
   selected on the canvas or highlighted in the Layers panel: **Position**
   (X / Y in `px`, `in`, `mm`, or `pt`), **Appearance** (fill color, no

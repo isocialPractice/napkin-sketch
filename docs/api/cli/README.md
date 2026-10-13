@@ -244,7 +244,7 @@ wherever its shell, interpreter or compiler is installed.
   runs another one without `call` never comes back.
 - **[draw.mjs](examples/draw.mjs)** - Node's `child_process`, with the script
   on standard input and the JSON line read back. A Node program that can
-  import the package does better with `napkin-sketch/node`; see
+  import the package does better with `@isocialpractice/napkin-sketch/node`; see
   [Using napkin-sketch from code](../node/README.md).
 - **[draw.py](examples/draw.py)** - Python's `subprocess.run` with `input=`
   and `--json`:

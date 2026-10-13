@@ -159,7 +159,7 @@
       "group": 5,
       "claim": "menu",
       "hiddenWhen": "animationNotInstalled",
-      "summary": "An optional add-on"
+      "summary": "Experimental: an optional add-on that draws frames with an AI tool you install and sign in to yourself"
     },
 
     { "id": "toggle-pages", "label": "Toggle Pages Panel", "type": "GUI:view", "group": 1, "claim": "menu" },
@@ -380,6 +380,11 @@
     { "id": "move-layer", "label": { "top": "Move Layer", "panel": "Move" }, "type": "App:Modify:layer", "group": 3 },
     { "id": "layer-up", "label": "Layer Up", "parent": "move-layer" },
     { "id": "layer-down", "label": "Layer Down", "parent": "move-layer" },
+    { "id": "layer-top", "label": "Layer to Top", "parent": "move-layer", "group": 2, "disabledWhen": "layersHidden", "summary": "To the top of its group, with the Layers panel open" },
+    { "id": "layer-bottom", "label": "Layer to Bottom", "parent": "move-layer", "group": 2, "disabledWhen": "layersHidden", "summary": "To the bottom of its group, with the Layers panel open" },
+    { "id": "select-layer", "label": { "top": "Select Layer", "panel": "Select" }, "type": "App:Modify:layer", "group": 3 },
+    { "id": "layer-above", "label": "Layer Above", "parent": "select-layer", "disabledWhen": "layersHidden", "summary": "The row above the active one, as the Layers panel shows them" },
+    { "id": "layer-below", "label": "Layer Below", "parent": "select-layer", "disabledWhen": "layersHidden", "summary": "The row below the active one, as the Layers panel shows them" },
     { "id": "clipping-mask", "label": "Clipping Mask", "type": "App:Modify:layer", "group": 3, "summary": "The topmost selected closed path clips the rest, as a vector editor's clipping masks do" },
     { "id": "clip-make", "label": "Make", "name": "Make Clipping Mask", "parent": "clipping-mask", "disabledWhen": "noMarksSelected", "summary": "Groups the selection; it shows only inside the closed path on top" },
     { "id": "clip-release", "label": "Release", "name": "Release Clipping Mask", "parent": "clipping-mask", "disabledWhen": "noClipGroup", "summary": "Takes the clip off; the group stays a group" },

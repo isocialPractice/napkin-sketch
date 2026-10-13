@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -43,19 +43,20 @@
 <h1 id="the-drawing-engines-quickstart">The drawing engines: quickstart<a class="anchor" href="#the-drawing-engines-quickstart" aria-label="Link to this section">#</a></h1>
 <p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <strong>Quickstart</strong> · <a href="cheatsheet.html">Cheatsheet</a></p>
 <p>The engines behind the app's Eraser, Wipe Stacks, Split and Liquify run as
-plain functions; this is the path from a clone to a page combined and cut by a
-program, and written out as SVG.</p>
+plain functions; this is the path from an install to a page combined and cut
+by a program, and written out as SVG.</p>
 <h2 id="the-whole-thing-in-three-steps">The whole thing in three steps<a class="anchor" href="#the-whole-thing-in-three-steps" aria-label="Link to this section">#</a></h2>
 <ol>
-<li>Build the clone. The engines are used from <code>dist/</code>:</li>
+<li>Install the API, which holds the engines, in a folder of your own:</li>
 </ol>
-<pre><code class="language-bash">npm install
-npm run build</code></pre>
+<pre><code class="language-bash">npm install @isocialpractice/napkin-sketch</code></pre>
+<p>From a clone, <code>npm install</code> and <code>npm run build</code> build it, and the file
+below goes in the clone.</p>
 <ol start="2">
-<li>Save this as <code>engines.mjs</code> in the clone:</li>
+<li>Save this as <code>engines.mjs</code> in that folder:</li>
 </ol>
 <pre><code class="language-js">import { writeFile } from 'node:fs/promises';
-import { eraseMarks, eraseRegionOf, evaluate, renderSketch, wipeMarks } from 'napkin-sketch';
+import { eraseMarks, eraseRegionOf, evaluate, renderSketch, wipeMarks } from '@isocialpractice/napkin-sketch';
 
 // Two shapes drawn by a script: the marks the engines work on.
 const page = evaluate('napkin 1\npage 240 160\nfill #27486d\nrect 20 20 120 120\ncircle 140 80 60\n').book.sketches[0];
@@ -81,7 +82,7 @@ many pieces the one left has:</li>
 <p>The wipe left one shape, and the eraser cut it into two pieces of one mark.
 Nothing changed the page the script drew: each engine gave back its edit, and
 the program made it. Installed as a dependency instead, the same imports from
-<code>napkin-sketch</code> work the same way.</p>
+<code>@isocialpractice/napkin-sketch</code> work the same way.</p>
 <h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
 <ul>
 <li><a href="index.html#applying-an-edit">Applying an edit</a>: a helper that makes any

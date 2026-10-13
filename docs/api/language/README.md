@@ -177,8 +177,8 @@ A heading, code, a quote and a link follow the Markdown configurations,
 `Markdown Quote` and `Markdown Link`, which the book takes in; a
 `textconfig` of one of those names, before the text, restyles it. The
 browser-safe entry reads Markdown with the lexer it is given: importing
-`napkin-sketch/markdown` gives it marked's, as the command line and
-`napkin-sketch/node` have. With none, the text shows its Markdown as typed.
+`@isocialpractice/napkin-sketch/markdown` gives it marked's, as the command line and
+`@isocialpractice/napkin-sketch/node` have. With none, the text shows its Markdown as typed.
 `as marks` takes no `markdown`.
 
 **Clean Language Accents.** `accent <language>` colors the next `text` as a
@@ -191,7 +191,7 @@ code reads most like, and `none` colors nothing. It waits for the next
 text drawn `as marks` comes first - is `unused-accent`. A Markdown Flow text's
 fenced code needs no `accent`: a fence that names its language is colored.
 The colors come from the highlighter the core is given, as the lexer does:
-`napkin-sketch/markdown` gives it highlight.js with its 36 common languages,
+`@isocialpractice/napkin-sketch/markdown` gives it highlight.js with its 36 common languages,
 and `registerAccentLanguage` installs more.
 
 **Type.** A `text` is Sideless Typing from its anchor, the top of its first
@@ -562,7 +562,7 @@ card.napkin.json[1][0]: error expected-length: `x` of `rect` at [1][0]: `ten` is
 
 ### Functions
 
-Exported from `napkin-sketch`, the package's browser-safe entry, and DOM-free;
+Exported from `@isocialpractice/napkin-sketch`, the package's browser-safe entry, and DOM-free;
 the source is `src/core/script/index.ts`.
 
 ```ts
@@ -612,7 +612,7 @@ That is what printing each diagnostic gives. The script that comes back holds
 `napkin`, `color` and `line`, and `ok` is false:
 
 ```ts
-import { formatDiagnostic, parseScript } from 'napkin-sketch';
+import { formatDiagnostic, parseScript } from '@isocialpractice/napkin-sketch';
 
 const { ok, script, diagnostics } = parseScript(text);
 for (const d of diagnostics) console.error(formatDiagnostic(d, 'card.napkin'));

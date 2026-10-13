@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -105,7 +105,8 @@ default ink, so it shows up where it can be fixed. A gradient-painted outline
 takes the middle color of its ramp.</p>
 <h2 id="export">Export<a class="anchor" href="#export" aria-label="Link to this section">#</a></h2>
 <ul>
-<li><strong>Export</strong> to PNG (transparent), JPEG (flattened), <strong>SVG</strong> (lossless vector,
+<li><strong>Export</strong> to PNG (on a transparent, white or black background), JPEG
+(flattened on the paper), <strong>SVG</strong> (lossless vector,
 layers preserved as named groups that Inkscape and Illustrator both read;
 vector-tool strokes write exact cubic Béziers and
 freehand strokes shed sub-pixel-redundant samples, keeping files compact), or
@@ -113,14 +114,19 @@ freehand strokes shed sub-pixel-redundant samples, keeping files compact), or
 from the File menu or the top toolbar's <strong>Export</strong> button beside Import. Each
 format offers <strong>Export current page</strong> or <strong>Export all pages</strong> — raster and
 SVG save <code>name_1.ext</code>, <code>name_2.ext</code>, …, while PDF writes all pages into one
-document.
+document. A PNG asks what goes under the ink - <strong>Transparent</strong>, <strong>White</strong> or
+<strong>Black</strong> - and the choice is remembered as the next PNG's first. An export
+is the ink on its paper, or on nothing, with nothing the screen adds: no
+selection boxes, no dot texture, no page outline.
 The dropdown's <strong>Selection</strong> row opens the same four formats one level in and
-exports <strong>only what is selected, on a document cut to its own dimensions</strong> —
-no page-sized margin of empty space around the graphic. PNG and SVG come out
-transparent, since a graphic cropped to its ink is one about to be dropped
-into a composition; JPEG and PDF keep the page background, having no usable
-transparency of their own. With nothing selected but layer rows lit in the
-Layers panel, those layers and their descendants are what gets exported.</li>
+exports <strong>only what is selected, on a document cut to exactly the box the
+canvas frames the selection with</strong> - the Transform box's - with no margin
+round it. SVG comes out transparent, and PNG on the background the dialog
+asks for, transparent first, since a graphic cropped to its ink is one
+about to be dropped into a composition; JPEG and PDF keep the page's color,
+having no usable transparency of their own. With nothing selected but layer
+rows lit in the Layers panel, those layers and their descendants are what
+gets exported.</li>
 <li><strong>A PDF draws text as shapes</strong>: each letter its font's own outline, read
 from the font file on this computer, so the page looks as it does on the
 canvas wherever it is opened. A text whose font cannot be read is set in

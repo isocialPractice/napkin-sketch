@@ -2,21 +2,23 @@
 
 [API hub](../../../API.md) · [Reference](README.md) · **Quickstart** · [Cheatsheet](CHEATSHEET.md)
 
-The package's two main entries are `napkin-sketch`, which runs anywhere,
-and `napkin-sketch/node`, which reads and writes files; this is the path from
-a clone to a Node program that draws a script to files.
+The package's two main entries are `@isocialpractice/napkin-sketch`, which runs anywhere,
+and `@isocialpractice/napkin-sketch/node`, which reads and writes files; this is the path from
+an install to a Node program that draws a script to files.
 
 ## The whole thing in four steps
 
-1. Build the clone. `build:types` writes the `.d.ts` files TypeScript reads:
+1. Install the package in a folder of your own. The `.d.ts` files TypeScript
+   reads come with it:
 
 ```bash
-npm install
-npm run build
-npm run build:types
+npm install @isocialpractice/napkin-sketch
 ```
 
-2. Save this as `card.napkin` in the clone:
+   From a clone, `npm install`, `npm run build` and `npm run build:types` build
+   the same, and the files below go in the clone.
+
+2. Save this as `card.napkin` in that folder:
 
 ```napkin
 napkin 1
@@ -32,8 +34,8 @@ text "Acme Corp" at 200 120 size 32 align center
 3. Save this as `draw.mjs` beside it:
 
 ```js
-import { formatDiagnostic } from 'napkin-sketch';
-import { drawFile } from 'napkin-sketch/node';
+import { formatDiagnostic } from '@isocialpractice/napkin-sketch';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 const { ok, files, diagnostics } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png', 'pdf'] });
 for (const d of diagnostics) console.error(formatDiagnostic(d, 'card.napkin'));
@@ -49,7 +51,7 @@ CommonJS loads the same entry with `import()`:
 
 ```js
 async function main() {
-  const { drawFile } = await import('napkin-sketch/node');
+  const { drawFile } = await import('@isocialpractice/napkin-sketch/node');
   const { ok, files } = await drawFile('card.napkin', { out: 'out' });
   console.log(ok, files.map((file) => file.path));
 }
@@ -63,7 +65,7 @@ names `logo`; the program reads the file and hands it over, since a script
 reads no files itself:
 
 ```js
-import { drawToFiles, loadAssets } from 'napkin-sketch/node';
+import { drawToFiles, loadAssets } from '@isocialpractice/napkin-sketch/node';
 
 const assets = await loadAssets({ logo: 'assets/icon.png' });
 const script = [
@@ -80,14 +82,14 @@ const { ok, files, diagnostics } = await drawToFiles(script, { out: 'out', forma
 console.log(ok, files.map((file) => file.path), diagnostics);
 ```
 
-Run in the clone, it writes `out/banner.svg` and `out/banner.png` with the
-app's icon on the left. The files take the script's `name`; without one they
+Run where `assets/icon.png` is a PNG - a clone has the app's icon there - it
+writes `out/banner.svg` and `out/banner.png` with that image on the left. The files take the script's `name`; without one they
 would be `drawing.svg` and `drawing.png`.
 
 ## Where to go next
 
 - [The entries](README.md#the-entries): what each one holds, and why a
-  browser build leaves out `napkin-sketch/node`.
+  browser build leaves out `@isocialpractice/napkin-sketch/node`.
 - [ES modules, CommonJS and TypeScript](README.md#es-modules-commonjs-and-typescript):
   the types, by name.
 - [Writing files](README.md#writing-files) and [Options](README.md#options):

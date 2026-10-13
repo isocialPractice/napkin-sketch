@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -49,7 +49,8 @@ npm run build:types  # Emit .d.ts declarations for the embeddable API
 npm run typecheck    # Type-check without emitting
 npm test             # Run the unit test suites
 npm run gui-check    # Drive the built app and check what it shows (build first)
-npm run pack-check   # Pack, install the tarball with no Electron, and draw from it
+npm run pack-check   # Pack and install both packages: draw with the API's, find the app's
+npm run pack-gui     # Lay out the desktop app's npm package in release/gui/
 npm run start        # Build, then launch a new sketch
 npm run clean        # Remove dist/
 
@@ -81,12 +82,16 @@ npm run site
 # Archive checked TODO.md items into its &quot;## Complete&quot; section (kept at the
 # bottom of the file), noting which section each came from; safe to re-run
 npm run todo</code></pre>
-<p>The build uses <strong>esbuild</strong> to bundle the Node-side code (CommonJS), the renderer
-(browser IIFE), and the embeddable API (ESM + IIFE); <code>tsc</code> is used only for
-type-checking and for emitting the public type declarations.</p>
+<p>The build uses <strong>esbuild</strong> to bundle the app's Node-side code (CommonJS) and
+its renderer (browser IIFE), and the package's entries with the command line
+as ES modules built together, so the code they share is written once, in
+<code>dist/chunks/</code>, and loaded once. Each bundle is minified; <code>tsc</code> is used only
+for type-checking and for emitting the public type declarations.
+The source maps stay in the clone: the app's bundles link theirs, and the
+package's carry no link, since the package leaves the maps out.</p>
 <p>Building from source needs <strong>Node.js 22.12 or newer</strong>, which Electron's
 installer asks for. The published package, which never installs Electron,
-still runs its command line and API on Node.js 18.</p>
+asks for the same version, so a clone and an install need one Node.</p>
 <h2 id="continuous-checks">Continuous checks<a class="anchor" href="#continuous-checks" aria-label="Link to this section">#</a></h2>
 <p>Two files under <code>.github/</code> keep the repository checked once they are on
 <code>main</code>:</p>
@@ -113,6 +118,31 @@ npm run dist       # build an installer for the current OS
 npm run dist:win   # Windows NSIS installer (Start-menu + desktop shortcut)</code></pre>
 <p>The Windows NSIS installer registers a Start-menu entry and desktop shortcut
 named <strong>Napkin Sketch</strong> and lets the user choose the install directory.</p>
+<p>The installer carries the app's bundles without their source maps or
+declarations, and Electron with its English locale only, compressed at
+electron-builder's maximum (<code>build</code> in <code>package.json</code>). The Windows installer
+is about 100 MB, nearly all of it Electron: the app's own bundles are under
+3 MB of it.</p>
+<h3 id="the-apps-npm-package">The app's npm package<a class="anchor" href="#the-apps-npm-package" aria-label="Link to this section">#</a></h3>
+<p>The desktop app is published to npm too, as
+<code>@isocialpractice/napkin-sketch-gui</code>, which <code>napkin-sketch --install-gui</code>
+installs beside the command line. <code>npm run pack-gui</code> lays it out in
+<code>release/gui/</code> from what the build and the site wrote:</p>
+<pre><code class="language-bash">npm run build
+npm run site
+npm run pack-gui                       # release/gui/
+cd release/gui &amp;&amp; npm pack --dry-run   # what would go to npm</code></pre>
+<p>It holds the main process, the window and the manual, with Electron as its
+one dependency at the range in this repository's <code>devDependencies</code>, and the
+clone's version, which is the version <code>--install-gui</code> asks npm for.
+<code>dist/main/package.json</code> names the app <code>napkin-sketch</code>, and the command line
+starts Electron on that folder, so the app from npm keeps its settings in a
+<code>napkin-sketch</code> folder, as the installers' app does. Every release publishes
+it from <code>release/gui/</code> after the API's package and at the same version, since
+<code>--install-gui</code> asks npm for the app at the command's own version: an API
+release without the app's leaves that command nothing to install.
+<code>npm run pack-check</code> lays it out, packs it and installs it as part of its
+check.</p>
 <h3 id="app-icon">App icon<a class="anchor" href="#app-icon" aria-label="Link to this section">#</a></h3>
 <p><code>assets/icon.png</code> is the app icon, used as it is: the build copies it and
 never draws or resizes one, so the window and every installer show whatever
@@ -142,6 +172,7 @@ at least that size.</p>
 <tr><td><code>npm run accent-languages</code></td><td><code>node scripts/accent-languages.mjs</code></td></tr>
 <tr><td><code>npm run site</code></td><td><code>node scripts/site.mjs</code></td></tr>
 <tr><td><code>npm run pack-check</code></td><td><code>node scripts/pack-check.mjs</code></td></tr>
+<tr><td><code>npm run pack-gui</code></td><td><code>node scripts/pack-gui.mjs</code></td></tr>
 <tr><td><code>npm run illustrated-frames</code></td><td><code>node scripts/illustrated-frames.mjs</code></td></tr>
 <tr><td><code>npm run frame-preview</code></td><td><code>node scripts/frame-preview.mjs</code></td></tr>
 <tr><td><code>npm run ai-helper</code></td><td><code>node scripts/install-ai-helper.mjs</code></td></tr>

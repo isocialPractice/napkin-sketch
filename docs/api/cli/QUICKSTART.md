@@ -4,17 +4,17 @@
 
 Four commands draw, check and write napkin scripts from a shell, or from any
 language that can start a process, without opening a window; this is the path
-from a clone to files drawn on the command line.
+from an install to files drawn on the command line.
 
 ## The whole thing in six steps
 
-1. Build the clone and put `napkin-sketch` on your PATH:
+1. Install the command line, which puts `napkin-sketch` on your PATH:
 
 ```bash
-npm install
-npm run build
-npm link
+npm install -g @isocialpractice/napkin-sketch
 ```
+
+   From a clone, `npm install`, `npm run build` and `npm link` do the same.
 
 2. Save this as `card.napkin`:
 

@@ -4,22 +4,24 @@
 
 The graphic design API builds a graphic in code - shapes, text, images, masks
 and gradients on a page - and renders the one document to SVG and PNG; this is
-the path from a clone to both files.
+the path from an install to both files.
 
 ## The whole thing in three steps
 
-1. Build the clone. The API is used from `dist/`:
+1. Install the API in a folder of your own:
 
 ```bash
-npm install
-npm run build
+npm install @isocialpractice/napkin-sketch
 ```
 
-2. Save this as `card.mjs` in the clone:
+   From a clone, `npm install` and `npm run build` build it, and the files
+   below go in the clone.
+
+2. Save this as `card.mjs` in that folder:
 
 ```js
 import { writeFile } from 'node:fs/promises';
-import { createComposition } from 'napkin-sketch';
+import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
 
@@ -39,18 +41,18 @@ node card.mjs
 
 Both files come off the one composition, so they are the same graphic in two
 formats. A page defaults to 360 by 360 pixels, and coordinates are pixels
-unless the page names `in`, `mm` or `pt`. Installed as a dependency instead,
-`import { createComposition } from 'napkin-sketch'` works the same way.
+unless the page names `in`, `mm` or `pt`. In a clone the same imports work,
+since a package can import itself by its name.
 
 ## A worked example
 
 A badge: a radial gradient under a ring with a hole in it, and a name under
 both, written to `out/badge.svg` and `out/badge.png` in one call. Save it as
-`badge.mjs` in the clone and run `node badge.mjs`:
+`badge.mjs` beside `card.mjs` and run `node badge.mjs`:
 
 ```js
-import { createComposition } from 'napkin-sketch';
-import { writeComposition } from 'napkin-sketch/node';
+import { createComposition } from '@isocialpractice/napkin-sketch';
+import { writeComposition } from '@isocialpractice/napkin-sketch/node';
 
 const design = createComposition({ width: 240, height: 240, background: '#ffffff' });
 

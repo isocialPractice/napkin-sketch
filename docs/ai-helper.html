@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The AI helper plugins - napkin-sketch</title>
-<meta name="description" content="The three plugins, and installing them where an AI tool looks.">
+<meta name="description" content="The three plugins, experimental, and installing them where an AI tool looks.">
 <meta name="generator" content="napkin-sketch npm run site">
 <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/site.css">
@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="index.html"><img src="assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -41,12 +41,16 @@
 <article class="content">
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Docs</a> <span class="sep">/</span> Building on it <span class="sep">/</span> <span aria-current="page">Helper plugins</span></nav>
 <h1 id="ai-helpers">AI helpers<a class="anchor" href="#ai-helpers" aria-label="Link to this section">#</a></h1>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#installing">Installing</a></li><li><a href="#animation-mode-is-a-feature-switch-not-a-file-copy">Animation Mode is a feature switch, not a file copy</a></li><li><a href="#the-reference-files-by-uri">The reference files, by URI</a></li><li><a href="#adding-a-helper">Adding a helper</a></li></ul></details>
 <p>The AI-facing half of napkin-sketch, in three plugins. Each one owns a folder
 here, and a folder is the whole plugin: the manifest, the commands, any
 subagents, the skills, and the contract the tool reads before it edits
 anything. The marketplace that lists them is
 <a href="https://github.com/isocialPractice/napkin-sketch/blob/main/.claude-plugin/marketplace.json"><code>.claude-plugin/marketplace.json</code></a> at the
 repository root.</p>
+<blockquote><p><strong>Experimental.</strong> The AI helpers run an agentic AI command-line tool that
+napkin-sketch does not ship, on your account and at its cost. They are new,
+and their commands, forms and files may change in a minor release.</p></blockquote>
 <pre><code class="language-text">ai-helper/
 ├── vectors/            Animation Mode: pose one SVG frame into the next
 ├── graphic-designer/   Design language: read an asset, then draw more like it
@@ -87,6 +91,14 @@ file to decide whether the mode exists. <code>graphic-designer</code> and <code>
 no such switch: nothing in the GUI runs them, so there is nothing to gate.
 <code>scripting</code> is run by the command line's <code>draw --prompt</code>, which needs only the
 AI tool on the PATH.</p>
+<h2 id="the-reference-files-by-uri">The reference files, by URI<a class="anchor" href="#the-reference-files-by-uri" aria-label="Link to this section">#</a></h2>
+<p>The <code>vectors</code> helper's skills read reference sheets and the data measured
+from them, about 6 MB in their <code>assets/</code> folders. The npm package leaves them
+out and carries <code>assets/uri.md</code> in each such folder instead: every file's
+name and its address in this repository at the release's tag, which the
+skills tell a tool how to download. A clone and the GitHub plugin have the
+files themselves. <code>npm run ai-helper -- --to plugin</code> writes the lists, and a
+test fails when one falls behind its folder or the version.</p>
 <h2 id="adding-a-helper">Adding a helper<a class="anchor" href="#adding-a-helper" aria-label="Link to this section">#</a></h2>
 <ol>
 <li>Make <code>ai-helper/&lt;name&gt;/</code> with a <code>.claude-plugin/plugin.json</code>, and whichever

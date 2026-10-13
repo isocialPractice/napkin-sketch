@@ -6,6 +6,9 @@ tool with this helper's skill, the tool writes the script, and napkin-sketch
 checks it and draws it. The point is that a sentence becomes a drawing that is
 still a script: editable, checkable, and drawn the same way every time after.
 
+> **Experimental.** This helper runs an AI tool napkin-sketch does not ship,
+> on your account; its commands, forms and files may change in a minor release.
+
 ```text
 scripting/
 ├── .claude-plugin/plugin.json

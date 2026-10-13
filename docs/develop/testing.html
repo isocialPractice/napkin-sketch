@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -183,7 +183,7 @@ restyling what they style; Enter; a text made plain keeping what it showed;
 the layout's bars, rule and one code shade; output rendering every block
 whatever the caret; no lexer showing the Markdown as typed; and a script's
 <code>markdown</code> flag drawn and written back. <code>test/headless.test.ts</code> loads
-<code>napkin-sketch/markdown</code> with the DOM poisoned and renders a Markdown text to
+<code>@isocialpractice/napkin-sketch/markdown</code> with the DOM poisoned and renders a Markdown text to
 every format, and <code>test/gui/check-markdown-flow.mjs</code> does it in the app:
 <code># Title</code> and Enter make a heading, <code>- one</code>, Enter and <code>two</code> a list, the
 arrow keys back into the heading show its <code>#</code>, a burst is one undo step, and
@@ -230,7 +230,7 @@ at least 99% of the ink of every fixture in <code>test/imports/</code>, which
 <code>test/script-render.test.ts</code> covers the render calls: every format from one
 call, the ink box and its pad, a registration box every page shares, the
 <code>.skbk</code> round trip, and the PDF's colors, outlines, dashes and text boxes.
-<code>test/script-files.test.ts</code> covers <code>napkin-sketch/node</code> on a real file
+<code>test/script-files.test.ts</code> covers <code>@isocialpractice/napkin-sketch/node</code> on a real file
 system: scripts read from files, assets and documents loaded by name, links
 read beside the script and refused outside it, a file a format and a file a
 page, names that cannot leave the output folder, <code>strict</code>, and files written
@@ -309,7 +309,13 @@ cheatsheet to what <code>npm run menu-docs</code> writes. <code>npm run gui-chec
 shortcuts</code> runs the app with a shortcuts file of its own, put in the
 user-data folder it hands the app (<code>NAPKIN_USER_DATA</code>), and presses the
 keys; it also clicks the toolbar's Transform button, which must show
-<code>Ctrl+T</code> and stay pressed while the box is up. <code>test/config-dialog.test.ts</code> covers the configuration popup the menu
+<code>Ctrl+T</code>, be pressed already with the box up by itself round the selection
+(Transform box on selection, as shipped), let the box down on a click and
+put it up again on the next. A check that counts the canvas's pixels -
+Mirror, Splatter, the stroke width - starts the app with a <code>settings.json</code>
+of its own, through <code>launch</code>'s third argument, with that box off: up by
+itself round the selection, it would be counted as ink.
+<code>test/config-dialog.test.ts</code> covers the configuration popup the menu
 editors are built on: its search, its filters, what a shortcut cell says
 about a chord, and edits held apart from the rows until Accept. <code>npm run
 gui-check -- config-dialog</code> opens the popup in the built app with a spec of
@@ -690,10 +696,30 @@ the tarball into an empty folder - where no Electron arrives, since it is a
 development dependency - and draws from it with <code>napkin-sketch draw -</code> and
 with both entries imported by name; then it draws a script of the verbs that
 run the drawing engines - wipe, stack, split, clip, the eraser, the Pencil, the
-Smear and Liquify - and calls fifteen of the engines by name from the
-installed package. Build and emit the types first; it packs what <code>dist/</code>
-holds. <code>npm run test:graphic-design-api</code> asks the same built API a few of
-the engines' questions after its graphics.</p>
+Smear and Liquify - and calls the engines by name from the installed
+package. Before it installs, it reads the tarball: every file an export
+names is there; none of what the package leaves out is - source maps, the
+app's Electron bundles and guides, the roadmap, the changelog, the
+helpers' reference files; every declaration's import, every bundle's
+import of a shared chunk, and every stylesheet <code>url()</code> and source map link
+reaches a file the tarball holds; the browser-safe entries reach no Node
+built-in through the chunks they share with the Node ones; and it packs to
+no more than 1.5 MB. It prints the packed and unpacked sizes.
+<code>npm run test:graphic-design-api</code> asks the same built API a few of the
+engines' questions after its graphics.</p>
+<p>Then <code>npm run pack-check</code> does the same for the desktop app's package:
+<code>npm run pack-gui</code> lays it out in <code>release/gui/</code>, and the check packs it and
+reads the tarball - the app's main process, window and manual there; the
+API's files, the maps, the declarations and the manual's Markdown not; every
+app page's script and stylesheet, and every stylesheet <code>url()</code>, reaching a
+file it holds; Electron its one dependency, at the range in
+<code>devDependencies</code>; no more than 4 MB packed. It installs that tarball beside
+the first with install scripts off, so Electron's package arrives without
+its download, and asks the installed command line: <code>--version</code> must find the
+app at the version they share, and opening a sketch, with Electron pointed
+at a folder that holds none, must say the download did not finish rather
+than download it or start anything. Build, emit the types and write the site
+first; it packs what <code>dist/</code> and <code>docs/</code> hold.</p>
 <p>Some defects can only be seen in the running app: the SVG importer needs a
 DOM, the color picker is a native popup, and a paint that went missing shows up
 only as pixels. <code>npm run gui-check</code> drives the built app for those. It

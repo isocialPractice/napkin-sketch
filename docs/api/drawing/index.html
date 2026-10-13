@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -115,7 +115,7 @@ go to. Blocks decide how far a change reaches:</p>
 body keep a pass to itself.</p>
 <h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
 <h3 id="running-a-script">Running a script<a class="anchor" href="#running-a-script" aria-label="Link to this section">#</a></h3>
-<pre><code class="language-ts">import { evaluate, renderSketch } from 'napkin-sketch';
+<pre><code class="language-ts">import { evaluate, renderSketch } from '@isocialpractice/napkin-sketch';
 
 const { ok, book, diagnostics, stats, output } = evaluate(text, { name: 'card' });
 const svg = renderSketch(book.sketches[0], output);</code></pre>
@@ -147,7 +147,7 @@ it checks with <code>validateScript</code> first.</p>
 at all, since it may mean something this build would draw differently.</p>
 <p><code>drawSvg(source, options)</code> runs a script and gives back its first page as SVG
 in one call, and in Node, <code>drawFile</code> and <code>drawToFiles</code> from
-<code>napkin-sketch/node</code> run one and write every format to files; see
+<code>@isocialpractice/napkin-sketch/node</code> run one and write every format to files; see
 <a href="../node/index.html">Using napkin-sketch from code</a>.</p>
 <p><code>runScript(script, sink)</code> runs a checked script against any <code>ScriptSink</code>: an
 object that starts pages, makes layers current, opens and closes groups, and
@@ -773,11 +773,11 @@ configurations restyles what it styles:</p>
 <pre><code class="language-napkin">textconfig &quot;Markdown Heading 1&quot; color #27486d
 text &quot;# Acme Corp\n\nSales are **up**:\n\n- Widgets\n- Gadgets&quot; at 40 300 size 14 markdown</code></pre>
 <p>The browser-safe entry reads Markdown with the lexer it is given, so the core
-holds no Markdown reader of its own. Import <code>napkin-sketch/markdown</code> once to
-give it marked's; the command line and <code>napkin-sketch/node</code> read with it
+holds no Markdown reader of its own. Import <code>@isocialpractice/napkin-sketch/markdown</code> once to
+give it marked's; the command line and <code>@isocialpractice/napkin-sketch/node</code> read with it
 already:</p>
-<pre><code class="language-js">import { drawSvg } from 'napkin-sketch';
-import { markdownToType } from 'napkin-sketch/markdown';
+<pre><code class="language-js">import { drawSvg } from '@isocialpractice/napkin-sketch';
+import { markdownToType } from '@isocialpractice/napkin-sketch/markdown';
 
 const { svg } = drawSvg('napkin 1\ntext &quot;# Notes\\n\\n- one&quot; at 40 60 markdown\n');
 markdownToType('**Acme** Corp').text; // 'Acme Corp'</code></pre>
@@ -789,11 +789,11 @@ is edited:</p>
 <pre><code class="language-napkin">font &quot;Consolas&quot; 14
 accent python
 text &quot;def total(prices):\n    return sum(prices)  # in cents&quot; at 40 380</code></pre>
-<p>The highlighter comes the way the lexer does: <code>napkin-sketch/markdown</code> gives
+<p>The highlighter comes the way the lexer does: <code>@isocialpractice/napkin-sketch/markdown</code> gives
 the API highlight.js with its 36 common languages, and
 <code>registerAccentLanguage</code> installs any other of its 193:</p>
-<pre><code class="language-js">import { accentRuns } from 'napkin-sketch';
-import { registerAccentLanguage } from 'napkin-sketch/markdown';
+<pre><code class="language-js">import { accentRuns } from '@isocialpractice/napkin-sketch';
+import { registerAccentLanguage } from '@isocialpractice/napkin-sketch/markdown';
 import fortran from 'highlight.js/lib/languages/fortran';
 
 registerAccentLanguage('fortran', fortran);
@@ -1085,7 +1085,7 @@ repeat 5 as i {
 layer &quot;Frame&quot;
 stroke on fill none color #1f2328 width 2
 rect 10 10 380 230 r 22</code></pre>
-<pre><code class="language-ts">import { evaluate, renderSketch } from 'napkin-sketch';
+<pre><code class="language-ts">import { evaluate, renderSketch } from '@isocialpractice/napkin-sketch';
 
 const result = evaluate(card, { name: 'card' });
 if (!result.ok) throw new Error('the card has errors');

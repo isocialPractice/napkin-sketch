@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -161,9 +161,9 @@ stroke width - once, for the marks to inherit.</li>
 <h3 id="importing-svg-from-another-editor">Importing SVG from another editor<a class="anchor" href="#importing-svg-from-another-editor" aria-label="Link to this section">#</a></h3>
 <p>In the app, <strong>File &gt; Import</strong> (<code>Ctrl + I</code>) or a paste; from a shell,
 <code>napkin-sketch --import art.svg</code> opens the app with the file imported. In code,
-<code>importSvg</code> from <code>napkin-sketch</code> does the same in a browser, where it measures
+<code>importSvg</code> from <code>@isocialpractice/napkin-sketch</code> does the same in a browser, where it measures
 the document with the DOM:</p>
-<pre><code class="language-ts">import { importSvg } from 'napkin-sketch';
+<pre><code class="language-ts">import { importSvg } from '@isocialpractice/napkin-sketch';
 
 const imported = importSvg(svgText, { unnamedRootName: 'logo' });
 // { width, height, background?, layers: [{ name, opacity, strokes, children? }] }</code></pre>
@@ -307,7 +307,7 @@ path rather than data:</p>
 <ul>
 <li><strong>Only the host reads a file.</strong> A script or a composition names a file; the
 program running it passes a resolver, and <code>resolveLinkFromDir(folder)</code> from
-<code>napkin-sketch/node</code> reads only inside that folder: no absolute path, no <code>..</code>
+<code>@isocialpractice/napkin-sketch/node</code> reads only inside that folder: no absolute path, no <code>..</code>
 step, no web address, and no symbolic link that leads out of it. The command
 line builds one from <code>--base</code>, which defaults to the script's folder.</li>
 <li><strong>An import reads a link back as a link.</strong> An <code>&lt;image&gt;</code> whose <code>href</code> is a

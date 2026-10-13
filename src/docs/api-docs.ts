@@ -68,7 +68,7 @@ export const DOC_CATEGORIES: ReadonlyArray<{ id: string; title: string; summary:
   {
     id: 'markdown',
     title: 'Markdown Flow and Clean Language Accents',
-    summary: "napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36.",
+    summary: "@isocialpractice/napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36.",
   },
   {
     id: 'engines',
@@ -84,7 +84,7 @@ export const DOC_CATEGORIES: ReadonlyArray<{ id: string; title: string; summary:
   {
     id: 'ai',
     title: 'The AI helpers',
-    summary: 'The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages.',
+    summary: 'Experimental. The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages.',
   },
 ];
 

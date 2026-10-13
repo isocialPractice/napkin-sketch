@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -200,8 +200,8 @@ A heading, code, a quote and a link follow the Markdown configurations,
 <code>Markdown Quote</code> and <code>Markdown Link</code>, which the book takes in; a
 <code>textconfig</code> of one of those names, before the text, restyles it. The
 browser-safe entry reads Markdown with the lexer it is given: importing
-<code>napkin-sketch/markdown</code> gives it marked's, as the command line and
-<code>napkin-sketch/node</code> have. With none, the text shows its Markdown as typed.
+<code>@isocialpractice/napkin-sketch/markdown</code> gives it marked's, as the command line and
+<code>@isocialpractice/napkin-sketch/node</code> have. With none, the text shows its Markdown as typed.
 <code>as marks</code> takes no <code>markdown</code>.</p>
 <p><strong>Clean Language Accents.</strong> <code>accent &lt;language&gt;</code> colors the next <code>text</code> as a
 language reads it - keywords, strings, numbers, comments, names - every
@@ -213,7 +213,7 @@ code reads most like, and <code>none</code> colors nothing. It waits for the nex
 text drawn <code>as marks</code> comes first - is <code>unused-accent</code>. A Markdown Flow text's
 fenced code needs no <code>accent</code>: a fence that names its language is colored.
 The colors come from the highlighter the core is given, as the lexer does:
-<code>napkin-sketch/markdown</code> gives it highlight.js with its 36 common languages,
+<code>@isocialpractice/napkin-sketch/markdown</code> gives it highlight.js with its 36 common languages,
 and <code>registerAccentLanguage</code> installs more.</p>
 <p><strong>Type.</strong> A <code>text</code> is Sideless Typing from its anchor, the top of its first
 line; <code>box</code> sets it in a rectangle that grows to fit, <code>inside &quot;&lt;path
@@ -539,7 +539,7 @@ card.napkin.json[1][0]: error expected-length: `x` of `rect` at [1][0]: `ten` is
 <tr><td><code>erase-skipped</code></td><td>warning</td><td>An eraser line reaches text or a picture, which it cannot cut, and passes over it.</td></tr>
 </tbody></table></div>
 <h3 id="functions">Functions<a class="anchor" href="#functions" aria-label="Link to this section">#</a></h3>
-<p>Exported from <code>napkin-sketch</code>, the package's browser-safe entry, and DOM-free;
+<p>Exported from <code>@isocialpractice/napkin-sketch</code>, the package's browser-safe entry, and DOM-free;
 the source is <code>src/core/script/index.ts</code>.</p>
 <pre><code class="language-ts">parseScript(text: string, options?: { fragment?: boolean }): ParseResult
 validateScript(value: unknown, options?: { fragment?: boolean }): ParseResult
@@ -574,7 +574,7 @@ card.napkin:4:12: error missing-argument: `rect` needs `height`: rect &lt;x&gt; 
 card.napkin:5:21: error expected-length: `width` takes a length, such as `120`, `10mm` or `50%`, and got `three`. To use a name, write it in parentheses: `(three)`.</code></pre>
 <p>That is what printing each diagnostic gives. The script that comes back holds
 <code>napkin</code>, <code>color</code> and <code>line</code>, and <code>ok</code> is false:</p>
-<pre><code class="language-ts">import { formatDiagnostic, parseScript } from 'napkin-sketch';
+<pre><code class="language-ts">import { formatDiagnostic, parseScript } from '@isocialpractice/napkin-sketch';
 
 const { ok, script, diagnostics } = parseScript(text);
 for (const d of diagnostics) console.error(formatDiagnostic(d, 'card.napkin'));</code></pre>

@@ -5,6 +5,9 @@ description: 'Generate frame-by-frame SVG animation frames for the napkin-sketch
 
 # Vector Animations
 
+> **Experimental.** Part of napkin-sketch's AI helpers, which are new; what
+> this skill reads and writes may change in a minor release.
+
 Generate and validate frame-by-frame SVG animations for napkin-sketch's Animation Mode. The mode
 treats one group layer per frame; this skill produces the next frame's group from an existing
 frame so a character or object appears to move when the frames play in sequence. One request
@@ -17,6 +20,21 @@ A frame is produced by transforming the existing groups, not by redrawing them.
 - Asked to propose or redraw the next frame of an animation sequence
 - Asked to validate that an SVG's layers contain the required character assemblies
 - Asked how frames, layers, or animation groups must be named
+
+## When a Sheet or a Data File Is Not Beside This File
+
+An npm install carries `assets/uri.md` and not the sheets or their data.
+Take the URL of the one you need from it, download it into a working
+folder, and read it from there:
+
+    curl -sSL -o _temp/illustrated-frames.json <url from assets/uri.md>
+
+A sheet this skill names from `../vector-graphics/assets/` is in that
+folder's `uri.md`. The URLs are pinned to this version's tag, so the file
+matches the text; one that no longer answers is at a tag a later release
+removed, and the same path on `main` holds the file as it is now. Do not
+fetch one through a tool that summarizes a page; the file is the thing to
+read.
 
 ## Read the Drawing Before the Names
 

@@ -1,11 +1,17 @@
 {
-  "name": "napkin-sketch",
-  "version": "1.0.0-alpha.5.0.0",
-  "description": "Quick and easy computer sketching with a drawing GUI that simulates pen and paper/napkin sketching, featuring an auto-sharpen algorithm that turns stiff computer strokes into more hand-drawn forms.",
+  "name": "@isocialpractice/napkin-sketch",
+  "version": "1.0.0",
+  "description": "A drawing language and a graphic-design API that write SVG, PNG and PDF with no window, a command line any language can call, an embeddable sketching editor with auto-sharpen, and experimental AI helpers that draw from a request, read a graphic into a design language, and pose animation frames.",
   "author": "John Haugabook",
   "keywords": [
     "sketch",
     "drawing",
+    "svg",
+    "png",
+    "pdf",
+    "graphic-design",
+    "design-language",
+    "vector",
     "canvas",
     "electron",
     "gui",
@@ -13,14 +19,26 @@
     "auto-sharpen",
     "hand-drawn",
     "touchscreen",
-    "cli"
+    "cli",
+    "api",
+    "ai",
+    "agent",
+    "claude-code"
   ],
   "license": "MIT",
+  "homepage": "https://isocialpractice.github.io/napkin-sketch/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isocialPractice/napkin-sketch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/isocialPractice/napkin-sketch/issues"
+  },
   "type": "commonjs",
   "bin": {
     "napkin-sketch": "dist/cli/index.js"
   },
-  "main": "dist/main/main.js",
+  "main": "dist/api/index.js",
   "module": "dist/api/index.js",
   "types": "dist/api/index.d.ts",
   "exports": {
@@ -29,7 +47,6 @@
       "import": "./dist/api/index.js",
       "default": "./dist/api/index.js"
     },
-    "./embed": "./dist/embed/napkin-sketch.js",
     "./node": {
       "types": "./dist/api/node.d.ts",
       "import": "./dist/node/index.js",
@@ -49,24 +66,32 @@
   },
   "files": [
     "dist",
-    "assets",
+    "!dist/**/*.map",
+    "!dist/main",
+    "!dist/embed",
+    "!dist/renderer/renderer.js",
+    "!dist/renderer/settings.js",
+    "!dist/renderer/*.html",
+    "!dist/renderer/accents",
+    "!dist/cli/*.d.ts",
     "ai-helper",
     "!ai-helper/installed.json",
+    "!ai-helper/**/assets/*.svg",
+    "!ai-helper/**/assets/*.png",
+    "!ai-helper/**/assets/*.json",
     ".claude-plugin",
     "scripts/install-ai-helper.mjs",
-    "scripts/animation-mode.mjs",
     "README.md",
     "API.md",
     "API-QUICKSTART.md",
     "API-CHEATSHEET.md",
     "docs/api",
     "!docs/api/**/*.html",
-    "QUICKSTART.md",
-    "CHEATSHEET.md",
-    "CHANGELOG.md",
-    "TODO.md",
     "THIRD-PARTY-NOTICES.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "build": "node scripts/build.mjs",
@@ -85,6 +110,7 @@
     "accent-languages": "node scripts/accent-languages.mjs",
     "site": "node scripts/site.mjs",
     "pack-check": "node scripts/pack-check.mjs",
+    "pack-gui": "node scripts/pack-gui.mjs",
     "illustrated-frames": "node scripts/illustrated-frames.mjs",
     "frame-preview": "node scripts/frame-preview.mjs",
     "ai-helper": "node scripts/install-ai-helper.mjs",
@@ -111,12 +137,24 @@
     "appId": "dev.napkinsketch.app",
     "productName": "Napkin Sketch",
     "copyright": "Copyright © napkin-sketch contributors",
+    "extraMetadata": {
+      "main": "dist/main/main.js",
+      "name": "napkin-sketch"
+    },
     "directories": {
       "output": "release"
     },
     "files": [
-      "dist/**/*",
+      "dist/main/**/*",
+      "dist/renderer/**/*",
+      "dist/assets/**/*",
+      "!dist/**/*.map",
+      "!dist/**/*.d.ts",
       "package.json"
+    ],
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US"
     ],
     "extraResources": [
       {
@@ -166,6 +204,6 @@
     }
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.12"
   }
 }

@@ -87,8 +87,8 @@ description: '<what asset this is the language of, in what medium, and the occas
 ## 5. Write the composing script
 
 ```js
-import { createComposition } from 'napkin-sketch';
-import { writeComposition } from 'napkin-sketch/graphic-design/files';
+import { createComposition } from '@isocialpractice/napkin-sketch';
+import { writeComposition } from '@isocialpractice/napkin-sketch/graphic-design/files';
 import { resolveBrand } from './brand-resources.mjs';
 
 const PALETTE = { paper: '<hex>', ink: '<hex>', accent: '<hex>' };

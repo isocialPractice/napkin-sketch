@@ -190,13 +190,13 @@ try {
   c.eq(
     'the layers panel menu, labels in order',
     layerRows.map((row) => row.replace(/ \(disabled\)$/, '')).join(' | '),
-    'Add Layer | Group Layer [Ctrl+G] | Ungroup [Ctrl+Shift+G] | Rename [F2] | Delete Layer | --- | Cut [Ctrl+X] | Copy [Ctrl+C] | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] | --- | Move > | Clipping Mask > | Blend > | --- | Hide Layers Panel',
+    'Add Layer | Group Layer [Ctrl+G] | Ungroup [Ctrl+Shift+G] | Rename [F2] | Delete Layer | --- | Cut [Ctrl+X] | Copy [Ctrl+C] | Paste [Ctrl+V] | Paste in Place [Ctrl+Shift+V] | Duplicate [Ctrl+D] | --- | Move > | Select > | Clipping Mask > | Blend > | --- | Hide Layers Panel',
   );
   await hover(page, await page.evalIn(ROW_CENTER('context-menu', 'Move')));
   c.eq(
-    'Move opens Layer Up and Layer Down beside it',
+    'Move opens Layer Up and Layer Down beside it, and the to-the-end rows after a rule',
     (await page.evalIn(ROWS('context-submenu')))?.join(' | '),
-    'Layer Up [Ctrl+]] | Layer Down [Ctrl+[]',
+    'Layer Up [Ctrl+]] | Layer Down [Ctrl+[] | --- | Layer to Top [Ctrl+Shift+]] | Layer to Bottom [Ctrl+Shift+[]',
   );
   // The new layer goes beside the active one, which the import left inside a
   // folded group, so the rows the panel shows need not change: the toast,

@@ -7,6 +7,10 @@ anything. The marketplace that lists them is
 [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) at the
 repository root.
 
+> **Experimental.** The AI helpers run an agentic AI command-line tool that
+> napkin-sketch does not ship, on your account and at its cost. They are new,
+> and their commands, forms and files may change in a minor release.
+
 ```text
 ai-helper/
 ├── vectors/            Animation Mode: pose one SVG frame into the next
@@ -64,6 +68,16 @@ file to decide whether the mode exists. `graphic-designer` and `scripting` have
 no such switch: nothing in the GUI runs them, so there is nothing to gate.
 `scripting` is run by the command line's `draw --prompt`, which needs only the
 AI tool on the PATH.
+
+## The reference files, by URI
+
+The `vectors` helper's skills read reference sheets and the data measured
+from them, about 6 MB in their `assets/` folders. The npm package leaves them
+out and carries `assets/uri.md` in each such folder instead: every file's
+name and its address in this repository at the release's tag, which the
+skills tell a tool how to download. A clone and the GitHub plugin have the
+files themselves. `npm run ai-helper -- --to plugin` writes the lists, and a
+test fails when one falls behind its folder or the version.
 
 ## Adding a helper
 

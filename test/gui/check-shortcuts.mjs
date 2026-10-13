@@ -109,16 +109,19 @@ try {
   c.ok('the toolbar has a Transform button beside Mirror', transform?.afterMirror === true, JSON.stringify(transform));
   c.ok("and its tooltip shows Transform Box's shortcut", !!transform && transform.title.includes('(Ctrl+T)'), transform?.title);
   if (transform) {
+    // Transform box on selection, as shipped: the box came up by itself round
+    // the selection, quietly, so the button is already pressed.
+    c.ok('the box is up by itself round the selection, and the button pressed', transform.pressed && transform.aria === 'true', JSON.stringify(transform));
     await page.evalIn(clearToast);
     await page.click(transform.x, transform.y);
     await sleep(400);
     transform = await transformButton();
-    c.ok('a click puts the box up round the selection', (await state()).toast.startsWith('Transform: drag a handle'), (await state()).toast);
-    c.ok('and presses the button', transform.pressed && transform.aria === 'true', JSON.stringify(transform));
+    c.ok('a click takes the box away and lets the button up', !transform.pressed && transform.aria === 'false', JSON.stringify(transform));
     await page.click(transform.x, transform.y);
     await sleep(400);
     transform = await transformButton();
-    c.ok('a second click takes the box away and lets the button up', !transform.pressed && transform.aria === 'false', JSON.stringify(transform));
+    c.ok('a second click puts the box up again, and says so', (await state()).toast.startsWith('Transform: drag a handle'), (await state()).toast);
+    c.ok('and presses the button', transform.pressed && transform.aria === 'true', JSON.stringify(transform));
   }
 
   // ---- Letters choose tools ---------------------------------------------------------------------

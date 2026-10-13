@@ -264,3 +264,18 @@ test('the Type panel shows with the text tool by default; the next text is in th
   const kept = parseSettings(serializeSettings({ ...defaultSettings(), typePanelAutoShow: false, textFont: 'Acme Serif' }));
   assert.deepEqual([kept.typePanelAutoShow, kept.textFont], [false, 'Acme Serif'], 'both survive a save and a load');
 });
+
+test('the Transform box comes up on selection unless a saved setting turns it off', () => {
+  assert.equal(defaultSettings().transformOnSelect, true);
+  assert.equal(normalizeSettings({ transformOnSelect: false }).transformOnSelect, false);
+  // Only a boolean is an answer; anything else leaves the default standing.
+  assert.equal(normalizeSettings({ transformOnSelect: 'no' }).transformOnSelect, true);
+});
+
+test("a PNG's background is remembered, and is one of the three", () => {
+  assert.equal(defaultSettings().pngBackground, 'transparent');
+  assert.equal(normalizeSettings({ pngBackground: 'white' }).pngBackground, 'white');
+  assert.equal(normalizeSettings({ pngBackground: 'black' }).pngBackground, 'black');
+  assert.equal(normalizeSettings({ pngBackground: 'paper' }).pngBackground, 'transparent');
+  assert.equal(normalizeSettings({ pngBackground: 7 }).pngBackground, 'transparent');
+});

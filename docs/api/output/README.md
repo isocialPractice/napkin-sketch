@@ -74,7 +74,7 @@ const pngs = renderBook(result.book, { format: 'png', ...result.output });
 
 ```ts
 import { writeFileSync } from 'node:fs';
-import { evaluate, renderBook, renderSketch } from 'napkin-sketch';
+import { evaluate, renderBook, renderSketch } from '@isocialpractice/napkin-sketch';
 
 const result = evaluate(text, { name: 'card', timestamp: '2026-09-25T00:00:00.000Z' });
 const page = result.book.sketches[0];
@@ -97,7 +97,7 @@ writeFileSync('card.jsx', renderBook(result.book, { format: 'jsx' }));
 An unknown format throws, naming the five: that is a mistake in the calling
 code, not in a drawing.
 
-In Node, `writeBook` and `drawToFiles` from `napkin-sketch/node` write these
+In Node, `writeBook` and `drawToFiles` from `@isocialpractice/napkin-sketch/node` write these
 as files, named and numbered - `card.svg`, or `card-1.svg` and on for a book
 of several pages - so a caller does not have to; see
 [Using napkin-sketch from code](../node/README.md#writing-files). From a
@@ -395,7 +395,7 @@ if (warnings.length > 0) console.warn(warnings.join('\n'));
   differ: a Default outline the app draws at 0.7 of its width is drawn at its
   full width in both exports.
 - **These calls write no files.** They give back strings and bytes, in a
-  browser as in Node; `napkin-sketch/node` is what writes them to disk.
+  browser as in Node; `@isocialpractice/napkin-sketch/node` is what writes them to disk.
 
 ## For agents
 

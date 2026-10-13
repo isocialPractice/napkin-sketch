@@ -88,7 +88,7 @@ const SRC = (path: string): string => `${SOURCE_DIR}/${path}`;
 export const SITE_PAGES: readonly SitePage[] = [
   page('index.html', SRC('index.md'), 'napkin-sketch documentation', 'Home', 'start', 'A sketching app that sharpens what you draw by hand, and a drawing language that draws the same way from a script.'),
   page('install.html', SRC('install.md'), 'Installation', 'Install', 'start', 'Build the desktop installer for Windows, macOS or Linux, or run napkin-sketch from a clone.'),
-  page('quickstart.html', 'QUICKSTART.md', 'Quickstart', 'Quickstart', 'start', 'From a fresh clone to a sharpened sketch in five minutes.'),
+  page('quickstart.html', 'QUICKSTART.md', 'Quickstart', 'Quickstart', 'start', 'From an install to a sharpened sketch in five minutes.'),
   page('cheatsheet.html', 'CHEATSHEET.md', 'Cheatsheet', 'Cheatsheet', 'start', 'Every shortcut, command-line flag and npm script on one page.'),
 
   page('quickstart/draw.html', SRC('quickstart/draw.md'), 'Quickstart: drawing', 'Draw', 'quickstarts', 'Pick a tool, draw, use the quick gestures and sharpen: the Sketch menu in one sitting.'),
@@ -113,7 +113,7 @@ export const SITE_PAGES: readonly SitePage[] = [
   page('guide/settings.html', SRC('guide/settings.md'), 'Settings', 'Settings', 'guide', 'Quick Settings and Verbose Settings, and every setting with its default and range.'),
   page('guide/menus-and-shortcuts.html', SRC('guide/menus-and-shortcuts.md'), 'Menus and shortcuts', 'Menus and shortcuts', 'guide', 'The menu bar, the right-click menus, every keyboard shortcut, and changing them.'),
   page('guide/automate.html', SRC('guide/automate.md'), 'Automate', 'Automate', 'guide', 'Generate Script from a file, the selected layers or the session history, and Track History.'),
-  page('guide/animation-mode.html', SRC('guide/animation-mode.md'), 'Animation Mode', 'Animation Mode', 'guide', 'The optional add-on that draws animation frames with an AI helper: installing it and using it.'),
+  page('guide/animation-mode.html', SRC('guide/animation-mode.md'), 'Animation Mode', 'Animation Mode', 'guide', 'The optional, experimental add-on that draws animation frames with an AI helper: installing it and using it.'),
   page('guide/skbk-format.html', SRC('guide/skbk-format.md'), 'The .skbk file format', 'The .skbk format', 'guide', 'What a saved sketch book holds, and how older files open.'),
   page('guide/command-line.html', SRC('guide/command-line.md'), 'The command line', 'Command line', 'guide', 'Opening the app from a shell: every option, and the four commands that need no window.'),
 
@@ -128,8 +128,8 @@ export const SITE_PAGES: readonly SitePage[] = [
 
   page('embed.html', SRC('embed.md'), 'Embedding the editor', 'Embedding', 'building', 'The editor in your own page, the pure engine, and the graphic-design API.'),
   page('scripting.html', SRC('scripting.md'), 'Drawing from a script', 'Scripting', 'building', 'napkin script from a shell, from Node or from any language, and what it writes.'),
-  page('ai-helpers.html', SRC('ai-helpers.md'), 'The AI helpers', 'AI helpers', 'building', 'The graphic-designer and scripting helpers: what each does and how to use it.'),
-  page('ai-helper.html', 'ai-helper/README.md', 'The AI helper plugins', 'Helper plugins', 'building', 'The three plugins, and installing them where an AI tool looks.'),
+  page('ai-helpers.html', SRC('ai-helpers.md'), 'The AI helpers', 'AI helpers', 'building', 'The graphic-designer and scripting helpers, experimental: what each does and how to use it.'),
+  page('ai-helper.html', 'ai-helper/README.md', 'The AI helper plugins', 'Helper plugins', 'building', 'The three plugins, experimental, and installing them where an AI tool looks.'),
 
   page('develop/building.html', SRC('develop/building.md'), 'Building and packaging', 'Building', 'developing', 'Building, watching and packaging the app, and every npm script.'),
   page('develop/testing.html', SRC('develop/testing.md'), 'Testing', 'Testing', 'developing', 'The test suites, the golden scripts, the GUI checks and the package check.'),

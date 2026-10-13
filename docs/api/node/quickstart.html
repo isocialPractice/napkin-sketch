@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -42,18 +42,19 @@
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="../../index.html">Docs</a> <span class="sep">/</span> <a href="../index.html">Drawing from a script</a> <span class="sep">/</span> <a href="index.html">Using napkin-sketch from code</a> <span class="sep">/</span> <span aria-current="page">Quickstart</span></nav>
 <h1 id="using-napkin-sketch-from-code-quickstart">Using napkin-sketch from code: quickstart<a class="anchor" href="#using-napkin-sketch-from-code-quickstart" aria-label="Link to this section">#</a></h1>
 <p><a href="../index.html">API hub</a> · <a href="index.html">Reference</a> · <strong>Quickstart</strong> · <a href="cheatsheet.html">Cheatsheet</a></p>
-<p>The package's two main entries are <code>napkin-sketch</code>, which runs anywhere,
-and <code>napkin-sketch/node</code>, which reads and writes files; this is the path from
-a clone to a Node program that draws a script to files.</p>
+<p>The package's two main entries are <code>@isocialpractice/napkin-sketch</code>, which runs anywhere,
+and <code>@isocialpractice/napkin-sketch/node</code>, which reads and writes files; this is the path from
+an install to a Node program that draws a script to files.</p>
 <h2 id="the-whole-thing-in-four-steps">The whole thing in four steps<a class="anchor" href="#the-whole-thing-in-four-steps" aria-label="Link to this section">#</a></h2>
 <ol>
-<li>Build the clone. <code>build:types</code> writes the <code>.d.ts</code> files TypeScript reads:</li>
+<li>Install the package in a folder of your own. The <code>.d.ts</code> files TypeScript
+reads come with it:</li>
 </ol>
-<pre><code class="language-bash">npm install
-npm run build
-npm run build:types</code></pre>
+<pre><code class="language-bash">npm install @isocialpractice/napkin-sketch</code></pre>
+<p>From a clone, <code>npm install</code>, <code>npm run build</code> and <code>npm run build:types</code> build
+the same, and the files below go in the clone.</p>
 <ol start="2">
-<li>Save this as <code>card.napkin</code> in the clone:</li>
+<li>Save this as <code>card.napkin</code> in that folder:</li>
 </ol>
 <pre><code class="language-napkin">napkin 1
 page 400 300
@@ -66,8 +67,8 @@ text &quot;Acme Corp&quot; at 200 120 size 32 align center</code></pre>
 <ol start="3">
 <li>Save this as <code>draw.mjs</code> beside it:</li>
 </ol>
-<pre><code class="language-js">import { formatDiagnostic } from 'napkin-sketch';
-import { drawFile } from 'napkin-sketch/node';
+<pre><code class="language-js">import { formatDiagnostic } from '@isocialpractice/napkin-sketch';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 const { ok, files, diagnostics } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png', 'pdf'] });
 for (const d of diagnostics) console.error(formatDiagnostic(d, 'card.napkin'));
@@ -80,7 +81,7 @@ still written.</li>
 </ol>
 <p>CommonJS loads the same entry with <code>import()</code>:</p>
 <pre><code class="language-js">async function main() {
-  const { drawFile } = await import('napkin-sketch/node');
+  const { drawFile } = await import('@isocialpractice/napkin-sketch/node');
   const { ok, files } = await drawFile('card.napkin', { out: 'out' });
   console.log(ok, files.map((file) =&gt; file.path));
 }
@@ -89,7 +90,7 @@ main();</code></pre>
 <p>A banner built in code, with an image the script places by name. The script
 names <code>logo</code>; the program reads the file and hands it over, since a script
 reads no files itself:</p>
-<pre><code class="language-js">import { drawToFiles, loadAssets } from 'napkin-sketch/node';
+<pre><code class="language-js">import { drawToFiles, loadAssets } from '@isocialpractice/napkin-sketch/node';
 
 const assets = await loadAssets({ logo: 'assets/icon.png' });
 const script = [
@@ -104,13 +105,13 @@ const script = [
 
 const { ok, files, diagnostics } = await drawToFiles(script, { out: 'out', formats: ['svg', 'png'], assets });
 console.log(ok, files.map((file) =&gt; file.path), diagnostics);</code></pre>
-<p>Run in the clone, it writes <code>out/banner.svg</code> and <code>out/banner.png</code> with the
-app's icon on the left. The files take the script's <code>name</code>; without one they
+<p>Run where <code>assets/icon.png</code> is a PNG - a clone has the app's icon there - it
+writes <code>out/banner.svg</code> and <code>out/banner.png</code> with that image on the left. The files take the script's <code>name</code>; without one they
 would be <code>drawing.svg</code> and <code>drawing.png</code>.</p>
 <h2 id="where-to-go-next">Where to go next<a class="anchor" href="#where-to-go-next" aria-label="Link to this section">#</a></h2>
 <ul>
 <li><a href="index.html#the-entries">The entries</a>: what each one holds, and why a
-browser build leaves out <code>napkin-sketch/node</code>.</li>
+browser build leaves out <code>@isocialpractice/napkin-sketch/node</code>.</li>
 <li><a href="index.html#es-modules-commonjs-and-typescript">ES modules, CommonJS and TypeScript</a>:
 the types, by name.</li>
 <li><a href="index.html#writing-files">Writing files</a> and <a href="index.html#options">Options</a>:

@@ -11,19 +11,46 @@
  * Mode install record - or lacks one the entries need, when the package names
  * a dependency or the install brings anything with it, Electron included,
  * when `napkin-sketch draw -`, with a composition style or without,
- * `napkin-sketch` or `napkin-sketch/node` does not draw, or when the
- * installed package cannot run the verbs that combine, cut, clip, smear, bend,
- * blend, lay effects and set type, or call the engines behind them by name,
- * with `napkin-sketch/markdown` reading Markdown and coloring code for them.
- * Run `npm run build` and `npm run build:types` first: it packs what
- * `dist/` holds. It needs no network, since the package has no dependencies
- * to fetch.
+ * `@isocialpractice/napkin-sketch` or `@isocialpractice/napkin-sketch/node`
+ * does not draw, or when the installed package cannot run the verbs that
+ * combine, cut, clip, smear, bend, blend, lay effects and set type, or call the
+ * engines behind them by name, with `@isocialpractice/napkin-sketch/markdown`
+ * reading Markdown and coloring code for them.
+ *
+ * Before it installs anything it reads the tarball: every file an export names
+ * is in it, and so is the `uri.md` of every skill folder whose reference files
+ * it leaves out; nothing the package leaves out is - source maps, the app's
+ * Electron bundles and guides, the roadmap, the changelog, the helpers'
+ * reference files; every declaration's import, every bundle's import of a
+ * shared chunk, and every stylesheet `url()` and source map link reaches a
+ * file the tarball holds; the browser-safe entries reach no Node built-in
+ * through the chunks they share with the Node ones; and it packs to no more
+ * than {@link MAX_PACKED}. It prints the packed and unpacked sizes.
+ *
+ * Then the desktop app's package, `@isocialpractice/napkin-sketch-gui`: it
+ * lays the package out with `scripts/pack-gui.mjs`, packs it, and reads the
+ * tarball the same way - the app's files there, the API's, the maps, the
+ * declarations and the manual's Markdown not, every page's script and
+ * stylesheet and every stylesheet `url()` reaching a file it holds, Electron
+ * its one dependency at the clone's range, and no more than
+ * {@link MAX_GUI_PACKED} packed. It installs it beside the API's package with
+ * install scripts off, so Electron's package arrives without its download,
+ * and asks the installed command line: `--version` finds the app at the
+ * version they share without touching Electron, and opening a sketch with
+ * Electron pointed at a folder that holds none says the download did not
+ * finish, rather than downloading it or starting anything.
+ *
+ * Run `npm run build`, `npm run build:types` and `npm run site` first: it
+ * packs what `dist/` and `docs/` hold. The API's half needs no network, since
+ * that package has no dependencies to fetch; the app's half installs
+ * Electron's package and its own few dependencies, from npm's cache when they
+ * are there.
  */
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -96,15 +123,173 @@ const REQUIRED = [
   'THIRD-PARTY-NOTICES.md',
 ];
 
-/** Files that are one machine's state, never the package's. */
-const FORBIDDEN = ['ai-helper/installed.json'];
+/** Files the package must never hold, each with why: one machine's state, or a part that stays in the repository. */
+const FORBIDDEN = [
+  { path: 'ai-helper/installed.json', why: "this machine's Animation Mode install record" },
+  { path: 'TODO.md', why: 'the roadmap, which stays in the repository' },
+  { path: 'CHANGELOG.md', why: 'the changelog, which the releases and the site carry' },
+  { path: 'QUICKSTART.md', why: "the app's guide, which the site carries" },
+  { path: 'CHEATSHEET.md', why: "the app's guide, which the site carries" },
+  { path: 'scripts/animation-mode.mjs', why: 'a feature of the app in a clone' },
+  { path: 'dist/main/main.js', why: "the app's Electron main process, which the package cannot start" },
+  { path: 'dist/renderer/renderer.js', why: "the app's window, which the package cannot start" },
+  { path: 'dist/embed/napkin-sketch.js', why: 'the script-tag bundle, which the package no longer has' },
+];
 
 /**
  * Files the package must never hold, by pattern: the documentation site
  * writes its API pages as HTML beside the Markdown in docs/api, which ships,
- * and `package.json` `files` leaves the HTML out.
+ * and `package.json` `files` leaves the HTML out; the build writes a source
+ * map beside every bundle; the app loads its extra code languages one script
+ * each; and the helpers' reference sheets and their data are fetched by URI.
  */
-const FORBIDDEN_PATTERNS = [{ pattern: /^docs\/api\/.*\.html$/, why: 'the documentation site, which the package does not ship' }];
+const FORBIDDEN_PATTERNS = [
+  { pattern: /^docs\/api\/.*\.html$/, why: 'the documentation site, which the package does not ship' },
+  { pattern: /\.map$/, why: 'source maps, which stay in the clone' },
+  { pattern: /^dist\/renderer\/accents\//, why: "the app's on-demand language bundles" },
+  { pattern: /^ai-helper\/.*\/assets\/.*\.(svg|png|json)$/, why: 'the reference files, which the skills fetch by URI' },
+];
+
+/** The most the tarball may weigh, packed, so a package that grows is noticed before it is published. */
+const MAX_PACKED = 1.5 * 1024 * 1024;
+
+/** The desktop app's npm package. */
+const GUI_PACKAGE = '@isocialpractice/napkin-sketch-gui';
+
+/** Files the app needs, which an app tarball without them would install broken. */
+const GUI_REQUIRED = [
+  'package.json',
+  'README.md',
+  'LICENSE',
+  'THIRD-PARTY-NOTICES.md',
+  'dist/main/main.js',
+  'dist/main/preload.js',
+  'dist/main/package.json',
+  'dist/renderer/renderer.js',
+  'dist/renderer/settings.js',
+  'dist/renderer/index.html',
+  'dist/renderer/settings.html',
+  'dist/renderer/styles.css',
+  'dist/assets/icon.png',
+  'docs/index.html',
+];
+
+/** What the app's package must never hold, by pattern: the other package's parts, the maps, and the clone's. */
+const GUI_FORBIDDEN_PATTERNS = [
+  { pattern: /^dist\/(?:api|node|markdown|graphic-design|cli|chunks|embed|core|sharpen)\//, why: "the API's and the command line's, which the other package carries" },
+  { pattern: /\.map$/, why: 'source maps, which stay in the clone' },
+  { pattern: /\.d\.ts$/, why: "declarations, which the API's package carries" },
+  { pattern: /^docs\/site-src\//, why: "the manual's Markdown, which the clone keeps" },
+  { pattern: /^ai-helper\//, why: "the AI helpers, which the API's package carries" },
+];
+
+/** The most the app's tarball may weigh, packed: the app and its manual, with Electron fetched beside it. */
+const MAX_GUI_PACKED = 4 * 1024 * 1024;
+
+/** The entries a browser loads, which must reach no Node built-in. */
+const BROWSER_ENTRIES = ['dist/api/index.js', 'dist/markdown/index.js'];
+
+/** A built module's relative imports - static, bare and dynamic - as written. */
+function relativeImports(text) {
+  return [...text.matchAll(/(?:\bfrom|\bimport)\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g)].map((m) => m[1]);
+}
+
+/**
+ * The files the browser-safe entries reach that import a Node built-in. The
+ * package's entries share their chunks, so a module that imports `node:fs`
+ * must land only in chunks the Node entries load.
+ */
+function nodeBuiltinsReached(paths) {
+  const seen = new Set();
+  const found = [];
+  const stack = [...BROWSER_ENTRIES];
+  while (stack.length > 0) {
+    const file = stack.pop();
+    if (seen.has(file) || !paths.has(file)) continue;
+    seen.add(file);
+    const text = readFileSync(join(root, ...file.split('/')), 'utf-8');
+    if (/(?:\bfrom|\bimport)\s*\(?\s*["']node:/.test(text)) found.push(file);
+    for (const spec of relativeImports(text)) stack.push(posix.normalize(posix.join(posix.dirname(file), spec)));
+  }
+  return found;
+}
+
+/** A byte count in megabytes, to two places. */
+function mb(bytes) {
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+/**
+ * The address list of every skill folder whose reference files the package
+ * leaves out: a tool reaching for a sheet in an install finds this instead.
+ */
+function uriFiles() {
+  const out = [];
+  const helpers = join(root, 'ai-helper');
+  for (const helper of readdirSync(helpers, { withFileTypes: true })) {
+    const skills = join(helpers, helper.name, 'skills');
+    if (!helper.isDirectory() || !existsSync(skills)) continue;
+    for (const skill of readdirSync(skills, { withFileTypes: true })) {
+      const assets = join(skills, skill.name, 'assets');
+      if (!skill.isDirectory() || !existsSync(assets)) continue;
+      if (readdirSync(assets).some((file) => /\.(svg|png|json)$/.test(file))) out.push(`ai-helper/${helper.name}/skills/${skill.name}/assets/uri.md`);
+    }
+  }
+  return out;
+}
+
+/** Every file the package map names, as a path in the tarball. */
+function exportTargets(manifest) {
+  const targets = new Set();
+  const walk = (value) => {
+    if (typeof value === 'string') targets.add(value.replace(/^\.\//, ''));
+    else if (value && typeof value === 'object') for (const inner of Object.values(value)) walk(inner);
+  };
+  walk(manifest.exports);
+  for (const field of ['main', 'module', 'types']) if (typeof manifest[field] === 'string') targets.add(manifest[field].replace(/^\.\//, ''));
+  for (const bin of Object.values(manifest.bin ?? {})) targets.add(bin.replace(/^\.\//, ''));
+  return [...targets];
+}
+
+/**
+ * What the tarball's files name in each other that it does not hold: a
+ * declaration's relative import, a stylesheet's `url()`, a bundle's source
+ * map link and its imports of shared chunks, and the scripts and stylesheets
+ * an app page loads. A `files` rule that drops something a shipped file still
+ * names fails here, rather than in somebody's type check, bundler or window.
+ * `base` is the folder the package was packed from.
+ */
+function unresolvedReferences(paths, base = root) {
+  const missing = new Set();
+  for (const file of paths) {
+    const refs = [];
+    const read = () => readFileSync(join(base, ...file.split('/')), 'utf-8');
+    if (file.endsWith('.d.ts')) {
+      for (const m of read().matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*)['"](\.{1,2}\/[^'"]+)['"]/g)) refs.push({ spec: m[1], types: true });
+    } else if (file.endsWith('.css')) {
+      for (const m of read().matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/g)) {
+        if (!/^(?:data:|https?:|#)/.test(m[1])) refs.push({ spec: m[1], types: false });
+      }
+    } else if (/\.m?js$/.test(file)) {
+      const text = read();
+      const link = /\/\/# sourceMappingURL=(\S+)\s*$/.exec(text);
+      if (link && !link[1].startsWith('data:')) refs.push({ spec: link[1], types: false });
+      // A bundle's imports of the chunks it shares.
+      if (file.startsWith('dist/')) for (const spec of relativeImports(text)) refs.push({ spec, types: false });
+    } else if (file.endsWith('.html') && file.startsWith('dist/')) {
+      // An app page's scripts and stylesheet, which its window loads beside it.
+      for (const m of read().matchAll(/\b(?:src|href)=["']([^"'#?]+)/g)) {
+        if (!/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(m[1])) refs.push({ spec: m[1], types: false });
+      }
+    }
+    for (const { spec, types } of refs) {
+      const base = posix.normalize(posix.join(posix.dirname(file), spec));
+      const candidates = types ? [base.replace(/\.js$/, '.d.ts'), `${base}.d.ts`, `${base}/index.d.ts`, base] : [base];
+      if (!candidates.some((candidate) => paths.has(candidate))) missing.add(`${file} names ${spec}`);
+    }
+  }
+  return [...missing];
+}
 
 /** Stops the check; the folder is still removed. */
 function fail(message) {
@@ -131,19 +316,25 @@ function npm(args, cwd, env = process.env) {
   return result.stdout;
 }
 
-/** Packs, installs into `dir`, and draws; throws, saying why, at the first thing wrong. */
+/** Packs, installs into `dir`, and draws; throws, saying why, at the first thing wrong. Answers the project and the installed package. */
 function check(dir) {
   // 1. Pack, and read what went in.
   const [packed] = JSON.parse(npm(['pack', '--json', '--pack-destination', dir], root));
   const paths = new Set(packed.files.map((file) => file.path));
-  const missing = REQUIRED.filter((path) => !paths.has(path));
+  const required = [...new Set([...REQUIRED, ...uriFiles(), ...exportTargets(JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')))])];
+  const missing = required.filter((path) => !paths.has(path));
   if (missing.length > 0) fail(`the tarball lacks ${missing.join(', ')}: run npm run build and npm run build:types`);
-  const leaked = FORBIDDEN.filter((path) => paths.has(path));
-  if (leaked.length > 0) fail(`the tarball holds ${leaked.join(', ')}, which is this machine's state`);
+  const leaked = FORBIDDEN.filter(({ path }) => paths.has(path));
+  if (leaked.length > 0) fail(`the tarball holds ${leaked.map(({ path, why }) => `${path} (${why})`).join(', ')}`);
   for (const { pattern, why } of FORBIDDEN_PATTERNS) {
     const found = [...paths].filter((path) => pattern.test(path));
     if (found.length > 0) fail(`the tarball holds ${found.slice(0, 3).join(', ')}${found.length > 3 ? ` and ${found.length - 3} more` : ''}: ${why}`);
   }
+  const dangling = unresolvedReferences(paths);
+  if (dangling.length > 0) fail(`files in the tarball name files it does not hold: ${dangling.slice(0, 5).join('; ')}${dangling.length > 5 ? `; and ${dangling.length - 5} more` : ''}`);
+  const builtins = nodeBuiltinsReached(paths);
+  if (builtins.length > 0) fail(`the browser-safe entries reach a Node built-in through ${builtins.join(', ')}`);
+  if (packed.size > MAX_PACKED) fail(`the tarball packs to ${mb(packed.size)}, over the ${mb(MAX_PACKED)} the package may weigh`);
 
   // 2. Install it into an empty project, as a user would, asking the helper
   //    installer for nothing.
@@ -153,13 +344,13 @@ function check(dir) {
   const env = { ...process.env };
   delete env.NAPKIN_AI_HELPER;
   npm(['install', join(dir, packed.filename), '--no-audit', '--no-fund', '--no-package-lock'], project, env);
-  const installed = join(project, 'node_modules', 'napkin-sketch');
+  const installed = join(project, 'node_modules', '@isocialpractice', 'napkin-sketch');
   if (existsSync(join(project, 'node_modules', 'electron'))) fail('the install brought electron with it');
   // No runtime dependencies: none named, and nothing installed beside the package.
   const manifest = JSON.parse(readFileSync(join(installed, 'package.json'), 'utf-8'));
   const named = DEPENDENCY_FIELDS.filter((field) => manifest[field] !== undefined && Object.keys(manifest[field]).length > 0);
   if (named.length > 0) fail(`the package names ${named.map((field) => `${field} (${Object.keys(manifest[field]).join(', ')})`).join(' and ')}: it promises none`);
-  const beside = readdirSync(join(project, 'node_modules')).filter((name) => !name.startsWith('.') && name !== 'napkin-sketch');
+  const beside = readdirSync(join(project, 'node_modules')).filter((name) => !name.startsWith('.') && name !== '@isocialpractice');
   if (beside.length > 0) fail(`the install brought ${beside.join(', ')} with it`);
   const bin = join(project, 'node_modules', '.bin', process.platform === 'win32' ? 'napkin-sketch.cmd' : 'napkin-sketch');
   if (!existsSync(bin)) fail(`the install made no ${bin}`);
@@ -204,8 +395,8 @@ function check(dir) {
   writeFileSync(
     join(project, 'check.mjs'),
     [
-      "import { drawSvg } from 'napkin-sketch';",
-      "import { drawToFiles } from 'napkin-sketch/node';",
+      "import { drawSvg } from '@isocialpractice/napkin-sketch';",
+      "import { drawToFiles } from '@isocialpractice/napkin-sketch/node';",
       `const script = ${JSON.stringify(SCRIPT)};`,
       'const { ok, svg } = drawSvg(script);',
       "const result = await drawToFiles(script, { out: 'lib-out', formats: ['svg', 'png'] });",
@@ -224,8 +415,8 @@ function check(dir) {
   writeFileSync(
     join(project, 'engines.mjs'),
     [
-      `import { drawSvg, PENCIL_GRADES, ${ENGINES.join(', ')} } from 'napkin-sketch';`,
-      "import 'napkin-sketch/markdown';",
+      `import { drawSvg, PENCIL_GRADES, ${ENGINES.join(', ')} } from '@isocialpractice/napkin-sketch';`,
+      "import '@isocialpractice/napkin-sketch/markdown';",
       `const drawn = drawSvg(${JSON.stringify(ENGINE_SCRIPT)});`,
       'const square = (x, y, s) => [[{ x, y }, { x: x + s, y }, { x: x + s, y: y + s }, { x, y: y + s }]];',
       'const answers = [',
@@ -253,15 +444,88 @@ function check(dir) {
   if (!engines.answers || !engines.named) fail(`the engines did not answer by name: ${run.stdout}`);
 
   console.log(
-    `pack-check: ${packed.filename} (${packed.entryCount} files) installs alone, with no dependencies, and draws: ` +
+    `pack-check: ${packed.filename} (${packed.entryCount} files, ${mb(packed.size)} packed, ${mb(packed.unpackedSize)} unpacked) installs alone, with no dependencies, and draws: ` +
       `${report.files[0].path} from the command line, and ${styled.files[0].path} with a composition style, ` +
       `${library.files.join(' and ')} from the entries, and the engines' verbs and ${ENGINES.length} engines by name.`,
+  );
+  return { project, installed };
+}
+
+/**
+ * Lays out the desktop app's package, packs it and reads the tarball, then
+ * installs it beside the API's package in `project` without Electron's
+ * download and asks the command line `installed` holds what it finds; throws,
+ * saying why, at the first thing wrong.
+ */
+function checkGui(dir, { project, installed }) {
+  // 1. Lay it out, pack it, and read what went in.
+  const laid = spawnSync(process.execPath, [join(root, 'scripts', 'pack-gui.mjs')], { cwd: root, encoding: 'utf-8' });
+  if (laid.status !== 0) fail(`npm run pack-gui failed:\n${laid.stderr || laid.stdout}`);
+  const guiDir = join(root, 'release', 'gui');
+  const [packed] = JSON.parse(npm(['pack', '--json', '--pack-destination', dir], guiDir));
+  const paths = new Set(packed.files.map((file) => file.path));
+  const missing = GUI_REQUIRED.filter((path) => !paths.has(path));
+  if (missing.length > 0) fail(`the app's tarball lacks ${missing.join(', ')}: run npm run build and npm run site`);
+  for (const { pattern, why } of GUI_FORBIDDEN_PATTERNS) {
+    const found = [...paths].filter((path) => pattern.test(path));
+    if (found.length > 0) fail(`the app's tarball holds ${found.slice(0, 3).join(', ')}${found.length > 3 ? ` and ${found.length - 3} more` : ''}: ${why}`);
+  }
+  const dangling = unresolvedReferences(paths, guiDir);
+  if (dangling.length > 0) fail(`files in the app's tarball name files it does not hold: ${dangling.slice(0, 5).join('; ')}${dangling.length > 5 ? `; and ${dangling.length - 5} more` : ''}`);
+  const own = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
+  const manifest = JSON.parse(readFileSync(join(guiDir, 'package.json'), 'utf-8'));
+  if (manifest.name !== GUI_PACKAGE || manifest.version !== own.version) fail(`the app's package is ${manifest.name}@${manifest.version}, not ${GUI_PACKAGE}@${own.version}`);
+  const electron = own.devDependencies.electron;
+  if (JSON.stringify(manifest.dependencies) !== JSON.stringify({ electron })) fail(`the app's package depends on ${JSON.stringify(manifest.dependencies)}, not on electron ${electron} alone`);
+  if (manifest.bin !== undefined) fail("the app's package names a bin: the API's command line starts it");
+  const app = JSON.parse(readFileSync(join(guiDir, 'dist', 'main', 'package.json'), 'utf-8'));
+  if (app.name !== 'napkin-sketch' || app.version !== own.version) fail(`dist/main/package.json names the app ${app.name}@${app.version}, not napkin-sketch@${own.version}`);
+  if (packed.size > MAX_GUI_PACKED) fail(`the app's tarball packs to ${mb(packed.size)}, over the ${mb(MAX_GUI_PACKED)} it may weigh`);
+
+  // 2. Before it is installed, the command line says so, and opens nothing.
+  const cli = join(installed, 'dist', 'cli', 'index.js');
+  const env = { ...process.env };
+  delete env.ELECTRON_OVERRIDE_DIST_PATH;
+  delete env.ELECTRON_RUN_AS_NODE;
+  const ask = (args, extra = {}) => spawnSync(process.execPath, [cli, ...args], { cwd: project, env: { ...env, ...extra }, encoding: 'utf-8', timeout: 60_000 });
+  const before = ask(['--version']);
+  if (before.status !== 0 || !/^desktop app: not installed; napkin-sketch --install-gui adds it/m.test(before.stdout)) {
+    fail(`napkin-sketch --version did not say the app is not installed:\n${before.stdout}${before.stderr}`);
+  }
+  const absent = ask(['--new', 'pack-check']);
+  if (absent.status !== 1 || !/the desktop app is not installed\. Run: napkin-sketch --install-gui/.test(absent.stderr)) {
+    fail(`napkin-sketch --new did not say the app is not installed:\n${absent.stdout}${absent.stderr}`);
+  }
+
+  // 3. Install it beside the API's package, as --install-gui --here does,
+  //    with install scripts off: Electron's package, not its download.
+  npm(['install', join(dir, packed.filename), '--ignore-scripts', '--prefer-offline', '--no-audit', '--no-fund', '--no-package-lock'], project, env);
+  const folder = join(project, 'node_modules', ...GUI_PACKAGE.split('/'));
+  if (!existsSync(join(project, 'node_modules', 'electron', 'package.json'))) fail('installing the app brought no electron package');
+
+  // 4. The command line finds it at the version they share, without
+  //    touching Electron, whose package downloads a missing binary when it is
+  //    required. Told the binary is in a folder that holds none, the package
+  //    answers a path that is not there, which is what an unfinished download
+  //    looks like, and the command says so rather than starting anything.
+  const after = ask(['--version']);
+  const found = after.stdout.split(/\r?\n/)[1];
+  if (after.status !== 0 || found !== `desktop app: ${own.version} at ${folder}`) fail(`napkin-sketch --version did not find the app at ${folder}:\n${after.stdout}${after.stderr}`);
+  if (after.stderr !== '') fail(`napkin-sketch --version warned about an app at its own version:\n${after.stderr}`);
+  const open = ask(['--new', 'pack-check'], { ELECTRON_OVERRIDE_DIST_PATH: join(dir, 'no-electron') });
+  if (open.status !== 1 || !/Electron's download did not finish \(.*no-electron.* is not there\): run napkin-sketch --install-gui again/.test(open.stderr)) {
+    fail(`napkin-sketch --new did not say Electron's download did not finish:\n${open.stdout}${open.stderr}`);
+  }
+
+  console.log(
+    `pack-check: ${packed.filename} (${packed.entryCount} files, ${mb(packed.size)} packed, ${mb(packed.unpackedSize)} unpacked) installs beside it with electron ${electron}, ` +
+      `and the installed command line finds it at ${own.version} and starts nothing without Electron's binary.`,
   );
 }
 
 const dir = mkdtempSync(join(tmpdir(), 'napkin-pack-check-'));
 try {
-  check(dir);
+  checkGui(dir, check(dir));
 } catch (err) {
   console.error(`pack-check: ${err.message}`);
   process.exitCode = 1;

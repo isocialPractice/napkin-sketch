@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -75,6 +75,14 @@ handle on each corner and the middle of each side, and scales it by dragging
 one. The box stays up while it is in use — press <code>Ctrl+T</code> again or <code>Escape</code> to
 put it away — and a press anywhere off a handle still belongs to the tool
 underneath, so the selection can be changed without dismissing the box first.</p>
+<p><strong>It comes up by itself.</strong> With <strong>Transform box on selection</strong> on, as it is
+to begin with (a switch in Quick Settings and in Verbose Settings), the box
+appears around whatever the Select tool selects and goes when nothing is
+selected or another tool is taken; <code>Escape</code> or <code>Ctrl+T</code> put it away for that
+selection, and the next selection brings it back. A 3D mark keeps its
+gumball, which the box would hide, and a path text's brackets, which stand
+where the box's handles do, are what a press on them grabs. Off, the box is
+put up by hand, as above.</p>
 <ul>
 <li><strong>The handle decides which axes move.</strong> A left or right handle scales across,
 a top or bottom handle scales down, and a corner scales both — each axis by

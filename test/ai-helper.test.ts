@@ -39,7 +39,7 @@ function repoRoot(): string {
   let dir = process.cwd();
   for (let i = 0; i < 6; i++) {
     const pkg = join(dir, 'package.json');
-    if (existsSync(pkg) && JSON.parse(readFileSync(pkg, 'utf-8')).name === 'napkin-sketch') {
+    if (existsSync(pkg) && /^(@isocialpractice\/)?napkin-sketch$/.test(JSON.parse(readFileSync(pkg, 'utf-8')).name)) {
       return dir;
     }
     const up = dirname(dir);
@@ -361,5 +361,58 @@ test('the installer registry and the app registry agree', () => {
     for (const file of [...helper.commands, ...helper.agents, ...helper.instructions]) {
       assert.ok(script.includes(`'${file}'`), `install-ai-helper.mjs does not list ${file}`);
     }
+  }
+});
+
+test('a skill whose reference files the npm package leaves out names each one by URI, at the tag of this version', () => {
+  // The package ships each such folder's uri.md and not the files themselves,
+  // so a file added without a line, or a version bumped without the list, is a
+  // skill pointing a tool at nothing. `npm run ai-helper -- --to plugin`
+  // writes the lists; this holds them to the folders and the version.
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8')) as { version: string; repository?: string | { url?: string } };
+  const url = typeof pkg.repository === 'string' ? pkg.repository : (pkg.repository?.url ?? '');
+  const slug = /github\.com[/:]([^/]+\/[^/#]+?)(?:\.git)?(?:#.*)?$/.exec(url)?.[1];
+  assert.ok(slug, 'package.json names the repository on GitHub');
+  let named = 0;
+  for (const helper of AI_HELPERS) {
+    for (const skill of helper.skills) {
+      const assetsDir = `${helper.dir}/skills/${skill}/assets`;
+      const assets = join(ROOT, ...assetsDir.split('/'));
+      const uri = join(assets, 'uri.md');
+      const files = existsSync(assets) ? readdirSync(assets).filter((file) => /\.(svg|png|json)$/.test(file)).sort() : [];
+      if (files.length === 0) {
+        assert.ok(!existsSync(uri), `${assetsDir}/uri.md names nothing: run npm run ai-helper -- --to plugin`);
+        continue;
+      }
+      assert.ok(existsSync(uri), `${assetsDir} holds files the package leaves out, and no uri.md: run npm run ai-helper -- --to plugin`);
+      const lines = [...readFileSync(uri, 'utf-8').replace(/\r\n/g, '\n').matchAll(/^- ([^:\n]+): (\S+)$/gm)];
+      assert.deepEqual(
+        lines.map((line) => line[1]),
+        files,
+        `${assetsDir}/uri.md names exactly the files beside it: run npm run ai-helper -- --to plugin`,
+      );
+      for (const [, file, address] of lines) {
+        assert.equal(address, `https://raw.githubusercontent.com/${slug}/v${pkg.version}/${assetsDir}/${file}`, `${file} is addressed at the tag of this version`);
+      }
+      named += files.length;
+    }
+  }
+  assert.ok(named > 0, 'some skill has reference files to name');
+});
+
+test('every plugin says it is experimental, in the marketplace and in its own manifest', () => {
+  // The label is one word the user scans for; a plugin that loses it in one
+  // place and keeps it in the other is a listing that contradicts itself.
+  const marketplace = JSON.parse(readFileSync(join(ROOT, '.claude-plugin', 'marketplace.json'), 'utf-8')) as {
+    description: string;
+    plugins: { name: string; description: string }[];
+  };
+  assert.match(marketplace.description, /\bExperimental\b/, 'the marketplace says so');
+  for (const helper of AI_HELPERS) {
+    const entry = marketplace.plugins.find((plugin) => plugin.name === helper.name);
+    assert.ok(entry, `the marketplace lists ${helper.name}`);
+    assert.match(entry.description, /^Experimental\./, `the marketplace's ${helper.name} entry starts with Experimental.`);
+    const manifest = JSON.parse(readFileSync(join(ROOT, helper.dir, '.claude-plugin', 'plugin.json'), 'utf-8')) as { description: string };
+    assert.match(manifest.description, /^Experimental\./, `${helper.name}'s plugin.json starts with Experimental.`);
   }
 });

@@ -200,7 +200,7 @@
         <main id="stage" class="stage">
           <!-- Animation Mode banner: mode indicator + required-layer status -->
           <div id="animation-banner" class="animation-banner is-hidden" role="status" aria-live="polite">
-            <span class="animation-banner-title">Animation Mode</span>
+            <span class="animation-banner-title">Animation Mode (experimental)</span>
             <span id="animation-status" class="animation-status"></span>
             <button id="animation-generate" class="btn btn-primary" type="button" title="Generate animation frames with the configured AI helper">Generate…</button>
             <button id="animation-exit" class="btn btn-ghost" type="button" data-command="toggle-animation" title="Exit Animation Mode ({key})">Exit</button>
@@ -372,6 +372,12 @@
             <input id="qs-show-selection-borders" type="checkbox" checked />
             <span class="switch-track" aria-hidden="true"></span>
             <span class="switch-text">Show selection borders</span>
+          </label>
+
+          <label class="switch settings-row" title="Put the Transform box up by itself around whatever the Select tool selects. Off, Ctrl+T puts it up.">
+            <input id="qs-transform-on-select" type="checkbox" checked />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">Transform box on selection</span>
           </label>
 
           <label class="switch settings-row" title="Draw the triangle mesh over art being bent with Mesh Warp. Off, only the pins show.">
@@ -647,6 +653,7 @@
       <div id="anim-step2-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Animation setup">
         <div class="export-dialog-inner">
           <p class="export-dialog-title">Animation setup</p>
+          <p class="anim-dialog-note">Experimental: the frames are drawn by an AI tool you install and sign in to yourself, on your account and at its cost.</p>
           <p class="anim-dialog-msg">Frames are drawn one at a time as layers named <code>&lt;type&gt;_0</code>, <code>&lt;type&gt;_1</code>, and on; keep drawing for as long as the cycle needs.</p>
           <label class="settings-field">
             <span>Category</span>
@@ -1042,12 +1049,29 @@
       <!-- Export page-selection dialog -->
       <div id="export-dialog" class="export-dialog is-hidden" role="dialog" aria-modal="true" aria-label="Export options">
         <div class="export-dialog-inner">
-          <p class="export-dialog-title">Export as <strong id="export-fmt">PNG</strong></p>
+          <p class="export-dialog-title"><span id="export-scope">Export</span> as <strong id="export-fmt">PNG</strong></p>
+          <!-- A PNG's background: what goes under the ink. The other formats have none to choose. -->
+          <div id="export-background" class="export-background is-hidden" role="radiogroup" aria-label="Background">
+            <span class="export-background-label">Background</span>
+            <label class="choice-row" title="Nothing under the ink, so the picture drops into another composition">
+              <input type="radio" name="export-background" value="transparent" checked />
+              <span class="choice-text"><strong>Transparent</strong></span>
+            </label>
+            <label class="choice-row" title="Plain white under the ink">
+              <input type="radio" name="export-background" value="white" />
+              <span class="choice-text"><strong>White</strong></span>
+            </label>
+            <label class="choice-row" title="Plain black under the ink">
+              <input type="radio" name="export-background" value="black" />
+              <span class="choice-text"><strong>Black</strong></span>
+            </label>
+          </div>
           <div class="export-dialog-actions">
             <button id="export-page-btn" class="btn btn-primary" type="button">
               Export Page <span id="export-page-label">1</span>
             </button>
             <button id="export-all-btn" class="btn" type="button">Export All Pages</button>
+            <button id="export-selection-btn" class="btn btn-primary is-hidden" type="button">Export Selection</button>
             <button id="export-cancel-btn" class="btn btn-ghost" type="button">Cancel</button>
           </div>
         </div>

@@ -83,7 +83,7 @@ each menu takes and holds:
 | Effect | `effect`, `Modify:effect`, `Add:effect` | Apply Last Effect; Last Effect…; Blur: Gaussian Blur…; Adjust Colors: Brightness…, Contrast…, Saturate…, Grayscale…, Sepia…, Invert…, Hue Rotate…, Opacity…; Stylize: Feather…, Outer Shadow…, Inner Shadow…, Outer Glow…, Inner Glow…, Bevel…, Emboss…, Splatter…; Warp: Arc…, Arch…, Unroll…, Shell…, Windy…, Breezy…, Curvy…, Chart…, Puffy…, Expand…, Cram…, Twirl…; 3D: Extrude…, Revolve…, 3D Options; Expand Appearance; Clear Appearance |
 | Type | `type`, `Modify:type`, `Convert:type` | Font; Size: 6 pt, 7 pt, 8 pt, 9 pt, 10 pt, 11 pt, 12 pt, 14 pt, 18 pt, 21 pt, 24 pt, 36 pt, 48 pt, 60 pt, 72 pt, Other; Character…; Paragraph…; Text Configurations…; Type on a Path: Type on a Path Options…, Flip; Type Orientation: Horizontal, Vertical; Area Type Options…; Markdown Flow; Clean Language Accents: Apply…, Remove Accents, Languages…; Expand Text to Shape |
 | Sketch | `sketch`, `Add:mark`, `Modify:vector`, `Subtract:mark` | Brush; Marker; Eraser; Shape Eraser; Shape Stacker; Split; Apply Erasers; Text; Copic; Pencil; Smear; Direct; Stroke Profile…; Fill in Front; Swap Fill and Stroke |
-| Layers | `layers`, `Add:layer`, `Modify:layer`, `Subtract:layer` | Add Layer; Group Layer; Ungroup; Rename; Delete Layer; Move Layer: Layer Up, Layer Down; Clipping Mask: Make, Release; Blend: Next Blend Mode, Previous Blend Mode, Normal, Soak Blend (Darken), Stack Blend (Multiply), Scorch Blend (Color Burn), Dry Blend (Lighten), Sheer Blend (Screen), Bleach Blend (Color Dodge), Fold Blend (Overlay), Light Blend (Soft Light), Heavy Blend (Hard Light), Messy Blend (Difference), Avoidance Blend (Exclusion), Tidy Blend (Hue), Bright Blend (Saturation), Dye Blend (Color), Cover Blend (Luminosity), Isolate Blending; Hide Layers Panel |
+| Layers | `layers`, `Add:layer`, `Modify:layer`, `Subtract:layer` | Add Layer; Group Layer; Ungroup; Rename; Delete Layer; Move Layer: Layer Up, Layer Down, Layer to Top, Layer to Bottom; Select Layer: Layer Above, Layer Below; Clipping Mask: Make, Release; Blend: Next Blend Mode, Previous Blend Mode, Normal, Soak Blend (Darken), Stack Blend (Multiply), Scorch Blend (Color Burn), Dry Blend (Lighten), Sheer Blend (Screen), Bleach Blend (Color Dodge), Fold Blend (Overlay), Light Blend (Soft Light), Heavy Blend (Hard Light), Messy Blend (Difference), Avoidance Blend (Exclusion), Tidy Blend (Hue), Bright Blend (Saturation), Dye Blend (Color), Cover Blend (Luminosity), Isolate Blending; Hide Layers Panel |
 | Pages | `pages` | Add Page: Default New Page, Custom New Page…, From Selection; Delete Page; Previous Page; Next Page; Page Settings…; Hide Pages Panel |
 | Automate | `automate`, `automate:mixed` | Generate Script: From Media File…, Selected Layers…, From Session History…; Track History; History Limit… |
 | Help | `help` | Verbose; Tool Types: Transform, Draw, Pages, Layers, Automate, Effect, Type; Source Code; Source Docs (once the site is published); About napkin-sketch |
@@ -114,7 +114,7 @@ changes a tool's type, and so the menus that list it.
 | Select All | Edit | `Ctrl+A` |  |
 | Deselect All | Canvas right-click menu | `Ctrl+Shift+A` |  |
 | Verbose Settings | Edit | `Ctrl+Alt+,` |  |
-| Animation Mode | Edit | `Ctrl+Shift+N` | An optional add-on |
+| Animation Mode | Edit | `Ctrl+Shift+N` | Experimental: an optional add-on that draws frames with an AI tool you install and sign in to yourself |
 | Toggle Pages Panel | View | `Ctrl+B` |  |
 | Toggle Layers Panel | View | `Ctrl+L` |  |
 | Toggle Properties Panel | View | `Ctrl+P` |  |
@@ -159,6 +159,10 @@ changes a tool's type, and so the menus that list it.
 | Rename Layer | Layers | `F2` | Or double-click the layer row |
 | Layer Up | Layers > Move Layer | `Ctrl+]` |  |
 | Layer Down | Layers > Move Layer | `Ctrl+[` |  |
+| Layer to Top | Layers > Move Layer | `Ctrl+Shift+]` | To the top of its group, with the Layers panel open |
+| Layer to Bottom | Layers > Move Layer | `Ctrl+Shift+[` | To the bottom of its group, with the Layers panel open |
+| Layer Above | Layers > Select Layer | `Alt+]` | The row above the active one, as the Layers panel shows them |
+| Layer Below | Layers > Select Layer | `Alt+[` | The row below the active one, as the Layers panel shows them |
 | Make Clipping Mask | Layers > Clipping Mask | `Ctrl+7` | Groups the selection; it shows only inside the closed path on top |
 | Release Clipping Mask | Layers > Clipping Mask | `Ctrl+Alt+7` | Takes the clip off; the group stays a group |
 | Next Blend Mode | Layers > Blend | `Shift++` | Steps the selected layers to the next mode, as a photo editor's Shift+Plus does |

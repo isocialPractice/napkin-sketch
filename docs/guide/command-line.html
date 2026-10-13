@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -47,7 +47,7 @@
 <thead><tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th></tr></thead>
 <tbody>
 <tr><td style="text-align:left"><code>-h, --help</code></td><td style="text-align:left">Show help for using the application from the command line.</td></tr>
-<tr><td style="text-align:left"><code>-v, --version</code></td><td style="text-align:left">Show the current version of the application.</td></tr>
+<tr><td style="text-align:left"><code>-v, --version</code></td><td style="text-align:left">Show the current version, and where the desktop app is.</td></tr>
 <tr><td style="text-align:left"><code>-b, --book</code></td><td style="text-align:left">Open a saved sketch book file, using the <code>.skbk</code> extension.</td></tr>
 <tr><td style="text-align:left"><code>-n, --new</code></td><td style="text-align:left">New sketch, using <code>unnamed</code> or the name passed as <code>[target]</code>.</td></tr>
 <tr><td style="text-align:left"><code>-f, --full-screen</code></td><td style="text-align:left">Open the GUI window full screen; the default window is maximized.</td></tr>
@@ -55,8 +55,14 @@
 <tr><td style="text-align:left"><code>-i, --import</code></td><td style="text-align:left">Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch.</td></tr>
 <tr><td style="text-align:left"><code>-m, --multiple-imports</code></td><td style="text-align:left">Import a comma-separated list of files, laid out in a grid.</td></tr>
 <tr><td style="text-align:left"><code>--sharpen</code></td><td style="text-align:left">Auto-sharpen a saved sketch so it appears more hand-drawn, then open.</td></tr>
+<tr><td style="text-align:left"><code>--install-gui</code></td><td style="text-align:left">Install the desktop app and Electron, about 100 MB, at this version.</td></tr>
+<tr><td style="text-align:left"><code>--uninstall-gui</code></td><td style="text-align:left">Remove the desktop app.</td></tr>
+<tr><td style="text-align:left"><code>--here</code></td><td style="text-align:left">With either of the two above: into, or out of, the current project.</td></tr>
 <tr><td style="text-align:left"><code>[target]</code></td><td style="text-align:left">A <code>.skbk</code> file to open, or a name for a new sketch file.</td></tr>
 </tbody></table></div>
+<p>Installed from npm, the command has no window until <code>--install-gui</code> adds the
+desktop app, a second package with Electron in it; see
+<a href="../install.html#from-npm">From npm</a>. The commands below never need it.</p>
 <p>The GUI window opens maximized by default, which is not the same as full
 screen: a maximized window fills the screen while keeping the title bar and its
 minimize, restore-down, and close buttons in view, and restore-down returns it
@@ -87,7 +93,10 @@ the AI helper gave back no script.
 <a href="../api/cli/index.html">The napkin-sketch command line</a> has every option,
 and callers in five languages.</p>
 <h3 id="examples">Examples<a class="anchor" href="#examples" aria-label="Link to this section">#</a></h3>
-<pre><code class="language-bash"># Open a new, blank sketch
+<pre><code class="language-bash"># Add the desktop app to a command installed from npm (about 100 MB)
+napkin-sketch --install-gui
+
+# Open a new, blank sketch
 napkin-sketch
 
 # New sketch named &quot;ideas&quot;

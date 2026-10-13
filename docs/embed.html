@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="index.html"><img src="assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -56,8 +56,8 @@ graphic (see <a href="api/compose/index.html">the graphic design API</a>).</li>
 with no Electron or Node dependencies. Use it on a website, in a WordPress
 block, or inside a VS Code webview.</p>
 <p>With a bundler (ESM):</p>
-<pre><code class="language-ts">import { NapkinSketch } from 'napkin-sketch';
-import 'napkin-sketch/styles.css';
+<pre><code class="language-ts">import { NapkinSketch } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/styles.css';
 
 const editor = new NapkinSketch(document.getElementById('host')!, {
   liveSharpen: false, // off by default, like the desktop app
@@ -73,15 +73,23 @@ const pdf = editor.toPDF();  // latin1-safe byte string; save with binary encodi
 layers' names: <code>editor.applyCompositionStyle(style)</code> applies one and gives the
 report, the rules that matched no layer among it. The editor's undo holds its
 marks, so a change to them can be undone, and a change to a layer cannot.</p>
-<p>Via a plain <code>&lt;script&gt;</code> tag (the IIFE build exposes a global <code>napkin</code>):</p>
-<pre><code class="language-html">&lt;div id=&quot;host&quot; style=&quot;width: 640px; height: 420px&quot;&gt;&lt;/div&gt;
-&lt;script src=&quot;node_modules/napkin-sketch/dist/embed/napkin-sketch.js&quot;&gt;&lt;/script&gt;
-&lt;script&gt;
-  const editor = new napkin.NapkinSketch(document.getElementById('host'));
+<p>With no bundler, a module script loads the same entry, and an import map
+gives the package its name on the page, so the import reads as it does in a
+bundled build. Serve the page over HTTP: a browser loads no module from a
+<code>file://</code> page.</p>
+<pre><code class="language-html">&lt;link rel=&quot;stylesheet&quot; href=&quot;node_modules/@isocialpractice/napkin-sketch/dist/renderer/styles.css&quot;&gt;
+&lt;div id=&quot;host&quot; style=&quot;width: 640px; height: 420px&quot;&gt;&lt;/div&gt;
+&lt;script type=&quot;importmap&quot;&gt;
+  { &quot;imports&quot;: { &quot;@isocialpractice/napkin-sketch&quot;: &quot;./node_modules/@isocialpractice/napkin-sketch/dist/api/index.js&quot; } }
+&lt;/script&gt;
+&lt;script type=&quot;module&quot;&gt;
+  import { NapkinSketch } from '@isocialpractice/napkin-sketch';
+
+  const editor = new NapkinSketch(document.getElementById('host'));
 &lt;/script&gt;</code></pre>
 <p>You can also import just the pure engine (no DOM) to sharpen strokes yourself,
 generate PDFs, or parse an SVG into layered strokes (browser only):</p>
-<pre><code class="language-ts">import { sharpenStrokes, parseSketchBook, sketchesToPdf, importSvg } from 'napkin-sketch';
+<pre><code class="language-ts">import { sharpenStrokes, parseSketchBook, sketchesToPdf, importSvg } from '@isocialpractice/napkin-sketch';
 
 // Nested groups and named objects come back as a nested layer tree. Pass
 // `unnamedElements: 'split'` to also give every unnamed element its own
@@ -89,9 +97,9 @@ generate PDFs, or parse an SVG into layered strokes (browser only):</p>
 const { width, height, layers } = importSvg(svgText, { unnamedElements: 'split' });</code></pre>
 <p>Or draw from written instructions, a napkin script, with no pointer and no
 DOM. The language is in the same browser-safe entry; reading and writing
-files is in <code>napkin-sketch/node</code>:</p>
-<pre><code class="language-ts">import { drawSvg } from 'napkin-sketch';
-import { drawFile } from 'napkin-sketch/node';
+files is in <code>@isocialpractice/napkin-sketch/node</code>:</p>
+<pre><code class="language-ts">import { drawSvg } from '@isocialpractice/napkin-sketch';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 const { svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60');
 const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png', 'pdf'] });</code></pre>
@@ -102,7 +110,7 @@ ES modules and CommonJS, the types and the result object.</p>
 script. Build a page out of simple elements - rectangles, circles, ellipses,
 triangles, polygons, lines, paths, text, placed media and clipping masks, with
 CSS filter effects on any of them - then render it to <strong>SVG</strong> or <strong>PNG</strong>.</p>
-<pre><code class="language-ts">import { createComposition } from 'napkin-sketch';
+<pre><code class="language-ts">import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
 

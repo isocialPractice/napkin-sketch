@@ -365,13 +365,19 @@ function withPageTurns(rows: Shape[]): Shape[] {
 
 test('the right-click menus and dropdowns are the old ones with exactly the documented changes', () => {
   const expected: Record<string, Shape[]> = {
-    // The new Layers menu: "Delete Layer", the two restack rows in a Move submenu, the
+    // The new Layers menu: "Delete Layer", the two restack rows in a Move submenu with
+    // the to-the-end rows after a rule, a Select submenu of the row above and below, the
     // Clipping Mask's two after it, and Blend's modes in Illustrator's families (since
     // 1.0.0-alpha.5.0.0). Hide gains a question that is never yes inside the open panel,
-    // and is there for the menu bar.
+    // and is there for the menu bar; the four Layers panel keys ask the same question.
     layers: replace(
       replace(
-        replace(replace(TODAY_LAYERS_PANEL, 'Delete Layer(s)', item('Delete Layer')), 'Move Layer(s) Up', sub('Move', [item('Layer Up'), item('Layer Down')])),
+        replace(
+          replace(TODAY_LAYERS_PANEL, 'Delete Layer(s)', item('Delete Layer')),
+          'Move Layer(s) Up',
+          sub('Move', [item('Layer Up'), item('Layer Down'), '---', item('Layer to Top', 'layersHidden'), item('Layer to Bottom', 'layersHidden')]),
+          sub('Select', [item('Layer Above', 'layersHidden'), item('Layer Below', 'layersHidden')]),
+        ),
         'Move Layer(s) Down',
         sub('Clipping Mask', [item('Make', 'noMarksSelected'), item('Release', 'noClipGroup')]),
         sub('Blend', BLEND_ROWS),
@@ -645,6 +651,12 @@ const MENU_BAR = [
   '  Move Layer',
   '    Layer Up (Ctrl+])',
   '    Layer Down (Ctrl+[)',
+  '    ---',
+  '    Layer to Top (Ctrl+Shift+])',
+  '    Layer to Bottom (Ctrl+Shift+[)',
+  '  Select Layer',
+  '    Layer Above (Alt+])',
+  '    Layer Below (Alt+[)',
   '  Clipping Mask',
   '    Make (Ctrl+7)',
   '    Release (Ctrl+Alt+7)',
@@ -914,6 +926,7 @@ test('the tools a user can move to another type are the ones the plan lists', ()
     'rename-layer',
     'delete-layer',
     'move-layer',
+    'select-layer',
     'clipping-mask',
     'layer-blend',
     'tool-select',
@@ -961,6 +974,7 @@ test("every shortcut can be changed but a role row's and a submenu's", () => {
     'type-orientation',
     'type-accents',
     'move-layer',
+    'select-layer',
     'clipping-mask',
     'layer-blend',
     'add-page',

@@ -2,7 +2,7 @@
 
 [API hub](../../../API.md) · [Reference](README.md) · [Quickstart](QUICKSTART.md) · **Cheatsheet**
 
-Reminders for the helpers and for an agent reading these pages: the commands, the files, the brand keys, and what a diagnostic asks of you.
+Reminders for the helpers, which are experimental, and for an agent reading these pages: the commands, the files, the brand keys, and what a diagnostic asks of you.
 
 ## Getting the helper
 

@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="index.html"><img src="assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -41,16 +41,51 @@
 <article class="content">
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Start</a> <span class="sep">/</span> <span aria-current="page">Install</span></nav>
 <h1 id="installation">Installation<a class="anchor" href="#installation" aria-label="Link to this section">#</a></h1>
-<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#desktop-app-recommended">Desktop app (recommended)</a></li><li><a href="#build-and-run-from-source-all-platforms">Build-and-run from source (all platforms)</a></li><li><a href="#troubleshooting-install-errors">Troubleshooting install errors</a></li></ul></details>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#at-a-glance">At a glance</a></li><li><a href="#from-npm">From npm</a></li><li><a href="#desktop-installers">Desktop installers</a></li><li><a href="#build-and-run-from-source-all-platforms">Build-and-run from source (all platforms)</a></li><li><a href="#troubleshooting-install-errors">Troubleshooting install errors</a></li></ul></details>
 <h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
 <ul>
+<li><strong>From npm</strong>: the command line and the API, with no Electron, and the
+desktop app when you want it, with <code>napkin-sketch --install-gui</code>.</li>
 <li><strong>Installable desktop app</strong> with a Start-menu/desktop shortcut and app icon
-(via electron-builder).</li>
+(via electron-builder), built from a clone.</li>
 </ul>
-<h2 id="desktop-app-recommended">Desktop app (recommended)<a class="anchor" href="#desktop-app-recommended" aria-label="Link to this section">#</a></h2>
-<p>The easiest way to install napkin-sketch is to build a native installer for
-your OS using <strong>electron-builder</strong>. Each command builds the project and then
-packages it into a platform installer placed in the <code>release/</code> folder.</p>
+<h2 id="from-npm">From npm<a class="anchor" href="#from-npm" aria-label="Link to this section">#</a></h2>
+<p>Requires <strong>Node.js 22.12 or newer</strong>, for both packages.</p>
+<pre><code class="language-bash">npm install -g @isocialpractice/napkin-sketch   # the command line and the API
+napkin-sketch --install-gui                      # the desktop app and Electron, about 100 MB
+napkin-sketch                                    # opens a new blank sketch</code></pre>
+<p>napkin-sketch is two packages on npm:</p>
+<ul>
+<li><strong><code>@isocialpractice/napkin-sketch</code></strong> is the <code>napkin-sketch</code> command, the API,
+the embeddable editor and the AI helpers, with no Electron: the drawing
+commands - <code>draw</code>, <code>check</code>, <code>render</code> and <code>verbs</code> - and the API run wherever
+Node does.</li>
+<li><strong><code>@isocialpractice/napkin-sketch-gui</code></strong> is the desktop app, with Electron as
+its one dependency. <code>napkin-sketch --install-gui</code> installs it globally at the
+command's own version, and <code>napkin-sketch</code> then opens it.</li>
+</ul>
+<p><code>napkin-sketch --version</code> says which app the command found, and where, and
+<code>napkin-sketch --uninstall-gui</code> removes it. In a project of your own, add
+<code>--here</code> to either, and the app goes into that project instead:</p>
+<pre><code class="language-bash">npm install @isocialpractice/napkin-sketch
+npx napkin-sketch --install-gui --here</code></pre>
+<p>If Electron's download is cut short, the next <code>napkin-sketch</code> finishes it,
+and if that fails too, <code>napkin-sketch --install-gui</code> installs it again. The
+app from npm has no <a href="guide/animation-mode.html">Animation Mode</a> yet: the
+add-on installs in a clone.</p>
+<p><strong>On Linux</strong>, the app can stop with the sandbox error under
+<a href="#linux-the-suid-sandbox-helper-binary-was-found-but-is-not-configured-correctly">Troubleshooting install errors</a>.
+Its fixes name a clone's Electron folder, <code>node_modules/electron/dist/</code>, run
+from the clone's root, and a <code>--here</code> install puts it in the same place under
+that project's root. A global install puts it under npm's global folder,
+which this prints:</p>
+<pre><code class="language-bash">echo &quot;$(npm root -g)/@isocialpractice/napkin-sketch-gui/node_modules/electron/dist&quot;</code></pre>
+<p><code>napkin-sketch --no-sandbox</code> is the third fix there, for development only.</p>
+<h2 id="desktop-installers">Desktop installers<a class="anchor" href="#desktop-installers" aria-label="Link to this section">#</a></h2>
+<p>A native installer, with a Start-menu or desktop shortcut and the app's icon,
+is built from a clone with <strong>electron-builder</strong>. Each command builds the
+project and then packages it into a platform installer placed in the
+<code>release/</code> folder.</p>
 <h3 id="windows">Windows<a class="anchor" href="#windows" aria-label="Link to this section">#</a></h3>
 <pre><code class="language-bash">npm install
 npm run dist:win</code></pre>
@@ -89,8 +124,6 @@ npm start          # builds then opens a new blank sketch</code></pre>
 npm run build
 npm link
 napkin-sketch      # launches from anywhere</code></pre>
-<p>Once published to npm it can be installed directly:</p>
-<pre><code class="language-bash">npm install -g napkin-sketch</code></pre>
 <h2 id="troubleshooting-install-errors">Troubleshooting install errors<a class="anchor" href="#troubleshooting-install-errors" aria-label="Link to this section">#</a></h2>
 <p>Both errors below happen after <code>npm run build</code> has finished: the build is
 fine, and it is starting Electron that fails.</p>

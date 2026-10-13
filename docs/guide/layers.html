@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -58,9 +58,10 @@ cuts the selected marks, or every mark it touches, wherever they are, and
 adds no layer. The panel is <strong>in view by
 default</strong>, <strong>resizable</strong> (drag its inner edge), and offers a <strong>right-click
 menu</strong> with the menu bar's <strong>Layers</strong> rows (Add Layer, Group Layer, Ungroup,
-Rename, Delete Layer, a <strong>Move</strong> submenu of Layer Up and Layer Down, a
-<strong>Clipping Mask</strong> submenu of Make and Release, a <strong>Blend</strong> submenu of the
-blend modes, Hide Layers Panel) and the clipboard rows between them.</li>
+Rename, Delete Layer, a <strong>Move</strong> submenu of Layer Up, Layer Down, Layer to
+Top and Layer to Bottom, a <strong>Select</strong> submenu of Layer Above and Layer
+Below, a <strong>Clipping Mask</strong> submenu of Make and Release, a <strong>Blend</strong> submenu
+of the blend modes, Hide Layers Panel) and the clipboard rows between them.</li>
 <li><strong>Layer groups</strong> — <code>Ctrl+G</code> groups the active layer (nesting allowed);
 group visibility, lock, and opacity apply to every layer inside, and
 <code>Ctrl+Shift+G</code> ungroups.</li>
@@ -77,7 +78,11 @@ active one; the selection keeps its own order, unselected rows keep theirs,
 and a row that has reached the end of the stack holds the ones behind it
 rather than letting them pile through. A <strong>selected group travels as a
 block</strong>, carrying everything nested inside it, and a layer only moves among
-its own siblings, so it never leaks out of the group it lives in.</li>
+its own siblings, so it never leaks out of the group it lives in.
+<code>Ctrl+Shift+]</code> and <code>Ctrl+Shift+[</code> take the selection to the top or the
+bottom of its group in one step, and <code>Alt+]</code> and <code>Alt+[</code> make the row
+above or below the active one the selection, as the panel shows its rows;
+these four answer to the Layers panel, and ask for it when it is hidden.</li>
 <li><strong>Properties panel</strong> (<code>Ctrl + P</code>) - element-level editing for whatever is
 selected on the canvas or highlighted in the Layers panel: <strong>Position</strong>
 (X / Y in <code>px</code>, <code>in</code>, <code>mm</code>, or <code>pt</code>), <strong>Appearance</strong> (fill color, no

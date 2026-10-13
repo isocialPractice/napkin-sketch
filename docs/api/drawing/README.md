@@ -84,7 +84,7 @@ body keep a pass to itself.
 ### Running a script
 
 ```ts
-import { evaluate, renderSketch } from 'napkin-sketch';
+import { evaluate, renderSketch } from '@isocialpractice/napkin-sketch';
 
 const { ok, book, diagnostics, stats, output } = evaluate(text, { name: 'card' });
 const svg = renderSketch(book.sketches[0], output);
@@ -118,7 +118,7 @@ at all, since it may mean something this build would draw differently.
 
 `drawSvg(source, options)` runs a script and gives back its first page as SVG
 in one call, and in Node, `drawFile` and `drawToFiles` from
-`napkin-sketch/node` run one and write every format to files; see
+`@isocialpractice/napkin-sketch/node` run one and write every format to files; see
 [Using napkin-sketch from code](../node/README.md).
 
 `runScript(script, sink)` runs a checked script against any `ScriptSink`: an
@@ -849,13 +849,13 @@ text "# Acme Corp\n\nSales are **up**:\n\n- Widgets\n- Gadgets" at 40 300 size 1
 ```
 
 The browser-safe entry reads Markdown with the lexer it is given, so the core
-holds no Markdown reader of its own. Import `napkin-sketch/markdown` once to
-give it marked's; the command line and `napkin-sketch/node` read with it
+holds no Markdown reader of its own. Import `@isocialpractice/napkin-sketch/markdown` once to
+give it marked's; the command line and `@isocialpractice/napkin-sketch/node` read with it
 already:
 
 ```js
-import { drawSvg } from 'napkin-sketch';
-import { markdownToType } from 'napkin-sketch/markdown';
+import { drawSvg } from '@isocialpractice/napkin-sketch';
+import { markdownToType } from '@isocialpractice/napkin-sketch/markdown';
 
 const { svg } = drawSvg('napkin 1\ntext "# Notes\\n\\n- one" at 40 60 markdown\n');
 markdownToType('**Acme** Corp').text; // 'Acme Corp'
@@ -873,13 +873,13 @@ accent python
 text "def total(prices):\n    return sum(prices)  # in cents" at 40 380
 ```
 
-The highlighter comes the way the lexer does: `napkin-sketch/markdown` gives
+The highlighter comes the way the lexer does: `@isocialpractice/napkin-sketch/markdown` gives
 the API highlight.js with its 36 common languages, and
 `registerAccentLanguage` installs any other of its 193:
 
 ```js
-import { accentRuns } from 'napkin-sketch';
-import { registerAccentLanguage } from 'napkin-sketch/markdown';
+import { accentRuns } from '@isocialpractice/napkin-sketch';
+import { registerAccentLanguage } from '@isocialpractice/napkin-sketch/markdown';
 import fortran from 'highlight.js/lib/languages/fortran';
 
 registerAccentLanguage('fortran', fortran);
@@ -1200,7 +1200,7 @@ rect 10 10 380 230 r 22
 ```
 
 ```ts
-import { evaluate, renderSketch } from 'napkin-sketch';
+import { evaluate, renderSketch } from '@isocialpractice/napkin-sketch';
 
 const result = evaluate(card, { name: 'card' });
 if (!result.ok) throw new Error('the card has errors');

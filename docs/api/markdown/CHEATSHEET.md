@@ -8,9 +8,9 @@ Reminders for the Markdown and code readers: the entry, the calls that read with
 
 | Import | Does |
 | --- | --- |
-| `import 'napkin-sketch/markdown'` | Gives `napkin-sketch` marked's lexer and highlight.js with 36 languages |
-| `import { markdownToType } from 'napkin-sketch/markdown'` | Markdown read with marked's lexer |
-| `import { registerAccentLanguage } from 'napkin-sketch/markdown'` | One more of highlight.js's 193 languages |
+| `import '@isocialpractice/napkin-sketch/markdown'` | Gives `@isocialpractice/napkin-sketch` marked's lexer and highlight.js with 36 languages |
+| `import { markdownToType } from '@isocialpractice/napkin-sketch/markdown'` | Markdown read with marked's lexer |
+| `import { registerAccentLanguage } from '@isocialpractice/napkin-sketch/markdown'` | One more of highlight.js's 193 languages |
 
 ## Markdown Flow
 

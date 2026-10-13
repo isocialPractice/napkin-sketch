@@ -3,23 +3,25 @@
 [API hub](../../../API.md) · [Reference](README.md) · **Quickstart** · [Cheatsheet](CHEATSHEET.md)
 
 The engines behind the app's Eraser, Wipe Stacks, Split and Liquify run as
-plain functions; this is the path from a clone to a page combined and cut by a
-program, and written out as SVG.
+plain functions; this is the path from an install to a page combined and cut
+by a program, and written out as SVG.
 
 ## The whole thing in three steps
 
-1. Build the clone. The engines are used from `dist/`:
+1. Install the API, which holds the engines, in a folder of your own:
 
 ```bash
-npm install
-npm run build
+npm install @isocialpractice/napkin-sketch
 ```
 
-2. Save this as `engines.mjs` in the clone:
+   From a clone, `npm install` and `npm run build` build it, and the file
+   below goes in the clone.
+
+2. Save this as `engines.mjs` in that folder:
 
 ```js
 import { writeFile } from 'node:fs/promises';
-import { eraseMarks, eraseRegionOf, evaluate, renderSketch, wipeMarks } from 'napkin-sketch';
+import { eraseMarks, eraseRegionOf, evaluate, renderSketch, wipeMarks } from '@isocialpractice/napkin-sketch';
 
 // Two shapes drawn by a script: the marks the engines work on.
 const page = evaluate('napkin 1\npage 240 160\nfill #27486d\nrect 20 20 120 120\ncircle 140 80 60\n').book.sketches[0];
@@ -49,7 +51,7 @@ node engines.mjs
 The wipe left one shape, and the eraser cut it into two pieces of one mark.
 Nothing changed the page the script drew: each engine gave back its edit, and
 the program made it. Installed as a dependency instead, the same imports from
-`napkin-sketch` work the same way.
+`@isocialpractice/napkin-sketch` work the same way.
 
 ## Where to go next
 

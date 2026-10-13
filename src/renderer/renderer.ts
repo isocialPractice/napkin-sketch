@@ -68,7 +68,6 @@ import {
   assemblyPivot,
   buildAnimationForm,
   normalizeAnimationPrompt,
-  expandBounds,
   findAssemblyLayers,
   matchesAssembly,
   missingAssemblies,
@@ -149,7 +148,7 @@ import { DEFAULT_SMEAR_STRENGTH, mapSmudges, smearReaches, smudgeFor } from '../
 import { LIQUIFY_MODES, liquifyMarks, liquifyReaches, refitLiquified, type LiquifyDab, type LiquifyMode } from '../core/liquify.js';
 import { deleteParts, isSplittable, splitMark, splitTarget, type SplitPoint } from '../core/split.js';
 import { sketchesToPdf, type PdfOptions } from '../core/pdf.js';
-import { defaultSettings, type AppSettings, type QuickModifier } from '../core/settings.js';
+import { defaultSettings, isPngBackground, type AppSettings, type PngBackground, type QuickModifier } from '../core/settings.js';
 import {
   catmullRom,
   constrainDrag,
@@ -9552,6 +9551,9 @@ class App {
       taperEnds: s.sharpenTaperEnds,
     });
     el<HTMLInputElement>('qs-warp-show-mesh').checked = s.warpShowMesh;
+    el<HTMLInputElement>('qs-transform-on-select').checked = s.transformOnSelect;
+    // Transform box on selection, switched either way, acts on the selection as it stands.
+    this.scheduleSyncUi();
     // Scale Strokes and Effects: whether a transform takes them with the mark.
     this.store.scaleStrokesAndEffects = s.scaleStrokesAndEffects;
     // Use Preview Bounds: whether a mark's box and its hit area take in what its effects paint.
@@ -10151,6 +10153,13 @@ class App {
       this.scheduleRender();
       void this.saveSettings({ warpShowMesh });
     });
+    el<HTMLInputElement>('qs-transform-on-select').addEventListener('change', (e) => {
+      const transformOnSelect = (e.target as HTMLInputElement).checked;
+      this.settings = { ...this.settings, transformOnSelect };
+      this.transformDismissedFor = null;
+      this.scheduleSyncUi();
+      void this.saveSettings({ transformOnSelect });
+    });
     el<HTMLInputElement>('set-wobble').addEventListener('input', (e) => {
       const wobble = Number((e.target as HTMLInputElement).value);
       this.store.setSharpen({ wobble });
@@ -10248,46 +10257,110 @@ class App {
    * Shows the export dialog and returns the user's choice.
    * Resolves to 'page' (current page only), 'all' (every page), or null (cancelled).
    */
-  private showExportDialog(format: ExportFormat): Promise<'page' | 'all' | null> {
+  /**
+   * The Export dialog: the page in view or every page, or the selection; and
+   * for a PNG, what goes under the ink - nothing, white or black - which is
+   * remembered as the next PNG's starting choice. Null when cancelled.
+   */
+  private showExportDialog(
+    format: ExportFormat,
+    scope: 'page' | 'selection' = 'page',
+  ): Promise<{ choice: 'page' | 'all' | 'selection'; background: PngBackground } | null> {
     return new Promise((resolve) => {
       const dlg = el('export-dialog');
+      const selection = scope === 'selection';
+      el('export-scope').textContent = selection ? 'Export the selection' : 'Export';
       el('export-fmt').textContent = format.toUpperCase();
       el('export-page-label').textContent = String(this.store.activeIndex + 1);
+      el('export-page-btn').classList.toggle('is-hidden', selection);
+      el('export-all-btn').classList.toggle('is-hidden', selection);
+      el('export-selection-btn').classList.toggle('is-hidden', !selection);
+      // The background is a PNG's choice: the other formats have none to make.
+      el('export-background').classList.toggle('is-hidden', format !== 'png');
+      for (const radio of dlg.querySelectorAll<HTMLInputElement>('input[name="export-background"]')) {
+        radio.checked = radio.value === this.settings.pngBackground;
+      }
       dlg.classList.remove('is-hidden');
 
-      const close = (choice: 'page' | 'all' | null): void => {
+      const background = (): PngBackground => {
+        const picked = dlg.querySelector<HTMLInputElement>('input[name="export-background"]:checked')?.value;
+        return isPngBackground(picked) ? picked : this.settings.pngBackground;
+      };
+      const close = (choice: 'page' | 'all' | 'selection' | null): void => {
         dlg.classList.add('is-hidden');
         // Remove listeners to avoid double-firing.
         el('export-page-btn').removeEventListener('click', onPage);
         el('export-all-btn').removeEventListener('click', onAll);
+        el('export-selection-btn').removeEventListener('click', onSelection);
         el('export-cancel-btn').removeEventListener('click', onCancel);
-        resolve(choice);
+        if (choice === null) {
+          resolve(null);
+          return;
+        }
+        const chosen = background();
+        // A PNG's background is the next PNG's starting choice.
+        if (format === 'png' && chosen !== this.settings.pngBackground) {
+          this.settings = { ...this.settings, pngBackground: chosen };
+          void this.saveSettings({ pngBackground: chosen });
+        }
+        resolve({ choice, background: chosen });
       };
 
       const onPage = (): void => close('page');
       const onAll = (): void => close('all');
+      const onSelection = (): void => close('selection');
       const onCancel = (): void => close(null);
 
       el('export-page-btn').addEventListener('click', onPage, { once: true });
       el('export-all-btn').addEventListener('click', onAll, { once: true });
+      el('export-selection-btn').addEventListener('click', onSelection, { once: true });
       el('export-cancel-btn').addEventListener('click', onCancel, { once: true });
     });
   }
 
+  /** The solid color a PNG background choice lays under the ink; none for transparent. */
+  private pngFlatColor(background: PngBackground): string | undefined {
+    return background === 'white' ? '#ffffff' : background === 'black' ? '#000000' : undefined;
+  }
+
+  /**
+   * The page in view as a picture for a file: its ink, with nothing the
+   * screen adds - no selection boxes, no guide, no dot texture, no page
+   * outline. A PNG gets the background the Export dialog asked for under it;
+   * a JPEG, having no transparency, gets the page's own color. The canvas is
+   * painted for the screen again on the next frame.
+   */
+  private pageDataUrl(mime: 'image/png' | 'image/jpeg', background: PngBackground): string {
+    const png = mime === 'image/png';
+    const flat = png ? this.pngFlatColor(background) : this.store.sketch.background;
+    // Every Markdown block rendered, as the other exports draw them, whatever text is being typed.
+    const url = withoutMarkdownReveal(() => {
+      this.surface.render(this.store.sketch, null, undefined, { transparent: png, export: true });
+      return this.surface.toDataURL(mime, flat);
+    });
+    this.scheduleRender();
+    return url;
+  }
+
   private async exportRaster(format: ImageFormat): Promise<void> {
-    const choice = await this.showExportDialog(format);
-    if (choice === null) return;
+    const picked = await this.showExportDialog(format);
+    if (picked === null) return;
+    const { choice, background } = picked;
     const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
 
-    if (choice === 'page') {
-      const dataUrl = this.surface.toDataURL(mime, this.store.sketch.background);
+    if (choice !== 'all') {
+      const dataUrl = this.pageDataUrl(mime, background);
       const result = await window.napkin.saveImage(format, dataUrl, this.store.displayName);
       if (result.cancelled) return;
       if (result.ok) this.toast(`Exported ${format.toUpperCase()}.`);
       else this.toast(result.error ?? 'Export failed.');
     } else {
       // Every Markdown block rendered, as the other exports draw them, whatever text is being typed.
-      const contents = withoutMarkdownReveal(() => this.store.book.sketches.map((sk) => Surface.renderSketchToDataURL(sk, mime)));
+      const contents = withoutMarkdownReveal(() =>
+        this.store.book.sketches.map((sk) =>
+          Surface.renderSketchToDataURL(sk, mime, { transparent: mime === 'image/png', background: mime === 'image/png' ? this.pngFlatColor(background) : undefined }),
+        ),
+      );
       const result = await window.napkin.saveImages(format, contents, this.store.displayName);
       if (result.cancelled) return;
       if (result.ok) this.toast(`Exported ${result.filePaths?.length ?? 0} pages as ${format.toUpperCase()}.`);
@@ -10296,8 +10369,9 @@ class App {
   }
 
   private async exportSvg(): Promise<void> {
-    const choice = await this.showExportDialog('svg');
-    if (choice === null) return;
+    const picked = await this.showExportDialog('svg');
+    if (picked === null) return;
+    const choice = picked.choice;
 
     if (choice === 'page') {
       const svgContent = this.toSvg(this.store.sketch);
@@ -10315,8 +10389,9 @@ class App {
   }
 
   private async exportPdf(): Promise<void> {
-    const choice = await this.showExportDialog('pdf');
-    if (choice === null) return;
+    const picked = await this.showExportDialog('pdf');
+    if (picked === null) return;
+    const choice = picked.choice;
     const sketches = choice === 'page' ? [this.store.sketch] : this.store.book.sketches;
     const prepared = await Promise.all(sketches.map((sk) => this.flattenImagesForPdf(sk)));
     const leftOut: string[] = [];
@@ -10765,11 +10840,14 @@ class App {
   }
 
   /**
-   * Exports the selection alone, on a page cut to its own dimensions.
+   * Exports the selection alone, on a page cut to exactly the box the canvas
+   * frames it with: no margin, no page outline, no paper texture.
    *
-   * PNG and SVG come out transparent, since a graphic cropped to its ink is
-   * one somebody is about to drop into a composition. JPEG and PDF have no
-   * usable transparency, so those keep the page background behind the marks.
+   * SVG comes out transparent, and a PNG on whatever the Export dialog asks
+   * for - nothing, which is the first choice, since a graphic cropped to its
+   * ink is one somebody is about to drop into a composition, or plain white
+   * or black. JPEG and PDF have no usable transparency, so those keep the
+   * page's color behind the marks.
    */
   private async exportSelection(format: ExportFormat): Promise<void> {
     const strokes = this.exportSelectionStrokes();
@@ -10805,10 +10883,20 @@ class App {
       return;
     }
 
+    // A PNG asks what goes under the ink; a JPEG has no transparency and keeps the paper.
+    let background: PngBackground = this.settings.pngBackground;
+    if (format === 'png') {
+      const picked = await this.showExportDialog('png', 'selection');
+      if (picked === null) return;
+      background = picked.background;
+    }
     const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-    const dataUrl = Surface.renderSketchToDataURL(cropped, mime, {
-      transparent: format === 'png',
-    });
+    const dataUrl = withoutMarkdownReveal(() =>
+      Surface.renderSketchToDataURL(cropped, mime, {
+        transparent: format === 'png',
+        background: format === 'png' ? this.pngFlatColor(background) : undefined,
+      }),
+    );
     const result = await window.napkin.saveImage(format, dataUrl, name);
     if (result.cancelled) return;
     this.toast(
@@ -12297,6 +12385,10 @@ class App {
       'delete-layer': () => this.deleteSelectedLayers(),
       'layer-up': () => this.moveSelectedLayers(1),
       'layer-down': () => this.moveSelectedLayers(-1),
+      'layer-top': () => this.moveSelectedLayers(1, true),
+      'layer-bottom': () => this.moveSelectedLayers(-1, true),
+      'layer-above': () => this.selectAdjacentLayer(-1),
+      'layer-below': () => this.selectAdjacentLayer(1),
       'hide-layers': () => this.toggleLayers(false),
       'add-page-default': () => this.addDefaultPage(),
       'add-page-custom': () => this.openPageSettings({ forNewPage: true }),
@@ -13921,16 +14013,32 @@ class App {
   }
 
   /**
-   * Bounds to size an export by: the stroke bounds grown by half the widest
-   * outline. `strokeBounds` follows centerlines, so a box drawn on them alone
-   * would slice the outer edge of the ink off the graphic.
+   * Bounds to size an export by: exactly the box the canvas frames the
+   * selection with - each mark as it shows, cut to its clip group - and no
+   * margin round it. A mark that paints an outline grows by half its width,
+   * since `strokeBounds` follows the centerline and a box drawn on it alone
+   * would slice the outer edge of the ink off; a fill-only shape, a text and
+   * a picture are their boxes already. What a mark's effects paint beyond
+   * it - a shadow, a glow - is kept in, as the Transform box keeps it with
+   * Use Preview Bounds on.
    */
   private cropBoundsOfStrokes(strokes: Stroke[]): AnimationBounds | null {
-    const bounds = this.boundsOfStrokes(strokes);
-    if (!bounds) return null;
-    let widest = 0;
-    for (const stroke of strokes) widest = Math.max(widest, stroke.width ?? 0);
-    return expandBounds(bounds, widest / 2);
+    const sketch = this.store.sketch;
+    const clips = clipIndex(sketch);
+    let box: AnimationBounds | null = null;
+    for (const stroke of strokes) {
+      if (stroke.tool === 'eraser') continue;
+      const bounds = strokeBounds(stroke, this.surface.typeMeasure);
+      const shown = bounds && shownBounds(sketch, stroke, bounds, clips);
+      if (!shown) continue;
+      const outline = isTextStroke(stroke) || isImageStroke(stroke) || stroke.noStroke === true ? 0 : (stroke.width ?? 0) / 2;
+      const reach = outline + effectPaintReach(activeEffects(stroke.effects) ?? []);
+      const b = { minX: shown.minX - reach, minY: shown.minY - reach, maxX: shown.maxX + reach, maxY: shown.maxY + reach };
+      box = box
+        ? { minX: Math.min(box.minX, b.minX), minY: Math.min(box.minY, b.minY), maxX: Math.max(box.maxX, b.maxX), maxY: Math.max(box.maxY, b.maxY) }
+        : b;
+    }
+    return box;
   }
 
   /** Bounds of every stroke on the given layers and their descendants. */
@@ -14168,16 +14276,21 @@ class App {
 
   /**
    * Restacks the selection one step (Ctrl+] / Ctrl+[ and the panel's move
-   * buttons). Every selected row moves, not just the active one, and a
-   * selected group takes its contents with it. The ends of the stack have
-   * nowhere to go, so that case says so instead of failing silently.
+   * buttons), or with `toEnd` to the top or the bottom of its group
+   * (Ctrl+Shift+] / Ctrl+Shift+[). Every selected row moves, not just the
+   * active one, and a selected group takes its contents with it. The ends of
+   * the stack have nowhere to go, so that case says so instead of failing
+   * silently.
    */
-  private moveSelectedLayers(direction: 1 | -1): void {
+  private moveSelectedLayers(direction: 1 | -1, toEnd = false): void {
+    // To the top or the bottom is the Layers panel's own command: it answers
+    // to the panel's rows, and asks for the panel when it is away.
+    if (toEnd && !this.requireLayersPanel()) return;
     const ids =
       this.store.selectedLayerIds.size > 0
         ? [...this.store.selectedLayerIds]
         : [this.store.activeLayer.id];
-    if (!this.store.moveLayers(ids, direction)) {
+    if (!this.store.moveLayers(ids, direction, toEnd)) {
       const many = ids.length > 1;
       this.toast(
         direction === 1
@@ -14191,6 +14304,35 @@ class App {
       return;
     }
     this.renderLayers();
+    if (toEnd) this.layerRow(this.store.activeLayer.id)?.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** True with the Layers panel open; otherwise says so, for a command that lives in the panel. */
+  private requireLayersPanel(): boolean {
+    if (this.layersOpen) return true;
+    const key = this.keyOf('toggle-layers');
+    this.toast(`Open the Layers panel first${key ? ` (${key})` : ''}.`);
+    return false;
+  }
+
+  /**
+   * Alt+] and Alt+[: makes the row above or below the active one the
+   * selection, as the Layers panel shows its rows - rows folded away inside
+   * a collapsed group are passed over, as they are not shown. The ends of
+   * the panel say so.
+   */
+  private selectAdjacentLayer(step: 1 | -1): void {
+    if (!this.requireLayersPanel()) return;
+    const order = this.visibleLayerOrder();
+    const at = order.indexOf(this.store.activeLayer.id);
+    const next = at === -1 ? (step === -1 ? order[0] : order[order.length - 1]) : order[at + step];
+    if (next === undefined) {
+      this.toast(step === -1 ? 'Already the top layer.' : 'Already the bottom layer.');
+      return;
+    }
+    this.store.selectLayer(next);
+    this.flushUi();
+    this.layerRow(next)?.scrollIntoView({ block: 'nearest' });
   }
 
   private toggleProperties(force?: boolean): void {
@@ -15975,20 +16117,69 @@ class App {
       this.toast('Transform is not available in Animation Mode.');
       return;
     }
-    const box = this.selectionBounds();
-    if (this.propertyTargets().length === 0 || !box) {
+    if (this.propertyTargets().length === 0 || !this.selectionBounds()) {
       this.toast('Select something to transform first.');
       return;
     }
+    this.openTransformTool(true);
+  }
+
+  /**
+   * The selection the Transform box was put away for by hand, as its ids
+   * sorted and joined, or null. With Transform box on selection, the box
+   * comes back by itself only once the selection is another one.
+   */
+  private transformDismissedFor: string | null = null;
+
+  /** True while the box that is up came up by itself, so leaving the Select tool takes it down again. */
+  private transformAuto = false;
+
+  /** The selection's ids as one string, to tell one selection from the next. */
+  private selectionKey(): string {
+    return [...this.store.selectedIds].sort().join(',');
+  }
+
+  /** Puts the box up for the current selection. `byHand` says so in a toast; the automatic box is quiet. */
+  private openTransformTool(byHand: boolean): void {
+    const box = this.selectionBounds();
+    if (!box) return;
     this.transformActive = true;
+    this.transformAuto = !byHand;
     this.transformBox = box;
     this.transformHover = null;
     this.syncTransformButton();
-    this.toast('Transform: drag a handle. Shift keeps the shape, Alt works from the centre.');
+    if (byHand) this.toast('Transform: drag a handle. Shift keeps the shape, Alt works from the centre.');
     this.updateCursor();
     this.scheduleRender();
     // Transform > Transform Box shows a check mark while the box is up.
     this.publishMenuState();
+  }
+
+  /**
+   * Transform box on selection: with the Select tool in hand and something
+   * selected, the box comes up by itself, as a vector editor's bounding box
+   * does, and goes when nothing is selected or another tool is taken. A box
+   * put away by hand stays away until the selection is another one, and a
+   * 3D mark keeps its gumball, which the box would hide.
+   */
+  private syncAutoTransform(): void {
+    const selected = this.propertyTargets().length > 0;
+    if (this.transformActive) {
+      // A box that came up by itself stands aside when the Select tool is put down,
+      // and for a 3D mark's gumball, which the box would hide - the mark may have
+      // been built after the box came up.
+      const left = this.transformAuto && (this.store.tool.tool !== 'select' || this.animationMode || this.gumballTarget(true) !== null);
+      if (!selected || left) this.closeTransformTool(false);
+      return;
+    }
+    if (!selected) {
+      this.transformDismissedFor = null;
+      return;
+    }
+    if (!this.settings.transformOnSelect || this.animationMode || this.store.tool.tool !== 'select') return;
+    if (this.transformDismissedFor === this.selectionKey()) return;
+    if (this.gumballTarget() !== null) return;
+    this.openTransformTool(false);
   }
 
   /** The toolbar's Transform button, pressed while the box is up, as Transform > Transform Box is checked. */
@@ -15998,8 +16189,14 @@ class App {
     button.setAttribute('aria-pressed', String(this.transformActive));
   }
 
-  /** Takes the box off the canvas, abandoning any drag still in hand. */
-  private closeTransformTool(): void {
+  /**
+   * Takes the box off the canvas, abandoning any drag still in hand. Put
+   * away by hand - Escape, Ctrl+T, the button - it stays away for this
+   * selection, so Transform box on selection does not put it straight back.
+   */
+  private closeTransformTool(byHand = true): void {
+    this.transformDismissedFor = byHand && this.propertyTargets().length > 0 ? this.selectionKey() : null;
+    this.transformAuto = false;
     // A handle drag in hand when the box goes lets go of its pointer too.
     this.dropPressOf('transform');
     this.transformActive = false;
@@ -16032,6 +16229,9 @@ class App {
   private transformHandleAt(pt: Point): TransformHandle | null {
     const box = this.currentTransformBox();
     if (!box) return null;
+    // A path text's brackets stand where the box's handles do, at the text's
+    // ends, and are the smaller target: a bracket under the pointer wins.
+    if (this.bracketAt(pt) !== null) return null;
     // The handles are drawn at a constant on-screen size, so their reach is a
     // screen distance and has to be taken back into sketch units.
     const reach = TRANSFORM_GRAB_PX / this.surface.getViewport().zoom;
@@ -16176,9 +16376,10 @@ class App {
    * Transform Box and Rotate down, and Show the 3D gumball on. With the box
    * up, the box is what shows: it edits the shape the 3D is built from.
    */
-  private gumballTarget(): { stroke: Stroke; object: GumballObject } | null {
+  private gumballTarget(throughTransform = false): { stroke: Stroke; object: GumballObject } | null {
     if (!this.settings.show3dGumball || this.animationMode) return null;
-    if (this.store.tool.tool !== 'select' || this.transformActive || this.rotateDialogOpen) return null;
+    // `throughTransform`: the mark the gumball would stand on were the box down, for the box that came up by itself to stand aside.
+    if (this.store.tool.tool !== 'select' || (this.transformActive && !throughTransform) || this.rotateDialogOpen) return null;
     const targets = this.appearanceTargets();
     if (targets.kind !== 'marks' || targets.strokes.length !== 1) return null;
     const stroke = targets.strokes[0];
@@ -18153,6 +18354,9 @@ class App {
 
     // Animation Mode: keep the banner's layer-validation status live.
     if (this.animationMode) this.refreshAnimationStatus();
+
+    // Transform box on selection: up by itself, and down by itself.
+    this.syncAutoTransform();
 
     // Leaving the Vector Path tool commits its pending path — switching to
     // any other tool (a shortcut like `S`, a toolbar click) accepts the

@@ -69,7 +69,8 @@ takes the middle color of its ramp.
 
 ## Export
 
-- **Export** to PNG (transparent), JPEG (flattened), **SVG** (lossless vector,
+- **Export** to PNG (on a transparent, white or black background), JPEG
+  (flattened on the paper), **SVG** (lossless vector,
   layers preserved as named groups that Inkscape and Illustrator both read;
   vector-tool strokes write exact cubic Béziers and
   freehand strokes shed sub-pixel-redundant samples, keeping files compact), or
@@ -77,14 +78,19 @@ takes the middle color of its ramp.
   from the File menu or the top toolbar's **Export** button beside Import. Each
   format offers **Export current page** or **Export all pages** — raster and
   SVG save `name_1.ext`, `name_2.ext`, …, while PDF writes all pages into one
-  document.
+  document. A PNG asks what goes under the ink - **Transparent**, **White** or
+  **Black** - and the choice is remembered as the next PNG's first. An export
+  is the ink on its paper, or on nothing, with nothing the screen adds: no
+  selection boxes, no dot texture, no page outline.
   The dropdown's **Selection** row opens the same four formats one level in and
-  exports **only what is selected, on a document cut to its own dimensions** —
-  no page-sized margin of empty space around the graphic. PNG and SVG come out
-  transparent, since a graphic cropped to its ink is one about to be dropped
-  into a composition; JPEG and PDF keep the page background, having no usable
-  transparency of their own. With nothing selected but layer rows lit in the
-  Layers panel, those layers and their descendants are what gets exported.
+  exports **only what is selected, on a document cut to exactly the box the
+  canvas frames the selection with** - the Transform box's - with no margin
+  round it. SVG comes out transparent, and PNG on the background the dialog
+  asks for, transparent first, since a graphic cropped to its ink is one
+  about to be dropped into a composition; JPEG and PDF keep the page's color,
+  having no usable transparency of their own. With nothing selected but layer
+  rows lit in the Layers panel, those layers and their descendants are what
+  gets exported.
 - **A PDF draws text as shapes**: each letter its font's own outline, read
   from the font file on this computer, so the page looks as it does on the
   canvas wherever it is opened. A text whose font cannot be read is set in

@@ -4,6 +4,9 @@ Read an existing graphic into a written design language, then generate a skill
 that can draw more work in it. The point is that "make another one like this"
 stops being a brief somebody re-explains and becomes a script with a name.
 
+> **Experimental.** This helper runs an AI tool napkin-sketch does not ship,
+> on your account; its commands, forms and files may change in a minor release.
+
 ```text
 graphic-designer/
 ├── .claude-plugin/plugin.json
@@ -49,7 +52,7 @@ colors", and a design language whose values were guessed is worse than none -
 the next asset gets drawn to it.
 
 Decoding a PNG needs the graphic-design API: run `npm run build` in a clone, or
-install `napkin-sketch` as a dependency. The analyzer says so rather than
+install `@isocialpractice/napkin-sketch` as a dependency. The analyzer says so rather than
 returning nothing and letting it look like a result.
 
 ## Installing

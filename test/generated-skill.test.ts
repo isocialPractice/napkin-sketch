@@ -43,7 +43,7 @@ function repoRoot(): string {
   let dir = process.cwd();
   for (let i = 0; i < 6; i++) {
     const pkg = join(dir, 'package.json');
-    if (existsSync(pkg) && JSON.parse(readFileSync(pkg, 'utf-8')).name === 'napkin-sketch') {
+    if (existsSync(pkg) && /^(@isocialpractice\/)?napkin-sketch$/.test(JSON.parse(readFileSync(pkg, 'utf-8')).name)) {
       return dir;
     }
     const up = dirname(dir);

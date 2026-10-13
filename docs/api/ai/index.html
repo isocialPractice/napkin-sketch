@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The AI helpers - napkin-sketch</title>
-<meta name="description" content="The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages.">
+<meta name="description" content="Experimental. The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages.">
 <meta name="generator" content="napkin-sketch npm run site">
 <link rel="icon" href="../../assets/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../assets/site.css">
@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -43,6 +43,9 @@
 <h1 id="the-ai-helpers">The AI helpers<a class="anchor" href="#the-ai-helpers" aria-label="Link to this section">#</a></h1>
 <details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
 <p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
+<blockquote><p><strong>Experimental.</strong> The AI helpers run an agentic AI command-line tool that
+napkin-sketch does not ship, on your account and at its cost. They are new,
+and their commands, forms and files may change in a minor release.</p></blockquote>
 <p>The <code>graphic-designer</code> helper reads a graphic you already have into a written
 design language, and generates a skill that draws new work in it through the
 <a href="../compose/index.html">graphic design API</a>; the <code>scripting</code> helper writes a
@@ -114,7 +117,9 @@ to get it, and they differ in more than convenience.</p>
 /plugin install graphic-designer@napkin-sketch</code></pre>
 <p>This is the delivery the plugin was designed for: the command, both skills, and
 the contract arrive as one addressable unit, and the skills answer to
-<code>graphic-designer:design-language</code> and <code>graphic-designer:graphic-design-api</code>.</p>
+<code>graphic-designer:design-language</code> and <code>graphic-designer:graphic-design-api</code>.
+An npm install carries the helpers too, with the <code>vectors</code> helper's reference
+sheets and data named by address in each skill's <code>assets/uri.md</code>.</p>
 <h4 id="as-files-in-your-ai-tools-folder">As files in your AI tool's folder<a class="anchor" href="#as-files-in-your-ai-tools-folder" aria-label="Link to this section">#</a></h4>
 <pre><code class="language-bash">npm run ai-helper -- --helper graphic-designer          # -&gt; .claude
 npm run ai-helper -- --helper graphic-designer --to github   # -&gt; .github
@@ -444,7 +449,7 @@ that asks for five things gets a compromise of each.</li>
 <tbody>
 <tr><td><code>Unknown command: /graphic-designer:design-language</code></td><td>The helper is not plugged in</td><td><a href="#plug-in-the-helper">Step 2</a></td></tr>
 <tr><td>PNG palette empty, note mentions the API</td><td>The build output was not found</td><td><code>npm run build</code> in the clone</td></tr>
-<tr><td><code>graphic-design API not found</code> from a generated script</td><td>Same cause, from the other direction</td><td><code>npm run build</code>, or install <code>napkin-sketch</code></td></tr>
+<tr><td><code>graphic-design API not found</code> from a generated script</td><td>Same cause, from the other direction</td><td><code>npm run build</code>, or install <code>@isocialpractice/napkin-sketch</code></td></tr>
 <tr><td>The command runs but writes the file somewhere unexpected</td><td>No destination was given</td><td>Pass one, or name it in words</td></tr>
 <tr><td>A second run overwrote nothing and made <code>DESIGN_LANGUAGE-&lt;stem&gt;.md</code></td><td>Working as intended</td><td>That directory already had one</td></tr>
 <tr><td>Generated graphic does not look like the source</td><td>The script drifted from the language</td><td>Analyze the output, compare the shares, fix the script - not the design language file</td></tr>
@@ -503,7 +508,7 @@ can write two different scripts; the kept <code>.napkin</code> is what repeats.<
 <li><strong>One more try, not a conversation.</strong> A script with errors goes back once,
 with its diagnostics; after that it is drawn as far as it goes.</li>
 <li><strong><code>--prompt</code> is the command line's.</strong> The app has no box to type a request
-into yet, and <code>napkin-sketch/node</code> exports no call for it.</li>
+into yet, and <code>@isocialpractice/napkin-sketch/node</code> exports no call for it.</li>
 <li><strong>The helper is an AI tool the user runs.</strong> napkin-sketch starts it and reads
 what it saved; the tool's sign-in, its model and its cost are its own.</li>
 <li><strong>The analyzer reads SVG and PNG.</strong> JPEG, GIF and WebP have no decoder, so

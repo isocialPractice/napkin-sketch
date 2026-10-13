@@ -173,6 +173,9 @@ class SettingsApp {
     el<HTMLInputElement>('show-selection-borders').addEventListener('change', (e) =>
       this.patch({ showSelectionBorders: (e.target as HTMLInputElement).checked }),
     );
+    el<HTMLInputElement>('transform-on-select').addEventListener('change', (e) =>
+      this.patch({ transformOnSelect: (e.target as HTMLInputElement).checked }),
+    );
     el<HTMLInputElement>('scale-strokes-effects').addEventListener('change', (e) =>
       this.patch({ scaleStrokesAndEffects: (e.target as HTMLInputElement).checked }),
     );
@@ -342,6 +345,7 @@ class SettingsApp {
     this.setValue('direct-select-px', s.directSelectSensitivityPx);
     el('direct-select-px-value').textContent = `${s.directSelectSensitivityPx}px`;
     el<HTMLInputElement>('show-selection-borders').checked = s.showSelectionBorders;
+    el<HTMLInputElement>('transform-on-select').checked = s.transformOnSelect;
     el<HTMLInputElement>('scale-strokes-effects').checked = s.scaleStrokesAndEffects;
     el<HTMLInputElement>('use-preview-bounds').checked = s.usePreviewBounds;
     el<HTMLInputElement>('show-3d-gumball').checked = s.show3dGumball;

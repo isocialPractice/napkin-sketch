@@ -2,6 +2,10 @@
 
 [API hub](../../../API.md) · **Reference** · [Quickstart](QUICKSTART.md) · [Cheatsheet](CHEATSHEET.md)
 
+> **Experimental.** The AI helpers run an agentic AI command-line tool that
+> napkin-sketch does not ship, on your account and at its cost. They are new,
+> and their commands, forms and files may change in a minor release.
+
 The `graphic-designer` helper reads a graphic you already have into a written
 design language, and generates a skill that draws new work in it through the
 [graphic design API](../compose/README.md); the `scripting` helper writes a
@@ -92,6 +96,8 @@ to get it, and they differ in more than convenience.
 This is the delivery the plugin was designed for: the command, both skills, and
 the contract arrive as one addressable unit, and the skills answer to
 `graphic-designer:design-language` and `graphic-designer:graphic-design-api`.
+An npm install carries the helpers too, with the `vectors` helper's reference
+sheets and data named by address in each skill's `assets/uri.md`.
 
 #### As files in your AI tool's folder
 
@@ -529,7 +535,7 @@ that says what matters draws it the first time:
 | --- | --- | --- |
 | `Unknown command: /graphic-designer:design-language` | The helper is not plugged in | [Step 2](#plug-in-the-helper) |
 | PNG palette empty, note mentions the API | The build output was not found | `npm run build` in the clone |
-| `graphic-design API not found` from a generated script | Same cause, from the other direction | `npm run build`, or install `napkin-sketch` |
+| `graphic-design API not found` from a generated script | Same cause, from the other direction | `npm run build`, or install `@isocialpractice/napkin-sketch` |
 | The command runs but writes the file somewhere unexpected | No destination was given | Pass one, or name it in words |
 | A second run overwrote nothing and made `DESIGN_LANGUAGE-<stem>.md` | Working as intended | That directory already had one |
 | Generated graphic does not look like the source | The script drifted from the language | Analyze the output, compare the shares, fix the script - not the design language file |
@@ -601,7 +607,7 @@ napkin-sketch draw - --json --to svg,png < card.napkin
 - **One more try, not a conversation.** A script with errors goes back once,
   with its diagnostics; after that it is drawn as far as it goes.
 - **`--prompt` is the command line's.** The app has no box to type a request
-  into yet, and `napkin-sketch/node` exports no call for it.
+  into yet, and `@isocialpractice/napkin-sketch/node` exports no call for it.
 - **The helper is an AI tool the user runs.** napkin-sketch starts it and reads
   what it saved; the tool's sign-in, its model and its cost are its own.
 - **The analyzer reads SVG and PNG.** JPEG, GIF and WebP have no decoder, so

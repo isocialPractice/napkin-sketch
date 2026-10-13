@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -46,6 +46,7 @@
 │   ├── index.ts        # Command-line entry (GUI launch, headless sharpen, commands)
 │   ├── args.ts         # Pure argument parsing, the commands' included
 │   ├── draw.ts         # draw, check, render, verbs: no window, no Electron
+│   ├── gui.ts          # Where the desktop app is - the clone's build or its npm package - and installing it
 │   └── helper.ts       # Runs the AI helper for draw --prompt, in the working folder
 ├── main/
 │   ├── main.ts         # Electron main process, native menus, image export, IPC
@@ -98,10 +99,10 @@
 │   ├── geometry.ts     # Geometry &amp; curve utilities
 │   └── sharpen.ts      # Auto-sharpen engine
 ├── api/
-│   ├── index.ts        # Public, browser-safe API barrel: `napkin-sketch`
-│   ├── node.ts         # Node-only entry: `napkin-sketch/node`, the file half
+│   ├── index.ts        # Public, browser-safe API barrel: `@isocialpractice/napkin-sketch`
+│   ├── node.ts         # Node-only entry: `@isocialpractice/napkin-sketch/node`, the file half
 │   └── embed.ts        # Embeddable NapkinSketch editor
-├── markdown/           # `napkin-sketch/markdown`: marked's lexer and highlight.js, for a core
+├── markdown/           # `@isocialpractice/napkin-sketch/markdown`: marked's lexer and highlight.js, for a core
 │   ├── index.ts        # The entry: registers both with the API's core
 │   ├── core.ts         # Both registered with the core the app, the CLI and napkin-sketch/node use
 │   ├── lexer.ts        # Markdown Flow's reader: marked, with GitHub's tables and task lists
@@ -255,6 +256,24 @@
 ├── site-src/           # The manual's Markdown: what to edit, since the README moved here
 ├── assets/             # site.css, site.js and banner.gif (the home page's hero, played once), kept by hand; mark.svg, copied
 └── .nojekyll           # Serve the files as they are</code></pre>
+<p><code>dist/</code> makes two npm packages: the API's, <code>@isocialpractice/napkin-sketch</code>,
+with the command line, and the desktop app's,
+<code>@isocialpractice/napkin-sketch-gui</code>, which <code>npm run pack-gui</code> lays out in
+<code>release/gui/</code>.</p>
+<pre><code class="language-text">dist/                   # What npm run build writes; npm run build:types adds the .d.ts beside it
+├── api/                # The package's main entry, an ES module, and its types: in the API's package
+├── node/               # The /node entry: in the API's package
+├── markdown/           # The /markdown entry: in the API's package
+├── graphic-design/     # The /graphic-design/files entry: in the API's package
+├── cli/                # The napkin-sketch command, an ES module: in the API's package
+├── chunks/             # The code the entries and the command share, written once: in the API's package
+├── core/, sharpen/     # Declarations the entries' types import: in the API's package
+├── assets/             # Cursors and the icon, which styles.css reaches: in both packages
+├── renderer/           # The app's window: styles.css and the declarations in the API's package, the rest in the app's
+└── main/               # The Electron main process and its preload: in the app's package only</code></pre>
+<pre><code class="language-text">release/                # What the packaging scripts write; ignored by git
+├── gui/                # npm run pack-gui: the app's package, with dist/main/package.json naming the app
+└── win-unpacked/, *.exe   # npm run dist and its kin: the installers, and the unpacked app beside them</code></pre>
 <nav class="page-nav" aria-label="Previous and next pages"><a href="testing.html" rel="prev"><span>Previous</span>Testing</a><a href="../changelog.html" rel="next"><span>Next</span>Changelog</a></nav>
 </article>
 </main>

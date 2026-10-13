@@ -3,13 +3,16 @@
 ## At a glance
 
 - **Two synced settings views** — **Quick Settings** in-app (`Ctrl+,`: live
-  sharpen, show selection borders, show mesh, wobble, smoothing, circle snap,
-  taper, symmetry, text size) and
+  sharpen, show selection borders, the Transform box on selection, show mesh,
+  wobble, smoothing, circle snap, taper, symmetry, text size) and
   the **Verbose Settings** window (`Ctrl+Alt+,`, Edit menu, or the gear icon)
   which holds those same Quick Settings plus zoom/pan sensitivity, inverted
   zoom, the quick-feature timer, endpoint snap and Join stroke, the
   Select sensitivity, the Direct Select sensitivity, the Eyedropper
-  sensitivity, the Freehand fidelity, **Show selection borders**, the Copic
+  sensitivity, the Freehand fidelity, **Show selection borders**, **Transform
+  box on selection** (on by default: the Transform box comes up by itself
+  around whatever the Select tool selects; see
+  [Transform](transform.md#the-transform-box)), the Copic
   quick nib-rotate options
   (on/off, hold time, hold/rotate keys, rotation speed), Quick Access Color
   count and values, toolbar placement (top / side / both) with drag-and-drop
@@ -59,6 +62,8 @@
 | `selectSensitivityPx` | `4` | 1 to 20, in steps of 1 |
 | `directSelectSensitivityPx` | `8` | 1 to 20, in steps of 1 |
 | `showSelectionBorders` | `true` |  |
+| `transformOnSelect` | `true` |  |
+| `pngBackground` | `transparent` |  |
 | `joinStrokeOnSnap` | `false` |  |
 | `wipeAnimation` | `true` |  |
 | `warpShowMesh` | `true` |  |

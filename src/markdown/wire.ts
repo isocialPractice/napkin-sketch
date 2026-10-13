@@ -1,9 +1,10 @@
 /**
  * Markdown Flow's and Clean Language Accents' readers wired to a core: marked's
  * lexer, highlight.js, and the way to install a language. A core is given
- * rather than imported, so `napkin-sketch/markdown` wires the API's core -
- * the one a program draws with - and the app, the command line and
- * `napkin-sketch/node` wire their own (core.ts).
+ * rather than imported. `core.ts` wires it once: the app with its own
+ * bundle, and the package's entries and the command line with the one core
+ * they share, so a language installed through any of them is installed for
+ * all of them.
  */
 
 import type { AccentHighlighter } from '../core/type/accents.js';

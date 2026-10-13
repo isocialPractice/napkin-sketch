@@ -1649,9 +1649,12 @@ export class Store {
    * pile through. A row selected inside a selected group travels with that
    * group instead of separately.
    *
+   * `toEnd` carries each block as far as it can go that way - to the top or
+   * the bottom of its siblings - in one step and one undo.
+   *
    * Returns false when nothing could move, so the caller can say why.
    */
-  moveLayers(ids: Iterable<string>, direction: 1 | -1): boolean {
+  moveLayers(ids: Iterable<string>, direction: 1 | -1, toEnd = false): boolean {
     const plan = this.movePlan(ids);
     if (!plan) return false;
     const { blocks, moving } = plan;
@@ -1683,7 +1686,15 @@ export class Store {
 
     this.pushHistory();
     let moved = false;
-    for (const id of ordered) moved = step(id) || moved;
+    for (const id of ordered) {
+      // To the end: step until the block has no sibling left to pass.
+      let shifted = false;
+      while (step(id)) {
+        shifted = true;
+        if (!toEnd) break;
+      }
+      moved = shifted || moved;
+    }
     if (!moved) {
       // Nothing shifted, so the history step just pushed would be a no-op the
       // user would have to undo twice past.

@@ -148,7 +148,7 @@ restyling what they style; Enter; a text made plain keeping what it showed;
 the layout's bars, rule and one code shade; output rendering every block
 whatever the caret; no lexer showing the Markdown as typed; and a script's
 `markdown` flag drawn and written back. `test/headless.test.ts` loads
-`napkin-sketch/markdown` with the DOM poisoned and renders a Markdown text to
+`@isocialpractice/napkin-sketch/markdown` with the DOM poisoned and renders a Markdown text to
 every format, and `test/gui/check-markdown-flow.mjs` does it in the app:
 `# Title` and Enter make a heading, `- one`, Enter and `two` a list, the
 arrow keys back into the heading show its `#`, a burst is one undo step, and
@@ -195,7 +195,7 @@ at least 99% of the ink of every fixture in `test/imports/`, which
 `test/script-render.test.ts` covers the render calls: every format from one
 call, the ink box and its pad, a registration box every page shares, the
 `.skbk` round trip, and the PDF's colors, outlines, dashes and text boxes.
-`test/script-files.test.ts` covers `napkin-sketch/node` on a real file
+`test/script-files.test.ts` covers `@isocialpractice/napkin-sketch/node` on a real file
 system: scripts read from files, assets and documents loaded by name, links
 read beside the script and refused outside it, a file a format and a file a
 page, names that cannot leave the output folder, `strict`, and files written
@@ -275,7 +275,13 @@ cheatsheet to what `npm run menu-docs` writes. `npm run gui-check --
 shortcuts` runs the app with a shortcuts file of its own, put in the
 user-data folder it hands the app (`NAPKIN_USER_DATA`), and presses the
 keys; it also clicks the toolbar's Transform button, which must show
-`Ctrl+T` and stay pressed while the box is up. `test/config-dialog.test.ts` covers the configuration popup the menu
+`Ctrl+T`, be pressed already with the box up by itself round the selection
+(Transform box on selection, as shipped), let the box down on a click and
+put it up again on the next. A check that counts the canvas's pixels -
+Mirror, Splatter, the stroke width - starts the app with a `settings.json`
+of its own, through `launch`'s third argument, with that box off: up by
+itself round the selection, it would be counted as ink.
+`test/config-dialog.test.ts` covers the configuration popup the menu
 editors are built on: its search, its filters, what a shortcut cell says
 about a chord, and edits held apart from the rows until Accept. `npm run
 gui-check -- config-dialog` opens the popup in the built app with a spec of
@@ -673,10 +679,31 @@ the tarball into an empty folder - where no Electron arrives, since it is a
 development dependency - and draws from it with `napkin-sketch draw -` and
 with both entries imported by name; then it draws a script of the verbs that
 run the drawing engines - wipe, stack, split, clip, the eraser, the Pencil, the
-Smear and Liquify - and calls fifteen of the engines by name from the
-installed package. Build and emit the types first; it packs what `dist/`
-holds. `npm run test:graphic-design-api` asks the same built API a few of
-the engines' questions after its graphics.
+Smear and Liquify - and calls the engines by name from the installed
+package. Before it installs, it reads the tarball: every file an export
+names is there; none of what the package leaves out is - source maps, the
+app's Electron bundles and guides, the roadmap, the changelog, the
+helpers' reference files; every declaration's import, every bundle's
+import of a shared chunk, and every stylesheet `url()` and source map link
+reaches a file the tarball holds; the browser-safe entries reach no Node
+built-in through the chunks they share with the Node ones; and it packs to
+no more than 1.5 MB. It prints the packed and unpacked sizes.
+`npm run test:graphic-design-api` asks the same built API a few of the
+engines' questions after its graphics.
+
+Then `npm run pack-check` does the same for the desktop app's package:
+`npm run pack-gui` lays it out in `release/gui/`, and the check packs it and
+reads the tarball - the app's main process, window and manual there; the
+API's files, the maps, the declarations and the manual's Markdown not; every
+app page's script and stylesheet, and every stylesheet `url()`, reaching a
+file it holds; Electron its one dependency, at the range in
+`devDependencies`; no more than 4 MB packed. It installs that tarball beside
+the first with install scripts off, so Electron's package arrives without
+its download, and asks the installed command line: `--version` must find the
+app at the version they share, and opening a sketch, with Electron pointed
+at a folder that holds none, must say the download did not finish rather
+than download it or start anything. Build, emit the types and write the site
+first; it packs what `dist/` and `docs/` hold.
 
 Some defects can only be seen in the running app: the SVG importer needs a
 DOM, the color picker is a native popup, and a paint that went missing shows up

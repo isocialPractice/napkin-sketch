@@ -1,12 +1,21 @@
 # Quickstart
 
-Get from a fresh clone to a sharpened sketch in about five minutes. For the
+Get from an install to a sharpened sketch in about five minutes. For the
 full reference see [README.md](README.md); for the shortcut tables see
 [CHEATSHEET.md](CHEATSHEET.md).
 
 ## 1. Install
 
-Requires **Node.js 22.12 or newer**.
+Requires **Node.js 22.12 or newer**. From npm, the command line and then the
+desktop app, which brings Electron, about 100 MB:
+
+```bash
+npm install -g @isocialpractice/napkin-sketch
+napkin-sketch --install-gui
+napkin-sketch      # opens a new blank sketch
+```
+
+From a clone, `npm start` is the fastest way to see the app:
 
 ```bash
 npm install
@@ -14,7 +23,7 @@ npm run build
 npm start          # builds, then opens a new blank sketch
 ```
 
-`npm start` is the fastest way to see the app. Two other ways to run it:
+Two other ways to run a clone:
 
 ```bash
 # Use the CLI from anywhere (local checkout)
@@ -68,6 +77,8 @@ Every new element gets **its own layer**, named after the tool that drew it.
 | Group the selected layers    | `Ctrl + G`                     |
 | Ungroup                      | `Ctrl + Shift + G`             |
 | Move a layer up / down       | `Ctrl + ]` / `Ctrl + [`        |
+| Move a layer to the top / bottom | `Ctrl + Shift + ]` / `Ctrl + Shift + [` |
+| Select the layer above / below | `Alt + ]` / `Alt + [`        |
 
 Click a row to make it active; `Shift`-click to multi-select; drag a row to
 restack it, or drop it onto a group row to nest it inside. Selecting on the
@@ -140,7 +151,7 @@ so `--sharpen` produces the same result on disk as the GUI does on screen.
 - **Embedding** - the drawing engine ships as a browser-safe package with no
   Electron or Node dependency. See
   [Embedding the editor](README.md#embedding-the-editor).
-- **Animation Mode** (`Ctrl + Shift + N`) - an **optional add-on**, left out of
+- **Animation Mode** (`Ctrl + Shift + N`) - an **optional, experimental add-on**, left out of
   a default install because it needs an agentic AI command-line tool you
   install and sign in to yourself. Add it with
   `npm run animation-mode -- --install`, then restart the app.
@@ -149,7 +160,8 @@ so `--sharpen` produces the same result on disk as the GUI does on screen.
 
 | Symptom                                      | Fix                                                                       |
 | :------------------------------------------- | :------------------------------------------------------------------------ |
-| `napkin-sketch` is not found                 | Run `npm run build` then `npm link`, or use `npm start`                   |
+| `napkin-sketch` is not found                 | Install it from npm, or run `npm run build` then `npm link` in a clone    |
+| `napkin-sketch` says no desktop app          | Run `napkin-sketch --install-gui`, which adds it with Electron            |
 | Strokes are not being cleaned up as you draw | Live sharpen is off by default; enable it in `Ctrl + ,` or press `H`      |
 | Nothing draws                                | The Select tool is active at launch; press `B` for the brush              |
 | `Ctrl + Shift + N` does nothing              | Animation Mode is not installed; run `npm run animation-mode -- --status` |

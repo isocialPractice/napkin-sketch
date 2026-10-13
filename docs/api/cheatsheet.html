@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -138,9 +138,9 @@
 <div class="table-wrap"><table>
 <thead><tr><th>Import</th><th>For</th></tr></thead>
 <tbody>
-<tr><td><code>import { evaluate, drawSvg, renderSketch, renderBook, parseScript, createComposition } from 'napkin-sketch'</code></td><td>Scripts and compositions, anywhere</td></tr>
-<tr><td><code>import { drawFile, drawToFiles, writeBook, loadAssets, resolveLinkFromDir } from 'napkin-sketch/node'</code></td><td>Files, in Node</td></tr>
-<tr><td><code>import { booleanOp, eraseMarks, wipeMarks, stackFaces, splitMark, liquifyMarks } from 'napkin-sketch'</code></td><td>The drawing engines, on a page: <a href="engines/cheatsheet.html">their cheatsheet</a></td></tr>
+<tr><td><code>import { evaluate, drawSvg, renderSketch, renderBook, parseScript, createComposition } from '@isocialpractice/napkin-sketch'</code></td><td>Scripts and compositions, anywhere</td></tr>
+<tr><td><code>import { drawFile, drawToFiles, writeBook, loadAssets, resolveLinkFromDir } from '@isocialpractice/napkin-sketch/node'</code></td><td>Files, in Node</td></tr>
+<tr><td><code>import { booleanOp, eraseMarks, wipeMarks, stackFaces, splitMark, liquifyMarks } from '@isocialpractice/napkin-sketch'</code></td><td>The drawing engines, on a page: <a href="engines/cheatsheet.html">their cheatsheet</a></td></tr>
 </tbody></table></div>
 <h2 id="render-options">Render options<a class="anchor" href="#render-options" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>
@@ -175,10 +175,10 @@
 <tr><td><a href="output/index.html">Writing a drawing out</a></td><td>SVG, PNG, PDF, .skbk and an Illustrator script from one call, the box every format is cut to, and what each format keeps.</td><td><a href="output/index.html">reference</a>, <a href="output/quickstart.html">quickstart</a>, <a href="output/cheatsheet.html">cheatsheet</a></td></tr>
 <tr><td><a href="cli/index.html">The napkin-sketch command line</a></td><td>draw, check, render and verbs from a shell or any language, with --json and exit codes.</td><td><a href="cli/index.html">reference</a>, <a href="cli/quickstart.html">quickstart</a>, <a href="cli/cheatsheet.html">cheatsheet</a></td></tr>
 <tr><td><a href="node/index.html">Using napkin-sketch from code</a></td><td>The package's entries, ES modules and CommonJS, types, the result object, and what throws.</td><td><a href="node/index.html">reference</a>, <a href="node/quickstart.html">quickstart</a>, <a href="node/cheatsheet.html">cheatsheet</a></td></tr>
-<tr><td><a href="markdown/index.html">Markdown Flow and Clean Language Accents</a></td><td>napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36.</td><td><a href="markdown/index.html">reference</a>, <a href="markdown/quickstart.html">quickstart</a>, <a href="markdown/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="markdown/index.html">Markdown Flow and Clean Language Accents</a></td><td>@isocialpractice/napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36.</td><td><a href="markdown/index.html">reference</a>, <a href="markdown/quickstart.html">quickstart</a>, <a href="markdown/cheatsheet.html">cheatsheet</a></td></tr>
 <tr><td><a href="engines/index.html">The drawing engines</a></td><td>The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify; blends, effects, Splatter, Warp and 3D; type, its layout, hyphenation and fonts; Text Configurations and Composition Styles.</td><td><a href="engines/index.html">reference</a>, <a href="engines/quickstart.html">quickstart</a>, <a href="engines/cheatsheet.html">cheatsheet</a></td></tr>
 <tr><td><a href="interop/index.html">Working with other programs</a></td><td>Illustrator and Inkscape through SVG, an Illustrator script that rebuilds a drawing, files linked from elsewhere, and what survives a round trip.</td><td><a href="interop/index.html">reference</a>, <a href="interop/quickstart.html">quickstart</a>, <a href="interop/cheatsheet.html">cheatsheet</a></td></tr>
-<tr><td><a href="ai/index.html">The AI helpers</a></td><td>The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages.</td><td><a href="ai/index.html">reference</a>, <a href="ai/quickstart.html">quickstart</a>, <a href="ai/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="ai/index.html">The AI helpers</a></td><td>Experimental. The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages.</td><td><a href="ai/index.html">reference</a>, <a href="ai/quickstart.html">quickstart</a>, <a href="ai/cheatsheet.html">cheatsheet</a></td></tr>
 </tbody></table></div>
 <nav class="page-nav" aria-label="Previous and next pages"><a href="quickstart.html" rel="prev"><span>Previous</span>API quickstart</a><a href="language/index.html" rel="next"><span>Next</span>The napkin script language</a></nav>
 </article>

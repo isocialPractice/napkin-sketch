@@ -18,8 +18,8 @@ block, or inside a VS Code webview.
 With a bundler (ESM):
 
 ```ts
-import { NapkinSketch } from 'napkin-sketch';
-import 'napkin-sketch/styles.css';
+import { NapkinSketch } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/styles.css';
 
 const editor = new NapkinSketch(document.getElementById('host')!, {
   liveSharpen: false, // off by default, like the desktop app
@@ -38,13 +38,21 @@ layers' names: `editor.applyCompositionStyle(style)` applies one and gives the
 report, the rules that matched no layer among it. The editor's undo holds its
 marks, so a change to them can be undone, and a change to a layer cannot.
 
-Via a plain `<script>` tag (the IIFE build exposes a global `napkin`):
+With no bundler, a module script loads the same entry, and an import map
+gives the package its name on the page, so the import reads as it does in a
+bundled build. Serve the page over HTTP: a browser loads no module from a
+`file://` page.
 
 ```html
+<link rel="stylesheet" href="node_modules/@isocialpractice/napkin-sketch/dist/renderer/styles.css">
 <div id="host" style="width: 640px; height: 420px"></div>
-<script src="node_modules/napkin-sketch/dist/embed/napkin-sketch.js"></script>
-<script>
-  const editor = new napkin.NapkinSketch(document.getElementById('host'));
+<script type="importmap">
+  { "imports": { "@isocialpractice/napkin-sketch": "./node_modules/@isocialpractice/napkin-sketch/dist/api/index.js" } }
+</script>
+<script type="module">
+  import { NapkinSketch } from '@isocialpractice/napkin-sketch';
+
+  const editor = new NapkinSketch(document.getElementById('host'));
 </script>
 ```
 
@@ -52,7 +60,7 @@ You can also import just the pure engine (no DOM) to sharpen strokes yourself,
 generate PDFs, or parse an SVG into layered strokes (browser only):
 
 ```ts
-import { sharpenStrokes, parseSketchBook, sketchesToPdf, importSvg } from 'napkin-sketch';
+import { sharpenStrokes, parseSketchBook, sketchesToPdf, importSvg } from '@isocialpractice/napkin-sketch';
 
 // Nested groups and named objects come back as a nested layer tree. Pass
 // `unnamedElements: 'split'` to also give every unnamed element its own
@@ -62,11 +70,11 @@ const { width, height, layers } = importSvg(svgText, { unnamedElements: 'split' 
 
 Or draw from written instructions, a napkin script, with no pointer and no
 DOM. The language is in the same browser-safe entry; reading and writing
-files is in `napkin-sketch/node`:
+files is in `@isocialpractice/napkin-sketch/node`:
 
 ```ts
-import { drawSvg } from 'napkin-sketch';
-import { drawFile } from 'napkin-sketch/node';
+import { drawSvg } from '@isocialpractice/napkin-sketch';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 const { svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60');
 const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png', 'pdf'] });
@@ -83,7 +91,7 @@ triangles, polygons, lines, paths, text, placed media and clipping masks, with
 CSS filter effects on any of them - then render it to **SVG** or **PNG**.
 
 ```ts
-import { createComposition } from 'napkin-sketch';
+import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
 

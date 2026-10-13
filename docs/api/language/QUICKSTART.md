@@ -8,13 +8,13 @@ to a script that checks clean in both forms.
 
 ## The whole thing in five steps
 
-1. Build the clone and put `napkin-sketch` on your PATH:
+1. Install the command line, which puts `napkin-sketch` on your PATH:
 
 ```bash
-npm install
-npm run build
-npm link
+npm install -g @isocialpractice/napkin-sketch
 ```
+
+   From a clone, `npm install`, `npm run build` and `npm link` do the same.
 
 2. Save this as `card.napkin`:
 

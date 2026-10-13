@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -103,7 +103,7 @@ const pngs = renderBook(result.book, { format: 'png', ...result.output });</code
 <h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
 <h3 id="writing-a-page-and-a-book">Writing a page and a book<a class="anchor" href="#writing-a-page-and-a-book" aria-label="Link to this section">#</a></h3>
 <pre><code class="language-ts">import { writeFileSync } from 'node:fs';
-import { evaluate, renderBook, renderSketch } from 'napkin-sketch';
+import { evaluate, renderBook, renderSketch } from '@isocialpractice/napkin-sketch';
 
 const result = evaluate(text, { name: 'card', timestamp: '2026-09-25T00:00:00.000Z' });
 const page = result.book.sketches[0];
@@ -124,7 +124,7 @@ writeFileSync('card.jsx', renderBook(result.book, { format: 'jsx' }));</code></p
 </tbody></table></div>
 <p>An unknown format throws, naming the five: that is a mistake in the calling
 code, not in a drawing.</p>
-<p>In Node, <code>writeBook</code> and <code>drawToFiles</code> from <code>napkin-sketch/node</code> write these
+<p>In Node, <code>writeBook</code> and <code>drawToFiles</code> from <code>@isocialpractice/napkin-sketch/node</code> write these
 as files, named and numbered - <code>card.svg</code>, or <code>card-1.svg</code> and on for a book
 of several pages - so a caller does not have to; see
 <a href="../node/index.html#writing-files">Using napkin-sketch from code</a>. From a
@@ -383,7 +383,7 @@ in Illustrator itself; see
 differ: a Default outline the app draws at 0.7 of its width is drawn at its
 full width in both exports.</li>
 <li><strong>These calls write no files.</strong> They give back strings and bytes, in a
-browser as in Node; <code>napkin-sketch/node</code> is what writes them to disk.</li>
+browser as in Node; <code>@isocialpractice/napkin-sketch/node</code> is what writes them to disk.</li>
 </ul>
 <h2 id="for-agents">For agents<a class="anchor" href="#for-agents" aria-label="Link to this section">#</a></h2>
 <ul>

@@ -87,8 +87,8 @@ export const FLAG_SUMMARIES: { readonly [flag: string]: { value?: string; summar
   '--scale': { value: '<n>', summary: 'PNG pixels a page pixel.' },
   '--crop': { value: 'auto|none|<x,y,w,h>', summary: 'What every file is cut to.' },
   '--limit': { value: '<n>', summary: 'The most instructions a run may execute.' },
-  '--prompt': { value: '<request>', summary: 'Ask the AI helper for a script that draws this, and draw it; the script is kept as <name>.napkin.' },
-  '--helper': { value: '<command>', summary: 'The AI helper command --prompt runs: $NAPKIN_SCRIPT_HELPER unless given, else Claude Code.' },
+  '--prompt': { value: '<request>', summary: 'Experimental: ask the AI helper for a script that draws this, and draw it; the script is kept as <name>.napkin.' },
+  '--helper': { value: '<command>', summary: 'Experimental: the AI helper command --prompt runs: $NAPKIN_SCRIPT_HELPER unless given, else Claude Code.' },
   '--page': { value: '<n>', summary: 'Only this page of the book, counting from 1.' },
   '--animate': { value: '<type>', summary: `Draw the page's figure through a measured cycle, a frame a page: ${MEASURED_ANIMATION_TYPES.join(', ')}.` },
   '--frames': { value: '<n>', summary: `How many frames --animate spreads the cycle across: ${MIN_SEQUENCE_FRAMES} to ${MAX_SEQUENCE_FRAMES}, the cycle's own length unless given.` },
@@ -344,6 +344,12 @@ export interface ParsedArgs {
   multipleImports: string[];
   /** True when -m/--multiple-imports was passed (even without a value). */
   multipleImportsRequested: boolean;
+  /** `--install-gui`: install the desktop app's package with npm, at this version. */
+  installGui: boolean;
+  /** `--uninstall-gui`: remove it. */
+  uninstallGui: boolean;
+  /** `--here`: install or remove it in the working folder's project rather than globally. */
+  here: boolean;
   unknown: string[];
   /**
    * A subcommand, when the first token names one: `draw`, `check`, `render`
@@ -368,6 +374,26 @@ export function splitImportList(tokens: string[]): string[] {
     .filter((entry) => entry.length > 0);
 }
 
+/**
+ * What is wrong with how `--install-gui`, `--uninstall-gui` and `--here` were
+ * given, in one sentence, or null. Installing or removing the desktop app
+ * opens nothing, so neither takes another option but `--here`, and `--here`
+ * means nothing without one of them.
+ */
+export function guiOptionsProblem(args: ParsedArgs): string | null {
+  if (args.installGui && args.uninstallGui) return '--install-gui and --uninstall-gui do opposite things; give one';
+  const option = args.installGui ? '--install-gui' : args.uninstallGui ? '--uninstall-gui' : null;
+  if (option === null) return args.here ? '--here goes with --install-gui or --uninstall-gui' : null;
+  const opens =
+    args.mode !== null ||
+    args.target !== undefined ||
+    args.fullScreen ||
+    args.noSandbox ||
+    args.importRequested ||
+    args.multipleImportsRequested;
+  return opens || args.version ? `${option} takes no other option but --here` : null;
+}
+
 /** Parses argv (excluding node + script) into a normalized structure. */
 export function parseArgs(argv: string[]): ParsedArgs {
   const result: ParsedArgs = {
@@ -382,6 +408,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
     importRequested: false,
     multipleImports: [],
     multipleImportsRequested: false,
+    installGui: false,
+    uninstallGui: false,
+    here: false,
     unknown: [],
     command: null,
   };
@@ -409,6 +438,15 @@ export function parseArgs(argv: string[]): ParsedArgs {
         break;
       case '--no-sandbox':
         result.noSandbox = true;
+        break;
+      case '--install-gui':
+        result.installGui = true;
+        break;
+      case '--uninstall-gui':
+        result.uninstallGui = true;
+        break;
+      case '--here':
+        result.here = true;
         break;
       case '-b':
       case '--book':

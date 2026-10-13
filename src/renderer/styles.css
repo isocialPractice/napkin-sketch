@@ -4691,3 +4691,22 @@ body {
   padding: 2px var(--s2);
   font-size: 12px;
 }
+
+/* The Export dialog's PNG background choice: one row of radios under the title. */
+.export-background {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s4);
+  margin: 0 0 var(--s3);
+}
+
+.export-background-label {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.export-background .choice-row {
+  padding: 0;
+  align-items: center;
+}

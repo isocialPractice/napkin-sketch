@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -47,12 +47,15 @@ Illustrator script, cut to the page, to the ink or to a box you name; this is
 the path from a script to all five files.</p>
 <h2 id="the-whole-thing-in-four-steps">The whole thing in four steps<a class="anchor" href="#the-whole-thing-in-four-steps" aria-label="Link to this section">#</a></h2>
 <ol>
-<li>Build the clone:</li>
+<li>Install the command line, which puts <code>napkin-sketch</code> on your PATH, and the
+API in a folder of your own:</li>
 </ol>
-<pre><code class="language-bash">npm install
-npm run build</code></pre>
+<pre><code class="language-bash">npm install -g @isocialpractice/napkin-sketch
+npm install @isocialpractice/napkin-sketch</code></pre>
+<p>From a clone, <code>npm install</code>, <code>npm run build</code> and <code>npm link</code> do the same, and
+the files below go in the clone.</p>
 <ol start="2">
-<li>Save this as <code>sticker.napkin</code> in the clone. <code>crop auto pad 12</code> cuts every
+<li>Save this as <code>sticker.napkin</code> in that folder. <code>crop auto pad 12</code> cuts every
 output to the ink, with 12 pixels of room around it:</li>
 </ol>
 <pre><code class="language-napkin">napkin 1
@@ -67,7 +70,7 @@ crop auto pad 12</code></pre>
 what applies the script's <code>crop</code>:</li>
 </ol>
 <pre><code class="language-js">import { readFileSync, writeFileSync } from 'node:fs';
-import { evaluate, renderBook } from 'napkin-sketch';
+import { evaluate, renderBook } from '@isocialpractice/napkin-sketch';
 
 const { book, output } = evaluate(readFileSync('sticker.napkin', 'utf8'));
 const [svg] = renderBook(book, { format: 'svg', ...output });

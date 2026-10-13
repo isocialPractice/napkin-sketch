@@ -18,6 +18,8 @@ function press(key: string, mods: Partial<Omit<KeyEventLike, 'key'>> = {}): KeyE
 }
 
 const PUNCTUATION_CODES: Record<string, string> = { ']': 'BracketRight', '[': 'BracketLeft', ',': 'Comma', '-': 'Minus' };
+/** The mark Shift makes of a mark on a US keyboard: Shift and ] send }. */
+const SHIFTED: Record<string, string> = { ']': '}', '[': '{', ',': '<', '-': '_' };
 
 /** The keypress a US keyboard sends for a chord. */
 function pressFor(chord: string): KeyEventLike {
@@ -29,7 +31,7 @@ function pressFor(chord: string): KeyEventLike {
   if (/^[0-9]$/.test(key)) return press(key, { code: `Digit${key}`, ...mods });
   // The plus key is Shift and = on a US keyboard.
   if (key === 'Plus') return press('+', { code: 'Equal', ...mods, shiftKey: true });
-  if (PUNCTUATION_CODES[key]) return press(key, { code: PUNCTUATION_CODES[key], ...mods });
+  if (PUNCTUATION_CODES[key]) return press(parsed.shift ? (SHIFTED[key] ?? key) : key, { code: PUNCTUATION_CODES[key], ...mods });
   return press(key, { code: key, ...mods });
 }
 
@@ -93,8 +95,8 @@ test('a key a role row holds is never tried without Shift', () => {
 });
 
 test('a mark carries its Shift already, so it is never tried without it', () => {
-  // Shift turns ] into }: that is not Ctrl+], which restacks a layer.
-  assert.equal(commandForEvent(registry, press('}', { code: 'BracketRight', ctrlKey: true, shiftKey: true })), null);
+  // Shift turns - into _: that is not Ctrl+-, which zooms out.
+  assert.equal(commandForEvent(registry, press('_', { code: 'Minus', ctrlKey: true, shiftKey: true })), null);
   assert.equal(commandForEvent(registry, press('!', { code: 'Digit1', shiftKey: true })), null);
 });
 
@@ -150,4 +152,12 @@ test('PageUp and PageDown turn back and on a page, as the page bar arrows do', (
   assert.equal(commandForEvent(registry, press('PageDown', { code: 'PageDown' })), 'next-page');
   // No row holds Shift with them, so with Shift held they still turn the page.
   assert.equal(commandForEvent(registry, press('PageUp', { code: 'PageUp', shiftKey: true })), 'prev-page');
+});
+
+test('the Layers panel keys: Shift on a bracket reaches the to-the-end rows, and the bare bracket still steps', () => {
+  assert.equal(commandForEvent(registry, press('}', { code: 'BracketRight', ctrlKey: true, shiftKey: true })), 'layer-top');
+  assert.equal(commandForEvent(registry, press('{', { code: 'BracketLeft', ctrlKey: true, shiftKey: true })), 'layer-bottom');
+  assert.equal(commandForEvent(registry, press(']', { code: 'BracketRight', ctrlKey: true })), 'layer-up');
+  assert.equal(commandForEvent(registry, press(']', { code: 'BracketRight', altKey: true })), 'layer-above');
+  assert.equal(commandForEvent(registry, press('[', { code: 'BracketLeft', altKey: true })), 'layer-below');
 });

@@ -16,11 +16,18 @@ import { resolve } from 'node:path';
 import { launch, connect, sleep, checker, stop } from './cdp.mjs';
 
 const c = checker();
-const app = launch({
-  mode: 'new',
-  sketchName: 'stroke-width',
-  importFiles: [resolve(import.meta.dirname, '..', 'imports', 'width-line.svg')],
-});
+// The line's thickness is read off the canvas, and the Transform box that
+// comes up by itself round a selection puts a handle on the line's middle:
+// off for this check.
+const app = launch(
+  {
+    mode: 'new',
+    sketchName: 'stroke-width',
+    importFiles: [resolve(import.meta.dirname, '..', 'imports', 'width-line.svg')],
+  },
+  {},
+  { settings: { transformOnSelect: false } },
+);
 
 /** The line's ink: how thick it is in the middle, in device pixels. */
 const THICKNESS = `

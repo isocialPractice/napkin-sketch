@@ -8,13 +8,16 @@ picture it draws, from a shell and from code.
 
 ## The whole thing in five steps
 
-1. Build the clone and put `napkin-sketch` on your PATH:
+1. Install the command line, which puts `napkin-sketch` on your PATH, and the
+   API in a folder of your own:
 
 ```bash
-npm install
-npm run build
-npm link
+npm install -g @isocialpractice/napkin-sketch
+npm install @isocialpractice/napkin-sketch
 ```
+
+   From a clone, `npm install`, `npm run build` and `npm link` do the same, and
+   the files below go in the clone.
 
 2. Save this as `badge.napkin`. Each `layer` line starts a layer, and the paint
    line sets the ink, the width and the fill for every mark after it:
@@ -44,12 +47,12 @@ napkin-sketch draw badge.napkin --to svg,png
    mark after `rough` is drawn as a hand would, and the seed makes it the same
    hand on every run.
 
-5. Draw it from code instead. Save this as `badge.mjs` in the clone and run
-   `node badge.mjs`:
+5. Draw it from code instead. Save this as `badge.mjs` beside `badge.napkin`
+   and run `node badge.mjs`:
 
 ```js
 import { readFileSync, writeFileSync } from 'node:fs';
-import { evaluate, renderSketch } from 'napkin-sketch';
+import { evaluate, renderSketch } from '@isocialpractice/napkin-sketch';
 
 const { ok, book, diagnostics, output } = evaluate(readFileSync('badge.napkin', 'utf8'));
 writeFileSync('badge.svg', renderSketch(book.sketches[0], output));

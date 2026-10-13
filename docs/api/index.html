@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -67,9 +67,9 @@ SVG and PNG.</li>
 <li><strong>Four commands.</strong> <code>napkin-sketch draw</code>, <code>check</code>, <code>render</code> and <code>verbs</code> run
 scripts from a shell or a batch file, and from Python, C or anything else
 through standard input and one line of JSON back.</li>
-<li><strong>Three package entries.</strong> <code>napkin-sketch</code> runs anywhere and reads no file;
-<code>napkin-sketch/node</code> reads scripts, images and books and writes files; and
-<code>napkin-sketch/markdown</code> gives the first a Markdown reader and a code
+<li><strong>Three package entries.</strong> <code>@isocialpractice/napkin-sketch</code> runs anywhere and reads no file;
+<code>@isocialpractice/napkin-sketch/node</code> reads scripts, images and books and writes files; and
+<code>@isocialpractice/napkin-sketch/markdown</code> gives the first a Markdown reader and a code
 highlighter, so Markdown Flow text draws as its Markdown renders and code is
 colored.</li>
 <li><strong>The engines the tools stand on.</strong> The Eraser's cut, the Wipe Stacks and
@@ -92,7 +92,7 @@ outlines; it does no shaping - no ligatures, no scripts that join.</li>
 layers, curves, gradients' stops - and says what it leaves out rather than
 drawing it wrong.</li>
 <li><strong>Not a model.</strong> The AI helpers are skills and scripts an AI tool runs;
-nothing in the package calls one.</li>
+nothing in the package calls one. They are experimental.</li>
 </ul>
 <h2 id="the-categories">The categories<a class="anchor" href="#the-categories" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>
@@ -104,10 +104,10 @@ nothing in the package calls one.</li>
 <tr><td><a href="output/index.html">Writing a drawing out</a></td><td>SVG, PNG, PDF, .skbk and an Illustrator script from one call, the box every format is cut to, and what each format keeps.</td><td><a href="output/index.html">reference</a>, <a href="output/quickstart.html">quickstart</a>, <a href="output/cheatsheet.html">cheatsheet</a></td></tr>
 <tr><td><a href="cli/index.html">The napkin-sketch command line</a></td><td>draw, check, render and verbs from a shell or any language, with --json and exit codes.</td><td><a href="cli/index.html">reference</a>, <a href="cli/quickstart.html">quickstart</a>, <a href="cli/cheatsheet.html">cheatsheet</a></td></tr>
 <tr><td><a href="node/index.html">Using napkin-sketch from code</a></td><td>The package's entries, ES modules and CommonJS, types, the result object, and what throws.</td><td><a href="node/index.html">reference</a>, <a href="node/quickstart.html">quickstart</a>, <a href="node/cheatsheet.html">cheatsheet</a></td></tr>
-<tr><td><a href="markdown/index.html">Markdown Flow and Clean Language Accents</a></td><td>napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36.</td><td><a href="markdown/index.html">reference</a>, <a href="markdown/quickstart.html">quickstart</a>, <a href="markdown/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="markdown/index.html">Markdown Flow and Clean Language Accents</a></td><td>@isocialpractice/napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36.</td><td><a href="markdown/index.html">reference</a>, <a href="markdown/quickstart.html">quickstart</a>, <a href="markdown/cheatsheet.html">cheatsheet</a></td></tr>
 <tr><td><a href="engines/index.html">The drawing engines</a></td><td>The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify; blends, effects, Splatter, Warp and 3D; type, its layout, hyphenation and fonts; Text Configurations and Composition Styles.</td><td><a href="engines/index.html">reference</a>, <a href="engines/quickstart.html">quickstart</a>, <a href="engines/cheatsheet.html">cheatsheet</a></td></tr>
 <tr><td><a href="interop/index.html">Working with other programs</a></td><td>Illustrator and Inkscape through SVG, an Illustrator script that rebuilds a drawing, files linked from elsewhere, and what survives a round trip.</td><td><a href="interop/index.html">reference</a>, <a href="interop/quickstart.html">quickstart</a>, <a href="interop/cheatsheet.html">cheatsheet</a></td></tr>
-<tr><td><a href="ai/index.html">The AI helpers</a></td><td>The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages.</td><td><a href="ai/index.html">reference</a>, <a href="ai/quickstart.html">quickstart</a>, <a href="ai/cheatsheet.html">cheatsheet</a></td></tr>
+<tr><td><a href="ai/index.html">The AI helpers</a></td><td>Experimental. The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages.</td><td><a href="ai/index.html">reference</a>, <a href="ai/quickstart.html">quickstart</a>, <a href="ai/cheatsheet.html">cheatsheet</a></td></tr>
 </tbody></table></div>
 <h2 id="how-it-fits-together">How it fits together<a class="anchor" href="#how-it-fits-together" aria-label="Link to this section">#</a></h2>
 <pre><code class="language-text"> text script (.napkin) --parseScript--+
@@ -144,13 +144,13 @@ and whatever could be drawn still is; only the disk throws.</li>
 <tr><td>Node</td><td><code>drawFile('card.napkin', { formats: ['svg', 'png'] })</code></td><td><a href="node/quickstart.html">Using it from code</a></td></tr>
 <tr><td>A browser or a bundler</td><td><code>drawSvg(text)</code>, <code>evaluate(text)</code></td><td><a href="node/index.html#the-entries">The entries</a></td></tr>
 <tr><td>Code that lays out a graphic</td><td><code>createComposition({ width, height })</code></td><td><a href="compose/quickstart.html">The graphic design API</a></td></tr>
-<tr><td>An AI tool</td><td>the <code>graphic-designer</code> and <code>scripting</code> helpers</td><td><a href="ai/quickstart.html">The AI helpers</a></td></tr>
-<tr><td>A sentence</td><td><code>napkin-sketch draw --prompt &quot;a three-box flowchart with arrows&quot;</code></td><td><a href="ai/index.html#drawing-from-a-request">Drawing from a request</a></td></tr>
+<tr><td>An AI tool</td><td>the <code>graphic-designer</code> and <code>scripting</code> helpers (experimental)</td><td><a href="ai/quickstart.html">The AI helpers</a></td></tr>
+<tr><td>A sentence</td><td><code>napkin-sketch draw --prompt &quot;a three-box flowchart with arrows&quot;</code> (experimental)</td><td><a href="ai/index.html#drawing-from-a-request">Drawing from a request</a></td></tr>
 <tr><td>Illustrator, Inkscape</td><td>SVG both ways, <code>link</code>, and <code>--to jsx</code> to rebuild a drawing in Illustrator</td><td><a href="interop/quickstart.html">Working with other programs</a></td></tr>
 </tbody></table></div>
 <h2 id="who-these-pages-are-for">Who these pages are for<a class="anchor" href="#who-these-pages-are-for" aria-label="Link to this section">#</a></h2>
 <p>People and agents alike. Every category has three pages: a reference for the
-reader with time, a quickstart that runs as written on a fresh clone, and a
+reader with time, a quickstart that runs as written from npm or a clone, and a
 cheatsheet of tables, and each links to the other two and back here in its
 first lines. The reference pages close with a section for agents: the strings
 to match, the flags that make a run repeatable, and which diagnostics mean

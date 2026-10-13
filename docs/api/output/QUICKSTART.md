@@ -8,14 +8,18 @@ the path from a script to all five files.
 
 ## The whole thing in four steps
 
-1. Build the clone:
+1. Install the command line, which puts `napkin-sketch` on your PATH, and the
+   API in a folder of your own:
 
 ```bash
-npm install
-npm run build
+npm install -g @isocialpractice/napkin-sketch
+npm install @isocialpractice/napkin-sketch
 ```
 
-2. Save this as `sticker.napkin` in the clone. `crop auto pad 12` cuts every
+   From a clone, `npm install`, `npm run build` and `npm link` do the same, and
+   the files below go in the clone.
+
+2. Save this as `sticker.napkin` in that folder. `crop auto pad 12` cuts every
    output to the ink, with 12 pixels of room around it:
 
 ```napkin
@@ -33,7 +37,7 @@ crop auto pad 12
 
 ```js
 import { readFileSync, writeFileSync } from 'node:fs';
-import { evaluate, renderBook } from 'napkin-sketch';
+import { evaluate, renderBook } from '@isocialpractice/napkin-sketch';
 
 const { book, output } = evaluate(readFileSync('sticker.napkin', 'utf8'));
 const [svg] = renderBook(book, { format: 'svg', ...output });

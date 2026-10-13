@@ -158,14 +158,18 @@ Options:
   --crop auto|none|<x,y,w,h>
                           What every file is cut to (default: the script's crop)
   --limit <n>             The most instructions a run may execute
-  --prompt <request>      Ask the AI helper for a script that draws this
-  --helper <command>      The helper command (default: $NAPKIN_SCRIPT_HELPER,
-                          else claude -p --model sonnet
+  --prompt <request>      Experimental: ask the AI helper for a script that
+                          draws this
+  --helper <command>      Experimental: the helper command (default:
+                          $NAPKIN_SCRIPT_HELPER, else claude -p --model sonnet
                           --dangerously-skip-permissions < _temp/script-form.txt)
   --json                  Print one line of JSON on standard output, nothing else
   --strict                Write nothing when anything at all is reported
   --quiet                 Print errors and nothing else
   -h, --help              Show this help
+
+--prompt and --helper are experimental: they run an AI tool you install and
+sign in to yourself, on your account and at its cost.
 
 Exit codes: 0 drew; 1 the arguments were wrong; 2 the script had errors (what
 could be drawn is still written, unless --strict); 3 a file could not be read

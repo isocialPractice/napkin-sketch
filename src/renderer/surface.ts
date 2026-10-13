@@ -158,6 +158,12 @@ export interface RenderOptions {
    * wants, for the same reason a sprite frame does.
    */
   transparent?: boolean;
+  /**
+   * A picture for a file: the ink on its paper, or on nothing when
+   * transparent. The paper's dot texture and a sized page's dashed outline
+   * are the screen's and are left out.
+   */
+  export?: boolean;
 }
 
 /** Extra, transient things to overlay on top of the sketch. */
@@ -637,14 +643,21 @@ export class Surface {
     const ctx = this.ctx;
     ctx.save();
     ctx.scale(this.dpr, this.dpr);
+    // The canvas has no alpha channel, so a clear leaves it black: what a
+    // render on nothing really leaves is the ink canvas, which toDataURL reads.
+    this.lastRenderTransparent = options?.transparent === true;
     if (options?.transparent) {
       // A cropped export drops into somebody else's composition, so no paper,
       // no texture, and no page outline goes under the ink.
       ctx.clearRect(0, 0, this.canvas.width / this.dpr, this.canvas.height / this.dpr);
     } else {
       this.paintBackground(sketch.background);
-      this.paintPaperTexture();
-      if (sketch.sizeMode === 'sized') this.paintPageBounds(sketch.width, sketch.height);
+      // The dot texture and a sized page's dashed outline are the screen's:
+      // a file gets the ink on plain paper.
+      if (!options?.export) {
+        this.paintPaperTexture();
+        if (sketch.sizeMode === 'sized') this.paintPageBounds(sketch.width, sketch.height);
+      }
     }
     const symmetryAlpha = options?.transparent ? 0 : overlay?.symmetryAlpha ?? 1;
     if (overlay?.symmetry && overlay.symmetry > 1 && symmetryAlpha > 0) {
@@ -2675,38 +2688,54 @@ export class Surface {
     ctx.restore();
   }
 
+  /** True when the last render drew the ink on nothing: the picture is then the ink canvas, not the opaque one on the screen. */
+  private lastRenderTransparent = false;
+
   /**
    * Renders the current sketch to an image data URL.
+   *
+   * The screen's canvas has no alpha channel, so a render on nothing leaves
+   * it black where the paper was; the picture of such a render is read from
+   * the ink canvas, which keeps its transparency, so a PNG with nothing
+   * under it is transparent and one on a color shows that color.
    * @param type MIME type, e.g. 'image/png' or 'image/jpeg'.
-   * @param background optional solid background (required for opaque JPEG).
+   * @param background optional solid color laid under the picture: what an
+   * opaque JPEG needs, and what a PNG exported on white or black gets.
    */
   toDataURL(type: 'image/png' | 'image/jpeg' = 'image/png', background?: string): string {
-    if (type === 'image/jpeg' && background) {
+    const source = this.lastRenderTransparent ? this.ink : this.canvas;
+    if (background) {
       const flat = document.createElement('canvas');
-      flat.width = this.canvas.width;
-      flat.height = this.canvas.height;
+      flat.width = source.width;
+      flat.height = source.height;
       const fctx = flat.getContext('2d');
       if (fctx) {
         fctx.fillStyle = background;
         fctx.fillRect(0, 0, flat.width, flat.height);
-        fctx.drawImage(this.canvas, 0, 0);
-        return flat.toDataURL('image/jpeg', 0.92);
+        fctx.drawImage(source, 0, 0);
+        return flat.toDataURL(type, 0.92);
       }
     }
-    return this.canvas.toDataURL(type, 0.92);
+    return source.toDataURL(type, 0.92);
   }
 
-  /** Renders any sketch to a data URL without needing an on-screen surface. */
+  /**
+   * Renders any sketch to a data URL without needing an on-screen surface: a
+   * picture for a file, with nothing the screen adds. `background` is a solid
+   * color laid under the ink once it is drawn - a PNG exported on white or
+   * black - and a JPEG takes the page's own color when none is given.
+   */
   static renderSketchToDataURL(
     sketch: Sketch,
     format: 'image/png' | 'image/jpeg' = 'image/png',
-    options: RenderOptions = {},
+    options: RenderOptions & { background?: string } = {},
   ): string {
     const canvas = document.createElement('canvas');
     const surf = new Surface(canvas);
     surf.resize(sketch.width, sketch.height);
-    surf.render(sketch, null, undefined, options);
-    const url = surf.toDataURL(format, format === 'image/jpeg' ? sketch.background : undefined);
+    const { background, ...render } = options;
+    surf.render(sketch, null, undefined, { ...render, export: true });
+    const url = surf.toDataURL(format, background ?? (format === 'image/jpeg' ? sketch.background : undefined));
     // The surface is thrown away here, but a pending image load would keep it
     // (and every bitmap it decoded) alive until it settled. Exporting a book
     // builds one of these per page.

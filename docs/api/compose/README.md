@@ -77,7 +77,7 @@ between an SVG and a PNG of one composition is only what the two formats are.
 ### Getting started
 
 ```ts
-import { createComposition } from 'napkin-sketch';
+import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
 
@@ -292,7 +292,7 @@ the PNG. Measure it yourself with `measureText` and `layoutText` when a layout
 has to know how tall a block came out:
 
 ```ts
-import { layoutText, measureText } from 'napkin-sketch';
+import { layoutText, measureText } from '@isocialpractice/napkin-sketch';
 
 const width = measureText('Acme Corp', { fontSize: 18 });
 const block = layoutText(copy, {
@@ -348,7 +348,7 @@ the way a design tool places a linked file. The SVG keeps the path as its
 document picks up every change made to it.
 
 ```ts
-import { resolveLinkFromDir } from 'napkin-sketch/graphic-design/files';
+import { resolveLinkFromDir } from '@isocialpractice/napkin-sketch/graphic-design/files';
 
 design.image({ src: 'assets/logo.svg', link: true, x: 24, y: 24, width: 120, height: 60, fit: 'contain' });
 const { data, warnings } = design.rasterize({ resolveLink: resolveLinkFromDir('./brand') });
@@ -612,7 +612,7 @@ did not go as asked.
 ```
 
 ```ts
-import { applyCompositionStyle, compositionReportLines, createComposition, validateCompositionStyle } from 'napkin-sketch';
+import { applyCompositionStyle, compositionReportLines, createComposition, validateCompositionStyle } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 360, height: 200, background: '#ffffff' });
 design.rect({ name: 'Background', x: 0, y: 0, width: 360, height: 200, fill: '#f4f1ea' });
@@ -668,7 +668,7 @@ design.rasterize();                  // { width, height, data, warnings }
 Or parameterise over the format:
 
 ```ts
-import { renderComposition } from 'napkin-sketch';
+import { renderComposition } from '@isocialpractice/napkin-sketch';
 
 for (const format of ['svg', 'png'] as const) {
   const output = renderComposition(design, { format });
@@ -700,7 +700,7 @@ untouched. The file helpers are a separate, Node-only module for the same
 reason the PDF importer is:
 
 ```ts
-import { imageDataUrl, writeComposition } from 'napkin-sketch/graphic-design/files';
+import { imageDataUrl, writeComposition } from '@isocialpractice/napkin-sketch/graphic-design/files';
 
 const logo = await imageDataUrl('assets/logo.png');
 design.image({ src: logo, x: 24, y: 24, width: 64, height: 64 });
@@ -709,7 +709,7 @@ const { svg, png, warnings } = await writeComposition(design, './out', 'card');
 // ./out/card.svg and ./out/card.png, written from one document in one call
 ```
 
-`napkin-sketch/node` exports the same helpers, beside the calls that draw a
+`@isocialpractice/napkin-sketch/node` exports the same helpers, beside the calls that draw a
 napkin script to files, so a Node program has one import for the disk; see
 [Using napkin-sketch from code](../node/README.md).
 
@@ -727,7 +727,7 @@ name. That belongs in a file the project owns rather than in the script, and
 this is the surface that reads it.
 
 ```ts
-import { parseResources, inlineSvg, placeBrand, brandMark, detectBrandSlots } from 'napkin-sketch';
+import { parseResources, inlineSvg, placeBrand, brandMark, detectBrandSlots } from '@isocialpractice/napkin-sketch';
 ```
 
 #### Reading `resources.md`
@@ -824,7 +824,8 @@ app's renderer, where a high-DPI 2D context already exists, `paintComposition`
 draws the composition into it instead:
 
 ```ts
-import { paintComposition } from 'napkin-sketch/dist/core/graphic-design/canvas.js';
+// In the app's own renderer source, beside the other graphic-design modules:
+import { paintComposition } from '../core/graphic-design/canvas.js';
 
 paintComposition(ctx, design.toDocument(), { resolveImage });
 ```
@@ -866,8 +867,8 @@ should render the SVG through a browser instead.
 a footer - the shape most of this API's work takes:
 
 ```ts
-import { createComposition } from 'napkin-sketch';
-import { imageDataUrl, writeComposition } from 'napkin-sketch/graphic-design/files';
+import { createComposition } from '@isocialpractice/napkin-sketch';
+import { imageDataUrl, writeComposition } from '@isocialpractice/napkin-sketch/graphic-design/files';
 
 const palette = {
   page: '#000133',
@@ -936,7 +937,7 @@ ring is a disk in a group whose `erase` shape clears its middle, so the
 gradient shows through the hole and nothing else is cut:
 
 ```ts
-import { createComposition } from 'napkin-sketch';
+import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 240, height: 240, background: '#ffffff' });
 
@@ -957,7 +958,7 @@ const png = design.toPNG();   // cleared from the group's own layer before it is
 and the composition calls add to it before it is rendered:
 
 ```ts
-import { compositionToSvg, evaluate, renderPng, sketchToComposition } from 'napkin-sketch';
+import { compositionToSvg, evaluate, renderPng, sketchToComposition } from '@isocialpractice/napkin-sketch';
 
 const { book } = evaluate('napkin 1\npage 400 300\nrough 0.6\ncircle 200 130 80', { seed: 7 });
 const doc = sketchToComposition(book.sketches[0]);

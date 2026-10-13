@@ -129,11 +129,11 @@ writer, so they write the same file.
 
 In the app, **File > Import** (`Ctrl + I`) or a paste; from a shell,
 `napkin-sketch --import art.svg` opens the app with the file imported. In code,
-`importSvg` from `napkin-sketch` does the same in a browser, where it measures
+`importSvg` from `@isocialpractice/napkin-sketch` does the same in a browser, where it measures
 the document with the DOM:
 
 ```ts
-import { importSvg } from 'napkin-sketch';
+import { importSvg } from '@isocialpractice/napkin-sketch';
 
 const imported = importSvg(svgText, { unnamedRootName: 'logo' });
 // { width, height, background?, layers: [{ name, opacity, strokes, children? }] }
@@ -286,7 +286,7 @@ design.image({ x: 20, y: 20, width: 160, height: 80, src: 'assets/logo.svg', lin
 
 - **Only the host reads a file.** A script or a composition names a file; the
   program running it passes a resolver, and `resolveLinkFromDir(folder)` from
-  `napkin-sketch/node` reads only inside that folder: no absolute path, no `..`
+  `@isocialpractice/napkin-sketch/node` reads only inside that folder: no absolute path, no `..`
   step, no web address, and no symbolic link that leads out of it. The command
   line builds one from `--base`, which defaults to the script's folder.
 - **An import reads a link back as a link.** An `<image>` whose `href` is a

@@ -1,16 +1,22 @@
+#!/usr/bin/env node
 /**
  * napkin-sketch command-line interface.
  *
- * Parses the documented flags, then either prints help/version, runs a headless
- * auto-sharpen pass, or launches the Electron drawing GUI. A first argument that
- * names a command - `draw`, `check`, `render`, `verbs` - runs that command
- * instead, with no window and without ever reaching Electron.
+ * Parses the documented flags, then either prints help/version, installs or
+ * removes the desktop app, runs a headless auto-sharpen pass, or launches the
+ * Electron drawing GUI. A first argument that names a command - `draw`,
+ * `check`, `render`, `verbs` - runs that command instead, with no window and
+ * without ever reaching Electron.
+ *
+ * The GUI is the clone's own build, or in an npm install a second package,
+ * `@isocialpractice/napkin-sketch-gui`, which `--install-gui` adds: see
+ * `gui.ts` for how it is found.
  *
  *   napkin-sketch [option] [target]
  *   napkin-sketch <command> [arguments]
  *
  *   -h, --help          Show help.
- *   -v, --version       Show version.
+ *   -v, --version       Show version, and where the desktop app is.
  *   -b, --book <file>   Open a .skbk sketch book.
  *   -n, --new [name]    New sketch named "unnamed" or [name].
  *   -f, --full-screen   Open the GUI window full screen (default: maximized).
@@ -18,11 +24,14 @@
  *   -i, --import <f>    Import a file into the opening sketch.
  *   -m, --multiple-imports <f,f,…>  Import several files in a grid.
  *       --sharpen <f>   Auto-sharpen a saved sketch, then open it.
+ *       --install-gui   Install the desktop app with npm; --here for this project.
+ *       --uninstall-gui Remove it; --here for this project's.
  */
 
-import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { extname, resolve, join } from 'node:path';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { dirname, extname, resolve, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   encodeLaunchOptions,
   LAUNCH_ENV_KEY,
@@ -39,11 +48,22 @@ import { sharpenStrokes } from '../sharpen/sharpen.js';
 // Markdown Flow text is drawn as its Markdown renders, and code accented: marked's lexer and highlight.js registered.
 import '../markdown/core.js';
 import { DOCS_SITE_ADDRESS } from '../core/menu/links.js';
-import { COMMAND_SUMMARIES, COMMANDS, parseArgs } from './args.js';
+import { COMMAND_SUMMARIES, COMMANDS, guiOptionsProblem, parseArgs } from './args.js';
 import { runCommand } from './draw.js';
+import {
+  electronFrom,
+  findGui,
+  GUI_DOWNLOAD,
+  GUI_PACKAGE,
+  guiNpmArgs,
+  guiStatusLine,
+  guiVersionNote,
+  missingElectronText,
+  type GuiLocation,
+} from './gui.js';
 
-// Bundled as CommonJS; __dirname points at dist/cli at runtime.
-const HERE = __dirname;
+// An ES module: its own folder, dist/cli at run time, read from its URL.
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 /** Reads the package version from package.json (one dir above dist/cli or src/cli). */
 function readVersion(): string {
@@ -74,7 +94,8 @@ ${COMMANDS.map((command) => `  ${COMMAND_SUMMARIES[command].usage.padEnd(22)}${C
 
 Options:
   -h, --help            Show this help and exit.
-  -v, --version         Show the installed version and exit.
+  -v, --version         Show the installed version, and where the desktop app
+                        is, and exit.
   -b, --book <file>     Open a saved sketch book (.skbk) to view or edit.
   -n, --new [name]      Start a new sketch named "unnamed" or [name].
   -f, --full-screen     Open the GUI window full screen, which hides the window
@@ -91,12 +112,18 @@ Options:
                         next one would overrun the page width. Comma-separated;
                         quote names that contain spaces.
       --sharpen <file>  Auto-sharpen every stroke in a saved .skbk, then open it.
+      --install-gui     Install the desktop app with npm, at this version:
+                        ${GUI_PACKAGE} and Electron,
+                        ${GUI_DOWNLOAD}. Globally, or with --here into the
+                        current project.
+      --uninstall-gui   Remove the desktop app, globally or with --here.
 
 Targets:
   <file>   Path to a .skbk sketch book (extension optional).
   [name]   Name for a new sketch file.
 
 Examples:
+  napkin-sketch --install-gui         Add the desktop app (${GUI_DOWNLOAD}).
   napkin-sketch                       Open a new, blank sketch.
   napkin-sketch --new ideas           New sketch named "ideas".
   napkin-sketch --book ./notes.skbk   Open an existing sketch book.
@@ -171,33 +198,81 @@ function exitForMissingElectron(detail: string): never {
   process.exit(1);
 }
 
-/** Resolves the Electron executable path from the installed `electron` package. */
-function resolveElectronBinary(): string {
-  // The `electron` package's main export is the path to the binary. It throws
-  // when the package's own record of that path (path.txt) is missing, which
-  // is what an interrupted or skipped download leaves behind.
-  let electronPath: unknown;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    electronPath = require('electron') as unknown;
-  } catch {
-    exitForMissingElectron('could not locate the Electron binary; its download did not finish.');
-  }
-  if (typeof electronPath !== 'string') {
-    exitForMissingElectron('could not locate the Electron binary. Run "npm install" first.');
-  }
-  // The record can outlive the binary: a scanner that quarantines it, or a
-  // sync tool that offloads it, leaves path.txt naming a file that is gone.
-  if (!existsSync(electronPath)) {
-    exitForMissingElectron(`the Electron binary is missing: ${electronPath}`);
-  }
-  return electronPath;
+/** The desktop app and the Electron binary that starts it. */
+interface ReadyGui {
+  readonly gui: GuiLocation;
+  readonly electron: string;
 }
 
-/** Spawns the Electron GUI with the given launch options. */
-function launchGui(options: LaunchOptions, noSandbox = false): void {
-  const electron = resolveElectronBinary();
-  const mainEntry = resolve(HERE, '..', 'main', 'main.js');
+/** Says why the app found cannot start for want of Electron, and exits: the clone's reinstall hint, or the install command again. */
+function exitForGuiElectron(gui: GuiLocation, why: string): never {
+  if (gui.where === 'clone') exitForMissingElectron(why);
+  console.error(`napkin-sketch: ${why}`);
+  process.exit(1);
+}
+
+/**
+ * The desktop app this command starts, with its Electron binary, or an exit
+ * that says why there is none: not installed, or its Electron not there. Run
+ * before anything is written, so `--sharpen` never changes a book that no app
+ * can then open. An app at another version than this command is a warning.
+ */
+function readyGui(): ReadyGui {
+  const gui = findGui(HERE, process.cwd());
+  if (!gui) {
+    console.error(`napkin-sketch: the desktop app is not installed. Run: napkin-sketch --install-gui (adds Electron, ${GUI_DOWNLOAD}).`);
+    console.error('The drawing commands need no app: "napkin-sketch --help" lists them.');
+    process.exit(1);
+  }
+  // Electron's package downloads a binary that is missing, printing as it
+  // goes, so an app whose download was cut short heals as it starts.
+  const lookup = electronFrom(gui.folder);
+  if (!('binary' in lookup)) exitForGuiElectron(gui, missingElectronText(gui, lookup) ?? 'could not locate the Electron binary.');
+  const note = guiVersionNote(gui, readVersion());
+  if (note) console.error(`napkin-sketch: ${note}`);
+  return { gui, electron: lookup.binary };
+}
+
+/**
+ * Installs the desktop app's package with npm at this command's own version,
+ * or removes it: globally, or with `here` in the working folder's project.
+ * npm prints Electron's download as it goes. Answers npm's exit code.
+ */
+function runGuiInstall(here: boolean, uninstall: boolean): number {
+  const version = readVersion();
+  const npmArgs = guiNpmArgs({ version, here, uninstall });
+  const where = here ? ' in this project' : '';
+  if (!uninstall && findGui(HERE, process.cwd())?.where === 'clone') {
+    console.log('napkin-sketch: this command runs from a clone, which starts the app built in it; the app installed now is for the command installed from npm.');
+  }
+  console.log(
+    uninstall
+      ? `napkin-sketch: removing the desktop app${where}: npm ${npmArgs.join(' ')}`
+      : `napkin-sketch: installing the desktop app${where}, ${GUI_PACKAGE}@${version} and Electron, ${GUI_DOWNLOAD}: npm ${npmArgs.join(' ')}`,
+  );
+  // npm is a .cmd on Windows, which only a shell runs. The words are this
+  // command's own and a version from its package.json, so the line needs no
+  // quoting, and it is given as one line rather than as arguments to a shell.
+  const result =
+    process.platform === 'win32'
+      ? spawnSync(`npm ${npmArgs.join(' ')}`, { stdio: 'inherit', shell: true })
+      : spawnSync('npm', npmArgs, { stdio: 'inherit' });
+  if (result.error) {
+    console.error(`napkin-sketch: could not run npm: ${result.error.message}`);
+    return 1;
+  }
+  if (result.status === 0 && !uninstall) {
+    console.log('napkin-sketch: the desktop app is installed; run napkin-sketch to open it.');
+    if (process.platform === 'linux') {
+      console.log(`If it stops with a sandbox error, see ${DOCS_SITE_ADDRESS}install.html#linux-the-suid-sandbox-helper-binary-was-found-but-is-not-configured-correctly`);
+    }
+  }
+  return result.status ?? 1;
+}
+
+/** Spawns the desktop app with the given launch options. */
+function launchGui(ready: ReadyGui, options: LaunchOptions, noSandbox = false): void {
+  const { gui, electron } = ready;
 
   // Some editor and agent terminals export ELECTRON_RUN_AS_NODE. Inherited, it
   // makes the child run main.js as plain Node, where `require('electron')`
@@ -212,7 +287,7 @@ function launchGui(options: LaunchOptions, noSandbox = false): void {
   // --no-sandbox is passed only when asked for: the sandbox stays on by
   // default everywhere, and the flag is a development escape hatch for Linux
   // systems that block it.
-  const child = spawn(electron, noSandbox ? [mainEntry, '--no-sandbox'] : [mainEntry], {
+  const child = spawn(electron, noSandbox ? [gui.entry, '--no-sandbox'] : [gui.entry], {
     stdio: 'inherit',
     env,
     windowsHide: false,
@@ -220,7 +295,7 @@ function launchGui(options: LaunchOptions, noSandbox = false): void {
 
   child.on('error', (err) => {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      exitForMissingElectron(`the Electron binary is missing: ${electron}`);
+      exitForGuiElectron(gui, missingElectronText(gui, { problem: 'missing', path: electron }) ?? `the Electron binary is missing: ${electron}`);
     }
     console.error(`napkin-sketch: failed to launch GUI — ${err.message}`);
     process.exit(1);
@@ -277,8 +352,25 @@ async function main(): Promise<void> {
     return;
   }
 
+  const guiProblem = guiOptionsProblem(args);
+  if (guiProblem) {
+    console.error(`napkin-sketch: ${guiProblem}.`);
+    console.error('Run "napkin-sketch --help" for usage.');
+    process.exit(1);
+  }
+
   if (args.version) {
-    console.log(`napkin-sketch v${readVersion()}`);
+    const version = readVersion();
+    const gui = findGui(HERE, process.cwd());
+    console.log(`napkin-sketch v${version}`);
+    console.log(guiStatusLine(gui));
+    const note = gui ? guiVersionNote(gui, version) : null;
+    if (note) console.error(`napkin-sketch: ${note}`);
+    return;
+  }
+
+  if (args.installGui || args.uninstallGui) {
+    process.exitCode = runGuiInstall(args.here, args.uninstallGui);
     return;
   }
 
@@ -308,6 +400,8 @@ async function main(): Promise<void> {
   const multiple = args.multipleImports.length > 0 ? resolveImportFiles(args.multipleImports) : [];
   const importFiles = multiple.length > 0 ? multiple : single;
 
+  const ready = readyGui();
+
   if (mode === 'sharpen' && args.target) {
     // Sharpen on disk first so the GUI opens the already-improved drawing.
     await runSharpen(args.target);
@@ -323,12 +417,27 @@ async function main(): Promise<void> {
     options.importGrid = multiple.length > 0;
   }
 
-  launchGui(options, args.noSandbox);
+  launchGui(ready, options, args.noSandbox);
 }
 
-// Only run as a CLI when invoked directly (keeps exports like parseArgs
-// importable from tests without spawning a process).
-if (require.main === module) {
+/**
+ * True when this module is the program Node was started with, not one that
+ * another module imported, which keeps exports like parseArgs importable
+ * without spawning a process. Compared as real paths: an npm `bin` link, a
+ * Windows `.cmd` shim and an `npm link` junction all start Node on a path
+ * that leads here by another name.
+ */
+function isProgram(): boolean {
+  const started = process.argv[1];
+  if (!started) return false;
+  try {
+    return realpathSync(started) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isProgram()) {
   main().catch((err: unknown) => {
     console.error(`napkin-sketch: ${(err as Error).message}`);
     process.exit(1);

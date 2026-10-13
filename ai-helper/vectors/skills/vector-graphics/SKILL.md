@@ -5,6 +5,9 @@ description: 'Draw vector graphics from Bezier curve equations rather than by dr
 
 # Vector Graphics
 
+> **Experimental.** Part of napkin-sketch's AI helpers, which are new; what
+> this skill reads and writes may change in a minor release.
+
 Draw vectors from Bezier curve equations, following the rules of the Bezier
 formulas, to produce **simplified** and **resourceful** graphics.
 
@@ -32,6 +35,19 @@ changes.
 - Reviewing geometry for cusps, redundant points, and degenerate handles
 - Managing SVG layer structure: naming groups, nesting layer trees, compound
   paths, and carrying structure intact through import/export round trips
+
+## When a Sheet Is Not Beside This File
+
+An npm install carries `assets/uri.md` and not the sheets. Take the URL of
+the one you need from it, download it into a working folder, and read it
+from there:
+
+    curl -sSL -o _temp/shapes.svg <url from assets/uri.md>
+
+The URLs are pinned to this version's tag, so the sheet matches the text;
+one that no longer answers is at a tag a later release removed, and the
+same path on `main` holds the sheet as it is now. Do not fetch one through a
+tool that summarizes a page; the file is the thing to read.
 
 ## Bezier Curves
 

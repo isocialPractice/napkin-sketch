@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -44,13 +44,16 @@
 <h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
 <ul>
 <li><strong>Two synced settings views</strong> — <strong>Quick Settings</strong> in-app (<code>Ctrl+,</code>: live
-sharpen, show selection borders, show mesh, wobble, smoothing, circle snap,
-taper, symmetry, text size) and
+sharpen, show selection borders, the Transform box on selection, show mesh,
+wobble, smoothing, circle snap, taper, symmetry, text size) and
 the <strong>Verbose Settings</strong> window (<code>Ctrl+Alt+,</code>, Edit menu, or the gear icon)
 which holds those same Quick Settings plus zoom/pan sensitivity, inverted
 zoom, the quick-feature timer, endpoint snap and Join stroke, the
 Select sensitivity, the Direct Select sensitivity, the Eyedropper
-sensitivity, the Freehand fidelity, <strong>Show selection borders</strong>, the Copic
+sensitivity, the Freehand fidelity, <strong>Show selection borders</strong>, <strong>Transform
+box on selection</strong> (on by default: the Transform box comes up by itself
+around whatever the Select tool selects; see
+<a href="transform.html#the-transform-box">Transform</a>), the Copic
 quick nib-rotate options
 (on/off, hold time, hold/rotate keys, rotation speed), Quick Access Color
 count and values, toolbar placement (top / side / both) with drag-and-drop
@@ -99,6 +102,8 @@ launches and can be exported to and imported from a JSON file.</li>
 <tr><td><code>selectSensitivityPx</code></td><td><code>4</code></td><td>1 to 20, in steps of 1</td></tr>
 <tr><td><code>directSelectSensitivityPx</code></td><td><code>8</code></td><td>1 to 20, in steps of 1</td></tr>
 <tr><td><code>showSelectionBorders</code></td><td><code>true</code></td><td></td></tr>
+<tr><td><code>transformOnSelect</code></td><td><code>true</code></td><td></td></tr>
+<tr><td><code>pngBackground</code></td><td><code>transparent</code></td><td></td></tr>
 <tr><td><code>joinStrokeOnSnap</code></td><td><code>false</code></td><td></td></tr>
 <tr><td><code>wipeAnimation</code></td><td><code>true</code></td><td></td></tr>
 <tr><td><code>warpShowMesh</code></td><td><code>true</code></td><td></td></tr>

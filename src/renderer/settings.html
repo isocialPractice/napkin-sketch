@@ -155,6 +155,20 @@
           switch, beside its live preview.
         </p>
         <label class="switch settings-row">
+          <input id="transform-on-select" type="checkbox" />
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-text">Transform box on selection</span>
+        </label>
+        <p class="settings-hint">
+          Puts the Transform box, with its handles, up by itself around
+          whatever the Select tool selects, as a vector editor's bounding box
+          is, and takes it down when nothing is selected. On by default.
+          <code>Escape</code> or <code>Ctrl/Cmd + T</code> put an automatic box
+          away for that selection; the next selection brings it back. Off, the
+          box is put up by hand, as before. A 3D mark keeps its gumball either
+          way.
+        </p>
+        <label class="switch settings-row">
           <input id="scale-strokes-effects" type="checkbox" />
           <span class="switch-track" aria-hidden="true"></span>
           <span class="switch-text">Scale Strokes and Effects</span>

@@ -32,8 +32,8 @@ Reminders for the four commands: their flags, exit codes, the JSON report and th
 | `--scale <n>` | yes |  | yes |  | PNG pixels a page pixel. |
 | `--crop auto\|none\|<x,y,w,h>` | yes |  | yes |  | What every file is cut to. |
 | `--limit <n>` | yes | yes |  |  | The most instructions a run may execute. |
-| `--prompt <request>` | yes |  |  |  | Ask the AI helper for a script that draws this, and draw it; the script is kept as <name>.napkin. |
-| `--helper <command>` | yes |  |  |  | The AI helper command --prompt runs: $NAPKIN_SCRIPT_HELPER unless given, else Claude Code. |
+| `--prompt <request>` | yes |  |  |  | Experimental: ask the AI helper for a script that draws this, and draw it; the script is kept as <name>.napkin. |
+| `--helper <command>` | yes |  |  |  | Experimental: the AI helper command --prompt runs: $NAPKIN_SCRIPT_HELPER unless given, else Claude Code. |
 | `--page <n>` |  |  | yes |  | Only this page of the book, counting from 1. |
 | `--animate <type>` |  |  | yes |  | Draw the page's figure through a measured cycle, a frame a page: walk, run, ideal, knocked-down. |
 | `--frames <n>` |  |  | yes |  | How many frames --animate spreads the cycle across: 2 to 60, the cycle's own length unless given. |

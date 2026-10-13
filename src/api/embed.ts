@@ -8,7 +8,7 @@
  *
  * @example
  * ```ts
- * import { NapkinSketch } from 'napkin-sketch';
+ * import { NapkinSketch } from '@isocialpractice/napkin-sketch';
  * const editor = new NapkinSketch(document.getElementById('host')!, {
  *   liveSharpen: false,
  * });

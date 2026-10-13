@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="index.html"><img src="assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -41,7 +41,7 @@
 <article class="content">
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Start</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
 <h1 id="cheatsheet">Cheatsheet<a class="anchor" href="#cheatsheet" aria-label="Link to this section">#</a></h1>
-<details class="toc" open><summary>On this page</summary><ul><li><a href="#tools">Tools</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#text-editing">Text editing</a></li><li><a href="#quick-features">Quick features</a></li><li><a href="#view-pan-and-zoom">View, pan, and zoom</a></li><li><a href="#selection-and-editing">Selection and editing</a></li><li><a href="#vector-path-editing">Vector path editing</a></li><li><a href="#layers">Layers</a></li><li><a href="#files">Files</a></li><li><a href="#menus">Menus</a></li><li><a href="#automate">Automate</a></li><li><a href="#cli">CLI</a></li><li><a href="#npm-scripts">npm scripts</a></li><li><a href="#embedding">Embedding</a></li><li><a href="#drawing-from-a-script">Drawing from a script</a></li><li><a href="#graphic-design-api">Graphic design API</a></li><li><a href="#ai-helpers">AI helpers</a></li><li><a href="#defaults-worth-knowing">Defaults worth knowing</a></li></ul></details>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#tools">Tools</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#text-editing">Text editing</a></li><li><a href="#quick-features">Quick features</a></li><li><a href="#view-pan-and-zoom">View, pan, and zoom</a></li><li><a href="#selection-and-editing">Selection and editing</a></li><li><a href="#vector-path-editing">Vector path editing</a></li><li><a href="#layers">Layers</a></li><li><a href="#files">Files</a></li><li><a href="#menus">Menus</a></li><li><a href="#automate">Automate</a></li><li><a href="#cli">CLI</a></li><li><a href="#npm-scripts">npm scripts</a></li><li><a href="#embedding">Embedding</a></li><li><a href="#drawing-from-a-script">Drawing from a script</a></li><li><a href="#graphic-design-api">Graphic design API</a></li><li><a href="#ai-helpers-experimental">AI helpers (experimental)</a></li><li><a href="#defaults-worth-knowing">Defaults worth knowing</a></li></ul></details>
 <p>Every shortcut, flag, and script on one page. New here? Start with
 <a href="quickstart.html">QUICKSTART.md</a>. Full prose reference: <a href="guide/index.html">Using the
 app</a>, which the documentation site publishes
@@ -142,7 +142,7 @@ Edit Keyboard Shortcuts</strong> changes them for you alone.</p>
 <tr><td style="text-align:left">Type panel: Paragraph</td><td style="text-align:left"><code>Ctrl + Alt + T</code></td></tr>
 <tr><td style="text-align:left">Quick Settings</td><td style="text-align:left"><code>Ctrl + ,</code></td></tr>
 <tr><td style="text-align:left">Verbose Settings</td><td style="text-align:left"><code>Ctrl + Alt + ,</code></td></tr>
-<tr><td style="text-align:left">Animation Mode</td><td style="text-align:left"><code>Ctrl + Shift + N</code> (optional add-on)</td></tr>
+<tr><td style="text-align:left">Animation Mode</td><td style="text-align:left"><code>Ctrl + Shift + N</code> (experimental add-on)</td></tr>
 </tbody></table></div>
 <h2 id="selection-and-editing">Selection and editing<a class="anchor" href="#selection-and-editing" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>
@@ -201,6 +201,8 @@ Edit Keyboard Shortcuts</strong> changes them for you alone.</p>
 <tr><td style="text-align:left">Make a clipping mask</td><td style="text-align:left"><code>Ctrl + 7</code>; the closed path on top clips</td></tr>
 <tr><td style="text-align:left">Release a clipping mask</td><td style="text-align:left"><code>Ctrl + Alt + 7</code></td></tr>
 <tr><td style="text-align:left">Move layer up / down</td><td style="text-align:left"><code>Ctrl + ]</code> / <code>Ctrl + [</code></td></tr>
+<tr><td style="text-align:left">Move layer to top / bottom</td><td style="text-align:left"><code>Ctrl + Shift + ]</code> / <code>Ctrl + Shift + [</code></td></tr>
+<tr><td style="text-align:left">Select layer above / below</td><td style="text-align:left"><code>Alt + ]</code> / <code>Alt + [</code></td></tr>
 <tr><td style="text-align:left">Multi-select rows</td><td style="text-align:left"><code>Shift</code> + click</td></tr>
 <tr><td style="text-align:left">Restack or nest</td><td style="text-align:left">Drag the row (drop onto a group to nest)</td></tr>
 <tr><td style="text-align:left">Layer tools menu</td><td style="text-align:left">Right-click a row</td></tr>
@@ -247,7 +249,7 @@ table</a>.</p>
 <thead><tr><th style="text-align:left">Flag</th><th style="text-align:left">Description</th></tr></thead>
 <tbody>
 <tr><td style="text-align:left"><code>-h, --help</code></td><td style="text-align:left">Show command-line help</td></tr>
-<tr><td style="text-align:left"><code>-v, --version</code></td><td style="text-align:left">Show the version</td></tr>
+<tr><td style="text-align:left"><code>-v, --version</code></td><td style="text-align:left">Show the version, and where the desktop app is</td></tr>
 <tr><td style="text-align:left"><code>-b, --book</code></td><td style="text-align:left">Open a saved <code>.skbk</code> sketch book</td></tr>
 <tr><td style="text-align:left"><code>-n, --new</code></td><td style="text-align:left">New sketch, named <code>unnamed</code> or <code>[target]</code></td></tr>
 <tr><td style="text-align:left"><code>-f, --full-screen</code></td><td style="text-align:left">Open full screen (the default window is maximized)</td></tr>
@@ -255,9 +257,12 @@ table</a>.</p>
 <tr><td style="text-align:left"><code>-i, --import</code></td><td style="text-align:left">Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch</td></tr>
 <tr><td style="text-align:left"><code>-m, --multiple-imports</code></td><td style="text-align:left">Import a comma-separated list, laid out in a grid</td></tr>
 <tr><td style="text-align:left"><code>--sharpen</code></td><td style="text-align:left">Auto-sharpen a saved sketch on disk, then open it</td></tr>
+<tr><td style="text-align:left"><code>--install-gui</code></td><td style="text-align:left">Install the desktop app and Electron, about 100 MB</td></tr>
+<tr><td style="text-align:left"><code>--uninstall-gui</code></td><td style="text-align:left">Remove it; <code>--here</code> with either, for this project</td></tr>
 <tr><td style="text-align:left"><code>[target]</code></td><td style="text-align:left">A <code>.skbk</code> file to open, or a name for a new sketch</td></tr>
 </tbody></table></div>
-<pre><code class="language-bash">napkin-sketch                                        # new blank sketch
+<pre><code class="language-bash">napkin-sketch --install-gui                          # add the desktop app (about 100 MB)
+napkin-sketch                                        # new blank sketch
 napkin-sketch --new ideas                            # new sketch named &quot;ideas&quot;
 napkin-sketch --book ./notes.skbk                    # open a saved book
 napkin-sketch ./notes.skbk                           # same, bare path
@@ -322,7 +327,8 @@ napkin-sketch verbs --category shapes                # one category</code></pre>
 <tr><td style="text-align:left"><code>npm run api-docs -- --check</code></td><td style="text-align:left">Fail when any of them is out of date</td></tr>
 <tr><td style="text-align:left"><code>npm run menu-docs</code></td><td style="text-align:left">Rewrite the shortcut tables from the menu registry</td></tr>
 <tr><td style="text-align:left"><code>npm run menu-docs -- --check</code></td><td style="text-align:left">Fail when either is out of date</td></tr>
-<tr><td style="text-align:left"><code>npm run pack-check</code></td><td style="text-align:left">Pack, install the tarball with no Electron, and draw</td></tr>
+<tr><td style="text-align:left"><code>npm run pack-check</code></td><td style="text-align:left">Pack and install both packages: draw with one, find the app</td></tr>
+<tr><td style="text-align:left"><code>npm run pack-gui</code></td><td style="text-align:left">Lay out the desktop app's npm package in <code>release/gui/</code></td></tr>
 <tr><td style="text-align:left"><code>npm run dist</code></td><td style="text-align:left">Build an installer for the current OS</td></tr>
 <tr><td style="text-align:left"><code>npm run dist:win</code> / <code>dist:mac</code> / <code>dist:linux</code></td><td style="text-align:left">NSIS / DMG / AppImage</td></tr>
 <tr><td style="text-align:left"><code>npm run animation-mode -- --status</code></td><td style="text-align:left">Is Animation Mode installed?</td></tr>
@@ -330,8 +336,8 @@ napkin-sketch verbs --category shapes                # one category</code></pre>
 <tr><td style="text-align:left"><code>npm run animation-mode -- --uninstall</code></td><td style="text-align:left">Remove it again</td></tr>
 </tbody></table></div>
 <h2 id="embedding">Embedding<a class="anchor" href="#embedding" aria-label="Link to this section">#</a></h2>
-<pre><code class="language-ts">import { NapkinSketch } from 'napkin-sketch';
-import 'napkin-sketch/styles.css';
+<pre><code class="language-ts">import { NapkinSketch } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/styles.css';
 
 const editor = new NapkinSketch(document.getElementById('host')!, {
   liveSharpen: false,
@@ -347,8 +353,8 @@ editor.applyCompositionStyle(style); // restyles by layer name; gives the report
 <p>Pure-engine entry points, no editor required: <code>sharpenStrokes</code>,
 <code>parseSketchBook</code>, <code>sketchesToPdf</code>, and <code>importSvg</code> (browser only).</p>
 <h2 id="drawing-from-a-script">Drawing from a script<a class="anchor" href="#drawing-from-a-script" aria-label="Link to this section">#</a></h2>
-<pre><code class="language-ts">import { drawSvg, evaluate, renderBook } from 'napkin-sketch';   // anywhere
-import { drawFile, drawToFiles } from 'napkin-sketch/node';      // Node: files
+<pre><code class="language-ts">import { drawSvg, evaluate, renderBook } from '@isocialpractice/napkin-sketch';   // anywhere
+import { drawFile, drawToFiles } from '@isocialpractice/napkin-sketch/node';      // Node: files
 
 const { svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60');
 const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png', 'pdf', 'skbk'] });</code></pre>
@@ -389,7 +395,7 @@ const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg
 <p>Every verb, flag and exit code: <a href="api/cheatsheet.html">API-CHEATSHEET.md</a>. The map
 of the documentation: <a href="api/index.html">API.md</a>.</p>
 <h2 id="graphic-design-api">Graphic design API<a class="anchor" href="#graphic-design-api" aria-label="Link to this section">#</a></h2>
-<pre><code class="language-ts">import { createComposition } from 'napkin-sketch';
+<pre><code class="language-ts">import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
 design.rect({ x: 24, y: 24, width: 312, height: 96, rx: 12, fill: '#326478' });
@@ -417,19 +423,22 @@ design.toPNG();  // PNG bytes, no canvas and no image dependency</code></pre>
 </tbody></table></div>
 <p>Page defaults: 360 by 360, <code>px</code>, transparent, headless. Full reference in
 <a href="api/compose/index.html">the graphic design API</a>.</p>
-<h2 id="ai-helpers">AI helpers<a class="anchor" href="#ai-helpers" aria-label="Link to this section">#</a></h2>
-<p>Two plugins in <code>ai-helper/</code>, one folder each, both listed by the marketplace at
-the repository root.</p>
+<h2 id="ai-helpers-experimental">AI helpers (experimental)<a class="anchor" href="#ai-helpers-experimental" aria-label="Link to this section">#</a></h2>
+<p>Three plugins in <code>ai-helper/</code>, one folder each, all listed by the marketplace
+at the repository root. All three are experimental: each runs an AI tool you
+install and sign in to yourself.</p>
 <div class="table-wrap"><table>
 <thead><tr><th style="text-align:left">Helper</th><th style="text-align:left">Command</th><th style="text-align:left">What it does</th></tr></thead>
 <tbody>
 <tr><td style="text-align:left"><code>vectors</code></td><td style="text-align:left"><code>/vectors:animation-mode</code></td><td style="text-align:left">Draws the next Animation Mode frame</td></tr>
 <tr><td style="text-align:left"><code>graphic-designer</code></td><td style="text-align:left"><code>/graphic-designer:design-language</code></td><td style="text-align:left">Reads an asset into a <code>DESIGN_LANGUAGE.md</code></td></tr>
+<tr><td style="text-align:left"><code>scripting</code></td><td style="text-align:left"><code>/scripting:draw</code></td><td style="text-align:left">Writes a napkin script from a request</td></tr>
 </tbody></table></div>
 <pre><code class="language-text">/plugin marketplace add .                              # from a clone
 /plugin marketplace add isocialPractice/napkin-sketch  # without one
 /plugin install vectors@napkin-sketch
-/plugin install graphic-designer@napkin-sketch</code></pre>
+/plugin install graphic-designer@napkin-sketch
+/plugin install scripting@napkin-sketch</code></pre>
 <pre><code class="language-bash"># What design language is this asset in?
 node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs asset.svg --markdown</code></pre>
 <p>An SVG yields colors, type, strokes and structure; a PNG yields colors only;

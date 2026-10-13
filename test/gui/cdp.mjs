@@ -10,7 +10,7 @@
  * `globalThis.WebSocket` exists, or through `npm run gui-check`.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -65,8 +65,12 @@ const madeUserData = new WeakMap();
  * behind for the next, and share the folder with a copy of the app a person
  * has open.
  */
-export function launch(launchOptions, extraEnv = {}) {
+export function launch(launchOptions, extraEnv = {}, { settings = null } = {}) {
   const own = extraEnv.NAPKIN_USER_DATA ? null : mkdtempSync(join(tmpdir(), 'napkin-check-'));
+  // `settings` is written as the folder's settings.json, so a check can start
+  // the app with a switch the other way from shipped - the Transform box off
+  // for a check that counts the canvas's pixels, say - and only in that folder.
+  if (own && settings) writeFileSync(join(own, 'settings.json'), `${JSON.stringify(settings, null, 2)}\n`);
   // NAPKIN_GUI_CHECK lets a check read the menu bar back and click its rows
   // (window.napkin.getAppMenu / clickAppMenuItem); an ordinary launch has no
   // use for either.

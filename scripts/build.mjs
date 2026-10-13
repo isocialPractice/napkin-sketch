@@ -1,6 +1,8 @@
 // Build script for napkin-sketch using esbuild.
-// Bundles the CLI, Electron main + preload (Node/CommonJS), and the
-// renderer (browser/IIFE), then copies static renderer assets to dist/.
+// Bundles the Electron main + preload (Node/CommonJS) and the renderer
+// (browser/IIFE) for the app, and the package's entries with the command line
+// (ES modules sharing one core), each minified, then copies static renderer
+// assets to dist/.
 
 import { build, context } from 'esbuild';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -12,12 +14,21 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const watch = process.argv.includes('--watch');
 
+/**
+ * Source maps for the bundles the npm package ships: written beside them in
+ * the clone, with no link from the bundle. The package leaves the maps out,
+ * and a link to a map that is not there makes a consumer's bundler warn. The
+ * app's own bundles link theirs, for the DevTools.
+ */
+const packageMaps = 'external';
+
 /** @type {import('esbuild').BuildOptions} */
 const nodeCommon = {
   bundle: true,
   platform: 'node',
   target: 'node18',
   format: 'cjs',
+  minify: true,
   sourcemap: true,
   logLevel: 'info',
   // electron is provided by the runtime, never bundle it.
@@ -25,26 +36,54 @@ const nodeCommon = {
 };
 
 /**
- * `napkin-sketch/markdown` registers its lexer with the API a program imports:
- * it imports `../api/index.js` - beside it in `dist/` as in `src/` - rather
- * than bundling a second copy of the API, whose lexer would be another's.
- * @type {import('esbuild').Plugin}
+ * The package's entries and the command line, built together. What two of
+ * them share is written once, as a chunk in `dist/chunks/`, and every entry
+ * that needs it imports that chunk: one copy of the core, so one Markdown
+ * reader, one set of accent languages and one of each registry, whichever
+ * entries a program imports and in whatever order.
+ *
+ * One build has one platform. `node` is right for the Node entries and does
+ * nothing to the browser-safe ones, since nothing they reach imports a Node
+ * module; `pack-check` holds them to that. `process.env.NODE_ENV` is set as
+ * a browser build of them set it, so no `process` is left for a page to
+ * trip on.
+ * @type {import('esbuild').BuildOptions}
  */
-const apiExternal = {
-  name: 'api-external',
-  setup(b) {
-    b.onResolve({ filter: /^\.\.\/api\/index\.js$/ }, () => ({ path: '../api/index.js', external: true }));
-  },
+const packageEntries = {
+  bundle: true,
+  splitting: true,
+  format: 'esm',
+  platform: 'node',
+  target: ['chrome120', 'node22'],
+  minify: true,
+  sourcemap: packageMaps,
+  logLevel: 'info',
+  define: { 'process.env.NODE_ENV': '"production"' },
+  // The command line finds Electron at run time, beside it; it is never bundled.
+  external: ['electron'],
+  outdir: resolve(root, 'dist'),
+  chunkNames: 'chunks/[name]-[hash]',
+  entryPoints: [
+    // The main entry: the editor, the engine and the language, browser-safe.
+    { in: resolve(root, 'src/api/index.ts'), out: 'api/index' },
+    // `/node`: the script API's file half - a script read from disk, a drawing
+    // written out as files - with the composition's file helpers beside it.
+    { in: resolve(root, 'src/api/node.ts'), out: 'node/index' },
+    // `/markdown`: marked's lexer and highlight.js, registered with the core
+    // the other entries share.
+    { in: resolve(root, 'src/markdown/index.ts'), out: 'markdown/index' },
+    // `/graphic-design/files`: `writeComposition` and `imageDataUrl` import
+    // `node:fs`, so they are an entry of their own rather than part of the
+    // browser-safe one.
+    { in: resolve(root, 'src/core/graphic-design/files.ts'), out: 'graphic-design/files' },
+    // The napkin-sketch command, whose first line is its own hashbang.
+    { in: resolve(root, 'src/cli/index.ts'), out: 'cli/index' },
+  ],
 };
 
 /** @type {import('esbuild').BuildOptions[]} */
 const configs = [
-  {
-    ...nodeCommon,
-    entryPoints: [resolve(root, 'src/cli/index.ts')],
-    outfile: resolve(root, 'dist/cli/index.js'),
-    banner: { js: '#!/usr/bin/env node' },
-  },
+  packageEntries,
   {
     ...nodeCommon,
     entryPoints: [resolve(root, 'src/main/main.ts')],
@@ -60,6 +99,7 @@ const configs = [
     platform: 'browser',
     target: 'chrome120',
     format: 'iife',
+    minify: true,
     sourcemap: true,
     logLevel: 'info',
     entryPoints: [resolve(root, 'src/renderer/renderer.ts')],
@@ -70,74 +110,11 @@ const configs = [
     platform: 'browser',
     target: 'chrome120',
     format: 'iife',
+    minify: true,
     sourcemap: true,
     logLevel: 'info',
     entryPoints: [resolve(root, 'src/renderer/settings.ts')],
     outfile: resolve(root, 'dist/renderer/settings.js'),
-  },
-  // Embeddable API as an ESM module for bundlers (website / VS Code webview).
-  {
-    bundle: true,
-    platform: 'browser',
-    target: 'chrome120',
-    format: 'esm',
-    sourcemap: true,
-    logLevel: 'info',
-    entryPoints: [resolve(root, 'src/api/index.ts')],
-    outfile: resolve(root, 'dist/api/index.js'),
-  },
-  // The Node-only file helpers, as their own ESM module.
-  //
-  // `writeComposition` and `imageDataUrl` import `node:fs`, so they cannot join
-  // the browser bundle above - and a documented import has to be a real one, so
-  // they are built here rather than left as source only a clone could reach.
-  {
-    bundle: true,
-    platform: 'node',
-    target: 'node18',
-    format: 'esm',
-    sourcemap: true,
-    logLevel: 'info',
-    entryPoints: [resolve(root, 'src/core/graphic-design/files.ts')],
-    outfile: resolve(root, 'dist/graphic-design/files.js'),
-  },
-  // `napkin-sketch/node`: the script API's file half - a script read from
-  // disk, a drawing written out as files - with the composition's file
-  // helpers beside it, as a Node ESM module of its own for the same reason.
-  {
-    bundle: true,
-    platform: 'node',
-    target: 'node18',
-    format: 'esm',
-    sourcemap: true,
-    logLevel: 'info',
-    entryPoints: [resolve(root, 'src/api/node.ts')],
-    outfile: resolve(root, 'dist/node/index.js'),
-  },
-  // `napkin-sketch/markdown`: marked's lexer for Markdown Flow, registered with
-  // the API above when imported - marked bundled in, the API imported.
-  {
-    bundle: true,
-    platform: 'browser',
-    target: 'chrome120',
-    format: 'esm',
-    sourcemap: true,
-    logLevel: 'info',
-    plugins: [apiExternal],
-    entryPoints: [resolve(root, 'src/markdown/index.ts')],
-    outfile: resolve(root, 'dist/markdown/index.js'),
-  },
-  // Embeddable API as a global IIFE for <script> tags (WordPress / plain HTML).
-  {
-    bundle: true,
-    platform: 'browser',
-    target: 'chrome120',
-    format: 'iife',
-    globalName: 'napkin',
-    sourcemap: true,
-    logLevel: 'info',
-    entryPoints: [resolve(root, 'src/api/index.ts')],
-    outfile: resolve(root, 'dist/embed/napkin-sketch.js'),
   },
 ];
 
@@ -200,16 +177,13 @@ async function copyStatic() {
     await cp(resolve(root, 'src/assets'), resolve(root, 'dist/assets'), { recursive: true });
   }
 
-  // `dist/api/index.js` is ESM, but the package is `"type": "commonjs"`, so
-  // Node reads a bare `.js` there as CommonJS and refuses to import it. A
-  // one-key package.json beside the bundle scopes that folder to ESM, which is
-  // what makes `import('napkin-sketch')` work from a plain Node script - the
-  // graphic-designer helper's media analysis is one such script.
-  await mkdir(resolve(root, 'dist/api'), { recursive: true });
-  await writeFile(resolve(root, 'dist/api/package.json'), `${JSON.stringify({ type: 'module' }, null, 2)}\n`, 'utf-8');
-
-  // Same reason, for the two Node-only entries and the Markdown reader.
-  for (const folder of ['dist/graphic-design', 'dist/node', 'dist/markdown']) {
+  // The package's bundles are ESM, but the package is `"type": "commonjs"`,
+  // so Node reads a bare `.js` in them as CommonJS and refuses to import it.
+  // A one-key package.json in each folder scopes it to ESM, which is what
+  // makes `import('@isocialpractice/napkin-sketch')` work from a plain Node
+  // script - the graphic-designer helper's media analysis is one such script -
+  // and what lets the command line run as the ES module it is.
+  for (const folder of ['dist/api', 'dist/graphic-design', 'dist/node', 'dist/markdown', 'dist/cli', 'dist/chunks']) {
     await mkdir(resolve(root, folder), { recursive: true });
     await writeFile(resolve(root, folder, 'package.json'), `${JSON.stringify({ type: 'module' }, null, 2)}\n`, 'utf-8');
   }

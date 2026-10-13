@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -48,11 +48,11 @@ and <code>link</code> places a file made elsewhere by reference; this is the pat
 all three.</p>
 <h2 id="the-whole-thing-in-five-steps">The whole thing in five steps<a class="anchor" href="#the-whole-thing-in-five-steps" aria-label="Link to this section">#</a></h2>
 <ol>
-<li>Build the clone and put <code>napkin-sketch</code> on your PATH:</li>
+<li>Install the command line and the desktop app that step 4 opens; from a
+clone, <code>npm install</code>, <code>npm run build</code> and <code>npm link</code> do both:</li>
 </ol>
-<pre><code class="language-bash">npm install
-npm run build
-npm link</code></pre>
+<pre><code class="language-bash">npm install -g @isocialpractice/napkin-sketch
+napkin-sketch --install-gui</code></pre>
 <ol start="2">
 <li>Save this as <code>sign.napkin</code>: two groups, a name with a space and an
 ampersand in it, and a name used twice.</li>

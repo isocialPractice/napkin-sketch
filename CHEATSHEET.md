@@ -105,7 +105,7 @@ The type editor's own keys, while a text is edited ([Type](docs/site-src/guide/t
 | Type panel: Paragraph        | `Ctrl + Alt + T`                            |
 | Quick Settings               | `Ctrl + ,`                                  |
 | Verbose Settings             | `Ctrl + Alt + ,`                            |
-| Animation Mode               | `Ctrl + Shift + N` (optional add-on)        |
+| Animation Mode               | `Ctrl + Shift + N` (experimental add-on)    |
 
 ## Selection and editing
 
@@ -165,6 +165,8 @@ With the Vector Path tool active, click a committed path to open its anchors.
 | Make a clipping mask      | `Ctrl + 7`; the closed path on top clips |
 | Release a clipping mask   | `Ctrl + Alt + 7`                         |
 | Move layer up / down      | `Ctrl + ]` / `Ctrl + [`                  |
+| Move layer to top / bottom | `Ctrl + Shift + ]` / `Ctrl + Shift + [` |
+| Select layer above / below | `Alt + ]` / `Alt + [`                  |
 | Multi-select rows         | `Shift` + click                          |
 | Restack or nest           | Drag the row (drop onto a group to nest) |
 | Layer tools menu          | Right-click a row                        |
@@ -215,7 +217,7 @@ napkin-sketch [option] [target]
 | Flag                     | Description                                              |
 | :----------------------- | :------------------------------------------------------- |
 | `-h, --help`             | Show command-line help                                   |
-| `-v, --version`          | Show the version                                         |
+| `-v, --version`          | Show the version, and where the desktop app is           |
 | `-b, --book`             | Open a saved `.skbk` sketch book                         |
 | `-n, --new`              | New sketch, named `unnamed` or `[target]`                |
 | `-f, --full-screen`      | Open full screen (the default window is maximized)       |
@@ -223,9 +225,12 @@ napkin-sketch [option] [target]
 | `-i, --import`           | Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch |
 | `-m, --multiple-imports` | Import a comma-separated list, laid out in a grid        |
 | `--sharpen`              | Auto-sharpen a saved sketch on disk, then open it        |
+| `--install-gui`          | Install the desktop app and Electron, about 100 MB       |
+| `--uninstall-gui`        | Remove it; `--here` with either, for this project        |
 | `[target]`               | A `.skbk` file to open, or a name for a new sketch       |
 
 ```bash
+napkin-sketch --install-gui                          # add the desktop app (about 100 MB)
 napkin-sketch                                        # new blank sketch
 napkin-sketch --new ideas                            # new sketch named "ideas"
 napkin-sketch --book ./notes.skbk                    # open a saved book
@@ -296,7 +301,8 @@ napkin-sketch verbs --category shapes                # one category
 | `npm run api-docs -- --check`                  | Fail when any of them is out of date                              |
 | `npm run menu-docs`                            | Rewrite the shortcut tables from the menu registry                |
 | `npm run menu-docs -- --check`                 | Fail when either is out of date                                   |
-| `npm run pack-check`                           | Pack, install the tarball with no Electron, and draw              |
+| `npm run pack-check`                           | Pack and install both packages: draw with one, find the app       |
+| `npm run pack-gui`                             | Lay out the desktop app's npm package in `release/gui/`           |
 | `npm run dist`                                 | Build an installer for the current OS                             |
 | `npm run dist:win` / `dist:mac` / `dist:linux` | NSIS / DMG / AppImage                                             |
 | `npm run animation-mode -- --status`           | Is Animation Mode installed?                                      |
@@ -306,8 +312,8 @@ napkin-sketch verbs --category shapes                # one category
 ## Embedding
 
 ```ts
-import { NapkinSketch } from 'napkin-sketch';
-import 'napkin-sketch/styles.css';
+import { NapkinSketch } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/styles.css';
 
 const editor = new NapkinSketch(document.getElementById('host')!, {
   liveSharpen: false,
@@ -328,8 +334,8 @@ Pure-engine entry points, no editor required: `sharpenStrokes`,
 ## Drawing from a script
 
 ```ts
-import { drawSvg, evaluate, renderBook } from 'napkin-sketch';   // anywhere
-import { drawFile, drawToFiles } from 'napkin-sketch/node';      // Node: files
+import { drawSvg, evaluate, renderBook } from '@isocialpractice/napkin-sketch';   // anywhere
+import { drawFile, drawToFiles } from '@isocialpractice/napkin-sketch/node';      // Node: files
 
 const { svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60');
 const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png', 'pdf', 'skbk'] });
@@ -375,7 +381,7 @@ of the documentation: [API.md](API.md).
 ## Graphic design API
 
 ```ts
-import { createComposition } from 'napkin-sketch';
+import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
 design.rect({ x: 24, y: 24, width: 312, height: 96, rx: 12, fill: '#326478' });
@@ -405,21 +411,24 @@ design.toPNG();  // PNG bytes, no canvas and no image dependency
 Page defaults: 360 by 360, `px`, transparent, headless. Full reference in
 [the graphic design API](docs/api/compose/README.md).
 
-## AI helpers
+## AI helpers (experimental)
 
-Two plugins in `ai-helper/`, one folder each, both listed by the marketplace at
-the repository root.
+Three plugins in `ai-helper/`, one folder each, all listed by the marketplace
+at the repository root. All three are experimental: each runs an AI tool you
+install and sign in to yourself.
 
 | Helper             | Command                             | What it does                               |
 | :----------------- | :---------------------------------- | :----------------------------------------- |
 | `vectors`          | `/vectors:animation-mode`           | Draws the next Animation Mode frame        |
 | `graphic-designer` | `/graphic-designer:design-language` | Reads an asset into a `DESIGN_LANGUAGE.md` |
+| `scripting`        | `/scripting:draw`                   | Writes a napkin script from a request      |
 
 ```text
 /plugin marketplace add .                              # from a clone
 /plugin marketplace add isocialPractice/napkin-sketch  # without one
 /plugin install vectors@napkin-sketch
 /plugin install graphic-designer@napkin-sketch
+/plugin install scripting@napkin-sketch
 ```
 
 ```bash

@@ -362,8 +362,11 @@ test('the barrel exports Markdown Flow, and napkin-sketch/markdown registers its
   assert.equal(api.markdownToType('**x**').text, 'x');
   assert.equal(markdown.markdownToType('# Notes\n\n- one\n- **two**').text, 'Notes\none\ntwo', 'the example its comment gives');
   assert.equal(typeof (node as Record<string, unknown>).drawFile, 'function', 'and napkin-sketch/node reads with it too');
+  const { readers } = await import('../src/markdown/core.js');
+  assert.equal(markdown.markedLexer, readers.markedLexer, 'one set of readers: the entry registers the ones every entry shares');
   const build = readFileSync(join(ROOT, 'scripts', 'build.mjs'), 'utf8');
-  assert.match(build, /plugins: \[apiExternal\],\s*entryPoints: \[resolve\(root, 'src\/markdown\/index\.ts'\)\],\s*outfile: resolve\(root, 'dist\/markdown\/index\.js'\)/, 'the build writes the entry, the API left to import');
+  assert.match(build, /\{ in: resolve\(root, 'src\/markdown\/index\.ts'\), out: 'markdown\/index' \}/, 'the build writes the entry');
+  assert.match(build, /splitting: true/, 'beside the others, sharing their core');
   assert.match(build, /'dist\/markdown'/, 'and scopes its folder to ESM');
 });
 
@@ -447,10 +450,10 @@ test('the package map points each entry at what the build writes', () => {
     default: './dist/graphic-design/files.js',
   });
   assert.deepEqual(pkg.exports['./markdown'], { types: './dist/markdown/index.d.ts', import: './dist/markdown/index.js', default: './dist/markdown/index.js' });
-  assert.deepEqual(Object.keys(pkg.exports).sort(), ['.', './embed', './graphic-design/files', './markdown', './node', './styles.css'], 'and no entry this test does not know');
+  assert.deepEqual(Object.keys(pkg.exports).sort(), ['.', './graphic-design/files', './markdown', './node', './styles.css'], 'and no entry this test does not know');
   assert.ok(pkg.files.includes('docs/api'), 'the documentation ships with the package');
   const build = readFileSync(join(ROOT, 'scripts', 'build.mjs'), 'utf8');
-  assert.match(build, /entryPoints: \[resolve\(root, 'src\/api\/node\.ts'\)\],\s*outfile: resolve\(root, 'dist\/node\/index\.js'\)/, 'the build writes the node entry');
+  assert.match(build, /\{ in: resolve\(root, 'src\/api\/node\.ts'\), out: 'node\/index' \}/, 'the build writes the node entry');
   assert.match(build, /'dist\/node'/, 'and scopes its folder to ESM');
 });
 

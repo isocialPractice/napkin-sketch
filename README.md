@@ -11,17 +11,19 @@ napkin-sketch straighten your lines, round out your circles, square up your
 boxes, and re-introduce a subtle organic wobble so the result still reads as
 hand-drawn rather than vector-perfect.
 
-![napkin-sketch: its logo beside the app, a sketch on the canvas with the Layers and Properties panels open](assets/bannerImage.png)
+![napkin-sketch: its logo beside the app, a sketch on the canvas with the Layers and Properties panels open](https://raw.githubusercontent.com/isocialPractice/napkin-sketch/main/assets/bannerImage.png)
 
-**New here?** [QUICKSTART.md](QUICKSTART.md) gets you from a fresh clone to a
-sharpened sketch in five minutes, and [CHEATSHEET.md](CHEATSHEET.md) puts every
-shortcut, CLI flag, and npm script on one page. Drawing from a script rather
-than by hand? [API-QUICKSTART.md](API-QUICKSTART.md) is the whole API in five
-steps, [API.md](API.md) is the map of its documentation, and
-[API-CHEATSHEET.md](API-CHEATSHEET.md) puts every verb and flag on one page.
-The manual itself - every tool, gesture, menu and setting - is on the
+**New here?** [The Quickstart](https://isocialpractice.github.io/napkin-sketch/quickstart.html) gets you
+from a fresh clone to a sharpened sketch in five minutes, and
+[the Cheatsheet](https://isocialpractice.github.io/napkin-sketch/cheatsheet.html) puts every shortcut, CLI
+flag, and npm script on one page. Drawing from a script rather than by hand?
+[The API quickstart](https://isocialpractice.github.io/napkin-sketch/api/quickstart.html) is the whole API
+in five steps, [the API overview](https://isocialpractice.github.io/napkin-sketch/api/index.html) is the map
+of its documentation, and [the API cheatsheet](https://isocialpractice.github.io/napkin-sketch/api/cheatsheet.html)
+puts every verb and flag on one page. The manual itself - every tool,
+gesture, menu and setting - is on the
 [documentation site](https://isocialpractice.github.io/napkin-sketch/index.html),
-written from the Markdown in [`docs/site-src/`](docs/site-src/).
+written from the Markdown in [`docs/site-src/`](https://github.com/isocialPractice/napkin-sketch/tree/main/docs/site-src).
 
 ## [Features](https://isocialpractice.github.io/napkin-sketch/guide/index.html)
 
@@ -76,15 +78,28 @@ written from the Markdown in [`docs/site-src/`](docs/site-src/).
 - **Draws from scripts** - from a shell, from Node or from any language, with
   no window, and the engines behind the tools are functions a program calls:
   [Drawing from a script](#drawing-from-a-script),
-  [The drawing engines](docs/api/engines/README.md).
+  [The drawing engines](https://isocialpractice.github.io/napkin-sketch/api/engines/index.html).
 - **Embeds** - the editor, or only its engine, in a page of your own:
   [Embedding the editor](#embedding-the-editor).
-- **Animates, optionally** - an add-on that draws frames with an AI helper:
+- **Animates, optionally and experimentally** - an add-on that draws frames with an AI helper:
   [Animation Mode](#animation-mode).
 
 ## [Installation](https://isocialpractice.github.io/napkin-sketch/install.html)
 
-Requires **Node.js 22.12 or newer**. From a clone:
+Requires **Node.js 22.12 or newer**. From npm, for the command line and the
+API, and the desktop app when you want it:
+
+```bash
+npm install -g @isocialpractice/napkin-sketch   # the napkin-sketch command: draw, check, render, verbs
+napkin-sketch --install-gui                      # the desktop app and Electron, about 100 MB
+npm install @isocialpractice/napkin-sketch      # the API, in a project of your own
+```
+
+The package carries no Electron, so the drawing commands and the API run
+wherever Node does. `napkin-sketch --install-gui` adds the desktop app as a
+second package, `@isocialpractice/napkin-sketch-gui`, at the command's own
+version; `napkin-sketch` then opens it, and `--uninstall-gui` removes it.
+From a clone, the app builds and runs in place:
 
 ```bash
 npm install
@@ -111,6 +126,8 @@ napkin-sketch [option] [target]
 | `-i, --import`           | Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch.    |
 | `-m, --multiple-imports` | Import a comma-separated list of files, laid out in a grid.           |
 | `--sharpen`              | Auto-sharpen a saved sketch so it appears more hand-drawn, then open. |
+| `--install-gui`          | Install the desktop app and Electron, about 100 MB.                   |
+| `--uninstall-gui`        | Remove the desktop app; `--here` with either, for this project.       |
 
 `napkin-sketch draw`, `check`, `render` and `verbs` run with no window at all;
 see [Drawing from a script](#drawing-from-a-script).
@@ -130,7 +147,7 @@ see [Drawing from a script](#drawing-from-a-script).
 
 Every command's keys are in the
 [shortcut table](https://isocialpractice.github.io/napkin-sketch/guide/menus-and-shortcuts.html#keyboard-shortcuts)
-and in [CHEATSHEET.md](CHEATSHEET.md); **Edit > Edit Keyboard Shortcuts**
+and in [the Cheatsheet](https://isocialpractice.github.io/napkin-sketch/cheatsheet.html); **Edit > Edit Keyboard Shortcuts**
 changes them. **Help > Verbose** opens this documentation inside the app,
 with no network, and **Help > Tool Types** each menu's quickstart.
 
@@ -143,11 +160,16 @@ Path** cuts them with the closed path on top instead.
 
 ### [Animation Mode](https://isocialpractice.github.io/napkin-sketch/guide/animation-mode.html)
 
-An optional add-on, not part of a default install, that draws animation
-frames with an agentic AI command-line tool you install and sign in to
-yourself.
+**Experimental.** An optional add-on, not part of a default install, that
+draws animation frames with an agentic AI command-line tool you install and
+sign in to yourself. Like the two helpers below, it runs that tool on your
+account and at its cost, and its commands, forms and files may change in a
+minor release.
 
 ### [Installing Animation Mode](https://isocialpractice.github.io/napkin-sketch/guide/animation-mode.html#installing-animation-mode)
+
+In a clone: the app that `napkin-sketch --install-gui` adds has no Animation
+Mode yet.
 
 ```bash
 npm run animation-mode -- --install    # then restart the app
@@ -155,11 +177,13 @@ npm run animation-mode -- --install    # then restart the app
 
 ### [The graphic-designer helper](https://isocialpractice.github.io/napkin-sketch/ai-helpers.html#the-graphic-designer-helper)
 
-Reads an asset into a design language, then draws more work like it.
+**Experimental.** Reads an asset into a design language, then draws more
+work like it.
 
 ### [The scripting helper](https://isocialpractice.github.io/napkin-sketch/ai-helpers.html#the-scripting-helper)
 
-Writes a napkin script from a request, for `napkin-sketch draw --prompt`.
+**Experimental.** Writes a napkin script from a request, for
+`napkin-sketch draw --prompt`.
 
 ## [How auto-sharpen works](https://isocialpractice.github.io/napkin-sketch/guide/sharpen.html#how-auto-sharpen-works)
 
@@ -174,8 +198,8 @@ A sketch book is one human-readable JSON document, written atomically.
 ## [Embedding the editor](https://isocialpractice.github.io/napkin-sketch/embed.html)
 
 ```ts
-import { NapkinSketch } from 'napkin-sketch';
-import 'napkin-sketch/styles.css';
+import { NapkinSketch } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/styles.css';
 
 const editor = new NapkinSketch(document.getElementById('host')!);
 ```
@@ -232,4 +256,4 @@ npm run site         # Rewrite the documentation site from docs/site-src/ and do
 
 MIT. The code and data napkin-sketch bundles from others - `marked`,
 `marked-highlight`, highlight.js and the en-US hyphenation patterns - keep
-their own licenses, in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+their own licenses, in [the third-party notices](https://isocialpractice.github.io/napkin-sketch/third-party-notices.html).

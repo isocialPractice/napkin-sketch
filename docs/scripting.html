@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="index.html"><img src="assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -71,8 +71,8 @@ Electron:</p>
 <pre><code class="language-bash">napkin-sketch draw card.napkin --to svg,png,pdf,skbk --out out
 napkin-sketch check card.napkin --json    # one line of JSON: the diagnostics, the exit code</code></pre>
 <p><strong>From Node</strong>, as a dependency:</p>
-<pre><code class="language-ts">import { drawSvg } from 'napkin-sketch';
-import { drawFile } from 'napkin-sketch/node';
+<pre><code class="language-ts">import { drawSvg } from '@isocialpractice/napkin-sketch';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 const { svg, diagnostics } = drawSvg(text);
 const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png'] });</code></pre>
@@ -100,7 +100,7 @@ the object form, and checks it against
 <a href="api/schema/instructions.schema.json">the schema</a>. The language is one
 table, so <code>napkin-sketch verbs</code> lists it, and <code>verbs --json</code> hands all of it to
 an agent at once.</p>
-<p><strong>Or from a sentence.</strong> <code>napkin-sketch draw --prompt &quot;a three-box flowchart
+<p><strong>Or from a sentence, experimentally.</strong> <code>napkin-sketch draw --prompt &quot;a three-box flowchart
 with arrows&quot;</code> has an AI tool write the script first; napkin-sketch checks it,
 keeps it as a <code>.napkin</code> beside the files, and draws it (see
 <a href="ai-helpers.html#the-scripting-helper">the scripting helper</a>).</p>

@@ -28,9 +28,9 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 - **Four commands.** `napkin-sketch draw`, `check`, `render` and `verbs` run
   scripts from a shell or a batch file, and from Python, C or anything else
   through standard input and one line of JSON back.
-- **Three package entries.** `napkin-sketch` runs anywhere and reads no file;
-  `napkin-sketch/node` reads scripts, images and books and writes files; and
-  `napkin-sketch/markdown` gives the first a Markdown reader and a code
+- **Three package entries.** `@isocialpractice/napkin-sketch` runs anywhere and reads no file;
+  `@isocialpractice/napkin-sketch/node` reads scripts, images and books and writes files; and
+  `@isocialpractice/napkin-sketch/markdown` gives the first a Markdown reader and a code
   highlighter, so Markdown Flow text draws as its Markdown renders and code is
   colored.
 - **The engines the tools stand on.** The Eraser's cut, the Wipe Stacks and
@@ -53,7 +53,7 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
   layers, curves, gradients' stops - and says what it leaves out rather than
   drawing it wrong.
 - **Not a model.** The AI helpers are skills and scripts an AI tool runs;
-  nothing in the package calls one.
+  nothing in the package calls one. They are experimental.
 
 ## The categories
 
@@ -66,10 +66,10 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 | [Writing a drawing out](docs/api/output/README.md) | SVG, PNG, PDF, .skbk and an Illustrator script from one call, the box every format is cut to, and what each format keeps. | [reference](docs/api/output/README.md), [quickstart](docs/api/output/QUICKSTART.md), [cheatsheet](docs/api/output/CHEATSHEET.md) |
 | [The napkin-sketch command line](docs/api/cli/README.md) | draw, check, render and verbs from a shell or any language, with --json and exit codes. | [reference](docs/api/cli/README.md), [quickstart](docs/api/cli/QUICKSTART.md), [cheatsheet](docs/api/cli/CHEATSHEET.md) |
 | [Using napkin-sketch from code](docs/api/node/README.md) | The package's entries, ES modules and CommonJS, types, the result object, and what throws. | [reference](docs/api/node/README.md), [quickstart](docs/api/node/QUICKSTART.md), [cheatsheet](docs/api/node/CHEATSHEET.md) |
-| [Markdown Flow and Clean Language Accents](docs/api/markdown/README.md) | napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36. | [reference](docs/api/markdown/README.md), [quickstart](docs/api/markdown/QUICKSTART.md), [cheatsheet](docs/api/markdown/CHEATSHEET.md) |
+| [Markdown Flow and Clean Language Accents](docs/api/markdown/README.md) | @isocialpractice/napkin-sketch/markdown: marked's lexer and highlight.js for napkin-sketch, Markdown read as a text shows it, code colored by its language, and a language installed beyond the common 36. | [reference](docs/api/markdown/README.md), [quickstart](docs/api/markdown/QUICKSTART.md), [cheatsheet](docs/api/markdown/CHEATSHEET.md) |
 | [The drawing engines](docs/api/engines/README.md) | The functions the app's tools stand on: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify; blends, effects, Splatter, Warp and 3D; type, its layout, hyphenation and fonts; Text Configurations and Composition Styles. | [reference](docs/api/engines/README.md), [quickstart](docs/api/engines/QUICKSTART.md), [cheatsheet](docs/api/engines/CHEATSHEET.md) |
 | [Working with other programs](docs/api/interop/README.md) | Illustrator and Inkscape through SVG, an Illustrator script that rebuilds a drawing, files linked from elsewhere, and what survives a round trip. | [reference](docs/api/interop/README.md), [quickstart](docs/api/interop/QUICKSTART.md), [cheatsheet](docs/api/interop/CHEATSHEET.md) |
-| [The AI helpers](docs/api/ai/README.md) | The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages. | [reference](docs/api/ai/README.md), [quickstart](docs/api/ai/QUICKSTART.md), [cheatsheet](docs/api/ai/CHEATSHEET.md) |
+| [The AI helpers](docs/api/ai/README.md) | Experimental. The graphic-designer and scripting helpers: design languages, brand resources, scripts drawn from a request, and how an agent reads these pages. | [reference](docs/api/ai/README.md), [quickstart](docs/api/ai/QUICKSTART.md), [cheatsheet](docs/api/ai/CHEATSHEET.md) |
 <!-- categories:end -->
 
 ## How it fits together
@@ -110,14 +110,14 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 | Node | `drawFile('card.napkin', { formats: ['svg', 'png'] })` | [Using it from code](docs/api/node/QUICKSTART.md) |
 | A browser or a bundler | `drawSvg(text)`, `evaluate(text)` | [The entries](docs/api/node/README.md#the-entries) |
 | Code that lays out a graphic | `createComposition({ width, height })` | [The graphic design API](docs/api/compose/QUICKSTART.md) |
-| An AI tool | the `graphic-designer` and `scripting` helpers | [The AI helpers](docs/api/ai/QUICKSTART.md) |
-| A sentence | `napkin-sketch draw --prompt "a three-box flowchart with arrows"` | [Drawing from a request](docs/api/ai/README.md#drawing-from-a-request) |
+| An AI tool | the `graphic-designer` and `scripting` helpers (experimental) | [The AI helpers](docs/api/ai/QUICKSTART.md) |
+| A sentence | `napkin-sketch draw --prompt "a three-box flowchart with arrows"` (experimental) | [Drawing from a request](docs/api/ai/README.md#drawing-from-a-request) |
 | Illustrator, Inkscape | SVG both ways, `link`, and `--to jsx` to rebuild a drawing in Illustrator | [Working with other programs](docs/api/interop/QUICKSTART.md) |
 
 ## Who these pages are for
 
 People and agents alike. Every category has three pages: a reference for the
-reader with time, a quickstart that runs as written on a fresh clone, and a
+reader with time, a quickstart that runs as written from npm or a clone, and a
 cheatsheet of tables, and each links to the other two and back here in its
 first lines. The reference pages close with a section for agents: the strings
 to match, the flags that make a run repeatable, and which diagnostics mean

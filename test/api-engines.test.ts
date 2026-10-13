@@ -19,7 +19,7 @@ const PAGES = ['docs/api/engines/README.md', 'docs/api/engines/QUICKSTART.md'];
 /** A block with its imports turned into reads of what the test hands it: the barrel, and a file system that writes nothing and reads only fonts. */
 function runnable(code: string): string {
   return code.replace(/^import\s*\{([^}]*)\}\s*from\s*'([^']+)';$/gm, (_whole, names: string, from: string) => {
-    const module = from === 'napkin-sketch' ? 'api' : from === 'node:fs/promises' ? 'fs' : null;
+    const module = from === '@isocialpractice/napkin-sketch' ? 'api' : from === 'node:fs/promises' ? 'fs' : null;
     if (!module) throw new Error(`an example imports ${from}, which the test does not hand it`);
     return `const {${names}} = ${module};`;
   });

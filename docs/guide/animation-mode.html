@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Animation Mode - napkin-sketch</title>
-<meta name="description" content="The optional add-on that draws animation frames with an AI helper: installing it and using it.">
+<meta name="description" content="The optional, experimental add-on that draws animation frames with an AI helper: installing it and using it.">
 <meta name="generator" content="napkin-sketch npm run site">
 <link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -44,7 +44,7 @@
 <h2 id="at-a-glance">At a glance<a class="anchor" href="#at-a-glance" aria-label="Link to this section">#</a></h2>
 <ul>
 <li><strong>Animation Mode</strong> (<code>Ctrl+Shift+N</code>, or Edit &gt; Animation Mode) — an
-<strong>optional add-on</strong> (<code>npm run animation-mode -- --install</code>; not part of a
+<strong>optional, experimental add-on</strong> (<code>npm run animation-mode -- --install</code>; not part of a
 default install) that adds a frame-by-frame animation mode driven by an AI
 helper tool you install and sign in to yourself. The mode
 validates the page against the required character assemblies, then a
@@ -60,10 +60,12 @@ four types with a measured cycle, <strong>Draw measured frames</strong> leaves t
 out and draws the whole sequence at once, with no AI. See
 <a href="#animation-mode">Animation Mode</a> for the workflow and requirements.</li>
 </ul>
-<blockquote><p><strong>Animation Mode is an optional add-on and is not part of a default
-install.</strong> It is the only feature that needs software napkin-sketch does not
-ship — an agentic AI command-line tool — so it is installed separately and
-can be removed again. See
+<blockquote><p><strong>Animation Mode is an optional, experimental add-on and is not part of a
+default install.</strong> It is the only feature that needs software napkin-sketch
+does not ship — an agentic AI command-line tool — so it is installed
+separately and can be removed again. It runs that tool on your account and
+at its cost, and like the other AI helpers it is new: its commands, forms
+and files may change in a minor release. See
 <a href="#installing-animation-mode">Installing Animation Mode</a> first; everything
 below assumes it is installed.</p></blockquote>
 <p><code>Ctrl + Shift + N</code> (or <strong>Edit &gt; Animation Mode</strong>) toggles a frame-by-frame
@@ -100,7 +102,8 @@ and in most cases its own cost, which is why the mode is opt-in rather than
 part of the app.</p>
 <p><strong>A default install leaves it out.</strong> <code>npm install</code> adds nothing: no Edit-menu
 entry, no <code>Ctrl + Shift + N</code>, no banner, and no AI tool required to run the
-app. Add the mode explicitly:</p>
+app. Add the mode explicitly, in a clone; the app that
+<code>napkin-sketch --install-gui</code> adds from npm has no Animation Mode yet:</p>
 <pre><code class="language-bash">npm run animation-mode -- --status                 # is it installed?
 npm run animation-mode -- --install                # defaults to Claude Code
 npm run animation-mode -- --install --to copilot   # or codex, gemini, cursor…

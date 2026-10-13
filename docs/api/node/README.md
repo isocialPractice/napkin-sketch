@@ -2,10 +2,10 @@
 
 [API hub](../../../API.md) · **Reference** · [Quickstart](QUICKSTART.md) · [Cheatsheet](CHEATSHEET.md)
 
-The package has three entries. `napkin-sketch` holds everything that runs
+The package has three entries. `@isocialpractice/napkin-sketch` holds everything that runs
 anywhere - the editor, the data model, the engines, the composition API and
-the napkin script language - and reads no file. `napkin-sketch/node` holds
-what reads and writes files, for Node. `napkin-sketch/markdown` gives the
+the napkin script language - and reads no file. `@isocialpractice/napkin-sketch/node` holds
+what reads and writes files, for Node. `@isocialpractice/napkin-sketch/markdown` gives the
 first its Markdown and code readers. This page is the reference for them as a
 program uses them: importing them, drawing a script, writing files, the
 result object, and what is an error value and what throws.
@@ -36,12 +36,12 @@ A drawing is made the same way in a browser and in Node: a script goes to
 `evaluate`, a sketch book comes back, and `renderSketch` or `renderBook`
 writes it as SVG, PNG, PDF, `.skbk` or an Illustrator script. None of that
 touches a DOM or a disk,
-so it all lives in the browser-safe `napkin-sketch` entry, beside the editor
+so it all lives in the browser-safe `@isocialpractice/napkin-sketch` entry, beside the editor
 and the composition API that were already there.
 
 The disk is the host's business. A script names an image, a document or a
 linked file, and the host hands it over; the host writes what was drawn. In
-Node that host is `napkin-sketch/node`: one call reads a script file, loads
+Node that host is `@isocialpractice/napkin-sketch/node`: one call reads a script file, loads
 what it names, runs it, and writes a file for each format asked for, and
 the result it gives back is the object a command line prints.
 
@@ -62,22 +62,22 @@ the result it gives back is the object a command line prints.
 
 | Import | Runs in | Holds |
 | --- | --- | --- |
-| `napkin-sketch` | a browser, Node, any bundler | The editor, the data model, the sharpen engine, the composition API, and the language: reading, checking and writing scripts, `evaluate`, `drawSvg`, the render calls, and the verb and diagnostic tables. |
-| `napkin-sketch/node` | Node 18 and later | Files: `drawFile`, `drawToFiles`, `writeBook`, `readScript`, `loadAssets` and `loadDocuments`, and the composition API's file helpers, `imageDataUrl`, `writeComposition`, `resolveLinkFromDir` and `mediaTypeOf`. It reads Markdown Flow text with marked's lexer. |
-| `napkin-sketch/markdown` | a browser, Node, any bundler | Markdown Flow's and Clean Language Accents' readers: importing it gives `napkin-sketch` marked's lexer and highlight.js, so a Markdown Flow text draws as its Markdown renders and code is colored. Its `markdownToType` reads with the lexer, and `registerAccentLanguage` installs a language beyond the 36 common ones. |
+| `@isocialpractice/napkin-sketch` | a browser, Node, any bundler | The editor, the data model, the sharpen engine, the composition API, and the language: reading, checking and writing scripts, `evaluate`, `drawSvg`, the render calls, and the verb and diagnostic tables. |
+| `@isocialpractice/napkin-sketch/node` | Node 22.12 and later | Files: `drawFile`, `drawToFiles`, `writeBook`, `readScript`, `loadAssets` and `loadDocuments`, and the composition API's file helpers, `imageDataUrl`, `writeComposition`, `resolveLinkFromDir` and `mediaTypeOf`. It reads Markdown Flow text with marked's lexer. |
+| `@isocialpractice/napkin-sketch/markdown` | a browser, Node, any bundler | Markdown Flow's and Clean Language Accents' readers: importing it gives `@isocialpractice/napkin-sketch` marked's lexer and highlight.js, so a Markdown Flow text draws as its Markdown renders and code is colored. Its `markdownToType` reads with the lexer, and `registerAccentLanguage` installs a language beyond the 36 common ones. |
 
-`napkin-sketch/graphic-design/files`, the composition helpers' own entry,
-keeps working; `napkin-sketch/node` gives the same functions, so a Node
+`@isocialpractice/napkin-sketch/graphic-design/files`, the composition helpers' own entry,
+keeps working; `@isocialpractice/napkin-sketch/node` gives the same functions, so a Node
 program has one import for files.
 
-`napkin-sketch` holds no Markdown reader of its own: a Markdown Flow text -
+`@isocialpractice/napkin-sketch` holds no Markdown reader of its own: a Markdown Flow text -
 `text "# Notes" at 40 60 markdown` - shows its Markdown as typed until one is
-given. `napkin-sketch/markdown` imports `napkin-sketch` rather than holding a
+given. `@isocialpractice/napkin-sketch/markdown` imports `@isocialpractice/napkin-sketch` rather than holding a
 copy of it, so the reader it registers is the one the API reads with:
 
 ```ts
-import { drawSvg } from 'napkin-sketch';
-import 'napkin-sketch/markdown';
+import { drawSvg } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/markdown';
 
 const { svg } = drawSvg('napkin 1\ntext "# Notes\\n\\n- one" at 40 60 markdown\n');
 ```
@@ -100,8 +100,8 @@ links it with `npm link`, and imports it by name.
 Every entry is an ES module:
 
 ```ts
-import { evaluate, renderSketch } from 'napkin-sketch';
-import { drawFile } from 'napkin-sketch/node';
+import { evaluate, renderSketch } from '@isocialpractice/napkin-sketch';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 ```
 
 CommonJS code loads them with `import()`, which works on every Node the
@@ -109,17 +109,17 @@ package supports. `require` works only where Node can require an ES module,
 and elsewhere fails with `ERR_REQUIRE_ESM`:
 
 ```js
-const { drawFile } = await import('napkin-sketch/node');
+const { drawFile } = await import('@isocialpractice/napkin-sketch/node');
 ```
 
 Type declarations ship with both, found through the package's exports map
 under `moduleResolution` `bundler`, `node16` or `nodenext`. Every option and
 result on this page is a named type: `DrawToFilesOptions`, `DrawResult`,
-`WrittenFile` and `WriteBookOptions` from `napkin-sketch/node`, and
+`WrittenFile` and `WriteBookOptions` from `@isocialpractice/napkin-sketch/node`, and
 `EvaluateOptions`, `ScriptResult`, `Diagnostic`, `RenderSketchOptions` and the
-rest from `napkin-sketch`.
+rest from `@isocialpractice/napkin-sketch`.
 
-A browser build imports `napkin-sketch` only. `napkin-sketch/node` reads
+A browser build imports `@isocialpractice/napkin-sketch` only. `@isocialpractice/napkin-sketch/node` reads
 files with `node:fs`, which a browser does not have.
 
 ### Drawing a script
@@ -135,7 +135,7 @@ wants a picture: it runs the script and gives back its first page as SVG,
 cut as the script's `crop` and `registration` ask.
 
 ```ts
-import { drawSvg } from 'napkin-sketch';
+import { drawSvg } from '@isocialpractice/napkin-sketch';
 
 const { ok, svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60');
 ```
@@ -157,7 +157,7 @@ run `evaluate` and hand the book to `renderBook`.
 return a promise of [the result](#the-result).
 
 ```ts
-import { drawFile } from 'napkin-sketch/node';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 const { ok, files, diagnostics } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png'] });
 ```
@@ -217,7 +217,7 @@ hand - one `evaluate` made, or one read from a `.skbk` - and returns the
 | `stats` | `instructions`, `marks`, `anchors`, `points` and `pages`: how much the run did. |
 | `warnings` | What a format left out or drew as a stand-in, each starting with its page's name. |
 
-`formatDiagnostic(diagnostic, 'card.napkin')` from `napkin-sketch` prints a
+`formatDiagnostic(diagnostic, 'card.napkin')` from `@isocialpractice/napkin-sketch` prints a
 diagnostic the way editors and CI read one:
 `card.napkin:3:1: error unknown-verb: ...`.
 
@@ -260,7 +260,7 @@ The disk throws, as Node's own calls do, and the message names what failed:
 
 ### The language in the barrel
 
-What `napkin-sketch` exports for scripts:
+What `@isocialpractice/napkin-sketch` exports for scripts:
 
 | Export | What it is |
 | --- | --- |
@@ -279,8 +279,8 @@ where it failed, and the rest are drawn:
 
 ```ts
 import { readdirSync } from 'node:fs';
-import { formatDiagnostic } from 'napkin-sketch';
-import { drawFile } from 'napkin-sketch/node';
+import { formatDiagnostic } from '@isocialpractice/napkin-sketch';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 for (const file of readdirSync('scripts').filter((name) => name.endsWith('.napkin'))) {
   const result = await drawFile(`scripts/${file}`, { out: 'out', formats: ['svg', 'png'], timestamp: '2026-09-25T00:00:00.000Z' });
@@ -305,7 +305,7 @@ form; this one is a card with a named layer:
 ```
 
 ```ts
-import { drawToFiles } from 'napkin-sketch/node';
+import { drawToFiles } from '@isocialpractice/napkin-sketch/node';
 
 const { ok, files } = await drawToFiles(script, { out: 'out', formats: ['png'], scale: 2, strict: true });
 // out/badge.png, twice the size; nothing written if anything was reported
@@ -315,7 +315,7 @@ const { ok, files } = await drawToFiles(script, { out: 'out', formats: ['png'], 
 types:
 
 ```ts
-import { drawSvg } from 'napkin-sketch';
+import { drawSvg } from '@isocialpractice/napkin-sketch';
 
 editor.addEventListener('input', () => {
   const { svg, diagnostics } = drawSvg(editor.value);
@@ -330,7 +330,7 @@ editor.addEventListener('input', () => {
   require an ES module; `import()` works everywhere the package runs.
 - **Built from a checkout** until the package is published to npm.
 - **The language costs the browser entry about 38 kB**, minified and
-  gzipped: `napkin-sketch` went from about 53 kB to 91 kB when it joined. A
+  gzipped: `@isocialpractice/napkin-sketch` went from about 53 kB to 91 kB when it joined. A
   bundler that shakes unused exports out of a build takes back what a page
   does not import.
 - **Every page is written under one name.** SVG and PNG pages are numbered,
@@ -354,7 +354,7 @@ editor.addEventListener('input', () => {
   script reads no files, and `unknown-asset` says so.
 - **Expect links to resolve inside `base` only.** A link the resolver refuses
   draws as its placeholder and adds a warning; it is not an error.
-- **Import `napkin-sketch/node` only in Node**, and `napkin-sketch` everywhere
+- **Import `@isocialpractice/napkin-sketch/node` only in Node**, and `@isocialpractice/napkin-sketch` everywhere
   else.
 
 ## See also

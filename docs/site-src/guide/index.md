@@ -24,7 +24,7 @@ arranges and saves what was drawn. For the essentials alone, start with the
 - [Settings](settings.md) - Quick Settings and Verbose Settings, and every setting with its default and range.
 - [Menus and shortcuts](menus-and-shortcuts.md) - The menu bar, the right-click menus, every keyboard shortcut, and changing them.
 - [Automate](automate.md) - Generate Script from a file, the selected layers or the session history, and Track History.
-- [Animation Mode](animation-mode.md) - The optional add-on that draws animation frames with an AI helper: installing it and using it.
+- [Animation Mode](animation-mode.md) - The optional, experimental add-on that draws animation frames with an AI helper: installing it and using it.
 - [The .skbk file format](skbk-format.md) - What a saved sketch book holds, and how older files open.
 - [The command line](command-line.md) - Opening the app from a shell: every option, and the four commands that need no window.
 <!-- pages:guide:end -->

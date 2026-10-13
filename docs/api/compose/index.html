@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -106,7 +106,7 @@ the same geometry, colors, transforms, masks and text layout, so what differs
 between an SVG and a PNG of one composition is only what the two formats are.</p>
 <h2 id="reference">Reference<a class="anchor" href="#reference" aria-label="Link to this section">#</a></h2>
 <h3 id="getting-started">Getting started<a class="anchor" href="#getting-started" aria-label="Link to this section">#</a></h3>
-<pre><code class="language-ts">import { createComposition } from 'napkin-sketch';
+<pre><code class="language-ts">import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
 
@@ -272,7 +272,7 @@ Elliptical arcs (<code>A</code>) are not supported - see <a href="#limits">Limit
 block of text occupies the same lines at the same baselines in the SVG and in
 the PNG. Measure it yourself with <code>measureText</code> and <code>layoutText</code> when a layout
 has to know how tall a block came out:</p>
-<pre><code class="language-ts">import { layoutText, measureText } from 'napkin-sketch';
+<pre><code class="language-ts">import { layoutText, measureText } from '@isocialpractice/napkin-sketch';
 
 const width = measureText('Acme Corp', { fontSize: 18 });
 const block = layoutText(copy, {
@@ -314,7 +314,7 @@ failing the whole render:</p>
 the way a design tool places a linked file. The SVG keeps the path as its
 <code>href</code> and marks it <code>data-link=&quot;true&quot;</code>, so the file stays a file and the
 document picks up every change made to it.</p>
-<pre><code class="language-ts">import { resolveLinkFromDir } from 'napkin-sketch/graphic-design/files';
+<pre><code class="language-ts">import { resolveLinkFromDir } from '@isocialpractice/napkin-sketch/graphic-design/files';
 
 design.image({ src: 'assets/logo.svg', link: true, x: 24, y: 24, width: 120, height: 60, fit: 'contain' });
 const { data, warnings } = design.rasterize({ resolveLink: resolveLinkFromDir('./brand') });</code></pre>
@@ -524,7 +524,7 @@ did not go as asked.</p>
   &quot;text&quot;: { &quot;Title&quot;: { &quot;color&quot;: &quot;#ffffff&quot;, &quot;fontStyle&quot;: &quot;Bold&quot;, &quot;tracking&quot;: 50 } },
   &quot;strokes&quot;: { &quot;Outline&quot;: { &quot;color&quot;: &quot;#4cae50&quot;, &quot;width&quot;: 2, &quot;strokeStyle&quot;: &quot;dashed&quot; } }
 }</code></pre>
-<pre><code class="language-ts">import { applyCompositionStyle, compositionReportLines, createComposition, validateCompositionStyle } from 'napkin-sketch';
+<pre><code class="language-ts">import { applyCompositionStyle, compositionReportLines, createComposition, validateCompositionStyle } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 360, height: 200, background: '#ffffff' });
 design.rect({ name: 'Background', x: 0, y: 0, width: 360, height: 200, fill: '#f4f1ea' });
@@ -574,7 +574,7 @@ design.toPNG();                      // Uint8Array of PNG bytes
 design.toPNG({ scale: 2 });          // twice the pixels, the same graphic
 design.rasterize();                  // { width, height, data, warnings }</code></pre>
 <p>Or parameterise over the format:</p>
-<pre><code class="language-ts">import { renderComposition } from 'napkin-sketch';
+<pre><code class="language-ts">import { renderComposition } from '@isocialpractice/napkin-sketch';
 
 for (const format of ['svg', 'png'] as const) {
   const output = renderComposition(design, { format });
@@ -600,14 +600,14 @@ with the one call that writes a sketch to every format.</p>
 <p>The renderers import nothing from Node, so they run in a browser bundle
 untouched. The file helpers are a separate, Node-only module for the same
 reason the PDF importer is:</p>
-<pre><code class="language-ts">import { imageDataUrl, writeComposition } from 'napkin-sketch/graphic-design/files';
+<pre><code class="language-ts">import { imageDataUrl, writeComposition } from '@isocialpractice/napkin-sketch/graphic-design/files';
 
 const logo = await imageDataUrl('assets/logo.png');
 design.image({ src: logo, x: 24, y: 24, width: 64, height: 64 });
 
 const { svg, png, warnings } = await writeComposition(design, './out', 'card');
 // ./out/card.svg and ./out/card.png, written from one document in one call</code></pre>
-<p><code>napkin-sketch/node</code> exports the same helpers, beside the calls that draw a
+<p><code>@isocialpractice/napkin-sketch/node</code> exports the same helpers, beside the calls that draw a
 napkin script to files, so a Node program has one import for the disk; see
 <a href="../node/index.html">Using napkin-sketch from code</a>.</p>
 <p><code>resolveLinkFromDir(dir)</code> is the resolver a Node host usually wants for
@@ -620,7 +620,7 @@ draws as its placeholder.</p>
 thing the layout cannot supply: which logo, which footer strip, which brand
 name. That belongs in a file the project owns rather than in the script, and
 this is the surface that reads it.</p>
-<pre><code class="language-ts">import { parseResources, inlineSvg, placeBrand, brandMark, detectBrandSlots } from 'napkin-sketch';</code></pre>
+<pre><code class="language-ts">import { parseResources, inlineSvg, placeBrand, brandMark, detectBrandSlots } from '@isocialpractice/napkin-sketch';</code></pre>
 <h4 id="reading-resourcesmd">Reading <code>resources.md</code><a class="anchor" href="#reading-resourcesmd" aria-label="Link to this section">#</a></h4>
 <pre><code class="language-ts">const brand = parseResources(await readFile('references/resources.md', 'utf-8'));
 // brand.paths       { logo: 'assets/logo.svg' }
@@ -684,7 +684,8 @@ the names and falls back to the scan.</p>
 that renders one has nothing to do with whatever sketch is open. Inside the
 app's renderer, where a high-DPI 2D context already exists, <code>paintComposition</code>
 draws the composition into it instead:</p>
-<pre><code class="language-ts">import { paintComposition } from 'napkin-sketch/dist/core/graphic-design/canvas.js';
+<pre><code class="language-ts">// In the app's own renderer source, beside the other graphic-design modules:
+import { paintComposition } from '../core/graphic-design/canvas.js';
 
 paintComposition(ctx, design.toDocument(), { resolveImage });</code></pre>
 <p>The context is left exactly as it was found, and text is drawn with the host's
@@ -718,8 +719,8 @@ should render the SVG through a browser instead.</p>
 <h2 id="worked-examples">Worked examples<a class="anchor" href="#worked-examples" aria-label="Link to this section">#</a></h2>
 <p><strong>A card.</strong> A 360 by 360 card with a title bar, a rule, a heading plate, a masked photo and
 a footer - the shape most of this API's work takes:</p>
-<pre><code class="language-ts">import { createComposition } from 'napkin-sketch';
-import { imageDataUrl, writeComposition } from 'napkin-sketch/graphic-design/files';
+<pre><code class="language-ts">import { createComposition } from '@isocialpractice/napkin-sketch';
+import { imageDataUrl, writeComposition } from '@isocialpractice/napkin-sketch/graphic-design/files';
 
 const palette = {
   page: '#000133',
@@ -783,7 +784,7 @@ media export formats, off one document in one call.</p>
 <p><strong>A badge with a gradient and a hole.</strong> A radial gradient under a ring: the
 ring is a disk in a group whose <code>erase</code> shape clears its middle, so the
 gradient shows through the hole and nothing else is cut:</p>
-<pre><code class="language-ts">import { createComposition } from 'napkin-sketch';
+<pre><code class="language-ts">import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 240, height: 240, background: '#ffffff' });
 
@@ -800,7 +801,7 @@ const svg = design.toSVG();   // the ring's hole is a &lt;mask&gt; on its group
 const png = design.toPNG();   // cleared from the group's own layer before it is laid down</code></pre>
 <p><strong>A drawing with a band added in code.</strong> A napkin script draws the picture,
 and the composition calls add to it before it is rendered:</p>
-<pre><code class="language-ts">import { compositionToSvg, evaluate, renderPng, sketchToComposition } from 'napkin-sketch';
+<pre><code class="language-ts">import { compositionToSvg, evaluate, renderPng, sketchToComposition } from '@isocialpractice/napkin-sketch';
 
 const { book } = evaluate('napkin 1\npage 400 300\nrough 0.6\ncircle 200 130 80', { seed: 7 });
 const doc = sketchToComposition(book.sketches[0]);

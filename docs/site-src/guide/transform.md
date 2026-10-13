@@ -36,6 +36,15 @@ one. The box stays up while it is in use — press `Ctrl+T` again or `Escape` to
 put it away — and a press anywhere off a handle still belongs to the tool
 underneath, so the selection can be changed without dismissing the box first.
 
+**It comes up by itself.** With **Transform box on selection** on, as it is
+to begin with (a switch in Quick Settings and in Verbose Settings), the box
+appears around whatever the Select tool selects and goes when nothing is
+selected or another tool is taken; `Escape` or `Ctrl+T` put it away for that
+selection, and the next selection brings it back. A 3D mark keeps its
+gumball, which the box would hide, and a path text's brackets, which stand
+where the box's handles do, are what a press on them grabs. Off, the box is
+put up by hand, as above.
+
 - **The handle decides which axes move.** A left or right handle scales across,
   a top or bottom handle scales down, and a corner scales both — each axis by
   its own amount, following the pointer. The handle opposite the one in hand

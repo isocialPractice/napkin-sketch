@@ -3,7 +3,7 @@
 ## At a glance
 
 - **Animation Mode** (`Ctrl+Shift+N`, or Edit > Animation Mode) — an
-  **optional add-on** (`npm run animation-mode -- --install`; not part of a
+  **optional, experimental add-on** (`npm run animation-mode -- --install`; not part of a
   default install) that adds a frame-by-frame animation mode driven by an AI
   helper tool you install and sign in to yourself. The mode
   validates the page against the required character assemblies, then a
@@ -19,10 +19,12 @@
   out and draws the whole sequence at once, with no AI. See
   [Animation Mode](#animation-mode) for the workflow and requirements.
 
-> **Animation Mode is an optional add-on and is not part of a default
-> install.** It is the only feature that needs software napkin-sketch does not
-> ship — an agentic AI command-line tool — so it is installed separately and
-> can be removed again. See
+> **Animation Mode is an optional, experimental add-on and is not part of a
+> default install.** It is the only feature that needs software napkin-sketch
+> does not ship — an agentic AI command-line tool — so it is installed
+> separately and can be removed again. It runs that tool on your account and
+> at its cost, and like the other AI helpers it is new: its commands, forms
+> and files may change in a minor release. See
 > [Installing Animation Mode](#installing-animation-mode) first; everything
 > below assumes it is installed.
 
@@ -69,7 +71,8 @@ part of the app.
 
 **A default install leaves it out.** `npm install` adds nothing: no Edit-menu
 entry, no `Ctrl + Shift + N`, no banner, and no AI tool required to run the
-app. Add the mode explicitly:
+app. Add the mode explicitly, in a clone; the app that
+`napkin-sketch --install-gui` adds from npm has no Animation Mode yet:
 
 ```bash
 npm run animation-mode -- --status                 # is it installed?

@@ -81,6 +81,10 @@ Work in this order:
 
    **Never read the illustrated SVGs.** They are 1.5 MB and 2.5 MB; the pictures are the point,
    and every number measured out of them is in `assets/illustrated-frames.json`.
+
+   **When the folder holds `uri.md` and not the sheet**, as an npm install does, take the sheet's
+   URL from `assets/uri.md`, download it with `curl -sSL -o _temp/<name>.png <url>`, and `Read`
+   it from `_temp/`. `illustrated-frames.json` comes the same way.
 4. **Set the stop flag before you draw anything.** You get **two grading passes**. Say that to
    yourself now, because the decision that matters is made when you are behind, not when you are
    fresh: the app kills a run that goes quiet for five minutes, and a decent frame on disk beats a

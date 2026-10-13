@@ -8,12 +8,12 @@ Reminders for the package as a dependency: the entries, the calls, their options
 
 | Import | Runs in | For |
 | --- | --- | --- |
-| `import { ... } from 'napkin-sketch'` | A browser, Node, any bundler | The editor, the model, compositions, and the language |
-| `import { ... } from 'napkin-sketch/node'` | Node 18 and later | Reading and writing files |
-| `const { ... } = await import('napkin-sketch/node')` | CommonJS | The same, where `require` cannot load an ES module |
-| `import 'napkin-sketch/markdown'` | A browser, Node, any bundler | Markdown Flow text drawn as its Markdown renders and code colored: marked's lexer and highlight.js, given to `napkin-sketch` |
+| `import { ... } from '@isocialpractice/napkin-sketch'` | A browser, Node, any bundler | The editor, the model, compositions, and the language |
+| `import { ... } from '@isocialpractice/napkin-sketch/node'` | Node 22.12 and later | Reading and writing files |
+| `const { ... } = await import('@isocialpractice/napkin-sketch/node')` | CommonJS | The same, where `require` cannot load an ES module |
+| `import '@isocialpractice/napkin-sketch/markdown'` | A browser, Node, any bundler | Markdown Flow text drawn as its Markdown renders and code colored: marked's lexer and highlight.js, given to `@isocialpractice/napkin-sketch` |
 
-## `napkin-sketch`: the language
+## `@isocialpractice/napkin-sketch`: the language
 
 | Call | Gives |
 | --- | --- |
@@ -27,7 +27,7 @@ Reminders for the package as a dependency: the entries, the calls, their options
 | `formatDiagnostic(d, 'card.napkin')` | `card.napkin:3:1: error unknown-verb: ...` |
 | `SCRIPT_VERSION`, `SCRIPT_LIMITS`, `VERBS`, `DIAGNOSTICS` | The language's version, budget and tables |
 
-## `napkin-sketch/node`: files
+## `@isocialpractice/napkin-sketch/node`: files
 
 | Call | Does |
 | --- | --- |
@@ -87,6 +87,6 @@ Reminders for the package as a dependency: the entries, the calls, their options
 
 | Wrong | Right | Why |
 | --- | --- | --- |
-| `import { drawFile } from 'napkin-sketch'` | `from 'napkin-sketch/node'` | The first entry reads no files. |
-| `require('napkin-sketch/node')` | `await import('napkin-sketch/node')` | Every entry is an ES module, which `require` loads only on a Node that can. |
+| `import { drawFile } from '@isocialpractice/napkin-sketch'` | `from '@isocialpractice/napkin-sketch/node'` | The first entry reads no files. |
+| `require('@isocialpractice/napkin-sketch/node')` | `await import('@isocialpractice/napkin-sketch/node')` | Every entry is an ES module, which `require` loads only on a Node that can. |
 | `try { await drawFile(...) } catch` for script errors | Check `ok` and `diagnostics` | Script errors are values, not exceptions. |

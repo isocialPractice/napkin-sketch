@@ -22,8 +22,8 @@ text "def total(prices):\n    return sum(prices)  # in cents" at 40 200
 2. Save this as `draw.mjs` beside it:
 
 ```js
-import { drawSvg } from 'napkin-sketch';
-import 'napkin-sketch/markdown';
+import { drawSvg } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/markdown';
 import { readFile, writeFile } from 'node:fs/promises';
 
 const { svg, diagnostics } = drawSvg(await readFile('notes.napkin', 'utf8'));
@@ -41,7 +41,7 @@ console.log(diagnostics.length); // 0
 Code in a language beyond the 36 common ones is plain until it is installed:
 
 ```js
-import { registerAccentLanguage } from 'napkin-sketch/markdown';
+import { registerAccentLanguage } from '@isocialpractice/napkin-sketch/markdown';
 import fortran from 'highlight.js/lib/languages/fortran';
 
 registerAccentLanguage('fortran', fortran);

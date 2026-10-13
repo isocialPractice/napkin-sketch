@@ -1,10 +1,10 @@
 /**
- * `napkin-sketch/markdown`: Markdown Flow's and Clean Language Accents'
+ * `@isocialpractice/napkin-sketch/markdown`: Markdown Flow's and Clean Language Accents'
  * readers for the API.
  *
  * Importing it registers marked's lexer - GitHub's tables, task lists and
  * strikethrough, a single newline a line break - and highlight.js, with its
- * 36 common languages, with `napkin-sketch`. A Markdown Flow text there then
+ * 36 common languages, with `@isocialpractice/napkin-sketch`. A Markdown Flow text there then
  * shows as its Markdown renders, its fenced code colored, and a paragraph's
  * accent colors its code: on the page, in SVG, PDF and PNG, and in an
  * Illustrator script. `markdownToType` reads with that lexer, and
@@ -12,22 +12,22 @@
  * definition.
  *
  * ```ts
- * import { markdownToType, registerAccentLanguage } from 'napkin-sketch/markdown';
+ * import { markdownToType, registerAccentLanguage } from '@isocialpractice/napkin-sketch/markdown';
  * import fortran from 'highlight.js/lib/languages/fortran';
  *
  * registerAccentLanguage('fortran', fortran);
  * markdownToType('# Notes\n\n- one\n- **two**').text; // 'Notes\none\ntwo'
  * ```
  *
- * It imports `napkin-sketch` rather than holding a copy of it, so the readers
- * it registers are the ones the API reads with.
+ * It shares one core with the package's other entries and the command line,
+ * and one set of readers with them: the ones `./core.js` makes and registers.
+ * Importing it registers them again, so it gives the core marked's lexer and
+ * highlight.js even after something else took them away.
  */
 
 import {
   MARKDOWN_CONFIG_NAMES,
   MARKDOWN_THEME,
-  accentHighlighter,
-  accentOptions,
   markdownEnter,
   markdownToType as readMarkdown,
   setAccentHighlighter,
@@ -36,9 +36,12 @@ import {
   type MarkdownTheme,
   type MarkdownType,
 } from '../api/index.js';
-import { wireMarkdown } from './wire.js';
+import { readers } from './core.js';
 
-const readers = wireMarkdown({ setMarkdownLexer, setAccentHighlighter, accentHighlighter, accentOptions });
+// Registered when ./core.js first ran, by whichever entry imported it; again
+// here, so importing this entry is always what puts the readers in place.
+setMarkdownLexer(readers.markedLexer);
+setAccentHighlighter(readers.hljsHighlighter);
 
 /** marked's lexer, as Markdown Flow reads with it. */
 export const markedLexer = readers.markedLexer;

@@ -235,6 +235,8 @@ discovers automatically when run from the project root).
   - References: `linear-bezier-curve.md`, `quadratic-bezier-curve.md`, `cubic-bezier-curve.md`
   - Scripts: `matlib-script.js` and `template.md` for deriving path data from control points
   - Assets: shape, object, and letterform primitives under the skill's `assets/`
+- In an npm install each `assets/` folder holds `uri.md` in place of these files: every one's
+  address at the release's tag, to download into `_temp/` and read from there.
 
 **Every asset ships twice.** `<name>.svg` is the source and `<name>.png` is the same drawing as a
 picture, and the two answer different questions: the picture says what a movement looks like, the

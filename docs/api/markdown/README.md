@@ -2,10 +2,10 @@
 
 [API hub](../../../API.md) · **Reference** · [Quickstart](QUICKSTART.md) · [Cheatsheet](CHEATSHEET.md)
 
-`napkin-sketch/markdown` gives `napkin-sketch` its readers: marked's lexer, so
+`@isocialpractice/napkin-sketch/markdown` gives `@isocialpractice/napkin-sketch` its readers: marked's lexer, so
 a Markdown Flow text draws as its Markdown renders, and highlight.js, so code
 is colored as its language reads it. This page is the reference for that
-entry, for the calls in `napkin-sketch` that read with what it gives, and for
+entry, for the calls in `@isocialpractice/napkin-sketch` that read with what it gives, and for
 installing a language beyond the 36 common ones.
 
 **Contents**
@@ -32,20 +32,20 @@ where a text is typed as Markdown and shown as it renders, reads with
 [marked](https://marked.js.org)'s lexer; **Clean Language Accents**, where
 code is colored by its language, reads with
 [highlight.js](https://highlightjs.org). The core holds neither. It reads
-with the lexer and the highlighter it is given, so `napkin-sketch` stays
-small and runs anywhere, and `napkin-sketch/markdown` is the entry that gives
+with the lexer and the highlighter it is given, so `@isocialpractice/napkin-sketch` stays
+small and runs anywhere, and `@isocialpractice/napkin-sketch/markdown` is the entry that gives
 them.
 
-Importing it once is all a program does. After that, `napkin-sketch` draws a
+Importing it once is all a program does. After that, `@isocialpractice/napkin-sketch` draws a
 Markdown Flow text as its Markdown renders, colors a fenced code block whose
 language is installed, and colors a paragraph's `accent`: on the page, in SVG,
 PDF and PNG, and in an Illustrator script. The command line, the app and
-`napkin-sketch/node` import it already.
+`@isocialpractice/napkin-sketch/node` import it already.
 
 ## The mental model
 
 ```text
- import 'napkin-sketch/markdown'
+ import '@isocialpractice/napkin-sketch/markdown'
     --> setMarkdownLexer(marked's lexer)          Markdown Flow reads with it
     --> setAccentHighlighter(highlight.js, 36)    Clean Language Accents read with it
 
@@ -72,9 +72,11 @@ Markdown stays the text, and the accent stays the paragraph's language.
 | `MARKDOWN_THEME`, `MARKDOWN_CONFIG_NAMES` | How each part of Markdown looks, and the Text Configurations that style it |
 | `markdownEnter(source, index)` | What Enter does at `index`: a list or a quote carried on |
 
-It imports `napkin-sketch` rather than holding a copy of it, so the readers
-it registers are the ones the API reads with, in one program however many
-times either is imported.
+It shares one core with the package's other entries and the command line,
+so the readers it registers are the ones every entry reads with - a
+language installed through it colors code drawn through
+`@isocialpractice/napkin-sketch/node` too - in one program however many
+times any of them is imported.
 
 ### Reading Markdown: markdownToType
 
@@ -87,7 +89,7 @@ blocks. Headings, emphasis, inline and fenced code, lists and task lists,
 quotes, rules, links and GitHub's tables are read; an image is its alt text.
 
 ```js
-import { markdownToType } from 'napkin-sketch/markdown';
+import { markdownToType } from '@isocialpractice/napkin-sketch/markdown';
 
 const shown = markdownToType('# Acme Corp\n\nSales are **up**:\n\n- Widgets\n- Gadgets');
 shown.text; // 'Acme Corp\nSales are up:\nWidgets\nGadgets'
@@ -120,8 +122,8 @@ installed by that name. A language is its id or an alias (`py`, `ts`), `auto`
 for the installed language it reads most like, or `none`.
 
 ```js
-import { accentRuns } from 'napkin-sketch';
-import 'napkin-sketch/markdown';
+import { accentRuns } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/markdown';
 
 const { runs, language } = accentRuns('def total(prices):\n    return sum(prices)', 'py');
 language; // 'python'
@@ -139,8 +141,8 @@ is imported. Any other of its 193 is installed from its definition, which
 highlight.js ships one file a language:
 
 ```js
-import { accentRuns } from 'napkin-sketch';
-import { registerAccentLanguage, unregisterAccentLanguage } from 'napkin-sketch/markdown';
+import { accentRuns } from '@isocialpractice/napkin-sketch';
+import { registerAccentLanguage, unregisterAccentLanguage } from '@isocialpractice/napkin-sketch/markdown';
 import fortran from 'highlight.js/lib/languages/fortran';
 
 registerAccentLanguage('fortran', fortran); // true
@@ -150,7 +152,7 @@ accentRuns('x = 1', 'fortran').missing; // 'fortran'
 ```
 
 A common language taken away comes back with `registerAccentLanguage(id)`
-and no definition. `ACCENT_LANGUAGES` in `napkin-sketch` lists all 193, by
+and no definition. `ACCENT_LANGUAGES` in `@isocialpractice/napkin-sketch` lists all 193, by
 id, name and aliases, and `accentLanguage(name)` finds one by any of them.
 
 ### Themes and the page
@@ -179,8 +181,8 @@ code is plain.
 A page with a Markdown Flow note and a Python listing, written as SVG:
 
 ```js
-import { drawSvg } from 'napkin-sketch';
-import 'napkin-sketch/markdown';
+import { drawSvg } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/markdown';
 
 const { svg, diagnostics } = drawSvg(
   'napkin 1\npage 480 320\nbackground #ffffff\n' +
@@ -203,13 +205,13 @@ line, which imports the entry already:
 - **Images are their alt text.** A Markdown image is not fetched.
 - **Detection guesses.** `auto` and detection pick the installed language
   code reads most like; a short snippet may read as another.
-- **The entry is ESM**, as `napkin-sketch` is, and holds marked and
+- **The entry is ESM**, as `@isocialpractice/napkin-sketch` is, and holds marked and
   highlight.js's common set: about 390 KB.
 
 ## For agents
 
-- **Import `napkin-sketch/markdown` once, before drawing**, when a script has
-  `markdown` or `accent`; the command line and `napkin-sketch/node` need
+- **Import `@isocialpractice/napkin-sketch/markdown` once, before drawing**, when a script has
+  `markdown` or `accent`; the command line and `@isocialpractice/napkin-sketch/node` need
   nothing.
 - **Name languages by id** (`python`, `typescript`); an alias reads too, and
   the script keeps the id.

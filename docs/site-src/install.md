@@ -2,14 +2,64 @@
 
 ## At a glance
 
+- **From npm**: the command line and the API, with no Electron, and the
+  desktop app when you want it, with `napkin-sketch --install-gui`.
 - **Installable desktop app** with a Start-menu/desktop shortcut and app icon
-  (via electron-builder).
+  (via electron-builder), built from a clone.
 
-## Desktop app (recommended)
+## From npm
 
-The easiest way to install napkin-sketch is to build a native installer for
-your OS using **electron-builder**. Each command builds the project and then
-packages it into a platform installer placed in the `release/` folder.
+Requires **Node.js 22.12 or newer**, for both packages.
+
+```bash
+npm install -g @isocialpractice/napkin-sketch   # the command line and the API
+napkin-sketch --install-gui                      # the desktop app and Electron, about 100 MB
+napkin-sketch                                    # opens a new blank sketch
+```
+
+napkin-sketch is two packages on npm:
+
+- **`@isocialpractice/napkin-sketch`** is the `napkin-sketch` command, the API,
+  the embeddable editor and the AI helpers, with no Electron: the drawing
+  commands - `draw`, `check`, `render` and `verbs` - and the API run wherever
+  Node does.
+- **`@isocialpractice/napkin-sketch-gui`** is the desktop app, with Electron as
+  its one dependency. `napkin-sketch --install-gui` installs it globally at the
+  command's own version, and `napkin-sketch` then opens it.
+
+`napkin-sketch --version` says which app the command found, and where, and
+`napkin-sketch --uninstall-gui` removes it. In a project of your own, add
+`--here` to either, and the app goes into that project instead:
+
+```bash
+npm install @isocialpractice/napkin-sketch
+npx napkin-sketch --install-gui --here
+```
+
+If Electron's download is cut short, the next `napkin-sketch` finishes it,
+and if that fails too, `napkin-sketch --install-gui` installs it again. The
+app from npm has no [Animation Mode](guide/animation-mode.md) yet: the
+add-on installs in a clone.
+
+**On Linux**, the app can stop with the sandbox error under
+[Troubleshooting install errors](#linux-the-suid-sandbox-helper-binary-was-found-but-is-not-configured-correctly).
+Its fixes name a clone's Electron folder, `node_modules/electron/dist/`, run
+from the clone's root, and a `--here` install puts it in the same place under
+that project's root. A global install puts it under npm's global folder,
+which this prints:
+
+```bash
+echo "$(npm root -g)/@isocialpractice/napkin-sketch-gui/node_modules/electron/dist"
+```
+
+`napkin-sketch --no-sandbox` is the third fix there, for development only.
+
+## Desktop installers
+
+A native installer, with a Start-menu or desktop shortcut and the app's icon,
+is built from a clone with **electron-builder**. Each command builds the
+project and then packages it into a platform installer placed in the
+`release/` folder.
 
 ### Windows
 
@@ -77,12 +127,6 @@ npm install
 npm run build
 npm link
 napkin-sketch      # launches from anywhere
-```
-
-Once published to npm it can be installed directly:
-
-```bash
-npm install -g napkin-sketch
 ```
 
 ## Troubleshooting install errors

@@ -106,7 +106,7 @@ Reminders for compositions: the page, every element, paint, masks, rendering, an
 | `inlineSvg(markup)` | An SVG's shapes as elements: `{ viewBox, elements, notes }` |
 | `brandMark(design, box, { label })` | A monogram where no asset is configured |
 
-- The Node helpers come from `napkin-sketch/node`; everything else from `napkin-sketch`.
+- The Node helpers come from `@isocialpractice/napkin-sketch/node`; everything else from `@isocialpractice/napkin-sketch`.
 
 ## Common mistakes
 

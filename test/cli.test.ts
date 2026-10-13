@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeLaunchOptions, decodeLaunchOptions } from '../src/core/launch.js';
-import { parseArgs, parseCommand, splitImportList } from '../src/cli/args.js';
+import { guiOptionsProblem, parseArgs, parseCommand, splitImportList } from '../src/cli/args.js';
 
 test('launch options round-trip through the env string', () => {
   const opts = { mode: 'book', filePath: '/tmp/a.skbk' } as const;
@@ -19,6 +19,33 @@ test('decodeLaunchOptions falls back to a new sketch', () => {
 test('parseArgs handles help and version flags', () => {
   assert.equal(parseArgs(['--help']).help, true);
   assert.equal(parseArgs(['-v']).version, true);
+});
+
+test('parseArgs reads the desktop app options, and --here beside them', () => {
+  const install = parseArgs(['--install-gui']);
+  assert.deepEqual([install.installGui, install.uninstallGui, install.here], [true, false, false]);
+  const remove = parseArgs(['--uninstall-gui', '--here']);
+  assert.deepEqual([remove.installGui, remove.uninstallGui, remove.here], [false, true, true]);
+  const none = parseArgs([]);
+  assert.deepEqual([none.installGui, none.uninstallGui, none.here], [false, false, false]);
+  assert.deepEqual(parseArgs(['--install-gui']).unknown, []);
+});
+
+test('guiOptionsProblem: --here only beside an install option, the two never together, and nothing that opens a sketch', () => {
+  for (const argv of [['--install-gui'], ['--install-gui', '--here'], ['--uninstall-gui'], ['--here', '--uninstall-gui'], [], ['--new', 'ideas']]) {
+    assert.equal(guiOptionsProblem(parseArgs(argv)), null, argv.join(' '));
+  }
+  assert.equal(guiOptionsProblem(parseArgs(['--here'])), '--here goes with --install-gui or --uninstall-gui');
+  assert.equal(guiOptionsProblem(parseArgs(['--new', '--here'])), '--here goes with --install-gui or --uninstall-gui');
+  assert.equal(
+    guiOptionsProblem(parseArgs(['--install-gui', '--uninstall-gui'])),
+    '--install-gui and --uninstall-gui do opposite things; give one',
+  );
+  const opening = [['--new'], ['--book', 'a.skbk'], ['-f'], ['--no-sandbox'], ['-i', 'logo.svg'], ['-m', 'a.svg,b.svg'], ['--sharpen', 'notes'], ['ideas.skbk'], ['-v']];
+  for (const extra of opening) {
+    assert.equal(guiOptionsProblem(parseArgs(['--install-gui', ...extra])), '--install-gui takes no other option but --here', extra.join(' '));
+  }
+  assert.equal(guiOptionsProblem(parseArgs(['--uninstall-gui', '--book', 'a.skbk'])), '--uninstall-gui takes no other option but --here');
 });
 
 test('parseArgs reads --book with a target', () => {

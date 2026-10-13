@@ -11,11 +11,12 @@ the inbox into a roadmap section once it is scheduled.
 ## Current
 
 The active queue. Five entries are patch-sized and carried over from earlier
-releases, and three are Direct Select's minor features from the unreleased
-pass; each names the group it came from, so an item that grows can be moved
-back without losing where it started. The last two are deployment checks -
-the documentation site's, and the Check workflow's with Dependabot - which
-the agent notes below carry to the run that can make them.
+releases, three are Direct Select's minor features from 1.0.0, and three are
+what the npm publish left for later; each names the group it came from, so an
+item that grows can be moved back without losing where it started. The last
+two are deployment checks - the documentation site's, and the Check
+workflow's with Dependabot - which the agent notes below carry to the run
+that can make them.
 
 - [x] **DONE (1.0.0-alpha.5.0.0)** - **Text editor UX**: commit on `Esc`, keep caret styling in sync with the
   selected font size, and reposition on window resize. The type editor draws
@@ -24,7 +25,7 @@ the agent notes below carry to the run that can make them.
   keeps its place through a pan, a zoom or a resized window. A text can be
   edited again, and a burst of typing is one undo step.
   - From: Patch
-- [x] **DONE (Unreleased)** - **Icon rasterization**: ship multi-resolution `.ico`/`.icns` instead of a
+- [x] **DONE (1.0.0)** - **Icon rasterization**: ship multi-resolution `.ico`/`.icns` instead of a
   single PNG. electron-builder already builds both from one square PNG, so no
   rasterizer of the project's own is wanted: `scripts/make-icon.mjs`, which
   drew the old tile over `assets/icon.png` on every build, is gone, and the
@@ -70,24 +71,40 @@ the agent notes below carry to the run that can make them.
 - [ ] **Docs**: API reference for the embeddable package and a WordPress block
   example.
   - From: Patch
-- [x] **DONE (Unreleased)** - **Direct Select drag-box selection of anchors and segments**: a drag
+- [x] **DONE (1.0.0)** - **Direct Select drag-box selection of anchors and segments**: a drag
   from empty canvas picks the anchors inside the box, across every mark it
   reaches, and only those; when it holds none, the segments passing through
   it; when it catches nothing, nothing changes. A press that does not travel
   is still a click, and drops the edit. Shift adds to the picks, and text is
   left out of the box. `src/core/direct-select.ts`.
   - From: Minor
-- [x] **DONE (Unreleased)** - **Move a Direct Select selection by drag or arrow keys**: a press on
+- [x] **DONE (1.0.0)** - **Move a Direct Select selection by drag or arrow keys**: a press on
   a picked anchor or segment drags every pick, on every mark; with no button
   down the arrow keys move them a step - Shift ten - in the units the
   position fields show. Each drag and each press is one undo step.
   - From: Minor
-- [x] **DONE (Unreleased)** - **Delete anchor points and segments, opening or splitting the path**:
+- [x] **DONE (1.0.0)** - **Delete anchor points and segments, opening or splitting the path**:
   a deleted anchor takes both of its segments, a deleted segment goes alone,
   so a closed path opens just after the gap and an open one splits; a lone
   anchor left over is dropped. A text frame keeps its points. One undo step,
   and undo and redo drop the picks. `deleteParts` in `src/core/split.ts`.
   - From: Minor
+- [ ] **Publish provenance**: a GitHub Actions workflow that runs
+  `npm publish --provenance` for both packages on a `v*` tag, so each npm
+  page shows where its package was built; a publish from a laptop cannot
+  attest. The job builds the app's package with `npm run pack-gui` and
+  publishes it after the API's, at the same version.
+  - From: 1.0.0, Part G
+- [ ] **One declaration file per entry**: roll the package's `.d.ts` files
+  into one per entry, about 0.2 MB packed less, with the export map's `types`
+  pointing at them; the types themselves do not change.
+  - From: 1.0.0, Part B
+- [ ] **Animation Mode for the app from npm**: its install record and the
+  helper install live beside a clone's app, and the app that
+  `napkin-sketch --install-gui` adds has neither. Keep them under the app
+  package's folder or the user's data folder, give the command a way to
+  install the mode there, and still find a clone's existing install.
+  - From: 1.0.0, Part E
 - [ ] **Verify the documentation site deployment**: `.github/workflows/pages.yml`
   deploys `docs/` to https://isocialpractice.github.io/napkin-sketch/ once it
   is pushed and Pages is set to deploy from GitHub Actions. Ask the workflow
@@ -99,7 +116,7 @@ the agent notes below carry to the run that can make them.
   for weekly upgrade PRs. Neither runs until both are pushed to `main`. Ask
   the first Check run for the pushed commit how each OS fared, and whether
   Dependabot has opened its first PRs; see the agent note below.
-  - From: Unreleased, Part D
+  - From: 1.0.0, Part D
 
 ## Agent Notes
 

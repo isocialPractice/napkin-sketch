@@ -8,8 +8,9 @@ and says how to change them.
 ## 1. Open a blank sketch
 
 From a clone, `npm start` builds the app and opens a new, blank sketch; an
-installed app opens one from its icon, and `napkin-sketch` does from a shell
-once `npm link` has been run. See [Installation](../install.md).
+installed app opens one from its icon, and `napkin-sketch` does from a shell,
+once `npm link` has been run in a clone or `napkin-sketch --install-gui` has
+added the app to the command from npm. See [Installation](../install.md).
 
 The **Select** tool is in hand when the app opens, so press `B` for the brush
 before drawing.

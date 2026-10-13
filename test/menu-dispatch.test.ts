@@ -236,9 +236,10 @@ test('a row with a submenu opens it rather than running anything, and a Mac read
   const items = contextMenuItems(contextItems(registry, 'layers'), (id) => ran.push(id), { mac: true });
   const move = items.find((item) => item.label === 'Move')!;
   assert.equal(move.action, undefined);
+  // The rule between the one-step rows and the to-the-end rows is no row.
   assert.deepEqual(
-    move.items!.map((item) => `${item.label} [${item.chord}]`),
-    ['Layer Up [Cmd+]]', 'Layer Down [Cmd+[]'],
+    move.items!.filter((item) => !item.separator).map((item) => `${item.label} [${item.chord}]`),
+    ['Layer Up [Cmd+]]', 'Layer Down [Cmd+[]', 'Layer to Top [Cmd+Shift+]]', 'Layer to Bottom [Cmd+Shift+[]'],
   );
   move.items![1].action!();
   assert.deepEqual(ran, ['layer-down']);

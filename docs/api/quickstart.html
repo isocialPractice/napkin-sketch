@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -42,17 +42,19 @@
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Quickstart</span></nav>
 <h1 id="api-quickstart">API quickstart<a class="anchor" href="#api-quickstart" aria-label="Link to this section">#</a></h1>
 <p><a href="index.html">API hub</a> · <strong>Quickstart</strong> · <a href="cheatsheet.html">Cheatsheet</a></p>
-<p>The whole API in five steps: build, draw a script from the command line, draw
-it from Node, build a graphic in code, and link a logo.</p>
+<p>The whole API in five steps: install, draw a script from the command line,
+draw it from Node, build a graphic in code, and link a logo.</p>
 <h2 id="the-whole-thing-in-five-steps">The whole thing in five steps<a class="anchor" href="#the-whole-thing-in-five-steps" aria-label="Link to this section">#</a></h2>
 <ol>
-<li>Build the clone and put <code>napkin-sketch</code> on your PATH:</li>
+<li>Install the command line, which puts <code>napkin-sketch</code> on your PATH, and the
+API in a folder of your own:</li>
 </ol>
-<pre><code class="language-bash">npm install
-npm run build
-npm link</code></pre>
+<pre><code class="language-bash">npm install -g @isocialpractice/napkin-sketch
+npm install @isocialpractice/napkin-sketch</code></pre>
+<p>From a clone, <code>npm install</code>, <code>npm run build</code> and <code>npm link</code> do the same, and
+the files below go in the clone.</p>
 <ol start="2">
-<li>Save this as <code>card.napkin</code> in the clone, and draw it from the command line:</li>
+<li>Save this as <code>card.napkin</code> in that folder, and draw it from the command line:</li>
 </ol>
 <pre><code class="language-napkin">napkin 1
 page 400 300
@@ -66,7 +68,7 @@ text &quot;Acme Corp&quot; at 200 120 size 32 align center</code></pre>
 <li>Draw the same script from Node. Save this as <code>draw.mjs</code> and run
 <code>node draw.mjs</code>:</li>
 </ol>
-<pre><code class="language-js">import { drawFile } from 'napkin-sketch/node';
+<pre><code class="language-js">import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 const { ok, files, diagnostics } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png'] });
 console.log(ok, files.map((file) =&gt; file.path), diagnostics);</code></pre>
@@ -75,7 +77,7 @@ console.log(ok, files.map((file) =&gt; file.path), diagnostics);</code></pre>
 <code>node badge.mjs</code>:</li>
 </ol>
 <pre><code class="language-js">import { writeFile } from 'node:fs/promises';
-import { createComposition } from 'napkin-sketch';
+import { createComposition } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 240, height: 240, background: '#ffffff' });
 design.circle({ cx: 120, cy: 110, r: 80, fill: '#326478' });

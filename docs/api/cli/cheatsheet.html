@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -69,8 +69,8 @@
 <tr><td><code>--scale &lt;n&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>PNG pixels a page pixel.</td></tr>
 <tr><td><code>--crop auto|none|&lt;x,y,w,h&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>What every file is cut to.</td></tr>
 <tr><td><code>--limit &lt;n&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td>The most instructions a run may execute.</td></tr>
-<tr><td><code>--prompt &lt;request&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center"></td><td>Ask the AI helper for a script that draws this, and draw it; the script is kept as &lt;name&gt;.napkin.</td></tr>
-<tr><td><code>--helper &lt;command&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center"></td><td>The AI helper command --prompt runs: $NAPKIN_SCRIPT_HELPER unless given, else Claude Code.</td></tr>
+<tr><td><code>--prompt &lt;request&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center"></td><td>Experimental: ask the AI helper for a script that draws this, and draw it; the script is kept as &lt;name&gt;.napkin.</td></tr>
+<tr><td><code>--helper &lt;command&gt;</code></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center"></td><td>Experimental: the AI helper command --prompt runs: $NAPKIN_SCRIPT_HELPER unless given, else Claude Code.</td></tr>
 <tr><td><code>--page &lt;n&gt;</code></td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>Only this page of the book, counting from 1.</td></tr>
 <tr><td><code>--animate &lt;type&gt;</code></td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>Draw the page's figure through a measured cycle, a frame a page: walk, run, ideal, knocked-down.</td></tr>
 <tr><td><code>--frames &lt;n&gt;</code></td><td style="text-align:center"></td><td style="text-align:center"></td><td style="text-align:center">yes</td><td style="text-align:center"></td><td>How many frames --animate spreads the cycle across: 2 to 60, the cycle's own length unless given.</td></tr>

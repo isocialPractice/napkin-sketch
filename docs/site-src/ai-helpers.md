@@ -1,5 +1,13 @@
 # The AI helpers
 
+> **Experimental.** The AI helpers run an agentic AI command-line tool that
+> napkin-sketch does not ship, on your account and at its cost. They are new,
+> and their commands, forms and files may change in a minor release.
+
+The npm package carries the three helpers, and the `vectors` helper's skills
+without their reference sheets and data: each of its skill folders names
+those by address in `assets/uri.md`, at the release's tag.
+
 ## The graphic-designer helper
 
 The second plugin in `ai-helper/`, and the one that drives the

@@ -43,7 +43,9 @@ Press `F2`, or double-click the row, type the name and press `Enter`.
 
 ## 7. Restack
 
-1. `Ctrl + ]` moves the lit rows up the stack, `Ctrl + [` down.
+1. `Ctrl + ]` moves the lit rows up the stack, `Ctrl + [` down; `Ctrl + Shift + ]`
+   and `Ctrl + Shift + [` take them to the top or the bottom of their group,
+   and `Alt + ]` and `Alt + [` select the row above or below.
 2. Or drag a row: between two rows to move it there, onto a group row to
    put it inside.
 

@@ -142,7 +142,9 @@ async function readAppVersion(): Promise<string> {
   for (const file of [join(app.getAppPath(), 'package.json'), join(__dirname, '..', '..', 'package.json')]) {
     try {
       const pkg = JSON.parse(await readFile(file, 'utf-8')) as { name?: unknown; version?: unknown };
-      if (pkg.name === 'napkin-sketch' && typeof pkg.version === 'string') return (appVersion = pkg.version);
+      // The clone's name is scoped, the installer's is not (package.json build.extraMetadata), and the npm GUI package's ends in -gui.
+      const ours = typeof pkg.name === 'string' && /^(@isocialpractice\/)?napkin-sketch(-gui)?$/.test(pkg.name);
+      if (ours && typeof pkg.version === 'string') return (appVersion = pkg.version);
     } catch {
       // Not here; try the next place.
     }

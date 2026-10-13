@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -43,10 +43,10 @@
 <h1 id="using-napkin-sketch-from-code">Using napkin-sketch from code<a class="anchor" href="#using-napkin-sketch-from-code" aria-label="Link to this section">#</a></h1>
 <details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
 <p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
-<p>The package has three entries. <code>napkin-sketch</code> holds everything that runs
+<p>The package has three entries. <code>@isocialpractice/napkin-sketch</code> holds everything that runs
 anywhere - the editor, the data model, the engines, the composition API and
-the napkin script language - and reads no file. <code>napkin-sketch/node</code> holds
-what reads and writes files, for Node. <code>napkin-sketch/markdown</code> gives the
+the napkin script language - and reads no file. <code>@isocialpractice/napkin-sketch/node</code> holds
+what reads and writes files, for Node. <code>@isocialpractice/napkin-sketch/markdown</code> gives the
 first its Markdown and code readers. This page is the reference for them as a
 program uses them: importing them, drawing a script, writing files, the
 result object, and what is an error value and what throws.</p>
@@ -77,11 +77,11 @@ result object, and what is an error value and what throws.</p>
 <code>evaluate</code>, a sketch book comes back, and <code>renderSketch</code> or <code>renderBook</code>
 writes it as SVG, PNG, PDF, <code>.skbk</code> or an Illustrator script. None of that
 touches a DOM or a disk,
-so it all lives in the browser-safe <code>napkin-sketch</code> entry, beside the editor
+so it all lives in the browser-safe <code>@isocialpractice/napkin-sketch</code> entry, beside the editor
 and the composition API that were already there.</p>
 <p>The disk is the host's business. A script names an image, a document or a
 linked file, and the host hands it over; the host writes what was drawn. In
-Node that host is <code>napkin-sketch/node</code>: one call reads a script file, loads
+Node that host is <code>@isocialpractice/napkin-sketch/node</code>: one call reads a script file, loads
 what it names, runs it, and writes a file for each format asked for, and
 the result it gives back is the object a command line prints.</p>
 <h2 id="the-mental-model">The mental model<a class="anchor" href="#the-mental-model" aria-label="Link to this section">#</a></h2>
@@ -96,19 +96,19 @@ the result it gives back is the object a command line prints.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Import</th><th>Runs in</th><th>Holds</th></tr></thead>
 <tbody>
-<tr><td><code>napkin-sketch</code></td><td>a browser, Node, any bundler</td><td>The editor, the data model, the sharpen engine, the composition API, and the language: reading, checking and writing scripts, <code>evaluate</code>, <code>drawSvg</code>, the render calls, and the verb and diagnostic tables.</td></tr>
-<tr><td><code>napkin-sketch/node</code></td><td>Node 18 and later</td><td>Files: <code>drawFile</code>, <code>drawToFiles</code>, <code>writeBook</code>, <code>readScript</code>, <code>loadAssets</code> and <code>loadDocuments</code>, and the composition API's file helpers, <code>imageDataUrl</code>, <code>writeComposition</code>, <code>resolveLinkFromDir</code> and <code>mediaTypeOf</code>. It reads Markdown Flow text with marked's lexer.</td></tr>
-<tr><td><code>napkin-sketch/markdown</code></td><td>a browser, Node, any bundler</td><td>Markdown Flow's and Clean Language Accents' readers: importing it gives <code>napkin-sketch</code> marked's lexer and highlight.js, so a Markdown Flow text draws as its Markdown renders and code is colored. Its <code>markdownToType</code> reads with the lexer, and <code>registerAccentLanguage</code> installs a language beyond the 36 common ones.</td></tr>
+<tr><td><code>@isocialpractice/napkin-sketch</code></td><td>a browser, Node, any bundler</td><td>The editor, the data model, the sharpen engine, the composition API, and the language: reading, checking and writing scripts, <code>evaluate</code>, <code>drawSvg</code>, the render calls, and the verb and diagnostic tables.</td></tr>
+<tr><td><code>@isocialpractice/napkin-sketch/node</code></td><td>Node 22.12 and later</td><td>Files: <code>drawFile</code>, <code>drawToFiles</code>, <code>writeBook</code>, <code>readScript</code>, <code>loadAssets</code> and <code>loadDocuments</code>, and the composition API's file helpers, <code>imageDataUrl</code>, <code>writeComposition</code>, <code>resolveLinkFromDir</code> and <code>mediaTypeOf</code>. It reads Markdown Flow text with marked's lexer.</td></tr>
+<tr><td><code>@isocialpractice/napkin-sketch/markdown</code></td><td>a browser, Node, any bundler</td><td>Markdown Flow's and Clean Language Accents' readers: importing it gives <code>@isocialpractice/napkin-sketch</code> marked's lexer and highlight.js, so a Markdown Flow text draws as its Markdown renders and code is colored. Its <code>markdownToType</code> reads with the lexer, and <code>registerAccentLanguage</code> installs a language beyond the 36 common ones.</td></tr>
 </tbody></table></div>
-<p><code>napkin-sketch/graphic-design/files</code>, the composition helpers' own entry,
-keeps working; <code>napkin-sketch/node</code> gives the same functions, so a Node
+<p><code>@isocialpractice/napkin-sketch/graphic-design/files</code>, the composition helpers' own entry,
+keeps working; <code>@isocialpractice/napkin-sketch/node</code> gives the same functions, so a Node
 program has one import for files.</p>
-<p><code>napkin-sketch</code> holds no Markdown reader of its own: a Markdown Flow text -
+<p><code>@isocialpractice/napkin-sketch</code> holds no Markdown reader of its own: a Markdown Flow text -
 <code>text &quot;# Notes&quot; at 40 60 markdown</code> - shows its Markdown as typed until one is
-given. <code>napkin-sketch/markdown</code> imports <code>napkin-sketch</code> rather than holding a
+given. <code>@isocialpractice/napkin-sketch/markdown</code> imports <code>@isocialpractice/napkin-sketch</code> rather than holding a
 copy of it, so the reader it registers is the one the API reads with:</p>
-<pre><code class="language-ts">import { drawSvg } from 'napkin-sketch';
-import 'napkin-sketch/markdown';
+<pre><code class="language-ts">import { drawSvg } from '@isocialpractice/napkin-sketch';
+import '@isocialpractice/napkin-sketch/markdown';
 
 const { svg } = drawSvg('napkin 1\ntext &quot;# Notes\\n\\n- one&quot; at 40 60 markdown\n');</code></pre>
 <h3 id="getting-the-package">Getting the package<a class="anchor" href="#getting-the-package" aria-label="Link to this section">#</a></h3>
@@ -120,19 +120,19 @@ npm run build:types  # the .d.ts files the exports map points at</code></pre>
 links it with <code>npm link</code>, and imports it by name.</p>
 <h3 id="es-modules-commonjs-and-typescript">ES modules, CommonJS and TypeScript<a class="anchor" href="#es-modules-commonjs-and-typescript" aria-label="Link to this section">#</a></h3>
 <p>Every entry is an ES module:</p>
-<pre><code class="language-ts">import { evaluate, renderSketch } from 'napkin-sketch';
-import { drawFile } from 'napkin-sketch/node';</code></pre>
+<pre><code class="language-ts">import { evaluate, renderSketch } from '@isocialpractice/napkin-sketch';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';</code></pre>
 <p>CommonJS code loads them with <code>import()</code>, which works on every Node the
 package supports. <code>require</code> works only where Node can require an ES module,
 and elsewhere fails with <code>ERR_REQUIRE_ESM</code>:</p>
-<pre><code class="language-js">const { drawFile } = await import('napkin-sketch/node');</code></pre>
+<pre><code class="language-js">const { drawFile } = await import('@isocialpractice/napkin-sketch/node');</code></pre>
 <p>Type declarations ship with both, found through the package's exports map
 under <code>moduleResolution</code> <code>bundler</code>, <code>node16</code> or <code>nodenext</code>. Every option and
 result on this page is a named type: <code>DrawToFilesOptions</code>, <code>DrawResult</code>,
-<code>WrittenFile</code> and <code>WriteBookOptions</code> from <code>napkin-sketch/node</code>, and
+<code>WrittenFile</code> and <code>WriteBookOptions</code> from <code>@isocialpractice/napkin-sketch/node</code>, and
 <code>EvaluateOptions</code>, <code>ScriptResult</code>, <code>Diagnostic</code>, <code>RenderSketchOptions</code> and the
-rest from <code>napkin-sketch</code>.</p>
-<p>A browser build imports <code>napkin-sketch</code> only. <code>napkin-sketch/node</code> reads
+rest from <code>@isocialpractice/napkin-sketch</code>.</p>
+<p>A browser build imports <code>@isocialpractice/napkin-sketch</code> only. <code>@isocialpractice/napkin-sketch/node</code> reads
 files with <code>node:fs</code>, which a browser does not have.</p>
 <h3 id="drawing-a-script">Drawing a script<a class="anchor" href="#drawing-a-script" aria-label="Link to this section">#</a></h3>
 <p><code>evaluate(source, options)</code> runs a script and returns <code>{ ok, book,
@@ -143,7 +143,7 @@ script is text, or the object form as a JSON value.</p>
 <p><code>drawSvg(source, options)</code> is the three in one call, for the caller that
 wants a picture: it runs the script and gives back its first page as SVG,
 cut as the script's <code>crop</code> and <code>registration</code> ask.</p>
-<pre><code class="language-ts">import { drawSvg } from 'napkin-sketch';
+<pre><code class="language-ts">import { drawSvg } from '@isocialpractice/napkin-sketch';
 
 const { ok, svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60');</code></pre>
 <div class="table-wrap"><table>
@@ -160,7 +160,7 @@ run <code>evaluate</code> and hand the book to <code>renderBook</code>.</p>
 <p><code>drawFile(path, options)</code> reads a script file and writes what it drew, and
 <code>drawToFiles(source, options)</code> does the same from a script in hand. Both
 return a promise of <a href="#the-result">the result</a>.</p>
-<pre><code class="language-ts">import { drawFile } from 'napkin-sketch/node';
+<pre><code class="language-ts">import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 const { ok, files, diagnostics } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png'] });</code></pre>
 <ul>
@@ -215,7 +215,7 @@ hand - one <code>evaluate</code> made, or one read from a <code>.skbk</code> - a
 <tr><td><code>stats</code></td><td><code>instructions</code>, <code>marks</code>, <code>anchors</code>, <code>points</code> and <code>pages</code>: how much the run did.</td></tr>
 <tr><td><code>warnings</code></td><td>What a format left out or drew as a stand-in, each starting with its page's name.</td></tr>
 </tbody></table></div>
-<p><code>formatDiagnostic(diagnostic, 'card.napkin')</code> from <code>napkin-sketch</code> prints a
+<p><code>formatDiagnostic(diagnostic, 'card.napkin')</code> from <code>@isocialpractice/napkin-sketch</code> prints a
 diagnostic the way editors and CI read one:
 <code>card.napkin:3:1: error unknown-verb: ...</code>.</p>
 <h3 id="what-a-script-names-scripts-assets-documents-links">What a script names: scripts, assets, documents, links<a class="anchor" href="#what-a-script-names-scripts-assets-documents-links" aria-label="Link to this section">#</a></h3>
@@ -253,7 +253,7 @@ format warning, and nothing is written.</p>
 <tr><td>every render call</td><td>An unknown format, which is a mistake in the calling code.</td></tr>
 </tbody></table></div>
 <h3 id="the-language-in-the-barrel">The language in the barrel<a class="anchor" href="#the-language-in-the-barrel" aria-label="Link to this section">#</a></h3>
-<p>What <code>napkin-sketch</code> exports for scripts:</p>
+<p>What <code>@isocialpractice/napkin-sketch</code> exports for scripts:</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Export</th><th>What it is</th></tr></thead>
 <tbody>
@@ -269,8 +269,8 @@ format warning, and nothing is written.</p>
 <p><strong>A folder of scripts, drawn to files.</strong> Each script's problems are printed
 where it failed, and the rest are drawn:</p>
 <pre><code class="language-ts">import { readdirSync } from 'node:fs';
-import { formatDiagnostic } from 'napkin-sketch';
-import { drawFile } from 'napkin-sketch/node';
+import { formatDiagnostic } from '@isocialpractice/napkin-sketch';
+import { drawFile } from '@isocialpractice/napkin-sketch/node';
 
 for (const file of readdirSync('scripts').filter((name) =&gt; name.endsWith('.napkin'))) {
   const result = await drawFile(`scripts/${file}`, { out: 'out', formats: ['svg', 'png'], timestamp: '2026-09-25T00:00:00.000Z' });
@@ -288,13 +288,13 @@ form; this one is a card with a named layer:</p>
   { &quot;verb&quot;: &quot;fill&quot;, &quot;fill&quot;: &quot;#ffe08a&quot; },
   { &quot;verb&quot;: &quot;circle&quot;, &quot;cx&quot;: 200, &quot;cy&quot;: 150, &quot;r&quot;: 80 }
 ]</code></pre>
-<pre><code class="language-ts">import { drawToFiles } from 'napkin-sketch/node';
+<pre><code class="language-ts">import { drawToFiles } from '@isocialpractice/napkin-sketch/node';
 
 const { ok, files } = await drawToFiles(script, { out: 'out', formats: ['png'], scale: 2, strict: true });
 // out/badge.png, twice the size; nothing written if anything was reported</code></pre>
 <p><strong>A live preview in a browser.</strong> The barrel alone, redrawing as someone
 types:</p>
-<pre><code class="language-ts">import { drawSvg } from 'napkin-sketch';
+<pre><code class="language-ts">import { drawSvg } from '@isocialpractice/napkin-sketch';
 
 editor.addEventListener('input', () =&gt; {
   const { svg, diagnostics } = drawSvg(editor.value);
@@ -307,7 +307,7 @@ editor.addEventListener('input', () =&gt; {
 require an ES module; <code>import()</code> works everywhere the package runs.</li>
 <li><strong>Built from a checkout</strong> until the package is published to npm.</li>
 <li><strong>The language costs the browser entry about 38 kB</strong>, minified and
-gzipped: <code>napkin-sketch</code> went from about 53 kB to 91 kB when it joined. A
+gzipped: <code>@isocialpractice/napkin-sketch</code> went from about 53 kB to 91 kB when it joined. A
 bundler that shakes unused exports out of a build takes back what a page
 does not import.</li>
 <li><strong>Every page is written under one name.</strong> SVG and PNG pages are numbered,
@@ -331,7 +331,7 @@ compared or committed; the same script then writes the same bytes.</li>
 script reads no files, and <code>unknown-asset</code> says so.</li>
 <li><strong>Expect links to resolve inside <code>base</code> only.</strong> A link the resolver refuses
 draws as its placeholder and adds a warning; it is not an error.</li>
-<li><strong>Import <code>napkin-sketch/node</code> only in Node</strong>, and <code>napkin-sketch</code> everywhere
+<li><strong>Import <code>@isocialpractice/napkin-sketch/node</code> only in Node</strong>, and <code>@isocialpractice/napkin-sketch</code> everywhere
 else.</li>
 </ul>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>

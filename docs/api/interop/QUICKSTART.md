@@ -9,12 +9,12 @@ all three.
 
 ## The whole thing in five steps
 
-1. Build the clone and put `napkin-sketch` on your PATH:
+1. Install the command line and the desktop app that step 4 opens; from a
+   clone, `npm install`, `npm run build` and `npm link` do both:
 
 ```bash
-npm install
-npm run build
-npm link
+npm install -g @isocialpractice/napkin-sketch
+napkin-sketch --install-gui
 ```
 
 2. Save this as `sign.napkin`: two groups, a name with a space and an

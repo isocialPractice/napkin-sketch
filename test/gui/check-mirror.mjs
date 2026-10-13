@@ -16,11 +16,17 @@ import { resolve } from 'node:path';
 import { launch, connect, sleep, checker, stop } from './cdp.mjs';
 
 const c = checker();
-const app = launch({
-  mode: 'new',
-  sketchName: 'mirror',
-  importFiles: [resolve(import.meta.dirname, '..', 'imports', 'mirror-triangle.svg')],
-});
+// The ink is counted off the canvas, and the Transform box that comes up by
+// itself round a selection would be counted with it: off for this check.
+const app = launch(
+  {
+    mode: 'new',
+    sketchName: 'mirror',
+    importFiles: [resolve(import.meta.dirname, '..', 'imports', 'mirror-triangle.svg')],
+  },
+  {},
+  { settings: { transformOnSelect: false } },
+);
 
 /** The triangle's ink: how much, its box, and where its centre sits across the box. */
 const INK = `

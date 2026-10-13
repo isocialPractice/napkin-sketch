@@ -5,6 +5,9 @@ Claude Code plugin. This folder is the plugin root and the only copy of everythi
 dot-folder installs and the plugin load the same files, so nothing here is generated and nothing
 here is duplicated elsewhere in the repository.
 
+> **Experimental.** This helper runs an AI tool napkin-sketch does not ship,
+> on your account; its commands, forms and files may change in a minor release.
+
 ```text
 ai-helper/
   .claude-plugin/plugin.json   the manifest (listed by /.claude-plugin/marketplace.json at the repo root)
@@ -58,3 +61,9 @@ npm run animation-mode -- --uninstall
 
 `installed.json` is that record. It is written by the install, ignored by git, and is the only
 thing the app reads to decide whether Animation Mode exists.
+
+## From the npm package
+
+The npm package carries both skills without their sheets and their data. Each skill's
+`assets/uri.md` names every one of those files with its address at the release's tag, and the
+skills say how to download one when a tool needs it.

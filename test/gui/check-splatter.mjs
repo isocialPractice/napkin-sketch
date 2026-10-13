@@ -92,7 +92,9 @@ const CLIENT = (x, y) => `
 `;
 
 async function session(launchOptions, run) {
-  const app = launch(launchOptions);
+  // The ink is counted off the canvas, and the Transform box that comes up by
+  // itself round a selection draws its outline on the ink's edge: off here.
+  const app = launch(launchOptions, {}, { settings: { transformOnSelect: false } });
   try {
     const page = await connect();
     await page.send('Runtime.enable');

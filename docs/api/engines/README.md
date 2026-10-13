@@ -8,7 +8,7 @@ clipping masks, the Pencil's grades and grain, the Smear and Liquify; the
 blend modes, the effects and the appearance stack, Splatter, Warp and 3D;
 measuring along a path; setting type, hyphenating it and drawing it from font
 files; Text Configurations and Composition Styles. This page is the reference
-for each as a program calls it from `napkin-sketch`, with a worked example
+for each as a program calls it from `@isocialpractice/napkin-sketch`, with a worked example
 for each that runs as it is.
 
 **Contents**
@@ -48,7 +48,7 @@ for each that runs as it is.
 What the Eraser cuts, what a wipe leaves, where Split cuts and how a Liquify
 brush bends are not drawing-window code: each is a function in the core, which
 the window calls on a press and a napkin script calls for its verbs. The same
-functions are exported from `napkin-sketch`, so a program can do to a sketch
+functions are exported from `@isocialpractice/napkin-sketch`, so a program can do to a sketch
 what the tools do, with no window, no DOM and no disk.
 
 None of them changes what it is given but the pixel passes, which work on
@@ -101,7 +101,7 @@ fills; `booleanRegions` gives the same result with the vertices where it
 passes from one operand's edge to the other's, which a refit keeps as corners.
 
 ```js
-import { booleanOp } from 'napkin-sketch';
+import { booleanOp } from '@isocialpractice/napkin-sketch';
 
 const square = (x, y, size) => [[{ x, y }, { x: x + size, y }, { x: x + size, y: y + size }, { x, y: y + size }]];
 const ring = booleanOp(square(0, 0, 100), square(25, 25, 50), 'difference');
@@ -130,7 +130,7 @@ it passes over.
   into curves, a corner kept wherever the cut met its edge.
 
 ```js
-import { evaluate, eraseMarks, eraseRegionOf } from 'napkin-sketch';
+import { evaluate, eraseMarks, eraseRegionOf } from '@isocialpractice/napkin-sketch';
 
 const page = evaluate('napkin 1\nline 0 50 200 50\n').book.sketches[0];
 const eraser = { id: 'e', tool: 'eraser', color: '#000000', width: 20, points: [{ x: 100, y: 0 }, { x: 100, y: 100 }] };
@@ -166,7 +166,7 @@ wipe did nothing, and `empty` says the result left nothing at all.
 outline is its inside, anything else the ink it paints.
 
 ```js
-import { evaluate, wipeMarks } from 'napkin-sketch';
+import { evaluate, wipeMarks } from '@isocialpractice/napkin-sketch';
 
 const page = evaluate('napkin 1\nfill #27486d\nrect 0 0 100 100\ncircle 100 50 50\n').book.sketches[0];
 const [square, circle] = page.strokes;
@@ -192,7 +192,7 @@ taken away from every mark (`remove`). It gives back a wipe's edit, with
 itself.
 
 ```js
-import { arrangeFaces, evaluate, stackFaces } from 'napkin-sketch';
+import { arrangeFaces, evaluate, stackFaces } from '@isocialpractice/napkin-sketch';
 
 const square = (x, y, size) => [[{ x, y }, { x: x + size, y }, { x: x + size, y: y + size }, { x, y: y + size }]];
 const { faces } = arrangeFaces([square(0, 0, 100), square(50, 0, 100)]);
@@ -220,7 +220,7 @@ order whose path passes within `reach` of a point, and `SPLIT_REACH_PX` is the
 reach a script's `split` uses.
 
 ```js
-import { evaluate, nearestOnMark, splitMark } from 'napkin-sketch';
+import { evaluate, nearestOnMark, splitMark } from '@isocialpractice/napkin-sketch';
 
 const line = evaluate('napkin 1\nline 0 0 200 0\n').book.sketches[0].strokes[0];
 const at = nearestOnMark(line, { x: 80, y: 3 });
@@ -248,7 +248,7 @@ group shows only inside that mark, which shows nowhere while it clips.
 `CLIP_GROUP_NAME` is the name Make Clipping Mask gives the group.
 
 ```js
-import { clipIndex, clippedAt, evaluate, makeClip } from 'napkin-sketch';
+import { clipIndex, clippedAt, evaluate, makeClip } from '@isocialpractice/napkin-sketch';
 
 const page = evaluate('napkin 1\nclip "Window" {\n  rect 0 0 200 100\n  circle 100 50 40\n}\n').book.sketches[0];
 const [rect] = page.strokes;
@@ -280,7 +280,7 @@ mark's picture covers, and `rasterizePencil(mark, region)` its pixels through
 that tooth, straight RGBA; `pencilPicture` adds the mark's Smear passes.
 
 ```js
-import { GRAIN_TILE_SIZE, PENCIL_GRADES, grainTile, pencilPaint } from 'napkin-sketch';
+import { GRAIN_TILE_SIZE, PENCIL_GRADES, grainTile, pencilPaint } from '@isocialpractice/napkin-sketch';
 
 console.log(PENCIL_GRADES.length, pencilPaint('2B').label, '|', pencilPaint('vine-soft').label);
 // → 30 Graphite 2B | Vine charcoal, soft
@@ -301,7 +301,7 @@ drag leaves on one mark, which the app keeps in the mark's `smudges`, and
 `DEFAULT_SMEAR_STRENGTH` the strength a new stump has.
 
 ```js
-import { evaluate, rasterizePencil, smudgeBuffer } from 'napkin-sketch';
+import { evaluate, rasterizePencil, smudgeBuffer } from '@isocialpractice/napkin-sketch';
 
 const mark = evaluate('napkin 1\npencil 4B\nline 50 0 50 100\n').book.sketches[0].strokes[0];
 const region = { scale: 1, x: 20, y: 0, width: 70, height: 100 };
@@ -333,7 +333,7 @@ by id; pencil marks, text, pictures and eraser marks are left alone
 that many pixels so its anchors stay few, as `refitLiquified` does.
 
 ```js
-import { evaluate, liquifyField, liquifyMarks } from 'napkin-sketch';
+import { evaluate, liquifyField, liquifyMarks } from '@isocialpractice/napkin-sketch';
 
 const twirl = liquifyField({ mode: 'twirl', x: 100, y: 100, radius: 50, amount: 90 });
 const p = twirl.point({ x: 120, y: 100 });
@@ -357,7 +357,7 @@ the same way: changed marks in their place, keeping their ids and layers,
 removed ones gone, and added ones on the layer `above` names.
 
 ```js
-import { evaluate, wipeMarks } from 'napkin-sketch';
+import { evaluate, wipeMarks } from '@isocialpractice/napkin-sketch';
 
 /** A page with an edit made: what the app's store does with one, as one undo step. */
 function applyEdit(page, edit) {
@@ -387,7 +387,7 @@ channels 0 to 1, the source over the backdrop, as `blendColor` mixes two
 colors and `blendChannel` one channel of a separable mode.
 
 ```js
-import { BLEND_MODES, blendModeOf, blendPixel } from 'napkin-sketch';
+import { BLEND_MODES, blendModeOf, blendPixel } from '@isocialpractice/napkin-sketch';
 
 console.log(BLEND_MODES.length, blendModeOf('multiply'), blendModeOf('Color Dodge'));
 // → 16 stack bleach
@@ -406,7 +406,7 @@ change the one given: `addEffect`, `replaceEffect`, `removeEffect`,
 `effectsAfterTransform` is a list scaled, turned or mirrored with its mark.
 
 ```js
-import { addEffect, appearanceSections, defaultEffect, toggleEffect } from 'napkin-sketch';
+import { addEffect, appearanceSections, defaultEffect, toggleEffect } from '@isocialpractice/napkin-sketch';
 
 let effects = addEffect([], defaultEffect('outer-glow'));
 effects = addEffect(effects, defaultEffect('bevel'), 'fill');
@@ -427,7 +427,7 @@ Outer Shadow or Glow that blends; `toRgba8` writes the image back.
 mode.
 
 ```js
-import { fromRgba8, runEffects, toRgba8 } from 'napkin-sketch';
+import { fromRgba8, runEffects, toRgba8 } from '@isocialpractice/napkin-sketch';
 
 // A 9 by 9 picture: its middle pixel white, the rest clear.
 const data = new Uint8ClampedArray(9 * 9 * 4);
@@ -447,7 +447,7 @@ which `SPLATTER_PRESETS` gives by name, and a seed that draws the same hatch
 every time. Each path is cubic anchors.
 
 ```js
-import { SPLATTER_PRESETS, splatterPaths } from 'napkin-sketch';
+import { SPLATTER_PRESETS, splatterPaths } from '@isocialpractice/napkin-sketch';
 
 const square = [[{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 60, y: 60 }, { x: 0, y: 60 }]];
 const paths = splatterPaths(square, { ...SPLATTER_PRESETS.sharp, seed: 1 });
@@ -463,7 +463,7 @@ anchors and handles by. `WARP_STYLES` names them; the options are a vector
 editor's Warp Options.
 
 ```js
-import { WARP_STYLES, warpStyleMap } from 'napkin-sketch';
+import { WARP_STYLES, warpStyleMap } from '@isocialpractice/napkin-sketch';
 
 const box = { minX: 0, minY: 0, maxX: 200, maxY: 100 };
 const arc = warpStyleMap('arc', box, { orientation: 'horizontal', bend: 50, distortH: 0, distortV: 0, part: 'whole' });
@@ -487,7 +487,7 @@ holes into triangles; `threeDView` and `projectPoint` put a point of the solid
 on the page.
 
 ```js
-import { defaultEffect, extrudeMesh, render3d, revolveMesh } from 'napkin-sketch';
+import { defaultEffect, extrudeMesh, render3d, revolveMesh } from '@isocialpractice/napkin-sketch';
 
 const square = { rings: [[{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 40 }, { x: 0, y: 40 }]], closed: true };
 const block = extrudeMesh(square, 20, true);
@@ -514,7 +514,7 @@ so far along, and the nearest length to a point. Text on a path, Splatter and
 Warp measure by it.
 
 ```js
-import { lengthTable, pointAtLength, tangentAtLength } from 'napkin-sketch';
+import { lengthTable, pointAtLength, tangentAtLength } from '@isocialpractice/napkin-sketch';
 
 const line = lengthTable([{ p: { x: 0, y: 0 } }, { p: { x: 100, y: 0 } }]);
 console.log(line.total, pointAtLength(line, 25), tangentAtLength(line, 25));
@@ -540,7 +540,7 @@ built-in face; the app passes the canvas's. `hyphenate` breaks a word where
 the en-US patterns allow, as a paragraph with hyphenation on does.
 
 ```js
-import { hyphenate, layoutType } from 'napkin-sketch';
+import { hyphenate, layoutType } from '@isocialpractice/napkin-sketch';
 
 const text = { id: 't', tool: 'text', color: '#1f2328', width: 1, points: [{ x: 20, y: 40 }], text: 'Acme Corp\nannual report', fontSize: 24 };
 const layout = layoutType(text);
@@ -559,7 +559,7 @@ draw it. `fileOutlineSource` turns font files by family into the measure a
 text is set by and the faces it is drawn from.
 
 ```js
-import { HEADLESS_MEASURE, fileOutlineSource, glyphOutline, isSfntProblem, layoutType, openSfnt, outlineText } from 'napkin-sketch';
+import { HEADLESS_MEASURE, fileOutlineSource, glyphOutline, isSfntProblem, layoutType, openSfnt, outlineText } from '@isocialpractice/napkin-sketch';
 import { readFile } from 'node:fs/promises';
 
 const bytes = new Uint8Array(await readFile('fonts/acme-sans.ttf'));
@@ -584,7 +584,7 @@ of its definition - and `resolveRunAttrs` is what a run draws as: its base,
 then the configuration, then its overrides.
 
 ```js
-import { applyTextConfig, baseAttrs, newTextConfig, resolveRunAttrs, styleSegments } from 'napkin-sketch';
+import { applyTextConfig, baseAttrs, newTextConfig, resolveRunAttrs, styleSegments } from '@isocialpractice/napkin-sketch';
 
 const heading = newTextConfig([], { fontSize: 40, fontStyle: 'Bold' }, 'tc_heading', 'Heading');
 const text = { id: 't', tool: 'text', color: '#1f2328', width: 1, points: [{ x: 20, y: 60 }], text: 'Acme Corp', fontSize: 24 };
@@ -603,7 +603,7 @@ a page's named layers as a style; the
 [compose reference](../compose/README.md#composition-styles) has the format.
 
 ```js
-import { applyCompositionStyle, captureCompositionStyle, compositionReportTitle, evaluate } from 'napkin-sketch';
+import { applyCompositionStyle, captureCompositionStyle, compositionReportTitle, evaluate } from '@isocialpractice/napkin-sketch';
 
 const page = evaluate('napkin 1\nlayer "Background"\nfill #f4f1ea\nrect 0 0 200 100\nlayer "Title"\ntext "Acme Corp" at 20 50\n').book.sketches[0];
 const day = captureCompositionStyle(page, 'Day');
@@ -621,7 +621,7 @@ A gap through every line on a page: the Eraser's cut made with a program, and
 the page written out as SVG.
 
 ```js
-import { eraseMarks, eraseRegionOf, evaluate, renderSketch } from 'napkin-sketch';
+import { eraseMarks, eraseRegionOf, evaluate, renderSketch } from '@isocialpractice/napkin-sketch';
 
 const page = evaluate('napkin 1\npage 240 160\nwidth 4\nrepeat 4 as i {\n  line 20 (30 + i * 30) 220 (30 + i * 30)\n}\n').book.sketches[0];
 const swath = eraseRegionOf({ id: 'gap', tool: 'eraser', color: '#000000', width: 24, points: [{ x: 120, y: 0 }, { x: 120, y: 160 }] });
@@ -636,7 +636,7 @@ A Liquify drag from a program: a Warp pushed across a circle in ten small
 dabs, as a pointer moving across it gives them, then fitted again once.
 
 ```js
-import { evaluate, liquifyMarks } from 'napkin-sketch';
+import { evaluate, liquifyMarks } from '@isocialpractice/napkin-sketch';
 
 const page = evaluate('napkin 1\ncircle 100 100 60\n').book.sketches[0];
 const dabs = Array.from({ length: 10 }, (_, k) => ({ mode: 'warp', x: 40 + k * 4, y: 100, radius: 40, dx: 4, dy: 0 }));

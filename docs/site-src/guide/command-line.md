@@ -9,7 +9,7 @@ napkin-sketch [option] [target]
 | Parameter                | Description                                                           |
 | :----------------------- | :-------------------------------------------------------------------- |
 | `-h, --help`             | Show help for using the application from the command line.            |
-| `-v, --version`          | Show the current version of the application.                          |
+| `-v, --version`          | Show the current version, and where the desktop app is.               |
 | `-b, --book`             | Open a saved sketch book file, using the `.skbk` extension.           |
 | `-n, --new`              | New sketch, using `unnamed` or the name passed as `[target]`.         |
 | `-f, --full-screen`      | Open the GUI window full screen; the default window is maximized.     |
@@ -17,7 +17,14 @@ napkin-sketch [option] [target]
 | `-i, --import`           | Import an SVG, PDF, PNG, JPEG, GIF or WebP into the opening sketch.    |
 | `-m, --multiple-imports` | Import a comma-separated list of files, laid out in a grid.           |
 | `--sharpen`              | Auto-sharpen a saved sketch so it appears more hand-drawn, then open. |
+| `--install-gui`          | Install the desktop app and Electron, about 100 MB, at this version.  |
+| `--uninstall-gui`        | Remove the desktop app.                                               |
+| `--here`                 | With either of the two above: into, or out of, the current project.   |
 | `[target]`               | A `.skbk` file to open, or a name for a new sketch file.              |
+
+Installed from npm, the command has no window until `--install-gui` adds the
+desktop app, a second package with Electron in it; see
+[From npm](../install.md#from-npm). The commands below never need it.
 
 The GUI window opens maximized by default, which is not the same as full
 screen: a maximized window fills the screen while keeping the title bar and its
@@ -58,6 +65,9 @@ and callers in five languages.
 ### Examples
 
 ```bash
+# Add the desktop app to a command installed from npm (about 100 MB)
+napkin-sketch --install-gui
+
 # Open a new, blank sketch
 napkin-sketch
 

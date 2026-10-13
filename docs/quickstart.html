@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quickstart - napkin-sketch</title>
-<meta name="description" content="From a fresh clone to a sharpened sketch in five minutes.">
+<meta name="description" content="From an install to a sharpened sketch in five minutes.">
 <meta name="generator" content="napkin-sketch npm run site">
 <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/site.css">
@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="index.html"><img src="assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0-alpha.5.0.0</span>
+<span class="version" title="The version these pages document">1.0.0</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -42,15 +42,20 @@
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Start</a> <span class="sep">/</span> <span aria-current="page">Quickstart</span></nav>
 <h1 id="quickstart">Quickstart<a class="anchor" href="#quickstart" aria-label="Link to this section">#</a></h1>
 <details class="toc" open><summary>On this page</summary><ul><li><a href="#1-install">1. Install</a></li><li><a href="#2-draw-something">2. Draw something</a></li><li><a href="#3-sharpen-it">3. Sharpen it</a></li><li><a href="#4-work-with-layers">4. Work with layers</a></li><li><a href="#5-save-and-export">5. Save and export</a></li><li><a href="#6-drive-it-from-the-command-line">6. Drive it from the command line</a></li><li><a href="#7-where-to-go-next">7. Where to go next</a></li><li><a href="#troubleshooting">Troubleshooting</a></li></ul></details>
-<p>Get from a fresh clone to a sharpened sketch in about five minutes. For the
+<p>Get from an install to a sharpened sketch in about five minutes. For the
 full reference see <a href="index.html">README.md</a>; for the shortcut tables see
 <a href="cheatsheet.html">CHEATSHEET.md</a>.</p>
 <h2 id="1-install">1. Install<a class="anchor" href="#1-install" aria-label="Link to this section">#</a></h2>
-<p>Requires <strong>Node.js 22.12 or newer</strong>.</p>
+<p>Requires <strong>Node.js 22.12 or newer</strong>. From npm, the command line and then the
+desktop app, which brings Electron, about 100 MB:</p>
+<pre><code class="language-bash">npm install -g @isocialpractice/napkin-sketch
+napkin-sketch --install-gui
+napkin-sketch      # opens a new blank sketch</code></pre>
+<p>From a clone, <code>npm start</code> is the fastest way to see the app:</p>
 <pre><code class="language-bash">npm install
 npm run build
 npm start          # builds, then opens a new blank sketch</code></pre>
-<p><code>npm start</code> is the fastest way to see the app. Two other ways to run it:</p>
+<p>Two other ways to run a clone:</p>
 <pre><code class="language-bash"># Use the CLI from anywhere (local checkout)
 npm link
 napkin-sketch
@@ -94,6 +99,8 @@ rotational symmetry (raise it above 1 for mandala mode), and text size.</p>
 <tr><td style="text-align:left">Group the selected layers</td><td style="text-align:left"><code>Ctrl + G</code></td></tr>
 <tr><td style="text-align:left">Ungroup</td><td style="text-align:left"><code>Ctrl + Shift + G</code></td></tr>
 <tr><td style="text-align:left">Move a layer up / down</td><td style="text-align:left"><code>Ctrl + ]</code> / <code>Ctrl + [</code></td></tr>
+<tr><td style="text-align:left">Move a layer to the top / bottom</td><td style="text-align:left"><code>Ctrl + Shift + ]</code> / <code>Ctrl + Shift + [</code></td></tr>
+<tr><td style="text-align:left">Select the layer above / below</td><td style="text-align:left"><code>Alt + ]</code> / <code>Alt + [</code></td></tr>
 </tbody></table></div>
 <p>Click a row to make it active; <code>Shift</code>-click to multi-select; drag a row to
 restack it, or drop it onto a group row to nest it inside. Selecting on the
@@ -158,7 +165,7 @@ launches and export to a JSON file.</li>
 <li><strong>Embedding</strong> - the drawing engine ships as a browser-safe package with no
 Electron or Node dependency. See
 <a href="embed.html#embedding-the-editor">Embedding the editor</a>.</li>
-<li><strong>Animation Mode</strong> (<code>Ctrl + Shift + N</code>) - an <strong>optional add-on</strong>, left out of
+<li><strong>Animation Mode</strong> (<code>Ctrl + Shift + N</code>) - an <strong>optional, experimental add-on</strong>, left out of
 a default install because it needs an agentic AI command-line tool you
 install and sign in to yourself. Add it with
 <code>npm run animation-mode -- --install</code>, then restart the app.</li>
@@ -167,7 +174,8 @@ install and sign in to yourself. Add it with
 <div class="table-wrap"><table>
 <thead><tr><th style="text-align:left">Symptom</th><th style="text-align:left">Fix</th></tr></thead>
 <tbody>
-<tr><td style="text-align:left"><code>napkin-sketch</code> is not found</td><td style="text-align:left">Run <code>npm run build</code> then <code>npm link</code>, or use <code>npm start</code></td></tr>
+<tr><td style="text-align:left"><code>napkin-sketch</code> is not found</td><td style="text-align:left">Install it from npm, or run <code>npm run build</code> then <code>npm link</code> in a clone</td></tr>
+<tr><td style="text-align:left"><code>napkin-sketch</code> says no desktop app</td><td style="text-align:left">Run <code>napkin-sketch --install-gui</code>, which adds it with Electron</td></tr>
 <tr><td style="text-align:left">Strokes are not being cleaned up as you draw</td><td style="text-align:left">Live sharpen is off by default; enable it in <code>Ctrl + ,</code> or press <code>H</code></td></tr>
 <tr><td style="text-align:left">Nothing draws</td><td style="text-align:left">The Select tool is active at launch; press <code>B</code> for the brush</td></tr>
 <tr><td style="text-align:left"><code>Ctrl + Shift + N</code> does nothing</td><td style="text-align:left">Animation Mode is not installed; run <code>npm run animation-mode -- --status</code></td></tr>

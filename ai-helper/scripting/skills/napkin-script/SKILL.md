@@ -5,6 +5,9 @@ description: 'Write napkin scripts - the drawing language of napkin-sketch - tha
 
 # Napkin script
 
+> **Experimental.** Part of napkin-sketch's AI helpers, which are new; what
+> this skill reads and writes may change in a minor release.
+
 A napkin script says what to draw, one instruction a line, and
 `napkin-sketch draw card.napkin` turns it into files with no window: SVG,
 PNG, PDF, a `.skbk` the app opens with its layers, or an Illustrator script.

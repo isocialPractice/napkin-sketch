@@ -5,6 +5,9 @@ description: 'Compose finished graphics in code through the napkin-sketch graphi
 
 # Graphic Design API
 
+> **Experimental.** Part of napkin-sketch's AI helpers, which are new; what
+> this skill reads and writes may change in a minor release.
+
 Apply professional visual design judgment to graphics that are **composed in
 code**. This is the general design skill pointed at one specific surface: the
 napkin-sketch graphic-design API, where a composition is a page and a list of
@@ -82,7 +85,7 @@ registration as its last step.
 ## The API in one page
 
 ```js
-import { createComposition, placeBrand } from 'napkin-sketch';
+import { createComposition, placeBrand } from '@isocialpractice/napkin-sketch';
 
 const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
 

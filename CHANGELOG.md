@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-10-12
 
 Direct Select picks, moves and deletes points as a vector editor's Direct
 Selection does: a box picks the anchors it holds across every path it
@@ -13,10 +13,77 @@ what is picked, and Delete takes it out of the path, opening a closed one.
 Electron moves from 31 to 44 and electron-builder from 24 to 26, the
 install errors seen on Linux and macOS are written up, and a workflow and
 Dependabot check the repository on Linux, macOS and Windows. The app icon is
-the one kept in `assets/`, used as it is.
+the one kept in `assets/`, used as it is. A selection exports as exactly the
+box the canvas frames it with, a PNG asks what goes under its ink, the
+Layers panel has keys for the top and the bottom of a group and for the row
+above and below, and the Transform box is up by default.
+
+This is the first release on npm, as two packages under the isocialpractice
+organization. `@isocialpractice/napkin-sketch` is the command line, the API
+and its entries, the embeddable editor, the API pages an agent reads, and the
+three AI helper plugins, which are experimental and say so wherever they are
+named. Its bundles are minified and share one core, and it carries no
+Electron, no source maps, no embed script, no changelog and no reference
+sheets or their data, which the `vectors` skills now fetch by address at this
+version's tag: 277 files and 1 MB packed, from 484 files and 12 MB.
+`@isocialpractice/napkin-sketch-gui` is the desktop app, with Electron as its
+dependency, and `napkin-sketch --install-gui` adds it to an install. The
+installers are built from a clone, as before, and the Windows one is about 100
+MB, from 120. This is also the first GitHub release since 1.0.0-alpha.4.6.0,
+so it carries the effects, type and styles of 1.0.0-alpha.5.0.0, which the
+changelog sets out under that version.
 
 ### Added
 
+- **Two packages on npm.** `npm install -g @isocialpractice/napkin-sketch`
+  puts `napkin-sketch draw`, `check`, `render` and `verbs` on the PATH with no
+  Electron, and `npm install @isocialpractice/napkin-sketch` puts the API in a
+  project. `@isocialpractice/napkin-sketch-gui` is the desktop app, with
+  Electron as its one dependency, and `npm run pack-gui` lays it out in
+  `release/gui/` from the build and the site.
+- **`--install-gui`, `--uninstall-gui` and `--here`.** `napkin-sketch
+  --install-gui` installs the desktop app with npm at the command's own
+  version, saying first that it fetches Electron, about 100 MB, and showing
+  the download; `--uninstall-gui` removes it, and `--here` does either in the
+  current project rather than globally. The command starts a clone's own build
+  when it runs from a clone and the installed app otherwise, and says how to
+  add the app when there is none. `--version` adds a line saying where the app
+  is, and warns when it is another version than the command.
+- **The reference sheets by address.** The `vectors` skills' sheets and their
+  two data files stay in the repository, and each skill's `assets/uri.md`,
+  written by `npm run ai-helper`, lists their addresses at this version's tag,
+  with the same path on `main` as the fallback. The skills say how to fetch a
+  sheet that is not beside them.
+- **`pack-check` holds both packages to their line.** It fails when the API's
+  tarball packs to more than 1.5 MB or the app's to more than 4 MB, when a
+  file in either names one the tarball lacks - a declaration's import, a
+  shared chunk, a stylesheet's `url()`, an app page's script - and when a
+  browser-safe entry reaches a Node built-in. It installs both, and asks the
+  installed command line what it finds.
+- **A PNG's background.** The Export dialog asks what goes under the ink of a
+  PNG - **Transparent**, **White** or **Black** - for the page, for every page
+  and for the selection, and remembers the choice as the next PNG's first.
+  A PNG with nothing under it is transparent at last: the page export used
+  to carry the paper's color, the dot texture, the page outline and the
+  selection boxes of the screen, and a selection's PNG came out black where
+  the paper was, because the screen's canvas has no alpha channel and a
+  picture read from it has none either; a transparent export is now read
+  from the ink canvas, which keeps it. Every export draws the ink on its
+  paper, on a color, or on nothing, and no more.
+- **Keys for the Layers panel.** `Ctrl+Shift+]` and `Ctrl+Shift+[` take the
+  selected rows to the top or the bottom of their group in one step, under
+  Layers > Move Layer; `Alt+]` and `Alt+[` make the row above or below the
+  active one the selection, as the panel shows its rows, under a new
+  Layers > Select Layer submenu. All four answer to the Layers panel and ask
+  for it when it is hidden.
+- **Transform box on selection**, a switch in Quick Settings and in Verbose
+  Settings, on by default: the Transform box comes up by itself around
+  whatever the Select tool selects, as a vector editor's bounding box does,
+  and goes when nothing is selected or another tool is taken. `Escape` or
+  `Ctrl+T` put it away for that selection, and the next selection brings it
+  back. A 3D mark keeps its gumball, which the box would hide, and a path
+  text's brackets, which stand where the box's handles do, are what a press
+  on them grabs.
 - **Direct Select's box.** A drag over empty canvas with Direct Select picks
   what the box holds, across every path it reaches:
   - the anchor points inside it, and only those, when it holds any;
@@ -57,9 +124,49 @@ the one kept in `assets/`, used as it is.
 
 ### Changed
 
+- **The package is `@isocialpractice/napkin-sketch`**, scoped to the
+  organization, with `publishConfig` making it public and `repository`,
+  `homepage` and `bugs` for its npm page. The command is still
+  `napkin-sketch`, and every import in the docs, the helpers and the tests
+  names the scoped package.
+- **The package ships what its entries need, minified.** Its `files` list
+  leaves out the app's Electron bundles, the source maps, the changelog and the
+  reference sheets, and `main` is the API's entry. Every bundle is minified,
+  and the entries and the command line are built together as ES modules, so
+  the code they share is written once, in `dist/chunks/`, and loaded once.
+- **The command line is an ES module** that shares one core with the entries,
+  so a code language installed through any of them is installed for all.
+- **Every AI helper is labeled experimental**: the three plugins' manifests
+  and READMEs, the marketplace, the app's Animation Mode row and banner, the
+  `--prompt` and `--helper` options, the API pages and the manual. Each runs
+  an AI tool you install and sign in to yourself, on your account and at its
+  cost, and its commands, forms and files may change in a minor release.
+- **The README's links are absolute**, so they work on the npm page.
+- **The install page starts from npm**: the two packages, `--install-gui`,
+  and where a global install puts Electron for the Linux sandbox fixes. The
+  installers are built from a clone, under Desktop installers.
+- **The quickstarts start from npm**, with a clone as the other way. The AI
+  helpers' tour still runs in a clone, whose test assets it draws with.
+- **`engines.node` is `>=22.12`** for both packages: the version Electron's
+  installer asks for.
+- **The installers carry the app alone.** electron-builder takes the main
+  process, the window and the assets, without source maps or declarations,
+  with Electron's English locale only and at its maximum compression, and
+  `build.extraMetadata` keeps the installed app's own name and entry. The
+  Windows installer is about 100 MB, from 120.
+- **An exported selection is cut to exactly the box the canvas frames it
+  with** - the Transform box's - with no margin round it, no page outline and
+  no paper texture. It was grown by half the widest stroke on every side,
+  which put a margin of paper round a fill-only graphic, and drawn as a
+  sized page, with the dashed outline and the dot texture of the screen. A
+  mark that paints an outline still keeps the half of its width past its
+  centerline, and a mark's effects what they paint beyond it. Animation
+  frames are cut the same way.
+- **The Transform box is up by default**, through Transform box on
+  selection, above.
 - **Electron 31 to 44, and electron-builder 24 to 26.** Building from source
   needs Node.js 22.12 or newer, which Electron's installer asks for; the
-  published package still runs its command line and API on Node.js 18.
+  published packages ask for the same.
 - **The clipboard is Electron's asynchronous one.** Every read and write of
   the system clipboard is awaited. Under Electron 44 the old reads tested the
   promise rather than the text, so SVG copied in another editor would no
@@ -78,11 +185,19 @@ the one kept in `assets/`, used as it is.
 
 ### Removed
 
+- **The `./embed` export and its script-tag bundle**,
+  `dist/embed/napkin-sketch.js`. A page with no bundler loads the editor with a
+  module script and an import map, as the embedding page shows.
+- **The changelog, the source maps and the reference sheets from the
+  package.** The changelog is on GitHub and the site, and the sheets are
+  fetched by address.
 - **`npm run icon` and its script**, which drew the old icon over the one in
   `assets/` on every build.
 
 ### Fixed
 
+- **The cheatsheet's AI helpers table names all three plugins**; it named
+  two, and left out `scripting`.
 - **A build no longer replaces the app icon** with the old generated tile.
 - **Undo and redo drop Direct Select's picks**, which named anchors by their
   place in a path that the step may have reshaped.

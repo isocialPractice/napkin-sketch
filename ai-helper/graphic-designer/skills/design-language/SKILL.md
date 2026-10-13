@@ -5,6 +5,9 @@ description: 'Read an existing graphic and write down the design language it was
 
 # Design Language
 
+> **Experimental.** Part of napkin-sketch's AI helpers, which are new; what
+> this skill reads and writes may change in a minor release.
+
 Turn one finished graphic into two durable things: a written design language,
 and a skill that can apply it. The point is not documentation for its own sake.
 It is that "make another one like this" stops being a brief someone has to
@@ -177,8 +180,8 @@ is a real SVG and a real PNG rather than a description of one. Load the
 `graphic-design-api` skill for the full surface; the shape is:
 
 ```js
-import { createComposition } from 'napkin-sketch';
-import { writeComposition } from 'napkin-sketch/graphic-design/files';
+import { createComposition } from '@isocialpractice/napkin-sketch';
+import { writeComposition } from '@isocialpractice/napkin-sketch/graphic-design/files';
 
 // The language, in one place, so a change is one edit.
 const PALETTE = { paper: '#ffffff', ink: '#1f2328', accent: '#4c8faf' };
@@ -251,7 +254,7 @@ node scripts/brand-resources.mjs --print
 ## Gotchas
 
 - **The analyzer needs the API built to read a PNG.** In a clone, run
-  `npm run build` first; as a dependency, `napkin-sketch` resolves on its own.
+  `npm run build` first; as a dependency, `@isocialpractice/napkin-sketch` resolves on its own.
   If neither, the report says so rather than returning an empty palette as if
   the image had no colors.
 - **Anti-aliased edges are not palette entries.** Quantizing already folds most
@@ -282,7 +285,7 @@ node scripts/brand-resources.mjs --print
 
 | Issue | Solution |
 | --- | --- |
-| PNG palette is empty and a note mentions the API | Run `npm run build` in the clone, or install `napkin-sketch` |
+| PNG palette is empty and a note mentions the API | Run `npm run build` in the clone, or install `@isocialpractice/napkin-sketch` |
 | JPEG or GIF reports no decoder | Re-save as PNG or SVG for measured numbers, or read the image and mark the values observed |
 | SVG palette looks wrong | It is weighted by class references; check whether the file paints with inline attributes instead, and compare against a PNG export |
 | Two assets, one design language | The second writes `DESIGN_LANGUAGE-<stem>.md`; do not merge them unless asked |

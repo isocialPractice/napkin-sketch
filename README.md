@@ -224,6 +224,8 @@ text "Acme Corp" at 200 70 size 28 align center
 napkin-sketch draw card.napkin --to svg,png --out out
 ```
 
+Usage example: https://gist.github.com/jhauga/aac31cbb61f788e4e21578c9039dda8e
+
 ## [Packaging a desktop installer](https://isocialpractice.github.io/napkin-sketch/develop/building.html#packaging-a-desktop-installer)
 
 ```bash

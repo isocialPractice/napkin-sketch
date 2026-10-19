@@ -35,7 +35,7 @@
  */
 
 import { createInterface } from 'node:readline/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -262,6 +262,7 @@ function composeScript({ stem, source, palette, page, type, strokes, slots, fami
  * complete - there is no configuration this script refuses to run without.
  */
 
+import { realpathSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -689,9 +690,23 @@ async function run() {
   console.log(brandInstructions(brand));
 }
 
-const invoked = process.argv[1] ? resolve(process.argv[1]) : '';
-const self = resolve(fileURLToPath(import.meta.url));
-if (process.platform === 'win32' ? invoked.toLowerCase() === self.toLowerCase() : invoked === self) {
+/**
+ * Whether this file is the program Node was started with, compared as real
+ * paths: a folder reached through a symlink - a linked skills folder, or the
+ * temporary folder macOS keeps under /var - starts it under another name.
+ */
+function isProgram() {
+  if (!process.argv[1]) return false;
+  try {
+    const started = realpathSync(process.argv[1]);
+    const self = realpathSync(fileURLToPath(import.meta.url));
+    return process.platform === 'win32' ? started.toLowerCase() === self.toLowerCase() : started === self;
+  } catch {
+    return false;
+  }
+}
+
+if (isProgram()) {
   run().catch((err) => {
     console.error(err.message);
     process.exit(1);
@@ -1014,9 +1029,23 @@ async function run() {
   console.log(brandInstructions(await loadBrandResources({ skillDir: result.skillDir })));
 }
 
-const invoked = process.argv[1] ? resolve(process.argv[1]) : '';
-const self = resolve(fileURLToPath(import.meta.url));
-if (process.platform === 'win32' ? invoked.toLowerCase() === self.toLowerCase() : invoked === self) {
+/**
+ * Whether this file is the program Node was started with, compared as real
+ * paths: a folder reached through a symlink - a linked skills folder, or the
+ * temporary folder macOS keeps under /var - starts it under another name.
+ */
+function isProgram() {
+  if (!process.argv[1]) return false;
+  try {
+    const started = realpathSync(process.argv[1]);
+    const self = realpathSync(fileURLToPath(import.meta.url));
+    return process.platform === 'win32' ? started.toLowerCase() === self.toLowerCase() : started === self;
+  } catch {
+    return false;
+  }
+}
+
+if (isProgram()) {
   run().catch((err) => {
     console.error(err.message);
     process.exit(1);

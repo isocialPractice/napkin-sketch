@@ -42,6 +42,7 @@
  * Mode's install never reaches past its own plugin.
  */
 
+import { realpathSync } from 'node:fs';
 import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -563,13 +564,23 @@ async function run() {
 }
 
 /** Only run the CLI when this file is the entry point, not when imported. */
-const invokedPath = process.argv[1] ? resolve(process.argv[1]) : '';
-const selfPath = resolve(fileURLToPath(import.meta.url));
-const sameFile =
-  process.platform === 'win32'
-    ? invokedPath.toLowerCase() === selfPath.toLowerCase()
-    : invokedPath === selfPath;
-if (sameFile) {
+/**
+ * Whether this file is the program Node was started with, compared as real
+ * paths: a folder reached through a symlink - a linked skills folder, or the
+ * temporary folder macOS keeps under /var - starts it under another name.
+ */
+function isProgram() {
+  if (!process.argv[1]) return false;
+  try {
+    const started = realpathSync(process.argv[1]);
+    const self = realpathSync(fileURLToPath(import.meta.url));
+    return process.platform === 'win32' ? started.toLowerCase() === self.toLowerCase() : started === self;
+  } catch {
+    return false;
+  }
+}
+
+if (isProgram()) {
   run().catch((err) => {
     console.error(err);
     process.exit(1);

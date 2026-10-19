@@ -27,6 +27,7 @@ import {
   readlinkSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -413,6 +414,33 @@ test('the helper finds the API in one order: named, installed, vendored beside i
     assert.match(nowhere.brand, /^error: graphic-design API not found/);
   } finally {
     rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('the scripts run when started through a symlinked folder', () => {
+  // Each script runs its command line only when it is the program Node was
+  // started with. Compared as written, a folder reached through a symlink - a
+  // linked skills folder, or the temporary folder macOS keeps under /var -
+  // started the script under another name, and it exited 0 having done
+  // nothing at all.
+  const dir = mkdtempSync(join(tmpdir(), 'napkin-linked-'));
+  try {
+    const real = join(dir, 'real');
+    mkdirSync(real);
+    for (const file of ['analyze-media.mjs', 'load-api.mjs']) {
+      copyFileSync(join(HELPER, 'skills', 'design-language', 'scripts', file), join(real, file));
+    }
+    symlinkSync(real, join(dir, 'linked'), 'junction');
+    symlinkSync(join(ROOT, 'scripts'), join(dir, 'repo-scripts'), 'junction');
+    const svg = join(dir, 'card.svg');
+    writeFileSync(svg, '<svg viewBox="0 0 10 10"><rect width="10" height="10" fill="#4cae50"/></svg>');
+
+    const analyzed = execFileSync(process.execPath, [join(dir, 'linked', 'analyze-media.mjs'), svg], { encoding: 'utf-8' });
+    assert.equal(JSON.parse(analyzed).kind, 'svg', 'the analyzer printed its report');
+    const listed = execFileSync(process.execPath, [join(dir, 'repo-scripts', 'install-ai-helper.mjs'), '--list'], { encoding: 'utf-8' });
+    assert.match(listed, /graphic-designer/, 'the helper installer listed its helpers');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 

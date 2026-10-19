@@ -125,8 +125,13 @@ test('prune says what would go, records the marks, and asks for what it does not
     assert.deepEqual([done.remove, done.removedBytes], [plan.remove, plan.removedBytes]);
     const after = filesIn(installed);
     assert.deepEqual(after, before.filter((file) => !plan.remove.includes(file)));
-    for (const kept of ['package.json', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'README.md', 'dist/parts.json', 'scripts/install-ai-helper.mjs', 'dist/graphic-design/index.js', 'dist/core/graphic-design/index.d.ts']) {
+    for (const kept of ['package.json', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'README.md', 'dist/parts.json', 'scripts/install-ai-helper.mjs', 'dist/graphic-design/index.js']) {
       assert.ok(after.includes(kept), `${kept} is kept`);
+    }
+    // The declarations are kept where the build wrote them: `npm run build`
+    // alone, as CI runs it, writes none, and `build:types` adds them.
+    if (before.includes('dist/core/graphic-design/index.d.ts')) {
+      assert.ok(after.includes('dist/core/graphic-design/index.d.ts'), "the part's declarations are kept with types");
     }
     for (const gone of ['dist/api/index.js', 'dist/cli/index.js', 'docs/api/INDEX.json', 'ai-helper/README.md']) assert.ok(!after.includes(gone), `${gone} goes`);
 

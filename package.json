@@ -57,6 +57,16 @@
       "import": "./dist/graphic-design/index.js",
       "default": "./dist/graphic-design/index.js"
     },
+    "./sharpen": {
+      "types": "./dist/sharpen/index.d.ts",
+      "import": "./dist/sharpen/index.js",
+      "default": "./dist/sharpen/index.js"
+    },
+    "./engines": {
+      "types": "./dist/core/engines.d.ts",
+      "import": "./dist/engines/index.js",
+      "default": "./dist/engines/index.js"
+    },
     "./graphic-design/files": {
       "types": "./dist/core/graphic-design/files.d.ts",
       "import": "./dist/graphic-design/files.js",

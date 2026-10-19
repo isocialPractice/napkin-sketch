@@ -16,6 +16,8 @@ import * as api from '../src/api/index.js';
 import * as node from '../src/api/node.js';
 import * as design from '../src/core/graphic-design/index.js';
 import * as designFiles from '../src/core/graphic-design/files.js';
+import * as engines from '../src/core/engines.js';
+import * as sharpen from '../src/sharpen/index.js';
 import { repoRoot } from './helpers/repo-root.js';
 
 const ROOT = repoRoot();
@@ -456,9 +458,11 @@ test('the package map points each entry at what the build writes', () => {
     default: './dist/graphic-design/files.js',
   });
   assert.deepEqual(pkg.exports['./markdown'], { types: './dist/markdown/index.d.ts', import: './dist/markdown/index.js', default: './dist/markdown/index.js' });
+  assert.deepEqual(pkg.exports['./sharpen'], { types: './dist/sharpen/index.d.ts', import: './dist/sharpen/index.js', default: './dist/sharpen/index.js' });
+  assert.deepEqual(pkg.exports['./engines'], { types: './dist/core/engines.d.ts', import: './dist/engines/index.js', default: './dist/engines/index.js' });
   assert.deepEqual(
     Object.keys(pkg.exports).sort(),
-    ['.', './graphic-design', './graphic-design/files', './markdown', './node', './styles.css'],
+    ['.', './engines', './graphic-design', './graphic-design/files', './markdown', './node', './sharpen', './styles.css'],
     'and no entry this test does not know'
   );
   assert.ok(pkg.files.includes('docs/api'), 'the documentation ships with the package');
@@ -471,6 +475,11 @@ test('the package map points each entry at what the build writes', () => {
     'the build writes the graphic-design entry'
   );
   assert.match(build, /'dist\/graphic-design'/, 'and scopes its folder to ESM');
+  for (const [source, out] of [['src/sharpen/index.ts', 'sharpen/index'], ['src/core/engines.ts', 'engines/index']]) {
+    const entry = `{ in: resolve(root, '${source}'), out: '${out}' }`;
+    assert.ok(build.includes(entry), `the build writes ${out}`);
+    assert.ok(build.includes(`'dist/${out.split('/')[0]}'`), `and scopes dist/${out.split('/')[0]} to ESM`);
+  }
 });
 
 /**
@@ -500,45 +509,98 @@ function reachedFrom(entry: string): { files: string[]; builtins: string[]; pack
   return { files: [...files], builtins: [...builtins], packages: [...packages] };
 }
 
-test('napkin-sketch/graphic-design is the composition API, with every name the barrel has for it', () => {
-  // The values the barrel names from the graphic-design modules, read off its
-  // source: a page moving its import from the barrel to the subpath must find
-  // each one there, and the same function, not a second copy.
+/**
+ * The parts the package also ships as entries of their own: each browser-safe,
+ * each without the editor, each a set of the barrel's own functions. `from`
+ * names the modules the barrel exports the part's names from.
+ */
+const PARTS = [
+  { subpath: './graphic-design', source: 'src/core/graphic-design/index.ts', exports: design as Record<string, unknown>, from: /^\.\.\/core\/graphic-design\/[\w-]+\.js$/, onlyBarrel: false },
+  { subpath: './sharpen', source: 'src/sharpen/index.ts', exports: sharpen as Record<string, unknown>, from: /^\.\.\/sharpen\/sharpen\.js$/, onlyBarrel: true },
+  {
+    subpath: './engines',
+    source: 'src/core/engines.ts',
+    exports: engines as Record<string, unknown>,
+    from: /^\.\.\/core\/(?:types|serialize|boolean|erase|wipe|split|clip|pencil|smudge|liquify)\.js$/,
+    onlyBarrel: true,
+  },
+];
+
+/** The values the barrel names from the modules `from` matches, read off its source. */
+function barrelValuesFrom(from: RegExp): string[] {
   const barrel = readFileSync(join(ROOT, 'src', 'api', 'index.ts'), 'utf8');
-  const fromDesign: string[] = [];
-  for (const list of barrel.matchAll(/export\s+\{([^}]*)\}\s*from\s*'\.\.\/core\/graphic-design\/[\w-]+\.js'/g)) {
+  const names: string[] = [];
+  for (const list of barrel.matchAll(/export\s+\{([^}]*)\}\s*from\s*'([^']+)'/g)) {
+    if (!from.test(list[2])) continue;
     for (const raw of list[1].split(',')) {
       const part = raw.trim();
-      if (part && !part.startsWith('type ')) fromDesign.push(part);
+      if (part && !part.startsWith('type ')) names.push(part);
     }
   }
-  assert.ok(fromDesign.length > 20, `the barrel's graphic-design names were not found: ${fromDesign.join(', ')}`);
-  for (const name of fromDesign) {
-    assert.equal((design as Record<string, unknown>)[name], (api as Record<string, unknown>)[name], `${name} is on the subpath, as the barrel has it`);
+  return names;
+}
+
+test('each part has every name the barrel has for it, as the same function', () => {
+  // A page moving its import from the barrel to a part must find each name
+  // there, and the same function, not a second copy.
+  for (const { subpath, exports, from, onlyBarrel } of PARTS) {
+    const names = barrelValuesFrom(from);
+    assert.ok(names.length > 4, `the barrel's names for ${subpath} were not found: ${names.join(', ')}`);
+    for (const name of names) {
+      assert.equal(exports[name], (api as Record<string, unknown>)[name], `${name} is on ${subpath}, as the barrel has it`);
+    }
+    // `./sharpen` and `./engines` are cuts of the barrel and add nothing, so
+    // they cannot drift from it; the composition entry adds a few names.
+    if (onlyBarrel) assert.deepEqual(Object.keys(exports).filter((name) => !names.includes(name)), [], `${subpath} exports only the barrel's names`);
   }
 
-  // And the three a consumer would otherwise write out by hand: a paint's
-  // channels for a contrast check, the escape text reaches the markup through,
-  // and whether a render came back as a PNG.
+  // The composition entry's three of its own, which a consumer would otherwise
+  // write out by hand: a paint's channels for a contrast check, the escape text
+  // reaches the markup through, and whether a render came back as a PNG.
   assert.deepEqual(design.parseColor('#4cae50'), { r: 0x4c, g: 0xae, b: 0x50, a: 1 });
   assert.equal(design.escapeXml(`Fish & "Chips"`), 'Fish &amp; &quot;Chips&quot;');
   assert.equal(design.isPng(design.createComposition({ width: 4, height: 4 }).toPNG()), true);
   assert.equal(design.isPng(new TextEncoder().encode('<svg/>')), false);
+
+  // And each part works alone: a round stroke read as the circle it means, two
+  // squares combined into one region, and a page built from the part's model.
+  const round = Array.from({ length: 40 }, (_, i) => ({ x: 50 + 30 * Math.cos((i / 40) * 2 * Math.PI), y: 50 + 30 * Math.sin((i / 40) * 2 * Math.PI) }));
+  assert.equal(sharpen.classify(round, sharpen.DEFAULT_SHARPEN_OPTIONS), 'circle');
+  const square = (x: number, y: number, s: number) => [[{ x, y }, { x: x + s, y }, { x: x + s, y: y + s }, { x, y: y + s }]];
+  assert.equal(engines.booleanOp(square(0, 0, 10), square(5, 5, 10), 'union')?.length, 1);
+  assert.equal(engines.createSketch('card').layers.length, 1);
 });
 
-test('napkin-sketch/graphic-design reaches no editor, no Node built-in and no package', () => {
-  // The whole point of the subpath is what a page does not download: the
-  // editor, the document model, Markdown and the code themes. The build puts
-  // what the entry reaches in chunks of its own, so its weight is what it
+test('each part reaches no editor, no Node built-in and no package', () => {
+  // The point of a part is what a page does not download: the editor, the
+  // document model's window, Markdown and the code themes. The build puts
+  // what an entry reaches in chunks of its own, so its weight is what it
   // imports - held here, before pack-check measures the built files.
-  const reached = reachedFrom('src/core/graphic-design/index.ts');
-  for (const file of ['src/core/graphic-design/raster.ts', 'src/core/effects.ts', 'src/core/path-data.ts']) {
-    assert.ok(reached.files.includes(file), `the walk should follow the imports through to ${file}`);
+  for (const { subpath, source } of PARTS) {
+    const reached = reachedFrom(source);
+    assert.ok(reached.files.length > 2, `the walk from ${source} should follow its imports`);
+    assert.deepEqual(reached.builtins, [], `${subpath}: a browser has no Node built-ins`);
+    assert.deepEqual(reached.packages, [], `${subpath} depends on nothing`);
+    const outside = reached.files.filter((file) => /^src\/(?:api|cli|main|markdown|renderer|docs)\//.test(file));
+    assert.deepEqual(outside, [], `${subpath} reaches none of the editor, the barrel or the command line`);
   }
-  assert.deepEqual(reached.builtins, [], 'a browser has no Node built-ins');
-  assert.deepEqual(reached.packages, [], 'the composition API depends on nothing');
-  const outside = reached.files.filter((file) => /^src\/(?:api|cli|main|markdown|renderer|docs)\//.test(file));
-  assert.deepEqual(outside, [], 'the composition reaches none of the editor, the barrel or the command line');
+
+  // The walk follows imports all the way through.
+  const composition = reachedFrom('src/core/graphic-design/index.ts').files;
+  for (const file of ['src/core/graphic-design/raster.ts', 'src/core/effects.ts', 'src/core/path-data.ts']) {
+    assert.ok(composition.includes(file), `the walk should follow the imports through to ${file}`);
+  }
+
+  // The Pencil fills its grain with the scanline filler alone, so the engines
+  // leave the composition's renderer, its brand inlining and its SVG writer out.
+  const engineFiles = reachedFrom('src/core/engines.ts').files;
+  assert.ok(engineFiles.includes('src/core/graphic-design/coverage.ts'));
+  for (const file of ['src/core/graphic-design/raster.ts', 'src/core/graphic-design/brand.ts', 'src/core/graphic-design/svg.ts']) {
+    assert.ok(!engineFiles.includes(file), `./engines should not reach ${file}`);
+  }
+  // And sharpening reaches neither the composition nor type.
+  const sharpenFiles = reachedFrom('src/sharpen/index.ts').files;
+  assert.deepEqual(sharpenFiles.filter((file) => /^src\/core\/(?:graphic-design|type)\//.test(file)), []);
 });
 
 test('drawSvg draws a script\'s first page in one call, cut as the script asks', () => {

@@ -76,6 +76,11 @@ const packageEntries = {
     // so a page that composes a graphic loads the composition's chunks and
     // not the editor, the document model or the code themes besides.
     { in: resolve(root, 'src/core/graphic-design/index.ts'), out: 'graphic-design/index' },
+    // `/sharpen` and `/engines`: the auto-sharpen engine alone, and the
+    // engines the tools stand on with the page model they edit, each
+    // browser-safe and each without the editor, for the same reason.
+    { in: resolve(root, 'src/sharpen/index.ts'), out: 'sharpen/index' },
+    { in: resolve(root, 'src/core/engines.ts'), out: 'engines/index' },
     // `/graphic-design/files`: `writeComposition` and `imageDataUrl` import
     // `node:fs`, so they are an entry of their own rather than part of the
     // browser-safe one.
@@ -187,7 +192,7 @@ async function copyStatic() {
   // makes `import('@isocialpractice/napkin-sketch')` work from a plain Node
   // script - the graphic-designer helper's media analysis is one such script -
   // and what lets the command line run as the ES module it is.
-  for (const folder of ['dist/api', 'dist/graphic-design', 'dist/node', 'dist/markdown', 'dist/cli', 'dist/chunks']) {
+  for (const folder of ['dist/api', 'dist/graphic-design', 'dist/sharpen', 'dist/engines', 'dist/node', 'dist/markdown', 'dist/cli', 'dist/chunks']) {
     await mkdir(resolve(root, folder), { recursive: true });
     await writeFile(resolve(root, folder, 'package.json'), `${JSON.stringify({ type: 'module' }, null, 2)}\n`, 'utf-8');
   }

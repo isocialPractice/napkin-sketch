@@ -12,8 +12,8 @@
  * a dependency or the install brings anything with it, Electron included,
  * when `napkin-sketch draw -`, with a composition style or without,
  * `@isocialpractice/napkin-sketch` or `@isocialpractice/napkin-sketch/node`
- * does not draw, when `@isocialpractice/napkin-sketch/graphic-design` does not
- * compose, or when the installed package cannot run the verbs that
+ * does not draw, when a part - `/graphic-design`, `/sharpen`, `/engines` -
+ * does not answer by its own subpath, or when the installed package cannot run the verbs that
  * combine, cut, clip, smear, bend, blend, lay effects and set type, or call the
  * engines behind them by name, with `@isocialpractice/napkin-sketch/markdown`
  * reading Markdown and coloring code for them.
@@ -26,8 +26,9 @@
  * shared chunk, and every stylesheet `url()` and source map link reaches a
  * file the tarball holds; the browser-safe entries reach no Node built-in
  * through the chunks they share with the Node ones; it packs to no more
- * than {@link MAX_PACKED}; and the composition-only entry costs a page no more
- * than {@link MAX_COMPOSE_GZIPPED}. It prints the packed and unpacked sizes.
+ * than {@link MAX_PACKED}; each part a page loads without the editor costs it
+ * no more than its line in {@link ENTRY_BUDGETS}; and no chunk is empty. It
+ * prints the packed and unpacked sizes.
  *
  * Then the desktop app's package, `@isocialpractice/napkin-sketch-gui`: it
  * lays the package out with `scripts/pack-gui.mjs`, packs it, and reads the
@@ -156,16 +157,18 @@ const FORBIDDEN_PATTERNS = [
 /** The most the tarball may weigh, packed, so a package that grows is noticed before it is published. */
 const MAX_PACKED = 1.5 * 1024 * 1024;
 
-/** The composition-only entry, which a page loads to compose a graphic without the editor. */
-const COMPOSE_ENTRY = 'dist/graphic-design/index.js';
-
 /**
- * The most that entry may cost a page, gzipped, over every file it reaches:
- * about 48 KB in 1.0.1, against about 270 KB for the main entry, so reaching
- * the editor's chunk again is a failure here rather than a download nobody
- * measured.
+ * The parts a page loads without the editor, and the most each may cost it,
+ * gzipped, over every file it reaches: about a third over what each weighed in
+ * 1.1.0 - the composition 50 KB, sharpening 6 KB, the engines 126 KB - against
+ * about 275 KB for the main entry. A part that starts reaching the editor's
+ * chunk fails here rather than becoming a download nobody measured.
  */
-const MAX_COMPOSE_GZIPPED = 64 * 1024;
+const ENTRY_BUDGETS = {
+  'dist/graphic-design/index.js': 68 * 1024,
+  'dist/sharpen/index.js': 9 * 1024,
+  'dist/engines/index.js': 168 * 1024,
+};
 
 /** The desktop app's npm package. */
 const GUI_PACKAGE = '@isocialpractice/napkin-sketch-gui';
@@ -190,7 +193,7 @@ const GUI_REQUIRED = [
 
 /** What the app's package must never hold, by pattern: the other package's parts, the maps, and the clone's. */
 const GUI_FORBIDDEN_PATTERNS = [
-  { pattern: /^dist\/(?:api|node|markdown|graphic-design|cli|chunks|embed|core|sharpen)\//, why: "the API's and the command line's, which the other package carries" },
+  { pattern: /^dist\/(?:api|node|markdown|graphic-design|engines|cli|chunks|embed|core|sharpen)\//, why: "the API's and the command line's, which the other package carries" },
   { pattern: /\.map$/, why: 'source maps, which stay in the clone' },
   { pattern: /\.d\.ts$/, why: "declarations, which the API's package carries" },
   { pattern: /^docs\/site-src\//, why: "the manual's Markdown, which the clone keeps" },
@@ -201,7 +204,7 @@ const GUI_FORBIDDEN_PATTERNS = [
 const MAX_GUI_PACKED = 4 * 1024 * 1024;
 
 /** The entries a browser loads, which must reach no Node built-in. */
-const BROWSER_ENTRIES = ['dist/api/index.js', 'dist/markdown/index.js', 'dist/graphic-design/index.js'];
+const BROWSER_ENTRIES = ['dist/api/index.js', 'dist/markdown/index.js', ...Object.keys(ENTRY_BUDGETS)];
 
 /** A built module's relative imports - static, bare and dynamic - as written. */
 function relativeImports(text) {
@@ -370,10 +373,18 @@ function check(dir) {
   const builtins = nodeBuiltinsReached(paths);
   if (builtins.length > 0) fail(`the browser-safe entries reach a Node built-in through ${builtins.join(', ')}`);
   if (packed.size > MAX_PACKED) fail(`the tarball packs to ${mb(packed.size)}, over the ${mb(MAX_PACKED)} the package may weigh`);
-  const composeWeight = gzippedReach(COMPOSE_ENTRY, paths);
-  if (composeWeight > MAX_COMPOSE_GZIPPED) {
-    fail(`${COMPOSE_ENTRY} costs a page ${kb(composeWeight)} gzipped, over the ${kb(MAX_COMPOSE_GZIPPED)} a composition-only entry may: has it reached the editor's chunk?`);
+  const weights = {};
+  for (const [entry, budget] of Object.entries(ENTRY_BUDGETS)) {
+    weights[entry] = gzippedReach(entry, paths);
+    if (weights[entry] > budget) {
+      fail(`${entry} costs a page ${kb(weights[entry])} gzipped, over the ${kb(budget)} it may: has it reached the editor's chunk?`);
+    }
   }
+  // A module of re-exports that two entries share is written as a chunk of
+  // its own with nothing in it, and every page that loads either entry
+  // fetches it: the main entry did, through the composition's index, once.
+  const empty = packed.files.filter((file) => /^dist\/chunks\/.+\.js$/.test(file.path) && file.size === 0).map((file) => file.path);
+  if (empty.length > 0) fail(`the tarball holds empty chunks, which a page fetches for nothing: ${empty.join(', ')}`);
 
   // 2. Install it into an empty project, as a user would, asking the helper
   //    installer for nothing.
@@ -430,21 +441,27 @@ function check(dir) {
   if (!/<g id="Card"[^>]*opacity="0\.5"/.test(restyled)) fail(`the composition style did not restyle the Card layer: ${styled.files[0].path}`);
   if (styled.warnings.length !== 1 || !/Titel/.test(styled.warnings[0])) fail(`the style's report is not what its rules make it: ${JSON.stringify(styled.warnings)}`);
 
-  // 4. Draw with both entries, imported by name, and compose with the
-  //    composition-only one.
+  // 4. Draw with both entries, imported by name, and call each part by its
+  //    own subpath: compose, sharpen, and combine regions on a page.
   writeFileSync(
     join(project, 'check.mjs'),
     [
       "import { drawSvg } from '@isocialpractice/napkin-sketch';",
       "import { drawToFiles } from '@isocialpractice/napkin-sketch/node';",
       "import { createComposition, escapeXml, isPng, parseColor } from '@isocialpractice/napkin-sketch/graphic-design';",
+      "import { DEFAULT_SHARPEN_OPTIONS, classify } from '@isocialpractice/napkin-sketch/sharpen';",
+      "import { booleanOp, createSketch } from '@isocialpractice/napkin-sketch/engines';",
       `const script = ${JSON.stringify(SCRIPT)};`,
       'const { ok, svg } = drawSvg(script);',
       "const result = await drawToFiles(script, { out: 'lib-out', formats: ['svg', 'png'] });",
       "const card = createComposition({ width: 40, height: 20, background: '#ffffff' });",
       "card.text({ x: 4, y: 14, text: 'Fish & Chips', fill: '#4cae50' });",
       "const composed = card.toSVG().includes(escapeXml('Fish & Chips')) && isPng(card.toPNG()) && parseColor('#4cae50').g === 0xae;",
-      'console.log(JSON.stringify({ ok: ok && result.ok, svg: svg.length, files: result.files.map((file) => file.path), composed }));',
+      'const round = Array.from({ length: 40 }, (_, i) => ({ x: 50 + 30 * Math.cos((i / 40) * 2 * Math.PI), y: 50 + 30 * Math.sin((i / 40) * 2 * Math.PI) }));',
+      "const sharpened = classify(round, DEFAULT_SHARPEN_OPTIONS) === 'circle';",
+      'const square = (x, y, s) => [[{ x, y }, { x: x + s, y }, { x: x + s, y: y + s }, { x, y: y + s }]];',
+      "const engined = booleanOp(square(0, 0, 10), square(5, 5, 10), 'union')?.length === 1 && createSketch('card').layers.length === 1;",
+      'console.log(JSON.stringify({ ok: ok && result.ok, svg: svg.length, files: result.files.map((file) => file.path), composed, sharpened, engined }));',
       '',
     ].join('\n'),
   );
@@ -453,6 +470,8 @@ function check(dir) {
   const library = JSON.parse(lib.stdout);
   if (!library.ok || library.svg === 0 || library.files.length !== 2) fail(`the entries did not draw: ${lib.stdout}`);
   if (!library.composed) fail(`@isocialpractice/napkin-sketch/graphic-design did not compose: ${lib.stdout}`);
+  if (!library.sharpened) fail(`@isocialpractice/napkin-sketch/sharpen did not read a round stroke as a circle: ${lib.stdout}`);
+  if (!library.engined) fail(`@isocialpractice/napkin-sketch/engines did not combine two regions: ${lib.stdout}`);
 
   // 5. The engines, from the installed package: the verbs that run them,
   //    and each called by name, Markdown and code read by the subpath that
@@ -491,7 +510,8 @@ function check(dir) {
   console.log(
     `pack-check: ${packed.filename} (${packed.entryCount} files, ${mb(packed.size)} packed, ${mb(packed.unpackedSize)} unpacked) installs alone, with no dependencies, and draws: ` +
       `${report.files[0].path} from the command line, and ${styled.files[0].path} with a composition style, ` +
-      `${library.files.join(' and ')} from the entries, a composition from /graphic-design (${kb(composeWeight)} gzipped to a page), ` +
+      `${library.files.join(' and ')} from the entries, a call into each part - ` +
+      `${Object.entries(weights).map(([entry, bytes]) => `/${entry.split('/')[1]} (${kb(bytes)} gzipped to a page)`).join(', ')} - ` +
       `and the engines' verbs and ${ENGINES.length} engines by name.`,
   );
   return { project, installed };

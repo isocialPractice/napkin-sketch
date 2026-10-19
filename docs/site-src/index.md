@@ -3,7 +3,7 @@
 ![napkin-sketch: its logo beside the app, a sketch on the canvas with the Layers and Properties panels open](../assets/banner.gif)
 
 <!-- version:start -->
-This documents napkin-sketch **1.0.1**.
+This documents napkin-sketch **1.1.0**.
 <!-- version:end -->
 
 Quick and easy computer sketching with a drawing GUI that simulates pen and

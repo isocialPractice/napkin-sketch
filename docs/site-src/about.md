@@ -1,7 +1,7 @@
 # About and license
 
 <!-- version:start -->
-This documents napkin-sketch **1.0.1**.
+This documents napkin-sketch **1.1.0**.
 <!-- version:end -->
 
 napkin-sketch is a desktop sketching app, a browser-safe drawing engine and a

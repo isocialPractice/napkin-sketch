@@ -1,6 +1,6 @@
 {
   "name": "@isocialpractice/napkin-sketch",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A drawing language and a graphic-design API that write SVG, PNG and PDF with no window, a command line any language can call, an embeddable sketching editor with auto-sharpen, and experimental AI helpers that draw from a request, read a graphic into a design language, and pose animation frames.",
   "author": "John Haugabook",
   "keywords": [

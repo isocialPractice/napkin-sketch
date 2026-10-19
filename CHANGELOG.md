@@ -4,18 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.1] - 2026-10-19
+## [1.1.0] - 2026-10-19
 
-A page that composes a graphic in a browser can load the composition API
-alone: `@isocialpractice/napkin-sketch/graphic-design` holds every composition call and
-nothing of the editor, about 48 KB gzipped against about 270 KB for the main
-entry, and adds `parseColor`, `escapeXml` and `isPng`. An elliptical arc in
-a composition's path data is refused, as the reference always said it was,
-rather than drawn as a polyline of its own numbers, and a placed logo's arcs
-are traced as cubics so both formats draw them. A quoted font family reads
-as its name, in the design-language analyzer and in the SVG importer, rather
-than as `&quot`, and the design-language helper finds the API under its
-published name, so a helper installed into a project decodes and places again.
+napkin-sketch can be taken a part at a time. The composition API,
+auto-sharpen and the engines the tools stand on are each an entry of their
+own - `/graphic-design`, `/sharpen` and `/engines` - so a page loads the part
+it uses and not the editor: about 49 KB, 6 KB and 123 KB gzipped, against
+about 270 KB for the main entry. `napkin-sketch vendor` copies parts into a
+project that installs nothing, pinned by version and hash with a check that
+runs on plain node, with an AI helper beside them that finds the API there;
+`napkin-sketch prune` cuts a project's install down to the parts it keeps. An
+elliptical arc in a composition's path data is refused, as the reference
+always said it was, rather than drawn as a polyline of its own numbers, and a
+placed logo's arcs are traced as cubics so both formats draw them. A quoted
+font family reads as its name, in the design-language analyzer and in the SVG
+importer, rather than as `&quot`, and the design-language helper finds the API
+under its published name.
 
 ### Added
 
@@ -24,10 +28,47 @@ published name, so a helper installed into a project decodes and places again.
   and every other name the main entry has from it, as the same functions,
   with `parseColor`, `escapeXml` and `isPng` beside them. Its types are the
   ones `dist/core/graphic-design/index.d.ts` already listed. A page fetches it
-  and one shared chunk, 48 KB gzipped, where the main entry costs 270 KB.
-  `pack-check` installs the tarball and composes with it, and fails if the
-  entry costs a page more than 64 KB, which reaching the editor's chunk again
-  would.
+  and the chunks it shares, 49 KB gzipped, where the main entry costs 270 KB.
+- **`@isocialpractice/napkin-sketch/sharpen` and `/engines`.** `/sharpen` is
+  the auto-sharpen engine alone, 6 KB gzipped. `/engines` is the engines the
+  tools stand on - regions combined and cut, the Eraser, the Wipe Stacks and
+  the Shape Stacker, Split, clipping masks, the Pencil, the Smear and Liquify -
+  with the page model they edit, so a page built and read with it needs
+  nothing else: 123 KB gzipped, since a mark's bounds need its text set and
+  its effects applied. The blend modes, the effects, 3D and type stay on the
+  main entry. Both are the main entry's own functions.
+- **`napkin-sketch vendor`.** Copies parts of the package into a project as
+  files of its own: each part's entry and every file it reaches, byte for
+  byte, laid out so their imports resolve, with `LICENSE`, the third-party
+  notices those files owe and no others, a `VENDOR.json` recording the
+  version, the registry's tarball and integrity, each part's entry and a
+  sha256 per file, and a `VENDOR-CHECK.mjs` that checks the folder against it
+  with plain node, no install and no network. Running it again refreshes the
+  folder; it never writes into one it did not write. `--check <dir>` runs the
+  same check and exits with a new code, `5`, on a file that differs, is
+  missing or was added; `--list` names every part, where it runs, what it
+  costs a page and the notices it owes; `--types` copies the declarations;
+  `--ai-helper <name>` copies an AI helper plugin beside the parts. A project
+  with no `package.json` runs it through npx.
+- **`napkin-sketch prune`.** Removes from a project's install every file the
+  parts it keeps do not need. `--keep <marks>` records the marks in the
+  project's `package.json`, under `napkinSketch.keep`, and says what would go;
+  a bare `prune` plans from the recorded marks; `--apply` removes. The marks
+  are the parts, and `types`, `docs`, `helpers` and `cli`; the manifest, the
+  licenses, the README and the parts record are always kept. It acts only on
+  an install under `node_modules`, never on a clone linked with `npm link`.
+  An install puts everything back, so a project runs it from its own
+  `postinstall`. Pruned to the composition alone, an install keeps 185 KB of
+  3.2 MB.
+- **`dist/parts.json`**, written by the build from what the bundles hold:
+  every entry as a part, with its files, whether it runs in a browser, its
+  declarations and the notices it owes. `vendor` and `prune` read it.
+- **The helpers find a vendored API.** The design-language helper's scripts,
+  and the script every generated skill runs, find the graphic-design API
+  through one file, `load-api.mjs`, in one order: `NAPKIN_SKETCH_API` when it
+  names an entry file, the package, the nearest `VENDOR.json` above them that
+  holds the part, then a clone's build. A helper vendored beside the
+  `graphic-design` part draws and reads with nothing installed or configured.
 
 ### Changed
 
@@ -36,6 +77,13 @@ published name, so a helper installed into a project decodes and places again.
   arc as written and noted it, so the SVG export drew the arc and the PNG drew
   its parameters. The arc is now traced in pieces of at most a quarter turn,
   within a hair of the true curve, and both formats draw it.
+- **`pack-check` holds the package to its parts.** Each part a page loads
+  without the editor has a gzipped budget, and is called by its subpath from
+  the installed tarball; a part is vendored from the install with its helper,
+  and a copy of the install is pruned to one part and composes. It fails on an
+  empty chunk, which a page would fetch for nothing, and on a parts record that
+  does not match the bundles. The build fails on a bundled package with no
+  notice in `THIRD-PARTY-NOTICES.md`.
 
 ### Fixed
 
@@ -63,14 +111,14 @@ published name, so a helper installed into a project decodes and places again.
   browser has, a `style` declaration of it read as `&quot`, and
   `Fish &amp; Chips` showed its escape. Values and text are unescaped as they
   are read, and escaped once as they are written.
-- **The design-language helper finds the API it is installed beside.** Its
+- **The design-language helper finds the API under its published name.** Its
   analyzer and its brand resolver, which every generated skill carries a copy
   of, asked for the API as `napkin-sketch`, the name before 1.0.0, so a helper
   installed into a project that depends on `@isocialpractice/napkin-sketch`
   found none there: the analyzer left a PNG undecoded and a generated skill
   could not draw. They ask for the published name first, and the old one
-  second, which a clone linked under it still answers to; the message for an
-  API not found names the published package. A skill generated before this
+  after it, which a clone linked under it still answers to; the message for
+  an API not found names the published package. A skill generated before this
   keeps the old copy until it is generated again.
 
 ## [1.0.0] - 2026-10-12

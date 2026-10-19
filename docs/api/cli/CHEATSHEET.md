@@ -41,6 +41,7 @@ Reminders for the four commands: their flags, exit codes, the JSON report and th
 | `--facing left\|right` |  |  | yes |  |  | Which way the --animate figure travels, when its feet do not say. |
 | `--category <name>` |  |  |  | yes |  | Only this category of verbs. |
 | `--types` |  |  |  |  | yes | Copy each part's type declarations beside it. |
+| `--ai-helper <name>` |  |  |  |  | yes | Experimental: copy an AI helper plugin beside the parts - vectors, graphic-designer or scripting - which finds the API in the same folder; repeatable. |
 | `--offline` |  |  |  |  | yes | Reach no network: record no registry address or integrity for the copy. |
 | `--check <dir>` |  |  |  |  | yes | Check a vendored folder against its VENDOR.json, with no network: a file that differs, is missing or was added fails. |
 | `--list` |  |  |  |  | yes | List the parts: where each runs, its files, what it costs a page, and the notices it owes. |

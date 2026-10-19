@@ -56,6 +56,8 @@ export interface CommandArgs {
   category: string | undefined;
   /** `vendor`: the parts to copy, by name or subpath. */
   parts: string[];
+  /** `vendor --ai-helper <name>`: the AI helper plugins to copy beside them. */
+  aiHelpers: string[];
   /** `vendor --types`: copy each part's declarations too. */
   types: boolean;
   /** `vendor --offline`: reach no network, and record no registry address. */
@@ -109,6 +111,7 @@ export const FLAG_SUMMARIES: { readonly [flag: string]: { value?: string; summar
   '--facing': { value: 'left|right', summary: 'Which way the --animate figure travels, when its feet do not say.' },
   '--category': { value: '<name>', summary: 'Only this category of verbs.' },
   '--types': { summary: "Copy each part's type declarations beside it." },
+  '--ai-helper': { value: '<name>', summary: 'Experimental: copy an AI helper plugin beside the parts - vectors, graphic-designer or scripting - which finds the API in the same folder; repeatable.' },
   '--offline': { summary: "Reach no network: record no registry address or integrity for the copy." },
   '--check': { value: '<dir>', summary: 'Check a vendored folder against its VENDOR.json, with no network: a file that differs, is missing or was added fails.' },
   '--list': { summary: 'List the parts: where each runs, its files, what it costs a page, and the notices it owes.' },
@@ -123,11 +126,11 @@ export const COMMAND_FLAGS: { readonly [C in Command]: readonly string[] } = {
   check: ['--base', '--asset', '--use', '--seed', '--limit', '--json', '--strict', '--quiet'],
   render: ['--to', '--page', '--animate', '--frames', '--facing', '--out', '--name', '--base', '--font', '--scale', '--crop', '--json', '--strict', '--quiet'],
   verbs: ['--category', '--json'],
-  vendor: ['--out', '--types', '--offline', '--check', '--list', '--json', '--quiet'],
+  vendor: ['--out', '--types', '--ai-helper', '--offline', '--check', '--list', '--json', '--quiet'],
 };
 
 /** The flags that take a value: the next token, or what follows `=` in `--flag=value`. */
-const VALUE_FLAGS = new Set(['--to', '--out', '--name', '--base', '--asset', '--use', '--font', '--composition-style', '--seed', '--scale', '--crop', '--limit', '--page', '--category', '--prompt', '--helper', '--animate', '--frames', '--facing', '--check']);
+const VALUE_FLAGS = new Set(['--to', '--out', '--name', '--base', '--asset', '--use', '--font', '--composition-style', '--seed', '--scale', '--crop', '--limit', '--page', '--category', '--prompt', '--helper', '--animate', '--frames', '--facing', '--check', '--ai-helper']);
 
 /** A `--crop` value, or a sentence saying what is wrong with it. */
 function readCrop(value: string): { crop: CropArg } | { error: string } {
@@ -216,6 +219,9 @@ function readFlag(args: CommandArgs, flag: string, value: string): void {
     case '--check':
       args.verify = value;
       break;
+    case '--ai-helper':
+      if (!args.aiHelpers.includes(value)) args.aiHelpers.push(value);
+      break;
     case '--prompt':
       // Kept even when empty, so the missing script is not reported as well.
       args.prompt = value.trim();
@@ -280,6 +286,7 @@ export function parseCommand(command: Command, argv: readonly string[]): Command
     facing: undefined,
     category: undefined,
     parts: [],
+    aiHelpers: [],
     types: false,
     offline: false,
     verify: undefined,
@@ -335,12 +342,13 @@ export function parseCommand(command: Command, argv: readonly string[]): Command
   if (command === 'vendor') {
     // One of three things: copy parts, check a copy, or list what there is.
     args.parts = positional;
-    const copying = positional.length > 0 || args.out !== undefined || args.types || args.offline;
+    const copying = positional.length > 0 || args.aiHelpers.length > 0 || args.out !== undefined || args.types || args.offline;
     const modes = [copying && 'copy parts with --out', args.verify !== undefined && '--check a folder', args.list && '--list'].filter(Boolean);
     if (modes.length > 1) args.errors.push(`vendor does one thing at a time; not ${modes.join(' and ')}`);
     else if (modes.length === 0 && !args.help) args.errors.push('vendor needs the parts to copy and --out, --check <dir>, or --list');
-    else if (copying && positional.length === 0) args.errors.push('vendor needs the parts to copy: run "napkin-sketch vendor --list" for them');
-    else if (copying && args.out === undefined) args.errors.push('vendor needs --out, the folder to copy the parts into');
+    else if (copying && positional.length === 0 && args.aiHelpers.length === 0) {
+      args.errors.push('vendor needs the parts to copy: run "napkin-sketch vendor --list" for them');
+    } else if (copying && args.out === undefined) args.errors.push('vendor needs --out, the folder to copy the parts into');
   } else if (command === 'verbs') {
     if (positional.length > 0) args.errors.push(`verbs takes no script; not "${positional.join(' ')}"`);
   } else if (args.prompt !== undefined && positional.length > 0) {

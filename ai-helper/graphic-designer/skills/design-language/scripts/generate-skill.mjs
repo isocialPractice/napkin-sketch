@@ -20,7 +20,8 @@
  *   ├── references/resources.md   the brand this skill draws with
  *   └── scripts/
  *       ├── make-<stem>.mjs       composes new work in the language
- *       └── brand-resources.mjs   resolves resources.md into placeable assets
+ *       ├── brand-resources.mjs   resolves resources.md into placeable assets
+ *       └── load-api.mjs          finds the graphic-design API the other two draw with
  *
  * Two rules about overwriting, and they differ on purpose:
  *
@@ -913,6 +914,7 @@ export async function generateSkill(asset, options = {}) {
     'utf-8'
   );
   await copyFile(join(HERE, 'brand-resources.mjs'), join(skillDir, 'scripts', 'brand-resources.mjs'));
+  await copyFile(join(HERE, 'load-api.mjs'), join(skillDir, 'scripts', 'load-api.mjs'));
   await writeFile(
     join(skillDir, 'SKILL.md'),
     skillDoc({ stem, source: basename(source), palette, page, type, slots, brandFound: report.brand?.found ?? 'none' }),

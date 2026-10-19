@@ -259,10 +259,15 @@ did not write.
 
 Parts: main, graphic-design, sharpen, engines, markdown, node,
 graphic-design/files and styles.css. --list says what each holds and costs.
+An AI helper copied beside a part with --ai-helper finds the API in the same
+folder, with nothing installed or configured.
 
 Options:
   --out <dir>             The folder to copy into, made when it is missing
   --types                 Copy each part's type declarations beside it
+  --ai-helper <name>      Experimental: copy an AI helper plugin beside the
+                          parts - vectors, graphic-designer or scripting;
+                          repeatable
   --offline               Reach no network: record no registry address or
                           integrity for the copy
   --check <dir>           Check a vendored folder against its VENDOR.json

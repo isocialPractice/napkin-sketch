@@ -73,6 +73,9 @@ test('vendor does one thing at a time: copy parts into a folder, check a folder,
   assert.deepEqual(errors(['--to', 'svg']), ['vendor does not take --to', 'vendor needs the parts to copy and --out, --check <dir>, or --list']);
   const args = parseCommand('vendor', ['sharpen', 'engines', '--out', 'v', '--types', '--offline']);
   assert.deepEqual([args.parts, args.out, args.types, args.offline], [['sharpen', 'engines'], 'v', true, true]);
+  // An AI helper on its own is a copy too, and is named once however often it is given.
+  const helper = parseCommand('vendor', ['--ai-helper', 'vectors', '--ai-helper', 'vectors', '--out', 'v']);
+  assert.deepEqual([helper.errors, helper.parts, helper.aiHelpers], [[], [], ['vectors']]);
 
   // A part by its name or by its subpath, the way an import names it.
   for (const typed of ['graphic-design', './graphic-design', '@isocialpractice/napkin-sketch/graphic-design']) assert.equal(partName(typed), 'graphic-design');
@@ -192,6 +195,45 @@ test('a Node-only part copied beside a browser part is named as one', { skip: sk
     const mixed = await run(dir, ['graphic-design', 'graphic-design/files', '--out', 'v', '--json']);
     assert.equal(mixed.code, EXIT.ok, mixed.err);
     assert.deepEqual(JSON.parse(mixed.out).warnings, ['graphic-design/files runs in Node only, as it reads files; a page must not load it']);
+  });
+});
+
+test('an AI helper vendored beside a part finds the API there, with nothing installed', { skip: skip ?? false }, async () => {
+  await inFolder(async (dir) => {
+    const copied = await run(dir, ['graphic-design', '--ai-helper', 'graphic-designer', '--out', 'vendor/napkin-sketch', '--json']);
+    assert.equal(copied.code, EXIT.ok, copied.err);
+    const out = join(dir, 'vendor', 'napkin-sketch');
+    assert.deepEqual(record(out).helpers, ['graphic-designer']);
+    assert.ok(existsSync(join(out, 'ai-helper', 'graphic-designer', '.claude-plugin', 'plugin.json')), 'the helper is a whole plugin');
+    assert.equal((await run(dir, ['--check', 'vendor/napkin-sketch'])).code, EXIT.ok);
+
+    // The vendored analyzer decodes a PNG through the vendored part: nothing
+    // above the temporary folder is a package or a clone, so only the
+    // VENDOR.json above the script can have given it the API.
+    const png = join(dir, 'mark.png');
+    writeFileSync(png, readFileSync(join(ROOT, 'test', 'graphic-design-api', 'skill', 'cheatsheet_js-composition.png')));
+    const analyzer = join(out, 'ai-helper', 'graphic-designer', 'skills', 'design-language', 'scripts', 'analyze-media.mjs');
+    const env = { ...process.env };
+    delete env.NAPKIN_SKETCH_API;
+    const report = JSON.parse(execFileSync(process.execPath, [analyzer, png], { cwd: dir, encoding: 'utf8', env }));
+    assert.ok(report.palette.length > 0, `the PNG should be decoded: ${JSON.stringify(report.notes)}`);
+    assert.ok(!report.notes.some((note: string) => /not found/.test(note)), 'the API should be found');
+  });
+});
+
+test('a vendored helper leaves out what the package leaves out, and keeps the addresses of it', { skip: skip ?? false }, async () => {
+  await inFolder(async (dir) => {
+    const copied = await run(dir, ['--ai-helper', 'vectors', '--out', 'v', '--json']);
+    assert.equal(copied.code, EXIT.ok, copied.err);
+    const files = Object.keys(record(join(dir, 'v')).files);
+    assert.deepEqual(files.filter((file) => /\/assets\/[^/]+\.(svg|png|json)$/.test(file)), [], 'no reference sheet or its data');
+    assert.ok(files.some((file) => file.endsWith('/assets/uri.md')), 'the addresses the skills fetch them by');
+    assert.ok(files.includes('ai-helper/vectors/.claude-plugin/plugin.json'));
+    assert.deepEqual(record(join(dir, 'v')).parts, []);
+
+    const nope = await run(dir, ['--ai-helper', 'nope', '--out', 'w']);
+    assert.equal(nope.code, EXIT.usage);
+    assert.match(nope.err, /there is no AI helper "nope"; the helpers are graphic-designer, scripting, vectors/);
   });
 });
 

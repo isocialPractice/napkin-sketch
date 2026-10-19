@@ -23,7 +23,9 @@
 import { existsSync } from 'node:fs';
 import { readFile, readdir, realpath, stat, mkdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+
+import { API_NOT_FOUND, findGraphicApi } from './load-api.mjs';
 
 /** Media types a placement recognises by extension. */
 const MEDIA_TYPES = {
@@ -41,37 +43,14 @@ const MEDIA_TYPES = {
 const ASSET_EXTENSIONS = new Set(Object.keys(MEDIA_TYPES));
 
 /**
- * The names the package answers to: the published one, then the one a clone
- * linked before 1.0.0 still goes by.
- */
-const PACKAGE_NAMES = ['@isocialpractice/napkin-sketch', 'napkin-sketch'];
-
-/**
- * Finds the napkin-sketch graphic-design API.
- *
- * The package first, so this works as a dependency, then a clone's build
- * output. Mirrors the analyzer and every generated script, so all three run in
- * the same places.
+ * Finds the napkin-sketch graphic-design API, as the analyzer and every
+ * generated script find it (`load-api.mjs`, which a generated skill carries
+ * beside this file), and throws when it is nowhere.
  */
 export async function loadGraphicApi(from = fileURLToPath(import.meta.url)) {
-  for (const name of PACKAGE_NAMES) {
-    try {
-      return await import(name);
-    } catch {
-      // Not installed under this name.
-    }
-  }
-  let dir = dirname(from);
-  for (let i = 0; i < 12; i++) {
-    const built = join(dir, 'dist', 'api', 'index.js');
-    if (existsSync(built)) return import(pathToFileURL(built).href);
-    const up = dirname(dir);
-    if (up === dir) break;
-    dir = up;
-  }
-  throw new Error(
-    'graphic-design API not found. Run `npm run build` in a napkin-sketch clone, or install @isocialpractice/napkin-sketch.'
-  );
+  const api = await findGraphicApi({ from });
+  if (!api) throw new Error(API_NOT_FOUND);
+  return api;
 }
 
 /**

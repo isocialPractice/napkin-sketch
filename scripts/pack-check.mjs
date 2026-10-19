@@ -522,10 +522,11 @@ function check(dir) {
   if (!library.sharpened) fail(`@isocialpractice/napkin-sketch/sharpen did not read a round stroke as a circle: ${lib.stdout}`);
   if (!library.engined) fail(`@isocialpractice/napkin-sketch/engines did not combine two regions: ${lib.stdout}`);
 
-  // 4b. Vendor a part from the installed package, as a project that installs
-  //     nothing would take it: the copy checks clean with plain node, and
-  //     composes from where it was put.
-  const vendoring = spawnSync(process.execPath, [join(installed, 'dist', 'cli', 'index.js'), 'vendor', 'graphic-design', '--out', 'vendored', '--offline', '--json'], {
+  // 4b. Vendor a part from the installed package, with the AI helper that
+  //     drives it, as a project that installs nothing would take them: the
+  //     copy checks clean with plain node, composes from where it was put, and
+  //     the vendored helper reads what it drew.
+  const vendoring = spawnSync(process.execPath, [join(installed, 'dist', 'cli', 'index.js'), 'vendor', 'graphic-design', '--ai-helper', 'graphic-designer', '--out', 'vendored', '--offline', '--json'], {
     cwd: project,
     encoding: 'utf-8',
   });
@@ -543,15 +544,27 @@ function check(dir) {
   writeFileSync(
     join(project, 'vendored-check.mjs'),
     [
+      "import { writeFileSync } from 'node:fs';",
       "import { createComposition, isPng } from './vendored/graphic-design/index.js';",
       "const card = createComposition({ width: 20, height: 10, background: '#ffffff' });",
       "card.rect({ x: 2, y: 2, width: 8, height: 6, fill: '#4cae50' });",
-      'console.log(JSON.stringify({ composed: isPng(card.toPNG()) }));',
+      'const png = card.toPNG();',
+      "writeFileSync('vendored-card.png', png);",
+      'console.log(JSON.stringify({ composed: isPng(png) }));',
       '',
     ].join('\n'),
   );
   const fromCopy = spawnSync(process.execPath, ['vendored-check.mjs'], { cwd: project, encoding: 'utf-8' });
   if (fromCopy.status !== 0 || !JSON.parse(fromCopy.stdout || '{}').composed) fail(`the vendored copy did not compose:\n${fromCopy.stdout}${fromCopy.stderr}`);
+  const analyzer = join(project, 'vendored', 'ai-helper', 'graphic-designer', 'skills', 'design-language', 'scripts', 'analyze-media.mjs');
+  const analyzed = spawnSync(process.execPath, [analyzer, 'vendored-card.png'], { cwd: project, encoding: 'utf-8' });
+  let reading;
+  try {
+    reading = JSON.parse(analyzed.stdout);
+  } catch {
+    fail(`the vendored analyzer printed no report:\n${analyzed.stdout}${analyzed.stderr}`);
+  }
+  if (!reading.palette?.some((entry) => entry.hex === '#4cae50')) fail(`the vendored analyzer did not read the green it was given: ${analyzed.stdout}`);
 
   // 5. The engines, from the installed package: the verbs that run them,
   //    and each called by name, Markdown and code read by the subpath that
@@ -592,7 +605,8 @@ function check(dir) {
       `${report.files[0].path} from the command line, and ${styled.files[0].path} with a composition style, ` +
       `${library.files.join(' and ')} from the entries, a call into each part - ` +
       `${Object.entries(weights).map(([entry, bytes]) => `/${entry.split('/')[1]} (${kb(bytes)} gzipped to a page)`).join(', ')} - ` +
-      `a part vendored from it that checks clean and composes, and the engines' verbs and ${ENGINES.length} engines by name.`,
+      `a part vendored from it with its AI helper, which checks clean, composes, and is read back by the helper, ` +
+      `and the engines' verbs and ${ENGINES.length} engines by name.`,
   );
   return { project, installed };
 }

@@ -213,8 +213,8 @@
       "kind": "cheatsheet",
       "title": "The napkin-sketch command line: cheatsheet",
       "summary": "Reminders for the four commands: their flags, exit codes, the JSON report and the calls from other languages.",
-      "lines": 114,
-      "tokens": 1923
+      "lines": 115,
+      "tokens": 1972
     },
     {
       "path": "docs/api/node/README.md",

@@ -65,6 +65,8 @@ export interface VendorRecord {
   /** Every file in the folder but this record, by path from the folder, with its sha256. */
   files: { [path: string]: string };
   parts: string[];
+  /** The AI helper plugins copied beside the parts, under `ai-helper/`. */
+  helpers: string[];
   /** Whether each part's declarations were copied. */
   types: boolean;
   /** The third-party notices the files owe, in `THIRD-PARTY-NOTICES.md`. */
@@ -84,6 +86,8 @@ interface VendorReport {
   /** The folder copied into or checked, as given. */
   folder?: string;
   parts?: string[];
+  /** The AI helper plugins copied, or for `--list`, the ones there are. */
+  helpers?: string[];
   /** The files written, by path from the folder. */
   files?: string[];
   /** The files a refresh removed, by path from the folder. */
@@ -100,7 +104,25 @@ interface VendorReport {
 /** A file that could not be read or written, or a folder vendor will not write into: exit code 3. */
 class VendorIoError extends Error {}
 
+/**
+ * What a vendored AI helper leaves out: what the package leaves out of its
+ * `ai-helper/` folder, the reference sheets and their data, which the skills
+ * fetch by the addresses in `assets/uri.md`. A copy from a clone is then the
+ * copy an install gives.
+ */
+const HELPER_LEFT_OUT = /(?:^|\/)assets\/[^/]+\.(?:svg|png|json)$/;
+
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
+
+/** The AI helper plugins a package or a clone holds: each folder of `ai-helper/` with a plugin manifest. */
+export function helpersIn(packageRoot: string): string[] {
+  const root = join(packageRoot, 'ai-helper');
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && existsSync(join(root, entry.name, '.claude-plugin', 'plugin.json')))
+    .map((entry) => entry.name)
+    .sort();
+}
 
 /** Every file under `dir`, as POSIX paths from it. */
 function filesUnder(dir: string): string[] {
@@ -301,6 +323,7 @@ function list(io: CommandIo, args: CommandArgs, report: VendorReport, dist: stri
     gzipped: part.files.reduce((sum, file) => sum + gzipSync(readFileSync(join(dist, file)), { level: 6 }).length, 0),
     notices: part.notices,
   }));
+  report.helpers = helpersIn(dirname(dist));
   if (!args.json && !args.quiet) {
     const kb = (bytes: number): string => `${(bytes / 1024).toFixed(1)} KB`;
     const lines = [`${record.name} ${record.version}: ${report.list.length} parts`, ''];
@@ -308,6 +331,7 @@ function list(io: CommandIo, args: CommandArgs, report: VendorReport, dist: stri
     for (const part of report.list) {
       lines.push(`  ${part.name.padEnd(22)}${part.platform.padEnd(10)}${String(part.files).padStart(6)}${kb(part.gzipped).padStart(11)}  ${part.notices.join(', ') || '-'}`);
     }
+    if (report.helpers.length > 0) lines.push('', `AI helpers for --ai-helper (experimental): ${report.helpers.join(', ')}`);
     io.stdout.write(`${lines.join('\n')}\n`);
   }
   return done(io, args, report, EXIT.ok);
@@ -344,10 +368,19 @@ async function copy(io: CommandIo, args: CommandArgs, report: VendorReport, dist
       message: `there is no part ${unknown.map((name) => `"${name}"`).join(', ')}; the parts are ${Object.keys(record.parts).join(', ')}`,
     });
   }
+  const packageRoot = dirname(dist);
+  const helpers = helpersIn(packageRoot);
+  const strangers = args.aiHelpers.filter((name) => !helpers.includes(name));
+  if (strangers.length > 0) {
+    return done(io, args, report, EXIT.usage, {
+      kind: 'usage',
+      message: `there is no AI helper ${strangers.map((name) => `"${name}"`).join(', ')}; the helpers are ${helpers.join(', ') || 'none in this install'}`,
+    });
+  }
   report.parts = names;
+  report.helpers = args.aiHelpers;
   report.folder = args.out!;
 
-  const packageRoot = dirname(dist);
   const out = resolve(io.cwd, args.out!);
   const inside = (parent: string): boolean => out === parent || out.startsWith(`${parent}${sep}`);
   if (inside(packageRoot)) throw new VendorIoError(`--out ${args.out} is inside the package it would copy from`);
@@ -356,24 +389,27 @@ async function copy(io: CommandIo, args: CommandArgs, report: VendorReport, dist
     throw new VendorIoError(`${args.out} holds files and no ${RECORD_NAME}, so vendor did not write it; give an empty or new folder`);
   }
 
-  // What to copy: each part's files, and with --types its declarations, with
-  // a declaration beside an entry whose types live elsewhere so an import of
-  // the entry finds them.
-  const copied = new Set<string>();
+  // What to copy, each from where it lives: each part's files, and with
+  // --types its declarations, with a declaration beside an entry whose types
+  // live elsewhere so an import of the entry finds them; each AI helper, under
+  // ai-helper/ as the package lays it out, so its scripts find the API in the
+  // VENDOR.json above them; and the license.
+  const copied = new Map<string, string>();
   const written = new Map<string, string>();
   const owed = new Set<string>();
+  const fromDist = (file: string): string => join(dist, ...file.split('/'));
   for (const name of names) {
     const part = record.parts[name];
-    for (const file of part.files) copied.add(file);
+    for (const file of part.files) copied.set(file, fromDist(file));
     for (const id of part.notices) owed.add(id);
     if (part.platform === 'node' && names.some((other) => record.parts[other].platform === 'browser')) {
       report.warnings.push(`${name} runs in Node only, as it reads files; a page must not load it`);
     }
     if (args.types && part.types) {
-      if (!existsSync(join(dist, ...part.types.split('/')))) {
+      if (!existsSync(fromDist(part.types))) {
         throw new VendorIoError(`${name}'s declarations, dist/${part.types}, are missing: this build has no types; run npm run build:types`);
       }
-      for (const file of typesClosure(dist, part.types)) copied.add(file);
+      for (const file of typesClosure(dist, part.types)) copied.set(file, fromDist(file));
       const beside = part.entry.replace(/\.js$/, '.d.ts');
       if (part.entry.endsWith('.js') && beside !== part.types) {
         const target = posix.relative(posix.dirname(beside), part.types.replace(/\.d\.ts$/, '.js'));
@@ -381,15 +417,20 @@ async function copy(io: CommandIo, args: CommandArgs, report: VendorReport, dist
       }
     }
   }
+  for (const name of args.aiHelpers) {
+    const folder = join(packageRoot, 'ai-helper', name);
+    for (const file of filesUnder(folder)) {
+      if (!HELPER_LEFT_OUT.test(file)) copied.set(`ai-helper/${name}/${file}`, join(folder, ...file.split('/')));
+    }
+  }
+  copied.set('LICENSE', join(packageRoot, 'LICENSE'));
   report.notices = [...owed].sort();
 
-  for (const file of copied) {
+  for (const [file, from] of copied) {
     const target = join(out, ...file.split('/'));
     mkdirSync(dirname(target), { recursive: true });
-    copyFileSync(join(dist, ...file.split('/')), target);
+    copyFileSync(from, target);
   }
-  copyFileSync(join(packageRoot, 'LICENSE'), join(out, 'LICENSE'));
-  copied.add('LICENSE');
   const notices = readFileSync(join(packageRoot, 'THIRD-PARTY-NOTICES.md'), 'utf8');
   written.set('THIRD-PARTY-NOTICES.md', cutNotices(notices, report.notices, record.notices, record.name, record.version));
   written.set(CHECK_NAME, CHECK_SCRIPT);
@@ -400,7 +441,7 @@ async function copy(io: CommandIo, args: CommandArgs, report: VendorReport, dist
   }
 
   // A refresh removes what the new copy does not hold.
-  const kept = new Set([...copied, ...written.keys()]);
+  const kept = new Set([...copied.keys(), ...written.keys()]);
   report.removed = before.filter((file) => file !== RECORD_NAME && !kept.has(file));
   for (const file of report.removed) rmSync(join(out, ...file.split('/')), { force: true });
   removeEmptyFolders(out);
@@ -418,6 +459,7 @@ async function copy(io: CommandIo, args: CommandArgs, report: VendorReport, dist
     entries: Object.fromEntries(names.map((name) => [name, record.parts[name].entry])),
     files,
     parts: names,
+    helpers: args.aiHelpers,
     types: args.types,
     notices: report.notices,
     source,
@@ -429,8 +471,9 @@ async function copy(io: CommandIo, args: CommandArgs, report: VendorReport, dist
 
   if (!args.json && !args.quiet) {
     const check = posix.join(args.out!.split(sep).join('/'), CHECK_NAME);
+    const what = [...names, ...args.aiHelpers.map((name) => `the ${name} helper`)].join(', ');
     io.stdout.write(
-      `vendored ${names.join(', ')} from ${record.name} ${record.version} into ${args.out}: ${report.files.length} files` +
+      `vendored ${what} from ${record.name} ${record.version} into ${args.out}: ${report.files.length} files` +
         `${report.removed.length > 0 ? `, ${report.removed.length} removed` : ''}\n` +
         `check it with: node ${check}\n`,
     );

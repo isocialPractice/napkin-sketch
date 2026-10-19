@@ -217,6 +217,7 @@ async function main() {
   check(existsSync(join(skillDir, 'DESIGN_LANGUAGE.md')), 'the skill carries its design language');
   check(existsSync(join(skillDir, 'references', 'resources.md')), 'the skill carries a resources.md');
   check(existsSync(join(skillDir, 'scripts', 'brand-resources.mjs')), 'the skill carries its brand resolver');
+  check(existsSync(join(skillDir, 'scripts', 'load-api.mjs')), 'the skill carries the file that finds the API');
   check(/brand slots:.*logo/.test(generated), 'the generator found a logo slot in the source', generated.trim());
 
   // The measured slots have to be the ones the source asset names, not

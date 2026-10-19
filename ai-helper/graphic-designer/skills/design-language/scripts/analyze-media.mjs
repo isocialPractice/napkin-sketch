@@ -44,9 +44,10 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { basename, dirname, extname, join, resolve } from 'node:path';
-import { existsSync } from 'node:fs';
+import { basename, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { findGraphicApi } from './load-api.mjs';
 
 /** Media types this script recognises by extension. */
 const KINDS = {
@@ -64,41 +65,12 @@ export function mediaKind(path) {
 }
 
 /**
- * The names the package answers to: the published one, then the one a clone
- * linked before 1.0.0 still goes by.
- */
-const PACKAGE_NAMES = ['@isocialpractice/napkin-sketch', 'napkin-sketch'];
-
-/**
- * Finds the napkin-sketch graphic-design API.
- *
- * Tries the package first, so this works when napkin-sketch is a dependency,
- * then the built output of a clone. Returns null when neither is there, which
- * is a build away from being fixed and worth saying rather than throwing.
+ * Finds the napkin-sketch graphic-design API, as every script of the helper
+ * finds it (`load-api.mjs`). Returns null when it is nowhere, which is a build
+ * or an install away from being fixed and worth saying rather than throwing.
  */
 async function loadApi() {
-  for (const name of PACKAGE_NAMES) {
-    try {
-      return await import(name);
-    } catch {
-      // Not installed under this name.
-    }
-  }
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 8; i++) {
-    const built = join(dir, 'dist', 'api', 'index.js');
-    if (existsSync(built)) {
-      try {
-        return await import(`file://${built.replace(/\\/g, '/')}`);
-      } catch {
-        return null;
-      }
-    }
-    const up = dirname(dir);
-    if (up === dir) break;
-    dir = up;
-  }
-  return null;
+  return findGraphicApi({ from: fileURLToPath(import.meta.url) });
 }
 
 /** Normalizes a CSS color to lowercase six-digit hex, or null if it is not one. */

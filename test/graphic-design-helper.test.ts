@@ -16,7 +16,7 @@
 
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -274,7 +274,7 @@ test('a helper installed into a project finds the API under its published name',
   try {
     const scripts = join(project, '.claude', 'skills', 'design-language', 'scripts');
     mkdirSync(scripts, { recursive: true });
-    for (const file of ['analyze-media.mjs', 'brand-resources.mjs']) {
+    for (const file of ['analyze-media.mjs', 'brand-resources.mjs', 'load-api.mjs']) {
       copyFileSync(join(HELPER, 'skills', 'design-language', 'scripts', file), join(scripts, file));
     }
     writeFileSync(join(project, 'mark.png'), 'read by a stand-in, which decodes nothing');
@@ -326,6 +326,91 @@ test('a helper installed into a project finds the API under its published name',
       above = false;
     }
     if (!above) assert.deepEqual(probe(), { analyzer: '#326478', brand: 'napkin-sketch' }, 'a clone linked under the old name still answers');
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('the helper finds the API in one order: named, installed, vendored beside it, then a clone', () => {
+  // Every script of the helper - and every generated skill's - finds the API
+  // through load-api.mjs, so they all run in the same places. Each source is a
+  // stand-in that decodes every PNG to its own color, and they are taken away
+  // one at a time, so each run says which one won.
+  const project = mkdtempSync(join(tmpdir(), 'napkin-order-'));
+  try {
+    const vendored = join(project, 'vendor');
+    const scripts = join(vendored, 'ai-helper', 'graphic-designer', 'skills', 'design-language', 'scripts');
+    mkdirSync(scripts, { recursive: true });
+    for (const file of ['analyze-media.mjs', 'brand-resources.mjs', 'load-api.mjs']) {
+      copyFileSync(join(HELPER, 'skills', 'design-language', 'scripts', file), join(scripts, file));
+    }
+    writeFileSync(join(project, 'mark.png'), 'read by a stand-in, which decodes nothing');
+    writeFileSync(
+      join(project, 'probe.mjs'),
+      [
+        "import { analyzeMedia } from './vendor/ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs';",
+        "import { loadGraphicApi } from './vendor/ai-helper/graphic-designer/skills/design-language/scripts/brand-resources.mjs';",
+        "const report = await analyzeMedia('mark.png');",
+        'const brand = await loadGraphicApi().then((api) => api.STANDIN, (err) => `error: ${err.message}`);',
+        'console.log(JSON.stringify({ analyzer: report.palette[0]?.hex ?? null, brand }));',
+      ].join('\n')
+    );
+
+    /** A stand-in API module at `file`, an ES module, which decodes every PNG to `hex`. */
+    const standIn = (file: string, name: string, hex: string): void => {
+      mkdirSync(dirname(file), { recursive: true });
+      if (file.endsWith('.js')) writeFileSync(join(dirname(file), 'package.json'), JSON.stringify({ type: 'module' }));
+      const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      writeFileSync(
+        file,
+        [
+          `export const STANDIN = ${JSON.stringify(name)};`,
+          `export function decodePng() { const data = new Uint8Array(16); for (let i = 0; i < 16; i += 4) data.set([${rgb.join(', ')}, 255], i); return { width: 2, height: 2, data }; }`,
+        ].join('\n')
+      );
+    };
+    const named = join(project, 'elsewhere', 'api.mjs');
+    standIn(named, 'named', '#111111');
+    const installed = join(project, 'node_modules', '@isocialpractice', 'napkin-sketch');
+    standIn(join(installed, 'index.js'), 'installed', '#222222');
+    writeFileSync(join(installed, 'package.json'), JSON.stringify({ name: '@isocialpractice/napkin-sketch', type: 'module', exports: './index.js' }));
+    standIn(join(vendored, 'graphic-design', 'index.js'), 'vendored', '#333333');
+    writeFileSync(join(vendored, 'VENDOR.json'), JSON.stringify({ name: '@isocialpractice/napkin-sketch', entries: { 'graphic-design': 'graphic-design/index.js' }, files: {} }));
+    standIn(join(project, 'dist', 'graphic-design', 'index.js'), 'clone', '#444444');
+
+    const probe = (env: NodeJS.ProcessEnv = {}): { analyzer: string | null; brand: string } => {
+      const clean = { ...process.env, ...env };
+      if (!('NAPKIN_SKETCH_API' in env)) delete clean.NAPKIN_SKETCH_API;
+      return JSON.parse(execFileSync(process.execPath, ['probe.mjs'], { cwd: project, encoding: 'utf-8', env: clean }));
+    };
+
+    assert.deepEqual(probe({ NAPKIN_SKETCH_API: named }), { analyzer: '#111111', brand: 'named' }, 'a path named on purpose comes first');
+    assert.deepEqual(probe(), { analyzer: '#222222', brand: 'installed' }, 'then the package a project installed, ahead of a copy');
+    // A path named on purpose that is not there is an error, not a fall-through.
+    const misnamed = spawnSync(process.execPath, ['probe.mjs'], {
+      cwd: project,
+      encoding: 'utf-8',
+      env: { ...process.env, NAPKIN_SKETCH_API: join(project, 'missing.mjs') },
+    });
+    assert.notEqual(misnamed.status, 0);
+    assert.match(misnamed.stderr, /NAPKIN_SKETCH_API names .*missing\.mjs, which does not exist/);
+
+    // The rest only where nothing above the temporary folder answers to the package's name.
+    rmSync(join(project, 'node_modules'), { recursive: true, force: true });
+    let above = true;
+    try {
+      createRequire(join(project, 'probe.mjs')).resolve('@isocialpractice/napkin-sketch');
+    } catch {
+      above = false;
+    }
+    if (above) return;
+    assert.deepEqual(probe(), { analyzer: '#333333', brand: 'vendored' }, 'then the vendored copy the helper sits in');
+    rmSync(join(vendored, 'VENDOR.json'));
+    assert.deepEqual(probe(), { analyzer: '#444444', brand: 'clone' }, "then a clone's build above it");
+    rmSync(join(project, 'dist'), { recursive: true, force: true });
+    const nowhere = probe();
+    assert.equal(nowhere.analyzer, null, 'the analyzer says it found nothing rather than throwing');
+    assert.match(nowhere.brand, /^error: graphic-design API not found/);
   } finally {
     rmSync(project, { recursive: true, force: true });
   }

@@ -27,8 +27,10 @@
  * file the tarball holds; the browser-safe entries reach no Node built-in
  * through the chunks they share with the Node ones; it packs to no more
  * than {@link MAX_PACKED}; each part a page loads without the editor costs it
- * no more than its line in {@link ENTRY_BUDGETS}; and no chunk is empty. It
- * prints the packed and unpacked sizes.
+ * no more than its line in {@link ENTRY_BUDGETS}; no chunk is empty; and
+ * `dist/parts.json`, the record `napkin-sketch vendor` copies by, names for
+ * each part exactly the files its entry reaches. It prints the packed and
+ * unpacked sizes.
  *
  * Then the desktop app's package, `@isocialpractice/napkin-sketch-gui`: it
  * lays the package out with `scripts/pack-gui.mjs`, packs it, and reads the
@@ -121,6 +123,7 @@ const REQUIRED = [
   'dist/api/node.d.ts',
   'dist/markdown/index.js',
   'dist/markdown/index.d.ts',
+  'dist/parts.json',
   'docs/api/INDEX.json',
   'API.md',
   'API-CHEATSHEET.md',
@@ -229,6 +232,48 @@ function nodeBuiltinsReached(paths) {
     for (const spec of relativeImports(text)) stack.push(posix.normalize(posix.join(posix.dirname(file), spec)));
   }
   return found;
+}
+
+/**
+ * Where `dist/parts.json` and the bundles disagree: a part whose files are not
+ * the files its entry reaches with their scope markers, a file it names that
+ * the tarball lacks, an export with no part, a platform the browser-safe list
+ * contradicts, or a version that is not the package's. `napkin-sketch vendor`
+ * copies a part by this record, so a record that drifted would vendor a copy
+ * that does not load.
+ */
+function partsDrift(paths, manifest) {
+  const record = JSON.parse(readFileSync(join(root, 'dist', 'parts.json'), 'utf-8'));
+  const problems = [];
+  if (record.version !== manifest.version) problems.push(`it is for ${record.version}, and the package is ${manifest.version}`);
+  const named = new Set(Object.values(record.parts).map((part) => part.subpath));
+  for (const subpath of Object.keys(manifest.exports)) if (!named.has(subpath)) problems.push(`it has no part for ${subpath}`);
+  for (const [name, part] of Object.entries(record.parts)) {
+    for (const file of part.files) if (!paths.has(`dist/${file}`)) problems.push(`${name} names dist/${file}, which the tarball lacks`);
+    if (!part.entry.endsWith('.js')) continue;
+    const walked = new Set();
+    const stack = [`dist/${part.entry}`];
+    while (stack.length > 0) {
+      const file = stack.pop();
+      if (walked.has(file) || !paths.has(file)) continue;
+      walked.add(file);
+      for (const spec of relativeImports(readFileSync(join(root, ...file.split('/')), 'utf-8'))) stack.push(posix.normalize(posix.join(posix.dirname(file), spec)));
+    }
+    const expected = new Set();
+    for (const file of walked) {
+      const path = file.slice('dist/'.length);
+      expected.add(path);
+      expected.add(posix.join(posix.dirname(path), 'package.json'));
+    }
+    const recorded = new Set(part.files);
+    const left = [...expected].filter((file) => !recorded.has(file));
+    const extra = [...recorded].filter((file) => !expected.has(file));
+    if (left.length > 0) problems.push(`${name} leaves out ${left.join(', ')}`);
+    if (extra.length > 0) problems.push(`${name} names ${extra.join(', ')}, which its entry does not reach`);
+    const browser = BROWSER_ENTRIES.includes(`dist/${part.entry}`);
+    if (browser !== (part.platform === 'browser')) problems.push(`${name} is recorded as ${part.platform}, and pack-check ${browser ? 'holds it browser-safe' : 'does not'}`);
+  }
+  return problems;
 }
 
 /** What a page downloads for one entry: every file it reaches, each gzipped at level 6, summed. */
@@ -385,6 +430,8 @@ function check(dir) {
   // fetches it: the main entry did, through the composition's index, once.
   const empty = packed.files.filter((file) => /^dist\/chunks\/.+\.js$/.test(file.path) && file.size === 0).map((file) => file.path);
   if (empty.length > 0) fail(`the tarball holds empty chunks, which a page fetches for nothing: ${empty.join(', ')}`);
+  const drift = partsDrift(paths, JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8')));
+  if (drift.length > 0) fail(`dist/parts.json does not match the bundles: ${drift.join('; ')}. Run npm run build`);
 
   // 2. Install it into an empty project, as a user would, asking the helper
   //    installer for nothing.

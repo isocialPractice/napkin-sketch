@@ -5,9 +5,9 @@
 // assets to dist/.
 
 import { build, context } from 'esbuild';
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,6 +21,109 @@ const watch = process.argv.includes('--watch');
  * app's own bundles link theirs, for the DevTools.
  */
 const packageMaps = 'external';
+
+/** The package entries' last metafile, which `dist/parts.json` is written from. */
+let packageMetafile = null;
+
+/** Whether the static files are in `dist/`, so a part's file sizes can be read. */
+let staticCopied = false;
+
+/**
+ * The third-party code the package's bundles carry, found by the inputs that
+ * bring it in, each with the heading of its section in THIRD-PARTY-NOTICES.md.
+ * A part records the notices for what its files hold, so a vendored copy of it
+ * carries those and no others. A bundled package with no line here fails the
+ * build: a notice owed would otherwise go unwritten.
+ */
+const NOTICES = [
+  { id: 'marked', input: /^node_modules\/marked\//, heading: /^### marked \d/ },
+  { id: 'marked-highlight', input: /^node_modules\/marked-highlight\//, heading: /^### marked-highlight / },
+  { id: 'highlight.js', input: /^node_modules\/highlight\.js\//, heading: /^### highlight\.js / },
+  { id: 'hyphenation', input: /^src\/core\/type\/hyphenation\//, heading: /^### The en-US hyphenation patterns/ },
+];
+
+/**
+ * Writes `dist/parts.json`: every entry in the package's exports map as a part
+ * a program can take alone - its entry, every file it reaches, the scope
+ * markers that make those files ES modules, its declarations, whether it runs
+ * in a browser, its weight, and the notices its files owe. Paths are from
+ * `dist/`, as a vendored copy lays them out. `napkin-sketch vendor` copies a
+ * part by this record, and `pack-check` holds the record to the files.
+ */
+async function writeParts(metafile) {
+  const pkg = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
+  const noticeLines = (await readFile(resolve(root, 'THIRD-PARTY-NOTICES.md'), 'utf8')).split(/\r?\n/);
+  const notices = {};
+  for (const { id, heading } of NOTICES) {
+    const line = noticeLines.find((text) => heading.test(text));
+    if (!line) throw new Error(`build: THIRD-PARTY-NOTICES.md has no section for ${id}`);
+    notices[id] = line;
+  }
+
+  const size = async (file) => (await stat(resolve(root, 'dist', file))).size;
+  const parts = {};
+  for (const [subpath, target] of Object.entries(pkg.exports)) {
+    const name = subpath === '.' ? 'main' : subpath.slice(2);
+    const entry = (typeof target === 'string' ? target : target.import).replace(/^\.\/dist\//, '');
+    const types = typeof target === 'string' ? null : target.types.replace(/^\.\/dist\//, '');
+
+    if (entry.endsWith('.css')) {
+      // A stylesheet, with the files its `url()`s name.
+      const css = await readFile(resolve(root, 'dist', entry), 'utf8');
+      const files = [entry];
+      for (const match of css.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/g)) {
+        if (!/^(?:data:|[a-z]+:)/i.test(match[1])) files.push(posix.normalize(posix.join(posix.dirname(entry), match[1])));
+      }
+      let bytes = 0;
+      for (const file of files) bytes += await size(file);
+      parts[name] = { subpath, entry, types: null, platform: 'browser', files: [...new Set(files)].sort(), bytes, notices: [] };
+      continue;
+    }
+
+    const key = `dist/${entry}`;
+    if (!metafile.outputs[key]) throw new Error(`build: the exports map names ${key}, which the build did not write`);
+    const reached = new Set();
+    const builtins = new Set();
+    const owed = new Set();
+    const walk = (file) => {
+      if (reached.has(file)) return;
+      reached.add(file);
+      const output = metafile.outputs[file];
+      for (const [input, { bytesInOutput }] of Object.entries(output.inputs)) {
+        if (bytesInOutput === 0) continue;
+        const notice = NOTICES.find(({ input: pattern }) => pattern.test(input));
+        if (notice) owed.add(notice.id);
+        else if (input.startsWith('node_modules/')) throw new Error(`build: ${file} bundles ${input}, and THIRD-PARTY-NOTICES.md has no notice for it`);
+      }
+      for (const imported of output.imports) {
+        if (imported.external) builtins.add(imported.path);
+        else if (metafile.outputs[imported.path]) walk(imported.path);
+      }
+    };
+    walk(key);
+
+    const files = new Set();
+    for (const file of reached) {
+      const path = file.replace(/^dist\//, '');
+      files.add(path);
+      files.add(posix.join(posix.dirname(path), 'package.json'));
+    }
+    let bytes = 0;
+    for (const file of files) bytes += await size(file);
+    parts[name] = {
+      subpath,
+      entry,
+      types,
+      platform: builtins.size > 0 ? 'node' : 'browser',
+      files: [...files].sort(),
+      bytes,
+      notices: [...owed].sort(),
+    };
+  }
+
+  const record = { name: pkg.name, version: pkg.version, notices, parts };
+  await writeFile(resolve(root, 'dist', 'parts.json'), `${JSON.stringify(record, null, 2)}\n`, 'utf-8');
+}
 
 /** @type {import('esbuild').BuildOptions} */
 const nodeCommon = {
@@ -63,6 +166,24 @@ const packageEntries = {
   external: ['electron'],
   outdir: resolve(root, 'dist'),
   chunkNames: 'chunks/[name]-[hash]',
+  // The metafile is what `dist/parts.json` is read from, with its paths taken
+  // from the repository root wherever the build is started.
+  metafile: true,
+  absWorkingDir: root,
+  plugins: [
+    {
+      name: 'parts',
+      setup(b) {
+        b.onEnd((result) => {
+          if (!result.metafile) return;
+          packageMetafile = result.metafile;
+          // A rebuild under --watch rewrites the record; the first build's is
+          // written by run(), once the static files are in place.
+          if (staticCopied) return writeParts(packageMetafile);
+        });
+      },
+    },
+  ],
   entryPoints: [
     // The main entry: the editor, the engine and the language, browser-safe.
     { in: resolve(root, 'src/api/index.ts'), out: 'api/index' },
@@ -208,10 +329,14 @@ async function run() {
     await Promise.all(contexts.map((ctx) => ctx.watch()));
     await buildAccentLanguages();
     await copyStatic();
+    staticCopied = true;
+    if (packageMetafile) await writeParts(packageMetafile);
     console.log('napkin-sketch: watching for changes...');
   } else {
     await Promise.all([...configs.map((c) => build(c)), buildAccentLanguages()]);
     await copyStatic();
+    staticCopied = true;
+    await writeParts(packageMetafile);
     console.log('napkin-sketch: build complete.');
   }
 }

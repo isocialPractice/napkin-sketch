@@ -23,9 +23,15 @@ function newest(dir: string): number {
   return latest;
 }
 
+/** Why a file the build writes cannot be trusted - missing, or older than the source - or null when it can. */
+export function builtSkipReason(relative: string): string | null {
+  const file = join(repoRoot(), ...relative.split('/'));
+  if (!existsSync(file)) return `${relative} is missing; run npm run build first`;
+  if (statSync(file).mtimeMs < newest(join(repoRoot(), 'src'))) return `${relative} is older than src/; run npm run build first`;
+  return null;
+}
+
 /** Why the built CLI cannot be run - missing, or older than the source - or null when it can. */
 export function cliSkipReason(): string | null {
-  if (!existsSync(CLI)) return 'dist/cli/index.js is missing; run npm run build first';
-  if (statSync(CLI).mtimeMs < newest(join(repoRoot(), 'src'))) return 'dist/cli/index.js is older than src/; run npm run build first';
-  return null;
+  return builtSkipReason('dist/cli/index.js');
 }

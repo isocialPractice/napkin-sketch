@@ -43,12 +43,15 @@
 <h1 id="using-napkin-sketch-from-code">Using napkin-sketch from code<a class="anchor" href="#using-napkin-sketch-from-code" aria-label="Link to this section">#</a></h1>
 <details class="toc" open><summary>On this page</summary><ul><li><a href="#what-this-is">What this is</a></li><li><a href="#the-mental-model">The mental model</a></li><li><a href="#reference">Reference</a></li><li><a href="#worked-examples">Worked examples</a></li><li><a href="#limits">Limits</a></li><li><a href="#for-agents">For agents</a></li><li><a href="#see-also">See also</a></li></ul></details>
 <p><a href="../index.html">API hub</a> · <strong>Reference</strong> · <a href="quickstart.html">Quickstart</a> · <a href="cheatsheet.html">Cheatsheet</a></p>
-<p>The package has four entries. <code>@isocialpractice/napkin-sketch</code> holds everything that runs
+<p>The package has six entries. <code>@isocialpractice/napkin-sketch</code> holds everything that runs
 anywhere - the editor, the data model, the engines, the composition API and
 the napkin script language - and reads no file. <code>@isocialpractice/napkin-sketch/node</code> holds
 what reads and writes files, for Node. <code>@isocialpractice/napkin-sketch/markdown</code> gives the
-first its Markdown and code readers. <code>@isocialpractice/napkin-sketch/graphic-design</code> is the
-composition API alone, for a page that composes and loads nothing else. This
+first its Markdown and code readers. Three more are parts of the first, each
+for a page that loads that part and nothing else:
+<code>@isocialpractice/napkin-sketch/graphic-design</code>, the composition API;
+<code>@isocialpractice/napkin-sketch/sharpen</code>, the auto-sharpen engine; and
+<code>@isocialpractice/napkin-sketch/engines</code>, the engines the tools stand on. This
 page is the reference for them as a
 program uses them: importing them, drawing a script, writing files, the
 result object, and what is an error value and what throws.</p>
@@ -101,8 +104,14 @@ the result it gives back is the object a command line prints.</p>
 <tr><td><code>@isocialpractice/napkin-sketch</code></td><td>a browser, Node, any bundler</td><td>The editor, the data model, the sharpen engine, the composition API, and the language: reading, checking and writing scripts, <code>evaluate</code>, <code>drawSvg</code>, the render calls, and the verb and diagnostic tables.</td></tr>
 <tr><td><code>@isocialpractice/napkin-sketch/node</code></td><td>Node 22.12 and later</td><td>Files: <code>drawFile</code>, <code>drawToFiles</code>, <code>writeBook</code>, <code>readScript</code>, <code>loadAssets</code> and <code>loadDocuments</code>, and the composition API's file helpers, <code>imageDataUrl</code>, <code>writeComposition</code>, <code>resolveLinkFromDir</code> and <code>mediaTypeOf</code>. It reads Markdown Flow text with marked's lexer.</td></tr>
 <tr><td><code>@isocialpractice/napkin-sketch/markdown</code></td><td>a browser, Node, any bundler</td><td>Markdown Flow's and Clean Language Accents' readers: importing it gives <code>@isocialpractice/napkin-sketch</code> marked's lexer and highlight.js, so a Markdown Flow text draws as its Markdown renders and code is colored. Its <code>markdownToType</code> reads with the lexer, and <code>registerAccentLanguage</code> installs a language beyond the 36 common ones.</td></tr>
-<tr><td><code>@isocialpractice/napkin-sketch/graphic-design</code></td><td>a browser, Node, any bundler</td><td>The <a href="../compose/index.html">composition API</a> and nothing else: every composition call the main entry has, the same functions, and <code>parseColor</code>, <code>escapeXml</code> and <code>isPng</code> besides. A page loads about 48 KB gzipped for it, against about 270 KB for the main entry, which carries the editor, the document model and the code themes too.</td></tr>
+<tr><td><code>@isocialpractice/napkin-sketch/graphic-design</code></td><td>a browser, Node, any bundler</td><td>The <a href="../compose/index.html">composition API</a> and nothing else: every composition call the main entry has, the same functions, and <code>parseColor</code>, <code>escapeXml</code> and <code>isPng</code> besides. A page loads about 49 KB gzipped for it, against about 270 KB for the main entry, which carries the editor, the document model and the code themes too.</td></tr>
+<tr><td><code>@isocialpractice/napkin-sketch/sharpen</code></td><td>a browser, Node, any bundler</td><td>The auto-sharpen engine alone: <code>sharpenStrokes</code>, <code>sharpenStroke</code>, <code>sharpenPoints</code>, <code>classify</code> and <code>DEFAULT_SHARPEN_OPTIONS</code>, the main entry's own functions. About 6 KB gzipped.</td></tr>
+<tr><td><code>@isocialpractice/napkin-sketch/engines</code></td><td>a browser, Node, any bundler</td><td>The <a href="../engines/index.html">engines the tools stand on</a> - regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil, the Smear and Liquify - with the page model they edit: <code>createSketch</code>, <code>createLayer</code>, <code>parseSketchBook</code>, <code>serializeSketchBook</code> and their kin. The blend modes, the effects, 3D and type stay on the main entry. About 123 KB gzipped: a mark's bounds need its text set and its effects applied, so the type engine comes too.</td></tr>
 </tbody></table></div>
+<p>A project that installs nothing - a static site, say - takes a part as files
+of its own with <a href="../cli/index.html#vendor"><code>napkin-sketch vendor</code></a>, pinned by
+version and hash; a project that installs the package cuts the install to the
+parts it uses with <a href="../cli/index.html#prune"><code>napkin-sketch prune</code></a>.</p>
 <p><code>@isocialpractice/napkin-sketch/graphic-design/files</code>, the composition helpers' own entry,
 keeps working; <code>@isocialpractice/napkin-sketch/node</code> gives the same functions, so a Node
 program has one import for files.</p>
@@ -135,8 +144,8 @@ result on this page is a named type: <code>DrawToFilesOptions</code>, <code>Draw
 <code>WrittenFile</code> and <code>WriteBookOptions</code> from <code>@isocialpractice/napkin-sketch/node</code>, and
 <code>EvaluateOptions</code>, <code>ScriptResult</code>, <code>Diagnostic</code>, <code>RenderSketchOptions</code> and the
 rest from <code>@isocialpractice/napkin-sketch</code>.</p>
-<p>A browser build imports <code>@isocialpractice/napkin-sketch</code>, <code>@isocialpractice/napkin-sketch/markdown</code>
-and <code>@isocialpractice/napkin-sketch/graphic-design</code>, never <code>@isocialpractice/napkin-sketch/node</code>, which reads
+<p>A browser build imports <code>@isocialpractice/napkin-sketch</code>, <code>/markdown</code>, <code>/graphic-design</code>,
+<code>/sharpen</code> and <code>/engines</code>, never <code>@isocialpractice/napkin-sketch/node</code>, which reads
 files with <code>node:fs</code>, which a browser does not have.</p>
 <h3 id="drawing-a-script">Drawing a script<a class="anchor" href="#drawing-a-script" aria-label="Link to this section">#</a></h3>
 <p><code>evaluate(source, options)</code> runs a script and returns <code>{ ok, book,

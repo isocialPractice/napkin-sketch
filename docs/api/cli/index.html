@@ -47,9 +47,11 @@
 <code>.skbk</code> the app opens, or an Illustrator script - with no window, and without
 loading Electron at all.
 <code>check</code> reads and runs a script and writes nothing, <code>render</code> writes a sketch
-book the app saved, and <code>verbs</code> lists the language. This page is the
-reference for the four commands, their exit codes and their JSON report, and
-for calling them from other languages.</p>
+book the app saved, and <code>verbs</code> lists the language. <code>vendor</code> copies parts of
+the package into a project that installs nothing, and <code>prune</code> cuts a
+project's install down to the parts it keeps. This page is the reference for
+the six commands, their exit codes and their JSON report, and for calling
+them from other languages.</p>
 <p><strong>Contents</strong></p>
 <ul>
 <li><a href="#what-this-is">What this is</a></li>
@@ -60,6 +62,8 @@ for calling them from other languages.</p>
 <li><a href="#check">check</a></li>
 <li><a href="#render">render</a></li>
 <li><a href="#verbs">verbs</a></li>
+<li><a href="#vendor">vendor</a></li>
+<li><a href="#prune">prune</a></li>
 <li><a href="#exit-codes">Exit codes</a></li>
 <li><a href="#the-json-report">The JSON report</a></li>
 <li><a href="#standard-input-and-the-object-form">Standard input and the object form</a></li>
@@ -166,15 +170,78 @@ and the names the shape library draws. <code>--category shapes</code> narrows it
 category. <code>--json</code> gives the whole table as one line: the verbs with their
 grammar, the categories, the shapes, and every diagnostic code with its
 level - which is the language's reference in one call.</p>
+<h3 id="vendor">vendor<a class="anchor" href="#vendor" aria-label="Link to this section">#</a></h3>
+<pre><code class="language-text">napkin-sketch vendor &lt;part...&gt; --out &lt;dir&gt; [--types] [--ai-helper &lt;name&gt;] [--offline]
+napkin-sketch vendor --check &lt;dir&gt;
+napkin-sketch vendor --list</code></pre>
+<p>Copies parts of the package into a project as files of its own: each part's
+entry and every file it reaches, byte for byte, laid out so their imports
+resolve as they do in the package. A static site that installs nothing loads
+the copy by relative path. The parts are the package's entries - <code>main</code>,
+<code>graphic-design</code>, <code>sharpen</code>, <code>engines</code>, <code>markdown</code>, <code>node</code>,
+<code>graphic-design/files</code> and <code>styles.css</code> - and <code>--list</code> says where each runs,
+how many files it is, what it costs a page gzipped, and the third-party notices
+it owes. A project with no <code>package.json</code> runs it through npx:</p>
+<pre><code class="language-bash">npx @isocialpractice/napkin-sketch vendor graphic-design --out vendor/napkin-sketch</code></pre>
+<p>Beside the parts go <code>LICENSE</code>, a <code>THIRD-PARTY-NOTICES.md</code> that carries the
+notices those files owe and no others, <code>VENDOR.json</code>, and <code>VENDOR-CHECK.mjs</code>.
+<code>VENDOR.json</code> records the name, the version, the registry's tarball address
+and integrity for it, each part's entry, and a sha256 for every file;
+<code>VENDOR-CHECK.mjs</code> holds the folder to that record with plain <code>node</code>, no
+install and no network, exiting <code>1</code> and naming each file that differs, is
+missing or was added. <code>napkin-sketch vendor --check &lt;dir&gt;</code> runs the same check
+and exits <code>5</code>. Nothing vendored is edited by hand: a fix arrives by vendoring a
+newer version into the same folder, which removes what the new copy does not
+hold. <code>vendor</code> never writes into a folder that holds files and no
+<code>VENDOR.json</code>.</p>
+<ul>
+<li><code>--types</code> copies each part's type declarations, and a one-line declaration
+beside an entry whose types live elsewhere, so a TypeScript project checks
+against the copy.</li>
+<li><code>--ai-helper &lt;name&gt;</code> (experimental) copies an AI helper plugin - <code>vectors</code>,
+<code>graphic-designer</code> or <code>scripting</code> - under <code>ai-helper/&lt;name&gt;/</code>. Its scripts
+find the API in the <code>VENDOR.json</code> above them, so a helper vendored beside the
+<code>graphic-design</code> part runs with nothing installed or configured.</li>
+<li><code>--offline</code> reaches no network and records no tarball or integrity. A copy
+made from a clone's build records <code>&quot;source&quot;: &quot;clone&quot;</code> and none either.</li>
+</ul>
+<h3 id="prune">prune<a class="anchor" href="#prune" aria-label="Link to this section">#</a></h3>
+<pre><code class="language-text">napkin-sketch prune --keep &lt;marks&gt; [--apply]
+napkin-sketch prune [--apply]</code></pre>
+<p>Removes from a project's install of the package - <code>node_modules</code>, found from
+the working folder - every file the parts it keeps do not need. <code>--keep</code>
+records the marks in the project's <code>package.json</code> and says what would go; a
+bare <code>prune</code> reads the recorded marks and says the same; <code>--apply</code> removes.
+The marks are the parts, and <code>types</code> (the kept parts' declarations), <code>docs</code>
+(the API pages), <code>helpers</code> (the AI helper plugins) and <code>cli</code> (this command).
+The manifest, the licenses, the README and <code>dist/parts.json</code> are always kept.</p>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;demo-app&quot;,
+  &quot;napkinSketch&quot;: { &quot;keep&quot;: [&quot;graphic-design&quot;, &quot;types&quot;] },
+  &quot;scripts&quot;: {
+    &quot;clean:unmarked&quot;: &quot;napkin-sketch prune --apply&quot;,
+    &quot;postinstall&quot;: &quot;napkin-sketch prune --apply&quot;
+  }
+}</code></pre>
+<p>Three things to know before reaching for it. It saves disk and nothing else: a
+bundler already takes only what a program imports, and a page fetches only
+what its entry reaches, which is what the parts are for. Every install puts
+back what a prune removed, which is why a project runs it from its own
+<code>postinstall</code>. And it never touches a copy that is not under <code>node_modules</code>,
+such as a clone linked with <code>npm link</code>, nor one that holds a <code>.git</code>. When
+<code>cli</code> is not kept the command goes too, last, and the next install brings it
+back. Pruned to the composition alone, an install keeps about 185 KB of
+3.2 MB.</p>
 <h3 id="exit-codes">Exit codes<a class="anchor" href="#exit-codes" aria-label="Link to this section">#</a></h3>
 <div class="table-wrap"><table>
 <thead><tr><th>Code</th><th>Meaning</th><th>Files</th></tr></thead>
 <tbody>
-<tr><td><code>0</code></td><td>It drew; the script checked clean; the book was written.</td><td>Written.</td></tr>
+<tr><td><code>0</code></td><td>It drew; the script checked clean; the book was written; the parts were vendored or checked clean; a prune was planned or done.</td><td>Written.</td></tr>
 <tr><td><code>1</code></td><td>The arguments were wrong: an unknown option, a bad value, no script.</td><td>None.</td></tr>
 <tr><td><code>2</code></td><td>The script had errors - or with <code>--strict</code>, anything at all was reported. For <code>render</code>, the book could not be read as a book, or <code>--animate</code> found no figure on its page.</td><td>What could be drawn is written; with <code>--strict</code>, nothing.</td></tr>
 <tr><td><code>3</code></td><td>A file could not be read or written: the script, an asset, a document, a linked file, or the output folder.</td><td>None when the script, an asset or a document could not be read. A linked file that could not be read is drawn as its placeholder, and the files are written.</td></tr>
 <tr><td><code>4</code></td><td><code>draw --prompt</code> got no script back: the AI helper is not on the PATH, is not signed in, or finished without one.</td><td>None.</td></tr>
+<tr><td><code>5</code></td><td><code>vendor --check</code> found a vendored folder that does not match its <code>VENDOR.json</code>: a file that differs, is missing, or was added.</td><td>None.</td></tr>
 </tbody></table></div>
 <p>Errors in a script are values, reported and passed over: a script with a
 mistyped verb still draws everything else, and exits <code>2</code> so that a caller
@@ -300,6 +367,9 @@ call.</li>
 worse than none.</li>
 <li><strong>Pass images with <code>--asset</code></strong>, never as paths inside the script: a script
 reads no files, and says <code>unknown-asset</code> when it names one it was not given.</li>
+<li><strong>Vendor rather than copy by hand.</strong> <code>napkin-sketch vendor --list</code> names the
+parts; a vendored folder is checked with its own <code>VENDOR-CHECK.mjs</code>, and a
+fix arrives by vendoring again, never by editing a file in it.</li>
 </ul>
 <h2 id="see-also">See also<a class="anchor" href="#see-also" aria-label="Link to this section">#</a></h2>
 <ul>
@@ -313,7 +383,10 @@ form and every diagnostic code.</li>
 draws.</li>
 <li><a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/cli/draw.ts"><code>src/cli/draw.ts</code></a> and
 <a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/cli/args.ts"><code>src/cli/args.ts</code></a>: the commands and their
-arguments.</li>
+arguments; <a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/cli/vendor.ts"><code>src/cli/vendor.ts</code></a> and
+<a href="https://github.com/isocialPractice/napkin-sketch/blob/main/src/cli/prune.ts"><code>src/cli/prune.ts</code></a>: vendoring and pruning.</li>
+<li><a href="../node/index.html#the-entries">Using napkin-sketch from code</a>: the parts,
+each an entry a program imports.</li>
 </ul>
 <nav class="page-nav" aria-label="Previous and next pages"><a href="../output/cheatsheet.html" rel="prev"><span>Previous</span>Writing a drawing out: cheatsheet</a><a href="quickstart.html" rel="next"><span>Next</span>The napkin-sketch command line: quickstart</a></nav>
 </article>

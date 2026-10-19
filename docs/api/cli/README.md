@@ -6,9 +6,11 @@
 `.skbk` the app opens, or an Illustrator script - with no window, and without
 loading Electron at all.
 `check` reads and runs a script and writes nothing, `render` writes a sketch
-book the app saved, and `verbs` lists the language. This page is the
-reference for the four commands, their exit codes and their JSON report, and
-for calling them from other languages.
+book the app saved, and `verbs` lists the language. `vendor` copies parts of
+the package into a project that installs nothing, and `prune` cuts a
+project's install down to the parts it keeps. This page is the reference for
+the six commands, their exit codes and their JSON report, and for calling
+them from other languages.
 
 **Contents**
 
@@ -19,6 +21,8 @@ for calling them from other languages.
   - [check](#check)
   - [render](#render)
   - [verbs](#verbs)
+  - [vendor](#vendor)
+  - [prune](#prune)
   - [Exit codes](#exit-codes)
   - [The JSON report](#the-json-report)
   - [Standard input and the object form](#standard-input-and-the-object-form)
@@ -153,15 +157,95 @@ category. `--json` gives the whole table as one line: the verbs with their
 grammar, the categories, the shapes, and every diagnostic code with its
 level - which is the language's reference in one call.
 
+### vendor
+
+```text
+napkin-sketch vendor <part...> --out <dir> [--types] [--ai-helper <name>] [--offline]
+napkin-sketch vendor --check <dir>
+napkin-sketch vendor --list
+```
+
+Copies parts of the package into a project as files of its own: each part's
+entry and every file it reaches, byte for byte, laid out so their imports
+resolve as they do in the package. A static site that installs nothing loads
+the copy by relative path. The parts are the package's entries - `main`,
+`graphic-design`, `sharpen`, `engines`, `markdown`, `node`,
+`graphic-design/files` and `styles.css` - and `--list` says where each runs,
+how many files it is, what it costs a page gzipped, and the third-party notices
+it owes. A project with no `package.json` runs it through npx:
+
+```bash
+npx @isocialpractice/napkin-sketch vendor graphic-design --out vendor/napkin-sketch
+```
+
+Beside the parts go `LICENSE`, a `THIRD-PARTY-NOTICES.md` that carries the
+notices those files owe and no others, `VENDOR.json`, and `VENDOR-CHECK.mjs`.
+`VENDOR.json` records the name, the version, the registry's tarball address
+and integrity for it, each part's entry, and a sha256 for every file;
+`VENDOR-CHECK.mjs` holds the folder to that record with plain `node`, no
+install and no network, exiting `1` and naming each file that differs, is
+missing or was added. `napkin-sketch vendor --check <dir>` runs the same check
+and exits `5`. Nothing vendored is edited by hand: a fix arrives by vendoring a
+newer version into the same folder, which removes what the new copy does not
+hold. `vendor` never writes into a folder that holds files and no
+`VENDOR.json`.
+
+- `--types` copies each part's type declarations, and a one-line declaration
+  beside an entry whose types live elsewhere, so a TypeScript project checks
+  against the copy.
+- `--ai-helper <name>` (experimental) copies an AI helper plugin - `vectors`,
+  `graphic-designer` or `scripting` - under `ai-helper/<name>/`. Its scripts
+  find the API in the `VENDOR.json` above them, so a helper vendored beside the
+  `graphic-design` part runs with nothing installed or configured.
+- `--offline` reaches no network and records no tarball or integrity. A copy
+  made from a clone's build records `"source": "clone"` and none either.
+
+### prune
+
+```text
+napkin-sketch prune --keep <marks> [--apply]
+napkin-sketch prune [--apply]
+```
+
+Removes from a project's install of the package - `node_modules`, found from
+the working folder - every file the parts it keeps do not need. `--keep`
+records the marks in the project's `package.json` and says what would go; a
+bare `prune` reads the recorded marks and says the same; `--apply` removes.
+The marks are the parts, and `types` (the kept parts' declarations), `docs`
+(the API pages), `helpers` (the AI helper plugins) and `cli` (this command).
+The manifest, the licenses, the README and `dist/parts.json` are always kept.
+
+```json
+{
+  "name": "demo-app",
+  "napkinSketch": { "keep": ["graphic-design", "types"] },
+  "scripts": {
+    "clean:unmarked": "napkin-sketch prune --apply",
+    "postinstall": "napkin-sketch prune --apply"
+  }
+}
+```
+
+Three things to know before reaching for it. It saves disk and nothing else: a
+bundler already takes only what a program imports, and a page fetches only
+what its entry reaches, which is what the parts are for. Every install puts
+back what a prune removed, which is why a project runs it from its own
+`postinstall`. And it never touches a copy that is not under `node_modules`,
+such as a clone linked with `npm link`, nor one that holds a `.git`. When
+`cli` is not kept the command goes too, last, and the next install brings it
+back. Pruned to the composition alone, an install keeps about 185 KB of
+3.2 MB.
+
 ### Exit codes
 
 | Code | Meaning | Files |
 | --- | --- | --- |
-| `0` | It drew; the script checked clean; the book was written. | Written. |
+| `0` | It drew; the script checked clean; the book was written; the parts were vendored or checked clean; a prune was planned or done. | Written. |
 | `1` | The arguments were wrong: an unknown option, a bad value, no script. | None. |
 | `2` | The script had errors - or with `--strict`, anything at all was reported. For `render`, the book could not be read as a book, or `--animate` found no figure on its page. | What could be drawn is written; with `--strict`, nothing. |
 | `3` | A file could not be read or written: the script, an asset, a document, a linked file, or the output folder. | None when the script, an asset or a document could not be read. A linked file that could not be read is drawn as its placeholder, and the files are written. |
 | `4` | `draw --prompt` got no script back: the AI helper is not on the PATH, is not signed in, or finished without one. | None. |
+| `5` | `vendor --check` found a vendored folder that does not match its `VENDOR.json`: a file that differs, is missing, or was added. | None. |
 
 Errors in a script are values, reported and passed over: a script with a
 mistyped verb still draws everything else, and exits `2` so that a caller
@@ -311,6 +395,9 @@ napkin-sketch check card.napkin --strict --asset logo=art/logo.png
   worse than none.
 - **Pass images with `--asset`**, never as paths inside the script: a script
   reads no files, and says `unknown-asset` when it names one it was not given.
+- **Vendor rather than copy by hand.** `napkin-sketch vendor --list` names the
+  parts; a vendored folder is checked with its own `VENDOR-CHECK.mjs`, and a
+  fix arrives by vendoring again, never by editing a file in it.
 
 ## See also
 
@@ -324,4 +411,7 @@ napkin-sketch check card.napkin --strict --asset logo=art/logo.png
   draws.
 - [`src/cli/draw.ts`](../../../src/cli/draw.ts) and
   [`src/cli/args.ts`](../../../src/cli/args.ts): the commands and their
-  arguments.
+  arguments; [`src/cli/vendor.ts`](../../../src/cli/vendor.ts) and
+  [`src/cli/prune.ts`](../../../src/cli/prune.ts): vendoring and pruning.
+- [Using napkin-sketch from code](../node/README.md#the-entries): the parts,
+  each an entry a program imports.

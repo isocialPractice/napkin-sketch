@@ -64,15 +64,21 @@ script's drawing opens in the app as editable work.</li>
 <li><strong>A composition API.</strong> <code>createComposition</code> builds a page out of shapes,
 text, images, masks and gradients in code, and renders the one document to
 SVG and PNG.</li>
-<li><strong>Four commands.</strong> <code>napkin-sketch draw</code>, <code>check</code>, <code>render</code> and <code>verbs</code> run
+<li><strong>Six commands.</strong> <code>napkin-sketch draw</code>, <code>check</code>, <code>render</code> and <code>verbs</code> run
 scripts from a shell or a batch file, and from Python, C or anything else
-through standard input and one line of JSON back.</li>
-<li><strong>Four package entries.</strong> <code>@isocialpractice/napkin-sketch</code> runs anywhere and reads no file;
+through standard input and one line of JSON back; <code>vendor</code> and <code>prune</code> take
+the package a part at a time.</li>
+<li><strong>Six package entries.</strong> <code>@isocialpractice/napkin-sketch</code> runs anywhere and reads no file;
 <code>@isocialpractice/napkin-sketch/node</code> reads scripts, images and books and writes files;
 <code>@isocialpractice/napkin-sketch/markdown</code> gives the first a Markdown reader and a code
 highlighter, so Markdown Flow text draws as its Markdown renders and code is
-colored; and <code>@isocialpractice/napkin-sketch/graphic-design</code> is the composition API alone,
-for a page that composes a graphic without loading the editor.</li>
+colored; and <code>/graphic-design</code>, <code>/sharpen</code> and <code>/engines</code> are parts of the
+first - the composition API, auto-sharpen, and the engines the tools stand
+on - for a page that loads one without the editor.</li>
+<li><strong>A part at a time.</strong> <code>napkin-sketch vendor</code> copies parts into a project
+that installs nothing, pinned by version and hash with a check that needs
+nothing installed; <code>napkin-sketch prune</code> cuts a project's install down to
+the parts it keeps: <a href="cli/index.html#vendor">the command line</a>.</li>
 <li><strong>The engines the tools stand on.</strong> The Eraser's cut, the Wipe Stacks and
 the Shape Stacker, Split, clipping masks, the Pencil and its Smear, and
 Liquify are functions too, which a program calls on a page with no window:
@@ -146,6 +152,7 @@ and whatever could be drawn still is; only the disk throws.</li>
 <tr><td>A browser or a bundler</td><td><code>drawSvg(text)</code>, <code>evaluate(text)</code></td><td><a href="node/index.html#the-entries">The entries</a></td></tr>
 <tr><td>Code that lays out a graphic</td><td><code>createComposition({ width, height })</code></td><td><a href="compose/quickstart.html">The graphic design API</a></td></tr>
 <tr><td>A page that only composes</td><td><code>createComposition</code> from <code>@isocialpractice/napkin-sketch/graphic-design</code></td><td><a href="node/index.html#the-entries">The entries</a></td></tr>
+<tr><td>A project that installs nothing</td><td><code>npx @isocialpractice/napkin-sketch vendor graphic-design --out vendor/napkin-sketch</code></td><td><a href="cli/index.html#vendor">vendor</a></td></tr>
 <tr><td>An AI tool</td><td>the <code>graphic-designer</code> and <code>scripting</code> helpers (experimental)</td><td><a href="ai/quickstart.html">The AI helpers</a></td></tr>
 <tr><td>A sentence</td><td><code>napkin-sketch draw --prompt &quot;a three-box flowchart with arrows&quot;</code> (experimental)</td><td><a href="ai/index.html#drawing-from-a-request">Drawing from a request</a></td></tr>
 <tr><td>Illustrator, Inkscape</td><td>SVG both ways, <code>link</code>, and <code>--to jsx</code> to rebuild a drawing in Illustrator</td><td><a href="interop/quickstart.html">Working with other programs</a></td></tr>

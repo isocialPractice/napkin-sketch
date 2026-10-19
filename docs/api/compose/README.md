@@ -115,6 +115,8 @@ document model and the code themes stay out of what the page downloads: about
 48 KB gzipped, against about 270 KB for the main entry. It also exports what a
 check over a composition reaches for: `parseColor` for a paint's channels,
 `escapeXml` for text as the SVG writes it, and `isPng` for a render's bytes.
+A page that installs nothing takes it as files of its own with
+[`napkin-sketch vendor graphic-design`](../cli/README.md#vendor).
 
 ```ts
 import { createComposition, parseColor } from '@isocialpractice/napkin-sketch/graphic-design';

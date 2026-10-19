@@ -2,12 +2,15 @@
 
 [API hub](../../../API.md) · **Reference** · [Quickstart](QUICKSTART.md) · [Cheatsheet](CHEATSHEET.md)
 
-The package has four entries. `@isocialpractice/napkin-sketch` holds everything that runs
+The package has six entries. `@isocialpractice/napkin-sketch` holds everything that runs
 anywhere - the editor, the data model, the engines, the composition API and
 the napkin script language - and reads no file. `@isocialpractice/napkin-sketch/node` holds
 what reads and writes files, for Node. `@isocialpractice/napkin-sketch/markdown` gives the
-first its Markdown and code readers. `@isocialpractice/napkin-sketch/graphic-design` is the
-composition API alone, for a page that composes and loads nothing else. This
+first its Markdown and code readers. Three more are parts of the first, each
+for a page that loads that part and nothing else:
+`@isocialpractice/napkin-sketch/graphic-design`, the composition API;
+`@isocialpractice/napkin-sketch/sharpen`, the auto-sharpen engine; and
+`@isocialpractice/napkin-sketch/engines`, the engines the tools stand on. This
 page is the reference for them as a
 program uses them: importing them, drawing a script, writing files, the
 result object, and what is an error value and what throws.
@@ -67,7 +70,14 @@ the result it gives back is the object a command line prints.
 | `@isocialpractice/napkin-sketch` | a browser, Node, any bundler | The editor, the data model, the sharpen engine, the composition API, and the language: reading, checking and writing scripts, `evaluate`, `drawSvg`, the render calls, and the verb and diagnostic tables. |
 | `@isocialpractice/napkin-sketch/node` | Node 22.12 and later | Files: `drawFile`, `drawToFiles`, `writeBook`, `readScript`, `loadAssets` and `loadDocuments`, and the composition API's file helpers, `imageDataUrl`, `writeComposition`, `resolveLinkFromDir` and `mediaTypeOf`. It reads Markdown Flow text with marked's lexer. |
 | `@isocialpractice/napkin-sketch/markdown` | a browser, Node, any bundler | Markdown Flow's and Clean Language Accents' readers: importing it gives `@isocialpractice/napkin-sketch` marked's lexer and highlight.js, so a Markdown Flow text draws as its Markdown renders and code is colored. Its `markdownToType` reads with the lexer, and `registerAccentLanguage` installs a language beyond the 36 common ones. |
-| `@isocialpractice/napkin-sketch/graphic-design` | a browser, Node, any bundler | The [composition API](../compose/README.md) and nothing else: every composition call the main entry has, the same functions, and `parseColor`, `escapeXml` and `isPng` besides. A page loads about 48 KB gzipped for it, against about 270 KB for the main entry, which carries the editor, the document model and the code themes too. |
+| `@isocialpractice/napkin-sketch/graphic-design` | a browser, Node, any bundler | The [composition API](../compose/README.md) and nothing else: every composition call the main entry has, the same functions, and `parseColor`, `escapeXml` and `isPng` besides. A page loads about 49 KB gzipped for it, against about 270 KB for the main entry, which carries the editor, the document model and the code themes too. |
+| `@isocialpractice/napkin-sketch/sharpen` | a browser, Node, any bundler | The auto-sharpen engine alone: `sharpenStrokes`, `sharpenStroke`, `sharpenPoints`, `classify` and `DEFAULT_SHARPEN_OPTIONS`, the main entry's own functions. About 6 KB gzipped. |
+| `@isocialpractice/napkin-sketch/engines` | a browser, Node, any bundler | The [engines the tools stand on](../engines/README.md) - regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil, the Smear and Liquify - with the page model they edit: `createSketch`, `createLayer`, `parseSketchBook`, `serializeSketchBook` and their kin. The blend modes, the effects, 3D and type stay on the main entry. About 123 KB gzipped: a mark's bounds need its text set and its effects applied, so the type engine comes too. |
+
+A project that installs nothing - a static site, say - takes a part as files
+of its own with [`napkin-sketch vendor`](../cli/README.md#vendor), pinned by
+version and hash; a project that installs the package cuts the install to the
+parts it uses with [`napkin-sketch prune`](../cli/README.md#prune).
 
 `@isocialpractice/napkin-sketch/graphic-design/files`, the composition helpers' own entry,
 keeps working; `@isocialpractice/napkin-sketch/node` gives the same functions, so a Node
@@ -122,8 +132,8 @@ result on this page is a named type: `DrawToFilesOptions`, `DrawResult`,
 `EvaluateOptions`, `ScriptResult`, `Diagnostic`, `RenderSketchOptions` and the
 rest from `@isocialpractice/napkin-sketch`.
 
-A browser build imports `@isocialpractice/napkin-sketch`, `@isocialpractice/napkin-sketch/markdown`
-and `@isocialpractice/napkin-sketch/graphic-design`, never `@isocialpractice/napkin-sketch/node`, which reads
+A browser build imports `@isocialpractice/napkin-sketch`, `/markdown`, `/graphic-design`,
+`/sharpen` and `/engines`, never `@isocialpractice/napkin-sketch/node`, which reads
 files with `node:fs`, which a browser does not have.
 
 ### Drawing a script

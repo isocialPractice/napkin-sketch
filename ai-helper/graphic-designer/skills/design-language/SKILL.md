@@ -165,7 +165,8 @@ The generated skill holds:
 │   └── resources.md          the brand this skill draws with
 └── scripts/
     ├── make-<stem>.mjs       composes a new asset in that language
-    └── brand-resources.mjs   resolves resources.md into placeable assets
+    ├── brand-resources.mjs   resolves resources.md into placeable assets
+    └── load-api.mjs          finds the graphic-design API the other two draw with
 ```
 
 Its `SKILL.md` frontmatter needs a `name` matching the folder and a
@@ -253,10 +254,12 @@ node scripts/brand-resources.mjs --print
 
 ## Gotchas
 
-- **The analyzer needs the API built to read a PNG.** In a clone, run
-  `npm run build` first; as a dependency, `@isocialpractice/napkin-sketch` resolves on its own.
-  If neither, the report says so rather than returning an empty palette as if
-  the image had no colors.
+- **The analyzer needs the API to read a PNG.** Every script finds it the same
+  way, through `scripts/load-api.mjs`: `NAPKIN_SKETCH_API` when it names an
+  entry file, then `@isocialpractice/napkin-sketch` as a dependency, then a copy
+  `napkin-sketch vendor` made in a folder above the script, then a clone's build
+  (run `npm run build` in one first). If none, the report says so rather than
+  returning an empty palette as if the image had no colors.
 - **Anti-aliased edges are not palette entries.** Quantizing already folds most
   of them away, but a PNG palette that reports a run of near-identical greys is
   describing edges, not decisions. Drop them.

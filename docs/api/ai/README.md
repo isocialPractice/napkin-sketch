@@ -225,7 +225,8 @@ repository ships.
 │   └── resources.md          your brand - see step 5
 └── scripts/
     ├── make-<stem>.mjs       draws new work in that language
-    └── brand-resources.mjs   resolves resources.md into placeable assets
+    ├── brand-resources.mjs   resolves resources.md into placeable assets
+    └── load-api.mjs          finds the graphic-design API the other two draw with
 ```
 
 Read `DESIGN_LANGUAGE.md` first, and specifically the parts that say which

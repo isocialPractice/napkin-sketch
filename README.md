@@ -204,6 +204,12 @@ import '@isocialpractice/napkin-sketch/styles.css';
 const editor = new NapkinSketch(document.getElementById('host')!);
 ```
 
+## [Taking only a part](https://isocialpractice.github.io/napkin-sketch/embed.html#taking-only-a-part)
+
+`@isocialpractice/napkin-sketch/graphic-design`, `/sharpen` and `/engines` load one part
+without the editor. `napkin-sketch vendor` copies a part into a project that
+installs nothing; `napkin-sketch prune` cuts an install to the parts it keeps.
+
 ## [Drawing with the graphic-design API](https://isocialpractice.github.io/napkin-sketch/embed.html#drawing-with-the-graphic-design-api)
 
 Composes pages of text, shapes and images, and renders them to SVG or PNG

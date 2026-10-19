@@ -49,7 +49,12 @@ What the Eraser cuts, what a wipe leaves, where Split cuts and how a Liquify
 brush bends are not drawing-window code: each is a function in the core, which
 the window calls on a press and a napkin script calls for its verbs. The same
 functions are exported from `@isocialpractice/napkin-sketch`, so a program can do to a sketch
-what the tools do, with no window, no DOM and no disk.
+what the tools do, with no window, no DOM and no disk. The tools' own engines -
+regions, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping
+masks, the Pencil, the Smear and Liquify - are also
+`@isocialpractice/napkin-sketch/engines`, with the page model they edit and without the
+editor, for a page that loads them alone; the blend modes, the effects, 3D,
+measuring and type are on the main entry only.
 
 None of them changes what it is given but the pixel passes, which work on
 the picture they are handed. An engine that edits marks gives back the edit -

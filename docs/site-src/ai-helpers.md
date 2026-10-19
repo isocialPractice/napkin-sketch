@@ -95,8 +95,10 @@ exactly backwards. Both tables go in the design language file.
 **The honesty is the feature.** An empty palette means "not measured", never
 "no colors", and the report names what it could not read. A design language
 whose values were guessed is worse than none, because the next asset gets drawn
-to it. Decoding a PNG uses the graphic-design API, so a clone needs
-`npm run build` first; the report says so rather than returning nothing.
+to it. Decoding a PNG uses the graphic-design API: the package as a
+dependency, a copy `napkin-sketch vendor` made beside the helper, or a clone's
+build after `npm run build`; the report says so rather than returning nothing
+when there is none.
 
 The two skills are `design-language` (what to measure, the
 `DESIGN_LANGUAGE.md` naming rules, and how to generate the per-asset skill) and

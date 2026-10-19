@@ -60,8 +60,8 @@
       "kind": "hub",
       "title": "The napkin-sketch API",
       "summary": "Draw without a pointer. napkin-sketch has a language, napkin script, that says what to draw one instruction a line, and a composition API that builds a graphic in code. Both write SVG and PNG, and a drawing also PDF, the app's own `.skbk` and an Illustrator script, with no window, no browser and no native library, from a shell, from Node, or from any language that can start a process.",
-      "lines": 148,
-      "tokens": 2859
+      "lines": 155,
+      "tokens": 3002
     },
     {
       "path": "API-QUICKSTART.md",
@@ -141,8 +141,8 @@
       "kind": "verbose",
       "title": "The graphic design API",
       "summary": "Build a graphic design composition out of simple elements - rectangles, circles, ellipses, triangles, polygons, lines, paths, text, placed media and clipping masks, painted in flat colors or gradients, with effects and blend modes - and render it to **SVG** or **PNG**.",
-      "lines": 1067,
-      "tokens": 11956
+      "lines": 1069,
+      "tokens": 11988
     },
     {
       "path": "docs/api/compose/QUICKSTART.md",
@@ -194,9 +194,9 @@
       "category": "cli",
       "kind": "verbose",
       "title": "The napkin-sketch command line",
-      "summary": "`napkin-sketch draw` turns a napkin script into files - SVG, PNG, PDF, a `.skbk` the app opens, or an Illustrator script - with no window, and without loading Electron at all. `check` reads and runs a script and writes nothing, `render` writes a sketch book the app saved, and `verbs` lists the language. This page is the reference for the four commands, their exit codes and their JSON report, and for calling them from other languages.",
-      "lines": 327,
-      "tokens": 4336
+      "summary": "`napkin-sketch draw` turns a napkin script into files - SVG, PNG, PDF, a `.skbk` the app opens, or an Illustrator script - with no window, and without loading Electron at all. `check` reads and runs a script and writes nothing, `render` writes a sketch book the app saved, and `verbs` lists the language. `vendor` copies parts of the package into a project that installs nothing, and `prune` cuts a project's install down to the parts it keeps. This page is the reference for the six commands, their exit codes and their JSON report, and for calling them from other languages.",
+      "lines": 417,
+      "tokens": 5477
     },
     {
       "path": "docs/api/cli/QUICKSTART.md",
@@ -213,17 +213,17 @@
       "kind": "cheatsheet",
       "title": "The napkin-sketch command line: cheatsheet",
       "summary": "Reminders for the four commands: their flags, exit codes, the JSON report and the calls from other languages.",
-      "lines": 118,
-      "tokens": 2115
+      "lines": 121,
+      "tokens": 2197
     },
     {
       "path": "docs/api/node/README.md",
       "category": "node",
       "kind": "verbose",
       "title": "Using napkin-sketch from code",
-      "summary": "The package has four entries. `@isocialpractice/napkin-sketch` holds everything that runs anywhere - the editor, the data model, the engines, the composition API and the napkin script language - and reads no file. `@isocialpractice/napkin-sketch/node` holds what reads and writes files, for Node. `@isocialpractice/napkin-sketch/markdown` gives the first its Markdown and code readers. `@isocialpractice/napkin-sketch/graphic-design` is the composition API alone, for a page that composes and loads nothing else. This page is the reference for them as a program uses them: importing them, drawing a script, writing files, the result object, and what is an error value and what throws.",
-      "lines": 378,
-      "tokens": 4826
+      "summary": "The package has six entries. `@isocialpractice/napkin-sketch` holds everything that runs anywhere - the editor, the data model, the engines, the composition API and the napkin script language - and reads no file. `@isocialpractice/napkin-sketch/node` holds what reads and writes files, for Node. `@isocialpractice/napkin-sketch/markdown` gives the first its Markdown and code readers. Three more are parts of the first, each for a page that loads that part and nothing else: `@isocialpractice/napkin-sketch/graphic-design`, the composition API; `@isocialpractice/napkin-sketch/sharpen`, the auto-sharpen engine; and `@isocialpractice/napkin-sketch/engines`, the engines the tools stand on. This page is the reference for them as a program uses them: importing them, drawing a script, writing files, the result object, and what is an error value and what throws.",
+      "lines": 388,
+      "tokens": 5142
     },
     {
       "path": "docs/api/node/QUICKSTART.md",
@@ -240,8 +240,8 @@
       "kind": "cheatsheet",
       "title": "Using napkin-sketch from code: cheatsheet",
       "summary": "Reminders for the package as a dependency: the entries, the calls, their options, the result and what throws.",
-      "lines": 92,
-      "tokens": 1266
+      "lines": 95,
+      "tokens": 1392
     },
     {
       "path": "docs/api/markdown/README.md",
@@ -276,8 +276,8 @@
       "kind": "verbose",
       "title": "The drawing engines",
       "summary": "The app's tools stand on engines that run as plain functions: regions combined and cut, the Eraser, the Wipe Stacks and the Shape Stacker, Split, clipping masks, the Pencil's grades and grain, the Smear and Liquify; the blend modes, the effects and the appearance stack, Splatter, Warp and 3D; measuring along a path; setting type, hyphenating it and drawing it from font files; Text Configurations and Composition Styles. This page is the reference for each as a program calls it from `@isocialpractice/napkin-sketch`, with a worked example for each that runs as it is.",
-      "lines": 724,
-      "tokens": 8909
+      "lines": 729,
+      "tokens": 9000
     },
     {
       "path": "docs/api/engines/QUICKSTART.md",
@@ -330,8 +330,8 @@
       "kind": "verbose",
       "title": "The AI helpers",
       "summary": "The `graphic-designer` helper reads a graphic you already have into a written design language, and generates a skill that draws new work in it through the [graphic design API](../compose/README.md); the `scripting` helper writes a napkin script from a sentence. This page is the reference for plugging them in, capturing a language, using the skill it hands you, giving it your brand and drawing from a request - and for how an agent should read these pages and write the napkin scripts they describe.",
-      "lines": 653,
-      "tokens": 7903
+      "lines": 654,
+      "tokens": 7924
     },
     {
       "path": "docs/api/ai/QUICKSTART.md",
@@ -348,8 +348,8 @@
       "kind": "cheatsheet",
       "title": "The AI helpers: cheatsheet",
       "summary": "Reminders for the helpers, which are experimental, and for an agent reading these pages: the commands, the files, the brand keys, and what a diagnostic asks of you.",
-      "lines": 98,
-      "tokens": 1249
+      "lines": 99,
+      "tokens": 1283
     },
     {
       "path": "docs/api/schema/instructions.schema.json",

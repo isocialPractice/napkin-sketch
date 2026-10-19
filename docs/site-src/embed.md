@@ -83,6 +83,33 @@ const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg
 [Using napkin-sketch from code](../api/node/README.md) covers both entries,
 ES modules and CommonJS, the types and the result object.
 
+## Taking only a part
+
+A page that needs one part loads that part and not the editor besides: the
+composition API, auto-sharpen and the engines the tools stand on are each an
+entry of their own.
+
+```ts
+import { createComposition } from '@isocialpractice/napkin-sketch/graphic-design'; // about 49 KB gzipped
+import { sharpenStrokes } from '@isocialpractice/napkin-sketch/sharpen';            // about 6 KB
+import { booleanOp, createSketch } from '@isocialpractice/napkin-sketch/engines';   // about 123 KB
+```
+
+A project that installs nothing - a static site, say - copies a part in as
+files of its own, pinned by version and hash, with a check that runs on plain
+`node`; a project that installs the package cuts the install down to the parts
+it keeps, from its own `postinstall`:
+
+```bash
+npx @isocialpractice/napkin-sketch vendor graphic-design --out vendor/napkin-sketch
+node vendor/napkin-sketch/VENDOR-CHECK.mjs
+
+napkin-sketch prune --keep graphic-design,types
+napkin-sketch prune --apply
+```
+
+[The command line](../api/cli/README.md#vendor) has every option of both.
+
 ## Drawing with the graphic-design API
 
 Compositions are the other way to make a graphic here: instead of a pointer, a

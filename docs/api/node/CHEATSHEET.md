@@ -12,6 +12,9 @@ Reminders for the package as a dependency: the entries, the calls, their options
 | `import { ... } from '@isocialpractice/napkin-sketch/node'` | Node 22.12 and later | Reading and writing files |
 | `const { ... } = await import('@isocialpractice/napkin-sketch/node')` | CommonJS | The same, where `require` cannot load an ES module |
 | `import '@isocialpractice/napkin-sketch/markdown'` | A browser, Node, any bundler | Markdown Flow text drawn as its Markdown renders and code colored: marked's lexer and highlight.js, given to `@isocialpractice/napkin-sketch` |
+| `import { ... } from '@isocialpractice/napkin-sketch/graphic-design'` | A browser, Node, any bundler | The composition API alone, with `parseColor`, `escapeXml` and `isPng`: about 49 KB gzipped |
+| `import { ... } from '@isocialpractice/napkin-sketch/sharpen'` | A browser, Node, any bundler | Auto-sharpen alone: about 6 KB gzipped |
+| `import { ... } from '@isocialpractice/napkin-sketch/engines'` | A browser, Node, any bundler | The tools' engines and the page model they edit: about 123 KB gzipped |
 
 ## `@isocialpractice/napkin-sketch`: the language
 

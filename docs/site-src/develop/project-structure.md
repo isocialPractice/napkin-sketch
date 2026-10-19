@@ -6,6 +6,8 @@ src/
 │   ├── index.ts        # Command-line entry (GUI launch, headless sharpen, commands)
 │   ├── args.ts         # Pure argument parsing, the commands' included
 │   ├── draw.ts         # draw, check, render, verbs: no window, no Electron
+│   ├── vendor.ts       # vendor: parts copied into a project, pinned by version and hash
+│   ├── prune.ts        # prune: a project's install cut to the parts it keeps
 │   ├── gui.ts          # Where the desktop app is - the clone's build or its npm package - and installing it
 │   └── helper.ts       # Runs the AI helper for draw --prompt, in the working folder
 ├── main/
@@ -57,6 +59,7 @@ src/
 │   └── type-*cursor.svg # The Text tool's three cursors: a text, a text in a shape, on a path
 ├── sharpen/
 │   ├── geometry.ts     # Geometry & curve utilities
+│   ├── index.ts        # The /sharpen entry: the engine alone
 │   └── sharpen.ts      # Auto-sharpen engine
 ├── api/
 │   ├── index.ts        # Public, browser-safe API barrel: `@isocialpractice/napkin-sketch`
@@ -74,6 +77,7 @@ src/
 │   └── site.ts         # The documentation site: every page from its Markdown, one chrome
 └── core/
     ├── types.ts        # Shared data model (sketches, layers, strokes)
+    ├── engines.ts      # The /engines entry: the tools' engines and the page model they edit
     ├── nib.ts          # Copic broad-nib geometry (canvas, SVG, and PDF share it)
     ├── units.ts        # Print-unit conversions for the properties panel
     ├── settings.ts     # Application settings: defaults, limits, validation
@@ -182,7 +186,8 @@ src/
     │   ├── types.ts    #   Composition data model (page, elements, masks)
     │   ├── compose.ts  #   Authoring surface: createComposition and friends
     │   ├── svg.ts      #   SVG back end (browser-safe, DOM-free)
-    │   ├── raster.ts   #   Software rasterizer (scanline coverage, clipping)
+    │   ├── raster.ts   #   Software rasterizer (clipping, effects, media, text)
+    │   ├── coverage.ts #   Scanline coverage of closed contours, which the Pencil fills with too
     │   ├── png.ts      #   PNG encoder and decoder
     │   ├── deflate.ts  #   DEFLATE/zlib codec the PNG pair runs on
     │   ├── font.ts     #   Built-in stroke font + the layout both back ends share
@@ -235,6 +240,8 @@ dist/                   # What npm run build writes; npm run build:types adds th
 ├── node/               # The /node entry: in the API's package
 ├── markdown/           # The /markdown entry: in the API's package
 ├── graphic-design/     # The /graphic-design and /graphic-design/files entries: in the API's package
+├── sharpen/, engines/  # The /sharpen and /engines entries: in the API's package
+├── parts.json          # Every entry as a part: its files, its platform, its notices; what vendor and prune read
 ├── cli/                # The napkin-sketch command, an ES module: in the API's package
 ├── chunks/             # The code the entries and the command share, written once: in the API's package
 ├── core/, sharpen/     # Declarations the entries' types import: in the API's package

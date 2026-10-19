@@ -25,15 +25,21 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 - **A composition API.** `createComposition` builds a page out of shapes,
   text, images, masks and gradients in code, and renders the one document to
   SVG and PNG.
-- **Four commands.** `napkin-sketch draw`, `check`, `render` and `verbs` run
+- **Six commands.** `napkin-sketch draw`, `check`, `render` and `verbs` run
   scripts from a shell or a batch file, and from Python, C or anything else
-  through standard input and one line of JSON back.
-- **Four package entries.** `@isocialpractice/napkin-sketch` runs anywhere and reads no file;
+  through standard input and one line of JSON back; `vendor` and `prune` take
+  the package a part at a time.
+- **Six package entries.** `@isocialpractice/napkin-sketch` runs anywhere and reads no file;
   `@isocialpractice/napkin-sketch/node` reads scripts, images and books and writes files;
   `@isocialpractice/napkin-sketch/markdown` gives the first a Markdown reader and a code
   highlighter, so Markdown Flow text draws as its Markdown renders and code is
-  colored; and `@isocialpractice/napkin-sketch/graphic-design` is the composition API alone,
-  for a page that composes a graphic without loading the editor.
+  colored; and `/graphic-design`, `/sharpen` and `/engines` are parts of the
+  first - the composition API, auto-sharpen, and the engines the tools stand
+  on - for a page that loads one without the editor.
+- **A part at a time.** `napkin-sketch vendor` copies parts into a project
+  that installs nothing, pinned by version and hash with a check that needs
+  nothing installed; `napkin-sketch prune` cuts a project's install down to
+  the parts it keeps: [the command line](docs/api/cli/README.md#vendor).
 - **The engines the tools stand on.** The Eraser's cut, the Wipe Stacks and
   the Shape Stacker, Split, clipping masks, the Pencil and its Smear, and
   Liquify are functions too, which a program calls on a page with no window:
@@ -112,6 +118,7 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 | A browser or a bundler | `drawSvg(text)`, `evaluate(text)` | [The entries](docs/api/node/README.md#the-entries) |
 | Code that lays out a graphic | `createComposition({ width, height })` | [The graphic design API](docs/api/compose/QUICKSTART.md) |
 | A page that only composes | `createComposition` from `@isocialpractice/napkin-sketch/graphic-design` | [The entries](docs/api/node/README.md#the-entries) |
+| A project that installs nothing | `npx @isocialpractice/napkin-sketch vendor graphic-design --out vendor/napkin-sketch` | [vendor](docs/api/cli/README.md#vendor) |
 | An AI tool | the `graphic-designer` and `scripting` helpers (experimental) | [The AI helpers](docs/api/ai/QUICKSTART.md) |
 | A sentence | `napkin-sketch draw --prompt "a three-box flowchart with arrows"` (experimental) | [Drawing from a request](docs/api/ai/README.md#drawing-from-a-request) |
 | Illustrator, Inkscape | SVG both ways, `link`, and `--to jsx` to rebuild a drawing in Illustrator | [Working with other programs](docs/api/interop/QUICKSTART.md) |

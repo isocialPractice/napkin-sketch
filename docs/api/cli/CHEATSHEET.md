@@ -95,6 +95,9 @@ Reminders for the four commands: their flags, exit codes, the JSON report and th
 | Page 2 of a saved book | `napkin-sketch render deck.skbk --page 2 --to png` |
 | A figure's walk, a file a frame, no AI | `napkin-sketch render hero.skbk --animate walk` |
 | Every verb's grammar as JSON | `napkin-sketch verbs --json` |
+| A part copied into a project that installs nothing | `napkin-sketch vendor graphic-design --out vendor/napkin-sketch` |
+| A vendored copy checked, with nothing installed | `node vendor/napkin-sketch/VENDOR-CHECK.mjs` |
+| An install cut to the parts a project keeps | `napkin-sketch prune --keep graphic-design,types --apply` |
 
 ## From other languages
 

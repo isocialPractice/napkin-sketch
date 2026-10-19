@@ -51,9 +51,12 @@ The honesty is the feature. An empty palette means "not measured", never "no
 colors", and a design language whose values were guessed is worse than none -
 the next asset gets drawn to it.
 
-Decoding a PNG needs the graphic-design API: run `npm run build` in a clone, or
-install `@isocialpractice/napkin-sketch` as a dependency. The analyzer says so rather than
-returning nothing and letting it look like a result.
+Decoding a PNG needs the graphic-design API: install `@isocialpractice/napkin-sketch` as a
+dependency, vendor it beside this helper with
+`napkin-sketch vendor graphic-design --ai-helper graphic-designer --out <dir>`,
+point `NAPKIN_SKETCH_API` at an entry file, or run `npm run build` in a clone.
+The analyzer says so rather than returning nothing and letting it look like a
+result.
 
 ## Installing
 

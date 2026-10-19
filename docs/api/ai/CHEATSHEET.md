@@ -55,6 +55,7 @@ Reminders for the helpers, which are experimental, and for an agent reading thes
 | `references/graphic-design-api.json` | Which script a bare request runs, with what, and where to |
 | `scripts/make-<stem>.mjs` | Draws new work; the constants at its top are the language |
 | `scripts/brand-resources.mjs` | Resolves `resources.md` into placeable assets |
+| `scripts/load-api.mjs` | Finds the graphic-design API: `NAPKIN_SKETCH_API`, the package, a vendored copy above it, a clone's build |
 
 ## `resources.md`
 

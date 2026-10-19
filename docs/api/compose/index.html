@@ -136,7 +136,9 @@ instead. It holds the composition API and nothing else, so the editor, the
 document model and the code themes stay out of what the page downloads: about
 48 KB gzipped, against about 270 KB for the main entry. It also exports what a
 check over a composition reaches for: <code>parseColor</code> for a paint's channels,
-<code>escapeXml</code> for text as the SVG writes it, and <code>isPng</code> for a render's bytes.</p>
+<code>escapeXml</code> for text as the SVG writes it, and <code>isPng</code> for a render's bytes.
+A page that installs nothing takes it as files of its own with
+<a href="../cli/index.html#vendor"><code>napkin-sketch vendor graphic-design</code></a>.</p>
 <pre><code class="language-ts">import { createComposition, parseColor } from '@isocialpractice/napkin-sketch/graphic-design';</code></pre>
 <h3 id="the-page">The page<a class="anchor" href="#the-page" aria-label="Link to this section">#</a></h3>
 <p><code>createComposition(options)</code> takes:</p>

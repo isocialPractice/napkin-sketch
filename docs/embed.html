@@ -105,6 +105,23 @@ const { svg, diagnostics } = drawSvg('napkin 1\npage 400 300\ncircle 200 150 60'
 const { ok, files } = await drawFile('card.napkin', { out: 'out', formats: ['svg', 'png', 'pdf'] });</code></pre>
 <p><a href="api/node/index.html">Using napkin-sketch from code</a> covers both entries,
 ES modules and CommonJS, the types and the result object.</p>
+<h2 id="taking-only-a-part">Taking only a part<a class="anchor" href="#taking-only-a-part" aria-label="Link to this section">#</a></h2>
+<p>A page that needs one part loads that part and not the editor besides: the
+composition API, auto-sharpen and the engines the tools stand on are each an
+entry of their own.</p>
+<pre><code class="language-ts">import { createComposition } from '@isocialpractice/napkin-sketch/graphic-design'; // about 49 KB gzipped
+import { sharpenStrokes } from '@isocialpractice/napkin-sketch/sharpen';            // about 6 KB
+import { booleanOp, createSketch } from '@isocialpractice/napkin-sketch/engines';   // about 123 KB</code></pre>
+<p>A project that installs nothing - a static site, say - copies a part in as
+files of its own, pinned by version and hash, with a check that runs on plain
+<code>node</code>; a project that installs the package cuts the install down to the parts
+it keeps, from its own <code>postinstall</code>:</p>
+<pre><code class="language-bash">npx @isocialpractice/napkin-sketch vendor graphic-design --out vendor/napkin-sketch
+node vendor/napkin-sketch/VENDOR-CHECK.mjs
+
+napkin-sketch prune --keep graphic-design,types
+napkin-sketch prune --apply</code></pre>
+<p><a href="api/cli/index.html#vendor">The command line</a> has every option of both.</p>
 <h2 id="drawing-with-the-graphic-design-api">Drawing with the graphic-design API<a class="anchor" href="#drawing-with-the-graphic-design-api" aria-label="Link to this section">#</a></h2>
 <p>Compositions are the other way to make a graphic here: instead of a pointer, a
 script. Build a page out of simple elements - rectangles, circles, ellipses,

@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0</span>
+<span class="version" title="The version these pages document">1.0.1</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -67,11 +67,12 @@ SVG and PNG.</li>
 <li><strong>Four commands.</strong> <code>napkin-sketch draw</code>, <code>check</code>, <code>render</code> and <code>verbs</code> run
 scripts from a shell or a batch file, and from Python, C or anything else
 through standard input and one line of JSON back.</li>
-<li><strong>Three package entries.</strong> <code>@isocialpractice/napkin-sketch</code> runs anywhere and reads no file;
-<code>@isocialpractice/napkin-sketch/node</code> reads scripts, images and books and writes files; and
+<li><strong>Four package entries.</strong> <code>@isocialpractice/napkin-sketch</code> runs anywhere and reads no file;
+<code>@isocialpractice/napkin-sketch/node</code> reads scripts, images and books and writes files;
 <code>@isocialpractice/napkin-sketch/markdown</code> gives the first a Markdown reader and a code
 highlighter, so Markdown Flow text draws as its Markdown renders and code is
-colored.</li>
+colored; and <code>@isocialpractice/napkin-sketch/graphic-design</code> is the composition API alone,
+for a page that composes a graphic without loading the editor.</li>
 <li><strong>The engines the tools stand on.</strong> The Eraser's cut, the Wipe Stacks and
 the Shape Stacker, Split, clipping masks, the Pencil and its Smear, and
 Liquify are functions too, which a program calls on a page with no window:
@@ -144,6 +145,7 @@ and whatever could be drawn still is; only the disk throws.</li>
 <tr><td>Node</td><td><code>drawFile('card.napkin', { formats: ['svg', 'png'] })</code></td><td><a href="node/quickstart.html">Using it from code</a></td></tr>
 <tr><td>A browser or a bundler</td><td><code>drawSvg(text)</code>, <code>evaluate(text)</code></td><td><a href="node/index.html#the-entries">The entries</a></td></tr>
 <tr><td>Code that lays out a graphic</td><td><code>createComposition({ width, height })</code></td><td><a href="compose/quickstart.html">The graphic design API</a></td></tr>
+<tr><td>A page that only composes</td><td><code>createComposition</code> from <code>@isocialpractice/napkin-sketch/graphic-design</code></td><td><a href="node/index.html#the-entries">The entries</a></td></tr>
 <tr><td>An AI tool</td><td>the <code>graphic-designer</code> and <code>scripting</code> helpers (experimental)</td><td><a href="ai/quickstart.html">The AI helpers</a></td></tr>
 <tr><td>A sentence</td><td><code>napkin-sketch draw --prompt &quot;a three-box flowchart with arrows&quot;</code> (experimental)</td><td><a href="ai/index.html#drawing-from-a-request">Drawing from a request</a></td></tr>
 <tr><td>Illustrator, Inkscape</td><td>SVG both ways, <code>link</code>, and <code>--to jsx</code> to rebuild a drawing in Illustrator</td><td><a href="interop/quickstart.html">Working with other programs</a></td></tr>

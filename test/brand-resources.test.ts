@@ -166,6 +166,61 @@ test('an inlined logo is drawn by both renderers, not just the vector one', () =
   assert.equal(green(linked.data), 0, 'the linked one paints nothing');
 });
 
+test('an elliptical arc in a placed SVG is traced as cubics, so both formats draw it', () => {
+  // A composition refuses `A` in its own path data. A logo was not written for
+  // this API, so its arcs are traced rather than dropped - and rather than
+  // passed through, where the SVG drew the arc and the PNG its parameters.
+  const DOME = '<svg viewBox="0 0 20 20"><path d="M 0 10 A 10 10 0 0 1 20 10 Z" fill="#4cae50"/></svg>';
+  const inlined = inlineSvg(DOME);
+  const dome = inlined?.elements[0];
+  assert.equal(dome?.type, 'path');
+  if (dome?.type !== 'path') return;
+  assert.doesNotMatch(dome.d, /a/i, 'no arc command should survive the import');
+  assert.match(dome.d, /C/, 'the arc should come back as cubics');
+  assert.deepEqual(inlined?.notes, [], 'a faithful trace is not a caveat');
+
+  const page = createComposition({ width: 20, height: 20, background: '#ffffff' });
+  placeBrand(page, { x: 0, y: 0, width: 20, height: 20 }, { kind: 'vector', svg: DOME }, { name: 'dome' });
+  assert.doesNotMatch(page.toSVG(), / d="[^"]*a/i);
+  const render = renderPng(page.toDocument());
+  assert.deepEqual(render.warnings, []);
+
+  // The dome rises from the chord at y = 10 to its top at y = 0.
+  const image = decodePng(render.data);
+  const rgb = (x: number, y: number): number[] => [...image.data.subarray((y * image.width + x) * 4, (y * image.width + x) * 4 + 3)];
+  assert.deepEqual(rgb(10, 3), [0x4c, 0xae, 0x50], 'inside the dome is filled');
+  assert.deepEqual(rgb(0, 1), [0xff, 0xff, 0xff], 'outside the curve, above the chord, is paper');
+  assert.deepEqual(rgb(10, 16), [0xff, 0xff, 0xff], 'below the chord is paper');
+});
+
+test('an escaped value in a placed SVG is read unescaped, and written back escaped once', () => {
+  // Read by pattern, an attribute is still escaped. Kept that way, a quoted
+  // family went back out as `&amp;quot;Helvetica Neue&amp;quot;` - a family no
+  // browser has - a `style` declaration ended at the `;` of `&quot;`, and
+  // `Fish &amp; Chips` was drawn with its escape showing.
+  const SIGN =
+    '<svg viewBox="0 0 100 40">' +
+    '<text x="0" y="15" font-family="&quot;Helvetica Neue&quot;, Arial" font-size="12">Fish &amp; Chips</text>' +
+    '<text x="0" y="35" style="font-family: &quot;Helvetica Neue&quot;, Arial; fill: #4cae50">&#x2014;</text>' +
+    '</svg>';
+  const inlined = inlineSvg(SIGN);
+  const runs = (inlined?.elements ?? []).map((el) => el as { fontFamily?: string; text?: string; fill?: string });
+  assert.deepEqual(
+    runs.map(({ fontFamily, text, fill }) => ({ fontFamily, text, fill })),
+    [
+      { fontFamily: '"Helvetica Neue", Arial', text: 'Fish & Chips', fill: '#000000' },
+      { fontFamily: '"Helvetica Neue", Arial', text: '—', fill: '#4cae50' },
+    ]
+  );
+
+  const page = createComposition({ width: 100, height: 40 });
+  placeBrand(page, { x: 0, y: 0, width: 100, height: 40 }, { kind: 'vector', svg: SIGN }, { name: 'sign' });
+  const svg = page.toSVG();
+  assert.match(svg, /font-family="&quot;Helvetica Neue&quot;, Arial"/);
+  assert.match(svg, />Fish &amp; Chips</);
+  assert.doesNotMatch(svg, /&amp;(quot|amp);/, 'nothing should be escaped twice');
+});
+
 test('a transform on the shape itself survives, not just one on its group', () => {
   // An editor writes `translate(...) rotate(...)` straight onto a rotated rect
   // as often as it wraps one in a `<g>`. Reading only the group's transform

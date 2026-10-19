@@ -109,6 +109,17 @@ Nothing renders until `toSVG`, `toPNG` or `render` is called, and rendering
 never mutates the document. Rendering one composition twice, in either format,
 produces identical bytes.
 
+A page that only composes can import from `@isocialpractice/napkin-sketch/graphic-design`
+instead. It holds the composition API and nothing else, so the editor, the
+document model and the code themes stay out of what the page downloads: about
+48 KB gzipped, against about 270 KB for the main entry. It also exports what a
+check over a composition reaches for: `parseColor` for a paint's channels,
+`escapeXml` for text as the SVG writes it, and `isPng` for a render's bytes.
+
+```ts
+import { createComposition, parseColor } from '@isocialpractice/napkin-sketch/graphic-design';
+```
+
 ### The page
 
 `createComposition(options)` takes:
@@ -233,7 +244,9 @@ design.path({
 ```
 
 The supported commands are `M L H V C S Q T Z`, upper and lower case.
-Elliptical arcs (`A`) are not supported - see [Limits](#limits).
+Elliptical arcs (`A`) are not supported: a path that carries one raises, in
+`toSVG` and `toPNG` alike, and so does any other letter that is not one of
+these commands - see [Limits](#limits).
 
 #### Text
 
@@ -779,9 +792,12 @@ const { viewBox, elements, notes } = inlineSvg(markup);
 It handles `rect`, `circle`, `ellipse`, `line`, `polygon`, `polyline`, `path`,
 `text` and data-URL `image`, painted by presentation attribute, by inline
 `style`, or by a class in a `<style>` block - which is what a design tool
-writes. Nested `<g>` transforms and opacities are composed and applied. A
-gradient is drawn as its first stop's color, and says so in `notes`; `<use>`
-references, patterns, filters, masks, clip paths, elliptical arcs and sheared
+writes. Values are read unescaped, so a family written as
+`&quot;Helvetica Neue&quot;, Arial` is one family and `&amp;` in a text is an
+ampersand. Nested `<g>` transforms and opacities are composed and applied. A
+path's elliptical arcs are traced as cubics, since a composition's own path
+data has none. A gradient is drawn as its first stop's color, and says so in
+`notes`; `<use>` references, patterns, filters, masks, clip paths and sheared
 transforms land in `notes` rather than being approximated.
 
 #### When nothing is configured
@@ -975,7 +991,9 @@ const { data: png } = renderPng(doc);
 
 - **Elliptical arcs in path data.** `A` is not supported. Every rounded corner
   the API draws is generated as Beziers, so nothing in the model needs arcs,
-  and a path that carries one raises rather than quietly losing a corner.
+  and a path that carries one raises in either format, naming the command,
+  rather than quietly losing a corner. A logo's arcs are another matter:
+  `placeBrand` and `inlineSvg` trace them as cubics.
 - **Raster text uses the built-in alphabet.** As above.
 - **`measureText` measures that built-in alphabet, not the family you named.**
   Layout of a *block* is safe either way, because both renderers read the same
@@ -995,9 +1013,10 @@ const { data: png } = renderPng(doc);
   `placeBrand` and `inlineSvg` turn the asset into elements, which both
   renderers draw, and a linked SVG rasterizes through `resolveLink`.
 - **An inlined vector keeps only what this API models.** A gradient is drawn
-  as its first stop's colour, and a group's opacity is folded into its shapes.
-  Patterns, filters, masks, clip paths, `<use>` references, elliptical arcs
-  and sheared transforms are reported in `notes` rather than approximated. A
+  as its first stop's colour, a group's opacity is folded into its shapes, and
+  an elliptical arc is traced as cubics. Patterns, filters, masks, clip paths,
+  `<use>` references and sheared transforms are reported in `notes` rather
+  than approximated. A
   logo of solid shapes comes through exactly; a logo built on a mesh gradient
   should ship as a PNG.
 - **Patterns.** Not modelled. Flat and gradient paint, effects, blends,
@@ -1033,6 +1052,8 @@ const { data: png } = renderPng(doc);
   the PNG as well as the SVG.
 - **Write both files with `writeComposition`**, from one document in one call,
   so the SVG and the PNG cannot come from two revisions.
+- **Import `@isocialpractice/napkin-sketch/graphic-design` in a page that only
+  composes.** The same calls, without the editor in the download.
 
 ## See also
 

@@ -72,6 +72,10 @@ const packageEntries = {
     // `/markdown`: marked's lexer and highlight.js, registered with the core
     // the other entries share.
     { in: resolve(root, 'src/markdown/index.ts'), out: 'markdown/index' },
+    // `/graphic-design`: the composition API and nothing else, browser-safe,
+    // so a page that composes a graphic loads the composition's chunks and
+    // not the editor, the document model or the code themes besides.
+    { in: resolve(root, 'src/core/graphic-design/index.ts'), out: 'graphic-design/index' },
     // `/graphic-design/files`: `writeComposition` and `imageDataUrl` import
     // `node:fs`, so they are an entry of their own rather than part of the
     // browser-safe one.

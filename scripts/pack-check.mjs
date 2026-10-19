@@ -12,7 +12,8 @@
  * a dependency or the install brings anything with it, Electron included,
  * when `napkin-sketch draw -`, with a composition style or without,
  * `@isocialpractice/napkin-sketch` or `@isocialpractice/napkin-sketch/node`
- * does not draw, or when the installed package cannot run the verbs that
+ * does not draw, when `@isocialpractice/napkin-sketch/graphic-design` does not
+ * compose, or when the installed package cannot run the verbs that
  * combine, cut, clip, smear, bend, blend, lay effects and set type, or call the
  * engines behind them by name, with `@isocialpractice/napkin-sketch/markdown`
  * reading Markdown and coloring code for them.
@@ -24,8 +25,9 @@
  * reference files; every declaration's import, every bundle's import of a
  * shared chunk, and every stylesheet `url()` and source map link reaches a
  * file the tarball holds; the browser-safe entries reach no Node built-in
- * through the chunks they share with the Node ones; and it packs to no more
- * than {@link MAX_PACKED}. It prints the packed and unpacked sizes.
+ * through the chunks they share with the Node ones; it packs to no more
+ * than {@link MAX_PACKED}; and the composition-only entry costs a page no more
+ * than {@link MAX_COMPOSE_GZIPPED}. It prints the packed and unpacked sizes.
  *
  * Then the desktop app's package, `@isocialpractice/napkin-sketch-gui`: it
  * lays the package out with `scripts/pack-gui.mjs`, packs it, and reads the
@@ -52,6 +54,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const keep = process.argv.includes('--keep');
@@ -153,6 +156,17 @@ const FORBIDDEN_PATTERNS = [
 /** The most the tarball may weigh, packed, so a package that grows is noticed before it is published. */
 const MAX_PACKED = 1.5 * 1024 * 1024;
 
+/** The composition-only entry, which a page loads to compose a graphic without the editor. */
+const COMPOSE_ENTRY = 'dist/graphic-design/index.js';
+
+/**
+ * The most that entry may cost a page, gzipped, over every file it reaches:
+ * about 48 KB in 1.0.1, against about 270 KB for the main entry, so reaching
+ * the editor's chunk again is a failure here rather than a download nobody
+ * measured.
+ */
+const MAX_COMPOSE_GZIPPED = 64 * 1024;
+
 /** The desktop app's npm package. */
 const GUI_PACKAGE = '@isocialpractice/napkin-sketch-gui';
 
@@ -187,7 +201,7 @@ const GUI_FORBIDDEN_PATTERNS = [
 const MAX_GUI_PACKED = 4 * 1024 * 1024;
 
 /** The entries a browser loads, which must reach no Node built-in. */
-const BROWSER_ENTRIES = ['dist/api/index.js', 'dist/markdown/index.js'];
+const BROWSER_ENTRIES = ['dist/api/index.js', 'dist/markdown/index.js', 'dist/graphic-design/index.js'];
 
 /** A built module's relative imports - static, bare and dynamic - as written. */
 function relativeImports(text) {
@@ -212,6 +226,27 @@ function nodeBuiltinsReached(paths) {
     for (const spec of relativeImports(text)) stack.push(posix.normalize(posix.join(posix.dirname(file), spec)));
   }
   return found;
+}
+
+/** What a page downloads for one entry: every file it reaches, each gzipped at level 6, summed. */
+function gzippedReach(entry, paths) {
+  const seen = new Set();
+  const stack = [entry];
+  let total = 0;
+  while (stack.length > 0) {
+    const file = stack.pop();
+    if (seen.has(file) || !paths.has(file)) continue;
+    seen.add(file);
+    const bytes = readFileSync(join(root, ...file.split('/')));
+    total += gzipSync(bytes, { level: 6 }).length;
+    for (const spec of relativeImports(bytes.toString('utf-8'))) stack.push(posix.normalize(posix.join(posix.dirname(file), spec)));
+  }
+  return total;
+}
+
+/** A byte count in kilobytes, to one place. */
+function kb(bytes) {
+  return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
 /** A byte count in megabytes, to two places. */
@@ -335,6 +370,10 @@ function check(dir) {
   const builtins = nodeBuiltinsReached(paths);
   if (builtins.length > 0) fail(`the browser-safe entries reach a Node built-in through ${builtins.join(', ')}`);
   if (packed.size > MAX_PACKED) fail(`the tarball packs to ${mb(packed.size)}, over the ${mb(MAX_PACKED)} the package may weigh`);
+  const composeWeight = gzippedReach(COMPOSE_ENTRY, paths);
+  if (composeWeight > MAX_COMPOSE_GZIPPED) {
+    fail(`${COMPOSE_ENTRY} costs a page ${kb(composeWeight)} gzipped, over the ${kb(MAX_COMPOSE_GZIPPED)} a composition-only entry may: has it reached the editor's chunk?`);
+  }
 
   // 2. Install it into an empty project, as a user would, asking the helper
   //    installer for nothing.
@@ -391,16 +430,21 @@ function check(dir) {
   if (!/<g id="Card"[^>]*opacity="0\.5"/.test(restyled)) fail(`the composition style did not restyle the Card layer: ${styled.files[0].path}`);
   if (styled.warnings.length !== 1 || !/Titel/.test(styled.warnings[0])) fail(`the style's report is not what its rules make it: ${JSON.stringify(styled.warnings)}`);
 
-  // 4. Draw with both entries, imported by name.
+  // 4. Draw with both entries, imported by name, and compose with the
+  //    composition-only one.
   writeFileSync(
     join(project, 'check.mjs'),
     [
       "import { drawSvg } from '@isocialpractice/napkin-sketch';",
       "import { drawToFiles } from '@isocialpractice/napkin-sketch/node';",
+      "import { createComposition, escapeXml, isPng, parseColor } from '@isocialpractice/napkin-sketch/graphic-design';",
       `const script = ${JSON.stringify(SCRIPT)};`,
       'const { ok, svg } = drawSvg(script);',
       "const result = await drawToFiles(script, { out: 'lib-out', formats: ['svg', 'png'] });",
-      'console.log(JSON.stringify({ ok: ok && result.ok, svg: svg.length, files: result.files.map((file) => file.path) }));',
+      "const card = createComposition({ width: 40, height: 20, background: '#ffffff' });",
+      "card.text({ x: 4, y: 14, text: 'Fish & Chips', fill: '#4cae50' });",
+      "const composed = card.toSVG().includes(escapeXml('Fish & Chips')) && isPng(card.toPNG()) && parseColor('#4cae50').g === 0xae;",
+      'console.log(JSON.stringify({ ok: ok && result.ok, svg: svg.length, files: result.files.map((file) => file.path), composed }));',
       '',
     ].join('\n'),
   );
@@ -408,6 +452,7 @@ function check(dir) {
   if (lib.status !== 0) fail(`importing the package failed:\n${lib.stderr}`);
   const library = JSON.parse(lib.stdout);
   if (!library.ok || library.svg === 0 || library.files.length !== 2) fail(`the entries did not draw: ${lib.stdout}`);
+  if (!library.composed) fail(`@isocialpractice/napkin-sketch/graphic-design did not compose: ${lib.stdout}`);
 
   // 5. The engines, from the installed package: the verbs that run them,
   //    and each called by name, Markdown and code read by the subpath that
@@ -446,7 +491,8 @@ function check(dir) {
   console.log(
     `pack-check: ${packed.filename} (${packed.entryCount} files, ${mb(packed.size)} packed, ${mb(packed.unpackedSize)} unpacked) installs alone, with no dependencies, and draws: ` +
       `${report.files[0].path} from the command line, and ${styled.files[0].path} with a composition style, ` +
-      `${library.files.join(' and ')} from the entries, and the engines' verbs and ${ENGINES.length} engines by name.`,
+      `${library.files.join(' and ')} from the entries, a composition from /graphic-design (${kb(composeWeight)} gzipped to a page), ` +
+      `and the engines' verbs and ${ENGINES.length} engines by name.`,
   );
   return { project, installed };
 }

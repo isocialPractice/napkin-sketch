@@ -427,6 +427,34 @@ test('an image in a format the rasterizer cannot open is reported, not fatal', (
   assertPixel(raster, 20, 20, '#4cae50', 'the rest of the composition still draws');
 });
 
+test('an elliptical arc in path data is refused by both formats, not drawn as its parameters', () => {
+  // An arc's seven parameters make pairs of coordinates once its `A` is
+  // skipped, so the old scan drew them as a polyline and raised nothing: the
+  // PNG was byte for byte the one those points draw, and the SVG carried the
+  // arc a browser draws. A shape quietly losing a curve is what the limit is
+  // for, so both formats refuse it the same way.
+  const design = (d: string, clip = false) => {
+    const page = createComposition({ width: 40, height: 20, background: '#ffffff' });
+    if (clip) page.rect({ x: 0, y: 0, width: 40, height: 20, fill: '#4cae50', clip: { type: 'path', d } });
+    else page.path({ d, stroke: '#000000', strokeWidth: 1, fill: 'none' });
+    return page;
+  };
+  const arcRefused = /unsupported path command "[Aa]" - elliptical arcs are not drawn/;
+  for (const d of ['M 0 0 A 5 5 0 0 1 10 10 A 5 5 0 0 1 20 0', 'M0 0a5 5 0 0 1 10 10']) {
+    assert.throws(() => design(d).toSVG(), arcRefused, `the SVG should refuse ${d}`);
+    assert.throws(() => design(d).rasterize(), arcRefused, `the PNG should refuse ${d}`);
+    assert.throws(() => design(d, true).toSVG(), arcRefused, 'a clip shape is path data too');
+  }
+
+  // Any other letter the parser does not draw is refused rather than skipped.
+  assert.throws(() => design('M 0 0 X 5 5 L 10 10').toSVG(), /unsupported path command "X"/);
+
+  // And what it does draw still draws, exponents included.
+  const drawn = design('M 0 0 L 2e1 1E1 Q 30 0 40 10 Z');
+  assert.doesNotThrow(() => drawn.toSVG());
+  assert.deepEqual(drawn.rasterize().warnings, []);
+});
+
 test('the reference composition renders to matching graphics', async () => {
   const design = buildCheatsheet({ logo: logoDataUrl() });
   const doc = design.toDocument();

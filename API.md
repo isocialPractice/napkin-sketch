@@ -28,11 +28,12 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 - **Four commands.** `napkin-sketch draw`, `check`, `render` and `verbs` run
   scripts from a shell or a batch file, and from Python, C or anything else
   through standard input and one line of JSON back.
-- **Three package entries.** `@isocialpractice/napkin-sketch` runs anywhere and reads no file;
-  `@isocialpractice/napkin-sketch/node` reads scripts, images and books and writes files; and
+- **Four package entries.** `@isocialpractice/napkin-sketch` runs anywhere and reads no file;
+  `@isocialpractice/napkin-sketch/node` reads scripts, images and books and writes files;
   `@isocialpractice/napkin-sketch/markdown` gives the first a Markdown reader and a code
   highlighter, so Markdown Flow text draws as its Markdown renders and code is
-  colored.
+  colored; and `@isocialpractice/napkin-sketch/graphic-design` is the composition API alone,
+  for a page that composes a graphic without loading the editor.
 - **The engines the tools stand on.** The Eraser's cut, the Wipe Stacks and
   the Shape Stacker, Split, clipping masks, the Pencil and its Smear, and
   Liquify are functions too, which a program calls on a page with no window:
@@ -110,6 +111,7 @@ and exit code on one page: [API-CHEATSHEET.md](API-CHEATSHEET.md).
 | Node | `drawFile('card.napkin', { formats: ['svg', 'png'] })` | [Using it from code](docs/api/node/QUICKSTART.md) |
 | A browser or a bundler | `drawSvg(text)`, `evaluate(text)` | [The entries](docs/api/node/README.md#the-entries) |
 | Code that lays out a graphic | `createComposition({ width, height })` | [The graphic design API](docs/api/compose/QUICKSTART.md) |
+| A page that only composes | `createComposition` from `@isocialpractice/napkin-sketch/graphic-design` | [The entries](docs/api/node/README.md#the-entries) |
 | An AI tool | the `graphic-designer` and `scripting` helpers (experimental) | [The AI helpers](docs/api/ai/QUICKSTART.md) |
 | A sentence | `napkin-sketch draw --prompt "a three-box flowchart with arrows"` (experimental) | [Drawing from a request](docs/api/ai/README.md#drawing-from-a-request) |
 | Illustrator, Inkscape | SVG both ways, `link`, and `--to jsx` to rebuild a drawing in Illustrator | [Working with other programs](docs/api/interop/QUICKSTART.md) |

@@ -10,10 +10,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 
 import * as api from '../src/api/index.js';
 import * as node from '../src/api/node.js';
+import * as design from '../src/core/graphic-design/index.js';
 import * as designFiles from '../src/core/graphic-design/files.js';
 import { repoRoot } from './helpers/repo-root.js';
 
@@ -444,17 +445,100 @@ test('the package map points each entry at what the build writes', () => {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
   assert.deepEqual(pkg.exports['.'], { types: './dist/api/index.d.ts', import: './dist/api/index.js', default: './dist/api/index.js' });
   assert.deepEqual(pkg.exports['./node'], { types: './dist/api/node.d.ts', import: './dist/node/index.js', default: './dist/node/index.js' });
+  assert.deepEqual(pkg.exports['./graphic-design'], {
+    types: './dist/core/graphic-design/index.d.ts',
+    import: './dist/graphic-design/index.js',
+    default: './dist/graphic-design/index.js',
+  });
   assert.deepEqual(pkg.exports['./graphic-design/files'], {
     types: './dist/core/graphic-design/files.d.ts',
     import: './dist/graphic-design/files.js',
     default: './dist/graphic-design/files.js',
   });
   assert.deepEqual(pkg.exports['./markdown'], { types: './dist/markdown/index.d.ts', import: './dist/markdown/index.js', default: './dist/markdown/index.js' });
-  assert.deepEqual(Object.keys(pkg.exports).sort(), ['.', './graphic-design/files', './markdown', './node', './styles.css'], 'and no entry this test does not know');
+  assert.deepEqual(
+    Object.keys(pkg.exports).sort(),
+    ['.', './graphic-design', './graphic-design/files', './markdown', './node', './styles.css'],
+    'and no entry this test does not know'
+  );
   assert.ok(pkg.files.includes('docs/api'), 'the documentation ships with the package');
   const build = readFileSync(join(ROOT, 'scripts', 'build.mjs'), 'utf8');
   assert.match(build, /\{ in: resolve\(root, 'src\/api\/node\.ts'\), out: 'node\/index' \}/, 'the build writes the node entry');
   assert.match(build, /'dist\/node'/, 'and scopes its folder to ESM');
+  assert.match(
+    build,
+    /\{ in: resolve\(root, 'src\/core\/graphic-design\/index\.ts'\), out: 'graphic-design\/index' \}/,
+    'the build writes the graphic-design entry'
+  );
+  assert.match(build, /'dist\/graphic-design'/, 'and scopes its folder to ESM');
+});
+
+/**
+ * The source files a module reaches through its runtime imports, followed
+ * from `entry`, and what it names outside the source: Node built-ins and
+ * packages. `import type` and `export type` are skipped, since the build
+ * erases them.
+ */
+function reachedFrom(entry: string): { files: string[]; builtins: string[]; packages: string[] } {
+  const files = new Set<string>();
+  const builtins = new Set<string>();
+  const packages = new Set<string>();
+  const stack = [entry];
+  while (stack.length > 0) {
+    const file = stack.pop()!;
+    if (files.has(file)) continue;
+    files.add(file);
+    const source = readFileSync(join(ROOT, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    for (const m of source.matchAll(/\b(?:import|export)\s+(type\s+)?(?:[^;'"]*?\bfrom\s*)?'([^']+)'/g)) {
+      const spec = m[2];
+      if (m[1]) continue;
+      if (spec.startsWith('node:')) builtins.add(spec);
+      else if (!spec.startsWith('.')) packages.add(spec);
+      else stack.push(posix.join(posix.dirname(file), spec).replace(/\.js$/, '.ts'));
+    }
+  }
+  return { files: [...files], builtins: [...builtins], packages: [...packages] };
+}
+
+test('napkin-sketch/graphic-design is the composition API, with every name the barrel has for it', () => {
+  // The values the barrel names from the graphic-design modules, read off its
+  // source: a page moving its import from the barrel to the subpath must find
+  // each one there, and the same function, not a second copy.
+  const barrel = readFileSync(join(ROOT, 'src', 'api', 'index.ts'), 'utf8');
+  const fromDesign: string[] = [];
+  for (const list of barrel.matchAll(/export\s+\{([^}]*)\}\s*from\s*'\.\.\/core\/graphic-design\/[\w-]+\.js'/g)) {
+    for (const raw of list[1].split(',')) {
+      const part = raw.trim();
+      if (part && !part.startsWith('type ')) fromDesign.push(part);
+    }
+  }
+  assert.ok(fromDesign.length > 20, `the barrel's graphic-design names were not found: ${fromDesign.join(', ')}`);
+  for (const name of fromDesign) {
+    assert.equal((design as Record<string, unknown>)[name], (api as Record<string, unknown>)[name], `${name} is on the subpath, as the barrel has it`);
+  }
+
+  // And the three a consumer would otherwise write out by hand: a paint's
+  // channels for a contrast check, the escape text reaches the markup through,
+  // and whether a render came back as a PNG.
+  assert.deepEqual(design.parseColor('#4cae50'), { r: 0x4c, g: 0xae, b: 0x50, a: 1 });
+  assert.equal(design.escapeXml(`Fish & "Chips"`), 'Fish &amp; &quot;Chips&quot;');
+  assert.equal(design.isPng(design.createComposition({ width: 4, height: 4 }).toPNG()), true);
+  assert.equal(design.isPng(new TextEncoder().encode('<svg/>')), false);
+});
+
+test('napkin-sketch/graphic-design reaches no editor, no Node built-in and no package', () => {
+  // The whole point of the subpath is what a page does not download: the
+  // editor, the document model, Markdown and the code themes. The build puts
+  // what the entry reaches in chunks of its own, so its weight is what it
+  // imports - held here, before pack-check measures the built files.
+  const reached = reachedFrom('src/core/graphic-design/index.ts');
+  for (const file of ['src/core/graphic-design/raster.ts', 'src/core/effects.ts', 'src/core/path-data.ts']) {
+    assert.ok(reached.files.includes(file), `the walk should follow the imports through to ${file}`);
+  }
+  assert.deepEqual(reached.builtins, [], 'a browser has no Node built-ins');
+  assert.deepEqual(reached.packages, [], 'the composition API depends on nothing');
+  const outside = reached.files.filter((file) => /^src\/(?:api|cli|main|markdown|renderer|docs)\//.test(file));
+  assert.deepEqual(outside, [], 'the composition reaches none of the editor, the barrel or the command line');
 });
 
 test('drawSvg draws a script\'s first page in one call, cut as the script asks', () => {

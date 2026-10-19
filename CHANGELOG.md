@@ -4,6 +4,75 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-19
+
+A page that composes a graphic in a browser can load the composition API
+alone: `@isocialpractice/napkin-sketch/graphic-design` holds every composition call and
+nothing of the editor, about 48 KB gzipped against about 270 KB for the main
+entry, and adds `parseColor`, `escapeXml` and `isPng`. An elliptical arc in
+a composition's path data is refused, as the reference always said it was,
+rather than drawn as a polyline of its own numbers, and a placed logo's arcs
+are traced as cubics so both formats draw them. A quoted font family reads
+as its name, in the design-language analyzer and in the SVG importer, rather
+than as `&quot`, and the design-language helper finds the API under its
+published name, so a helper installed into a project decodes and places again.
+
+### Added
+
+- **`@isocialpractice/napkin-sketch/graphic-design`**, the composition API as an entry of
+  its own: `createComposition`, the renderers, text layout, brand placement
+  and every other name the main entry has from it, as the same functions,
+  with `parseColor`, `escapeXml` and `isPng` beside them. Its types are the
+  ones `dist/core/graphic-design/index.d.ts` already listed. A page fetches it
+  and one shared chunk, 48 KB gzipped, where the main entry costs 270 KB.
+  `pack-check` installs the tarball and composes with it, and fails if the
+  entry costs a page more than 64 KB, which reaching the editor's chunk again
+  would.
+
+### Changed
+
+- **A placed SVG's elliptical arcs are traced as cubics.** `inlineSvg`, and
+  `placeBrand` and a linked SVG drawn into a PNG with it, kept a path with an
+  arc as written and noted it, so the SVG export drew the arc and the PNG drew
+  its parameters. The arc is now traced in pieces of at most a quarter turn,
+  within a hair of the true curve, and both formats draw it.
+
+### Fixed
+
+- **An elliptical arc in a composition's path data raises**, in `toSVG` and
+  `toPNG` alike, as the reference says it does. The path reader skipped any
+  letter it did not draw, so an `A` handed its seven numbers to the command
+  before it, and with an even count of them the PNG drew a polyline and said
+  nothing, while the SVG passed the arc through. Every letter is now read as
+  a command, so an `A`, or any other letter that is not one, raises with an
+  error that names it, and the SVG writer reads the path data as the PNG
+  reads it.
+- **The design-language analyzer reads a quoted font family as its name.** A
+  family with a space in it is quoted, and inside an attribute the quote is
+  escaped, as `&quot;` or `&apos;`; one pattern that ended at `;` for
+  attributes and declarations alike read it as `&quot`, which a design
+  language then recorded as measured. An attribute now ends at its closing
+  quote, and a declaration, in a `style` attribute or a `<style>` block, at a
+  `;` or `}` outside a quoted name once its escapes are decoded. The families
+  keep the order the document has them in, since a generated skill displays
+  in the first. The composition API's own SVG, which escapes `'`, was misread
+  the same way.
+- **A placed SVG's escaped values are read unescaped.** `inlineSvg` kept
+  attribute values and text as written, so a family quoted as
+  `&quot;Helvetica Neue&quot;` went back out escaped twice, a family no
+  browser has, a `style` declaration of it read as `&quot`, and
+  `Fish &amp; Chips` showed its escape. Values and text are unescaped as they
+  are read, and escaped once as they are written.
+- **The design-language helper finds the API it is installed beside.** Its
+  analyzer and its brand resolver, which every generated skill carries a copy
+  of, asked for the API as `napkin-sketch`, the name before 1.0.0, so a helper
+  installed into a project that depends on `@isocialpractice/napkin-sketch`
+  found none there: the analyzer left a PNG undecoded and a generated skill
+  could not draw. They ask for the published name first, and the old one
+  second, which a clone linked under it still answers to; the message for an
+  API not found names the published package. A skill generated before this
+  keeps the old copy until it is generated again.
+
 ## [1.0.0] - 2026-10-12
 
 Direct Select picks, moves and deletes points as a vector editor's Direct

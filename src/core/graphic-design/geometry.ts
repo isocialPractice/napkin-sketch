@@ -305,7 +305,10 @@ export interface ParsedSubpath {
   closed: boolean;
 }
 
-const PATH_TOKEN = /([MmLlHhVvCcSsQqTtZz])|(-?\d*\.?\d+(?:e[-+]?\d+)?)/gi;
+// Every letter is read as a command, the ones the parser draws and the ones it
+// does not alike: a letter the scan skipped would hand its numbers to the
+// command before it, and an arc's seven parameters would draw as a polyline.
+const PATH_TOKEN = /([a-z])|(-?\d*\.?\d+(?:e[-+]?\d+)?)/gi;
 
 /**
  * Reads an SVG `d` string into flattened subpaths.
@@ -430,7 +433,11 @@ export function parsePathData(d: string): ParsedSubpath[] {
         break;
       }
       default:
-        throw new Error(`graphic-design: unsupported path command "${command}"`);
+        throw new Error(
+          command === 'A' || command === 'a'
+            ? `graphic-design: unsupported path command "${command}" - elliptical arcs are not drawn; trace the curve with C or Q`
+            : `graphic-design: unsupported path command "${command}"`,
+        );
     }
   }
   flush();

@@ -64,6 +64,12 @@ export function mediaKind(path) {
 }
 
 /**
+ * The names the package answers to: the published one, then the one a clone
+ * linked before 1.0.0 still goes by.
+ */
+const PACKAGE_NAMES = ['@isocialpractice/napkin-sketch', 'napkin-sketch'];
+
+/**
  * Finds the napkin-sketch graphic-design API.
  *
  * Tries the package first, so this works when napkin-sketch is a dependency,
@@ -71,10 +77,12 @@ export function mediaKind(path) {
  * is a build away from being fixed and worth saying rather than throwing.
  */
 async function loadApi() {
-  try {
-    return await import('napkin-sketch');
-  } catch {
-    // Not installed as a package; look for a clone's build output instead.
+  for (const name of PACKAGE_NAMES) {
+    try {
+      return await import(name);
+    } catch {
+      // Not installed under this name.
+    }
   }
   let dir = dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 8; i++) {
@@ -111,6 +119,17 @@ export function normalizeHex(value) {
     }
   }
   return null;
+}
+
+const XML_ENTITIES = { quot: '"', apos: "'", amp: '&', lt: '<', gt: '>' };
+
+/** XML's five named escapes and its numeric references, as the characters they stand for. */
+function decodeEntities(value) {
+  return String(value).replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));/gi, (whole, hex, dec, name) => {
+    if (name) return XML_ENTITIES[name] ?? whole;
+    const code = hex ? parseInt(hex, 16) : parseInt(dec, 10);
+    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+  });
 }
 
 /** The RGB bytes behind a six-digit hex. */
@@ -224,9 +243,32 @@ export function analyzeSvg(text, limit) {
     if (!counts.has(hex)) count(hex);
   }
 
+  // A family list is written two ways, and each ends somewhere else. An
+  // attribute ends at its closing quote, and a family quoted inside it is
+  // escaped - `&quot;` carries a semicolon, so reading to the next `;` cut
+  // `"Helvetica Neue"` down to `&quot`. A declaration, in a `style` attribute
+  // or a `<style>` block, ends at a `;` or `}` outside any quoted name, and
+  // inside an attribute it is escaped the same way. So each is read to its own
+  // end, a declaration only once the escapes around it are decoded, and the
+  // lists are put back in document order, since the first family found is the
+  // one a generated skill displays in.
+  const familyLists = [];
+  for (const match of text.matchAll(/(?<![\w-])font-family\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+    familyLists.push({ at: match.index, list: decodeEntities(match[1] ?? match[2]) });
+  }
+  const sheets = [
+    ...text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi),
+    ...text.matchAll(/(?<![\w-])style\s*=\s*(?:"([^"]*)"|'([^']*)')/gi),
+  ];
+  for (const sheet of sheets) {
+    const css = decodeEntities(sheet[1] ?? sheet[2]);
+    for (const match of css.matchAll(/(?<![\w-])font-family\s*:\s*((?:"[^"]*"|'[^']*'|[^;}"'])+)/gi)) {
+      familyLists.push({ at: sheet.index + match.index, list: match[1] });
+    }
+  }
   const families = new Set();
-  for (const match of text.matchAll(/font-family\s*[:=]\s*"?([^";}]+)/gi)) {
-    const family = match[1].replace(/["']/g, '').split(',')[0].trim();
+  for (const { list } of familyLists.sort((a, b) => a.at - b.at)) {
+    const family = list.split(',')[0].replace(/["']/g, '').trim();
     if (family) families.add(family);
   }
 
@@ -459,7 +501,7 @@ export async function analyzeMedia(path, options = {}) {
           notes: ['The graphic-design API was not found, so brand positions were not looked for.'],
         },
         notes: [
-          'The graphic-design API was not found, so the PNG was not decoded. Run `npm run build` in a napkin-sketch clone, or install napkin-sketch as a dependency.',
+          'The graphic-design API was not found, so the PNG was not decoded. Run `npm run build` in a napkin-sketch clone, or install @isocialpractice/napkin-sketch as a dependency.',
         ],
       };
     }

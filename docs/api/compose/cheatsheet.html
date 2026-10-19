@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../../index.html"><img src="../../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0</span>
+<span class="version" title="The version these pages document">1.0.1</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -65,7 +65,7 @@
 <tr><td><code>polygon</code></td><td><code>points</code>, closed</td><td><code>design.polygon({ points: [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 20, y: 30 }] })</code></td></tr>
 <tr><td><code>polyline</code></td><td><code>points</code>, open</td><td><code>design.polyline({ points, fill: null, stroke: '#1f2328' })</code></td></tr>
 <tr><td><code>line</code></td><td><code>x1, y1, x2, y2</code></td><td><code>design.line({ x1: 16, y1: 100, x2: 344, y2: 100, stroke: '#4cae50' })</code></td></tr>
-<tr><td><code>path</code></td><td><code>d</code>: <code>M L H V C S Q T Z</code></td><td><code>design.path({ d: 'M 20 130 C 60 110, 100 170, 140 130', fill: null, stroke: '#dc143c' })</code></td></tr>
+<tr><td><code>path</code></td><td><code>d</code>: <code>M L H V C S Q T Z</code>; an <code>A</code> raises</td><td><code>design.path({ d: 'M 20 130 C 60 110, 100 170, 140 130', fill: null, stroke: '#dc143c' })</code></td></tr>
 <tr><td><code>text</code></td><td><code>x, y, text</code></td><td><code>design.text({ x: 180, y: 78, text: 'Acme Corp', align: 'center', fontSize: 28 })</code></td></tr>
 <tr><td><code>image</code></td><td><code>src, x, y, width, height</code>; <code>fit</code></td><td><code>design.image({ src: logo, x: 24, y: 24, width: 64, height: 64, fit: 'contain' })</code></td></tr>
 <tr><td><code>image</code>, linked</td><td><code>link: true</code>; <code>src</code> is a path</td><td><code>design.image({ src: 'assets/logo.svg', link: true, x: 24, y: 24, width: 120, height: 60 })</code></td></tr>
@@ -147,13 +147,14 @@
 <tr><td><code>brandMark(design, box, { label })</code></td><td>A monogram where no asset is configured</td></tr>
 </tbody></table></div>
 <ul>
-<li>The Node helpers come from <code>@isocialpractice/napkin-sketch/node</code>; everything else from <code>@isocialpractice/napkin-sketch</code>.</li>
+<li>The Node helpers come from <code>@isocialpractice/napkin-sketch/node</code>; everything else from <code>@isocialpractice/napkin-sketch</code>, or, in a page that only composes, from <code>@isocialpractice/napkin-sketch/graphic-design</code>, which leaves the editor out of the download and adds <code>parseColor</code>, <code>escapeXml</code> and <code>isPng</code>.</li>
 </ul>
 <h2 id="common-mistakes">Common mistakes<a class="anchor" href="#common-mistakes" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>
 <thead><tr><th>Wrong</th><th>Right</th><th>Why</th></tr></thead>
 <tbody>
 <tr><td>An SVG logo placed with <code>image</code></td><td><code>placeBrand</code> or <code>inlineSvg</code></td><td>The PNG decodes only PNG itself: an SVG image is a hole in it.</td></tr>
+<tr><td>An arc, <code>A</code>, in a path's <code>d</code></td><td><code>C</code> or <code>Q</code> segments; or place the SVG it came from with <code>placeBrand</code></td><td>Both formats raise on an arc; the importer traces a logo's arcs as cubics.</td></tr>
 <tr><td>Runs of text advanced by <code>measureText</code></td><td>The font's own metric: <code>0.6 em</code> a character for monospace</td><td>Runs overlap in the SVG otherwise.</td></tr>
 <tr><td>Small text at <code>scale: 1</code></td><td><code>toPNG({ scale: 2 })</code> or <code>3</code></td><td>A stroke under a device pixel is grey mush.</td></tr>
 <tr><td><code>fill: '#32647'</code></td><td><code>fill: '#326478'</code></td><td>The PNG render throws on a color it cannot read; the SVG writes it as given.</td></tr>

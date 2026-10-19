@@ -17,7 +17,20 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, readlinkSync, rmSync, statSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 /**
@@ -216,6 +229,106 @@ test('the analyzer measures an SVG down to its type and structure', () => {
   assert.ok(report.type.sizes.length > 0, 'the sizes should be read off the file');
   assert.ok(report.elements.text > 0, 'the element census should count the text');
   assert.deepEqual(report.notes, [], 'nothing about an SVG should be unmeasurable');
+});
+
+test('the analyzer reads a quoted family whichever way the markup escapes it', () => {
+  // A family with a space in it is quoted, and inside an attribute the quote
+  // is escaped. `&quot;` carries a semicolon, and one pattern ending at `;`
+  // for both attributes and declarations read the family as `&quot` - which
+  // a design language then wrote down as though it had been measured.
+  const cases: Array<[string, string]> = [
+    ['an attribute, as a browser escapes it', '<text font-family="&quot;Helvetica Neue&quot;, Arial, sans-serif">a</text>'],
+    ['an attribute, as escapeXml escapes it', '<text font-family="&apos;Helvetica Neue&apos;, Arial">a</text>'],
+    ['a single-quoted attribute', `<text font-family='"Helvetica Neue", Arial'>a</text>`],
+    ['a style attribute', '<text style="fill:#000;font-family: &quot;Helvetica Neue&quot;, Arial; font-size:12px">a</text>'],
+    ['a style block', `<style>.t{font-family:'Helvetica Neue',Arial;font-size:12px}</style><text class="t">a</text>`],
+  ];
+  const dir = mkdtempSync(join(tmpdir(), 'napkin-families-'));
+  try {
+    for (const [where, body] of cases) {
+      const file = join(dir, 'family.svg');
+      writeFileSync(file, `<svg viewBox="0 0 10 10">${body}</svg>`);
+      assert.deepEqual(analyze(file).type.families, ['Helvetica Neue'], where);
+    }
+
+    // The first family found is the one a generated skill displays in, so the
+    // two ways of writing one keep the order the document has them in.
+    const file = join(dir, 'order.svg');
+    writeFileSync(
+      file,
+      '<svg viewBox="0 0 10 10"><text font-family="Display Face">a</text><text style="font-family:&quot;Body Face&quot;">b</text><text font-family="Third">c</text></svg>'
+    );
+    assert.deepEqual(analyze(file).type.families, ['Display Face', 'Body Face', 'Third']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a helper installed into a project finds the API under its published name', () => {
+  // Installed into a project's tool folder, the helper's scripts reach the API
+  // only as the project's dependency. They asked for `napkin-sketch`, the name
+  // before 1.0.0, so under `@isocialpractice/napkin-sketch` they found nothing
+  // and the analyzer left every PNG undecoded. A clone linked under the old
+  // name still answers to it, second.
+  const project = mkdtempSync(join(tmpdir(), 'napkin-helper-'));
+  try {
+    const scripts = join(project, '.claude', 'skills', 'design-language', 'scripts');
+    mkdirSync(scripts, { recursive: true });
+    for (const file of ['analyze-media.mjs', 'brand-resources.mjs']) {
+      copyFileSync(join(HELPER, 'skills', 'design-language', 'scripts', file), join(scripts, file));
+    }
+    writeFileSync(join(project, 'mark.png'), 'read by a stand-in, which decodes nothing');
+    writeFileSync(
+      join(project, 'probe.mjs'),
+      [
+        "import { analyzeMedia } from './.claude/skills/design-language/scripts/analyze-media.mjs';",
+        "import { loadGraphicApi } from './.claude/skills/design-language/scripts/brand-resources.mjs';",
+        "const report = await analyzeMedia('mark.png');",
+        'const api = await loadGraphicApi();',
+        'console.log(JSON.stringify({ analyzer: report.palette[0]?.hex ?? null, brand: api.STANDIN }));',
+      ].join('\n')
+    );
+
+    // A stand-in package under one name, which decodes every PNG to one color.
+    const standIn = (name: string, hex: string): string => {
+      const dir = join(project, 'node_modules', ...name.split('/'));
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, version: '0.0.0', type: 'module', exports: './index.js' }));
+      const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      writeFileSync(
+        join(dir, 'index.js'),
+        [
+          `export const STANDIN = ${JSON.stringify(name)};`,
+          'export function decodePng() {',
+          '  const data = new Uint8Array(16);',
+          `  for (let i = 0; i < 16; i += 4) data.set([${rgb.join(', ')}, 255], i);`,
+          '  return { width: 2, height: 2, data };',
+          '}',
+        ].join('\n')
+      );
+      return dir;
+    };
+    const probe = (): { analyzer: string | null; brand: string } =>
+      JSON.parse(execFileSync(process.execPath, ['probe.mjs'], { cwd: project, encoding: 'utf-8' }));
+
+    const scoped = standIn('@isocialpractice/napkin-sketch', '#4cae50');
+    assert.deepEqual(probe(), { analyzer: '#4cae50', brand: '@isocialpractice/napkin-sketch' });
+
+    standIn('napkin-sketch', '#326478');
+    assert.deepEqual(probe(), { analyzer: '#4cae50', brand: '@isocialpractice/napkin-sketch' }, 'the published name comes first');
+
+    // Only where nothing above the temporary folder answers to the published name.
+    rmSync(scoped, { recursive: true, force: true });
+    let above = true;
+    try {
+      createRequire(join(project, 'probe.mjs')).resolve('@isocialpractice/napkin-sketch');
+    } catch {
+      above = false;
+    }
+    if (!above) assert.deepEqual(probe(), { analyzer: '#326478', brand: 'napkin-sketch' }, 'a clone linked under the old name still answers');
+  } finally {
+    rmSync(project, { recursive: true, force: true });
+  }
 });
 
 test('the analyzer measures a PNG for colour, and says what it cannot measure', () => {

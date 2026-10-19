@@ -41,6 +41,12 @@ const MEDIA_TYPES = {
 const ASSET_EXTENSIONS = new Set(Object.keys(MEDIA_TYPES));
 
 /**
+ * The names the package answers to: the published one, then the one a clone
+ * linked before 1.0.0 still goes by.
+ */
+const PACKAGE_NAMES = ['@isocialpractice/napkin-sketch', 'napkin-sketch'];
+
+/**
  * Finds the napkin-sketch graphic-design API.
  *
  * The package first, so this works as a dependency, then a clone's build
@@ -48,10 +54,12 @@ const ASSET_EXTENSIONS = new Set(Object.keys(MEDIA_TYPES));
  * the same places.
  */
 export async function loadGraphicApi(from = fileURLToPath(import.meta.url)) {
-  try {
-    return await import('napkin-sketch');
-  } catch {
-    // Not installed as a package; look for a clone's build output instead.
+  for (const name of PACKAGE_NAMES) {
+    try {
+      return await import(name);
+    } catch {
+      // Not installed under this name.
+    }
   }
   let dir = dirname(from);
   for (let i = 0; i < 12; i++) {
@@ -62,7 +70,7 @@ export async function loadGraphicApi(from = fileURLToPath(import.meta.url)) {
     dir = up;
   }
   throw new Error(
-    'graphic-design API not found. Run `npm run build` in a napkin-sketch clone, or install napkin-sketch.'
+    'graphic-design API not found. Run `npm run build` in a napkin-sketch clone, or install @isocialpractice/napkin-sketch.'
   );
 }
 

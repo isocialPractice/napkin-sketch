@@ -25,7 +25,7 @@ Reminders for compositions: the page, every element, paint, masks, rendering, an
 | `polygon` | `points`, closed | `design.polygon({ points: [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 20, y: 30 }] })` |
 | `polyline` | `points`, open | `design.polyline({ points, fill: null, stroke: '#1f2328' })` |
 | `line` | `x1, y1, x2, y2` | `design.line({ x1: 16, y1: 100, x2: 344, y2: 100, stroke: '#4cae50' })` |
-| `path` | `d`: `M L H V C S Q T Z` | `design.path({ d: 'M 20 130 C 60 110, 100 170, 140 130', fill: null, stroke: '#dc143c' })` |
+| `path` | `d`: `M L H V C S Q T Z`; an `A` raises | `design.path({ d: 'M 20 130 C 60 110, 100 170, 140 130', fill: null, stroke: '#dc143c' })` |
 | `text` | `x, y, text` | `design.text({ x: 180, y: 78, text: 'Acme Corp', align: 'center', fontSize: 28 })` |
 | `image` | `src, x, y, width, height`; `fit` | `design.image({ src: logo, x: 24, y: 24, width: 64, height: 64, fit: 'contain' })` |
 | `image`, linked | `link: true`; `src` is a path | `design.image({ src: 'assets/logo.svg', link: true, x: 24, y: 24, width: 120, height: 60 })` |
@@ -106,13 +106,14 @@ Reminders for compositions: the page, every element, paint, masks, rendering, an
 | `inlineSvg(markup)` | An SVG's shapes as elements: `{ viewBox, elements, notes }` |
 | `brandMark(design, box, { label })` | A monogram where no asset is configured |
 
-- The Node helpers come from `@isocialpractice/napkin-sketch/node`; everything else from `@isocialpractice/napkin-sketch`.
+- The Node helpers come from `@isocialpractice/napkin-sketch/node`; everything else from `@isocialpractice/napkin-sketch`, or, in a page that only composes, from `@isocialpractice/napkin-sketch/graphic-design`, which leaves the editor out of the download and adds `parseColor`, `escapeXml` and `isPng`.
 
 ## Common mistakes
 
 | Wrong | Right | Why |
 | --- | --- | --- |
 | An SVG logo placed with `image` | `placeBrand` or `inlineSvg` | The PNG decodes only PNG itself: an SVG image is a hole in it. |
+| An arc, `A`, in a path's `d` | `C` or `Q` segments; or place the SVG it came from with `placeBrand` | Both formats raise on an arc; the importer traces a logo's arcs as cubics. |
 | Runs of text advanced by `measureText` | The font's own metric: `0.6 em` a character for monospace | Runs overlap in the SVG otherwise. |
 | Small text at `scale: 1` | `toPNG({ scale: 2 })` or `3` | A stroke under a device pixel is grey mush. |
 | `fill: '#32647'` | `fill: '#326478'` | The PNG render throws on a color it cannot read; the SVG writes it as given. |

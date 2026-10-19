@@ -234,7 +234,7 @@ dist/                   # What npm run build writes; npm run build:types adds th
 ├── api/                # The package's main entry, an ES module, and its types: in the API's package
 ├── node/               # The /node entry: in the API's package
 ├── markdown/           # The /markdown entry: in the API's package
-├── graphic-design/     # The /graphic-design/files entry: in the API's package
+├── graphic-design/     # The /graphic-design and /graphic-design/files entries: in the API's package
 ├── cli/                # The napkin-sketch command, an ES module: in the API's package
 ├── chunks/             # The code the entries and the command share, written once: in the API's package
 ├── core/, sharpen/     # Declarations the entries' types import: in the API's package

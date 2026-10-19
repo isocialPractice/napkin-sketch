@@ -666,34 +666,34 @@ export {
 } from '../core/composition-style.js';
 
 // Graphic-design API (browser-safe; Node file helpers live in
-// `core/graphic-design/files`, the canvas painter in `.../canvas`)
+// `core/graphic-design/files`, the canvas painter in `.../canvas`). Named from
+// the modules that define them rather than through `graphic-design/index`,
+// the `/graphic-design` entry: a module of re-exports that two entries share
+// is written as a chunk of its own, empty, and every page would fetch it.
 export {
   Composition,
   ElementList,
   createComposition,
   renderComposition,
   renderPng,
-  compositionToSvg,
-  rasterizeComposition,
-  decodePng,
-  encodePng,
-  layoutText,
-  measureText,
+  type CompositionFormat,
+  type RenderOptions,
+} from '../core/graphic-design/compose.js';
+export { compositionToSvg, type SvgOptions } from '../core/graphic-design/svg.js';
+export { rasterizeComposition, type RasterOptions, type RasterResult } from '../core/graphic-design/raster.js';
+export { decodePng, encodePng } from '../core/graphic-design/png.js';
+export { layoutText, measureText } from '../core/graphic-design/font.js';
+export type { Matrix } from '../core/graphic-design/geometry.js';
+export {
   DEFAULT_COMPOSITION_SIZE,
   DEFAULT_FONT_SIZE,
   DEFAULT_TEXT_FONT,
   type CompositionDocument,
-  type CompositionFormat,
   type Element as DesignElement,
-  type Matrix,
   type PageOptions,
   type ParagraphStyle,
-  type RasterOptions,
-  type RasterResult,
-  type RenderOptions,
-  type SvgOptions,
   type TextStyle,
-} from '../core/graphic-design/index.js';
+} from '../core/graphic-design/types.js';
 
 // Brand resources: `resources.md`, vector inlining, and brand slots that fall
 // back to the design language when no asset is configured.

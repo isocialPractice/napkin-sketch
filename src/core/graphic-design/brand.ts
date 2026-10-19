@@ -24,6 +24,8 @@
 import { DEFAULT_FONT_SIZE } from './types.js';
 import { contourBounds, elementMatrix, flattenShape, transformContours } from './geometry.js';
 import type { Matrix } from './geometry.js';
+import { unescapeXml } from './svg.js';
+import { anchorsToPathData, parsePathD } from '../path-data.js';
 import type { ElementList } from './compose.js';
 import type { Element, ImageFit, Point } from './types.js';
 
@@ -246,12 +248,16 @@ function parseStyle(text: string): Style {
   return style;
 }
 
-/** Reads every attribute of one tag into a map. */
+/**
+ * Reads every attribute of one tag into a map, each value unescaped: a family
+ * quoted inside an attribute arrives as `&quot;Helvetica Neue&quot;`, and the
+ * `;` that escape carries would otherwise end a `style` declaration early.
+ */
 function parseAttributes(tag: string): Record<string, string> {
   const attrs: Record<string, string> = {};
   for (const m of tag.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*"([^"]*)"|([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*'([^']*)'/g)) {
     const name = (m[1] ?? m[3]).toLowerCase();
-    attrs[name] = m[2] ?? m[4] ?? '';
+    attrs[name] = unescapeXml(m[2] ?? m[4] ?? '');
   }
   return attrs;
 }
@@ -362,6 +368,18 @@ function num(attrs: Record<string, string>, name: string, fallback = 0): number 
 }
 
 /** Paint that resolves to no paint at all. */
+/**
+ * Path data with its elliptical arcs traced as cubics, each piece at most a
+ * quarter turn, since a composition's own path data has no `A`. Null when the
+ * data cannot be read.
+ */
+function arcsAsCubics(d: string): string | null {
+  const subpaths = parsePathD(d);
+  if (!subpaths) return null;
+  const format = (n: number): string => String(Math.round(n * 1000) / 1000);
+  return subpaths.map((sub) => anchorsToPathData(sub.anchors, sub.closed, format)).join('');
+}
+
 function paint(value: string | undefined): string | null | undefined {
   if (value === undefined) return undefined;
   const v = value.trim();
@@ -391,11 +409,13 @@ const SHAPE_TAGS = new Set(['rect', 'circle', 'ellipse', 'line', 'polygon', 'pol
  * and joins, stroke opacity and `text-anchor` carry over.
  *
  * What it approximates: a gradient fill or stroke is drawn as its first stop's
- * colour, since this API paints solids, and says so in `notes`.
+ * colour, since this API paints solids, and says so in `notes`. A path's
+ * elliptical arcs are traced as cubics, since a composition's path data has
+ * no `A`; the trace is within a hair of the true curve, so it is not noted.
  *
- * What it does not: patterns, filters, masks, clip paths, `<use>` references,
- * and elliptical arc path commands, each of which lands in `notes` rather than
- * being drawn wrong. Returns `null` when the text is not an SVG at all.
+ * What it does not: patterns, filters, masks, clip paths and `<use>`
+ * references, each of which lands in `notes` rather than being drawn wrong.
+ * Returns `null` when the text is not an SVG at all.
  */
 export function inlineSvg(text: string): InlinedVector | null {
   if (!/<svg[\s>]/i.test(text)) return null;
@@ -608,12 +628,16 @@ export function inlineSvg(text: string): InlinedVector | null {
       case 'polyline':
         element = { type: tag, points: parsePoints(attrs.points ?? ''), ...common } as Element;
         break;
-      case 'path':
-        if (/[aA]\s*[\d.-]/.test(attrs.d ?? '')) {
-          notes.push('A path used an elliptical arc command, which this API does not draw.');
+      case 'path': {
+        // An `a` in path data can only be the arc command.
+        const d = /a/i.test(attrs.d ?? '') ? arcsAsCubics(attrs.d ?? '') : attrs.d ?? '';
+        if (d === null) {
+          notes.push('A path with an elliptical arc could not be read, so it was skipped.');
+          break;
         }
-        element = { type: 'path', d: attrs.d ?? '', ...common } as Element;
+        element = { type: 'path', d, ...common } as Element;
         break;
+      }
       case 'image': {
         const src = attrs.href || attrs['xlink:href'] || '';
         if (!src.startsWith('data:')) {
@@ -641,7 +665,7 @@ export function inlineSvg(text: string): InlinedVector | null {
           notes.push('A text element used `<tspan>` runs and was skipped.');
           break;
         }
-        const content = inner.replace(/<[^>]*>/g, '').trim();
+        const content = unescapeXml(inner.replace(/<[^>]*>/g, '')).trim();
         if (!content) break;
         const anchor = value('text-anchor');
         const align = anchor === 'middle' ? 'center' : anchor === 'end' ? 'right' : undefined;

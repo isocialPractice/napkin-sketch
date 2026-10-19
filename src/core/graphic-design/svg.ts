@@ -28,7 +28,7 @@ import {
 import { activeEffects, effectBlend, effectLayout, effectReach, filterRegion, svgFilterMarkup, svgUnderFilterMarkup } from '../effects.js';
 import { blendModeInfo, blendModeOf, isBlended, type BlendModeId } from '../blend.js';
 import { canSeparate, resolveAppearance } from './appearance.js';
-import { apply, contourBounds, elementMatrix, flattenShape, IDENTITY, shapeCentre, type Matrix } from './geometry.js';
+import { apply, contourBounds, elementMatrix, flattenShape, IDENTITY, parsePathData, shapeCentre, type Matrix } from './geometry.js';
 import { layoutText, transformText } from './font.js';
 import { flatPaint, gradientAxis, isGradientPaint, sortedStops, type PaintBox } from './gradient.js';
 
@@ -60,6 +60,21 @@ export function escapeXml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+const XML_ENTITIES: Readonly<Record<string, string>> = { quot: '"', apos: "'", amp: '&', lt: '<', gt: '>' };
+
+/**
+ * The inverse of {@link escapeXml}: XML's five named escapes and its numeric
+ * references, as the characters they stand for. A value read out of markup by
+ * pattern is still escaped, and one written back without this is escaped twice.
+ */
+export function unescapeXml(value: string): string {
+  return value.replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));/gi, (whole, hex: string, dec: string, name: string) => {
+    if (name) return XML_ENTITIES[name] ?? whole;
+    const code = hex ? parseInt(hex, 16) : parseInt(dec, 10);
+    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+  });
 }
 
 /** Rounds a coordinate and drops the trailing zeros a design tool would not write. */
@@ -271,6 +286,9 @@ function elementOnly(
         y2: fmt(el.y2, precision),
       })}${paint}/>${nl}`;
     case 'path':
+      // The markup carries `d` as written, so it is read here as the raster
+      // reads it: path data the PNG refuses is refused in the SVG too.
+      parsePathData(el.d);
       return `${indent}<path${frame}${attrs({ d: el.d })}${paint}/>${nl}`;
     case 'text':
       return `${indent}${textMarkup(el, precision, frame)}${nl}`;

@@ -97,12 +97,13 @@ The whole API on one page: every verb, the command line, the two imports, the re
 - `napkin-sketch draw - --json < card.napkin`, for a script on standard input
 - `napkin-sketch check card.napkin --strict`, to fail on warnings too
 
-## The two imports
+## The imports
 
 | Import | For |
 | --- | --- |
 | `import { evaluate, drawSvg, renderSketch, renderBook, parseScript, createComposition } from '@isocialpractice/napkin-sketch'` | Scripts and compositions, anywhere |
 | `import { drawFile, drawToFiles, writeBook, loadAssets, resolveLinkFromDir } from '@isocialpractice/napkin-sketch/node'` | Files, in Node |
+| `import { createComposition, parseColor, escapeXml, isPng } from '@isocialpractice/napkin-sketch/graphic-design'` | Compositions alone, in a page that loads nothing else: [the entries](docs/api/node/README.md#the-entries) |
 | `import { booleanOp, eraseMarks, wipeMarks, stackFaces, splitMark, liquifyMarks } from '@isocialpractice/napkin-sketch'` | The drawing engines, on a page: [their cheatsheet](docs/api/engines/CHEATSHEET.md) |
 
 ## Render options

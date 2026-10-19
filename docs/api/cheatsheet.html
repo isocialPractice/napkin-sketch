@@ -16,7 +16,7 @@
 <button class="topbar-button menu-toggle" type="button" data-menu-toggle aria-expanded="false" aria-controls="menu">Menu</button>
 <a class="brand" href="../index.html"><img src="../assets/mark.svg" alt="" width="28" height="28"><span>napkin-sketch</span><span class="brand-sub">docs</span></a>
 <span class="topbar-spacer"></span>
-<span class="version" title="The version these pages document">1.0.0</span>
+<span class="version" title="The version these pages document">1.0.1</span>
 <a class="topbar-button" href="https://github.com/isocialPractice/napkin-sketch" rel="noopener">GitHub</a>
 <button class="topbar-button" type="button" data-theme-toggle aria-label="Switch between light and dark">Dark</button>
 </header>
@@ -41,7 +41,7 @@
 <article class="content">
 <nav class="breadcrumb" aria-label="Breadcrumb"><a href="../index.html">Docs</a> <span class="sep">/</span> <a href="index.html">Drawing from a script</a> <span class="sep">/</span> <span aria-current="page">Cheatsheet</span></nav>
 <h1 id="api-cheatsheet">API cheatsheet<a class="anchor" href="#api-cheatsheet" aria-label="Link to this section">#</a></h1>
-<details class="toc" open><summary>On this page</summary><ul><li><a href="#every-verb">Every verb</a></li><li><a href="#the-command-line">The command line</a></li><li><a href="#the-two-imports">The two imports</a></li><li><a href="#render-options">Render options</a></li><li><a href="#exit-codes">Exit codes</a></li><li><a href="#every-category">Every category</a></li></ul></details>
+<details class="toc" open><summary>On this page</summary><ul><li><a href="#every-verb">Every verb</a></li><li><a href="#the-command-line">The command line</a></li><li><a href="#the-imports">The imports</a></li><li><a href="#render-options">Render options</a></li><li><a href="#exit-codes">Exit codes</a></li><li><a href="#every-category">Every category</a></li></ul></details>
 <p><a href="index.html">API hub</a> · <a href="quickstart.html">Quickstart</a> · <strong>Cheatsheet</strong></p>
 <p>The whole API on one page: every verb, the command line, the two imports, the render options and the exit codes.</p>
 <h2 id="every-verb">Every verb<a class="anchor" href="#every-verb" aria-label="Link to this section">#</a></h2>
@@ -134,12 +134,13 @@
 <li><code>napkin-sketch draw - --json &lt; card.napkin</code>, for a script on standard input</li>
 <li><code>napkin-sketch check card.napkin --strict</code>, to fail on warnings too</li>
 </ul>
-<h2 id="the-two-imports">The two imports<a class="anchor" href="#the-two-imports" aria-label="Link to this section">#</a></h2>
+<h2 id="the-imports">The imports<a class="anchor" href="#the-imports" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>
 <thead><tr><th>Import</th><th>For</th></tr></thead>
 <tbody>
 <tr><td><code>import { evaluate, drawSvg, renderSketch, renderBook, parseScript, createComposition } from '@isocialpractice/napkin-sketch'</code></td><td>Scripts and compositions, anywhere</td></tr>
 <tr><td><code>import { drawFile, drawToFiles, writeBook, loadAssets, resolveLinkFromDir } from '@isocialpractice/napkin-sketch/node'</code></td><td>Files, in Node</td></tr>
+<tr><td><code>import { createComposition, parseColor, escapeXml, isPng } from '@isocialpractice/napkin-sketch/graphic-design'</code></td><td>Compositions alone, in a page that loads nothing else: <a href="node/index.html#the-entries">the entries</a></td></tr>
 <tr><td><code>import { booleanOp, eraseMarks, wipeMarks, stackFaces, splitMark, liquifyMarks } from '@isocialpractice/napkin-sketch'</code></td><td>The drawing engines, on a page: <a href="engines/cheatsheet.html">their cheatsheet</a></td></tr>
 </tbody></table></div>
 <h2 id="render-options">Render options<a class="anchor" href="#render-options" aria-label="Link to this section">#</a></h2>

@@ -118,6 +118,10 @@ coordinates are **pixels** unless the page names `in`, `mm`, or `pt`, the
 background is **transparent** unless set, and the API is **headless** - it
 never touches whatever sketch is open in the app.
 
+A page that composes in a browser imports from
+`@isocialpractice/napkin-sketch/graphic-design` instead: the same calls, plus `parseColor`,
+`escapeXml` and `isPng`, without the editor in the download.
+
 Full reference, every property, and worked examples:
 `docs/api/compose/README.md` in the repository, and `API.md` at its root is
 the map of every API page.
@@ -252,16 +256,18 @@ Named plainly, because designing around a limit beats discovering it:
   clipping masks and erase shapes are the palette. A gradient runs along an
   angle or out from the middle of its shape's box; one placed by end points
   of its own has to be a placed image.
-- **No elliptical arcs in path data.** `M L H V C S Q T Z` only. Rounded
-  corners are generated as Beziers, so nothing needs arcs.
+- **No elliptical arcs in path data.** `M L H V C S Q T Z` only, and an `A`
+  raises in both formats. Rounded corners are generated as Beziers, so
+  nothing needs arcs; write a curve as `C` or `Q`.
 - **Raster text uses the built-in alphabet** (above).
 - **JPEG, GIF and SVG placements need a decoder to rasterize.** They embed in
   the SVG with no help; the PNG path decodes PNG only, and reports the rest in
   `warnings` rather than failing the whole render. For SVG there is a way
   around it that costs nothing: `inlineSvg` / `placeBrand` turn the asset into
-  elements, which both renderers draw. Patterns, filters, `<use>` and
-  elliptical arcs do not survive that translation, and a gradient comes
-  through as its first stop's color; each is reported in `notes`.
+  elements, which both renderers draw, and which traces the asset's
+  elliptical arcs as cubics. Patterns, filters and `<use>` do not survive
+  that translation, and a gradient comes through as its first stop's color;
+  each is reported in `notes`.
 - **An effect is drawn, not laid out.** A shadow or a glow reaches past its
   element's box and nothing moves to make room for it, so leave the margin
   it needs. Depth still comes first from contrast, scale and overlap.

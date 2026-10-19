@@ -79,9 +79,10 @@ PNG the skill exports. Instead the asset's shapes are read and added to the
 composition, which means both renderers draw the same mark - and the mark scales
 without ever going soft, because it is still vector geometry.
 
-The cost is the honest one: gradients, filters, patterns, `<use>` references
-and elliptical arcs do not survive that translation, and each is reported
-rather than approximated. A logo built from solid shapes comes through exactly.
+The cost is the honest one: gradients, filters, patterns and `<use>`
+references do not survive that translation, and each is reported rather than
+approximated. Elliptical arcs do, traced as cubics within a hair of the true
+curve. A logo built from solid shapes comes through exactly.
 A logo built from a mesh gradient should ship as a PNG.
 
 ## When it is not configured

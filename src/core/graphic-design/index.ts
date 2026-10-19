@@ -27,11 +27,12 @@ export { compositionToSvg, escapeXml, type SvgOptions } from './svg.js';
 
 export {
   rasterizeComposition,
-  rasterizeContours,
   type ImageDecoder,
   type RasterOptions,
   type RasterResult,
 } from './raster.js';
+
+export { rasterizeContours } from './coverage.js';
 
 export type { LinkResolver } from '../link.js';
 

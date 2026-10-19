@@ -24,7 +24,7 @@
 
 import { encodePng } from './graphic-design/png.js';
 import { mulberry32 } from './random.js';
-import { rasterizeContours } from './graphic-design/raster.js';
+import { rasterizeContours } from './graphic-design/coverage.js';
 import { profileInputOf, profilePieces } from './stroke-profile.js';
 import { widthAtPressure, type Point, type Stroke } from './types.js';
 import { passOf, smudgeBox, smudgeBuffer } from './smudge.js';

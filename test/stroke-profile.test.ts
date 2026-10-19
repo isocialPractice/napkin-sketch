@@ -24,7 +24,7 @@ import {
 import { STROKE_PROFILES, type Point, type Stroke, type StrokeProfile } from '../src/core/types.js';
 import { normalizeSketchBook } from '../src/core/serialize.js';
 import { mirrorStroke } from '../src/core/transform.js';
-import { rasterizeContours } from '../src/core/graphic-design/raster.js';
+import { rasterizeContours } from '../src/core/graphic-design/coverage.js';
 import { signedArea } from '../src/core/graphic-design/geometry.js';
 
 type Vec = { x: number; y: number };

@@ -15,7 +15,8 @@
  * does not draw, when a part - `/graphic-design`, `/sharpen`, `/engines` -
  * does not answer by its own subpath, when a part `napkin-sketch vendor`
  * copies out of the install does not check clean or compose from the copy,
- * or when the installed package cannot run the verbs that
+ * when a copy of the install pruned to `/graphic-design` does not keep exactly
+ * that, or when the installed package cannot run the verbs that
  * combine, cut, clip, smear, bend, blend, lay effects and set type, or call the
  * engines behind them by name, with `@isocialpractice/napkin-sketch/markdown`
  * reading Markdown and coloring code for them.
@@ -55,7 +56,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -600,13 +601,44 @@ function check(dir) {
   if (!engines.ok || engines.codes.length > 0) fail(`the engines' verbs did not draw clean: ${run.stdout}`);
   if (!engines.answers || !engines.named) fail(`the engines did not answer by name: ${run.stdout}`);
 
+  // 6. Prune a copy of the install to the composition alone, as a project's
+  //    postinstall would: what is kept still composes, the main entry no
+  //    longer imports, and the copy shrinks to the part. A copy, since the
+  //    app's half below runs this install's command line.
+  const lean = join(dir, 'lean');
+  cpSync(installed, join(lean, 'node_modules', '@isocialpractice', 'napkin-sketch'), { recursive: true });
+  writeFileSync(join(lean, 'package.json'), `${JSON.stringify({ name: 'lean', version: '1.0.0', private: true }, null, 2)}\n`);
+  const pruning = spawnSync(process.execPath, [join(installed, 'dist', 'cli', 'index.js'), 'prune', '--keep', 'graphic-design', '--apply', '--json'], { cwd: lean, encoding: 'utf-8' });
+  let pruned;
+  try {
+    pruned = JSON.parse(pruning.stdout);
+  } catch {
+    fail(`napkin-sketch prune printed no report:\n${pruning.stdout}${pruning.stderr}`);
+  }
+  if (pruning.status !== 0 || !pruned.ok) fail(`napkin-sketch prune exited ${pruning.status}:\n${pruning.stdout}${pruning.stderr}`);
+  if (JSON.parse(readFileSync(join(lean, 'package.json'), 'utf-8')).napkinSketch?.keep?.[0] !== 'graphic-design') fail('napkin-sketch prune did not record its marks in the project');
+  writeFileSync(
+    join(lean, 'lean.mjs'),
+    [
+      "import { createComposition, isPng } from '@isocialpractice/napkin-sketch/graphic-design';",
+      "let main = 'imports';",
+      "try { await import('@isocialpractice/napkin-sketch'); } catch { main = 'gone'; }",
+      "console.log(JSON.stringify({ composed: isPng(createComposition({ width: 4, height: 4 }).toPNG()), main }));",
+      '',
+    ].join('\n'),
+  );
+  const leanRun = spawnSync(process.execPath, ['lean.mjs'], { cwd: lean, encoding: 'utf-8' });
+  const leanResult = JSON.parse(leanRun.stdout || '{}');
+  if (!leanResult.composed || leanResult.main !== 'gone') fail(`the pruned install did not keep exactly the composition: ${leanRun.stdout}${leanRun.stderr}`);
+
   console.log(
     `pack-check: ${packed.filename} (${packed.entryCount} files, ${mb(packed.size)} packed, ${mb(packed.unpackedSize)} unpacked) installs alone, with no dependencies, and draws: ` +
       `${report.files[0].path} from the command line, and ${styled.files[0].path} with a composition style, ` +
       `${library.files.join(' and ')} from the entries, a call into each part - ` +
       `${Object.entries(weights).map(([entry, bytes]) => `/${entry.split('/')[1]} (${kb(bytes)} gzipped to a page)`).join(', ')} - ` +
       `a part vendored from it with its AI helper, which checks clean, composes, and is read back by the helper, ` +
-      `and the engines' verbs and ${ENGINES.length} engines by name.`,
+      `the engines' verbs and ${ENGINES.length} engines by name, and a copy pruned to /graphic-design ` +
+      `(${kb(pruned.keptBytes)} kept of ${mb(pruned.keptBytes + pruned.removedBytes)}) that still composes.`,
   );
   return { project, installed };
 }

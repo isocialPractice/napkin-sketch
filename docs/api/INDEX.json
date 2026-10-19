@@ -79,7 +79,7 @@
       "title": "API cheatsheet",
       "summary": "The whole API on one page: every verb, the command line, the imports, the render options and the exit codes.",
       "lines": 150,
-      "tokens": 6614
+      "tokens": 6659
     },
     {
       "path": "docs/api/language/README.md",
@@ -213,8 +213,8 @@
       "kind": "cheatsheet",
       "title": "The napkin-sketch command line: cheatsheet",
       "summary": "Reminders for the four commands: their flags, exit codes, the JSON report and the calls from other languages.",
-      "lines": 115,
-      "tokens": 1972
+      "lines": 118,
+      "tokens": 2115
     },
     {
       "path": "docs/api/node/README.md",

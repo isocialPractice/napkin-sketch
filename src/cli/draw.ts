@@ -52,6 +52,7 @@ import { validateCompositionStyle, type CompositionStyle } from '../core/composi
 import type { SketchBook } from '../core/types.js';
 import { parseArgs, type Command, type CommandArgs } from './args.js';
 import { onPath, runScriptHelper } from './helper.js';
+import { prune } from './prune.js';
 import { vendor } from './vendor.js';
 
 /** The exit codes, which callers in other languages branch on. */
@@ -72,7 +73,7 @@ export const EXIT = {
 
 /** What each exit code means, in a line: the table the documentation lists them from. */
 export const EXIT_SUMMARIES: { readonly [K in keyof typeof EXIT]: string } = {
-  ok: 'It drew, the script checked clean, the book was written, or the parts were vendored or checked clean.',
+  ok: 'It drew, the script checked clean, the book was written, the parts were vendored or checked clean, or a prune was planned or done.',
   usage: 'The arguments were wrong: an unknown option, a bad value, no script. Nothing is written.',
   script: 'The script had errors, render was given a file that is not a book, or --animate found no figure on its page; with --strict, anything reported at all. What could be drawn is written, unless --strict.',
   io: 'A file could not be read or written. A linked file that could not be read is drawn as its placeholder and the files are written; for anything else, nothing is.',
@@ -282,6 +283,35 @@ does not exist; 3 a file could not be read or written, or --out holds files
 vendor did not write; 5 --check found a file that differs, is missing, or was
 added.
 `,
+  prune: `napkin-sketch prune [--keep <marks>] [--apply]
+
+Removes from this project's install of the package - node_modules, found from
+the working folder - every file the parts it keeps do not need. Without
+--apply it removes nothing and says what would go. The marks are recorded in
+the project's package.json, as "napkinSketch": { "keep": [...] }, so the next
+prune keeps the same; an install puts everything back, so a project runs it
+from its own postinstall:
+
+  "postinstall": "napkin-sketch prune --apply"
+
+Marks: a part (main, graphic-design, sharpen, engines, markdown, node,
+graphic-design/files, styles.css), and types (the kept parts' declarations),
+docs (the API pages), helpers (the AI helper plugins) and cli (the
+napkin-sketch command, which a later prune runs from). The manifest, the
+licenses, the README and dist/parts.json are always kept. It never touches a
+copy that is not under node_modules, such as a clone linked with npm link.
+
+Options:
+  --keep <marks>          What to keep, comma-separated; replaces the marks
+  --apply                 Remove what is not kept
+  --json                  Print one line of JSON on standard output, nothing else
+  --quiet                 Print errors and nothing else
+  -h, --help              Show this help
+
+Exit codes: 0 planned or pruned; 1 the arguments were wrong, nothing is marked,
+or a mark names nothing; 3 the project has no install of the package, the
+install is not under node_modules, or a file could not be read or removed.
+`,
 };
 
 /** Runs a subcommand and returns its exit code. `io.argv` must start with a command word. */
@@ -305,6 +335,7 @@ export async function runCommand(io: CommandIo): Promise<number> {
   if (args.errors.length > 0) return finish(io, args, report, EXIT.usage, { kind: 'usage', message: args.errors.join('; ') });
   if (args.command === 'verbs') return verbs(io, args, report);
   if (args.command === 'vendor') return vendor(io, args);
+  if (args.command === 'prune') return prune(io, args);
   try {
     if (args.command === 'draw') return await draw(io, args, report);
     if (args.command === 'check') return await check(io, args, report);

@@ -92,11 +92,11 @@ The whole API on one page: every verb, the command line, the imports, the render
 | `napkin-sketch render <book.skbk>` | Write a sketch book as svg, png, pdf, skbk or jsx files, or its figure as animation frames. |
 | `napkin-sketch verbs` | List napkin script's verbs and the shape library. |
 | `napkin-sketch vendor <part...> --out <dir>` | Copy parts of the package into a project, pinned by version and hash, with a check that needs nothing installed. |
+| `napkin-sketch prune [--keep <marks>] [--apply]` | Remove from this project's install what the parts it keeps do not need; without --apply, say what would go. |
 <!-- commands:end -->
 
 - `napkin-sketch draw card.napkin --to svg,png,pdf,skbk --out out --json`
-- `napkin-sketch draw - --json < card.napkin`, for a script on standard input
-- `napkin-sketch check card.napkin --strict`, to fail on warnings too
+- `napkin-sketch draw - --json < card.napkin` reads standard input; `napkin-sketch check card.napkin --strict` fails on warnings too
 
 ## The imports
 
@@ -124,7 +124,7 @@ The whole API on one page: every verb, the command line, the imports, the render
 <!-- exit-codes:start -->
 | Code | Meaning |
 | --- | --- |
-| `0` | It drew, the script checked clean, the book was written, or the parts were vendored or checked clean. |
+| `0` | It drew, the script checked clean, the book was written, the parts were vendored or checked clean, or a prune was planned or done. |
 | `1` | The arguments were wrong: an unknown option, a bad value, no script. Nothing is written. |
 | `2` | The script had errors, render was given a file that is not a book, or --animate found no figure on its page; with --strict, anything reported at all. What could be drawn is written, unless --strict. |
 | `3` | A file could not be read or written. A linked file that could not be read is drawn as its placeholder and the files are written; for anything else, nothing is. |

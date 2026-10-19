@@ -129,11 +129,11 @@
 <tr><td><code>napkin-sketch render &lt;book.skbk&gt;</code></td><td>Write a sketch book as svg, png, pdf, skbk or jsx files, or its figure as animation frames.</td></tr>
 <tr><td><code>napkin-sketch verbs</code></td><td>List napkin script's verbs and the shape library.</td></tr>
 <tr><td><code>napkin-sketch vendor &lt;part...&gt; --out &lt;dir&gt;</code></td><td>Copy parts of the package into a project, pinned by version and hash, with a check that needs nothing installed.</td></tr>
+<tr><td><code>napkin-sketch prune [--keep &lt;marks&gt;] [--apply]</code></td><td>Remove from this project's install what the parts it keeps do not need; without --apply, say what would go.</td></tr>
 </tbody></table></div>
 <ul>
 <li><code>napkin-sketch draw card.napkin --to svg,png,pdf,skbk --out out --json</code></li>
-<li><code>napkin-sketch draw - --json &lt; card.napkin</code>, for a script on standard input</li>
-<li><code>napkin-sketch check card.napkin --strict</code>, to fail on warnings too</li>
+<li><code>napkin-sketch draw - --json &lt; card.napkin</code> reads standard input; <code>napkin-sketch check card.napkin --strict</code> fails on warnings too</li>
 </ul>
 <h2 id="the-imports">The imports<a class="anchor" href="#the-imports" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>
@@ -160,7 +160,7 @@
 <div class="table-wrap"><table>
 <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
 <tbody>
-<tr><td><code>0</code></td><td>It drew, the script checked clean, the book was written, or the parts were vendored or checked clean.</td></tr>
+<tr><td><code>0</code></td><td>It drew, the script checked clean, the book was written, the parts were vendored or checked clean, or a prune was planned or done.</td></tr>
 <tr><td><code>1</code></td><td>The arguments were wrong: an unknown option, a bad value, no script. Nothing is written.</td></tr>
 <tr><td><code>2</code></td><td>The script had errors, render was given a file that is not a book, or --animate found no figure on its page; with --strict, anything reported at all. What could be drawn is written, unless --strict.</td></tr>
 <tr><td><code>3</code></td><td>A file could not be read or written. A linked file that could not be read is drawn as its placeholder and the files are written; for anything else, nothing is.</td></tr>

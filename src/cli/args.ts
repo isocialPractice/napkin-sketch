@@ -11,7 +11,7 @@ import { MEASURED_ANIMATION_TYPES, measuredAnimationType } from '../core/script/
 import { RENDER_FORMATS, type RenderFormat } from '../core/script/render.js';
 
 /** The words that select a subcommand, each of which runs with no window and no Electron. */
-export const COMMANDS = ['draw', 'check', 'render', 'verbs', 'vendor'] as const;
+export const COMMANDS = ['draw', 'check', 'render', 'verbs', 'vendor', 'prune'] as const;
 
 export type Command = (typeof COMMANDS)[number];
 
@@ -66,6 +66,10 @@ export interface CommandArgs {
   verify: string | undefined;
   /** `vendor --list`: list the parts instead of copying any. */
   list: boolean;
+  /** `prune --keep <marks>`: what to keep, recorded in the project's package.json. */
+  keep: string[];
+  /** `prune --apply`: remove what is not kept, rather than say what would go. */
+  apply: boolean;
   json: boolean;
   strict: boolean;
   quiet: boolean;
@@ -86,6 +90,10 @@ export const COMMAND_SUMMARIES: { readonly [C in Command]: { usage: string; summ
   vendor: {
     usage: 'vendor <part...> --out <dir>',
     summary: 'Copy parts of the package into a project, pinned by version and hash, with a check that needs nothing installed.',
+  },
+  prune: {
+    usage: 'prune [--keep <marks>] [--apply]',
+    summary: "Remove from this project's install what the parts it keeps do not need; without --apply, say what would go.",
   },
 };
 
@@ -115,6 +123,8 @@ export const FLAG_SUMMARIES: { readonly [flag: string]: { value?: string; summar
   '--offline': { summary: "Reach no network: record no registry address or integrity for the copy." },
   '--check': { value: '<dir>', summary: 'Check a vendored folder against its VENDOR.json, with no network: a file that differs, is missing or was added fails.' },
   '--list': { summary: 'List the parts: where each runs, its files, what it costs a page, and the notices it owes.' },
+  '--keep': { value: '<marks>', summary: "The parts to keep, comma-separated, with types, docs, helpers or cli besides; recorded in the project's package.json for the next prune." },
+  '--apply': { summary: 'Remove what is not kept, rather than say what would go.' },
   '--json': { summary: 'One line of JSON on standard output, and nothing else.' },
   '--strict': { summary: 'Anything reported at all is a failure, and nothing is written.' },
   '--quiet': { summary: 'Print errors and nothing else.' },
@@ -127,10 +137,11 @@ export const COMMAND_FLAGS: { readonly [C in Command]: readonly string[] } = {
   render: ['--to', '--page', '--animate', '--frames', '--facing', '--out', '--name', '--base', '--font', '--scale', '--crop', '--json', '--strict', '--quiet'],
   verbs: ['--category', '--json'],
   vendor: ['--out', '--types', '--ai-helper', '--offline', '--check', '--list', '--json', '--quiet'],
+  prune: ['--keep', '--apply', '--json', '--quiet'],
 };
 
 /** The flags that take a value: the next token, or what follows `=` in `--flag=value`. */
-const VALUE_FLAGS = new Set(['--to', '--out', '--name', '--base', '--asset', '--use', '--font', '--composition-style', '--seed', '--scale', '--crop', '--limit', '--page', '--category', '--prompt', '--helper', '--animate', '--frames', '--facing', '--check', '--ai-helper']);
+const VALUE_FLAGS = new Set(['--to', '--out', '--name', '--base', '--asset', '--use', '--font', '--composition-style', '--seed', '--scale', '--crop', '--limit', '--page', '--category', '--prompt', '--helper', '--animate', '--frames', '--facing', '--check', '--ai-helper', '--keep']);
 
 /** A `--crop` value, or a sentence saying what is wrong with it. */
 function readCrop(value: string): { crop: CropArg } | { error: string } {
@@ -222,6 +233,11 @@ function readFlag(args: CommandArgs, flag: string, value: string): void {
     case '--ai-helper':
       if (!args.aiHelpers.includes(value)) args.aiHelpers.push(value);
       break;
+    case '--keep':
+      for (const mark of value.split(',').map((part) => part.trim()).filter(Boolean)) {
+        if (!args.keep.includes(mark)) args.keep.push(mark);
+      }
+      break;
     case '--prompt':
       // Kept even when empty, so the missing script is not reported as well.
       args.prompt = value.trim();
@@ -291,6 +307,8 @@ export function parseCommand(command: Command, argv: readonly string[]): Command
     offline: false,
     verify: undefined,
     list: false,
+    keep: [],
+    apply: false,
     json: false,
     strict: false,
     quiet: false,
@@ -325,6 +343,7 @@ export function parseCommand(command: Command, argv: readonly string[]): Command
       else if (flag === '--types') args.types = true;
       else if (flag === '--offline') args.offline = true;
       else if (flag === '--list') args.list = true;
+      else if (flag === '--apply') args.apply = true;
       continue;
     }
     const value = eq > 0 ? token.slice(eq + 1) : argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[++i] : undefined;
@@ -339,7 +358,9 @@ export function parseCommand(command: Command, argv: readonly string[]): Command
     args.errors.push('--animate cuts every frame to one box of its own, so it takes no --crop');
   }
 
-  if (command === 'vendor') {
+  if (command === 'prune') {
+    if (positional.length > 0) args.errors.push(`prune takes its parts with --keep; not "${positional.join(' ')}"`);
+  } else if (command === 'vendor') {
     // One of three things: copy parts, check a copy, or list what there is.
     args.parts = positional;
     const copying = positional.length > 0 || args.aiHelpers.length > 0 || args.out !== undefined || args.types || args.offline;

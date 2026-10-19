@@ -125,7 +125,7 @@ export function helpersIn(packageRoot: string): string[] {
 }
 
 /** Every file under `dir`, as POSIX paths from it. */
-function filesUnder(dir: string): string[] {
+export function filesUnder(dir: string): string[] {
   const found: string[] = [];
   const walk = (folder: string): void => {
     for (const entry of readdirSync(folder, { withFileTypes: true })) {
@@ -268,7 +268,7 @@ async function registryEntry(name: string, version: string): Promise<{ tarball: 
 }
 
 /** Removes the folders under `dir` that a refresh left empty. */
-function removeEmptyFolders(dir: string): void {
+export function removeEmptyFolders(dir: string): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const path = join(dir, entry.name);

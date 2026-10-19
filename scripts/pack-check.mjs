@@ -13,7 +13,9 @@
  * when `napkin-sketch draw -`, with a composition style or without,
  * `@isocialpractice/napkin-sketch` or `@isocialpractice/napkin-sketch/node`
  * does not draw, when a part - `/graphic-design`, `/sharpen`, `/engines` -
- * does not answer by its own subpath, or when the installed package cannot run the verbs that
+ * does not answer by its own subpath, when a part `napkin-sketch vendor`
+ * copies out of the install does not check clean or compose from the copy,
+ * or when the installed package cannot run the verbs that
  * combine, cut, clip, smear, bend, blend, lay effects and set type, or call the
  * engines behind them by name, with `@isocialpractice/napkin-sketch/markdown`
  * reading Markdown and coloring code for them.
@@ -520,6 +522,37 @@ function check(dir) {
   if (!library.sharpened) fail(`@isocialpractice/napkin-sketch/sharpen did not read a round stroke as a circle: ${lib.stdout}`);
   if (!library.engined) fail(`@isocialpractice/napkin-sketch/engines did not combine two regions: ${lib.stdout}`);
 
+  // 4b. Vendor a part from the installed package, as a project that installs
+  //     nothing would take it: the copy checks clean with plain node, and
+  //     composes from where it was put.
+  const vendoring = spawnSync(process.execPath, [join(installed, 'dist', 'cli', 'index.js'), 'vendor', 'graphic-design', '--out', 'vendored', '--offline', '--json'], {
+    cwd: project,
+    encoding: 'utf-8',
+  });
+  let vendored;
+  try {
+    vendored = JSON.parse(vendoring.stdout);
+  } catch {
+    fail(`napkin-sketch vendor printed no report:\n${vendoring.stdout}${vendoring.stderr}`);
+  }
+  if (vendoring.status !== 0 || !vendored.ok) fail(`napkin-sketch vendor exited ${vendoring.status}:\n${vendoring.stdout}${vendoring.stderr}`);
+  const record = JSON.parse(readFileSync(join(project, 'vendored', 'VENDOR.json'), 'utf-8'));
+  if (record.source !== 'package') fail(`a part vendored from the installed package records its source as ${record.source}`);
+  const checked = spawnSync(process.execPath, [join(project, 'vendored', 'VENDOR-CHECK.mjs')], { cwd: project, encoding: 'utf-8' });
+  if (checked.status !== 0) fail(`the vendored copy does not check clean:\n${checked.stdout}${checked.stderr}`);
+  writeFileSync(
+    join(project, 'vendored-check.mjs'),
+    [
+      "import { createComposition, isPng } from './vendored/graphic-design/index.js';",
+      "const card = createComposition({ width: 20, height: 10, background: '#ffffff' });",
+      "card.rect({ x: 2, y: 2, width: 8, height: 6, fill: '#4cae50' });",
+      'console.log(JSON.stringify({ composed: isPng(card.toPNG()) }));',
+      '',
+    ].join('\n'),
+  );
+  const fromCopy = spawnSync(process.execPath, ['vendored-check.mjs'], { cwd: project, encoding: 'utf-8' });
+  if (fromCopy.status !== 0 || !JSON.parse(fromCopy.stdout || '{}').composed) fail(`the vendored copy did not compose:\n${fromCopy.stdout}${fromCopy.stderr}`);
+
   // 5. The engines, from the installed package: the verbs that run them,
   //    and each called by name, Markdown and code read by the subpath that
   //    gives the core its readers.
@@ -559,7 +592,7 @@ function check(dir) {
       `${report.files[0].path} from the command line, and ${styled.files[0].path} with a composition style, ` +
       `${library.files.join(' and ')} from the entries, a call into each part - ` +
       `${Object.entries(weights).map(([entry, bytes]) => `/${entry.split('/')[1]} (${kb(bytes)} gzipped to a page)`).join(', ')} - ` +
-      `and the engines' verbs and ${ENGINES.length} engines by name.`,
+      `a part vendored from it that checks clean and composes, and the engines' verbs and ${ENGINES.length} engines by name.`,
   );
   return { project, installed };
 }

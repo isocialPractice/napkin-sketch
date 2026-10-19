@@ -52,6 +52,7 @@ import { validateCompositionStyle, type CompositionStyle } from '../core/composi
 import type { SketchBook } from '../core/types.js';
 import { parseArgs, type Command, type CommandArgs } from './args.js';
 import { onPath, runScriptHelper } from './helper.js';
+import { vendor } from './vendor.js';
 
 /** The exit codes, which callers in other languages branch on. */
 export const EXIT = {
@@ -65,15 +66,18 @@ export const EXIT = {
   io: 3,
   /** `draw --prompt` got no script back: the AI helper is not installed, not signed in, or failed. */
   helper: 4,
+  /** `vendor --check` found a vendored folder that does not match its record. */
+  drift: 5,
 } as const;
 
 /** What each exit code means, in a line: the table the documentation lists them from. */
 export const EXIT_SUMMARIES: { readonly [K in keyof typeof EXIT]: string } = {
-  ok: 'It drew, the script checked clean, or the book was written.',
+  ok: 'It drew, the script checked clean, the book was written, or the parts were vendored or checked clean.',
   usage: 'The arguments were wrong: an unknown option, a bad value, no script. Nothing is written.',
   script: 'The script had errors, render was given a file that is not a book, or --animate found no figure on its page; with --strict, anything reported at all. What could be drawn is written, unless --strict.',
   io: 'A file could not be read or written. A linked file that could not be read is drawn as its placeholder and the files are written; for anything else, nothing is.',
   helper: 'draw --prompt got no script back: the AI helper is not installed, is not signed in, or failed. Nothing is written.',
+  drift: 'vendor --check found a vendored folder that does not match its VENDOR.json: a file that differs, is missing, or was added.',
 };
 
 /** What a command reads and writes, handed in so nothing reaches for `process`. */
@@ -90,6 +94,8 @@ export interface CommandIo {
   version?: string;
   /** The environment, which `draw --prompt` reads `NAPKIN_SCRIPT_HELPER` from. */
   env?: Readonly<Record<string, string | undefined>>;
+  /** The built package's `dist/` folder, which `vendor` copies parts from: the command line's own. */
+  dist?: string;
 }
 
 /** What a drawing command reports: printed for a person, or as one line of JSON with `--json`. */
@@ -239,6 +245,38 @@ Options:
                           diagnostic codes, as one line of JSON
   -h, --help              Show this help
 `,
+  vendor: `napkin-sketch vendor <part...> --out <dir> [options]
+napkin-sketch vendor --check <dir>
+napkin-sketch vendor --list
+
+Copies parts of the package into a project: each part's entry and every file
+it reaches, byte for byte, laid out so their imports resolve, with LICENSE,
+the third-party notices those files owe, a VENDOR.json that records the
+version and every file's sha256, and a VENDOR-CHECK.mjs that checks the folder
+against it with plain node. Running it again into the same folder refreshes it
+and removes what the new copy does not hold; it never writes into a folder it
+did not write.
+
+Parts: main, graphic-design, sharpen, engines, markdown, node,
+graphic-design/files and styles.css. --list says what each holds and costs.
+
+Options:
+  --out <dir>             The folder to copy into, made when it is missing
+  --types                 Copy each part's type declarations beside it
+  --offline               Reach no network: record no registry address or
+                          integrity for the copy
+  --check <dir>           Check a vendored folder against its VENDOR.json
+  --list                  List the parts, where each runs, its files, what it
+                          costs a page, and the notices it owes
+  --json                  Print one line of JSON on standard output, nothing else
+  --quiet                 Print errors and nothing else
+  -h, --help              Show this help
+
+Exit codes: 0 vendored, or checked clean; 1 the arguments were wrong, or a part
+does not exist; 3 a file could not be read or written, or --out holds files
+vendor did not write; 5 --check found a file that differs, is missing, or was
+added.
+`,
 };
 
 /** Runs a subcommand and returns its exit code. `io.argv` must start with a command word. */
@@ -261,6 +299,7 @@ export async function runCommand(io: CommandIo): Promise<number> {
   };
   if (args.errors.length > 0) return finish(io, args, report, EXIT.usage, { kind: 'usage', message: args.errors.join('; ') });
   if (args.command === 'verbs') return verbs(io, args, report);
+  if (args.command === 'vendor') return vendor(io, args);
   try {
     if (args.command === 'draw') return await draw(io, args, report);
     if (args.command === 'check') return await check(io, args, report);

@@ -13,35 +13,40 @@ Reminders for the four commands: their flags, exit codes, the JSON report and th
 | `napkin-sketch check <script \| ->` | Read and run a script, report what is wrong, write nothing. |
 | `napkin-sketch render <book.skbk>` | Write a sketch book as svg, png, pdf, skbk or jsx files, or its figure as animation frames. |
 | `napkin-sketch verbs` | List napkin script's verbs and the shape library. |
+| `napkin-sketch vendor <part...> --out <dir>` | Copy parts of the package into a project, pinned by version and hash, with a check that needs nothing installed. |
 <!-- commands:end -->
 
 ## Flags
 
 <!-- command-flags:start -->
-| Flag | draw | check | render | verbs | Does |
-| --- | :---: | :---: | :---: | :---: | --- |
-| `--to <formats>` | yes |  | yes |  | The formats to write: svg, png, pdf, skbk, jsx, comma-separated. |
-| `--out <dir>` | yes |  | yes |  | The folder to write into, made when it is missing. |
-| `--name <stem>` | yes |  | yes |  | The name the files are written under. |
-| `--base <dir>` | yes | yes | yes |  | The folder linked files are read inside. |
-| `--asset <name>=<file>` | yes | yes |  |  | An image the script places by name; repeatable. |
-| `--use <name>=<book.skbk>` | yes | yes |  |  | A book the script copies in with use; repeatable. |
-| `--font <family>=<file>` | yes |  | yes |  | A font file text in that family is drawn from: its outlines in a PNG and a PDF, its advances in every format; repeatable, a family's faces each once. |
-| `--composition-style <style.json>` | yes |  |  |  | Restyle every page by its layers' names with a composition style once it is drawn; a rule that matched nothing is a warning. |
-| `--seed <n>` | yes | yes |  |  | The seed for the hand-drawn pass. |
-| `--scale <n>` | yes |  | yes |  | PNG pixels a page pixel. |
-| `--crop auto\|none\|<x,y,w,h>` | yes |  | yes |  | What every file is cut to. |
-| `--limit <n>` | yes | yes |  |  | The most instructions a run may execute. |
-| `--prompt <request>` | yes |  |  |  | Experimental: ask the AI helper for a script that draws this, and draw it; the script is kept as <name>.napkin. |
-| `--helper <command>` | yes |  |  |  | Experimental: the AI helper command --prompt runs: $NAPKIN_SCRIPT_HELPER unless given, else Claude Code. |
-| `--page <n>` |  |  | yes |  | Only this page of the book, counting from 1. |
-| `--animate <type>` |  |  | yes |  | Draw the page's figure through a measured cycle, a frame a page: walk, run, ideal, knocked-down. |
-| `--frames <n>` |  |  | yes |  | How many frames --animate spreads the cycle across: 2 to 60, the cycle's own length unless given. |
-| `--facing left\|right` |  |  | yes |  | Which way the --animate figure travels, when its feet do not say. |
-| `--category <name>` |  |  |  | yes | Only this category of verbs. |
-| `--json` | yes | yes | yes | yes | One line of JSON on standard output, and nothing else. |
-| `--strict` | yes | yes | yes |  | Anything reported at all is a failure, and nothing is written. |
-| `--quiet` | yes | yes | yes |  | Print errors and nothing else. |
+| Flag | draw | check | render | verbs | vendor | Does |
+| --- | :---: | :---: | :---: | :---: | :---: | --- |
+| `--to <formats>` | yes |  | yes |  |  | The formats to write: svg, png, pdf, skbk, jsx, comma-separated. |
+| `--out <dir>` | yes |  | yes |  | yes | The folder to write into, made when it is missing. |
+| `--name <stem>` | yes |  | yes |  |  | The name the files are written under. |
+| `--base <dir>` | yes | yes | yes |  |  | The folder linked files are read inside. |
+| `--asset <name>=<file>` | yes | yes |  |  |  | An image the script places by name; repeatable. |
+| `--use <name>=<book.skbk>` | yes | yes |  |  |  | A book the script copies in with use; repeatable. |
+| `--font <family>=<file>` | yes |  | yes |  |  | A font file text in that family is drawn from: its outlines in a PNG and a PDF, its advances in every format; repeatable, a family's faces each once. |
+| `--composition-style <style.json>` | yes |  |  |  |  | Restyle every page by its layers' names with a composition style once it is drawn; a rule that matched nothing is a warning. |
+| `--seed <n>` | yes | yes |  |  |  | The seed for the hand-drawn pass. |
+| `--scale <n>` | yes |  | yes |  |  | PNG pixels a page pixel. |
+| `--crop auto\|none\|<x,y,w,h>` | yes |  | yes |  |  | What every file is cut to. |
+| `--limit <n>` | yes | yes |  |  |  | The most instructions a run may execute. |
+| `--prompt <request>` | yes |  |  |  |  | Experimental: ask the AI helper for a script that draws this, and draw it; the script is kept as <name>.napkin. |
+| `--helper <command>` | yes |  |  |  |  | Experimental: the AI helper command --prompt runs: $NAPKIN_SCRIPT_HELPER unless given, else Claude Code. |
+| `--page <n>` |  |  | yes |  |  | Only this page of the book, counting from 1. |
+| `--animate <type>` |  |  | yes |  |  | Draw the page's figure through a measured cycle, a frame a page: walk, run, ideal, knocked-down. |
+| `--frames <n>` |  |  | yes |  |  | How many frames --animate spreads the cycle across: 2 to 60, the cycle's own length unless given. |
+| `--facing left\|right` |  |  | yes |  |  | Which way the --animate figure travels, when its feet do not say. |
+| `--category <name>` |  |  |  | yes |  | Only this category of verbs. |
+| `--types` |  |  |  |  | yes | Copy each part's type declarations beside it. |
+| `--offline` |  |  |  |  | yes | Reach no network: record no registry address or integrity for the copy. |
+| `--check <dir>` |  |  |  |  | yes | Check a vendored folder against its VENDOR.json, with no network: a file that differs, is missing or was added fails. |
+| `--list` |  |  |  |  | yes | List the parts: where each runs, its files, what it costs a page, and the notices it owes. |
+| `--json` | yes | yes | yes | yes | yes | One line of JSON on standard output, and nothing else. |
+| `--strict` | yes | yes | yes |  |  | Anything reported at all is a failure, and nothing is written. |
+| `--quiet` | yes | yes | yes |  | yes | Print errors and nothing else. |
 <!-- command-flags:end -->
 
 - `--to svg,png` and `--to=svg,png` both work.
@@ -52,11 +57,12 @@ Reminders for the four commands: their flags, exit codes, the JSON report and th
 <!-- exit-codes:start -->
 | Code | Meaning |
 | --- | --- |
-| `0` | It drew, the script checked clean, or the book was written. |
+| `0` | It drew, the script checked clean, the book was written, or the parts were vendored or checked clean. |
 | `1` | The arguments were wrong: an unknown option, a bad value, no script. Nothing is written. |
 | `2` | The script had errors, render was given a file that is not a book, or --animate found no figure on its page; with --strict, anything reported at all. What could be drawn is written, unless --strict. |
 | `3` | A file could not be read or written. A linked file that could not be read is drawn as its placeholder and the files are written; for anything else, nothing is. |
 | `4` | draw --prompt got no script back: the AI helper is not installed, is not signed in, or failed. Nothing is written. |
+| `5` | vendor --check found a vendored folder that does not match its VENDOR.json: a file that differs, is missing, or was added. |
 <!-- exit-codes:end -->
 
 ## The JSON report

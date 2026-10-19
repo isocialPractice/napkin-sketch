@@ -11,7 +11,7 @@ import { MEASURED_ANIMATION_TYPES, measuredAnimationType } from '../core/script/
 import { RENDER_FORMATS, type RenderFormat } from '../core/script/render.js';
 
 /** The words that select a subcommand, each of which runs with no window and no Electron. */
-export const COMMANDS = ['draw', 'check', 'render', 'verbs'] as const;
+export const COMMANDS = ['draw', 'check', 'render', 'verbs', 'vendor'] as const;
 
 export type Command = (typeof COMMANDS)[number];
 
@@ -54,6 +54,16 @@ export interface CommandArgs {
   /** `--facing`: which way the figure travels. */
   facing: AnimationFacing | undefined;
   category: string | undefined;
+  /** `vendor`: the parts to copy, by name or subpath. */
+  parts: string[];
+  /** `vendor --types`: copy each part's declarations too. */
+  types: boolean;
+  /** `vendor --offline`: reach no network, and record no registry address. */
+  offline: boolean;
+  /** `vendor --check <dir>`: the vendored folder to check against its record. */
+  verify: string | undefined;
+  /** `vendor --list`: list the parts instead of copying any. */
+  list: boolean;
   json: boolean;
   strict: boolean;
   quiet: boolean;
@@ -71,6 +81,10 @@ export const COMMAND_SUMMARIES: { readonly [C in Command]: { usage: string; summ
   check: { usage: 'check <script | ->', summary: 'Read and run a script, report what is wrong, write nothing.' },
   render: { usage: 'render <book.skbk>', summary: 'Write a sketch book as svg, png, pdf, skbk or jsx files, or its figure as animation frames.' },
   verbs: { usage: 'verbs', summary: "List napkin script's verbs and the shape library." },
+  vendor: {
+    usage: 'vendor <part...> --out <dir>',
+    summary: 'Copy parts of the package into a project, pinned by version and hash, with a check that needs nothing installed.',
+  },
 };
 
 /** Each flag as it is written, and what it does, for the documentation's table of which command takes which. */
@@ -94,6 +108,10 @@ export const FLAG_SUMMARIES: { readonly [flag: string]: { value?: string; summar
   '--frames': { value: '<n>', summary: `How many frames --animate spreads the cycle across: ${MIN_SEQUENCE_FRAMES} to ${MAX_SEQUENCE_FRAMES}, the cycle's own length unless given.` },
   '--facing': { value: 'left|right', summary: 'Which way the --animate figure travels, when its feet do not say.' },
   '--category': { value: '<name>', summary: 'Only this category of verbs.' },
+  '--types': { summary: "Copy each part's type declarations beside it." },
+  '--offline': { summary: "Reach no network: record no registry address or integrity for the copy." },
+  '--check': { value: '<dir>', summary: 'Check a vendored folder against its VENDOR.json, with no network: a file that differs, is missing or was added fails.' },
+  '--list': { summary: 'List the parts: where each runs, its files, what it costs a page, and the notices it owes.' },
   '--json': { summary: 'One line of JSON on standard output, and nothing else.' },
   '--strict': { summary: 'Anything reported at all is a failure, and nothing is written.' },
   '--quiet': { summary: 'Print errors and nothing else.' },
@@ -105,10 +123,11 @@ export const COMMAND_FLAGS: { readonly [C in Command]: readonly string[] } = {
   check: ['--base', '--asset', '--use', '--seed', '--limit', '--json', '--strict', '--quiet'],
   render: ['--to', '--page', '--animate', '--frames', '--facing', '--out', '--name', '--base', '--font', '--scale', '--crop', '--json', '--strict', '--quiet'],
   verbs: ['--category', '--json'],
+  vendor: ['--out', '--types', '--offline', '--check', '--list', '--json', '--quiet'],
 };
 
 /** The flags that take a value: the next token, or what follows `=` in `--flag=value`. */
-const VALUE_FLAGS = new Set(['--to', '--out', '--name', '--base', '--asset', '--use', '--font', '--composition-style', '--seed', '--scale', '--crop', '--limit', '--page', '--category', '--prompt', '--helper', '--animate', '--frames', '--facing']);
+const VALUE_FLAGS = new Set(['--to', '--out', '--name', '--base', '--asset', '--use', '--font', '--composition-style', '--seed', '--scale', '--crop', '--limit', '--page', '--category', '--prompt', '--helper', '--animate', '--frames', '--facing', '--check']);
 
 /** A `--crop` value, or a sentence saying what is wrong with it. */
 function readCrop(value: string): { crop: CropArg } | { error: string } {
@@ -194,6 +213,9 @@ function readFlag(args: CommandArgs, flag: string, value: string): void {
     case '--category':
       args.category = value;
       break;
+    case '--check':
+      args.verify = value;
+      break;
     case '--prompt':
       // Kept even when empty, so the missing script is not reported as well.
       args.prompt = value.trim();
@@ -257,6 +279,11 @@ export function parseCommand(command: Command, argv: readonly string[]): Command
     frames: undefined,
     facing: undefined,
     category: undefined,
+    parts: [],
+    types: false,
+    offline: false,
+    verify: undefined,
+    list: false,
     json: false,
     strict: false,
     quiet: false,
@@ -288,6 +315,9 @@ export function parseCommand(command: Command, argv: readonly string[]): Command
       else if (flag === '--json') args.json = true;
       else if (flag === '--strict') args.strict = true;
       else if (flag === '--quiet') args.quiet = true;
+      else if (flag === '--types') args.types = true;
+      else if (flag === '--offline') args.offline = true;
+      else if (flag === '--list') args.list = true;
       continue;
     }
     const value = eq > 0 ? token.slice(eq + 1) : argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[++i] : undefined;
@@ -302,7 +332,16 @@ export function parseCommand(command: Command, argv: readonly string[]): Command
     args.errors.push('--animate cuts every frame to one box of its own, so it takes no --crop');
   }
 
-  if (command === 'verbs') {
+  if (command === 'vendor') {
+    // One of three things: copy parts, check a copy, or list what there is.
+    args.parts = positional;
+    const copying = positional.length > 0 || args.out !== undefined || args.types || args.offline;
+    const modes = [copying && 'copy parts with --out', args.verify !== undefined && '--check a folder', args.list && '--list'].filter(Boolean);
+    if (modes.length > 1) args.errors.push(`vendor does one thing at a time; not ${modes.join(' and ')}`);
+    else if (modes.length === 0 && !args.help) args.errors.push('vendor needs the parts to copy and --out, --check <dir>, or --list');
+    else if (copying && positional.length === 0) args.errors.push('vendor needs the parts to copy: run "napkin-sketch vendor --list" for them');
+    else if (copying && args.out === undefined) args.errors.push('vendor needs --out, the folder to copy the parts into');
+  } else if (command === 'verbs') {
     if (positional.length > 0) args.errors.push(`verbs takes no script; not "${positional.join(' ')}"`);
   } else if (args.prompt !== undefined && positional.length > 0) {
     args.errors.push(`draw reads a script or a --prompt, not both; not ${positional.join(', ')} with --prompt`);

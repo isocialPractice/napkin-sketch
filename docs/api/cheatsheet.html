@@ -43,7 +43,7 @@
 <h1 id="api-cheatsheet">API cheatsheet<a class="anchor" href="#api-cheatsheet" aria-label="Link to this section">#</a></h1>
 <details class="toc" open><summary>On this page</summary><ul><li><a href="#every-verb">Every verb</a></li><li><a href="#the-command-line">The command line</a></li><li><a href="#the-imports">The imports</a></li><li><a href="#render-options">Render options</a></li><li><a href="#exit-codes">Exit codes</a></li><li><a href="#every-category">Every category</a></li></ul></details>
 <p><a href="index.html">API hub</a> · <a href="quickstart.html">Quickstart</a> · <strong>Cheatsheet</strong></p>
-<p>The whole API on one page: every verb, the command line, the two imports, the render options and the exit codes.</p>
+<p>The whole API on one page: every verb, the command line, the imports, the render options and the exit codes.</p>
 <h2 id="every-verb">Every verb<a class="anchor" href="#every-verb" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>
 <thead><tr><th>Category</th><th>Verb</th><th>Written</th><th>Does</th></tr></thead>
@@ -128,6 +128,7 @@
 <tr><td><code>napkin-sketch check &lt;script | -&gt;</code></td><td>Read and run a script, report what is wrong, write nothing.</td></tr>
 <tr><td><code>napkin-sketch render &lt;book.skbk&gt;</code></td><td>Write a sketch book as svg, png, pdf, skbk or jsx files, or its figure as animation frames.</td></tr>
 <tr><td><code>napkin-sketch verbs</code></td><td>List napkin script's verbs and the shape library.</td></tr>
+<tr><td><code>napkin-sketch vendor &lt;part...&gt; --out &lt;dir&gt;</code></td><td>Copy parts of the package into a project, pinned by version and hash, with a check that needs nothing installed.</td></tr>
 </tbody></table></div>
 <ul>
 <li><code>napkin-sketch draw card.napkin --to svg,png,pdf,skbk --out out --json</code></li>
@@ -138,10 +139,9 @@
 <div class="table-wrap"><table>
 <thead><tr><th>Import</th><th>For</th></tr></thead>
 <tbody>
-<tr><td><code>import { evaluate, drawSvg, renderSketch, renderBook, parseScript, createComposition } from '@isocialpractice/napkin-sketch'</code></td><td>Scripts and compositions, anywhere</td></tr>
+<tr><td><code>import { evaluate, drawSvg, renderSketch, renderBook, parseScript, createComposition } from '@isocialpractice/napkin-sketch'</code></td><td>Scripts, compositions and the <a href="engines/cheatsheet.html">drawing engines</a>, anywhere</td></tr>
 <tr><td><code>import { drawFile, drawToFiles, writeBook, loadAssets, resolveLinkFromDir } from '@isocialpractice/napkin-sketch/node'</code></td><td>Files, in Node</td></tr>
-<tr><td><code>import { createComposition, parseColor, escapeXml, isPng } from '@isocialpractice/napkin-sketch/graphic-design'</code></td><td>Compositions alone, in a page that loads nothing else: <a href="node/index.html#the-entries">the entries</a></td></tr>
-<tr><td><code>import { booleanOp, eraseMarks, wipeMarks, stackFaces, splitMark, liquifyMarks } from '@isocialpractice/napkin-sketch'</code></td><td>The drawing engines, on a page: <a href="engines/cheatsheet.html">their cheatsheet</a></td></tr>
+<tr><td><code>import { createComposition } from '@isocialpractice/napkin-sketch/graphic-design'</code>, and <code>/sharpen</code> and <code>/engines</code> alike</td><td>One part alone, without the editor: <a href="node/index.html#the-entries">the entries</a>; <code>napkin-sketch vendor</code> copies one into a project</td></tr>
 </tbody></table></div>
 <h2 id="render-options">Render options<a class="anchor" href="#render-options" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>
@@ -160,11 +160,12 @@
 <div class="table-wrap"><table>
 <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
 <tbody>
-<tr><td><code>0</code></td><td>It drew, the script checked clean, or the book was written.</td></tr>
+<tr><td><code>0</code></td><td>It drew, the script checked clean, the book was written, or the parts were vendored or checked clean.</td></tr>
 <tr><td><code>1</code></td><td>The arguments were wrong: an unknown option, a bad value, no script. Nothing is written.</td></tr>
 <tr><td><code>2</code></td><td>The script had errors, render was given a file that is not a book, or --animate found no figure on its page; with --strict, anything reported at all. What could be drawn is written, unless --strict.</td></tr>
 <tr><td><code>3</code></td><td>A file could not be read or written. A linked file that could not be read is drawn as its placeholder and the files are written; for anything else, nothing is.</td></tr>
 <tr><td><code>4</code></td><td>draw --prompt got no script back: the AI helper is not installed, is not signed in, or failed. Nothing is written.</td></tr>
+<tr><td><code>5</code></td><td>vendor --check found a vendored folder that does not match its VENDOR.json: a file that differs, is missing, or was added.</td></tr>
 </tbody></table></div>
 <h2 id="every-category">Every category<a class="anchor" href="#every-category" aria-label="Link to this section">#</a></h2>
 <div class="table-wrap"><table>

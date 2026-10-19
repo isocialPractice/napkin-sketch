@@ -337,6 +337,8 @@ async function main(): Promise<void> {
       cwd: process.cwd(),
       version: readVersion(),
       env: process.env,
+      // This file is dist/cli/index.js, so the built package is the folder above.
+      dist: join(HERE, '..'),
     });
     return;
   }

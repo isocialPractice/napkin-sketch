@@ -2,7 +2,7 @@
 
 [API hub](API.md) · [Quickstart](API-QUICKSTART.md) · **Cheatsheet**
 
-The whole API on one page: every verb, the command line, the two imports, the render options and the exit codes.
+The whole API on one page: every verb, the command line, the imports, the render options and the exit codes.
 
 ## Every verb
 
@@ -91,6 +91,7 @@ The whole API on one page: every verb, the command line, the two imports, the re
 | `napkin-sketch check <script \| ->` | Read and run a script, report what is wrong, write nothing. |
 | `napkin-sketch render <book.skbk>` | Write a sketch book as svg, png, pdf, skbk or jsx files, or its figure as animation frames. |
 | `napkin-sketch verbs` | List napkin script's verbs and the shape library. |
+| `napkin-sketch vendor <part...> --out <dir>` | Copy parts of the package into a project, pinned by version and hash, with a check that needs nothing installed. |
 <!-- commands:end -->
 
 - `napkin-sketch draw card.napkin --to svg,png,pdf,skbk --out out --json`
@@ -101,10 +102,9 @@ The whole API on one page: every verb, the command line, the two imports, the re
 
 | Import | For |
 | --- | --- |
-| `import { evaluate, drawSvg, renderSketch, renderBook, parseScript, createComposition } from '@isocialpractice/napkin-sketch'` | Scripts and compositions, anywhere |
+| `import { evaluate, drawSvg, renderSketch, renderBook, parseScript, createComposition } from '@isocialpractice/napkin-sketch'` | Scripts, compositions and the [drawing engines](docs/api/engines/CHEATSHEET.md), anywhere |
 | `import { drawFile, drawToFiles, writeBook, loadAssets, resolveLinkFromDir } from '@isocialpractice/napkin-sketch/node'` | Files, in Node |
-| `import { createComposition, parseColor, escapeXml, isPng } from '@isocialpractice/napkin-sketch/graphic-design'` | Compositions alone, in a page that loads nothing else: [the entries](docs/api/node/README.md#the-entries) |
-| `import { booleanOp, eraseMarks, wipeMarks, stackFaces, splitMark, liquifyMarks } from '@isocialpractice/napkin-sketch'` | The drawing engines, on a page: [their cheatsheet](docs/api/engines/CHEATSHEET.md) |
+| `import { createComposition } from '@isocialpractice/napkin-sketch/graphic-design'`, and `/sharpen` and `/engines` alike | One part alone, without the editor: [the entries](docs/api/node/README.md#the-entries); `napkin-sketch vendor` copies one into a project |
 
 ## Render options
 
@@ -124,11 +124,12 @@ The whole API on one page: every verb, the command line, the two imports, the re
 <!-- exit-codes:start -->
 | Code | Meaning |
 | --- | --- |
-| `0` | It drew, the script checked clean, or the book was written. |
+| `0` | It drew, the script checked clean, the book was written, or the parts were vendored or checked clean. |
 | `1` | The arguments were wrong: an unknown option, a bad value, no script. Nothing is written. |
 | `2` | The script had errors, render was given a file that is not a book, or --animate found no figure on its page; with --strict, anything reported at all. What could be drawn is written, unless --strict. |
 | `3` | A file could not be read or written. A linked file that could not be read is drawn as its placeholder and the files are written; for anything else, nothing is. |
 | `4` | draw --prompt got no script back: the AI helper is not installed, is not signed in, or failed. Nothing is written. |
+| `5` | vendor --check found a vendored folder that does not match its VENDOR.json: a file that differs, is missing, or was added. |
 <!-- exit-codes:end -->
 
 ## Every category
